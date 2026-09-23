@@ -1,0 +1,1145 @@
+{
+ "2": {
+  "status": "OK",
+  "lat": -21.1549337,
+  "lng": -47.7967108,
+  "formatted": "R. Dr. Edgar Cajado, 245 - Campos Elísios, Ribeirão Preto - SP, 14080-460, Brazil",
+  "cidade_geo": "Ribeirão Preto",
+  "location_type": "ROOFTOP",
+  "query": "R Dr Edgard Cajado, 245, Campos Elíseos, Ribeirao Preto, SP, 14080-460, Brasil"
+ },
+ "3": {
+  "status": "OK",
+  "lat": -23.6077999,
+  "lng": -46.7241238,
+  "formatted": "Rua João Avelino Pinho Mellão, 266 - Fazenda Morumbi, São Paulo - SP, 05659-010, Brazil",
+  "cidade_geo": "São Paulo",
+  "location_type": "ROOFTOP",
+  "query": "R João A P Mellão, 864, Fazenda Morumbi, Sao Paulo, SP, 05659-010, Brasil"
+ },
+ "4": {
+  "status": "OK",
+  "lat": -22.7491284,
+  "lng": -47.377037,
+  "formatted": "R. do Rayon, 86 - Jardim Esmeralda, Santa Bárbara d'Oeste - SP, 13454-028, Brazil",
+  "cidade_geo": "Santa Bárbara d'Oeste",
+  "location_type": "ROOFTOP",
+  "query": "R do Rayon, 86, Jardim Esmeralda, Santa Barbara DOeste, SP, 13454-028, Brasil"
+ },
+ "5": {
+  "status": "OK",
+  "lat": -22.9862739,
+  "lng": -47.15425010000001,
+  "formatted": "CITTA DI SALERNO - Città Di Salerno - Jardim Esplanada, Campinas - SP, 13057-000, Brazil",
+  "cidade_geo": "Campinas",
+  "location_type": "ROOFTOP",
+  "query": "R Luzia S da Silva, 58, Residencial Cittá di Salerno, Campinas, SP, 13057-022, Brasil"
+ },
+ "6": {
+  "status": "OK",
+  "lat": -22.8095684,
+  "lng": -47.2222853,
+  "formatted": "R. Piauí, 35 - Jardim Nova Veneza (Nova Veneza), Sumaré - SP, 13177-152, Brazil",
+  "cidade_geo": "Sumaré",
+  "location_type": "ROOFTOP",
+  "query": "R Piauí, 35, Jardim Nova Veneza (Nova Veneza), Sumare, SP, 13177-152, Brasil"
+ },
+ "7": {
+  "status": "OK",
+  "lat": -23.44977,
+  "lng": -47.4886398,
+  "formatted": "R. Darcy Landulfo, 431 - Jardim Sao Guilherme, Sorocaba - SP, 18074-642, Brazil",
+  "cidade_geo": "Sorocaba",
+  "location_type": "ROOFTOP",
+  "query": "R Darcy Landulfo, 431, Jardim São Guilherme, Sorocaba, SP, 18074-642, Brasil"
+ },
+ "8": {
+  "status": "OK",
+  "lat": -21.1933856,
+  "lng": -47.78160560000001,
+  "formatted": "R. Dr. Gustavo Armbrust, 225 - Pres. Medici, Ribeirão Preto - SP, 14091-360, Brazil",
+  "cidade_geo": "Ribeirão Preto",
+  "location_type": "ROOFTOP",
+  "query": "R Dr Gustavo Armbrust, 225, Presidente Médici, Ribeirao Preto, SP, 14091-360, Brasil"
+ },
+ "9": {
+  "status": "OK",
+  "lat": -23.6029948,
+  "lng": -46.5002806,
+  "formatted": "R. Noite de Maio, 31 - Conj. Promorar Sapopemba, São Paulo - SP, 03927-040, Brazil",
+  "cidade_geo": "São Paulo",
+  "location_type": "ROOFTOP",
+  "query": "R Noite de Maio, 31, Conjunto Promorar Sapopemba, Sao Paulo, SP, 03927-040, Brasil"
+ },
+ "10": {
+  "status": "OK",
+  "lat": -23.702723,
+  "lng": -46.6129644,
+  "formatted": "R. Margarida Maria Alves, 53 - Serraria, Diadema - SP, 09980-540, Brazil",
+  "cidade_geo": "Diadema",
+  "location_type": "ROOFTOP",
+  "query": "R Margarida M Alves, 53, Serraria, Diadema, SP, 09980-540, Brasil"
+ },
+ "11": {
+  "status": "OK",
+  "lat": -22.2992888,
+  "lng": -49.0970063,
+  "formatted": "R. Dirce Regina Crepaldi Negrato, 3-52 - Parque Roosevelt, Bauru - SP, 17064-438, Brazil",
+  "cidade_geo": "Bauru",
+  "location_type": "RANGE_INTERPOLATED",
+  "query": "R Dirce R C Negrato, 3-52, Parque Roosevelt, Bauru, SP, 17064-438, Brasil"
+ },
+ "12": {
+  "status": "OK",
+  "lat": -23.8314517,
+  "lng": -49.432007,
+  "formatted": "R. Gustavo Rodrigues de Rezende, n. 533 - Santa Terezinha, Riversul - SP, 18470-000, Brazil",
+  "cidade_geo": "Riversul",
+  "location_type": "ROOFTOP",
+  "query": "Rua Gustavo Rodrigues de Rezende, 533, Centro, Riversul, SP, 18470-003, Brasil"
+ },
+ "13": {
+  "status": "OK",
+  "lat": -23.1874725,
+  "lng": -45.8720311,
+  "formatted": "R. Dr. Paulo Barbosa Lima, 29 - Monte Castelo, São José dos Campos - SP, 12215-520, Brazil",
+  "cidade_geo": "São José dos Campos",
+  "location_type": "ROOFTOP",
+  "query": "R Dr Paulo B Lima, 29, Monte Castelo, Sao Jose dos Campos, SP, 12215-520, Brasil"
+ },
+ "14": {
+  "status": "OK",
+  "lat": -21.124607,
+  "lng": -48.01218069999999,
+  "formatted": "R. Antônio Baldo, 627 - Conj. Hab. Antônio Pedro Ortolan, Sertãozinho - SP, 14177-262, Brazil",
+  "cidade_geo": "Sertãozinho",
+  "location_type": "ROOFTOP",
+  "query": "R Antonio Baldo, 627, Conjunto Habitacional Antônio Pedro Ortolan, Sertaozinho, SP, 14177-262, Brasil"
+ },
+ "15": {
+  "status": "OK",
+  "lat": -22.3748083,
+  "lng": -47.4065816,
+  "formatted": "R. Irineu Tôrres, 1599 - Parque Cidade Jardim, Araras - SP, 13602-060, Brazil",
+  "cidade_geo": "Araras",
+  "location_type": "ROOFTOP",
+  "query": "R Irineu Torres, 1599, Distrito Industrial III Jacob Maretto, Araras, SP, 13602-106, Brasil"
+ },
+ "16": {
+  "status": "OK",
+  "lat": -23.176486,
+  "lng": -47.3042038,
+  "formatted": "R. São Bartolomeu, 10 - Jardim Bom Retiro, Salto - SP, 13327-464, Brazil",
+  "cidade_geo": "Salto",
+  "location_type": "ROOFTOP",
+  "query": "R S Bartolomeu, 10, Jardim Bom Retiro, Salto, SP, 13327-464, Brasil"
+ },
+ "17": {
+  "status": "OK",
+  "lat": -22.9194785,
+  "lng": -47.0639838,
+  "formatted": "R. Thomaz Alves Brown, 212 - Vila Joao Jorge, Campinas - SP, 13041-316, Brazil",
+  "cidade_geo": "Campinas",
+  "location_type": "ROOFTOP",
+  "query": "R Thomaz A Brown, 212, Jardim do Trevo, Campinas, SP, 13041-316, Brasil"
+ },
+ "18": {
+  "status": "OK",
+  "lat": -23.6380204,
+  "lng": -46.51315049999999,
+  "formatted": "R. Grécia, 335 - Parque das Nações, Santo André - SP, 09280-360, Brazil",
+  "cidade_geo": "Santo André",
+  "location_type": "ROOFTOP",
+  "query": "R Grécia, 335, Parque das Nações, Santo Andre, SP, 09280-360, Brasil"
+ },
+ "19": {
+  "status": "OK",
+  "lat": -20.8015993,
+  "lng": -49.3611849,
+  "formatted": "R. Álvares de Azevedo, 529 - Vila Ideal, São José do Rio Preto - SP, 15060-345, Brazil",
+  "cidade_geo": "São José do Rio Preto",
+  "location_type": "ROOFTOP",
+  "query": "R Álvares de Azevedo, 529, Vila Ideal, Sao Jose do Rio Preto, SP, 15060-345, Brasil"
+ },
+ "20": {
+  "status": "OK",
+  "lat": -20.9355333,
+  "lng": -50.4957743,
+  "formatted": "R. Santo Antônio do Aracangua, 446 - Centro, Santo Antônio do Aracanguá - SP, 16130-000, Brazil",
+  "cidade_geo": "Santo Antônio do Aracanguá",
+  "location_type": "ROOFTOP",
+  "query": "R. Santo Antônio do Aracangua, 446, Centro, Santo Antonio do Aracangua, SP, 16130-000, Brasil"
+ },
+ "21": {
+  "status": "OK",
+  "lat": -21.2025497,
+  "lng": -47.8355465,
+  "formatted": "R. Aristides Bernardes Barreto, 621 - Parque Ribeirao Preto, Ribeirão Preto - SP, 14031-284, Brazil",
+  "cidade_geo": "Ribeirão Preto",
+  "location_type": "ROOFTOP",
+  "query": "R Aristides B Barreto, 621, Jardim Marchesi, Ribeirao Preto, SP, 14031-284, Brasil"
+ },
+ "22": {
+  "status": "OK",
+  "lat": -14.235004,
+  "lng": -51.92528,
+  "formatted": "Brazil",
+  "cidade_geo": "",
+  "location_type": "APPROXIMATE",
+  "query": "Brasil"
+ },
+ "23": {
+  "status": "OK",
+  "lat": -21.1821831,
+  "lng": -47.750006,
+  "formatted": "R. Cezário Zeotti, 1503 - Parque Sao Sebastiao, Ribeirão Preto - SP, 14093-250, Brazil",
+  "cidade_geo": "Ribeirão Preto",
+  "location_type": "ROOFTOP",
+  "query": "R Cezário Zeotti, 1503, Parque São Sebastião, Ribeirao Preto, SP, 14093-250, Brasil"
+ },
+ "24": {
+  "status": "OK",
+  "lat": -23.4752727,
+  "lng": -46.6397883,
+  "formatted": "Rua Lacerda Marques, 982 - Lauzane Paulista, São Paulo - SP, 02441-200, Brazil",
+  "cidade_geo": "São Paulo",
+  "location_type": "ROOFTOP",
+  "query": "R Lacerda Marques, 982, Lauzane Paulista, Sao Paulo, SP, 02441-200, Brasil"
+ },
+ "25": {
+  "status": "OK",
+  "lat": -20.8894969,
+  "lng": -51.36419110000001,
+  "formatted": "R. Princesa Isabel, 1605 - Vila Messias, Andradina - SP, 16901-133, Brazil",
+  "cidade_geo": "Andradina",
+  "location_type": "ROOFTOP",
+  "query": "R Prca Izabel, 1605, Stella Maris, Andradina, SP, 16901-133, Brasil"
+ },
+ "26": {
+  "status": "OK",
+  "lat": -21.2296498,
+  "lng": -47.7625235,
+  "formatted": "Jardim Sao Jose, Ribeirão Preto - SP, Brazil",
+  "cidade_geo": "Ribeirão Preto",
+  "location_type": "APPROXIMATE",
+  "query": "Cond Bsq das Caviúnas, 230, Jardim São José, Ribeirao Preto, SP, 14098-102, Brasil"
+ },
+ "27": {
+  "status": "OK",
+  "lat": -23.3146456,
+  "lng": -46.7228473,
+  "formatted": "R. Ignes de Almeida Santos, 32 - Vila Bela, Franco da Rocha - SP, Brazil",
+  "cidade_geo": "Franco da Rocha",
+  "location_type": "ROOFTOP",
+  "query": "Rua Ignez de Almeida Santos, 32, Jardim Melissa, Franco da Rocha, SP, 07847-256, Brasil"
+ },
+ "28": {
+  "status": "OK",
+  "lat": -21.1832615,
+  "lng": -47.8337613,
+  "formatted": "R. Rangel Pestana, 1414 - Vila Virginia, Ribeirão Preto - SP, 14030-565, Brazil",
+  "cidade_geo": "Ribeirão Preto",
+  "location_type": "ROOFTOP",
+  "query": "R Rangel Pestana, 1414, Jardim Piratininga, Ribeirao Preto, SP, 14030-565, Brasil"
+ },
+ "29": {
+  "status": "OK",
+  "lat": -14.235004,
+  "lng": -51.92528,
+  "formatted": "Brazil",
+  "cidade_geo": "",
+  "location_type": "APPROXIMATE",
+  "query": "Brasil"
+ },
+ "30": {
+  "status": "OK",
+  "lat": -23.6997357,
+  "lng": -46.6188746,
+  "formatted": "R. Bororós, 71 - Conceição, Diadema - SP, 09990-270, Brazil",
+  "cidade_geo": "Diadema",
+  "location_type": "ROOFTOP",
+  "query": "R Bororós, 71, Conceição, Diadema, SP, 09990-270, Brasil"
+ },
+ "31": {
+  "status": "OK",
+  "lat": -23.2793526,
+  "lng": -47.30558509999999,
+  "formatted": "R. Luís Alberto Rodrigues de Oliveira, 511 - Jardim Sao Jose, Itu - SP, 13310-300, Brazil",
+  "cidade_geo": "Itu",
+  "location_type": "ROOFTOP",
+  "query": "R Luiz A R de Oliveira, 511, Jardim São José, Itu, SP, 13310-300, Brasil"
+ },
+ "32": {
+  "status": "OK",
+  "lat": -20.8015832,
+  "lng": -49.4224658,
+  "formatted": "R. Fausta Colus de Carvalho, 355 - Res. Macedo Teles I, São José do Rio Preto - SP, 15040-537, Brazil",
+  "cidade_geo": "São José do Rio Preto",
+  "location_type": "ROOFTOP",
+  "query": "R Fausta C de Carvalho, 355, Residencial Macedo Teles I, Sao Jose do Rio Preto, SP, 15040-537, Brasil"
+ },
+ "33": {
+  "status": "OK",
+  "lat": -24.513165,
+  "lng": -47.835747,
+  "formatted": "R. Leodato Rodrigues, 11 - Nosso Teto, Registro - SP, 11900-000, Brazil",
+  "cidade_geo": "Registro",
+  "location_type": "ROOFTOP",
+  "query": "R. Leodato Rodrigues, 11, Nosso Teto, Registro, SP, 11900-000, Brasil"
+ },
+ "34": {
+  "status": "OK",
+  "lat": -23.4922817,
+  "lng": -46.7150611,
+  "formatted": "R. José Benedito Mari, 30 - Brasilândia, São Paulo - SP, 02933-000, Brazil",
+  "cidade_geo": "São Paulo",
+  "location_type": "ROOFTOP",
+  "query": "R José B Mari, 30, Vila Palmeiras, Sao Paulo, SP, 02933-000, Brasil"
+ },
+ "35": {
+  "status": "OK",
+  "lat": -20.8858079,
+  "lng": -51.3738715,
+  "formatted": "R. Campo Grande, 589 - Stella Maris, Andradina - SP, 16901-185, Brazil",
+  "cidade_geo": "Andradina",
+  "location_type": "RANGE_INTERPOLATED",
+  "query": "R Cpo Grande, 589, Stella Maris, Andradina, SP, 16901-185, Brasil"
+ },
+ "36": {
+  "status": "OK",
+  "lat": -23.0013874,
+  "lng": -46.8204285,
+  "formatted": "R. Antônio Alves Lanhoso, 03 - Jardim Harmonia, Itatiba - SP, 13253-502, Brazil",
+  "cidade_geo": "Itatiba",
+  "location_type": "ROOFTOP",
+  "query": "R Antônio A Lanhoso, 03, Jardim Harmonia, Itatiba, SP, 13253-502, Brasil"
+ },
+ "37": {
+  "status": "OK",
+  "lat": -23.6852522,
+  "lng": -46.7097701,
+  "formatted": "Av. dos Lagos, 595 - Veleiros, São Paulo - SP, 04774-000, Brazil",
+  "cidade_geo": "São Paulo",
+  "location_type": "ROOFTOP",
+  "query": "Av dos Lagos, 595, Veleiros, Sao Paulo, SP, 04774-000, Brasil"
+ },
+ "38": {
+  "status": "OK",
+  "lat": -23.5090912,
+  "lng": -47.4892662,
+  "formatted": "R. José Oliveira Lamberti, 106 - Cidade Jardim, Sorocaba - SP, 18055-310, Brazil",
+  "cidade_geo": "Sorocaba",
+  "location_type": "ROOFTOP",
+  "query": "R José O Lamberti, 106, Jardim Americano, Sorocaba, SP, 18055-310, Brasil"
+ },
+ "39": {
+  "status": "OK",
+  "lat": -23.6026352,
+  "lng": -46.9375708,
+  "formatted": "R. Capane, 174 - Granja Carolina, Cotia - SP, 06700-180, Brazil",
+  "cidade_geo": "Cotia",
+  "location_type": "ROOFTOP",
+  "query": "R Capane, 174, Granja Carolina, Cotia, SP, 06700-180, Brasil"
+ },
+ "40": {
+  "status": "OK",
+  "lat": -14.235004,
+  "lng": -51.92528,
+  "formatted": "Brazil",
+  "cidade_geo": "",
+  "location_type": "APPROXIMATE",
+  "query": "Brasil"
+ },
+ "41": {
+  "status": "OK",
+  "lat": -22.6349865,
+  "lng": -47.1871068,
+  "formatted": "R. Pedro Damiano, 51 - Jardim Santa Rosa, Cosmópolis - SP, 13155-050, Brazil",
+  "cidade_geo": "Cosmópolis",
+  "location_type": "ROOFTOP",
+  "query": "Rua Pedro Damiano, 51, Conjunto Habitacional Vila Cosmos, Cosmopolis, SP, 13155-050, Brasil"
+ },
+ "42": {
+  "status": "OK",
+  "lat": -22.5672134,
+  "lng": -47.384193,
+  "formatted": "R. Moacir Camargo Silveira, 697 - Jardim Nova Suica, Limeira - SP, 13486-042, Brazil",
+  "cidade_geo": "Limeira",
+  "location_type": "ROOFTOP",
+  "query": "R Moacyr C Silveira, 697, Jardim Nova Suíça, Limeira, SP, 13486-042, Brasil"
+ },
+ "43": {
+  "status": "OK",
+  "lat": -23.7092129,
+  "lng": -46.858985,
+  "formatted": "R. Paraguai - Parque Paraiso, Itapecerica da Serra - SP, 06852-370, Brazil",
+  "cidade_geo": "Itapecerica da Serra",
+  "location_type": "GEOMETRIC_CENTER",
+  "query": "R Paraguai, 769, Parque Paraíso, Itapecerica da Serra, SP, 06852-370, Brasil"
+ },
+ "44": {
+  "status": "OK",
+  "lat": -22.9468883,
+  "lng": -47.1773952,
+  "formatted": "Lot. Res. Novo Mundo, Campinas - SP, 13058-308, Brazil",
+  "cidade_geo": "Campinas",
+  "location_type": "APPROXIMATE",
+  "query": "R Rita M N M Dascenzo, 157, Loteamento Residencial Novo Mundo, Campinas, SP, 13058-308, Brasil"
+ },
+ "45": {
+  "status": "OK",
+  "lat": -14.235004,
+  "lng": -51.92528,
+  "formatted": "Brazil",
+  "cidade_geo": "",
+  "location_type": "APPROXIMATE",
+  "query": "Brasil"
+ },
+ "46": {
+  "status": "OK",
+  "lat": -14.235004,
+  "lng": -51.92528,
+  "formatted": "Brazil",
+  "cidade_geo": "",
+  "location_type": "APPROXIMATE",
+  "query": "Brasil"
+ },
+ "47": {
+  "status": "OK",
+  "lat": -21.1390222,
+  "lng": -47.835393,
+  "formatted": "R. Joviano Oscar de Morais, 58 - Planalto Verde, Ribeirão Preto - SP, 14056-450, Brazil",
+  "cidade_geo": "Ribeirão Preto",
+  "location_type": "ROOFTOP",
+  "query": "R Joviano O de Morais, 58, Planalto Verde, Ribeirao Preto, SP, 14056-450, Brasil"
+ },
+ "48": {
+  "status": "OK",
+  "lat": -22.784507,
+  "lng": -47.043161,
+  "formatted": "R. Benedito Antunes de Campos, 131 - Bosque das Palmeiras, Campinas - SP, 13086-710, Brazil",
+  "cidade_geo": "Campinas",
+  "location_type": "ROOFTOP",
+  "query": "R Benedito A de Campos, 131, Bosque das Palmeiras, Campinas, SP, 13086-710, Brasil"
+ },
+ "49": {
+  "status": "OK",
+  "lat": -23.1096541,
+  "lng": -48.6104016,
+  "formatted": "R. Antônio Marsom - Vila São Domingos, Itatinga - SP, 18690-000, Brazil",
+  "cidade_geo": "Itatinga",
+  "location_type": "GEOMETRIC_CENTER",
+  "query": "Rua Antônio Marson, 70, Conjunto Habitacional Itatinga B, Itatinga, SP, 18691-042, Brasil"
+ },
+ "50": {
+  "status": "OK",
+  "lat": -23.6727735,
+  "lng": -46.6408339,
+  "formatted": "R. MambaraÍ, 3a - Vila Clara, São Paulo - SP, 04414-110, Brazil",
+  "cidade_geo": "São Paulo",
+  "location_type": "ROOFTOP",
+  "query": "R MambaraÍ, 3A, Vila Clara, Sao Paulo, SP, 04414-110, Brasil"
+ },
+ "51": {
+  "status": "OK",
+  "lat": -23.4941425,
+  "lng": -46.4925035,
+  "formatted": "R. Lagoa da Prata, 60 - Parque Cisper, São Paulo - SP, 03817-060, Brazil",
+  "cidade_geo": "São Paulo",
+  "location_type": "ROOFTOP",
+  "query": "R Lga da Prata, 60, Parque Císper, Sao Paulo, SP, 03817-060, Brasil"
+ },
+ "52": {
+  "status": "OK",
+  "lat": -23.5655944,
+  "lng": -47.4581069,
+  "formatted": "R. Pedro Nunes, 410 - Jardim Serrano, Votorantim - SP, 18117-121, Brazil",
+  "cidade_geo": "Votorantim",
+  "location_type": "ROOFTOP",
+  "query": "R Pedro Nunes, 410, Conjunto Habitacional Jardim Serrano, Votorantim, SP, 18117-121, Brasil"
+ },
+ "53": {
+  "status": "OK",
+  "lat": -23.0839548,
+  "lng": -47.1985567,
+  "formatted": "R. Ildefonso Stehle, 1416 - Cidade Nova I, Indaiatuba - SP, 13334-180, Brazil",
+  "cidade_geo": "Indaiatuba",
+  "location_type": "ROOFTOP",
+  "query": "R D Idelfonso Stehle, 1416, Cidade Nova I, Indaiatuba, SP, 13334-180, Brasil"
+ },
+ "54": {
+  "status": "OK",
+  "lat": -23.5545497,
+  "lng": -46.8260774,
+  "formatted": "R. Tertulina de Souza, 150 - Parque Jandaia, Carapicuíba - SP, 06330-245, Brazil",
+  "cidade_geo": "Carapicuíba",
+  "location_type": "ROOFTOP",
+  "query": "R Tertulina de Souza, 150, Parque Jandaia, Carapicuiba, SP, 06330-245, Brasil"
+ },
+ "55": {
+  "status": "OK",
+  "lat": -21.598157,
+  "lng": -48.3924083,
+  "formatted": "R. José Martinho Martins, 980 - Matão, SP, Brazil",
+  "cidade_geo": "Matão",
+  "location_type": "ROOFTOP",
+  "query": "R José M Martins, 980, Senhor Bom Jesus, Matao, SP, 15995-212, Brasil"
+ },
+ "56": {
+  "status": "OK",
+  "lat": -22.9057612,
+  "lng": -47.06082989999999,
+  "formatted": "Rua 13 de Maio, 140 - Centro, Campinas - SP, 13010-070, Brazil",
+  "cidade_geo": "Campinas",
+  "location_type": "ROOFTOP",
+  "query": "R Treze de Maio, 140, Centro, Campinas, SP, 13010-071, Brasil"
+ },
+ "57": {
+  "status": "OK",
+  "lat": -23.3498457,
+  "lng": -46.83119920000001,
+  "formatted": "Alpes Dos Aracas - R. Atenas, 20 - Jordanesia, Cajamar - SP, 07787-820, Brazil",
+  "cidade_geo": "Cajamar",
+  "location_type": "ROOFTOP",
+  "query": "R Atenas, 20, Alpes dos Araçás (Jordanésia), Cajamar, SP, 07787-785, Brasil"
+ },
+ "58": {
+  "status": "OK",
+  "lat": -23.5006781,
+  "lng": -47.4897044,
+  "formatted": "Alameda dos Gerânios, 111 - Jardim Simus, Sorocaba - SP, 18055-130, Brazil",
+  "cidade_geo": "Sorocaba",
+  "location_type": "ROOFTOP",
+  "query": "R Humberto de C Leme, 49, Vila Barão, Sorocaba, SP, 18061-318, Brasil"
+ },
+ "59": {
+  "status": "OK",
+  "lat": -23.580824,
+  "lng": -46.7920401,
+  "formatted": "R. Antônio Lins, 155 - Jardim Boa Vista (Zona Oeste), São Paulo - SP, 05584-060, Brazil",
+  "cidade_geo": "São Paulo",
+  "location_type": "ROOFTOP",
+  "query": "R Antônio Lins, 155, Jardim Boa Vista (Zona Oeste), Sao Paulo, SP, 05584-060, Brasil"
+ },
+ "60": {
+  "status": "OK",
+  "lat": -14.235004,
+  "lng": -51.92528,
+  "formatted": "Brazil",
+  "cidade_geo": "",
+  "location_type": "APPROXIMATE",
+  "query": "Brasil"
+ },
+ "61": {
+  "status": "OK",
+  "lat": -23.5039752,
+  "lng": -47.5033287,
+  "formatted": "R. Benedito Henrique da Costa, 358 - Parque Manchester, Sorocaba - SP, 18056-400, Brazil",
+  "cidade_geo": "Sorocaba",
+  "location_type": "ROOFTOP",
+  "query": "R Benedito H da Costa, 358, Parque Manchester, Sorocaba, SP, 18056-400, Brasil"
+ },
+ "62": {
+  "status": "OK",
+  "lat": -23.5324858,
+  "lng": -46.55821299999999,
+  "formatted": "R. Eduardo Tamer, 192 - Maranhão, São Paulo - SP, 03073-110, Brazil",
+  "cidade_geo": "São Paulo",
+  "location_type": "ROOFTOP",
+  "query": "R Eduardo Tamer, 192, Maranhão, Sao Paulo, SP, 03073-110, Brasil"
+ },
+ "63": {
+  "status": "OK",
+  "lat": -22.2767177,
+  "lng": -49.0865151,
+  "formatted": "R. dos Gráficos, 482 - Nucleo Res. Edison Bastos Gasparini, Bauru - SP, 17022-440, Brazil",
+  "cidade_geo": "Bauru",
+  "location_type": "ROOFTOP",
+  "query": "R dos Gráficos, 482, Núcleo Residencial Edison Bastos Gasparini, Bauru, SP, 17022-440, Brasil"
+ },
+ "64": {
+  "status": "OK",
+  "lat": -22.6006169,
+  "lng": -47.40317839999999,
+  "formatted": "R. Cristiano Bürger Sobrinho, 632 - Jardim Gustavo Peccinini, Limeira - SP, 13481-345, Brazil",
+  "cidade_geo": "Limeira",
+  "location_type": "ROOFTOP",
+  "query": "R Cristiano B Sobrinho, 632, Conjunto Residencial Victor D'Andrea, Limeira, SP, 13481-345, Brasil"
+ },
+ "65": {
+  "status": "OK",
+  "lat": -22.5937281,
+  "lng": -47.5021665,
+  "formatted": "Rua Antônio Franco de Campos, 360 - Jardim Flórida, Iracemápolis - SP, 13495-000, Brazil",
+  "cidade_geo": "Iracemápolis",
+  "location_type": "ROOFTOP",
+  "query": "Rua Antonio Franco de Campos, 360, Jardim Residencial Flórida, Iracemapolis, SP, 13497-428, Brasil"
+ },
+ "66": {
+  "status": "OK",
+  "lat": -23.2034199,
+  "lng": -45.95286249999999,
+  "formatted": "R. Inez Maria Cuoghi, 200 - Urbanova, São José dos Campos - SP, 12244-857, Brazil",
+  "cidade_geo": "São José dos Campos",
+  "location_type": "ROOFTOP",
+  "query": "R Inez M Cuoghi, 200, Urbanova, Sao Jose dos Campos, SP, 12244-857, Brasil"
+ },
+ "67": {
+  "status": "OK",
+  "lat": -23.0424949,
+  "lng": -47.17767569999999,
+  "formatted": "R. Guará, 46 - Parque das Bandeiras I, Indaiatuba - SP, 13336-501, Brazil",
+  "cidade_geo": "Indaiatuba",
+  "location_type": "ROOFTOP",
+  "query": "R Guará, 46, Recanto Campestre Internacional de Viracopos Gleba 2, Indaiatuba, SP, 13336-501, Brasil"
+ },
+ "68": {
+  "status": "OK",
+  "lat": -14.235004,
+  "lng": -51.92528,
+  "formatted": "Brazil",
+  "cidade_geo": "",
+  "location_type": "APPROXIMATE",
+  "query": "Brasil"
+ },
+ "69": {
+  "status": "OK",
+  "lat": -23.2718115,
+  "lng": -45.9018545,
+  "formatted": "Av. dos Evangélicos, 2035 - Campo dos Alemães, São José dos Campos - SP, 12239-060, Brazil",
+  "cidade_geo": "São José dos Campos",
+  "location_type": "ROOFTOP",
+  "query": "Av dos Evangelicos, 2035, Campo dos Alemães, Sao Jose dos Campos, SP, 12239-060, Brasil"
+ },
+ "70": {
+  "status": "OK",
+  "lat": -22.6741804,
+  "lng": -50.4291536,
+  "formatted": "R. Vicente Fernandes Figueiredo, 542 - Vila Fabiano, Assis - SP, 19802-182, Brazil",
+  "cidade_geo": "Assis",
+  "location_type": "ROOFTOP",
+  "query": "R Vicente F Figueiredo, 542, Vila Fabiano, Assis, SP, 19802-181, Brasil"
+ },
+ "71": {
+  "status": "OK",
+  "lat": -23.7794062,
+  "lng": -45.353504,
+  "formatted": "R. Antonio Carlos dos Reis, 155 - Barreiro, Ilhabela - SP, 11630-000, Brazil",
+  "cidade_geo": "Ilhabela",
+  "location_type": "ROOFTOP",
+  "query": "Rua Antonio Carlos dos Reis, 155, Vila, Ilhabela, SP, 11635-166, Brasil"
+ },
+ "72": {
+  "status": "OK",
+  "lat": -21.2531732,
+  "lng": -50.3134607,
+  "formatted": "R. Ataíde Gajardoni, 1041 - Res. Portal Da Perola II, Birigui - SP, 16201-415, Brazil",
+  "cidade_geo": "Birigui",
+  "location_type": "ROOFTOP",
+  "query": "R Athayde Gajardoni, 1041, Residencial Portal da Pérola II, Birigüi, SP, 16201-415, Brasil"
+ },
+ "73": {
+  "status": "OK",
+  "lat": -23.9808533,
+  "lng": -46.228871,
+  "formatted": "Condomínio Edifício Yara - R. Ipoméia, 89 - Balneario Cidade Atlantica, Guarujá - SP, 11441-280, Brazil",
+  "cidade_geo": "Guarujá",
+  "location_type": "ROOFTOP",
+  "query": "R Ipomeia, 89, Enseada, Guaruja, SP, 11441-280, Brasil"
+ },
+ "74": {
+  "status": "OK",
+  "lat": -14.235004,
+  "lng": -51.92528,
+  "formatted": "Brazil",
+  "cidade_geo": "",
+  "location_type": "APPROXIMATE",
+  "query": "Brasil"
+ },
+ "75": {
+  "status": "OK",
+  "lat": -14.235004,
+  "lng": -51.92528,
+  "formatted": "Brazil",
+  "cidade_geo": "",
+  "location_type": "APPROXIMATE",
+  "query": "Brasil"
+ },
+ "76": {
+  "status": "OK",
+  "lat": -22.3707859,
+  "lng": -47.39125360000001,
+  "formatted": "R. Minas Gerais, 121 - Parque Industrial, Araras - SP, 13601-336, Brazil",
+  "cidade_geo": "Araras",
+  "location_type": "ROOFTOP",
+  "query": "R Minas Gerais, 121, Parque Industrial, Araras, SP, 13601-336, Brasil"
+ },
+ "77": {
+  "status": "OK",
+  "lat": -21.6221396,
+  "lng": -50.8582154,
+  "formatted": "R. Antônio Xavier da Silva, 220 - Centro, Salmourão - SP, 17720-000, Brazil",
+  "cidade_geo": "Salmourão",
+  "location_type": "ROOFTOP",
+  "query": "Rua Herculano da Costa Silva, 220, Conjunto Habitacional Isabel Martins Villas, Salmourao, SP, 17720-304, Brasil"
+ },
+ "78": {
+  "status": "OK",
+  "lat": -23.7070308,
+  "lng": -47.4132531,
+  "formatted": "R. Adjan Prestes de Oliveira, 66 - Vila Amancio, Piedade - SP, 18170-000, Brazil",
+  "cidade_geo": "Piedade",
+  "location_type": "ROOFTOP",
+  "query": "Rua Adjan Prestes de Oliveira, 66, Conjunto Habitacional Vereador Ezequiel Antônio da Silva, Piedade, SP, 18170-606, Brasil"
+ },
+ "79": {
+  "status": "OK",
+  "lat": -23.9513858,
+  "lng": -46.2984082,
+  "formatted": "R. São Francisco, 67 - Sítio Paecara (Vicente de Carvalho), Guarujá - SP, 11463-330, Brazil",
+  "cidade_geo": "Guarujá",
+  "location_type": "ROOFTOP",
+  "query": "R S Francisco, 67, Sítio Paecara (Vicente de Carvalho), Guaruja, SP, 11463-330, Brasil"
+ },
+ "80": {
+  "status": "OK",
+  "lat": -14.235004,
+  "lng": -51.92528,
+  "formatted": "Brazil",
+  "cidade_geo": "",
+  "location_type": "APPROXIMATE",
+  "query": "Brasil"
+ },
+ "81": {
+  "status": "OK",
+  "lat": -14.235004,
+  "lng": -51.92528,
+  "formatted": "Brazil",
+  "cidade_geo": "",
+  "location_type": "APPROXIMATE",
+  "query": "Brasil"
+ },
+ "82": {
+  "status": "OK",
+  "lat": -23.3213088,
+  "lng": -46.7018557,
+  "formatted": "R. do Porto, 468 - Parque Vitoria, Franco da Rocha - SP, 07856-200, Brazil",
+  "cidade_geo": "Franco da Rocha",
+  "location_type": "ROOFTOP",
+  "query": "R do Porto, 468, Parque Vitória, Franco da Rocha, SP, 07856-200, Brasil"
+ },
+ "83": {
+  "status": "OK",
+  "lat": -23.8397865,
+  "lng": -49.43347,
+  "formatted": "R. Augusto Martins Stager, Riversul - SP, 18470-000, Brazil",
+  "cidade_geo": "Riversul",
+  "location_type": "GEOMETRIC_CENTER",
+  "query": "Rua Augusto Martins Stager, 74, Nossa Senhora das Graças, Riversul, SP, 18472-236, Brasil"
+ },
+ "84": {
+  "status": "OK",
+  "lat": -21.4519649,
+  "lng": -47.0026362,
+  "formatted": "R. São Caetano do Sul, 174 - Distrito Industrial I, Mococa - SP, 13733-410, Brazil",
+  "cidade_geo": "Mococa",
+  "location_type": "ROOFTOP",
+  "query": "R S Caetano do Sul, 174, Distrito Industrial I, Mococa, SP, 13733-410, Brasil"
+ },
+ "85": {
+  "status": "OK",
+  "lat": -14.235004,
+  "lng": -51.92528,
+  "formatted": "Brazil",
+  "cidade_geo": "",
+  "location_type": "APPROXIMATE",
+  "query": "Brasil"
+ },
+ "86": {
+  "status": "OK",
+  "lat": -14.235004,
+  "lng": -51.92528,
+  "formatted": "Brazil",
+  "cidade_geo": "",
+  "location_type": "APPROXIMATE",
+  "query": "Brasil"
+ },
+ "87": {
+  "status": "OK",
+  "lat": -20.5170676,
+  "lng": -47.4076052,
+  "formatted": "Av. Chico Júlio, 3902 - Jardim Integracao, Franca - SP, 14405-252, Brazil",
+  "cidade_geo": "Franca",
+  "location_type": "ROOFTOP",
+  "query": "Av Chico Júlio, 3902, Vila Chico Júlio, Franca, SP, 14405-252, Brasil"
+ },
+ "88": {
+  "status": "OK",
+  "lat": -22.365977,
+  "lng": -48.76530349999999,
+  "formatted": "R. José Florêncio Pereira, 1860 - Jd Aparecida, Pederneiras - SP, 17280-000, Brazil",
+  "cidade_geo": "Pederneiras",
+  "location_type": "RANGE_INTERPOLATED",
+  "query": "Rua José Florencio Pereira, 1860, Jardim Aparecida, Pederneiras, SP, 17283-030, Brasil"
+ },
+ "89": {
+  "status": "OK",
+  "lat": -14.235004,
+  "lng": -51.92528,
+  "formatted": "Brazil",
+  "cidade_geo": "",
+  "location_type": "APPROXIMATE",
+  "query": "Brasil"
+ },
+ "90": {
+  "status": "OK",
+  "lat": -14.235004,
+  "lng": -51.92528,
+  "formatted": "Brazil",
+  "cidade_geo": "",
+  "location_type": "APPROXIMATE",
+  "query": "Brasil"
+ },
+ "91": {
+  "status": "OK",
+  "lat": -23.117812,
+  "lng": -47.2508202,
+  "formatted": "R. Luiz Stifter, 216 - Jardim União, Indaiatuba - SP, 13348-678, Brazil",
+  "cidade_geo": "Indaiatuba",
+  "location_type": "ROOFTOP",
+  "query": "R Luiz Stifter, 216, Jardim União, Indaiatuba, SP, 13348-678, Brasil"
+ },
+ "92": {
+  "status": "OK",
+  "lat": -23.736086,
+  "lng": -46.6988887,
+  "formatted": "Av. Sen. Teotônio Vilela, 4029 - Interlagos, São Paulo - SP, 04833-001, Brazil",
+  "cidade_geo": "São Paulo",
+  "location_type": "ROOFTOP",
+  "query": "Avenida Senador Teotônio Vilela, 4029, Vila São José (Cidade Dutra), Sao Paulo, SP, 04833-901, Brasil"
+ },
+ "93": {
+  "status": "OK",
+  "lat": -23.1143687,
+  "lng": -47.2370701,
+  "formatted": "R. Benedito de Campos, 407 - Jardim Morada do Sol, Indaiatuba - SP, 13348-550, Brazil",
+  "cidade_geo": "Indaiatuba",
+  "location_type": "ROOFTOP",
+  "query": "R Benedito de Campos, 407, Jardim Morada do Sol, Indaiatuba, SP, 13348-550, Brasil"
+ },
+ "94": {
+  "status": "OK",
+  "lat": -22.2105112,
+  "lng": -47.3750913,
+  "formatted": "R. Abilio Zanca, 994, Leme - SP, Brazil",
+  "cidade_geo": "Leme",
+  "location_type": "ROOFTOP",
+  "query": "R Abilio Zanca, 994, Jardim Empyreo, Leme, SP, 13611-824, Brasil"
+ },
+ "95": {
+  "status": "OK",
+  "lat": -23.3001499,
+  "lng": -45.9554958,
+  "formatted": "R. Aliança, 90 - Vila Formosa, Jacareí - SP, 12307-720, Brazil",
+  "cidade_geo": "Jacareí",
+  "location_type": "ROOFTOP",
+  "query": "R Aliança, 90, Vila Aprazível, Jacarei, SP, 12307-720, Brasil"
+ },
+ "96": {
+  "status": "OK",
+  "lat": -23.6710652,
+  "lng": -46.6137672,
+  "formatted": "Av. Prestes Maia, 1889 - Centro, Diadema - SP, 09930-270, Brazil",
+  "cidade_geo": "Diadema",
+  "location_type": "RANGE_INTERPOLATED",
+  "query": "Av Prestes Maia, 1889, Centro, Diadema, SP, 09930-270, Brasil"
+ },
+ "97": {
+  "status": "OK",
+  "lat": -22.793698,
+  "lng": -47.198247,
+  "formatted": "Rua Bauru, 469 - Parque Res. Salerno (Nova Veneza), Sumaré - SP, 13178-354, Brazil",
+  "cidade_geo": "Sumaré",
+  "location_type": "ROOFTOP",
+  "query": "R Bauru, 469, Parque Residencial Salerno (Nova Veneza), Sumare, SP, 13178-354, Brasil"
+ },
+ "98": {
+  "status": "OK",
+  "lat": -22.8407058,
+  "lng": -47.6718368,
+  "formatted": "R. Silvestre Muniz, n° 349 - São Judas Tadeu, Saltinho - SP, 13440-114, Brazil",
+  "cidade_geo": "Saltinho",
+  "location_type": "ROOFTOP",
+  "query": "Rua Silvestre Muniz, 349, São Judas Tadeu, Saltinho, SP, 13440-114, Brasil"
+ },
+ "99": {
+  "status": "OK",
+  "lat": -23.106742,
+  "lng": -45.70482,
+  "formatted": "R. Cel. João Dias Pereira, 30 - Vila Sao Joao, Caçapava - SP, 12281-410, Brazil",
+  "cidade_geo": "Caçapava",
+  "location_type": "ROOFTOP",
+  "query": "R Cel João D Pereira, 30, Vila São João, Cacapava, SP, 12281-410, Brasil"
+ },
+ "100": {
+  "status": "OK",
+  "lat": -22.7342684,
+  "lng": -47.6248333,
+  "formatted": "R. Dr. Francisco Feio, 439 - Morumbi, Piracicaba - SP, 13420-440, Brazil",
+  "cidade_geo": "Piracicaba",
+  "location_type": "ROOFTOP",
+  "query": "R Dr Francisco Feio, 439, Morumbi, Piracicaba, SP, 13420-440, Brasil"
+ },
+ "101": {
+  "status": "OK",
+  "lat": -22.191046,
+  "lng": -49.95186750000001,
+  "formatted": "R. Lazarino Casadei, 613 - Palmital, Marília - SP, 17510-414, Brazil",
+  "cidade_geo": "Marília",
+  "location_type": "ROOFTOP",
+  "query": "R Lazarino Casadei, 613, Palmital, Marilia, SP, 17510-414, Brasil"
+ },
+ "102": {
+  "status": "OK",
+  "lat": -23.581034,
+  "lng": -48.0232573,
+  "formatted": "R. João de Prisco, 30 - Jardim Maricota, Itapetininga - SP, 18214-120, Brazil",
+  "cidade_geo": "Itapetininga",
+  "location_type": "ROOFTOP",
+  "query": "R João de Prisco, 30, Jardim Maricota, Itapetininga, SP, 18214-120, Brasil"
+ },
+ "103": {
+  "status": "OK",
+  "lat": -22.9277146,
+  "lng": -47.0657322,
+  "formatted": "R. Argentina, 517 - Jardim do Trevo, Campinas - SP, 13040-146, Brazil",
+  "cidade_geo": "Campinas",
+  "location_type": "ROOFTOP",
+  "query": "R Argentina, 517, Jardim Nova Europa, Campinas, SP, 13040-146, Brasil"
+ },
+ "104": {
+  "status": "OK",
+  "lat": -23.4906028,
+  "lng": -46.3066477,
+  "formatted": "R. Bento Hiroto, 132 - Parque Res. Souza Campos, Itaquaquecetuba - SP, 08596-655, Brazil",
+  "cidade_geo": "Itaquaquecetuba",
+  "location_type": "RANGE_INTERPOLATED",
+  "query": "R Jessé, 132, Jardim Santa Rita, Itaquaquecetuba, SP, 08596-655, Brasil"
+ },
+ "105": {
+  "status": "OK",
+  "lat": -23.0974162,
+  "lng": -47.27612449999999,
+  "formatted": "R. Folha Santa, 147 - Parque Campo Bonito, Indaiatuba - SP, 13349-047, Brazil",
+  "cidade_geo": "Indaiatuba",
+  "location_type": "ROOFTOP",
+  "query": "R Folha Santa, 147, Parque Campo Bonito, Indaiatuba, SP, 13349-047, Brasil"
+ },
+ "106": {
+  "status": "OK",
+  "lat": -22.8338632,
+  "lng": -47.1545248,
+  "formatted": "R. São Cosme, 5 - Vila San Martin, Sumaré - SP, 13180-290, Brazil",
+  "cidade_geo": "Sumaré",
+  "location_type": "ROOFTOP",
+  "query": "R S Cosme, 5, Jardim Santa Terezinha (Nova Veneza), Sumare, SP, 13180-310, Brasil"
+ },
+ "107": {
+  "status": "OK",
+  "lat": -14.235004,
+  "lng": -51.92528,
+  "formatted": "Brazil",
+  "cidade_geo": "",
+  "location_type": "APPROXIMATE",
+  "query": "Brasil"
+ },
+ "108": {
+  "status": "OK",
+  "lat": -23.1974685,
+  "lng": -45.77617009999999,
+  "formatted": "R. Barroso, 130 - Parque Nova Esperanca, São José dos Campos - SP, 12226-292, Brazil",
+  "cidade_geo": "São José dos Campos",
+  "location_type": "RANGE_INTERPOLATED",
+  "query": "R Barroso, 130, Bom Retiro, Sao Jose dos Campos, SP, 12226-292, Brasil"
+ },
+ "109": {
+  "status": "OK",
+  "lat": -22.6828171,
+  "lng": -46.6808255,
+  "formatted": "R. João da Serra, 80 - Monte Alegre do Sul, SP, 13820-000, Brazil",
+  "cidade_geo": "Monte Alegre do Sul",
+  "location_type": "ROOFTOP",
+  "query": "Rua João da Serra, 80, Centro, Monte Alegre do Sul, SP, 13820-001, Brasil"
+ },
+ "110": {
+  "status": "OK",
+  "lat": -14.235004,
+  "lng": -51.92528,
+  "formatted": "Brazil",
+  "cidade_geo": "",
+  "location_type": "APPROXIMATE",
+  "query": "Brasil"
+ },
+ "111": {
+  "status": "OK",
+  "lat": -23.403301,
+  "lng": -46.9024114,
+  "formatted": "Estr. Ana Procópio de Morães, 1665 - Vila Anoral, Santana de Parnaíba - SP, 06528-310, Brazil",
+  "cidade_geo": "Santana de Parnaíba",
+  "location_type": "ROOFTOP",
+  "query": "Est Ana P de Moraes, 1665, Vila Anoral, Santana de Parnaiba, SP, 06528-310, Brasil"
+ },
+ "112": {
+  "status": "OK",
+  "lat": -23.4896047,
+  "lng": -46.6519572,
+  "formatted": "R. Santa Margarida, 75 - Imirim, São Paulo - SP, 02537-080, Brazil",
+  "cidade_geo": "São Paulo",
+  "location_type": "ROOFTOP",
+  "query": "R Sta Margarida, 75, Jardim São Miguel, Sao Paulo, SP, 02537-080, Brasil"
+ },
+ "113": {
+  "status": "OK",
+  "lat": -23.6121129,
+  "lng": -46.4520638,
+  "formatted": "R. Pedro Medeiros, 235 - Jardim Vila Carrao, São Paulo - SP, 08340-510, Brazil",
+  "cidade_geo": "São Paulo",
+  "location_type": "ROOFTOP",
+  "query": "R Pedro Medeiros, 235, Jardim Vila Carrão, Sao Paulo, SP, 08340-510, Brasil"
+ },
+ "114": {
+  "status": "OK",
+  "lat": -23.3923775,
+  "lng": -47.83913769999999,
+  "formatted": "R. Adnoir Junqueira, 61, Tatuí - SP, 18274-885, Brazil",
+  "cidade_geo": "Tatuí",
+  "location_type": "RANGE_INTERPOLATED",
+  "query": "Rua Adnoir Junqueira, 61, Residencial Vida Nova Tatuí, Tatui, SP, 18274-885, Brasil"
+ },
+ "115": {
+  "status": "OK",
+  "lat": -23.4990383,
+  "lng": -47.5230152,
+  "formatted": "R. Dária Galvão da Silva - Jardim Santa Barbara, Sorocaba - SP, 18053-368, Brazil",
+  "cidade_geo": "Sorocaba",
+  "location_type": "GEOMETRIC_CENTER",
+  "query": "R Daria G da Silva, 496, Jardim Santa Bárbara, Sorocaba, SP, 18053-368, Brasil"
+ },
+ "116": {
+  "status": "OK",
+  "lat": -23.03868,
+  "lng": -47.10998,
+  "formatted": "Av. Coronel Pm Hélio Barbosa Caldas - Jardim Marisa, Campinas - SP, 13053-661, Brazil",
+  "cidade_geo": "Campinas",
+  "location_type": "GEOMETRIC_CENTER",
+  "query": "AV CORONEL-POLICIA MILITAR HELIO BARBOSA CALDAS, 318, Jardim Marisa, Campinas, SP, 13053-661, Brasil"
+ },
+ "117": {
+  "status": "OK",
+  "lat": -22.6423837,
+  "lng": -47.21086529999999,
+  "formatted": "Rua Bôrtolo Caron, 97 - Parque Real, Cosmópolis - SP, 13150-000, Brazil",
+  "cidade_geo": "Cosmópolis",
+  "location_type": "RANGE_INTERPOLATED",
+  "query": "Rua Bortolo Caron, 97, Parque Real, Cosmopolis, SP, 13157-592, Brasil"
+ },
+ "118": {
+  "status": "OK",
+  "lat": -23.2566683,
+  "lng": -45.9012073,
+  "formatted": "R. Joaquim de Paula, 1179 - Cidade Morumbi, São José dos Campos - SP, 12236-450, Brazil",
+  "cidade_geo": "São José dos Campos",
+  "location_type": "ROOFTOP",
+  "query": "R Joaquim de Paula, 1179, Cidade Morumbi, Sao Jose dos Campos, SP, 12236-450, Brasil"
+ },
+ "119": {
+  "status": "OK",
+  "lat": -23.9531343,
+  "lng": -46.3993136,
+  "formatted": "R. Leonardo Nunes, 685 - Parque Sao Vicente, São Vicente - SP, 11365-280, Brazil",
+  "cidade_geo": "São Vicente",
+  "location_type": "ROOFTOP",
+  "query": "R Leonardo Nunes, 685, Parque São Vicente, Sao Vicente, SP, 11365-280, Brasil"
+ },
+ "120": {
+  "status": "OK",
+  "lat": -23.1063403,
+  "lng": -47.2220119,
+  "formatted": "R. Sebastião Correr, 94 - Nucleo Hab. Brg. Faria Lima, Indaiatuba - SP, 13345-455, Brazil",
+  "cidade_geo": "Indaiatuba",
+  "location_type": "ROOFTOP",
+  "query": "R Sebastião Correr, 94, Núcleo Habitacional Brigadeiro Faria Lima, Indaiatuba, SP, 13345-455, Brasil"
+ },
+ "121": {
+  "status": "OK",
+  "lat": -24.1154399,
+  "lng": -46.6586945,
+  "formatted": "R. Mal. Deodoro da Fonseca, 26 - Jardim Praia Grande, Mongaguá - SP, 11730-000, Brazil",
+  "cidade_geo": "Mongaguá",
+  "location_type": "ROOFTOP",
+  "query": "Rua Marechal Deodoro da Fonsceca, 26, Jardim Praia Grande, Mongagua, SP, 11733-064, Brasil"
+ },
+ "122": {
+  "status": "OK",
+  "lat": -22.0647002,
+  "lng": -51.4164846,
+  "formatted": "Jardim Panorama, Álvares Machado - SP, Brazil",
+  "cidade_geo": "Álvares Machado",
+  "location_type": "APPROXIMATE",
+  "query": "Rua Visconde Taunay, 566, Jardim Panorama, Alvares Machado, SP, 19165-748, Brasil"
+ },
+ "123": {
+  "status": "OK",
+  "lat": -22.8132614,
+  "lng": -48.6277371,
+  "formatted": "R. Ângelo Zamuner, 147, Pratânia - SP, 18660-000, Brazil",
+  "cidade_geo": "Pratânia",
+  "location_type": "ROOFTOP",
+  "query": "Rua Ângelo Zamuner, 147, Pratinha, Pratania, SP, 18660-890, Brasil"
+ },
+ "124": {
+  "status": "OK",
+  "lat": -24.3235002,
+  "lng": -47.6345776,
+  "formatted": "R. Koei Maejo, 10, Juquiá - SP, 11800-000, Brazil",
+  "cidade_geo": "Juquiá",
+  "location_type": "RANGE_INTERPOLATED",
+  "query": "10 R RUA KOEMAEJO, 16, ESTACAO, Juquia, SP, 11800-000, Brasil"
+ },
+ "125": {
+  "status": "OK",
+  "lat": -23.3400911,
+  "lng": -46.7509673,
+  "formatted": "R. dos Girassóis, 670 - Jardim dos Eucaliptos, Caieiras - SP, 07700-000, Brazil",
+  "cidade_geo": "Caieiras",
+  "location_type": "ROOFTOP",
+  "query": "R dos Girassóis, 670, Serpa, Caieiras, SP, 07716-240, Brasil"
+ },
+ "126": {
+  "status": "OK",
+  "lat": -22.6717783,
+  "lng": -50.4309049,
+  "formatted": "R. Fagundes Varela, 1956 - Vila Ribeiro, Assis - SP, 19802-152, Brazil",
+  "cidade_geo": "Assis",
+  "location_type": "ROOFTOP",
+  "query": "R Fagundes Varela, 1956, Vila Ribeiro, Assis, SP, 19802-152, Brasil"
+ },
+ "127": {
+  "status": "OK",
+  "lat": -14.235004,
+  "lng": -51.92528,
+  "formatted": "Brazil",
+  "cidade_geo": "",
+  "location_type": "APPROXIMATE",
+  "query": "Brasil"
+ },
+ "128": {
+  "status": "OK",
+  "lat": -22.7900109,
+  "lng": -47.30461589999999,
+  "formatted": "R. João Bassora, 1575 - Jardim Éden, Nova Odessa - SP, 13460-000, Brazil",
+  "cidade_geo": "Nova Odessa",
+  "location_type": "ROOFTOP",
+  "query": "Rua JOÃO BASSORA, 1575, Jardim EDEM, Nova Odessa, SP, 13380-001, Brasil"
+ }
+}

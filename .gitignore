@@ -1,0 +1,16 @@
+# dependências (recriar com `npm ci` dentro de crm/)
+node_modules/
+
+# zip original recebido — o conteúdo já está extraído em crm/
+crm/apex_projeto_completo.zip
+
+# contém usuário e senha do SFTP do Hostinger em texto puro — não versionar
+crm/deploy_biometria_v2.py
+
+# base de clientes real (CNPJ, telefones) — dados pessoais, LGPD
+crm/base_clientes.json
+crm/base_clientes.xlsx
+
+# configurações locais do Claude Code
+.claude/
+crm/.claude/

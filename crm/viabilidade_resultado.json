@@ -1,0 +1,769 @@
+{
+ "2": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Ribeirão Preto",
+  "location_type": "ROOFTOP"
+ },
+ "3": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "São Paulo"
+ },
+ "4": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Santa Bárbara d'Oeste",
+  "location_type": "ROOFTOP"
+ },
+ "5": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Campinas",
+  "location_type": "ROOFTOP"
+ },
+ "6": {
+  "viabilidade": "NÃO",
+  "dist_gpon_m": null,
+  "dist_hfc_m": null,
+  "cidade_geo": "Sumaré",
+  "location_type": "ROOFTOP"
+ },
+ "7": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Sorocaba",
+  "location_type": "ROOFTOP"
+ },
+ "8": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Ribeirão Preto",
+  "location_type": "ROOFTOP"
+ },
+ "9": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "São Paulo"
+ },
+ "10": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Diadema"
+ },
+ "11": {
+  "viabilidade": "NÃO",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 335.3,
+  "cidade_geo": "Bauru",
+  "location_type": "RANGE_INTERPOLATED"
+ },
+ "12": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Riversul"
+ },
+ "13": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "São José dos Campos",
+  "location_type": "ROOFTOP"
+ },
+ "14": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Sertãozinho"
+ },
+ "15": {
+  "viabilidade": "NÃO",
+  "dist_gpon_m": null,
+  "dist_hfc_m": null,
+  "cidade_geo": "Araras",
+  "location_type": "ROOFTOP"
+ },
+ "16": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Salto"
+ },
+ "17": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Campinas",
+  "location_type": "ROOFTOP"
+ },
+ "18": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Santo André"
+ },
+ "19": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "São José do Rio Preto",
+  "location_type": "ROOFTOP"
+ },
+ "20": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Santo Antônio do Aracanguá"
+ },
+ "21": {
+  "viabilidade": "NÃO",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 921.8,
+  "cidade_geo": "Ribeirão Preto",
+  "location_type": "ROOFTOP"
+ },
+ "22": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": ""
+ },
+ "23": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Ribeirão Preto",
+  "location_type": "ROOFTOP"
+ },
+ "24": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "São Paulo"
+ },
+ "25": {
+  "viabilidade": "Fibra",
+  "dist_gpon_m": 0.0,
+  "dist_hfc_m": null,
+  "cidade_geo": "Andradina",
+  "location_type": "ROOFTOP"
+ },
+ "26": {
+  "viabilidade": "NÃO",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 264.8,
+  "cidade_geo": "Ribeirão Preto",
+  "location_type": "APPROXIMATE"
+ },
+ "27": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Franco da Rocha"
+ },
+ "28": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Ribeirão Preto",
+  "location_type": "ROOFTOP"
+ },
+ "29": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": ""
+ },
+ "30": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Diadema"
+ },
+ "31": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Itu"
+ },
+ "32": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "São José do Rio Preto",
+  "location_type": "ROOFTOP"
+ },
+ "33": {
+  "viabilidade": "Fibra",
+  "dist_gpon_m": 0.0,
+  "dist_hfc_m": null,
+  "cidade_geo": "Registro",
+  "location_type": "ROOFTOP"
+ },
+ "34": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "São Paulo"
+ },
+ "35": {
+  "viabilidade": "Fibra",
+  "dist_gpon_m": 0.0,
+  "dist_hfc_m": null,
+  "cidade_geo": "Andradina",
+  "location_type": "RANGE_INTERPOLATED"
+ },
+ "36": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Itatiba"
+ },
+ "37": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "São Paulo"
+ },
+ "38": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Sorocaba",
+  "location_type": "ROOFTOP"
+ },
+ "39": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Cotia"
+ },
+ "40": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": ""
+ },
+ "41": {
+  "viabilidade": "NÃO",
+  "dist_gpon_m": null,
+  "dist_hfc_m": null,
+  "cidade_geo": "Cosmópolis",
+  "location_type": "ROOFTOP"
+ },
+ "42": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Limeira",
+  "location_type": "ROOFTOP"
+ },
+ "43": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Itapecerica da Serra"
+ },
+ "44": {
+  "viabilidade": "NÃO",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 279.8,
+  "cidade_geo": "Campinas",
+  "location_type": "APPROXIMATE"
+ },
+ "45": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": ""
+ },
+ "46": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": ""
+ },
+ "47": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Ribeirão Preto",
+  "location_type": "ROOFTOP"
+ },
+ "48": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Campinas",
+  "location_type": "ROOFTOP"
+ },
+ "49": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Itatinga"
+ },
+ "50": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "São Paulo"
+ },
+ "51": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "São Paulo"
+ },
+ "52": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Votorantim",
+  "location_type": "ROOFTOP"
+ },
+ "53": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Indaiatuba",
+  "location_type": "ROOFTOP"
+ },
+ "54": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Carapicuíba"
+ },
+ "55": {
+  "viabilidade": "NÃO",
+  "dist_gpon_m": null,
+  "dist_hfc_m": null,
+  "cidade_geo": "Matão",
+  "location_type": "ROOFTOP"
+ },
+ "56": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Campinas",
+  "location_type": "ROOFTOP"
+ },
+ "57": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Cajamar"
+ },
+ "58": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Sorocaba",
+  "location_type": "ROOFTOP"
+ },
+ "59": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "São Paulo"
+ },
+ "60": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": ""
+ },
+ "61": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Sorocaba",
+  "location_type": "ROOFTOP"
+ },
+ "62": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "São Paulo"
+ },
+ "63": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Bauru",
+  "location_type": "ROOFTOP"
+ },
+ "64": {
+  "viabilidade": "NÃO",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 470.1,
+  "cidade_geo": "Limeira",
+  "location_type": "ROOFTOP"
+ },
+ "65": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Iracemápolis"
+ },
+ "66": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 17.4,
+  "cidade_geo": "São José dos Campos",
+  "location_type": "ROOFTOP"
+ },
+ "67": {
+  "viabilidade": "NÃO",
+  "dist_gpon_m": null,
+  "dist_hfc_m": null,
+  "cidade_geo": "Indaiatuba",
+  "location_type": "ROOFTOP"
+ },
+ "68": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": ""
+ },
+ "69": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "São José dos Campos",
+  "location_type": "ROOFTOP"
+ },
+ "70": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Assis"
+ },
+ "71": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Ilhabela"
+ },
+ "72": {
+  "viabilidade": "NÃO",
+  "dist_gpon_m": 722.9,
+  "dist_hfc_m": null,
+  "cidade_geo": "Birigui",
+  "location_type": "ROOFTOP"
+ },
+ "73": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Guarujá",
+  "location_type": "ROOFTOP"
+ },
+ "74": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": ""
+ },
+ "75": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": ""
+ },
+ "76": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Araras",
+  "location_type": "ROOFTOP"
+ },
+ "77": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Salmourão"
+ },
+ "78": {
+  "viabilidade": "Fibra",
+  "dist_gpon_m": 0.0,
+  "dist_hfc_m": null,
+  "cidade_geo": "Piedade",
+  "location_type": "ROOFTOP"
+ },
+ "79": {
+  "viabilidade": "NÃO",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 360.3,
+  "cidade_geo": "Guarujá",
+  "location_type": "ROOFTOP"
+ },
+ "80": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": ""
+ },
+ "81": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": ""
+ },
+ "82": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Franco da Rocha"
+ },
+ "83": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Riversul"
+ },
+ "84": {
+  "viabilidade": "Fibra",
+  "dist_gpon_m": 4.4,
+  "dist_hfc_m": null,
+  "cidade_geo": "Mococa",
+  "location_type": "ROOFTOP"
+ },
+ "85": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": ""
+ },
+ "86": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": ""
+ },
+ "87": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Franca",
+  "location_type": "ROOFTOP"
+ },
+ "88": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Pederneiras"
+ },
+ "89": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": ""
+ },
+ "90": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": ""
+ },
+ "91": {
+  "viabilidade": "NÃO",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 65.1,
+  "cidade_geo": "Indaiatuba",
+  "location_type": "ROOFTOP"
+ },
+ "92": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "São Paulo"
+ },
+ "93": {
+  "viabilidade": "NÃO",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 175.3,
+  "cidade_geo": "Indaiatuba",
+  "location_type": "ROOFTOP"
+ },
+ "94": {
+  "viabilidade": "NÃO",
+  "dist_gpon_m": 642.1,
+  "dist_hfc_m": null,
+  "cidade_geo": "Leme",
+  "location_type": "ROOFTOP"
+ },
+ "95": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Jacareí",
+  "location_type": "ROOFTOP"
+ },
+ "96": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Diadema"
+ },
+ "97": {
+  "viabilidade": "NÃO",
+  "dist_gpon_m": null,
+  "dist_hfc_m": null,
+  "cidade_geo": "Sumaré",
+  "location_type": "ROOFTOP"
+ },
+ "98": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Saltinho"
+ },
+ "99": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Caçapava",
+  "location_type": "ROOFTOP"
+ },
+ "100": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Piracicaba",
+  "location_type": "ROOFTOP"
+ },
+ "101": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Marília",
+  "location_type": "ROOFTOP"
+ },
+ "102": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Itapetininga",
+  "location_type": "ROOFTOP"
+ },
+ "103": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Campinas",
+  "location_type": "ROOFTOP"
+ },
+ "104": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Itaquaquecetuba"
+ },
+ "105": {
+  "viabilidade": "NÃO",
+  "dist_gpon_m": null,
+  "dist_hfc_m": null,
+  "cidade_geo": "Indaiatuba",
+  "location_type": "ROOFTOP"
+ },
+ "106": {
+  "viabilidade": "NÃO",
+  "dist_gpon_m": null,
+  "dist_hfc_m": null,
+  "cidade_geo": "Sumaré",
+  "location_type": "ROOFTOP"
+ },
+ "107": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": ""
+ },
+ "108": {
+  "viabilidade": "NÃO",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 474.2,
+  "cidade_geo": "São José dos Campos",
+  "location_type": "RANGE_INTERPOLATED"
+ },
+ "109": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Monte Alegre do Sul"
+ },
+ "110": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": ""
+ },
+ "111": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Santana de Parnaíba"
+ },
+ "112": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "São Paulo"
+ },
+ "113": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "São Paulo"
+ },
+ "114": {
+  "viabilidade": "NÃO",
+  "dist_gpon_m": null,
+  "dist_hfc_m": null,
+  "cidade_geo": "Tatuí",
+  "location_type": "RANGE_INTERPOLATED"
+ },
+ "115": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Sorocaba",
+  "location_type": "GEOMETRIC_CENTER"
+ },
+ "116": {
+  "viabilidade": "NÃO",
+  "dist_gpon_m": null,
+  "dist_hfc_m": null,
+  "cidade_geo": "Campinas",
+  "location_type": "GEOMETRIC_CENTER"
+ },
+ "117": {
+  "viabilidade": "NÃO",
+  "dist_gpon_m": null,
+  "dist_hfc_m": null,
+  "cidade_geo": "Cosmópolis",
+  "location_type": "RANGE_INTERPOLATED"
+ },
+ "118": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "São José dos Campos",
+  "location_type": "ROOFTOP"
+ },
+ "119": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "São Vicente",
+  "location_type": "ROOFTOP"
+ },
+ "120": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Indaiatuba",
+  "location_type": "ROOFTOP"
+ },
+ "121": {
+  "viabilidade": "Fibra",
+  "dist_gpon_m": 0.0,
+  "dist_hfc_m": null,
+  "cidade_geo": "Mongaguá",
+  "location_type": "ROOFTOP"
+ },
+ "122": {
+  "viabilidade": "NÃO",
+  "dist_gpon_m": null,
+  "dist_hfc_m": null,
+  "cidade_geo": "Álvares Machado",
+  "location_type": "APPROXIMATE"
+ },
+ "123": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Pratânia"
+ },
+ "124": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Juquiá"
+ },
+ "125": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Caieiras"
+ },
+ "126": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": "Assis"
+ },
+ "127": {
+  "viabilidade": null,
+  "motivo": "sem_kmz_na_cidade",
+  "cidade_geo": ""
+ },
+ "128": {
+  "viabilidade": "HFC",
+  "dist_gpon_m": null,
+  "dist_hfc_m": 0.0,
+  "cidade_geo": "Nova Odessa",
+  "location_type": "ROOFTOP"
+ }
+}
