@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claro Empresas — Biometria facial</title>
+<!--
+  Página-ponte ESTÁTICA (09/09/2026, corrigida em 10/09/2026 — ver REGRAS_NEGOCIO.md, seção 19).
+
+  Por que é um arquivo HTML estático em vez de uma Edge Function do Supabase: a primeira versão
+  desta página era uma Edge Function (biometria-preview), mas o Supabase reescreve automaticamente
+  qualquer resposta GET com Content-Type text/html para text/plain — Edge Functions lá são pensadas
+  pra APIs/JSON, não pra servir páginas web (confirmado na documentação oficial: "GET requests that
+  return text/html will be rewritten to text/plain"). Isso fazia o navegador mostrar o código-fonte
+  cru em vez de renderizar a página. A correção foi hospedar esta página como um arquivo estático de
+  verdade no mesmo servidor do painel (apexsmart.com.br via SFTP), que serve .html normalmente.
+
+  As tags Open Graph abaixo são fixas (mesma imagem/título/descrição pra qualquer cliente) — o
+  WhatsApp lê essas tags direto do HTML, sem executar nenhum JavaScript, então elas não podem
+  depender do nome do cliente. O nome e o link real de biometria (que SÃO por cliente) chegam via
+  parâmetros da URL (?nome=...&link=...) e são aplicados por um JavaScript simples depois que a
+  página carrega — isso não afeta o preview do WhatsApp (que só olha as tags, não roda o script),
+  só a experiência de quem efetivamente abre o link.
+-->
+<meta property="og:title" content="Claro Empresas — Biometria facial">
+<meta property="og:description" content="Confirme sua identidade para concluir a ativação.">
+<meta property="og:image" content="https://apexsmart.com.br/biometria_preview.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(135deg,#0d0d0d,#520b05);color:#fff;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .card{max-width:440px;text-align:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:36px 28px}
+  h1{font-size:22px;margin:0 0 12px}
+  p{color:#e6e6e6;font-size:15px;line-height:1.5;margin:0 0 26px}
+  a.btn{display:inline-block;background:#fff;color:#a80e26;font-weight:700;text-decoration:none;padding:14px 28px;border-radius:999px;font-size:16px}
+  .hint{margin-top:16px;font-size:12px;color:#c9c9c9}
+  .erro{margin-top:16px;color:#ff5468;font-size:13px}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1 id="bioSaudacao">Olá!</h1>
+    <p>Falta só um passo para concluir a sua ativação na Claro Empresas: confirme sua identidade com a biometria facial.</p>
+    <a class="btn" id="bioBotao" href="#">Clique aqui →</a>
+    <div class="hint" id="bioHint">Você será direcionado para o ambiente oficial de biometria.</div>
+    <div class="erro" id="bioErro" style="display:none"></div>
+  </div>
+<script>
+// Só aceita URLs absolutas http/https (mesma regra que já era usada na Edge Function original) —
+// bloqueia esquemas perigosos (javascript:, data:, etc.) e qualquer texto que não seja URL válida.
+function validarLinkBiometriaPreview(link){
+  try {
+    var u = new URL(link);
+    if(u.protocol === 'http:' || u.protocol === 'https:') return u;
+    return null;
+  } catch(e){
+    return null;
+  }
+}
+
+function saudacaoBiometria(nome){
+  var nomeSeguro = (nome || '').trim().slice(0, 100);
+  return nomeSeguro ? ('Olá, ' + nomeSeguro + '!') : 'Olá!';
+}
+
+function aplicarBiometriaPreview(searchString, doc){
+  var params = new URLSearchParams(searchString);
+  var nome = params.get('nome') || '';
+  var link = params.get('link') || '';
+  var destino = validarLinkBiometriaPreview(link);
+
+  // textContent (não innerHTML) — o nome nunca é interpretado como HTML, então não precisa de
+  // escape manual pra evitar XSS.
+  doc.getElementById('bioSaudacao').textContent = saudacaoBiometria(nome);
+
+  var botao = doc.getElementById('bioBotao');
+  var hint = doc.getElementById('bioHint');
+  var erro = doc.getElementById('bioErro');
+  if(destino){
+    botao.href = destino.toString();
+    botao.style.display = '';
+    hint.style.display = '';
+    erro.style.display = 'none';
+  } else {
+    botao.style.display = 'none';
+    hint.style.display = 'none';
+    erro.textContent = 'Link de biometria inválido ou não informado. Peça um novo link ao seu consultor.';
+    erro.style.display = 'block';
+  }
+  return { nome: nome, destino: destino ? destino.toString() : null };
+}
+
+aplicarBiometriaPreview(window.location.search, document);
+</script>
+</body>
+</html>
