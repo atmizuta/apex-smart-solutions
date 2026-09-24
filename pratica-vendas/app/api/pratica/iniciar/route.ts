@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verificarTokenSessao } from '@/lib/auth/sessao';
-import { contarSessoesHoje, criarSessao } from '@/db/sessoesPratica';
+import { contarSessoesHoje, criarSessao, buscarSessaoAbertaSemUso } from '@/db/sessoesPratica';
 import { podeIniciarSessao, LIMITE_SESSOES_POR_DIA } from '@/lib/limiteSessoes';
 
 export async function POST(req: NextRequest) {
@@ -9,6 +9,13 @@ export async function POST(req: NextRequest) {
 
   const { cenarioId } = await req.json();
   if (!cenarioId) return NextResponse.json({ erro: 'cenarioId obrigatório.' }, { status: 400 });
+
+  // já existe uma sessão de hoje pra esse cenário sem nenhuma mensagem ainda
+  // (reload da tela, clique duplo)? reaproveita em vez de criar outra.
+  const sessaoAberta = await buscarSessaoAbertaSemUso(dados.usuarioId, cenarioId);
+  if (sessaoAberta) {
+    return NextResponse.json({ sessaoId: sessaoAberta });
+  }
 
   const sessoesHoje = await contarSessoesHoje(dados.usuarioId);
   if (!podeIniciarSessao(sessoesHoje)) {
