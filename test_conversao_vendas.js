@@ -23,6 +23,7 @@ function mockQueryBuilder(table){
     in: () => builder,   // usado por buscarVendasOrigemLead (producao_pedidos) — ver test_venda_origem_lead.js
     gte: () => builder,  // idem
     lt: () => builder,   // idem
+    range: () => builder, // usado por fetchAllRows() (paginação, 24/09/2026) — mock não pagina de verdade, sempre devolve tudo numa página só
     maybeSingle: async () => (table === 'config' ? { data: window.__mockConfig } : { data: null }),
     then: (resolve) => resolve(table === 'leads' ? { data: window.__mockLeads, error: null } : { data: [], error: null }),
   };

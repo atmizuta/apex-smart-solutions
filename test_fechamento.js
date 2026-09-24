@@ -51,6 +51,7 @@ function mockQueryBuilder(table){
     eq: () => builder,
     order: () => builder,
     limit: () => builder,
+    range: () => builder, // usado por fetchAllRows() (paginação, 24/09/2026) — mock não pagina de verdade, sempre devolve tudo numa página só
     maybeSingle: async () => ({ data: null }),
     then: (resolve) => resolve(table === 'producao_pedidos' ? { data: window.__mockProducaoPedidos, error: null } : { data: [], error: null }),
   };

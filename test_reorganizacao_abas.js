@@ -20,6 +20,7 @@ window.supabase = { createClient: () => ({
         eq: () => ({ maybeSingle: async () => ({ data: null }) }),
         maybeSingle: async () => ({ data: null }),
         order: () => ({ then: () => {} }),
+        range: () => ({ then: (resolve) => resolve({ data: [], error: null }) }), // usado por fetchAllRows() (paginação, 24/09/2026)
         then: (resolve) => resolve({ data: [], error: null }),
       };
     },

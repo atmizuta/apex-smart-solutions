@@ -23,6 +23,7 @@ function mockQueryBuilder(table){
   };
   const builder = {
     select: () => builder, order: () => builder, limit: () => builder, eq: () => builder, gte: () => builder,
+    range: () => builder, // usado por fetchAllRows() (paginação, 24/09/2026) — mock não pagina de verdade, sempre devolve tudo numa página só
     then: (resolve) => resolve(resultFor()),
   };
   return builder;

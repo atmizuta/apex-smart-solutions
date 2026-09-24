@@ -43,6 +43,7 @@ function mockCreateClient(){
     const b = {
       select(){ return b; },
       order(){ return b; },
+      range(){ return b; }, // usado por fetchAllRows() (paginação, 24/09/2026) — mock não pagina de verdade, sempre devolve tudo numa página só
       eq(col, val){ filters.push([col, val]); return b; },
       single(){ wantSingle = true; return b; },
       maybeSingle(){ wantSingle = true; return b; },

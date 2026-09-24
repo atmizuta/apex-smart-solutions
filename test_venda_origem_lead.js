@@ -68,6 +68,7 @@ function makeQuery(dataFn){
   const q = {
     select(){ return q; }, in(){ return q; }, gte(){ return q; }, lt(){ return q; },
     eq(){ return q; }, order(){ return q; },
+    range(){ return q; }, // usado por fetchAllRows() (paginação, ver _template.html) — mock não pagina de verdade, sempre devolve tudo numa página só
     maybeSingle(){ return Promise.resolve(dataFn()); },
     then(resolve, reject){ return Promise.resolve(dataFn()).then(resolve, reject); },
   };
