@@ -14,3 +14,6 @@ crm/base_clientes.xlsx
 # configurações locais do Claude Code
 .claude/
 crm/.claude/
+
+# workspace de execução de planos (superpowers) — só ledger/scratch local, não é produto
+.superpowers/
