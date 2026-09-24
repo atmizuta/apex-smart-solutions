@@ -4,6 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Painel de Clientes — APEX</title>
+<!-- 24/09/2026: favicon = triângulo do logo original da Apex (recortado de "Identidade Visual Apex Claro/assets/apex.png",
+     192px, fundo transparente). Arquivo separado (public_html/favicon.png) em vez de embutido: o Chrome não mostrava
+     o favicon em data URI, e assim ele também serve pro resto do site. -->
+<link rel="icon" type="image/png" sizes="192x192" href="favicon.png">
+<link rel="apple-touch-icon" href="favicon.png">
+<!-- 24/09/2026: tipografia da identidade visual "Sinal de Ápice" (Barlow Condensed nos títulos, Barlow no texto) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -223,6 +232,71 @@
   .slaBadge.ok{background:#dcfce7;color:var(--green);}
   .slaBadge.estourado{background:#fee2e2;color:var(--red);}
   .kcHist{font-size:12px;color:var(--muted);border-left:2px solid var(--border);padding:2px 0 2px 12px;margin-bottom:8px;}
+
+  /* ---------- IDENTIDADE VISUAL "SINAL DE ÁPICE" (24/09/2026) ----------
+     Camada por cima do estilo original, seguindo o manual em
+     "Identidade Visual Apex Claro/Identidade Visual Apex Claro.dc.html":
+     paleta vermelho/bordô/grafite/papel, Barlow Condensed nos títulos (caixa alta),
+     Barlow no texto, faixa de sinal, triângulo do ápice e cruzes da grade de registro.
+     Para voltar ao visual anterior basta apagar este bloco. */
+  :root{
+    --bg:#1D1F20; --panel:#520C07; --accent:#E30613; --accent-dark:#C1050F; --carmim:#8E0B1B;
+    --claro-wine:#520C07; --text:#1D1F20; --muted:#666666; --border:#E2E2E4; --red:#C1050F;
+    --paper:#F2F2F3; --rosa:#FBE3E4;
+    --font-head:'Barlow Condensed',system-ui,sans-serif; --font-body:'Barlow',system-ui,sans-serif;
+  }
+  body{font-family:var(--font-body);background:var(--paper);}
+  h1,h2,h3{font-family:var(--font-head);font-weight:600;letter-spacing:.01em;}
+  button,input,select,textarea{font-family:inherit;}
+
+  /* login: fundo bordô com o triângulo do ápice sangrando pela borda */
+  #loginScreen{background:var(--claro-wine);position:relative;overflow:hidden;}
+  #loginScreen::before{content:"";position:absolute;right:-6vw;bottom:-4vh;width:min(62vw,760px);aspect-ratio:1/.866;
+    background:linear-gradient(180deg,var(--accent),var(--carmim));clip-path:polygon(50% 0,100% 100%,0 100%);}
+  .loginCard{position:relative;z-index:1;border-radius:10px;}
+  .loginCard::after{content:"";position:absolute;left:32px;right:32px;bottom:0;height:4px;
+    background:linear-gradient(90deg,var(--accent) 0 68%,transparent 68% 72%,var(--accent) 72%);}
+  .loginCard h1{font-size:28px;line-height:1;text-transform:uppercase;margin-bottom:8px;}
+  .brandLogos .sep{font-size:0;width:1px;height:40px;background:#cfcfd2;}
+
+  /* cabeçalho bordô + faixa de sinal */
+  header.topbar{background:var(--claro-wine);position:relative;}
+  header.topbar::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;
+    background:linear-gradient(90deg,var(--accent) 0 82%,transparent 82% 83.5%,var(--accent) 83.5%);}
+  header.topbar .brand{font-family:var(--font-head);font-weight:600;font-size:20px;text-transform:uppercase;letter-spacing:.02em;}
+  .userbox .role{background:rgba(255,255,255,.14);}
+
+  /* abas */
+  nav.tabs button{font-size:13.5px;border-radius:6px;}
+  nav.tabs button:hover{background:var(--rosa);color:var(--carmim);}
+  nav.tabs button.active{background:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(227,6,19,.28);}
+
+  /* botões, campos, cartões */
+  .btn{border-radius:6px;font-weight:700;}
+  .btn-outline:hover,.btn-danger:hover{background:var(--rosa);}
+  .field input, .field select, .searchBox input{border-radius:6px;}
+  .searchBox input:focus{box-shadow:0 0 0 3px rgba(227,6,19,.14);}
+  .resultCard{border-radius:8px;}
+  .resultCard:hover{border-color:rgba(227,6,19,.35);}
+  .card{border-radius:8px;}
+  .card h3{font-size:19px;text-transform:uppercase;line-height:1.05;}
+  .modal{border-radius:10px;}
+  .modal .mHead{border-radius:10px 10px 0 0;}
+  .modal .mHead h2{font-size:22px;text-transform:uppercase;line-height:1.05;}
+
+  /* KPIs como "ficha técnica": número condensado + cruz de registro no canto */
+  .kpiCard{background:#fff;border-radius:8px;}
+  .kpiCard::after{content:"+";position:absolute;top:4px;right:9px;font:300 15px/1 var(--font-body);color:#bdbdc1;}
+  .kpiCard .kpiValue{font-family:var(--font-head);font-weight:600;font-size:32px;font-variant-numeric:tabular-nums;}
+
+  /* tabelas */
+  table.tbl th, .faturaTbl thead th{color:var(--text);opacity:.75;letter-spacing:.04em;}
+  table.tbl tbody tr:hover td{background:var(--rosa);}
+  .kanbanCol{background:#E8E8EA;}
+  /* Barlow é mais estreita que a fonte anterior: texto de apoio um pouco maior pra manter a leitura */
+  .card p.desc{font-size:14px;line-height:1.5;}
+  .field label{font-size:12.5px;}
+  .searchMeta, .resultCard .rMeta{font-size:12.5px;}
 </style>
 </head>
 <body>
@@ -812,6 +886,14 @@
     </div>
     <div class="mBody">
       <div class="field"><label>Cliente / Empresa (opcional)</label><input type="text" id="faturaNomeCliente" placeholder="Ex: Empresa XYZ Ltda"></div>
+      <!-- 24/09/2026 (pedido do usuário: "na proposta gerada tem o campo onde podemos colocar a
+           razao social ou nome fantasia, mas nao tem o campo onde colocamos o CNPJ, esta aparecendo
+           em branco") — a Analisar Fatura tinha campo de nome mas nenhum de CNPJ, então
+           gerarPropostaDaFatura() sempre montava o cliente sintético com cnpj: '' (fixo) e a
+           proposta gerada saía sempre com CNPJ em branco. Campo opcional (mesmo padrão do "CNPJ
+           (opcional)" já usado na aba "Gerar Proposta avulsa") — quando preenchido, aparece no
+           Word/PDF/PDF-cliente da proposta, ao lado da Razão Social (ver buildPropostaDocModel). -->
+      <div class="field"><label>CNPJ (opcional)</label><input type="text" id="faturaCnpj" placeholder="00.000.000/0000-00"></div>
       <!-- 23/09/2026 (pedido do usuário: "ao montar a oferta de renovação, está considerando o
            plano de ofertas regionalizadas, precisa corrigir conforme o DDD do endereço do cliente")
            — as ofertas regionais (ex.: p57-15reg, RSC/RSI, DDD 12 a 19) só podem ser vendidas pro
@@ -1186,6 +1268,24 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
   await loadProfileAndEnter(data.user);
 });
 
+/* 24/09/2026: mensagem de erro legível para chamadas de Edge Function (criar usuário, redefinir senha).
+   O supabase-js só devolve "Edge Function returned a non-2xx status code" em error.message — o motivo
+   real vem no corpo da resposta, em error.context (mesmo padrão já usado no sync-leads). Também traduz
+   as mensagens mais comuns do Supabase Auth, que vêm em inglês. */
+async function mensagemErroFuncao(error, data){
+  let msg = (data && data.error) || (error && error.message) || 'Erro desconhecido';
+  if(error && error.context && typeof error.context.json === 'function'){
+    try{
+      const corpo = await error.context.json();
+      if(corpo && (corpo.error || corpo.message)) msg = corpo.error || corpo.message;
+    }catch(_e){ /* corpo não era JSON — mantém a mensagem genérica */ }
+  }
+  if(/Password should be at least (\d+)/i.test(msg)) msg = `A senha precisa ter pelo menos ${msg.match(/at least (\d+)/i)[1]} caracteres.`;
+  else if(/invalid format|validate email/i.test(msg)) msg = 'Usuário inválido: use só letras sem acento, números, ponto, traço ou underline.';
+  else if(/weak|pwned|leaked/i.test(msg)) msg = 'Senha muito fraca ou conhecida em vazamentos — escolha uma senha mais forte.';
+  return msg;
+}
+
 /* ============ CRIAR CONTA — só funciona para o 1º usuário do sistema (bootstrap do admin) ============
    Depois que existir qualquer conta, esta tela passa a recusar (a função no servidor barra) —
    a partir daí, só um Admin/Supervisor logado cria novos usuários pela aba "Consultores". */
@@ -1207,7 +1307,7 @@ document.getElementById('signupForm').addEventListener('submit', async function(
   const { data, error } = await sb.functions.invoke('quick-api', { body: { nome, username, password, role: 'admin' } });
   if(error || data?.error){
     btn.disabled = false; btn.textContent = 'Criar conta';
-    errEl.textContent = data?.error || error.message;
+    errEl.textContent = await mensagemErroFuncao(error, data);
     errEl.style.display = 'block';
     return;
   }
@@ -1737,7 +1837,7 @@ document.getElementById('btnGerarPropostaAvulsa').addEventListener('click', func
    enviar — quando chegar, o processamento real entra dentro de analisarFatura(),
    sem precisar mexer na UI/modal. Ver REGRAS_NEGOCIO.md. */
 const faturaOverlayEl = document.getElementById('faturaOverlay');
-let faturaState = { files: [null], nomeCliente: '', qtd: 1, ddd: '' };
+let faturaState = { files: [null], nomeCliente: '', cnpj: '', qtd: 1, ddd: '' };
 
 // renderFaturaArquivosInputs(qtd) — 23/09/2026: (re)monta os inputs de arquivo dentro de
 // #faturaArquivosWrap, um por fatura. Com qtd=1 (padrão), gera exatamente o mesmo input único
@@ -1783,8 +1883,9 @@ document.getElementById('faturaQtd').addEventListener('change', function(){
 });
 
 document.getElementById('btnAbrirAnaliseFatura').addEventListener('click', function(){
-  faturaState = { files: [null], nomeCliente: '', qtd: 1, ddd: '' };
+  faturaState = { files: [null], nomeCliente: '', cnpj: '', qtd: 1, ddd: '' };
   document.getElementById('faturaNomeCliente').value = '';
+  document.getElementById('faturaCnpj').value = '';
   document.getElementById('faturaDdd').value = '';
   document.getElementById('faturaQtd').value = '1';
   renderFaturaArquivosInputs(1);
@@ -1804,6 +1905,10 @@ document.getElementById('faturaClose').addEventListener('click', () => faturaOve
 
 document.getElementById('btnAnalisarFatura').addEventListener('click', function(){
   faturaState.nomeCliente = document.getElementById('faturaNomeCliente').value.trim();
+  // 24/09/2026 (pedido do usuário: "na proposta gerada... nao tem o campo onde colocamos o CNPJ,
+  // esta aparecendo em branco") — opcional, sem validação (mesmo padrão do "CNPJ (opcional)" da
+  // aba avulsa); usado em gerarPropostaDaFatura() pro cliente sintético da proposta.
+  faturaState.cnpj = document.getElementById('faturaCnpj').value.trim();
   // 23/09/2026 (pedido do usuário: "ajustar as ofertas conforme o endereço fiscal") — DDD do
   // endereço fiscal, obrigatório: é ele (não o DDD da linha telefônica da fatura) que decide
   // elegibilidade de oferta regional daqui pra frente (ver planosRenovacaoCatalogo/offerRegionOk).
@@ -2548,7 +2653,10 @@ function gerarPropostaDaFatura(linhas, state){
   const valorContrato = linhas.reduce((s, l) => s + (l.valorMensal || 0), 0);
   const client = {
     razao_social: state.nomeCliente || 'Cliente (fatura analisada)',
-    cnpj: '',
+    // 24/09/2026 (pedido do usuário: "na proposta gerada... nao tem o campo onde colocamos o CNPJ,
+    // esta aparecendo em branco"): antes vinha sempre '' fixo — agora usa o CNPJ opcional informado
+    // no modal (faturaState.cnpj), que aparece no Word/PDF/PDF-cliente da proposta.
+    cnpj: state.cnpj || '',
     cidade: '',
     // 23/09/2026 (pedido do usuário: "corrigir para o DDD do endereço do cliente"): DDD do
     // endereço FISCAL informado no modal (faturaState.ddd), não mais o DDD da linha telefônica da
@@ -3000,7 +3108,17 @@ function renderProposalBody(){
       </div>
     </details>
 
-    <button class="btn" id="btnBaixarProposta" style="margin-top:6px">Baixar proposta (Word editável)</button>
+    <!-- 24/09/2026 (pedido do usuário: "é possível emitir no formato anterior, deixar a opção
+         também de emissão em PDF... versão editável, versão pdf e pdf para o cliente"): 3 formatos
+         de emissão lado a lado — Word (editável) e PDF são as duas versões "oficiais" pro
+         consultor/negociação (qualquer uma das duas registra a proposta no funil de vendas, ver
+         generateProposalDocx/generateProposalPdfConsultor); o PDF pro cliente é um resumo à parte,
+         amigável, sem jargão — não registra no funil (mesmo padrão do PDF da Analisar Fatura). -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+      <button class="btn" id="btnBaixarProposta" style="flex:1;min-width:200px">Baixar proposta (Word editável)</button>
+      <button class="btn" id="btnBaixarPropostaPdf" style="flex:1;min-width:200px;background:var(--muted-bg,#f3f4f6);color:var(--text,#111827);border:1px solid var(--border)">Baixar proposta (PDF)</button>
+      <button class="btn" id="btnBaixarPropostaPdfCliente" style="flex:1;min-width:200px;background:var(--muted-bg,#f3f4f6);color:var(--text,#111827);border:1px solid var(--border)">Baixar PDF para o cliente</button>
+    </div>
   `;
 
   document.getElementById('propIncluirRenovacao').addEventListener('change', function(){
@@ -3288,6 +3406,9 @@ function renderProposalBody(){
   });
 
   document.getElementById('btnBaixarProposta').addEventListener('click', generateProposalDocx);
+  // 24/09/2026: 2ª e 3ª opções de emissão, ao lado do Word — ver comentário no HTML acima.
+  document.getElementById('btnBaixarPropostaPdf').addEventListener('click', generateProposalPdfConsultor);
+  document.getElementById('btnBaixarPropostaPdfCliente').addEventListener('click', generateProposalPdfCliente);
 
   updateProposalPreview();
 }
@@ -3520,24 +3641,43 @@ function buildPropostaDocModel(){
       desc: `${g.qtd}× ${g.offer.gb}GB — ${fmtBRL(g.offer.valor)}/linha`,
       subtotal: g.offer.valor * g.qtd,
       qtd: g.qtd,
+      gb: g.offer.gb,
     }));
   } else if(!proposalState.incluirRenovacao){
-    itensMoveis.push({ item: proposalState.avulsa ? 'Linha base' : 'Plano atual', desc: proposalState.avulsa ? 'não incluída nesta proposta' : 'mantido, sem alteração', subtotal: null, qtd: 0 });
+    itensMoveis.push({ item: proposalState.avulsa ? 'Linha base' : 'Plano atual', desc: proposalState.avulsa ? 'não incluída nesta proposta' : 'mantido, sem alteração', subtotal: null, qtd: 0, gb: null });
   }
   incGrupos.forEach(g => itensMoveis.push({
     item: 'Incremento(s)',
     desc: `${g.qtd}× ${g.offer.gb}GB — ${fmtBRL(g.offer.valor)}/linha`,
     subtotal: g.offer.valor * g.qtd,
     qtd: g.qtd,
+    gb: g.offer.gb,
   }));
 
   let itensNovaProposta;
   if(proposalState.consolidarValores && itensMoveis.some(it => it.subtotal !== null)){
     const qtdTotal = itensMoveis.reduce((s, it) => s + (it.qtd || 0), 0);
     const valorTotalMovel = itensMoveis.reduce((s, it) => s + (it.subtotal || 0), 0);
-    itensNovaProposta = [{ item: 'Linhas móveis', desc: `${qtdTotal} linha(s) — valor total consolidado`, subtotal: valorTotalMovel }];
+    // 24/09/2026 (pedido do usuário: "no campo nova proposta mencionar os planos selecionados para
+    // o cliente conforme na situação atual"): mesmo com o total consolidado, o cliente continua
+    // sabendo QUAIS planos foram escolhidos pra ele — só não vê o valor de cada linha separado (que
+    // é o que gera o desconforto de comparação entre as próprias linhas, ver comentário acima).
+    // Agrupa por GB (soma a quantidade de grupos diferentes com o mesmo GB — ex.: renovação 15GB +
+    // incremento 15GB vira uma faixa só, "5× 15GB") e lista da maior pra menor franquia, no mesmo
+    // estilo descritivo já usado na Situação Atual ("Nx GB").
+    const porGb = {};
+    itensMoveis.forEach(it => {
+      if(it.subtotal === null || !it.gb) return;
+      porGb[it.gb] = (porGb[it.gb] || 0) + (it.qtd || 0);
+    });
+    const planosTxt = Object.keys(porGb)
+      .map(Number)
+      .sort((a, b) => b - a)
+      .map(gb => `${porGb[gb]}× ${gb}GB`)
+      .join(', ');
+    itensNovaProposta = [{ item: 'Linhas móveis', desc: `${qtdTotal} linha(s)${planosTxt ? ' — ' + planosTxt : ''} — valor total consolidado`, subtotal: valorTotalMovel }];
   } else {
-    itensNovaProposta = itensMoveis.map(({ qtd, ...resto }) => resto);
+    itensNovaProposta = itensMoveis.map(({ qtd, gb, ...resto }) => resto);
   }
 
   let notaFibra = false;
@@ -3623,13 +3763,30 @@ function downloadBlob(blob, filename){
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+// getLogoBytes() (24/09/2026, pedido do usuário: "na emissao da proposta em word perde-se os logos
+// da apex e da claro") — extrai os bytes crus dos logos Apex (PNG) e Claro (JPEG), já embutidos
+// como data URI no próprio HTML (header.topbar .logoChip img / .logoClaro — ver build_painel.py).
+// O Word (docx.ImageRun) precisa dos bytes de verdade, não aceita só a URL/data-URI como o
+// <img src> ou o doc.addImage() do jsPDF aceitam — por isso o base64 é decodificado aqui (mesmo
+// padrão de atob() já usado em renderProducaoDashboard, que também reaproveita esses 2 logos).
+function getLogoBytes(){
+  try{
+    const apexB64 = document.querySelector('header.topbar .logoChip img').src.split(',')[1] || '';
+    const claroB64 = document.querySelector('.logoClaro').src.split(',')[1] || '';
+    const toBytes = b64 => b64 ? Uint8Array.from(atob(b64), c => c.charCodeAt(0)) : null;
+    return { apex: toBytes(apexB64), claro: toBytes(claroB64) };
+  }catch(e){
+    return { apex: null, claro: null };
+  }
+}
+
 // montarDocxProposta(modelo) (23/09/2026): renderer fino — só transforma o modelo puro
 // (buildPropostaDocModel) no Document real da lib docx.js. Toda a lógica de negócio já veio pronta
 // no modelo; aqui é só desenho (cores, tabelas, parágrafos).
 async function montarDocxProposta(modelo){
   const docx = getDocxLib();
   if(!docx) throw new Error('Biblioteca docx.js não carregada');
-  const { Document, Paragraph, TextRun, Table, TableRow, TableCell, AlignmentType, WidthType, ShadingType, VerticalAlign, Packer } = docx;
+  const { Document, Paragraph, TextRun, Table, TableRow, TableCell, ImageRun, AlignmentType, WidthType, ShadingType, VerticalAlign, Packer } = docx;
 
   const corVermelho = 'B3101F'; // --red — cor de destaque da marca Claro
   const corPreto = '0D0D0D';
@@ -3674,18 +3831,37 @@ async function montarDocxProposta(modelo){
 
   const children = [];
 
-  // ===== cabeçalho =====
-  children.push(new Paragraph({
-    alignment: AlignmentType.CENTER,
-    shading: { fill: corPreto, type: ShadingType.CLEAR, color: 'auto' },
-    children: [new TextRun({ text: 'PROPOSTA COMERCIAL', bold: true, color: corBranco, size: 30 })],
+  // ===== cabeçalho (com os logos Apex + Claro — 24/09/2026, corrige a perda dos logos na versão
+  // Word: os dois ficam em células ao lado do título, dentro de uma tabela de 3 colunas com fundo
+  // preto, reproduzindo o mesmo cabeçalho do PDF) =====
+  const logos = getLogoBytes();
+  function celulaLogo(bytes, tipo){
+    return new TableCell({
+      width: { size: 18, type: WidthType.PCT },
+      shading: { fill: corPreto, type: ShadingType.CLEAR, color: 'auto' },
+      verticalAlign: VerticalAlign.CENTER,
+      children: [ bytes
+        ? new Paragraph({ alignment: AlignmentType.CENTER, children: [new ImageRun({ data: bytes, transformation: { width: 60, height: 50 }, type: tipo })] })
+        : new Paragraph({ text: '' }) ],
+    });
+  }
+  children.push(new Table({
+    width: { size: 100, type: WidthType.PCT },
+    rows: [ new TableRow({ children: [
+      celulaLogo(logos.apex, 'png'),
+      new TableCell({
+        width: { size: 64, type: WidthType.PCT },
+        shading: { fill: corPreto, type: ShadingType.CLEAR, color: 'auto' },
+        verticalAlign: VerticalAlign.CENTER,
+        children: [
+          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'PROPOSTA COMERCIAL', bold: true, color: corBranco, size: 30 })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: modelo.subtitulo, color: corBranco, size: 17 })] }),
+        ],
+      }),
+      celulaLogo(logos.claro, 'jpg'),
+    ]}) ],
   }));
-  children.push(new Paragraph({
-    alignment: AlignmentType.CENTER,
-    shading: { fill: corPreto, type: ShadingType.CLEAR, color: 'auto' },
-    spacing: { after: 200 },
-    children: [new TextRun({ text: modelo.subtitulo, color: corBranco, size: 17 })],
-  }));
+  children.push(new Paragraph({ text: '', spacing: { after: 200 } }));
 
   // ===== dados do cliente =====
   children.push(new Table({
@@ -3779,6 +3955,467 @@ async function generateProposalDocx(){
   }catch(e){
     console.error('Erro ao gerar a proposta em Word:', e);
     alert('Não foi possível gerar o documento da proposta. Tente novamente ou avise o suporte.');
+  }
+}
+
+// montarPdfProposta(modelo) (24/09/2026, pedido do usuário: "é possível emitir no formato anterior
+// [PDF]?... versao editavel, versao pdf e pdf para o cliente"): renderer em PDF (jsPDF) da proposta
+// comercial, no MESMO estilo visual que existia antes da troca pro Word (seção 31: cabeçalho preto
+// com os logos Apex/Claro, tabela de itens com cabeçalho vermelho, situação atual, benefícios,
+// caixa de destaque final, rodapé em todas as páginas) — devolvido como uma 2ª opção de emissão ao
+// lado do Word, não como substituto dele. Alimentado pelo MESMO modelo puro (buildPropostaDocModel)
+// que já alimenta o Word — já reflete consolidar valores e Claro Monitor como benefício (seção 31),
+// então as duas versões (Word e PDF) sempre mostram exatamente a mesma proposta. Devolve o objeto
+// jsPDF pronto — quem chama decide o nome do arquivo e quando salvar (mesmo padrão do Packer.toBlob
+// no Word: renderer não decide nome de arquivo nem dispara download sozinho).
+function montarPdfProposta(modelo){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const black = [13, 13, 13];
+  const red = [179, 16, 31];
+  const grayBg = [243, 244, 246];
+  const grayBorder = [209, 213, 219];
+  const grayText = [107, 114, 128];
+  const white = [255, 255, 255];
+
+  // ===== cabeçalho (barra preta com os dois logos) =====
+  doc.setFillColor(...black);
+  doc.rect(0, 0, 210, 30, 'F');
+  try{
+    const apexLogoSrc = document.querySelector('header.topbar .logoChip img').src;
+    doc.setFillColor(...white);
+    doc.roundedRect(12, 6, 20, 18, 2, 2, 'F');
+    doc.addImage(apexLogoSrc, 'PNG', 14, 8, 16, 14);
+  }catch(e){}
+  try{
+    const claroLogoSrc = document.querySelector('.logoClaro').src;
+    doc.setFillColor(...white);
+    doc.roundedRect(178, 6, 20, 18, 2, 2, 'F');
+    doc.addImage(claroLogoSrc, 'JPEG', 180, 8, 16, 14);
+  }catch(e){}
+  doc.setTextColor(...white);
+  doc.setFontSize(15);
+  doc.text('PROPOSTA COMERCIAL', 105, 14, { align: 'center' });
+  doc.setFontSize(8.5);
+  doc.text(modelo.subtitulo, 105, 21, { align: 'center', maxWidth: 130 });
+
+  // ===== dados do cliente =====
+  const gridX = 14, gridY = 36, gridW = 182, rowH = 14;
+  doc.setDrawColor(...grayBorder);
+  doc.setFillColor(...grayBg);
+  doc.rect(gridX, gridY, gridW, rowH * 2, 'FD');
+  doc.line(gridX, gridY + rowH, gridX + gridW, gridY + rowH);
+  doc.line(gridX + gridW / 2, gridY, gridX + gridW / 2, gridY + rowH * 2);
+  function gridCell(label, value, col, row){
+    const cx = gridX + (col * gridW / 2) + 4;
+    const cy = gridY + (row * rowH) + 5.5;
+    doc.setFontSize(7.5);
+    doc.setTextColor(...grayText);
+    doc.text(label.toUpperCase(), cx, cy);
+    doc.setFontSize(10.5);
+    doc.setTextColor(...black);
+    doc.text(String(value || '-'), cx, cy + 6, { maxWidth: gridW / 2 - 8 });
+  }
+  gridCell('Cliente', modelo.client.razaoSocial, 0, 0);
+  gridCell('Data de emissão', modelo.client.dataEmissao, 1, 0);
+  gridCell('CNPJ', modelo.client.cnpj, 0, 1);
+  gridCell('Consultor', modelo.client.consultor, 1, 1);
+
+  // desenharTabelaItens: mesmo desenho de tabela usado tanto pela Situação Atual (quando detalhada
+  // por plano) quanto pela Nova Proposta.
+  function desenharTabelaItens(items, startY){
+    let ty2 = startY;
+    const colX = [14, 80, 150];
+    const colW = [66, 70, 46];
+    const subtotalRightEdge = colX[2] + colW[2] - 3;
+    doc.setFillColor(...red);
+    doc.rect(14, ty2, 182, 8, 'F');
+    doc.setTextColor(...white);
+    doc.setFontSize(8.5);
+    doc.text('ITEM', colX[0] + 3, ty2 + 5.5);
+    doc.text('DESCRIÇÃO', colX[1] + 3, ty2 + 5.5);
+    doc.text('SUBTOTAL', subtotalRightEdge, ty2 + 5.5, { align: 'right' });
+    ty2 += 8;
+
+    doc.setFontSize(9);
+    items.forEach((row, i) => {
+      const rh = 8;
+      doc.setFillColor(...(i % 2 === 0 ? white : grayBg));
+      doc.setDrawColor(...grayBorder);
+      doc.rect(14, ty2, 182, rh, 'FD');
+      doc.setTextColor(...black);
+      doc.text(row.item, colX[0] + 3, ty2 + 5.5, { maxWidth: colW[0] - 5 });
+      doc.text(row.desc, colX[1] + 3, ty2 + 5.5, { maxWidth: colW[1] - 5 });
+      doc.text(row.subtotal !== null && row.subtotal !== undefined ? fmtBRL(row.subtotal) : '-', subtotalRightEdge, ty2 + 5.5, { align: 'right' });
+      ty2 += rh;
+    });
+
+    const totalRow = items.reduce((s, it) => s + (it.subtotal || 0), 0);
+    doc.setFillColor(...grayBg);
+    doc.setDrawColor(...grayBorder);
+    doc.rect(14, ty2, 182, 9, 'FD');
+    doc.line(14, ty2, 196, ty2);
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(...black);
+    doc.text('TOTAL', colX[0] + 3, ty2 + 6);
+    doc.text(fmtBRL(totalRow), subtotalRightEdge, ty2 + 6, { align: 'right' });
+    doc.setFont(undefined, 'normal');
+    ty2 += 9;
+    return ty2;
+  }
+
+  doc.setDrawColor(...red);
+  doc.setLineWidth(0.8);
+  doc.line(14, 70, 196, 70);
+  doc.setLineWidth(0.2);
+
+  // ===== situação atual =====
+  doc.setTextColor(...red);
+  doc.setFontSize(10.5);
+  doc.text('SITUAÇÃO ATUAL', 14, 79);
+
+  let dispY;
+  if(modelo.situacaoAtual.tipo === 'tabela'){
+    dispY = desenharTabelaItens(modelo.situacaoAtual.itens, 83) + 5;
+  } else {
+    const sitLines = modelo.situacaoAtual.linhas;
+    const sitY = 83;
+    const sitBoxH = sitLines.length * 7 + 4;
+    doc.setFillColor(...grayBg);
+    doc.setDrawColor(...grayBorder);
+    doc.rect(14, sitY, 182, sitBoxH, 'FD');
+    let sy = sitY + 7;
+    sitLines.forEach(([label, value]) => {
+      doc.setFontSize(9);
+      doc.setTextColor(...grayText);
+      doc.text(`${label}:`, 18, sy);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(...black);
+      doc.text(String(value), 90, sy);
+      doc.setFont(undefined, 'normal');
+      sy += 7;
+    });
+    dispY = sitY + sitBoxH + 5;
+  }
+  doc.setFontSize(7);
+  doc.setTextColor(150, 150, 150);
+  doc.text(modelo.situacaoAtual.nota, 14, dispY, { maxWidth: 182 });
+
+  // ===== nova proposta =====
+  let ty = dispY + 9;
+  if(ty + 30 > 265){ doc.addPage(); ty = 20; }
+  doc.setTextColor(...red);
+  doc.setFontSize(10.5);
+  doc.text('NOVA PROPOSTA', 14, ty);
+  ty += 4;
+  ty = desenharTabelaItens(modelo.novaProposta.itens, ty);
+
+  if(modelo.novaProposta.notaFibra){
+    doc.setFontSize(7);
+    doc.setTextColor(150, 150, 150);
+    doc.text('* Oferta de Convergência: Claro Fibra + linha móvel garante bônus de 30GB (Mega Bônus) na franquia.', 14, ty + 4);
+    ty += 4;
+  }
+
+  // ===== benefícios inclusos =====
+  if(modelo.beneficios.temOfertaMovel){
+    if(ty + 30 > 265){ doc.addPage(); ty = 20; }
+    ty += 7;
+    doc.setTextColor(...red);
+    doc.setFontSize(10.5);
+    doc.text('BENEFÍCIOS INCLUSOS', 14, ty);
+    ty += 6;
+
+    let bx = 14;
+    modelo.beneficios.badges.forEach(b => {
+      doc.setFontSize(8);
+      doc.setFont(undefined, 'bold');
+      const bw = doc.getTextWidth(b.label) + 8;
+      // 24/09/2026: quebra pra próxima linha quando o badge estoura a largura da página — agora
+      // pode ter um 4º badge (Claro Monitor, seção 31) além dos 3 universais.
+      if(bx + bw > 196){ bx = 14; ty += 11; }
+      doc.setFillColor(...b.cor);
+      doc.roundedRect(bx, ty, bw, 8, 1.5, 1.5, 'F');
+      doc.setTextColor(...white);
+      doc.text(b.label, bx + 4, ty + 5.5);
+      doc.setFont(undefined, 'normal');
+      bx += bw + 4;
+    });
+    ty += 13;
+
+    doc.setFontSize(7.5);
+    doc.setTextColor(...grayText);
+    modelo.beneficios.badges.forEach(b => {
+      if(ty > 270){ doc.addPage(); ty = 20; }
+      doc.text(`• ${b.label}: ${b.desc}`, 14, ty, { maxWidth: 182 });
+      ty += 5;
+    });
+    if(modelo.beneficios.extras.length){
+      doc.setFontSize(8);
+      doc.setTextColor(...black);
+      modelo.beneficios.extras.forEach(e => {
+        if(ty > 270){ doc.addPage(); ty = 20; }
+        doc.text(`• ${e}`, 14, ty, { maxWidth: 182 });
+        ty += 5;
+      });
+    }
+  }
+
+  // ===== caixa de destaque com o valor proposto =====
+  let boxY = ty + 8;
+  if(boxY + 34 > 270){ doc.addPage(); boxY = 20; }
+  doc.setFillColor(...red);
+  doc.roundedRect(14, boxY, 182, 24, 3, 3, 'F');
+  doc.setTextColor(...white);
+  doc.setFontSize(12);
+  doc.text(`Valor proposto: ${fmtBRL(modelo.destaque.valorProposto)}`, 20, boxY + 10);
+  doc.setFontSize(9);
+  if(modelo.destaque.reducao){
+    doc.text(`Redução de ${fmtBRL(modelo.destaque.reducao.valor)}${modelo.destaque.reducao.pct !== null ? ' (' + Math.abs(modelo.destaque.reducao.pct).toFixed(1) + '%)' : ''} em relação ao valor atual`, 20, boxY + 18);
+  }
+
+  // ===== rodapé (todas as páginas) =====
+  const totalPages = doc.internal.getNumberOfPages();
+  for(let p = 1; p <= totalPages; p++){
+    doc.setPage(p);
+    const footerY = 279;
+    doc.setFillColor(...black);
+    doc.rect(0, footerY, 210, 18, 'F');
+    doc.setTextColor(...white);
+    doc.setFontSize(9);
+    doc.text('APEX SMART SOLUTIONS', 105, footerY + 6, { align: 'center' });
+    doc.setFontSize(7);
+    doc.setTextColor(200, 200, 200);
+    doc.text('Agente Autorizado Claro Empresas  |  CNPJ: 64.307.984/0001-30', 105, footerY + 11, { align: 'center' });
+    doc.text(`Válida até ${modelo.rodape.validaAte}  |  Emitido em ${modelo.rodape.emitidoEm}`, 14, footerY + 15);
+    doc.text(`Página ${p}/${totalPages}`, 196, footerY + 15, { align: 'right' });
+  }
+
+  return doc;
+}
+
+// generateProposalPdfConsultor() (24/09/2026): 2ª opção de emissão ao lado do Word — mesmo modelo
+// (buildPropostaDocModel) e mesmo registro síncrono no funil de vendas antes de salvar (é a mesma
+// proposta "oficial", só que em PDF em vez de .docx — qualquer uma das duas conta como a proposta
+// ter sido gerada).
+function generateProposalPdfConsultor(){
+  const modelo = buildPropostaDocModel();
+  const client = proposalState.client;
+  registrarPropostaNoFunil(modelo.destaque.valorProposto, modelo.atual);
+  try{
+    const doc = montarPdfProposta(modelo);
+    doc.save(`proposta_${(client.razao_social || 'cliente').substring(0, 40).replace(/[^\w]+/g, '_')}.pdf`);
+  }catch(e){
+    console.error('Erro ao gerar a proposta em PDF:', e);
+    alert('Não foi possível gerar o PDF da proposta. Tente novamente ou avise o suporte.');
+  }
+}
+
+// montarPdfPropostaCliente(modelo) / generateProposalPdfCliente() (24/09/2026, pedido do usuário —
+// 3ª opção de emissão, "pdf para o cliente"): PDF simples e amigável pro CLIENTE FINAL entender a
+// proposta de relance — mesmo espírito do PDF já usado na Analisar Fatura
+// (generateFaturaAnalisePDF: KPIs, cor verde/âmbar que já entrega se é economia ou aumento, sem
+// jargão de catálogo), só que alimentado pelo modelo da proposta "normal" (Gerar Proposta), que não
+// tem detalhe por linha telefônica (só por grupo/plano) — por isso reaproveita a mesma tabela
+// Situação Atual x Nova Proposta do PDF/Word do consultor, com cabeçalho/caixa final no estilo
+// amigável. Diferente do PDF do consultor: NÃO registra no funil de vendas (mesmo padrão do PDF da
+// Analisar Fatura — é material de apoio pro cliente, não o ato formal de "gerar a proposta").
+function montarPdfPropostaCliente(modelo){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const black = [13, 13, 13];
+  const red = [179, 16, 31];
+  const grayBg = [243, 244, 246];
+  const grayBorder = [209, 213, 219];
+  const grayText = [107, 114, 128];
+  const white = [255, 255, 255];
+  const green = [22, 163, 74];
+  const amber = [180, 83, 9];
+
+  const totalAtual = modelo.atual || 0;
+  const totalProposto = modelo.destaque.valorProposto;
+  const totalDelta = totalProposto - totalAtual;
+
+  // ===== cabeçalho =====
+  doc.setFillColor(...black);
+  doc.rect(0, 0, 210, 30, 'F');
+  try{
+    const apexLogoSrc = document.querySelector('header.topbar .logoChip img').src;
+    doc.setFillColor(...white);
+    doc.roundedRect(12, 6, 20, 18, 2, 2, 'F');
+    doc.addImage(apexLogoSrc, 'PNG', 14, 8, 16, 14);
+  }catch(e){}
+  try{
+    const claroLogoSrc = document.querySelector('.logoClaro').src;
+    doc.setFillColor(...white);
+    doc.roundedRect(178, 6, 20, 18, 2, 2, 'F');
+    doc.addImage(claroLogoSrc, 'JPEG', 180, 8, 16, 14);
+  }catch(e){}
+  doc.setTextColor(...white);
+  doc.setFontSize(15);
+  doc.text('RESUMO DA PROPOSTA', 105, 14, { align: 'center' });
+  doc.setFontSize(8.5);
+  doc.text(modelo.subtitulo, 105, 21, { align: 'center', maxWidth: 130 });
+
+  // ===== cliente + data =====
+  let y = 38;
+  doc.setTextColor(...black);
+  doc.setFontSize(11);
+  doc.setFont(undefined, 'bold');
+  doc.text(modelo.client.razaoSocial || 'Cliente', 14, y);
+  doc.setFont(undefined, 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(...grayText);
+  doc.text(`Emitido em ${modelo.client.dataEmissao}`, 196, y, { align: 'right' });
+  y += 10;
+
+  // ===== KPIs =====
+  const kpis = [
+    { label: 'MENSALIDADE ATUAL', valor: fmtBRL(totalAtual), cor: grayText },
+    { label: 'NOVA MENSALIDADE', valor: fmtBRL(totalProposto), cor: black },
+    { label: totalDelta <= 0 ? 'ECONOMIA MENSAL' : 'AUMENTO MENSAL', valor: fmtBRL(Math.abs(totalDelta)), cor: totalDelta <= 0 ? green : amber },
+  ];
+  const kpiW = 58, kpiGap = 4, kpiX0 = 14, kpiH = 24;
+  kpis.forEach((k, i) => {
+    const kx = kpiX0 + i * (kpiW + kpiGap);
+    doc.setFillColor(...grayBg);
+    doc.setDrawColor(...grayBorder);
+    doc.roundedRect(kx, y, kpiW, kpiH, 2, 2, 'FD');
+    doc.setTextColor(...grayText);
+    doc.setFontSize(7);
+    doc.text(k.label, kx + 4, y + 8, { maxWidth: kpiW - 8 });
+    doc.setTextColor(...k.cor);
+    doc.setFontSize(13.5);
+    doc.setFont(undefined, 'bold');
+    doc.text(k.valor, kx + 4, y + 18);
+    doc.setFont(undefined, 'normal');
+  });
+  y += kpiH + 10;
+
+  function desenharTabelaItens(items, startY, tituloTotal){
+    let ty2 = startY;
+    const colX = [14, 80, 150];
+    const colW = [66, 70, 46];
+    const subtotalRightEdge = colX[2] + colW[2] - 3;
+    doc.setFillColor(...red);
+    doc.rect(14, ty2, 182, 8, 'F');
+    doc.setTextColor(...white);
+    doc.setFontSize(8.5);
+    doc.text('ITEM', colX[0] + 3, ty2 + 5.5);
+    doc.text('DESCRIÇÃO', colX[1] + 3, ty2 + 5.5);
+    doc.text('VALOR', subtotalRightEdge, ty2 + 5.5, { align: 'right' });
+    ty2 += 8;
+
+    doc.setFontSize(9);
+    items.forEach((row, i) => {
+      const rh = 8;
+      doc.setFillColor(...(i % 2 === 0 ? white : grayBg));
+      doc.setDrawColor(...grayBorder);
+      doc.rect(14, ty2, 182, rh, 'FD');
+      doc.setTextColor(...black);
+      doc.text(row.item, colX[0] + 3, ty2 + 5.5, { maxWidth: colW[0] - 5 });
+      doc.text(row.desc, colX[1] + 3, ty2 + 5.5, { maxWidth: colW[1] - 5 });
+      doc.text(row.subtotal !== null && row.subtotal !== undefined ? fmtBRL(row.subtotal) : '-', subtotalRightEdge, ty2 + 5.5, { align: 'right' });
+      ty2 += rh;
+    });
+
+    const totalRow = items.reduce((s, it) => s + (it.subtotal || 0), 0);
+    doc.setFillColor(...grayBg);
+    doc.setDrawColor(...grayBorder);
+    doc.rect(14, ty2, 182, 9, 'FD');
+    doc.line(14, ty2, 196, ty2);
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(...black);
+    doc.text(tituloTotal || 'TOTAL', colX[0] + 3, ty2 + 6);
+    doc.text(fmtBRL(totalRow), subtotalRightEdge, ty2 + 6, { align: 'right' });
+    doc.setFont(undefined, 'normal');
+    ty2 += 9;
+    return ty2;
+  }
+
+  doc.setTextColor(...red);
+  doc.setFontSize(10.5);
+  doc.text('SUA SITUAÇÃO ATUAL', 14, y);
+  y += 4;
+  if(modelo.situacaoAtual.tipo === 'tabela'){
+    y = desenharTabelaItens(modelo.situacaoAtual.itens, y, 'TOTAL ATUAL') + 5;
+  } else {
+    const sitLines = modelo.situacaoAtual.linhas;
+    const sitBoxH = sitLines.length * 7 + 4;
+    doc.setFillColor(...grayBg);
+    doc.setDrawColor(...grayBorder);
+    doc.rect(14, y, 182, sitBoxH, 'FD');
+    let sy = y + 7;
+    sitLines.forEach(([label, value]) => {
+      doc.setFontSize(9);
+      doc.setTextColor(...grayText);
+      doc.text(`${label}:`, 18, sy);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(...black);
+      doc.text(String(value), 90, sy);
+      doc.setFont(undefined, 'normal');
+      sy += 7;
+    });
+    y += sitBoxH + 9;
+  }
+
+  if(y + 30 > 265){ doc.addPage(); y = 20; }
+  doc.setTextColor(...red);
+  doc.setFontSize(10.5);
+  doc.text('NOSSA PROPOSTA', 14, y);
+  y += 4;
+  y = desenharTabelaItens(modelo.novaProposta.itens, y, 'TOTAL PROPOSTO');
+
+  // ===== destaque final (verde/âmbar — igual ao PDF de análise de fatura) =====
+  if(y + 26 > 262){ doc.addPage(); y = 20; }
+  y += 8;
+  doc.setFillColor(...(totalDelta <= 0 ? green : amber));
+  doc.roundedRect(14, y, 182, 20, 2, 2, 'F');
+  doc.setTextColor(...white);
+  doc.setFontSize(11);
+  doc.setFont(undefined, 'bold');
+  doc.text(totalDelta <= 0 ? 'Você pode economizar:' : 'Ajuste de valor sugerido:', 20, y + 8);
+  doc.setFontSize(15);
+  doc.text(`${fmtBRL(Math.abs(totalDelta))}/mês`, 20, y + 16);
+  doc.setFont(undefined, 'normal');
+  doc.setFontSize(8);
+  doc.text('em relação ao valor atual', 100, y + 12, { maxWidth: 90 });
+  y += 28;
+
+  doc.setFontSize(8);
+  doc.setTextColor(...grayText);
+  doc.text('Fale com seu consultor Apex Claro Empresas para confirmar essa oferta e os próximos passos.', 14, y, { maxWidth: 182 });
+
+  // ===== rodapé =====
+  const totalPages = doc.internal.getNumberOfPages();
+  for(let p = 1; p <= totalPages; p++){
+    doc.setPage(p);
+    const footerY = 279;
+    doc.setFillColor(...black);
+    doc.rect(0, footerY, 210, 18, 'F');
+    doc.setTextColor(...white);
+    doc.setFontSize(9);
+    doc.text('APEX SMART SOLUTIONS', 105, footerY + 6, { align: 'center' });
+    doc.setFontSize(7);
+    doc.setTextColor(200, 200, 200);
+    doc.text('Agente Autorizado Claro Empresas  |  CNPJ: 64.307.984/0001-30', 105, footerY + 11, { align: 'center' });
+    doc.text(`Emitido em ${modelo.rodape.emitidoEm}`, 14, footerY + 15);
+    doc.text(`Página ${p}/${totalPages}`, 196, footerY + 15, { align: 'right' });
+  }
+
+  return doc;
+}
+function generateProposalPdfCliente(){
+  const modelo = buildPropostaDocModel();
+  const client = proposalState.client;
+  try{
+    const doc = montarPdfPropostaCliente(modelo);
+    doc.save(`proposta_cliente_${(client.razao_social || 'cliente').substring(0, 40).replace(/[^\w]+/g, '_')}.pdf`);
+  }catch(e){
+    console.error('Erro ao gerar o PDF para o cliente:', e);
+    alert('Não foi possível gerar o PDF para o cliente. Tente novamente ou avise o suporte.');
   }
 }
 
@@ -4227,7 +4864,7 @@ document.getElementById('btnAddConsultor').addEventListener('click', async funct
   btn.disabled = true; btn.textContent = 'Criando...';
   try{
     const { data, error } = await sb.functions.invoke('quick-api', { body: { nome, username, password, role } });
-    if(error || data?.error) throw new Error(data?.error || error.message);
+    if(error || data?.error) throw new Error(await mensagemErroFuncao(error, data));
     document.getElementById('newNome').value = '';
     document.getElementById('newUser').value = '';
     document.getElementById('newPass').value = '';
@@ -4249,7 +4886,7 @@ document.getElementById('usersTbody').addEventListener('click', async function(e
     const { data, error } = await sb.functions.invoke('reset-password', {
       body: { targetUserId: resetBtn.dataset.reset, newPassword: newPass.trim() },
     });
-    if(error || data?.error){ alert('Erro ao redefinir senha: ' + (data?.error || error.message)); return; }
+    if(error || data?.error){ alert('Erro ao redefinir senha: ' + await mensagemErroFuncao(error, data)); return; }
     alert('Senha redefinida com sucesso.');
     return;
   }

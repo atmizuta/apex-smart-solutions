@@ -1,3 +1,5 @@
+// Precisa ser a primeira importação — ver comentário em cargarEnvLocal.ts.
+import './cargarEnvLocal';
 import { sql } from './client';
 import { CENARIOS_INICIAIS } from '../lib/cenarios/dados';
 import { gerarHashSenha } from '../lib/auth/senha';
