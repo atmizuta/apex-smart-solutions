@@ -1607,6 +1607,41 @@ let proposalState = null;
 document.getElementById('proposalClose').addEventListener('click', () => proposalOverlay.classList.remove('active'));
 proposalOverlay.addEventListener('click', function(e){ if(e.target === proposalOverlay) proposalOverlay.classList.remove('active'); });
 
+// modo manual da proposta avulsa (25/09/2026, pedido do usuário: "opção de uma proposta manual onde
+// o consultor insira os dados dos produtos, valores, quantidade... deixar a opção dele selecionar se
+// é renovação, incremento, nova linha, portabilidade, banda larga, pabx, claro monitor e etc"):
+// categoria é só um rótulo livre pra organizar/prefixar a descrição no documento (ver
+// buildPropostaDocModel) — não aciona nenhuma lógica de negócio por trás, ao contrário do fluxo
+// automático (ex.: escolher "Claro Monitor" aqui não vira badge de benefício, é só mais uma linha).
+const MODO_MANUAL_CATEGORIAS = ['Renovação', 'Incremento', 'Nova linha', 'Portabilidade', 'Banda Larga', 'PABX', 'Claro Monitor', 'Outro'];
+
+// modoManualSugestoes() (25/09/2026): autocomplete (via <datalist>) pro modo manual — puxa os nomes já
+// usados no catálogo estruturado (móvel, fibra, convergência) só pra ajudar o consultor a digitar mais
+// rápido e evitar erro de digitação nos planos mais comuns. Não é uma lista fechada — o campo continua
+// 100% texto livre, o consultor pode digitar qualquer coisa (inclusive PABX, que não existe no catálogo).
+// 25/09/2026 (pedido do usuário: "a formatacao esta ruim no item, corrigir") — as sugestões
+// usavam offerLabel()/convergenciaLabel(), que embutem o VALOR no nome (ex.: "12GB — R$ 39,99/linha
+// (Nacional)"). Ao escolher a sugestão, esse texto virava a descrição literal do item manual, que o
+// buildPropostaDocModel() prefixa com "[Categoria] " — o nome final ("[Renovação] 12GB — R$
+// 39,99/linha (Nacional)") ficava comprido demais pra coluna ITEM (30% de largura no Word/PDF),
+// estourava/quebrava linha feio, E duplicava o preço que já aparece nas colunas DESCRIÇÃO/SUBTOTAL
+// (ex.: "3× R$ 39,99/un"). Sugestões agora trazem só a identidade do plano, sem valor — o consultor
+// ainda digita o valor unitário no campo próprio.
+function modoManualSugestoes(){
+  const nomes = new Set();
+  OFFERS_MOBILE.forEach(o => {
+    const reg = o.regional ? ' — ' + o.regional.label : '';
+    nomes.add(`${o.gb}GB (${o.origem})${reg}`);
+  });
+  CLARO_FIBRA.forEach(f => nomes.add(`Claro Fibra ${f.mega}`));
+  CONVERGENCIA_OFERTAS.forEach(c => {
+    const reg = c.regional ? ' — ' + c.regional.label : '';
+    nomes.add(`Fibra ${c.fibraMega} + Claro-pós ${c.gbTotal}GB${reg}`);
+  });
+  nomes.add('Claro Monitor — Jornada Mobilidade');
+  return Array.from(nomes);
+}
+
 function openProposal(client, opts){
   opts = opts || {};
   const avulsa = !!opts.avulsa;
@@ -1701,6 +1736,23 @@ function openProposal(client, opts){
     // valores diferentes entre as próprias linhas dele. Nasce desligado (mantém o detalhamento de
     // sempre); o consultor decide ativar caso a caso. Ver buildPropostaDocModel().
     consolidarValores: opts.consolidarValoresOverride !== undefined ? opts.consolidarValoresOverride : false,
+    // modoManual (25/09/2026, pedido do usuário: "proposta manual onde o consultor insira os dados
+    // dos produtos, valores, quantidade... editar a situação atual... totalmente customizavel") — só
+    // disponível quando avulsa (renovação de cliente da base continua 100% no fluxo estruturado de
+    // sempre). Quando ligado, substitui as seções de catálogo (Renovação/Incremento/Convergência/
+    // Fibra/Passaporte/Outras ofertas) por dois editores livres: itensManuais (a "Nova Proposta") e
+    // situacaoAtualManual (a "Situação Atual"). Ver buildPropostaDocModel().
+    modoManual: false,
+    // cada item: {categoria, descricao, valorUnit, qtd} — categoria é um rótulo livre (ver
+    // MODO_MANUAL_CATEGORIAS) só pra organizar/prefixar a descrição no documento, sem nenhuma lógica
+    // de negócio por trás (ao contrário do fluxo automático, aqui "Claro Monitor" não vira badge de
+    // benefício — é só mais uma linha, sob controle total do consultor).
+    itensManuais: [],
+    // situação atual 100% livre — mesmo padrão de situacaoAtualGrupos, mas com descrição em texto
+    // livre no lugar de GB (nem toda situação atual do modo manual é uma linha móvel: pode ser PABX,
+    // banda larga etc). Só usada quando modoManual === true; situacaoAtualGrupos continua existindo
+    // pro fluxo automático normal.
+    situacaoAtualManual: [],
   };
   document.getElementById('propClienteHead').textContent = client.cnpj
     ? `${client.razao_social || ''} — ${client.cnpj}`
@@ -2802,14 +2854,25 @@ function renderProposalBody(){
       <input type="text" id="propVendedorNome" placeholder="${escapeHtml(currentUser && currentUser.nome ? currentUser.nome : '')}" value="${escapeHtml(proposalState.vendedorNome || '')}">
     </div>
 
+    ${avulsa ? `
+    <div class="field" style="display:flex;gap:10px;align-items:flex-start;margin:0 0 14px;border:1px solid var(--border);border-radius:10px;padding:12px 14px">
+      <label class="toggleSwitch" style="margin:2px 0 0"><input type="checkbox" id="propModoManual" ${proposalState.modoManual?'checked':''}><span class="track"></span><span class="thumb"></span></label>
+      <div>
+        <div>Modo manual (proposta 100% customizável)</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Troca as seções de catálogo (Renovação/Incremento/Convergência/Fibra/Passaporte/Outras ofertas) por dois editores livres — Situação Atual e Nova Proposta — onde você digita categoria, produto, valor e quantidade sem depender do book. Use pra renovação, incremento, nova linha, portabilidade, banda larga, PABX, Claro Monitor ou qualquer combinação.</div>
+      </div>
+    </div>` : ''}
+
+    ${!proposalState.modoManual ? `
     <div class="field" style="display:flex;gap:10px;align-items:flex-start;margin:0 0 14px;border:1px solid var(--border);border-radius:10px;padding:12px 14px">
       <label class="toggleSwitch" style="margin:2px 0 0"><input type="checkbox" id="propConsolidarValores" ${proposalState.consolidarValores?'checked':''}><span class="track"></span><span class="thumb"></span></label>
       <div>
         <div>Consolidar valores no documento (não detalhar por plano/linha)</div>
         <div style="font-size:11px;color:var(--muted);margin-top:2px">Mostra só o total de linhas e o valor total da "Nova Proposta", em vez do preço por plano/grupo — evita o cliente comparar valores diferentes entre as próprias linhas dele quando a proposta mistura planos.</div>
       </div>
-    </div>
+    </div>` : ''}
 
+    ${!proposalState.modoManual ? `
     <div style="border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px">
       <div class="grpTitle" style="margin:0 0 8px">Detalhar plano atual por linha (opcional)</div>
       <div style="font-size:11px;color:var(--muted);margin:0 0 10px">Preenchendo, a Situação Atual do documento vira uma tabela por plano (quantidade de linhas, GB e valor unitário/total), igual ao modelo da Nova Proposta. Sem preencher, o documento mostra só o resumo (linhas, total da fatura, valor médio).</div>
@@ -2824,7 +2887,23 @@ function renderProposalBody(){
         <button type="button" class="btnRemoveSitAtual" data-idx="${idx}" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:8px 10px;cursor:pointer;height:38px">Remover</button>
       </div>`).join('')}
       <button type="button" id="btnAddSitAtual" class="btn" style="margin:2px 0 0;padding:6px 12px;font-size:12px;width:auto">+ Adicionar plano atual</button>
-    </div>
+    </div>` : `
+    <div style="border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px">
+      <div class="grpTitle" style="margin:0 0 8px">Situação atual (modo manual)</div>
+      <div style="font-size:11px;color:var(--muted);margin:0 0 10px">Descreva livremente o que o cliente tem hoje (linhas, PABX, banda larga etc.) — quantidade × valor unitário. Sem preencher, o documento mostra "Situação atual: não informada".</div>
+      ${(proposalState.situacaoAtualManual || []).map((g, idx) => `
+      <div class="field" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px">
+        <div style="flex:2;min-width:200px;margin:0"><label>Descrição</label>
+          <input type="text" class="propSitManualDescricao" data-idx="${idx}" list="dlModoManualSugestoes" placeholder="Ex.: 10 linhas plano 15GB, PABX 20 ramais..." value="${escapeHtml(g.descricao||'')}"></div>
+        <div style="width:90px;margin:0"><label>Qtde.</label>
+          <input type="number" class="propSitManualQtd" data-idx="${idx}" min="1" step="1" value="${g.qtd}"></div>
+        <div style="width:130px;margin:0"><label>Valor unit. (R$)</label>
+          <input type="number" class="propSitManualValor" data-idx="${idx}" min="0" step="0.01" value="${g.valorUnit}"></div>
+        <div class="propSitManualSubtotal" data-idx="${idx}" style="width:120px;margin:0;font-size:12px;color:var(--muted)">Subtotal<br><b>${fmtBRL((g.valorUnit||0)*(g.qtd||0))}</b></div>
+        <button type="button" class="btnRemoveSitManual" data-idx="${idx}" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:8px 10px;cursor:pointer;height:38px">Remover</button>
+      </div>`).join('')}
+      <button type="button" id="btnAddSitManual" class="btn" style="margin:2px 0 0;padding:6px 12px;font-size:12px;width:auto">+ Adicionar item</button>
+    </div>`}
 
     <div style="font-size:10px;color:var(--muted);margin:2px 0 16px">${avulsa
       ? 'Valor informado pelo próprio cliente — sujeito à confirmação da fatura real da operadora atual.'
@@ -2832,6 +2911,7 @@ function renderProposalBody(){
 
     <div class="propSummary"><div id="proposalPreview"></div></div>
 
+    ${!proposalState.modoManual ? `
     <details class="propSection" ${proposalState.incluirRenovacao ? 'open' : ''}>
       <summary>
         <span class="secTitle">${avulsa
@@ -3039,6 +3119,33 @@ function renderProposalBody(){
         ` : `<div style="font-size:11px;color:var(--muted)">Adicione o Claro Monitor ou digite manualmente um produto/serviço com o valor combinado, quando não estiver no book padrão.</div>`}
       </div>
     </details>
+    ` : `
+    <div style="border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px">
+      <div class="grpTitle" style="margin:0 0 8px">Itens da proposta (manual)</div>
+      <div style="font-size:11px;color:var(--muted);margin:0 0 10px">Monte a nova proposta livremente — escolha uma categoria (só organiza/rotula a linha no documento, sem lógica de negócio por trás), descreva o produto/plano, valor unitário e quantidade.</div>
+      ${!(proposalState.itensManuais||[]).length ? `<div style="font-size:11px;color:var(--muted);margin:0 0 10px">Adicione pelo menos um item pra gerar a proposta.</div>` : ''}
+      ${(proposalState.itensManuais || []).map((g, idx) => `
+      <div class="field" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px">
+        <div style="min-width:150px;margin:0"><label>Categoria</label>
+          <select class="propItemManualCategoria" data-idx="${idx}">
+            ${MODO_MANUAL_CATEGORIAS.map(c => `<option value="${c}" ${g.categoria===c?'selected':''}>${c}</option>`).join('')}
+          </select></div>
+        <div style="flex:2;min-width:200px;margin:0"><label>Descrição</label>
+          <input type="text" class="propItemManualDescricao" data-idx="${idx}" list="dlModoManualSugestoes" placeholder="Descreva o produto/plano" value="${escapeHtml(g.descricao||'')}"></div>
+        <div style="width:130px;margin:0"><label>Valor unit. (R$)</label>
+          <input type="number" class="propItemManualValor" data-idx="${idx}" min="0" step="0.01" value="${g.valorUnit}"></div>
+        <div style="width:90px;margin:0"><label>Qtde.</label>
+          <input type="number" class="propItemManualQtd" data-idx="${idx}" min="1" step="1" value="${g.qtd}"></div>
+        <div class="propItemManualSubtotal" data-idx="${idx}" style="width:120px;margin:0;font-size:12px;color:var(--muted)">Subtotal<br><b>${fmtBRL((g.valorUnit||0)*(g.qtd||0))}</b></div>
+        <button type="button" class="btnRemoveItemManual" data-idx="${idx}" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:8px 10px;cursor:pointer;height:38px">Remover</button>
+      </div>`).join('')}
+      <button type="button" id="btnAddItemManual" class="btn" style="margin:2px 0 10px;padding:6px 12px;font-size:12px;width:auto">+ Adicionar item</button>
+      <div style="font-size:13px;border-top:1px solid var(--border);padding-top:10px">Total da proposta: <b id="propItemManualTotalValor">${fmtBRL((proposalState.itensManuais||[]).reduce((s,g)=>s+(g.valorUnit||0)*(g.qtd||0),0))}</b></div>
+      <datalist id="dlModoManualSugestoes">
+        ${modoManualSugestoes().map(s => `<option value="${escapeHtml(s)}"></option>`).join('')}
+      </datalist>
+    </div>
+    `}
 
     <!-- 24/09/2026 (pedido do usuário: "é possível emitir no formato anterior, deixar a opção
          também de emissão em PDF... versão editável, versão pdf e pdf para o cliente"): 3 formatos
@@ -3053,7 +3160,10 @@ function renderProposalBody(){
     </div>
   `;
 
-  document.getElementById('propIncluirRenovacao').addEventListener('change', function(){
+  // 25/09/2026: esses elementos só existem quando !modoManual (ver renderProposalBody) — guarda
+  // null pra não quebrar quando o modo manual está ligado.
+  const propIncluirRenovacaoChk = document.getElementById('propIncluirRenovacao');
+  if(propIncluirRenovacaoChk) propIncluirRenovacaoChk.addEventListener('change', function(){
     proposalState.incluirRenovacao = this.checked;
     if(!proposalState.incluirRenovacao){
       proposalState.renewGrupos = [];
@@ -3071,6 +3181,13 @@ function renderProposalBody(){
   const consolidarValoresChk = document.getElementById('propConsolidarValores');
   if(consolidarValoresChk) consolidarValoresChk.addEventListener('change', function(){
     proposalState.consolidarValores = this.checked;
+  });
+  // modo manual (25/09/2026, pedido do usuário) — muda quais seções aparecem (catálogo x editores
+  // livres), precisa re-renderizar a tela inteira.
+  const modoManualChk = document.getElementById('propModoManual');
+  if(modoManualChk) modoManualChk.addEventListener('change', function(){
+    proposalState.modoManual = this.checked;
+    renderProposalBody();
   });
   // grupos do plano atual por linha (23/09/2026) — mesmo padrão do incremento: editar qtd/GB/valor
   // só atualiza o estado (sem re-renderizar); adicionar/remover grupo precisa re-renderizar.
@@ -3105,6 +3222,95 @@ function renderProposalBody(){
   const btnAddSitAtual = document.getElementById('btnAddSitAtual');
   if(btnAddSitAtual) btnAddSitAtual.addEventListener('click', function(){
     proposalState.situacaoAtualGrupos.push({ qtd: 1, gb: 0, valorUnit: 0 });
+    renderProposalBody();
+  });
+  // situação atual do modo manual (25/09/2026) — mesmo padrão de situacaoAtualGrupos (editar qtd/
+  // valor só atualiza o estado + subtotal no DOM, sem re-renderizar a tela inteira; adicionar/
+  // remover item precisa re-renderizar). Diferente do padrão histórico de situacaoAtualGrupos (que
+  // não chama updateProposalPreview, pois a Situação Atual não aparecia no resumo fixo): aqui a
+  // "Situação atual" ALIMENTA o resumo fixo (ver updateProposalPreview/modoManual), então precisa
+  // chamar updateModoManualTotals() pra manter o preview em dia.
+  document.querySelectorAll('.propSitManualDescricao').forEach(inp => {
+    inp.addEventListener('input', function(){
+      const idx = parseInt(this.dataset.idx, 10);
+      proposalState.situacaoAtualManual[idx].descricao = this.value;
+    });
+  });
+  document.querySelectorAll('.propSitManualQtd').forEach(inp => {
+    inp.addEventListener('input', function(){
+      const idx = parseInt(this.dataset.idx, 10);
+      const v = parseInt(this.value, 10);
+      proposalState.situacaoAtualManual[idx].qtd = (v && v > 0) ? v : 1;
+      updateModoManualTotals();
+    });
+  });
+  document.querySelectorAll('.propSitManualValor').forEach(inp => {
+    inp.addEventListener('input', function(){
+      const idx = parseInt(this.dataset.idx, 10);
+      const v = parseFloat(this.value);
+      proposalState.situacaoAtualManual[idx].valorUnit = (v && v >= 0) ? v : 0;
+      updateModoManualTotals();
+    });
+  });
+  document.querySelectorAll('.btnRemoveSitManual').forEach(btn => {
+    btn.addEventListener('click', function(){
+      const idx = parseInt(this.dataset.idx, 10);
+      proposalState.situacaoAtualManual.splice(idx, 1);
+      renderProposalBody();
+    });
+  });
+  const btnAddSitManual = document.getElementById('btnAddSitManual');
+  if(btnAddSitManual) btnAddSitManual.addEventListener('click', function(){
+    proposalState.situacaoAtualManual.push({ descricao: '', qtd: 1, valorUnit: 0 });
+    renderProposalBody();
+  });
+  // itens da "Nova Proposta" do modo manual (25/09/2026) — mesmo padrão acima.
+  document.querySelectorAll('.propItemManualCategoria').forEach(sel => {
+    sel.addEventListener('change', function(){
+      const idx = parseInt(this.dataset.idx, 10);
+      const g = proposalState.itensManuais[idx];
+      g.categoria = this.value;
+      // conveniência: selecionar "Claro Monitor" pré-preenche descrição/valor padrão do book — só
+      // quando o consultor ainda não digitou nada, pra não sobrescrever o que ele já preencheu.
+      if(this.value === 'Claro Monitor' && !g.descricao){
+        g.descricao = 'Claro Monitor — Jornada Mobilidade';
+        if(!g.valorUnit) g.valorUnit = 5;
+        renderProposalBody();
+      }
+    });
+  });
+  document.querySelectorAll('.propItemManualDescricao').forEach(inp => {
+    inp.addEventListener('input', function(){
+      const idx = parseInt(this.dataset.idx, 10);
+      proposalState.itensManuais[idx].descricao = this.value;
+    });
+  });
+  document.querySelectorAll('.propItemManualValor').forEach(inp => {
+    inp.addEventListener('input', function(){
+      const idx = parseInt(this.dataset.idx, 10);
+      const v = parseFloat(this.value);
+      proposalState.itensManuais[idx].valorUnit = (v && v >= 0) ? v : 0;
+      updateModoManualTotals();
+    });
+  });
+  document.querySelectorAll('.propItemManualQtd').forEach(inp => {
+    inp.addEventListener('input', function(){
+      const idx = parseInt(this.dataset.idx, 10);
+      const v = parseInt(this.value, 10);
+      proposalState.itensManuais[idx].qtd = (v && v > 0) ? v : 1;
+      updateModoManualTotals();
+    });
+  });
+  document.querySelectorAll('.btnRemoveItemManual').forEach(btn => {
+    btn.addEventListener('click', function(){
+      const idx = parseInt(this.dataset.idx, 10);
+      proposalState.itensManuais.splice(idx, 1);
+      renderProposalBody();
+    });
+  });
+  const btnAddItemManual = document.getElementById('btnAddItemManual');
+  if(btnAddItemManual) btnAddItemManual.addEventListener('click', function(){
+    proposalState.itensManuais.push({ categoria: 'Outro', descricao: '', valorUnit: 0, qtd: 1 });
     renderProposalBody();
   });
   // grupos de renovação do cliente-da-base (qtd + oferta) — mesmo padrão do incremento/avulsa
@@ -3175,7 +3381,8 @@ function renderProposalBody(){
     proposalState.linhaGrupos.push({ tipo, qtd: 1, offerId: oferta ? oferta.id : null });
     renderProposalBody();
   });
-  document.getElementById('propIncluirIncremento').addEventListener('change', function(){
+  const propIncluirIncrementoChk = document.getElementById('propIncluirIncremento');
+  if(propIncluirIncrementoChk) propIncluirIncrementoChk.addEventListener('change', function(){
     proposalState.incluirIncremento = this.checked;
     // não reseta renewGrupos aqui — preserva qualquer divisão de planos que o consultor já tenha
     // feito na renovação; a sugestão automática (cheapest x melhor) só entra quando renewGrupos
@@ -3275,7 +3482,8 @@ function renderProposalBody(){
       resEl.innerHTML = `<div class="loginError" style="display:block">${err.message}</div>`;
     }
   });
-  document.getElementById('propPassaporte').addEventListener('change', function(){
+  const propPassaporteChk = document.getElementById('propPassaporte');
+  if(propPassaporteChk) propPassaporteChk.addEventListener('change', function(){
     proposalState.incluirPassaporte = this.checked;
     renderProposalBody();
   });
@@ -3292,7 +3500,8 @@ function renderProposalBody(){
   });
   // "Outras ofertas": Claro Monitor (jornada mobilidade) e itens 100% manuais (produto + valor
   // unitário digitados pelo consultor) — não vêm do book estruturado, só somam no valor final.
-  document.getElementById('propIncluirExtras').addEventListener('change', function(){
+  const propIncluirExtrasChk = document.getElementById('propIncluirExtras');
+  if(propIncluirExtrasChk) propIncluirExtrasChk.addEventListener('change', function(){
     proposalState.incluirExtras = this.checked;
     renderProposalBody();
   });
@@ -3337,10 +3546,24 @@ function renderProposalBody(){
     renderProposalBody();
   });
 
-  document.getElementById('btnBaixarProposta').addEventListener('click', generateProposalDocx);
+  // modo manual (25/09/2026): proposta com 0 itens não faz sentido (o documento sairia com
+  // R$0,00 de "Nova Proposta") — guarda leve antes de disparar qualquer um dos 3 formatos de
+  // emissão, sem tocar nas 3 funções de geração em si (generateProposalDocx/PdfConsultor/
+  // PdfCliente continuam chamando buildPropostaDocModel/registrarPropostaNoFunil exatamente como
+  // sempre — só não disparam quando não há nada pra gerar).
+  function guardModoManualVazio(fn){
+    return function(){
+      if(proposalState.modoManual && !(proposalState.itensManuais || []).length){
+        alert('Adicione pelo menos um item na "Nova Proposta" antes de gerar o documento.');
+        return;
+      }
+      return fn.apply(this, arguments);
+    };
+  }
+  document.getElementById('btnBaixarProposta').addEventListener('click', guardModoManualVazio(generateProposalDocx));
   // 24/09/2026: 2ª e 3ª opções de emissão, ao lado do Word — ver comentário no HTML acima.
-  document.getElementById('btnBaixarPropostaPdf').addEventListener('click', generateProposalPdfConsultor);
-  document.getElementById('btnBaixarPropostaPdfCliente').addEventListener('click', generateProposalPdfCliente);
+  document.getElementById('btnBaixarPropostaPdf').addEventListener('click', guardModoManualVazio(generateProposalPdfConsultor));
+  document.getElementById('btnBaixarPropostaPdfCliente').addEventListener('click', guardModoManualVazio(generateProposalPdfCliente));
 
   updateProposalPreview();
 }
@@ -3431,9 +3654,30 @@ function computeProposal(){
 }
 
 function updateProposalPreview(){
-  const { baseGrupos, incGrupos, atual, novoTotal, deltaReais, deltaPct, renewDeltaPct, incrementoValor, extrasValor, convergenciaAtiva } = computeProposal();
   const el = document.getElementById('proposalPreview');
   if(!el) return;
+  // modo manual (25/09/2026): o resumo fixo não faz sentido calculado pelo catálogo (computeProposal),
+  // já que não há grupos/ofertas — mostra direto o total da Situação Atual (situacaoAtualManual) x o
+  // total da Nova Proposta (itensManuais) digitados pelo consultor.
+  if(proposalState.modoManual){
+    const atualManual = (proposalState.situacaoAtualManual || []).reduce((s,g) => s + (g.valorUnit||0)*(g.qtd||0), 0);
+    const totalManual = (proposalState.itensManuais || []).reduce((s,g) => s + (g.valorUnit||0)*(g.qtd||0), 0);
+    const deltaManual = totalManual - atualManual;
+    const diffRowManual = deltaManual < 0
+      ? kv('Redução na fatura', `<span class="badge apto">${fmtBRL(Math.abs(deltaManual))}${atualManual > 0 ? ' ('+Math.abs(deltaManual/atualManual*100).toFixed(1)+'%)' : ''}</span>`)
+      : '';
+    el.innerHTML = `
+    <div class="kv">
+      ${kv('Valor atual', fmtBRL(atualManual))}
+      ${kv('Valor proposto', fmtBRL(totalManual))}
+      ${diffRowManual}
+      ${kv('Indicador', '<span class="badge apto">proposta manual — 100% customizável</span>')}
+    </div>
+    <div class="searchMeta">Proposta válida até ${proposalValidUntil()}</div>
+    `;
+    return;
+  }
+  const { baseGrupos, incGrupos, atual, novoTotal, deltaReais, deltaPct, renewDeltaPct, incrementoValor, extrasValor, convergenciaAtiva } = computeProposal();
   let metaBadge;
   if(proposalState.avulsa){
     // proposta avulsa não tem "meta de 10%" (não é renovação) — comissão vem da aquisição/portabilidade/
@@ -3500,6 +3744,28 @@ function updateProposalPreview(){
   `;
 }
 
+// updateModoManualTotals() (25/09/2026): atualiza os subtotais por linha + o total da seção "Itens da
+// proposta (manual)" direto no DOM, sem re-renderizar a tela inteira — mesmo motivo do
+// updateProposalPreview pros outros fluxos (evita perder o foco/cursor do campo enquanto o consultor
+// digita). Também atualiza o resumo fixo (updateProposalPreview), que no modo manual é calculado a
+// partir desses mesmos itens (ver ali).
+function updateModoManualTotals(){
+  (proposalState.itensManuais || []).forEach((g, idx) => {
+    const el = document.querySelector(`.propItemManualSubtotal[data-idx="${idx}"] b`);
+    if(el) el.textContent = fmtBRL((g.valorUnit||0)*(g.qtd||0));
+  });
+  (proposalState.situacaoAtualManual || []).forEach((g, idx) => {
+    const el = document.querySelector(`.propSitManualSubtotal[data-idx="${idx}"] b`);
+    if(el) el.textContent = fmtBRL((g.valorUnit||0)*(g.qtd||0));
+  });
+  const totalEl = document.getElementById('propItemManualTotalValor');
+  if(totalEl){
+    const total = (proposalState.itensManuais || []).reduce((s,g) => s + (g.valorUnit||0)*(g.qtd||0), 0);
+    totalEl.textContent = fmtBRL(total);
+  }
+  updateProposalPreview();
+}
+
 function proposalValidUntil(){
   // validade de 1 dia a partir da emissão
   const d = new Date(Date.now() + 24*60*60*1000);
@@ -3514,6 +3780,87 @@ function proposalValidUntil(){
 // aqui. Reaproveita computeProposal() (mesmo cálculo usado antes pelo PDF) — não recalcula nada.
 function buildPropostaDocModel(){
   const client = proposalState.client;
+
+  // modo manual (25/09/2026, pedido do usuário: "proposta manual... totalmente customizável"):
+  // bypassa computeProposal() inteiro — não existem grupos de catálogo, fibra, passaporte nem
+  // convergência aqui, só os itens livres que o consultor digitou (itensManuais/situacaoAtualManual).
+  // client/subtitulo/rodapé seguem a MESMA lógica de sempre (replicada abaixo — não dá pra reaproveitar
+  // as variáveis calculadas mais adiante porque esse branch retorna antes delas).
+  if(proposalState.modoManual){
+    const itensManuais = (proposalState.itensManuais || []).filter(g => (g.descricao || '').trim() || (g.valorUnit||0) > 0);
+    const sitManuais = (proposalState.situacaoAtualManual || []).filter(g => (g.descricao || '').trim() || (g.valorUnit||0) > 0);
+
+    let situacaoAtualManualModel;
+    if(sitManuais.length){
+      situacaoAtualManualModel = {
+        tipo: 'tabela',
+        itens: sitManuais.map(g => ({
+          item: g.descricao || 'Item atual',
+          desc: `${g.qtd}× ${fmtBRL(g.valorUnit || 0)}/un`,
+          subtotal: (g.valorUnit || 0) * (g.qtd || 0),
+        })),
+        nota: 'Valores informados livremente pelo consultor.',
+      };
+    } else {
+      situacaoAtualManualModel = {
+        tipo: 'resumo',
+        linhas: [['Situação atual', 'Não informada']],
+        nota: '',
+      };
+    }
+    const atualManual = sitManuais.reduce((s,g) => s + (g.valorUnit||0)*(g.qtd||0), 0);
+
+    const itensNovaPropostaManual = itensManuais.map(g => ({
+      item: g.categoria ? `[${g.categoria}] ${g.descricao || 'Item'}` : (g.descricao || 'Item'),
+      desc: `${g.qtd}× ${fmtBRL(g.valorUnit || 0)}/un`,
+      subtotal: (g.valorUnit || 0) * (g.qtd || 0),
+    }));
+    const totalManual = itensNovaPropostaManual.reduce((s,it) => s + (it.subtotal||0), 0);
+
+    const deltaReaisManual = totalManual - atualManual;
+    const deltaPctManual = atualManual > 0 ? (deltaReaisManual / atualManual * 100) : null;
+    const reducaoManual = deltaReaisManual < 0
+      ? { valor: Math.abs(deltaReaisManual), pct: deltaPctManual !== null ? Math.abs(deltaPctManual) : null }
+      : null;
+
+    let subtituloManual = 'Apex Smart Solutions — Parceiro autorizado Claro Empresas';
+    if(proposalState.avulsa){
+      const subtitulosAvulsa = {
+        novo: 'Proposta avulsa — Nova aquisição de linha',
+        portabilidade: 'Proposta avulsa — Portabilidade',
+        titularidade: 'Transferência de titularidade Claro — Pessoa Física para Jurídica',
+      };
+      subtituloManual = subtitulosAvulsa[proposalState.tipoAvulsa] || 'Proposta avulsa';
+    }
+
+    // beneficios.temOfertaMovel controla se a seção "BENEFÍCIOS INCLUSOS" aparece no documento (ver
+    // montarDocxProposta/montarPdfProposta/montarPdfPropostaCliente) — só a ligamos quando existe
+    // pelo menos 1 item na Nova Proposta, pra mostrar a nota "proposta manual" sem badges universais
+    // (Ligações/WhatsApp/Waze), já que no modo manual não dá pra garantir que a proposta é mesmo
+    // móvel (pode ser só PABX, banda larga etc.) — badges fica vazio de propósito.
+    return {
+      client: {
+        razaoSocial: client.razao_social,
+        cnpj: client.cnpj,
+        dataEmissao: new Date().toLocaleDateString('pt-BR'),
+        consultor: proposalState.vendedorNome || currentUser.nome,
+      },
+      subtitulo: subtituloManual,
+      atual: atualManual,
+      situacaoAtual: situacaoAtualManualModel,
+      novaProposta: {
+        consolidado: false, // modo manual não usa consolidarValores — itens livres/heterogêneos não têm GB comum pra agrupar
+        itens: itensNovaPropostaManual,
+        notaFibra: false,
+        total: totalManual,
+        valorMonitor: 0, // sem contabilidade especial de Claro Monitor aqui — é só mais uma linha, sob controle total do consultor
+      },
+      beneficios: { temOfertaMovel: itensNovaPropostaManual.length > 0, badges: [], extras: ['Proposta manual — itens definidos livremente pelo consultor.'] },
+      destaque: { valorProposto: totalManual, reducao: reducaoManual },
+      rodape: { validaAte: proposalValidUntil(), emitidoEm: new Date().toLocaleDateString('pt-BR') },
+    };
+  }
+
   const { baseGrupos, incGrupos, atual, novoTotal, deltaReais, deltaPct, passaporteValor, fibraValor, incrementoValor, convergenciaAtiva } = computeProposal();
   const rotulosGrupo = { aquisicao: 'Aquisição', portabilidade: 'Portabilidade', renovacao: 'Renovação' };
 

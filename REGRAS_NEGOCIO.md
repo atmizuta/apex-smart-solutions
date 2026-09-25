@@ -1496,3 +1496,78 @@ Estendido `test_visao_diaria.js`:
 Suíte completa (29 arquivos `test_*.js`) reexecutada, cada um em cópia isolada com `npm install jsdom` + `python3 build_painel.py` frescos: sem quebras novas, só as mesmas falhas pré-existentes de sempre (fixtures `biometria.html`/`campinas.kmz`/`sjrp.kmz`/`ExportacaoProducao18080917.xlsx` ausentes, arquivos `.ts` de Edge Function ausentes no diretório de teste, pacotes `canvas`/`xlsx` não instalados no ambiente, e o assert de `test_conversao_vendas.js` dependente da data real do sistema já documentado na seção 36.3) — nenhuma relacionada a este código. `test_visao_diaria.js` sozinho: 31 (estrutura) + 61 (convergência, parcial) + 67 (render real) asserts, 0 falhas.
 
 Rebuild (`python3 build_painel.py`) confirmado sem placeholders pendentes.
+
+## 38. Modo manual na proposta avulsa — editor 100% livre de produtos/valores/situação atual (25/09/2026)
+
+Pedido do usuário: *"Preciso que crie a opção de uma proposta manual onde o consultor insira os dados dos produtos, valores, quantidade, tambem deixando a opção dele editar a situação atual do cliente, totalmente customizavel, mas mantendo o padrao visual, para facilitar, deixar a opção dele selecinar se é renovação, incremento, nova linha, portabilidade, banda larga, pabx, claro monitor e etc."*
+
+### 38.1 Onde entra: só na proposta avulsa ("Gerar Proposta avulsa")
+
+O modo manual é um toggle (`#propModoManual`, `proposalState.modoManual`) que só aparece — e só pode ser ligado — quando `proposalState.avulsa === true`. A renovação do cliente-da-base continua 100% no fluxo estruturado de catálogo de sempre (book de ofertas, grupos de renovação/incremento, convergência etc.); nunca mostra o toggle nem permite `modoManual = true` por nenhum caminho de UI. A decisão é deliberada: o book estruturado garante consistência comercial pra base existente, enquanto a proposta avulsa (linha nova, portabilidade, titularidade) é justamente o caso em que o consultor mais precisa montar algo fora do padrão (ex.: PABX, banda larga avulsa, combos que não existem no catálogo).
+
+### 38.2 O que muda quando o modo manual está ligado
+
+Ligar o toggle troca, na tela de proposta, todas as seções dirigidas por catálogo por dois editores de texto livre — mantendo o mesmo padrão visual (cards com borda, mesmos campos de `qtd`/`valor unitário`, mesmo botão "+ Adicionar", mesmo resumo fixo no topo):
+
+- **Somem**: os accordions de Renovação/Linhas (aquisição/portabilidade), Incremento, Oferta de Convergência, Fibra, Passaporte de Dados, Outras Ofertas (Claro Monitor automático + oferta manual antiga), e o toggle "Consolidar valores no documento" (não faz sentido com itens livres/heterogêneos — não há GB comum pra agrupar).
+- **Aparecem dois editores livres**:
+  - **"Situação atual (modo manual)"** — linhas `{descricao, qtd, valorUnit}` (`proposalState.situacaoAtualManual`), descrição 100% texto livre no lugar do campo de GB da Situação Atual estruturada. Sem nenhum item preenchido, o documento mostra "Situação atual: Não informada".
+  - **"Itens da proposta (manual)"** — linhas `{categoria, descricao, valorUnit, qtd}` (`proposalState.itensManuais`), com um total corrente ("Total da proposta") calculado ao vivo. `categoria` é um `<select>` com as opções pedidas pelo usuário: `MODO_MANUAL_CATEGORIAS = ['Renovação', 'Incremento', 'Nova linha', 'Portabilidade', 'Banda Larga', 'PABX', 'Claro Monitor', 'Outro']` — é só um rótulo livre pra organizar/prefixar a descrição no documento (`[Categoria] Descrição`), **sem nenhuma lógica de negócio por trás** (diferente do fluxo automático, onde escolher "Claro Monitor" aciona badge de benefício e contabilidade especial — aqui é só mais uma linha, sob controle total do consultor).
+- O campo de descrição dos dois editores tem autocomplete via `<datalist id="dlModoManualSugestoes">`, construído por `modoManualSugestoes()` a partir dos nomes já usados no catálogo estruturado (`OFFERS_MOBILE`, `CLARO_FIBRA`, `CONVERGENCIA_OFERTAS`) + "Claro Monitor — Jornada Mobilidade" — é só conveniência de digitação, o campo continua 100% texto livre.
+- **Conveniência Claro Monitor**: selecionar "Claro Monitor" na categoria de um item preenche automaticamente `descricao = 'Claro Monitor — Jornada Mobilidade'` e `valorUnit = 5`, mas **só quando a descrição ainda está vazia** — se o consultor já digitou algo, a seleção da categoria não sobrescreve nada (nem descrição nem valor).
+- O resumo fixo no topo (`updateProposalPreview()`) ganha um branch dedicado pro modo manual: em vez de rodar `computeProposal()` (que depende do catálogo), soma direto `situacaoAtualManual` (valor atual) e `itensManuais` (valor proposto) e mostra "Valor atual / Valor proposto / Redução (se houver) / Indicador: proposta manual — 100% customizável".
+- Editar quantidade/valor de uma linha atualiza o subtotal daquela linha e o total da seção direto no DOM (`updateModoManualTotals()`), sem re-renderizar a tela inteira (mesmo padrão de performance/UX já usado nos outros editores de linha da proposta — evita perder o foco do campo enquanto o consultor digita); adicionar/remover linha ainda re-renderiza (`renderProposalBody()`), porque muda a estrutura da lista.
+
+### 38.3 Guarda contra proposta vazia
+
+Como não existe fallback de catálogo no modo manual, gerar um documento com `itensManuais` vazio sairia com "Nova Proposta: R$ 0,00" — sem sentido. `guardModoManualVazio(fn)` envolve os 3 botões de emissão (`#btnBaixarProposta`/`#btnBaixarPropostaPdf`/`#btnBaixarPropostaPdfCliente`, ou seja: Word, PDF consultor, PDF cliente) e bloqueia com um `alert()` ("Adicione pelo menos um item na 'Nova Proposta' antes de gerar o documento.") sempre que `modoManual === true` e `itensManuais.length === 0` — sem tocar nas 3 funções de geração em si, que continuam chamando `buildPropostaDocModel()`/`registrarPropostaNoFunil()` exatamente como sempre quando há pelo menos 1 item.
+
+### 38.4 Como o documento é montado: `buildPropostaDocModel()`
+
+`buildPropostaDocModel()` ganhou um branch inicial (`if(proposalState.modoManual){...; return {...};}`) que **bypassa `computeProposal()` inteiro** — não existem grupos de catálogo, fibra, passaporte nem convergência no modo manual, só os itens livres digitados. `client`/`subtitulo`/`rodapé` seguem exatamente a mesma lógica de sempre (replicada nesse branch, já que ele retorna antes das variáveis calculadas no fluxo padrão). Pontos relevantes do modelo retornado:
+
+- Itens com descrição em branco (só espaços) **e** valor zero são filtrados dos dois editores antes de montar o modelo — uma linha adicionada e nunca preenchida não vira lixo no documento.
+- `novaProposta.itens[i].item` usa `[categoria] descrição` quando há categoria (inclusive a categoria padrão "Outro", que é sempre truthy — todo item novo nasce com `categoria: 'Outro'`, então o prefixo `[Outro]` aparece a menos que o consultor troque a categoria); `desc` no formato `"{qtd}× {valorUnit formatado}/un"`; `subtotal = valorUnit × qtd`.
+- `novaProposta.consolidado` é sempre `false` (não existe "Consolidar valores" no modo manual) e `novaProposta.valorMonitor` é sempre `0` (sem contabilidade especial de Claro Monitor — é só mais uma linha comum, ao contrário do fluxo automático).
+- `situacaoAtual` vira `{tipo:'tabela', itens:[...], nota:'Valores informados livremente pelo consultor.'}` quando há pelo menos 1 item preenchido em `situacaoAtualManual`; vazio, cai no fallback `{tipo:'resumo', linhas:[['Situação atual','Não informada']], nota:''}` (mesmo texto que já aparecia pra clientes sem contrato detalhado nos fluxos antigos).
+- `destaque.valorProposto` = `novaProposta.total`; `destaque.reducao` só é preenchido (`{valor, pct}`) quando o total proposto é **menor** que a situação atual — mesma regra "só destaca quando há redução" do resto do sistema (seção 15).
+- `beneficios.temOfertaMovel` é ligado (`true`) sempre que há pelo menos 1 item na Nova Proposta — **não** reflete se a proposta é realmente móvel (pode ser só PABX, banda larga etc.); o propósito único dessa flag no modo manual é abrir a seção "BENEFÍCIOS INCLUSOS" no documento pra mostrar a nota `beneficios.extras = ['Proposta manual — itens definidos livremente pelo consultor.']`. `beneficios.badges` fica sempre vazio — sem os badges universais (ligação ilimitada, WhatsApp, Waze) que aparecem no fluxo automático, já que não há garantia de que a proposta manual inclui linha móvel nova.
+- `montarDocxProposta()`, `montarPdfProposta()`, `montarPdfPropostaCliente()`, `generateProposalDocx()`, `generateProposalPdfConsultor()`, `generateProposalPdfCliente()` e `registrarPropostaNoFunil()` **não foram alterados** — todos consomem o modelo genérico que `buildPropostaDocModel()` devolve (mesmo formato do fluxo automático), então o modo manual reaproveita os 3 formatos de emissão (Word/PDF consultor/PDF cliente) e o registro no funil de vendas sem nenhuma lógica dedicada nesses pontos.
+
+### 38.5 Limites de escopo (deliberados)
+
+- Sem modo manual pro cliente-da-base — renovação continua só no fluxo de catálogo.
+- Sem "Consolidar valores" no modo manual — os itens já são livres/heterogêneos por natureza, não haveria um "plano único" pra consolidar.
+- "Claro Monitor" escolhido como categoria não vira badge de benefício nem contabilidade especial — é tratado como qualquer outra linha, ao contrário do fluxo automático (seção 4.3/31) onde Claro Monitor é somado à parte como "Outras ofertas".
+
+### 38.6 Testado
+
+Novo arquivo `test_proposta_manual.js` (90 asserts, 0 falhas), seguindo o mesmo padrão jsdom dos demais testes de proposta (`test_tipo_avulsa.js`/`test_proposta_colapsada.js`):
+
+- Toggle `#propModoManual` ausente e `modoManual` sempre `false` no fluxo cliente-da-base (não-avulsa); editores manuais (`#btnAddItemManual`/`#btnAddSitManual`) também ausentes nesse fluxo.
+- Na avulsa: `modoManual` nasce desligado, `itensManuais`/`situacaoAtualManual` nascem vazios, toggle existe, catálogo (accordion `.propGrupoTipo`) e "Consolidar valores" aparecem normalmente antes de ligar o modo manual.
+- Ligar o toggle: accordions de catálogo e "Consolidar valores" somem; os dois editores livres e o `<datalist id="dlModoManualSugestoes">` aparecem; hint "Adicione pelo menos um item" aparece com a lista vazia; datalist tem a mesma quantidade de sugestões que `modoManualSugestoes()` retorna.
+- Situação atual manual: adicionar linha, editar descrição/qtd/valor, subtotal atualizado no DOM sem re-render, adicionar 2ª linha e removê-la.
+- Itens da nova proposta: adicionar 2 linhas (categoria padrão "Outro"), editar categoria/descrição/valor/qtd das duas, subtotal por linha e total da seção atualizados no DOM sem re-render, resumo fixo mostrando o indicador "proposta manual".
+- Claro Monitor: selecionar a categoria com descrição vazia preenche `descricao`/`valorUnit` automaticamente; selecionar de novo com descrição/valor já preenchidos manualmente **não sobrescreve** nada.
+- `guardModoManualVazio`: com `itensManuais` vazio, os 3 botões de emissão (Word/PDF consultor/PDF cliente) disparam `alert()` mencionando "Nova Proposta" e **não** chamam `generateProposalDocx`/`generateProposalPdfConsultor`/`generateProposalPdfCliente`; com pelo menos 1 item, os 3 chamam normalmente.
+- `buildPropostaDocModel()` no modo manual: itens com/sem categoria geram o rótulo `[Categoria] Descrição` correto (inclusive a categoria padrão "Outro", sempre truthy); `desc`/`subtotal` por item; `novaProposta.total` = soma; `consolidado=false`; `valorMonitor=0`; `notaFibra=false`; `atual` = soma da situação atual manual; `situacaoAtual.tipo='tabela'` com itens corretos e nota "Valores informados livremente pelo consultor."; `destaque.valorProposto`/`destaque.reducao` corretos tanto quando a proposta aumenta quanto quando reduz o valor (incluindo o cálculo de `pct`); `beneficios.badges` vazio; `beneficios.extras` com a nota "proposta manual"; `beneficios.temOfertaMovel=true` quando há itens; `subtitulo`/`client` reaproveitando a lógica normal de proposta avulsa.
+- Fallback de situação atual vazia: `{tipo:'resumo', linhas:[['Situação atual','Não informada']], nota:''}`, `atual=0`.
+- Itens só com espaços em branco e valor zero são filtrados do modelo (tanto na Nova Proposta quanto na Situação Atual).
+- Desligar o toggle restaura o fluxo catalogado (accordion e "Consolidar valores" voltam, editores manuais somem) sem quebrar nada.
+
+A cobertura de `buildPropostaDocModel()` no fluxo **não**-manual (cliente-da-base e avulsa sem modo manual) já é extensa em 9 arquivos de teste pré-existentes (`test_analisar_fatura.js`, `test_consolidar_valores.js`, `test_convergencia.js`, `test_funil.js`, `test_incremento_qtd.js`, `test_outras_ofertas.js`, `test_pdf.js`, `test_plano_atual_gb.js`, `test_renovacao_multiplano.js`) — todos reexecutados sem quebras, confirmando que o novo branch `if(proposalState.modoManual)` no início da função não afeta o comportamento existente (é um early-return condicional, o resto da função é idêntico a antes).
+
+Suíte completa (31 arquivos `test_*.js`, incluindo o novo `test_proposta_manual.js`) reexecutada em lote (por causa do limite de 120s por chamada de ferramenta no sandbox, rodada em grupos de 8 arquivos), cada um em cópia isolada com `npm install jsdom`/`npm install xlsx jszip papaparse canvas` + `python3 build_painel.py` frescos: sem quebras novas, só as mesmas falhas pré-existentes de sempre (fixtures `biometria.html`/`campinas.kmz`/`sjrp.kmz`/`ExportacaoProducao18080917.xlsx` ausentes no diretório de teste, arquivos `.ts` de Edge Function ausentes no diretório de teste, e o assert de `test_conversao_vendas.js` dependente da data real do sistema já documentado na seção 36.3) — nenhuma relacionada a este código.
+
+Rebuild (`python3 build_painel.py`) confirmado sem placeholders pendentes.
+
+### 38.7 Fix: formatação ruim na coluna ITEM (25/09/2026)
+
+Pedido do usuário (após ver a primeira proposta manual gerada): *"a formatacao esta ruim no item, corrigir"*.
+
+Causa: `modoManualSugestoes()` usava `offerLabel()`/`convergenciaLabel()` pras opções do `<datalist>` de autocomplete — essas funções embutem o VALOR no nome (ex.: `"12GB — R$ 39,99/linha (Nacional)"`). Ao escolher a sugestão, esse texto virava a `descricao` literal do item, que `buildPropostaDocModel()` prefixa com `[Categoria] ` (seção 38.4) — o rótulo final (`"[Renovação] 12GB — R$ 39,99/linha (Nacional)"`) ficava comprido demais pra coluna ITEM (30% de largura nas tabelas do Word/PDF), quebrava linha de forma feia e ainda duplicava o preço, que já aparece nas colunas DESCRIÇÃO/SUBTOTAL (ex.: `"3× R$ 39,99/un"` / `"R$ 119,97"`).
+
+Fix: `modoManualSugestoes()` agora gera sugestões só com a identidade do plano, sem valor — `"12GB (Nacional)"`, `"Claro Fibra 400MEGA"`, `"Fibra 400MEGA + Claro-pós 12GB"` etc. — o consultor continua digitando o valor unitário no campo próprio, sem duplicação. `offerLabel()`/`convergenciaLabel()` (usadas em todo o resto do sistema, fora do modo manual) não foram tocadas.
+
+Testado: `test_proposta_manual.js` reexecutado (90/90 asserts) — a asserção de quantidade de sugestões (`dlOptions.length === modoManualSugestoes().length`) não depende do conteúdo exato dos textos, então continua válida sem alteração. Rebuild confirmado sem placeholders pendentes.
