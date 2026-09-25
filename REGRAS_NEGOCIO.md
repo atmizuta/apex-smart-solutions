@@ -1571,3 +1571,47 @@ Causa: `modoManualSugestoes()` usava `offerLabel()`/`convergenciaLabel()` pras o
 Fix: `modoManualSugestoes()` agora gera sugestões só com a identidade do plano, sem valor — `"12GB (Nacional)"`, `"Claro Fibra 400MEGA"`, `"Fibra 400MEGA + Claro-pós 12GB"` etc. — o consultor continua digitando o valor unitário no campo próprio, sem duplicação. `offerLabel()`/`convergenciaLabel()` (usadas em todo o resto do sistema, fora do modo manual) não foram tocadas.
 
 Testado: `test_proposta_manual.js` reexecutado (90/90 asserts) — a asserção de quantidade de sugestões (`dlOptions.length === modoManualSugestoes().length`) não depende do conteúdo exato dos textos, então continua válida sem alteração. Rebuild confirmado sem placeholders pendentes.
+
+## 39. Badge com o valor da oferta selecionada, ao lado do seletor (25/09/2026)
+
+Pedido do usuário: *"na montagem da proposta mostrar o valor de cada oferta, somente na proposta que pode ser retirado do item, em tipo de proposta Novo, portabilidade e transferencia, incluir incremento e renovação"*. Esclarecido via pergunta ao usuário (a frase original era ambígua entre mudar o documento gerado ou só a tela): o usuário escolheu **"Mostrar valor nos seletores de oferta (tela)"** — ou seja, é uma melhoria só na TELA de montagem da proposta, não no Word/PDF final (que já mostra o valor normalmente nas colunas de valor).
+
+### 39.1 O que mudou
+
+O `<select>` de oferta já mostrava o valor de cada opção dentro do próprio `<option>` (via `offerLabel()`), mas isso só é visível abrindo o dropdown — o texto da opção escolhida (mostrado fechado) pode truncar em telas estreitas, deixando o consultor sem ver o valor de cara. Adicionado um badge (`<div class="propOfertaValorWrap">` com um `<span class="propOfertaValorBadge">`) logo abaixo de cada seletor de oferta, sempre visível, mostrando "Valor: R$ X,XX/linha" da oferta **atualmente selecionada**. Aparece nos 3 pontos da tela onde existe seletor de oferta:
+
+- **Linha nova/portabilidade/transferência de titularidade** (proposta avulsa) — `.propGrupoOferta`.
+- **Renovação das linhas existentes** (cliente da base ou avulsa) — `.propRenovGrupoOferta`.
+- **Incremento — linha(s) extra** — `.propIncrementoOferta`.
+
+Nova função auxiliar `ofertaValorBadgeHtml(offer)` (logo após `offerLabel()`): recebe a oferta (ou `null`/`undefined` se nada estiver selecionado) e devolve o HTML do badge, com fallback "—" pra não quebrar quando não há oferta aplicável.
+
+### 39.2 Atualização ao vivo (sem re-render completo)
+
+Cada um dos 3 listeners de `change` do respectivo `<select>` (que já só atualizavam `proposalState` e chamavam `updateProposalPreview()`) passou a também reescrever o `innerHTML` do badge correspondente, na hora, sem disparar `renderProposalBody()` — mesmo espírito de outros campos que editam o estado in-place pra preservar o foco do campo.
+
+**Detalhe importante corrigido durante a implementação**: o `data-idx` do badge (`data-idx="${idx}"`) se repete entre as 3 seções (cada uma começa a contagem em 0) — um `document.querySelector('.propOfertaValorWrap[data-idx="0"]')` pegaria sempre o primeiro badge do documento inteiro, não necessariamente o da seção certa. Por isso os 3 listeners usam `this.nextElementSibling` (o badge é sempre o irmão HTML imediatamente seguinte ao `<select>`, dentro do mesmo `<div>` de campo) em vez de buscar por `data-idx` no documento todo — isso garante que trocar a oferta em uma seção nunca atualiza o badge errado em outra.
+
+Para o seletor de linha (`.propGrupoOferta`), o "pool" de ofertas disponíveis é recalculado por grupo dentro do `.map()` do render (não fica em escopo fora dele) — o listener recalcula com `grupoOfferList(client, proposalState.linhaGrupos[idx].tipo)` usando o tipo atual do grupo. Para renovação e incremento, `renewOffers`/`incOffers` já ficam no escopo da função `renderProposalBody()` e são reaproveitados diretamente.
+
+### 39.3 CSS
+
+Badge simples, cor de destaque verde (fundo `#eafaf1`, borda `#b9e8c9`), só decorativo — não altera layout do formulário, fica abaixo do select ocupando a largura do próprio campo.
+
+### 39.4 Limites de escopo (deliberados)
+
+- Só a tela — nenhuma mudança no Word/PDF/PDF-cliente gerado, nem em `buildPropostaDocModel()` ou nos 3 renderizadores de documento.
+- Não aparece em "Outras ofertas" (Claro Monitor/manual) nem no modo manual — esses já usam campos de valor livres/editáveis, não um `<select>` de oferta do book.
+
+### 39.5 Testado
+
+Novo arquivo `test_oferta_valor_badge.js` (16 asserts, 0 falhas):
+
+- Renovação: badge existe, é irmão imediato do select, mostra "Valor: R$..." no render inicial; trocar a oferta selecionada muda o texto do badge (mantendo o formato).
+- Incremento: mesma cobertura, após ligar o toggle `#propIncluirIncremento` (a seção só renderiza com o toggle ligado).
+- Linha nova (avulsa, tipo "novo"): mesma cobertura.
+- `ofertaValorBadgeHtml(null)`/`ofertaValorBadgeHtml(undefined)` devolvem o fallback "—" em vez de quebrar.
+
+Reexecutados sem quebras (relacionados ao fluxo de proposta, que compartilha `renderProposalBody()`/listeners com esta mudança): `test_proposta_manual.js`, `test_outras_ofertas.js`, `test_convergencia.js`, `test_convergencia_preset.js`, `test_incremento_qtd.js`, `test_renovacao_multiplano.js`, `test_tipo_avulsa.js`, `test_proposta_colapsada.js`, `test_consolidar_valores.js`, `test_plano_atual_gb.js`, `test_pdf.js`.
+
+Rebuild (`python3 build_painel.py`) confirmado sem placeholders pendentes.

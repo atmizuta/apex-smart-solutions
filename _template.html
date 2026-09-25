@@ -39,6 +39,11 @@
   .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px;font-weight:600;}
   .field input, .field select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#fff;}
   .field input:focus, .field select:focus{outline:none;border-color:var(--accent);}
+  /* 25/09/2026 (pedido do usuário: "mostrar o valor de cada oferta"): badge com o valor da oferta
+     selecionada, exibido ao lado do <select> de oferta (Renovação/Aquisição-Portabilidade e
+     Incremento) — só na tela, não entra no documento gerado. */
+  .propOfertaValorWrap{margin-top:5px;}
+  .propOfertaValorBadge{display:inline-block;font-size:12px;color:var(--accent-dark,#0a5c36);background:#eafaf1;border:1px solid #b9e8c9;border-radius:6px;padding:3px 8px;}
   .btn{background:var(--accent);color:#fff;border:none;padding:11px 16px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;width:100%;}
   .btn:hover{background:var(--accent-dark);}
   .btn-sm{width:auto;padding:8px 14px;font-size:13px;}
@@ -1084,6 +1089,15 @@ const CLARO_PASSAPORTE = {
 function offerLabel(o){
   const reg = o.regional ? ' — ' + o.regional.label : '';
   return `${o.gb}GB — R$ ${o.valor.toFixed(2).replace('.',',')}/linha (${o.origem})${reg}`;
+}
+// 25/09/2026 (pedido do usuário: "na montagem da proposta mostrar o valor de cada oferta") — o
+// <select> de oferta já mostra o valor dentro de cada <option> (via offerLabel), mas só é visível
+// abrindo o dropdown; o texto do próprio select (a opção escolhida) pode truncar em telas
+// estreitas. Esse badge fica sempre visível ao lado do select, com o valor da oferta ATUALMENTE
+// escolhida — usado nos seletores de Renovação/Aquisição-Portabilidade e Incremento (proposta
+// avulsa tipo Novo/Portabilidade/Transferência de titularidade e cliente da base).
+function ofertaValorBadgeHtml(offer){
+  return `<span class="propOfertaValorBadge">${offer ? 'Valor: <b>' + fmtBRL(offer.valor) + '/linha</b>' : '—'}</span>`;
 }
 function offerRegionOk(offer, client){
   if(!offer.regional) return true;
@@ -2943,6 +2957,7 @@ function renderProposalBody(){
             <select class="propGrupoOferta" data-idx="${idx}">
               ${pool.map(o => `<option value="${o.id}" ${o.id===g.offerId?'selected':''}>${offerLabel(o)}${o.regional && !o.aplicavel ? ' — confirmar DDD' : ''}</option>`).join('')}
             </select>
+            <div class="propOfertaValorWrap" data-idx="${idx}">${ofertaValorBadgeHtml(pool.find(o => o.id === g.offerId))}</div>
           </div>
           ${proposalState.linhaGrupos.length > 1 ? `<button type="button" class="btnRemoveGrupo" data-idx="${idx}" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:8px 10px;cursor:pointer;height:38px">Remover</button>` : ''}
         </div>`;
@@ -2964,6 +2979,7 @@ function renderProposalBody(){
             <select class="propRenovGrupoOferta" data-idx="${idx}">
               ${renewOffers.map(o => `<option value="${o.id}" ${o.id===g.offerId?'selected':''}>${offerLabel(o)}${o.regional && !o.aplicavel ? ' — confirmar DDD' : ''}</option>`).join('')}
             </select>
+            <div class="propOfertaValorWrap" data-idx="${idx}">${ofertaValorBadgeHtml(renewOffers.find(o => o.id === g.offerId))}</div>
           </div>
           ${proposalState.renewGrupos.length > 1 ? `<button type="button" class="btnRemoveRenovGrupo" data-idx="${idx}" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:8px 10px;cursor:pointer;height:38px">Remover</button>` : ''}
         </div>`).join('')}
@@ -2999,6 +3015,7 @@ function renderProposalBody(){
             <select class="propIncrementoOferta" data-idx="${idx}">
               ${incOffers.map(o => `<option value="${o.id}" ${o.id===g.offerId?'selected':''}>${offerLabel(o)}${o.regional && !o.aplicavel ? ' — confirmar DDD' : ''}</option>`).join('')}
             </select>
+            <div class="propOfertaValorWrap" data-idx="${idx}">${ofertaValorBadgeHtml(incOffers.find(o => o.id === g.offerId))}</div>
           </div>
           ${proposalState.incrementos.length > 1 ? `<button type="button" class="btnRemoveIncremento" data-idx="${idx}" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:8px 10px;cursor:pointer;height:38px">Remover</button>` : ''}
         </div>`).join('')}
@@ -3326,6 +3343,12 @@ function renderProposalBody(){
     sel.addEventListener('change', function(){
       const idx = parseInt(this.dataset.idx, 10);
       proposalState.renewGrupos[idx].offerId = this.value;
+      // 25/09/2026 (pedido do usuário: "mostrar o valor de cada oferta"): atualiza o badge de valor
+      // ao lado do select sem precisar re-renderizar a tela inteira. Usa nextElementSibling (não
+      // data-idx) porque o data-idx se repete entre as 3 seções (linhaGrupos/renewGrupos/
+      // incrementos) — um querySelector global pegaria sempre o primeiro badge do documento.
+      const badgeWrap = this.nextElementSibling;
+      if(badgeWrap && badgeWrap.classList.contains('propOfertaValorWrap')) badgeWrap.innerHTML = ofertaValorBadgeHtml(renewOffers.find(o => o.id === this.value));
       updateProposalPreview();
     });
   });
@@ -3364,6 +3387,17 @@ function renderProposalBody(){
     sel.addEventListener('change', function(){
       const idx = parseInt(this.dataset.idx, 10);
       proposalState.linhaGrupos[idx].offerId = this.value;
+      // 25/09/2026 (pedido do usuário: "mostrar o valor de cada oferta"): atualiza o badge de valor
+      // ao lado do select sem re-renderizar a tela inteira. O "pool" original é recalculado por
+      // grupo dentro do .map() do render (não fica em escopo aqui), então refaz a busca com o
+      // mesmo tipo do grupo atual. Usa nextElementSibling (não data-idx) porque o data-idx se repete
+      // entre as 3 seções (linhaGrupos/renewGrupos/incrementos) — um querySelector global pegaria
+      // sempre o primeiro badge do documento, não o certo.
+      const badgeWrap = this.nextElementSibling;
+      if(badgeWrap && badgeWrap.classList.contains('propOfertaValorWrap')){
+        const poolAtual = grupoOfferList(client, proposalState.linhaGrupos[idx].tipo);
+        badgeWrap.innerHTML = ofertaValorBadgeHtml(poolAtual.find(o => o.id === this.value));
+      }
       updateProposalPreview();
     });
   });
@@ -3399,6 +3433,11 @@ function renderProposalBody(){
     sel.addEventListener('change', function(){
       const idx = parseInt(this.dataset.idx, 10);
       proposalState.incrementos[idx].offerId = this.value;
+      // 25/09/2026 (pedido do usuário: "mostrar o valor de cada oferta"): atualiza o badge de valor
+      // ao lado do select sem re-renderizar a tela inteira. Usa nextElementSibling (não data-idx)
+      // porque o data-idx se repete entre as 3 seções (linhaGrupos/renewGrupos/incrementos).
+      const badgeWrap = this.nextElementSibling;
+      if(badgeWrap && badgeWrap.classList.contains('propOfertaValorWrap')) badgeWrap.innerHTML = ofertaValorBadgeHtml(incOffers.find(o => o.id === this.value));
       updateProposalPreview();
     });
   });
