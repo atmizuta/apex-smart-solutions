@@ -177,15 +177,75 @@ try{
   assert(drilldownChamado && drilldownChamado.recs.length === 3, 'clicar na hora 14h abre o analítico só com os 3 pedidos daquela hora');
   assert(drilldownChamado && drilldownChamado.titulo.includes('14h'), 'título do analítico menciona a hora clicada (' + (drilldownChamado && drilldownChamado.titulo) + ')');
 
-  // --- 6) ranking por consultor: Caio tem 6 contratos (1,2,5,8,10,11) no dia 20, Giovanna tem 4 (3,4,9,12) ---
+  // --- 6) ranking por consultor (24/09/2026: agora ordenado por RECEITA, não mais por volume de
+  // contrato — ver REGRAS_NEGOCIO.md seção 37). Caio tem 6 contratos (1,2,5,8,10,11) somando
+  // R$ 2.150,00, Giovanna tem 4 contratos (3,4,9,12) somando R$ 710,00 — nesse fixture Caio também
+  // teria ficado em 1º pelo critério antigo (contratos), então essas asserções sozinhas NÃO provam
+  // o fix; a prova real (receita menor vencendo por volume maior, e o desempate por produtos) está
+  // no bloco 6.1 logo abaixo, chamando agruparDiariaPor/renderDiariaLeaderboard diretamente.
   const consultorHtml = document.getElementById('diariaConsultores').innerHTML;
   const idxCaio = consultorHtml.indexOf('Caio');
   const idxGiovanna = consultorHtml.indexOf('Giovanna');
   assert(idxCaio > -1 && idxGiovanna > -1, 'ranking por consultor lista Caio e Giovanna');
-  assert(idxCaio < idxGiovanna, 'Caio (6 contratos) aparece antes de Giovanna (4 contratos) — ordenado por volume');
-  assert(consultorHtml.includes('6 contratos'), 'Caio mostra 6 contratos no dia');
+  assert(idxCaio < idxGiovanna, 'Caio (R$ 2.150,00) aparece antes de Giovanna (R$ 710,00) — ordenado por receita');
+  assert(consultorHtml.includes('2.150,00'), 'Caio mostra a receita R$ 2.150,00 em destaque no ranking (número principal agora é receita, não contratos)');
+  assert(consultorHtml.includes('6 contrato'), 'Caio ainda mostra "6 contratos" no sub-texto do ranking');
   assert(consultorHtml.includes('is-gold'), 'o 1º colocado do ranking usa o selo de destaque (is-gold)');
   assert(!consultorHtml.includes('Vitor'), 'Vitor (pedido de 19/08 em SP) NÃO aparece no ranking do dia 20');
+
+  // --- 6.1) prova direta do fix (24/09/2026, REGRAS_NEGOCIO.md seção 37): "na visao diaria o
+  // ranking do consultor esta por volume de contrato, corrigir para a maior receita e desempate
+  // quantidade de produtos". Chama agruparDiariaPor/renderDiariaLeaderboard diretamente com um
+  // fixture onde o consultor de MENOS contratos tem MAIS receita, pra provar que ele fica em 1º. ---
+  function pedidoFake(over){ return Object.assign({ numero_pedido: 'X', usuario: 'X', valor: 0, quantidade: 1, cnpj: null }, over); }
+  const rowsReceita = [
+    // Ana: 2 contratos, receita total 200
+    pedidoFake({ numero_pedido: 'A1', usuario: 'Ana', valor: 100, quantidade: 1 }),
+    pedidoFake({ numero_pedido: 'A2', usuario: 'Ana', valor: 100, quantidade: 1 }),
+    // Bruno: 1 contrato só, mas receita total 500 (maior que a de Ana)
+    pedidoFake({ numero_pedido: 'B1', usuario: 'Bruno', valor: 500, quantidade: 1 }),
+  ];
+  const agrupSemSort = agruparDiariaPor(rowsReceita, 'usuario', null);
+  assert(agrupSemSort[0].key === 'Ana', 'sem sortBy (ranking "Por produto"), continua ordenando por CONTRATOS: Ana (2) fica em 1º mesmo com receita menor que Bruno (1 contrato) — regressão do ranking por produto');
+  const agrupPorValor = agruparDiariaPor(rowsReceita, 'usuario', null, 'valor');
+  assert(agrupPorValor[0].key === 'Bruno', 'com sortBy="valor" (ranking do consultor), Bruno (1 contrato, R$ 500) fica em 1º ANTES de Ana (2 contratos, R$ 200) — prova a correção pedida pelo usuário');
+  assert(agrupPorValor[1].key === 'Ana', 'Ana fica em 2º no ranking por receita, apesar de ter mais contratos');
+
+  // desempate: mesma receita total, quantidade de produtos (linhas) diferente — o de MAIS produtos
+  // deve ficar na frente
+  const rowsEmpate = [
+    // X: receita total 200, 4 produtos (linhas)
+    pedidoFake({ numero_pedido: 'X1', usuario: 'X', valor: 100, quantidade: 1 }),
+    pedidoFake({ numero_pedido: 'X2', usuario: 'X', valor: 100, quantidade: 3 }),
+    // Y: receita total 200 (empatado com X), só 2 produtos (linhas)
+    pedidoFake({ numero_pedido: 'Y1', usuario: 'Y', valor: 150, quantidade: 1 }),
+    pedidoFake({ numero_pedido: 'Y2', usuario: 'Y', valor: 50, quantidade: 1 }),
+  ];
+  const agrupEmpate = agruparDiariaPor(rowsEmpate, 'usuario', null, 'valor');
+  assert(agrupEmpate[0].valor === agrupEmpate[1].valor, 'fixture de desempate: X e Y têm exatamente a mesma receita total (R$ 200) — pré-condição do teste');
+  assert(agrupEmpate[0].key === 'X', 'com receita empatada, X (4 produtos) fica em 1º, na frente de Y (2 produtos) — desempate por quantidade de produtos, como pedido pelo usuário');
+  assert(agrupEmpate[1].key === 'Y', 'Y (2 produtos) fica em 2º no empate de receita');
+
+  // renderDiariaLeaderboard: quando sortBy === 'valor', o número em destaque (lb-count) do 1º
+  // colocado é a receita formatada (contém "R$"), não mais "X contrato(s)"
+  const lbTestEl = document.createElement('div');
+  lbTestEl.id = 'lbTesteReceita';
+  document.body.appendChild(lbTestEl);
+  renderDiariaLeaderboard('lbTesteReceita', rowsReceita, 'usuario', null, 'valor');
+  const primeiraLinhaLb = lbTestEl.querySelector('.lb-row .lb-count');
+  assert(primeiraLinhaLb && primeiraLinhaLb.textContent.includes('R$'), 'renderDiariaLeaderboard com sortBy="valor": número em destaque do 1º colocado contém "R$" (é a receita) — obtido ' + (primeiraLinhaLb && primeiraLinhaLb.textContent));
+  assert(primeiraLinhaLb && !primeiraLinhaLb.textContent.includes('contrato'), 'renderDiariaLeaderboard com sortBy="valor": número em destaque NÃO é mais "X contrato(s)" — obtido ' + (primeiraLinhaLb && primeiraLinhaLb.textContent));
+  const primeiraLinhaLbSub = lbTestEl.querySelector('.lb-row .lb-sub');
+  assert(primeiraLinhaLbSub && primeiraLinhaLbSub.textContent.includes('contrato') && primeiraLinhaLbSub.textContent.includes('produto'), 'renderDiariaLeaderboard com sortBy="valor": contratos e produtos aparecem no sub-texto — obtido ' + (primeiraLinhaLbSub && primeiraLinhaLbSub.textContent));
+
+  // sem sortBy (ranking "Por produto"), renderDiariaLeaderboard continua igual: número em destaque
+  // é "X contrato(s)", não receita
+  const lbTestEl2 = document.createElement('div');
+  lbTestEl2.id = 'lbTesteContratos';
+  document.body.appendChild(lbTestEl2);
+  renderDiariaLeaderboard('lbTesteContratos', rowsReceita, 'usuario', null);
+  const primeiraLinhaLb2 = lbTestEl2.querySelector('.lb-row .lb-count');
+  assert(primeiraLinhaLb2 && primeiraLinhaLb2.textContent.includes('contrato') && !primeiraLinhaLb2.textContent.includes('R$'), 'renderDiariaLeaderboard sem sortBy: número em destaque continua "X contrato(s)" (sem regressão no ranking "Por produto") — obtido ' + (primeiraLinhaLb2 && primeiraLinhaLb2.textContent));
 
   // --- 7) ranking por produto (grupo): Portabilidade tem 3 contratos, Novo tem 2 ---
   const produtoHtml = document.getElementById('diariaProdutos').innerHTML;
@@ -247,7 +307,9 @@ try{
 
   const consultorHtmlMulti = document.getElementById('diariaConsultores').innerHTML;
   assert(consultorHtmlMulti.includes('1 contrato') && !consultorHtmlMulti.includes('2 contratos'), 'ranking por consultor: Caio aparece com 1 contrato (não 2), mesmo tendo vendido 2 produtos no mesmo pedido — ' + consultorHtmlMulti);
-  assert(consultorHtmlMulti.includes('2 linha'), 'ranking por consultor: Caio mostra 2 linhas (produtos) no sub-texto');
+  // 24/09/2026: ranking por consultor agora usa sortBy="valor" — o sub-texto diz "produtos", não
+  // mais "linhas" (esse rótulo só aparece no ranking "Por produto", que não usa sortBy)
+  assert(consultorHtmlMulti.includes('2 produto'), 'ranking por consultor: Caio mostra 2 produtos no sub-texto — ' + consultorHtmlMulti);
 
   // --- 7.4) convergência (fibra + móvel, mesmo CNPJ, numero_pedido diferente) — 21/09/2026, ver
   // REGRAS_NEGOCIO.md seção 16.15. CONV-A1 (banda larga) + CONV-A2 (voz) têm o mesmo cnpj AAA111 mas
