@@ -328,6 +328,8 @@
             <option value="novo">Novo (linha nova, sem portar número)</option>
             <option value="portabilidade">Portabilidade (portar número de outra operadora)</option>
             <option value="titularidade">Transferência de titularidade Claro — pessoa física para jurídica</option>
+            <option value="renovacao">Renovação (cliente já é Claro, ainda não está na base)</option>
+            <option value="incremento">Incremento (cliente já é Claro, só quer linha(s) extra)</option>
           </select>
         </div>
         <div class="row4" style="grid-template-columns:1fr 1fr">
@@ -1659,25 +1661,39 @@ function modoManualSugestoes(){
 function openProposal(client, opts){
   opts = opts || {};
   const avulsa = !!opts.avulsa;
-  const tipoAvulsa = opts.tipoAvulsa || 'portabilidade'; // 'novo' | 'portabilidade' | 'titularidade' (PF -> PJ, Claro-Claro)
-  const incluirRenovacao = true; // padrão ligado — é a ação principal da proposta pro cliente da base
-  // Incremento e fibra (abaixo) nascem DESLIGADOS por padrão (redesign 12/08/2026): são etapas
-  // opcionais/upsell, não o motivo da proposta — só aparecem abertas quando o consultor decide usar,
-  // pra tela não vir com tudo expandido de cara. Fibra continua com um alerta de viabilidade quando o
-  // cliente é cabeado, mesmo com a seção fechada (ver renderProposalBody), porque a regra de negócio
-  // (seção 4.4 do REGRAS_NEGOCIO.md) é sugerir fibra sempre — só não força mais a seção aberta.
-  const incluirIncremento = false;
-  const renewDefault = (!avulsa) ? (incluirIncremento ? pickCheapestRenewal(client) : pickBestRenovacao(client)) : null;
+  const tipoAvulsa = opts.tipoAvulsa || 'portabilidade'; // 'novo' | 'portabilidade' | 'titularidade' (PF -> PJ, Claro-Claro) | 'renovacao' | 'incremento'
+  // usarRenewGrupos (25/09/2026, pedido do usuário: adicionar "Renovação" e "Incremento" como Tipo de
+  // proposta avulsa): true sempre que a "linha base" da proposta deve ser tratada como renovação de um
+  // plano Claro já existente (mesma lógica/UI de renewGrupos usada pro cliente-da-base) — ou seja, todo
+  // cliente-da-base, e o cliente avulsa quando o Tipo de proposta escolhido é "Renovação" (avulsa
+  // pressupõe que esse cliente já é Claro, só não está cadastrado na base ainda — ver decisão abaixo).
+  // Reaproveitada em computeProposal()/renderProposalBody()/buildPropostaDocModel()/
+  // updateProposalPreview() via usarRenewGruposAvulsa() (idêntica, mas lida de proposalState já
+  // montado — aqui ainda não existe, por isso a variável local).
+  const usarRenewGrupos = !avulsa || tipoAvulsa === 'renovacao';
+  // "Atalho de abertura" (decisão do usuário via pergunta): escolher "Incremento" no Tipo de proposta
+  // já abre a proposta com a seção Incremento ligada e a de Linha nova/Renovação fechada; os demais
+  // tipos mantêm o padrão de sempre (linha base ligada, incremento desligado). O consultor continua
+  // podendo ligar/desligar tudo manualmente depois.
+  const incluirRenovacao = !(avulsa && tipoAvulsa === 'incremento'); // padrão ligado — só nasce desligado no atalho "Incremento"
+  // Fibra nasce DESLIGADA por padrão (redesign 12/08/2026): é etapa opcional/upsell, não o motivo da
+  // proposta — só aparece aberta quando o consultor decide usar, pra tela não vir com tudo expandido
+  // de cara. Fibra continua com um alerta de viabilidade quando o cliente é cabeado, mesmo com a seção
+  // fechada (ver renderProposalBody), porque a regra de negócio (seção 4.4 do REGRAS_NEGOCIO.md) é
+  // sugerir fibra sempre — só não força mais a seção aberta.
+  const incluirIncremento = avulsa && tipoAvulsa === 'incremento';
+  const renewDefault = usarRenewGrupos ? (incluirIncremento ? pickCheapestRenewal(client) : pickBestRenovacao(client)) : null;
   const incDefault = pickIncrementoLine(client, false);
 
-  // proposta avulsa: começa com 1 grupo de linhas, com a quantidade igual ao que o cliente informou
+  // proposta avulsa (exceto tipo "Renovação", que usa renewGrupos/renewOffers — mesma lógica do
+  // cliente-da-base): começa com 1 grupo de linhas, com a quantidade igual ao que o cliente informou
   // ter hoje. O tipo do grupo inicial já vem alinhado com o "Tipo de proposta" escolhido no
-  // formulário (novo/titularidade -> aquisição; portabilidade -> portabilidade) — o consultor pode
-  // ajustar tipo/quantidade depois e adicionar mais grupos pra misturar os dois no mesmo pedido
-  // (ver renderProposalBody). "Novo" e "Transferência de titularidade" nunca pedem operadora atual,
-  // porque não existe linha/serviço anterior a portar.
+  // formulário (novo/titularidade/incremento -> aquisição; portabilidade -> portabilidade) — o
+  // consultor pode ajustar tipo/quantidade depois e adicionar mais grupos pra misturar os dois no
+  // mesmo pedido (ver renderProposalBody). "Novo" e "Transferência de titularidade" nunca pedem
+  // operadora atual, porque não existe linha/serviço anterior a portar.
   let linhaGrupos = [];
-  if(avulsa){
+  if(avulsa && !usarRenewGrupos){
     const qtdInicial = client.linhas_atuais || 1;
     const tipoGrupoInicial = tipoAvulsa === 'portabilidade' ? 'portabilidade' : 'aquisicao';
     const ofertaInicial = pickCheapestGrupoOffer(client, tipoGrupoInicial);
@@ -1703,7 +1719,7 @@ function openProposal(client, opts){
     // por oferta) — usa esses no lugar da sugestão automática de pickBestRenovacao().
     renewGrupos: opts.renewGruposOverride
       ? opts.renewGruposOverride
-      : ((!avulsa && renewDefault) ? [{ qtd: client.linhas_voz || 1, offerId: renewDefault.id }] : []),
+      : ((usarRenewGrupos && renewDefault) ? [{ qtd: client.linhas_voz || 1, offerId: renewDefault.id }] : []),
     incluirIncremento: opts.incluirIncrementoOverride !== undefined ? opts.incluirIncrementoOverride : incluirIncremento,
     // cada item é {offerId, qtd} — quantidade de linhas naquele plano, não uma linha por item.
     // incrementosOverride: mesma ideia do renewGruposOverride, vindo da análise de fatura.
@@ -1794,13 +1810,18 @@ document.getElementById('avTipo').addEventListener('change', function(){
 document.getElementById('btnGerarPropostaAvulsa').addEventListener('click', function(){
   const errEl = document.getElementById('avulsaErr');
   errEl.style.display = 'none';
-  const tipo = document.getElementById('avTipo').value; // 'novo' | 'portabilidade' | 'titularidade'
+  const tipo = document.getElementById('avTipo').value; // 'novo' | 'portabilidade' | 'titularidade' | 'renovacao' | 'incremento'
   const nome = document.getElementById('avNome').value.trim();
   const cnpj = document.getElementById('avCnpj').value.trim();
   const cidade = document.getElementById('avCidade').value.trim();
   const ddd = document.getElementById('avDdd').value.trim();
   const cep = document.getElementById('avCep').value.trim();
+  // 25/09/2026 (pedido do usuário: "em proposta avulsa em tipo de proposta colocar tambem as opcoes
+  // ... renovação e incremento", esclarecido via pergunta: sempre considerar o cliente já Claro pra
+  // esses 2 tipos, igual à titularidade) — "Renovação" e "Incremento" pressupõem que o cliente já tem
+  // linha/plano Claro (só não está cadastrado na base ainda), então não pedem operadora atual.
   const operadora = tipo === 'titularidade' ? 'Claro (Pessoa Física)'
+    : (tipo === 'renovacao' || tipo === 'incremento') ? 'Claro'
     : tipo === 'portabilidade' ? document.getElementById('avOperadora').value.trim()
     : ''; // 'novo' não tem operadora atual — não existe linha/serviço anterior a portar
   const linhasAtuais = parseInt(document.getElementById('avLinhasAtuais').value, 10);
@@ -1821,6 +1842,11 @@ document.getElementById('btnGerarPropostaAvulsa').addEventListener('click', func
     ddd: ddd,
     cep: cep,
     linhas_atuais: linhasAtuais,     // usado na "Situação atual" e como quantidade inicial do 1º grupo de linhas
+    // linhas_voz (25/09/2026, tipo "Renovação"/"Incremento" avulsos): espelha linhas_atuais — as
+    // funções de renovação (pickBestRenovacao/pickCheapestRenewal/renewalOfferList) já leem
+    // client.linhas_voz, então preencher aqui permite reaproveitá-las sem alteração pra um cliente
+    // avulsa que já é Claro (só não está cadastrado na base ainda).
+    linhas_voz: linhasAtuais,
     valor_contrato: valor,
     arpu: linhasAtuais > 0 ? Math.round((valor / linhasAtuais) * 100) / 100 : 0,
     cep_cabeado: '', // desconhecido para prospect fora da base — proposta avisa para confirmar viabilidade
@@ -2785,16 +2811,28 @@ async function analisarFatura(state){
   }
 }
 
+// usarRenewGruposAvulsa() (25/09/2026, pedido do usuário: "renovação e incremento" como Tipo de
+// proposta avulsa): versão de usarRenewGrupos (ver openProposal) que lê proposalState já montado —
+// usada em renderProposalBody()/computeProposal()/buildPropostaDocModel()/updateProposalPreview(),
+// chamadas todas DEPOIS que proposalState existe (dentro de openProposal() ainda não existe, por isso
+// aquela função usa uma const local equivalente). true quando a "linha base" da proposta deve ser
+// tratada como renovação de um plano Claro já existente (renewGrupos/renewOffers) — sempre no
+// cliente-da-base, e na proposta avulsa quando o Tipo de proposta é "Renovação".
+function usarRenewGruposAvulsa(){
+  return !proposalState.avulsa || proposalState.tipoAvulsa === 'renovacao';
+}
+
 function renderProposalBody(){
   const client = proposalState.client;
   const avulsa = proposalState.avulsa;
   const isTitularidade = avulsa && proposalState.tipoAvulsa === 'titularidade';
+  const usarRenewGrupos = usarRenewGruposAvulsa();
 
   // --- fluxo cliente-da-base: lista de grupos de renovação (qtd + oferta), igual ao incremento —
   // o consultor pode dividir as linhas existentes entre vários planos, em vez de forçar todas pra
   // uma única oferta (mudança de 12/08/2026) ---
   let renewOffers = [];
-  if(!avulsa){
+  if(usarRenewGrupos){
     renewOffers = renewalOfferList(client);
     if(proposalState.incluirRenovacao){
       if(!proposalState.renewGrupos || !proposalState.renewGrupos.length){
@@ -2811,8 +2849,9 @@ function renderProposalBody(){
     }
   }
 
-  // --- fluxo avulsa: lista de grupos de linha (aquisição e/ou portabilidade misturados) ---
-  if(avulsa && proposalState.incluirRenovacao){
+  // --- fluxo avulsa (exceto tipo "Renovação"): lista de grupos de linha (aquisição e/ou
+  // portabilidade misturados) ---
+  if(avulsa && !usarRenewGrupos && proposalState.incluirRenovacao){
     if(!proposalState.linhaGrupos || !proposalState.linhaGrupos.length){
       const oferta = pickCheapestGrupoOffer(client, 'aquisicao');
       proposalState.linhaGrupos = [{ tipo: 'aquisicao', qtd: client.linhas_atuais || 1, offerId: oferta ? oferta.id : null }];
@@ -2846,8 +2885,8 @@ function renderProposalBody(){
     proposalState.incrementos = [];
   }
   const cabeado = isCabeado(client);
-  const totalLinhasGrupos = avulsa ? (proposalState.linhaGrupos || []).reduce((s,g) => s + (g.qtd||0), 0) : 0;
-  const totalLinhasRenov = !avulsa ? (proposalState.renewGrupos || []).reduce((s,g) => s + (g.qtd||0), 0) : 0;
+  const totalLinhasGrupos = (avulsa && !usarRenewGrupos) ? (proposalState.linhaGrupos || []).reduce((s,g) => s + (g.qtd||0), 0) : 0;
+  const totalLinhasRenov = usarRenewGrupos ? (proposalState.renewGrupos || []).reduce((s,g) => s + (g.qtd||0), 0) : 0;
   const switchHtml = (id, checked) => `
       <label class="toggleSwitch" onclick="event.stopPropagation()">
         <input type="checkbox" id="${id}" ${checked?'checked':''}>
@@ -2928,13 +2967,34 @@ function renderProposalBody(){
     ${!proposalState.modoManual ? `
     <details class="propSection" ${proposalState.incluirRenovacao ? 'open' : ''}>
       <summary>
-        <span class="secTitle">${avulsa
-          ? (isTitularidade ? 'Transferência de titularidade' : 'Linhas do cliente — aquisição / portabilidade')
-          : 'Renovação das linhas existentes'}</span>
+        <span class="secTitle">${usarRenewGrupos
+          ? 'Renovação das linhas existentes'
+          : (isTitularidade ? 'Transferência de titularidade' : 'Linhas do cliente — aquisição / portabilidade')}</span>
         <span class="secRight">${switchHtml('propIncluirRenovacao', proposalState.incluirRenovacao)}<span class="chev">▾</span></span>
       </summary>
       <div class="secBody">
-        ${proposalState.incluirRenovacao ? (avulsa ? `
+        ${proposalState.incluirRenovacao ? (usarRenewGrupos ? `
+        <div style="font-size:11px;color:var(--muted);margin:0 0 10px">A renovação pode ser dividida entre vários planos — defina a quantidade de linhas de cada oferta. Total já alocado: <b>${totalLinhasRenov}</b> de <b>${client.linhas_voz || 0}</b> linha(s)${avulsa ? ' informadas' : ' da base'}.</div>
+        ${(proposalState.renewGrupos || []).map((g, idx) => `
+        <div class="field" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+          <div style="width:90px">
+            <label>Qtde. linhas</label>
+            <input type="number" class="propRenovGrupoQtd" data-idx="${idx}" min="1" step="1" value="${g.qtd}">
+          </div>
+          <div style="flex:1;min-width:220px">
+            <label>Oferta</label>
+            <select class="propRenovGrupoOferta" data-idx="${idx}">
+              ${renewOffers.map(o => `<option value="${o.id}" ${o.id===g.offerId?'selected':''}>${offerLabel(o)}${o.regional && !o.aplicavel ? ' — confirmar DDD' : ''}</option>`).join('')}
+            </select>
+            <div class="propOfertaValorWrap" data-idx="${idx}">${ofertaValorBadgeHtml(renewOffers.find(o => o.id === g.offerId))}</div>
+          </div>
+          ${proposalState.renewGrupos.length > 1 ? `<button type="button" class="btnRemoveRenovGrupo" data-idx="${idx}" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:8px 10px;cursor:pointer;height:38px">Remover</button>` : ''}
+        </div>`).join('')}
+        <button type="button" id="btnAddRenovGrupo" class="btn" style="margin:2px 0 8px;padding:6px 12px;font-size:12px;width:auto">+ Adicionar plano de renovação</button>
+        <div style="font-size:11px;color:var(--muted)">${avulsa
+          ? 'Cliente já é Claro — todas as linhas informadas migram para as ofertas de renovação escolhidas. As ofertas mostradas já respeitam o DDD informado.'
+          : 'Nenhuma linha da base é cancelada — todas migram para as ofertas de renovação escolhidas. As ofertas mostradas já respeitam o DDD informado.'}</div>
+        ` : `
         ${!isTitularidade ? `<div style="font-size:11px;color:var(--muted);margin:0 0 10px">O pedido pode misturar linhas novas e portabilidade — defina o tipo e a quantidade de cada grupo. Total informado neste grupo: <b>${totalLinhasGrupos}</b> linha(s).</div>` : ''}
         ${proposalState.linhaGrupos.map((g, idx) => {
           const pool = grupoOfferList(client, g.tipo);
@@ -2966,29 +3026,10 @@ function renderProposalBody(){
         <div style="font-size:11px;color:var(--muted)">${isTitularidade
           ? 'Mesmas ofertas de aquisição da Pág. 57/60, sem portabilidade (cliente já é Claro, só muda o titular de PF para PJ). As ofertas já respeitam o DDD informado.'
           : 'As ofertas mostradas já respeitam o DDD informado.'}</div>
-        ` : `
-        <div style="font-size:11px;color:var(--muted);margin:0 0 10px">A renovação pode ser dividida entre vários planos — defina a quantidade de linhas de cada oferta. Total já alocado: <b>${totalLinhasRenov}</b> de <b>${client.linhas_voz || 0}</b> linha(s) da base.</div>
-        ${(proposalState.renewGrupos || []).map((g, idx) => `
-        <div class="field" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
-          <div style="width:90px">
-            <label>Qtde. linhas</label>
-            <input type="number" class="propRenovGrupoQtd" data-idx="${idx}" min="1" step="1" value="${g.qtd}">
-          </div>
-          <div style="flex:1;min-width:220px">
-            <label>Oferta</label>
-            <select class="propRenovGrupoOferta" data-idx="${idx}">
-              ${renewOffers.map(o => `<option value="${o.id}" ${o.id===g.offerId?'selected':''}>${offerLabel(o)}${o.regional && !o.aplicavel ? ' — confirmar DDD' : ''}</option>`).join('')}
-            </select>
-            <div class="propOfertaValorWrap" data-idx="${idx}">${ofertaValorBadgeHtml(renewOffers.find(o => o.id === g.offerId))}</div>
-          </div>
-          ${proposalState.renewGrupos.length > 1 ? `<button type="button" class="btnRemoveRenovGrupo" data-idx="${idx}" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:8px 10px;cursor:pointer;height:38px">Remover</button>` : ''}
-        </div>`).join('')}
-        <button type="button" id="btnAddRenovGrupo" class="btn" style="margin:2px 0 8px;padding:6px 12px;font-size:12px;width:auto">+ Adicionar plano de renovação</button>
-        <div style="font-size:11px;color:var(--muted)">Nenhuma linha da base é cancelada — todas migram para as ofertas de renovação escolhidas. As ofertas mostradas já respeitam o DDD informado.</div>
         `) : `
-        <div style="font-size:11px;color:var(--muted)">${avulsa
-          ? 'Proposta sem aquisição/portabilidade/titularidade de linha base — considera só incremento e/ou fibra.'
-          : 'Cliente mantém o plano atual sem alteração. A proposta considera só incremento e/ou fibra, para clientes que não querem trocar de plano.'}</div>`}
+        <div style="font-size:11px;color:var(--muted)">${usarRenewGrupos
+          ? 'Cliente mantém o plano atual sem alteração. A proposta considera só incremento e/ou fibra, para clientes que não querem trocar de plano.'
+          : 'Proposta sem aquisição/portabilidade/titularidade de linha base — considera só incremento e/ou fibra.'}</div>`}
       </div>
     </details>
 
@@ -3615,28 +3656,22 @@ function computeProposal(){
     ? (proposalState.incrementos || []).map(g => ({ qtd: g.qtd || 1, offer: OFFERS_MOBILE.find(o => o.id === g.offerId) })).filter(g => g.offer)
     : [];
 
-  // --- linha base: renovação (cliente-da-base) OU grupos de aquisição/portabilidade (avulsa) —
-  // ambas viraram lista de grupos {qtd, offer}, o consultor pode dividir entre vários planos ---
+  // --- linha base: renovação de plano Claro (cliente-da-base, ou avulsa tipo "Renovação" — cliente
+  // já é Claro, só não está na base ainda) OU grupos de aquisição/portabilidade/titularidade/
+  // incremento (demais tipos de avulsa) — ambas viraram lista de grupos {qtd, offer}, o consultor
+  // pode dividir entre vários planos ---
   let baseGrupos = [];
   let linhas = 0;        // quantidade total de linhas na base (para exibição/compat)
   let baseValor = 0;
+  const usarRenewGrupos = usarRenewGruposAvulsa();
 
-  if(proposalState.avulsa){
-    if(proposalState.incluirRenovacao){
-      baseGrupos = (proposalState.linhaGrupos || [])
-        .map(g => ({ ...g, offer: OFFERS_MOBILE.find(o => o.id === g.offerId) }))
-        .filter(g => g.offer && g.qtd > 0);
-      linhas = baseGrupos.reduce((s,g) => s + g.qtd, 0);
-      baseValor = baseGrupos.reduce((s,g) => s + g.offer.valor * g.qtd, 0);
-    }
-    // sem renovação incluída: baseValor fica 0 (não existe "manter plano atual" pra quem ainda não é Claro)
-  } else {
-    // fluxo cliente-da-base: toda linha existente migra pra alguma oferta escolhida, nenhuma é
+  if(usarRenewGrupos){
+    // renovação de plano Claro: toda linha existente migra pra alguma oferta escolhida, nenhuma é
     // extinta. Como a oferta pode ser mais barata que o valor atual, a fatura total pode até CAIR
     // mesmo somando o(s) incremento(s) — isso é esperado e correto, não é um bug. Quando a
     // renovação está desligada (cliente não quer trocar de plano), o valor das linhas existentes
     // fica igual ao atual.
-    linhas = client.linhas_voz || 0;
+    linhas = proposalState.avulsa ? (client.linhas_atuais || 0) : (client.linhas_voz || 0);
     if(proposalState.incluirRenovacao){
       baseGrupos = (proposalState.renewGrupos || [])
         .map(g => ({ tipo:'renovacao', qtd: g.qtd || 0, offer: OFFERS_MOBILE.find(o => o.id === g.offerId) }))
@@ -3645,6 +3680,14 @@ function computeProposal(){
     } else {
       baseValor = atual;
     }
+  } else if(proposalState.incluirRenovacao){
+    // avulsa "linha nova" (Novo/Portabilidade/Titularidade) ou "Incremento": não existe plano Claro
+    // anterior a manter — sem grupo de linha base incluído, baseValor fica 0.
+    baseGrupos = (proposalState.linhaGrupos || [])
+      .map(g => ({ ...g, offer: OFFERS_MOBILE.find(o => o.id === g.offerId) }))
+      .filter(g => g.offer && g.qtd > 0);
+    linhas = baseGrupos.reduce((s,g) => s + g.qtd, 0);
+    baseValor = baseGrupos.reduce((s,g) => s + g.offer.valor * g.qtd, 0);
   }
 
   let novoTotal = baseValor;
@@ -3722,7 +3765,7 @@ function updateProposalPreview(){
     // proposta avulsa não tem "meta de 10%" (não é renovação) — comissão vem da aquisição/portabilidade/
     // titularidade, do incremento ou dos itens à parte (fibra/passaporte)
     const temAlgumaOferta = proposalState.incluirRenovacao || proposalState.incluirIncremento || proposalState.incluirFixa || proposalState.incluirPassaporte;
-    const rotulosTipoAvulsa = { novo: 'nova aquisição de linha', portabilidade: 'portabilidade', titularidade: 'transferência de titularidade PF → PJ' };
+    const rotulosTipoAvulsa = { novo: 'nova aquisição de linha', portabilidade: 'portabilidade', titularidade: 'transferência de titularidade PF → PJ', renovacao: 'renovação de plano Claro', incremento: 'incremento de linha(s)' };
     const rotulo = rotulosTipoAvulsa[proposalState.tipoAvulsa] || proposalState.tipoAvulsa;
     metaBadge = temAlgumaOferta
       ? `<span class="badge apto">proposta avulsa — ${rotulo}</span>`
@@ -3739,10 +3782,12 @@ function updateProposalPreview(){
     metaBadge = '—';
   }
   const extras = [];
-  if(proposalState.avulsa && proposalState.tipoAvulsa !== 'titularidade' && proposalState.operadoraAtual) extras.push(`Operadora atual informada: ${proposalState.operadoraAtual}`);
-  if(!proposalState.incluirRenovacao) extras.push(proposalState.avulsa
-    ? 'Proposta sem aquisição/portabilidade/titularidade de linha base — só incremento e/ou fibra'
-    : 'Cliente mantém o plano atual — sem alteração na renovação');
+  // 25/09/2026: "Renovação" e "Incremento" avulsos também pressupõem cliente já Claro (operadora
+  // fixa 'Claro', não informada pelo consultor) — mesma exclusão que já existia pra titularidade.
+  if(proposalState.avulsa && !['titularidade','renovacao','incremento'].includes(proposalState.tipoAvulsa) && proposalState.operadoraAtual) extras.push(`Operadora atual informada: ${proposalState.operadoraAtual}`);
+  if(!proposalState.incluirRenovacao) extras.push(usarRenewGruposAvulsa()
+    ? 'Cliente mantém o plano atual — sem alteração na renovação'
+    : 'Proposta sem aquisição/portabilidade/titularidade de linha base — só incremento e/ou fibra');
   // baseGrupos cobre tanto a renovação do cliente-da-base quanto os grupos de aquisição/
   // portabilidade da proposta avulsa — em ambos os casos pode ter vários grupos agora
   const rotulosBaseGrupo = { aquisicao: 'Aquisição', portabilidade: 'Portabilidade', renovacao: 'Renovação' };
@@ -3868,6 +3913,8 @@ function buildPropostaDocModel(){
         novo: 'Proposta avulsa — Nova aquisição de linha',
         portabilidade: 'Proposta avulsa — Portabilidade',
         titularidade: 'Transferência de titularidade Claro — Pessoa Física para Jurídica',
+        renovacao: 'Proposta avulsa — Renovação de plano Claro',
+        incremento: 'Proposta avulsa — Incremento de linha(s)',
       };
       subtituloManual = subtitulosAvulsa[proposalState.tipoAvulsa] || 'Proposta avulsa';
     }
@@ -3909,6 +3956,8 @@ function buildPropostaDocModel(){
       novo: 'Proposta avulsa — Nova aquisição de linha',
       portabilidade: 'Proposta avulsa — Portabilidade',
       titularidade: 'Transferência de titularidade Claro — Pessoa Física para Jurídica',
+      renovacao: 'Proposta avulsa — Renovação de plano Claro',
+      incremento: 'Proposta avulsa — Incremento de linha(s)',
     };
     subtitulo = subtitulosAvulsa[proposalState.tipoAvulsa] || 'Proposta avulsa';
   }
@@ -3962,7 +4011,10 @@ function buildPropostaDocModel(){
       gb: g.offer.gb,
     }));
   } else if(!proposalState.incluirRenovacao){
-    itensMoveis.push({ item: proposalState.avulsa ? 'Linha base' : 'Plano atual', desc: proposalState.avulsa ? 'não incluída nesta proposta' : 'mantido, sem alteração', subtotal: null, qtd: 0, gb: null });
+    // 25/09/2026: usa a mesma lógica de usarRenewGruposAvulsa() (não só "avulsa") — a avulsa tipo
+    // "Renovação" também é tratada como "mantém o plano atual", já que o cliente já é Claro.
+    const mantemPlano = usarRenewGruposAvulsa();
+    itensMoveis.push({ item: mantemPlano ? 'Plano atual' : 'Linha base', desc: mantemPlano ? 'mantido, sem alteração' : 'não incluída nesta proposta', subtotal: null, qtd: 0, gb: null });
   }
   incGrupos.forEach(g => itensMoveis.push({
     item: 'Incremento(s)',

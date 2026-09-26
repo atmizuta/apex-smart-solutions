@@ -1,0 +1,10 @@
+const fs = require('fs');
+console.log('1: reading file');
+const html = fs.readFileSync('painel_clientes_apex.html', 'utf8');
+console.log('2: read done, len', html.length);
+const htmlNoScript = html.replace(/<script>[\s\S]*?<\/script>/g, '');
+console.log('3: stripped scripts, len', htmlNoScript.length);
+const { JSDOM } = require('jsdom');
+console.log('4: requiring jsdom done');
+const dom = new JSDOM(htmlNoScript, { runScripts: 'outside-only', url: 'http://localhost/' });
+console.log('5: JSDOM constructed');

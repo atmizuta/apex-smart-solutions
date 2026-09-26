@@ -1615,3 +1615,68 @@ Novo arquivo `test_oferta_valor_badge.js` (16 asserts, 0 falhas):
 Reexecutados sem quebras (relacionados ao fluxo de proposta, que compartilha `renderProposalBody()`/listeners com esta mudança): `test_proposta_manual.js`, `test_outras_ofertas.js`, `test_convergencia.js`, `test_convergencia_preset.js`, `test_incremento_qtd.js`, `test_renovacao_multiplano.js`, `test_tipo_avulsa.js`, `test_proposta_colapsada.js`, `test_consolidar_valores.js`, `test_plano_atual_gb.js`, `test_pdf.js`.
 
 Rebuild (`python3 build_painel.py`) confirmado sem placeholders pendentes.
+
+## 40. Renovação e Incremento como Tipo de proposta na proposta avulsa (25/09/2026)
+
+Pedido do usuário: *"em proposta avulsa em tipo de proposta colocar tambem as opcoes linha nova/portabilidade/titularidade, renovação e incremento"*. Esclarecido via duas perguntas ao usuário:
+
+1. *"O que deve mudar na prática quando o consultor selecionar 'Renovação' ou 'Incremento' logo no formulário inicial?"* → **"Atalho de abertura"**: o select só decide o que abre pré-marcado (a seção correspondente já vem ligada, as outras desligadas); o consultor continua podendo ligar/desligar tudo depois, normalmente.
+2. *"Pra um cliente cujo tipo de proposta é 'Renovação' ou 'Incremento', faz sentido considerar ele já cliente Claro (sem pedir operadora, igual à Titularidade) ou pode ser de qualquer operadora?"* → **"Sempre Claro"**: pressupõe que o cliente já tem uma linha/plano Claro (só não está cadastrado na base ainda) — não pede operadora atual, igual à Transferência de titularidade.
+
+### 40.1 O select `#avTipo` ganhou 2 opções
+
+```html
+<option value="renovacao">Renovação (cliente já é Claro, ainda não está na base)</option>
+<option value="incremento">Incremento (cliente já é Claro, só quer linha(s) extra)</option>
+```
+
+Ordem final: Novo, Portabilidade, Transferência de titularidade, Renovação, Incremento. Nenhuma das duas pede operadora atual (`operadoraAtual` fica fixo em `'Claro'`, e é excluído da nota "Operadora atual informada" no resumo da proposta e no PDF/Word, igual à titularidade).
+
+### 40.2 "Renovação" reaproveita o fluxo de renovação do cliente-da-base, não o de linha nova
+
+Esse foi o ponto mais delicado: até aqui, TODA proposta avulsa (Novo/Portabilidade/Titularidade) usava `linhaGrupos` (grupos de aquisição/portabilidade) na primeira seção da tela — não existia, na avulsa, um conceito real de "renovar um plano Claro já existente" (isso só existia pro cliente-da-base, via `renewGrupos`/`renewalOfferList()`/`pickBestRenovacao()`). Como a decisão do usuário foi tratar avulsa-Renovação como "cliente já é Claro", a solução foi fazer esse tipo de proposta avulsa reaproveitar o MESMO mecanismo de `renewGrupos` do cliente-da-base, em vez de inventar um terceiro fluxo.
+
+Nova função helper `usarRenewGruposAvulsa()` (lida a partir de `proposalState`, usada em `renderProposalBody()`/`computeProposal()`/`buildPropostaDocModel()`/`updateProposalPreview()`) e uma constante local equivalente dentro de `openProposal()` (que ainda não tem `proposalState` montado nesse ponto):
+
+```js
+function usarRenewGruposAvulsa(){
+  return !proposalState.avulsa || proposalState.tipoAvulsa === 'renovacao';
+}
+```
+
+`true` sempre para cliente-da-base (comportamento de sempre) e para a avulsa quando `tipoAvulsa === 'renovacao'`. Onde esse booleano é `true`, a primeira seção da tela ("Linhas do cliente..."/"Renovação das linhas existentes") passa a usar `renewGrupos`/`renewOffers`/`pickBestRenovacao()`/`pickCheapestRenewal()` (a lógica que já existia, inalterada) em vez de `linhaGrupos`/`grupoOfferList()`. Onde é `false` (Novo/Portabilidade/Titularidade/Incremento), continua exatamente como antes: `linhaGrupos`/`grupoOfferList()`.
+
+Para essas funções de renovação funcionarem sem alteração com um cliente avulsa (que não tem `linhas_voz`, só `linhas_atuais`), o objeto `client` montado no clique de "Gerar proposta" passou a preencher `linhas_voz: linhasAtuais` também (espelhando `linhas_atuais`) — `pickBestRenovacao`/`pickCheapestRenewal`/`renewalOfferList` já leem `client.linhas_voz`.
+
+Pontos ajustados pra essa troca de fonte de dados (todos usando `usarRenewGrupos`/`usarRenewGruposAvulsa()` no lugar de checar só `avulsa`/`!avulsa`):
+
+- `renderProposalBody()`: título da seção (`"Renovação das linhas existentes"` vs `"Linhas do cliente — aquisição / portabilidade"`/`"Transferência de titularidade"`), o corpo (grupos de `renewGrupos` com `.propRenovGrupoOferta` vs grupos de `linhaGrupos` com `.propGrupoOferta`/`.propGrupoTipo`), o texto de rodapé de cada bloco, e os totais (`totalLinhasGrupos`/`totalLinhasRenov`).
+- `computeProposal()`: de onde vem `baseGrupos`/`baseValor` (de `renewGrupos`, com `tipo:'renovacao'` fixo — reaproveita o rótulo "Renovação" que já existia em `rotulosBaseGrupo`/`rotulosGrupo`) e o texto do "mantém o plano atual, sem alteração" quando a seção está desligada.
+- `buildPropostaDocModel()`: os 2 mapas `subtitulosAvulsa` (modo normal e modo manual) ganharam entradas `renovacao`/`incremento`; o fallback de "Linha base não incluída"/"Plano atual mantido" no item da Nova Proposta passou a usar `usarRenewGruposAvulsa()`.
+- `updateProposalPreview()`: `rotulosTipoAvulsa` (badge "proposta avulsa — ...") ganhou `renovacao: 'renovação de plano Claro'` e `incremento: 'incremento de linha(s)'`; a exclusão da nota "Operadora atual informada" passou a cobrir também `renovacao`/`incremento` (não só `titularidade`); o texto "sem alteração" passou a usar `usarRenewGruposAvulsa()`.
+- `openProposal()`: `linhaGrupos` só é pré-populado quando `avulsa && !usarRenewGrupos` (ou seja, não é montado à toa pra `tipoAvulsa==='renovacao'`, já que essa seção nunca vai usá-lo); `renewGrupos`/`renewDefault` passam a ser calculados quando `usarRenewGrupos` é `true` (em vez de só `!avulsa`).
+
+**Deliberadamente fora de escopo**: a "meta de 10%" (badge de comissão do cliente-da-base, `renewDeltaPct`) continua restrita a `!proposalState.avulsa` — avulsa-Renovação não ganhou esse conceito, já que o usuário só pediu o atalho de abertura, não a regra de comissão completa (ver item pendente #253 do backlog, não relacionado a este pedido).
+
+### 40.3 "Incremento" é mais simples — não precisa de dado novo
+
+`tipoAvulsa === 'incremento'` não muda a FONTE de dados de nenhuma seção — ele só muda os valores **iniciais** dos dois toggles em `openProposal()`:
+
+```js
+const incluirRenovacao = !(avulsa && tipoAvulsa === 'incremento'); // só nasce desligado no atalho "Incremento"
+const incluirIncremento = avulsa && tipoAvulsa === 'incremento';   // só nasce ligado no atalho "Incremento"
+```
+
+Ou seja: escolher "Incremento" no formulário inicial já abre a proposta com a seção "Linha nova/Portabilidade/Titularidade" (`linhaGrupos`) FECHADA e a seção "Incremento — linha(s) extra" ABERTA, com uma oferta de incremento pré-selecionada (via `pickIncrementoLine(client, false)`, já existente). O consultor pode ligar a seção de linha base manualmente depois, se quiser — nesse caso ela some pro fluxo normal de `linhaGrupos` (tipo "aquisição" por padrão), já que `usarRenewGrupos` é `false` pra `tipoAvulsa==='incremento'`.
+
+### 40.4 Testado
+
+`test_tipo_avulsa.js` (34 asserts, era 10 antes desta mudança):
+
+- Combobox agora tem 5 opções, na ordem novo/portabilidade/titularidade/renovacao/incremento.
+- **Renovação**: campo operadora escondido; `operadoraAtual` fixo em `'Claro'`; `incluirRenovacao` nasce `true` (atalho de abertura); `incluirIncremento` nasce `false`; `renewGrupos` populado (reaproveitando o fluxo do cliente-da-base); `.propRenovGrupoOferta` aparece na tela e `.propGrupoOferta` NÃO aparece; título da seção vira "Renovação das linhas existentes".
+- **Incremento**: campo operadora escondido; `operadoraAtual` fixo em `'Claro'`; `incluirRenovacao` nasce `false` (atalho de abertura); `incluirIncremento` nasce `true`; select de oferta de incremento já aparece na tela sem precisar ligar o toggle manualmente.
+
+Reexecutados sem quebras (fluxo de proposta, que compartilha `renderProposalBody()`/`computeProposal()`/`buildPropostaDocModel()`/`updateProposalPreview()` com esta mudança): `test_proposta_colapsada.js`, `test_renovacao_multiplano.js`, `test_incremento_qtd.js`, `test_consolidar_valores.js`, `test_proposta_manual.js`, `test_outras_ofertas.js`, `test_convergencia.js`, `test_convergencia_preset.js`, `test_plano_atual_gb.js`, `test_pdf.js`, `test_oferta_valor_badge.js`, `test_funil.js`.
+
+Rebuild (`python3 build_painel.py`) confirmado sem placeholders pendentes.
