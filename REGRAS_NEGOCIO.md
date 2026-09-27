@@ -1729,3 +1729,53 @@ Novo arquivo `test_whatsapp_apresentacao.js` (26 asserts, 0 falhas):
 Reexecutados sem quebras (fluxo de proposta, que compartilha `renderProposalBody()`/listeners com esta mudança): `test_tipo_avulsa.js`, `test_oferta_valor_badge.js`.
 
 Rebuild (`python3 build_painel.py`) confirmado sem placeholders pendentes.
+
+## 42. Menu lateral (sidebar) no lugar do menu horizontal (27/09/2026)
+
+Pedido do usuário: *"havia uma versao do painel de dash em que as abas estavam em um menu na esquerda, efetuar a alteração deixando mais amigavel e usual, usar a melhores praticas de mercado"*. Sem necessidade de perguntas de esclarecimento — pedido claro (levar o menu principal do topo, horizontal, de volta pra esquerda, vertical) com liberdade de decisão de UX ("melhores práticas de mercado"), decisões abaixo tomadas com base em padrões comuns de dashboards (Linear, Vercel, Stripe, GitHub): sidebar fixa + agrupamento por contexto + item ativo destacado + comportamento de gaveta em mobile.
+
+### 42.1 O que mudou
+
+O `<nav>` que ficava no topo do app (`nav.tabs`, uma fileira horizontal de botões, com scroll lateral quando não cabia tudo) virou uma coluna fixa à esquerda (`nav.sidebar`), abaixo do topbar. Nenhuma mudança na lógica de troca de aba em si: continua sendo `data-tab` no botão + `.panel.active` na section correspondente — só mudou o contêiner e o CSS visual. O `id="tabsNav"` do `<nav>` foi mantido (só a classe virou `sidebar` em vez de `tabs`), então o listener de clique (`document.getElementById('tabsNav').addEventListener('click', ...)`) não precisou de nenhuma mudança de lógica, só o seletor de "remover .active de todos os botões" trocou de `nav.tabs button` pra `nav.sidebar button`.
+
+### 42.2 Estrutura nova
+
+- `header.topbar`: agora com altura fixa (`--header-h: 60px`) e `position:sticky;top:0` — fica sempre visível ao rolar a página. Ganhou um botão hamburguer (`#btnNavToggle`) à esquerda da logo, escondido em telas largas (só aparece em `<=960px`, ver 42.4).
+- `.appShell`: novo contêiner flex que envolve a sidebar e o `<main>`, lado a lado.
+- `nav.sidebar` (`#tabsNav`): fixa à esquerda, 232px de largura, `position:sticky` logo abaixo do topbar (fica visível enquanto o conteúdo do `<main>` rola). Os botões continuam com o mesmo ícone (svg) + texto de antes, só que empilhados verticalmente em vez de em fileira.
+- Os itens da sidebar agora são agrupados sob rótulos não-clicáveis (`.navGroupLabel`), pra facilitar a leitura visual — critério de agrupamento (nenhuma mudança de comportamento, só organização visual):
+  - **Visão geral**: Dashboard, Digital
+  - **Vendas**: Buscar Clientes, Cobertura, Gerar Proposta, Funil
+  - **Ferramentas**: Biometria
+  - **Administração**: Upload Base, Upload Dash, Usuários, Fechamento
+- Item ativo: fundo rosa claro + barra vertical na cor de destaque à esquerda do botão (`border-left`), em vez do antigo "pill" vermelho preenchido — mais parecido com o padrão visual de sidebars de mercado (item ativo se destaca sem "gritar" tanto quanto um botão cheio).
+
+### 42.3 O que NÃO mudou
+
+- A largura do `<main>` (`main`/`main.mainWide`) e a regra de "Dashboard de Produção fica mais largo" continuam idênticas — só que agora o `<main>` é o segundo filho do `.appShell` (ao lado da sidebar) em vez de vir sozinho, embaixo do nav.
+- Todos os `id`s dos botões (`tabBtnProducao`, `tabBtnConversao` etc.) e a lógica de mostrar/esconder por perfil (`style="display:none"` nos que são condicionais) continuam exatamente iguais.
+- O `.footNote` no rodapé do app continua fora do `.appShell` (largura cheia, embaixo de tudo).
+
+### 42.4 Responsivo: gaveta (drawer) em telas estreitas
+
+Em telas `<=960px` (tablet/celular), a sidebar deixa de ficar sempre visível: some da tela (`transform:translateX(-100%)`) e vira uma gaveta que desliza por cima do conteúdo quando aberta. O botão hamburguer no topbar (`#btnNavToggle`, só visível nesse breakpoint) abre/fecha; um véu escurecido (`#sidebarScrim`) cobre o resto da tela enquanto a gaveta está aberta.
+
+Comportamento implementado em JS (funções `abrirSidebarMobile()`/`fecharSidebarMobile()`):
+- Clique no hamburguer: abre se estiver fechada, fecha se estiver aberta (`aria-expanded` atualizado também, pra acessibilidade).
+- Clique no véu (`#sidebarScrim`): fecha a gaveta.
+- Tecla Esc: fecha a gaveta.
+- Escolher qualquer aba (clique em qualquer botão `data-tab`): fecha a gaveta automaticamente — evita o usuário ter que fechar manualmente depois de navegar, comportamento padrão em drawers de dashboards mobile.
+
+Em telas largas (`>960px`) esses elementos (hamburguer, véu) ficam ocultos via CSS e a sidebar é sempre visível, fixa — as funções de abrir/fechar continuam existindo mas não têm efeito visual perceptível (a classe `.open` não muda nada quando a media query não está ativa).
+
+### 42.5 Testado
+
+Novo arquivo `test_sidebar_nav.js` (24 asserts, 0 falhas):
+
+- Estrutura: `.appShell`, `nav.sidebar` (com o id `tabsNav` preservado), `#sidebarScrim`, `#btnNavToggle` e pelo menos 4 `.navGroupLabel` presentes.
+- Troca de aba continua funcionando exatamente como antes (mesma lógica `data-tab`/`.panel.active`) — clicar num botão marca ele como ativo, desmarca o anterior, e troca o painel visível.
+- Gaveta mobile: abrir/fechar via hamburguer (com `aria-expanded` correto), fechar clicando no véu, fechar com Esc, e fechar automaticamente ao escolher qualquer aba.
+
+Reexecutada a suíte completa de testes jsdom (28 arquivos) sem nenhuma quebra causada por esta mudança — as únicas falhas encontradas foram pré-existentes e não relacionadas: `test_cobertura.js` e `test_dashboard_producao.js` dependem de fixtures externos (`campinas.kmz`, planilha de exemplo) ausentes neste ambiente; `test_conversao_vendas.js` teve 1 assert sensível à data atual do sistema (comparação "este mês" perto da virada de mês), sem relação com a sidebar.
+
+Rebuild (`python3 build_painel.py`) confirmado sem placeholders pendentes.
