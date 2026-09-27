@@ -2811,6 +2811,108 @@ async function analisarFatura(state){
   }
 }
 
+// 27/09/2026 (pedido do usuário: "deixar a opção do consultor enviar uma mensagem para o cliente
+// pelo whatsapp se apresentando... crie diversas mensagens personalizadas de apresentação...
+// abrira automaticamente no whatsapp web") — mensagem de apresentação (WhatsApp) dentro da tela de
+// proposta (avulsa, Analisar Fatura e cliente-da-base — mesma tela de renderProposalBody, sempre
+// disponível independente do tipo/modo). O consultor escolhe um modelo, edita à vontade, confirma o
+// número e clica em "Gerar Mensagem": abre o WhatsApp Web (ou o app, no celular) já com o número e
+// a mensagem preenchidos, via link https://wa.me/<numero>?text=<mensagem>.
+const WHATSAPP_TEMPLATES = [
+  {
+    id: 'formal',
+    label: 'Formal',
+    texto: 'Olá! Me chamo {{consultor}}, sou o(a) novo(a) consultor(a) responsável pela conta da {{cliente}} aqui na Apex Smart Solutions, parceira autorizada Claro Empresas. Fico à disposição para cuidar do seu atendimento, tirar dúvidas e trazer as melhores condições pra sua empresa. Qualquer coisa, é só me chamar por aqui!',
+  },
+  {
+    id: 'direto',
+    label: 'Direto e objetivo',
+    texto: 'Oi, tudo bem? Sou {{consultor}}, da Apex Smart Solutions (parceira Claro Empresas) — a partir de agora fico responsável pelo atendimento da {{cliente}}. Qualquer necessidade com a conta Claro de vocês, pode falar comigo direto por aqui.',
+  },
+  {
+    id: 'proximidade',
+    label: 'Próximo / consultivo',
+    texto: 'Olá! Aqui é {{consultor}}, novo(a) gestor(a) de contas da Apex Smart Solutions, parceira autorizada Claro Empresas. A partir de hoje sou eu quem vai acompanhar de perto o atendimento e as necessidades da {{cliente}} — desde suporte até novas oportunidades e condições especiais. Estou à disposição, é só chamar!',
+  },
+  {
+    id: 'casual',
+    label: 'Curto e casual',
+    texto: 'Oi! Sou {{consultor}}, da Apex Smart Solutions (Claro Empresas), e assumi agora o atendimento da conta da {{cliente}}. Qualquer coisa que precisar, já pode falar direto comigo por aqui 🙂',
+  },
+];
+
+function whatsappPreencherTemplate(texto, client){
+  const nomeConsultor = (proposalState.vendedorNome || (currentUser && currentUser.nome) || '').trim() || 'consultor(a) da Apex';
+  const nomeCliente = ((client && client.razao_social) || 'sua empresa').trim();
+  return texto.replace(/\{\{consultor\}\}/g, nomeConsultor).replace(/\{\{cliente\}\}/g, nomeCliente);
+}
+
+// whatsappNumerosDisponiveis(client): números já cadastrados no cliente da base (telefone_contato/
+// tel1/tel2) — cliente avulsa/Analisar Fatura não tem esses campos preenchidos (ficam '' — ver
+// openProposal/gerarPropostaDaFatura), então a lista vem vazia e o campo do número nasce só com o
+// DDD informado (ver renderWhatsAppApresentacaoHtml).
+function whatsappNumerosDisponiveis(client){
+  if(!client) return [];
+  const candidatos = [
+    { label: 'Telefone de contato', valor: client.telefone_contato },
+    { label: 'Telefone 1', valor: client.tel1 },
+    { label: 'Telefone 2', valor: client.tel2 },
+  ];
+  return candidatos.filter(c => (c.valor || '').toString().trim());
+}
+
+// whatsappNumeroParaLink(numeroDigitado): normaliza o número pro formato exigido pelo wa.me (55 +
+// DDD + número, só dígitos) — aceita o número já com 55 na frente, só com DDD, formatado com
+// parênteses/traço/espaço etc. Retorna null quando não dá pra montar um número plausível (menos de
+// 10 dígitos depois de limpar tudo que não é dígito — DDD com 2 dígitos + no mínimo 8 do número).
+function whatsappNumeroParaLink(numeroDigitado){
+  let digitos = (numeroDigitado || '').replace(/\D/g, '');
+  if(digitos.length < 10) return null;
+  if(!digitos.startsWith('55')) digitos = '55' + digitos;
+  return digitos;
+}
+
+function renderWhatsAppApresentacaoHtml(client){
+  const numeros = whatsappNumerosDisponiveis(client);
+  const numeroInicial = numeros.length ? numeros[0].valor : ((client && client.ddd) || '');
+  const mensagemInicial = whatsappPreencherTemplate(WHATSAPP_TEMPLATES[0].texto, client);
+  return `
+    <details class="propSection" style="margin-top:10px">
+      <summary>
+        <span class="secTitle">Mensagem de apresentação (WhatsApp)</span>
+        <span class="secRight"><span class="chev">▾</span></span>
+      </summary>
+      <div class="secBody">
+        <div style="font-size:11px;color:var(--muted);margin:0 0 10px">Envie uma mensagem se apresentando como novo(a) gestor(a) da carteira do cliente. Escolha um modelo, edite à vontade e confirme o número — o WhatsApp Web (ou o app, no celular) abre automaticamente com tudo preenchido.</div>
+        ${numeros.length > 1 ? `
+        <div class="field" style="max-width:320px">
+          <label>Número cadastrado</label>
+          <select id="propWhatsNumeroSelect">
+            ${numeros.map((n,idx) => `<option value="${escapeHtml(n.valor)}" ${idx===0?'selected':''}>${n.label}: ${escapeHtml(n.valor)}</option>`).join('')}
+            <option value="">Digitar outro número</option>
+          </select>
+        </div>` : ''}
+        <div class="field" style="max-width:320px">
+          <label>Número do WhatsApp (com DDD)</label>
+          <input type="text" id="propWhatsNumero" placeholder="Ex: 11987654321" value="${escapeHtml(numeroInicial)}">
+        </div>
+        <div class="field" style="max-width:320px">
+          <label>Modelo de mensagem</label>
+          <select id="propWhatsTemplate">
+            ${WHATSAPP_TEMPLATES.map(t => `<option value="${t.id}">${t.label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>Mensagem (editável)</label>
+          <textarea id="propWhatsMensagem" rows="5" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">${escapeHtml(mensagemInicial)}</textarea>
+        </div>
+        <div class="loginError" id="propWhatsErr" style="display:none;margin:0 0 10px"></div>
+        <button type="button" class="btn" id="btnGerarMensagemWhats" style="width:auto">Gerar Mensagem</button>
+      </div>
+    </details>
+  `;
+}
+
 // usarRenewGruposAvulsa() (25/09/2026, pedido do usuário: "renovação e incremento" como Tipo de
 // proposta avulsa): versão de usarRenewGrupos (ver openProposal) que lê proposalState já montado —
 // usada em renderProposalBody()/computeProposal()/buildPropostaDocModel()/updateProposalPreview(),
@@ -3216,6 +3318,8 @@ function renderProposalBody(){
       <button class="btn" id="btnBaixarPropostaPdf" style="flex:1;min-width:200px;background:var(--muted-bg,#f3f4f6);color:var(--text,#111827);border:1px solid var(--border)">Baixar proposta (PDF)</button>
       <button class="btn" id="btnBaixarPropostaPdfCliente" style="flex:1;min-width:200px;background:var(--muted-bg,#f3f4f6);color:var(--text,#111827);border:1px solid var(--border)">Baixar PDF para o cliente</button>
     </div>
+
+    ${renderWhatsAppApresentacaoHtml(client)}
   `;
 
   // 25/09/2026: esses elementos só existem quando !modoManual (ver renderProposalBody) — guarda
@@ -3644,6 +3748,38 @@ function renderProposalBody(){
   // 24/09/2026: 2ª e 3ª opções de emissão, ao lado do Word — ver comentário no HTML acima.
   document.getElementById('btnBaixarPropostaPdf').addEventListener('click', guardModoManualVazio(generateProposalPdfConsultor));
   document.getElementById('btnBaixarPropostaPdfCliente').addEventListener('click', guardModoManualVazio(generateProposalPdfCliente));
+
+  // 27/09/2026 (pedido do usuário: mensagem de apresentação via WhatsApp) — listeners da seção
+  // "Mensagem de apresentação (WhatsApp)" (ver renderWhatsAppApresentacaoHtml).
+  const propWhatsNumeroSelect = document.getElementById('propWhatsNumeroSelect');
+  if(propWhatsNumeroSelect) propWhatsNumeroSelect.addEventListener('change', function(){
+    document.getElementById('propWhatsNumero').value = this.value;
+  });
+  const propWhatsTemplateSelect = document.getElementById('propWhatsTemplate');
+  if(propWhatsTemplateSelect) propWhatsTemplateSelect.addEventListener('change', function(){
+    const tpl = WHATSAPP_TEMPLATES.find(t => t.id === this.value);
+    if(tpl) document.getElementById('propWhatsMensagem').value = whatsappPreencherTemplate(tpl.texto, client);
+  });
+  const btnGerarMensagemWhats = document.getElementById('btnGerarMensagemWhats');
+  if(btnGerarMensagemWhats) btnGerarMensagemWhats.addEventListener('click', function(){
+    const errEl = document.getElementById('propWhatsErr');
+    errEl.style.display = 'none';
+    const numeroInput = document.getElementById('propWhatsNumero').value;
+    const mensagem = document.getElementById('propWhatsMensagem').value.trim();
+    const numeroLink = whatsappNumeroParaLink(numeroInput);
+    if(!numeroLink){
+      errEl.textContent = 'Informe um número válido, com DDD (ex: 11987654321).';
+      errEl.style.display = 'block';
+      return;
+    }
+    if(!mensagem){
+      errEl.textContent = 'A mensagem não pode ficar vazia.';
+      errEl.style.display = 'block';
+      return;
+    }
+    const url = `https://wa.me/${numeroLink}?text=${encodeURIComponent(mensagem)}`;
+    window.open(url, '_blank');
+  });
 
   updateProposalPreview();
 }

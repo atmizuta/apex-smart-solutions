@@ -1680,3 +1680,52 @@ Ou seja: escolher "Incremento" no formulário inicial já abre a proposta com a 
 Reexecutados sem quebras (fluxo de proposta, que compartilha `renderProposalBody()`/`computeProposal()`/`buildPropostaDocModel()`/`updateProposalPreview()` com esta mudança): `test_proposta_colapsada.js`, `test_renovacao_multiplano.js`, `test_incremento_qtd.js`, `test_consolidar_valores.js`, `test_proposta_manual.js`, `test_outras_ofertas.js`, `test_convergencia.js`, `test_convergencia_preset.js`, `test_plano_atual_gb.js`, `test_pdf.js`, `test_oferta_valor_badge.js`, `test_funil.js`.
 
 Rebuild (`python3 build_painel.py`) confirmado sem placeholders pendentes.
+
+## 41. Mensagem de apresentação via WhatsApp na tela de proposta (27/09/2026)
+
+Pedido do usuário: *"em gerar proposta, seja na analise de fatura ou na proposta avulsa deixar a opção do consultor enviar uma mensagem para o cliente pelo whatsapp se apresentando, para isso crie divesas mensagens persinalizadas de apresentação que sejam editaveis e crie um link onde o consultor clique em um botao chamado 'Gerar Mensagem' e automaticamente uma mensagem padrão se apresentando como o novo gestor da carteira abrira automaticamente no whatsapp web do consultor com o numero e a mensagem, para isso terá um 'formulário' do qual o poderá ser utilizado um número da nossa base de clientes ou será digitado manualmente, ou seja, no formulário terá o numero e abaixo a mensagem padrão, do qual poderá ser editada pelo consultor. caso tenha dúvidas, me pergunte."*
+
+Esclarecido via três perguntas ao usuário:
+
+1. *"Onde deve ficar o botão 'Gerar Mensagem'?"* → **"Dentro da tela de proposta"**: junto dos botões de emissão (Word/PDF/PDF cliente), disponível em qualquer fluxo que abre essa tela (avulsa, Analisar Fatura, cliente da base) — sem precisar gerar o documento antes.
+2. *"Como o consultor escolhe entre as mensagens personalizadas?"* → **"Dropdown de modelos"**: um seletor com modelos prontos; escolher um preenche o textarea editável (o consultor pode alterar à vontade depois).
+3. *"De onde vem o número de WhatsApp?"* → **"Auto-preencher quando existir"**: para cliente da base, auto-preenche a partir de `telefone_contato`/`tel1`/`tel2` (com um seletor quando há mais de um cadastrado); para avulsa/Analisar Fatura (sem campo de telefone hoje), o campo nasce só com o DDD informado. Sempre editável em qualquer caso.
+
+### 41.1 Onde vive: nova seção dentro de `renderProposalBody()`
+
+A seção "Mensagem de apresentação (WhatsApp)" é um `<details class="propSection">` renderizado por `renderWhatsAppApresentacaoHtml(client)`, chamado logo após os 3 botões de emissão (Word/PDF/PDF cliente) — mesmo ponto do template para os três fluxos (avulsa, Analisar Fatura, cliente da base), já que todos passam por `renderProposalBody()`. Não depende de nenhum estado de `proposalState` além do próprio `client` e do consultor logado — é uma ação client-side pura, sem persistência: não grava nada no Supabase, não mexe no funil (`registrarPropostaNoFunil()`), e pode ser usada mesmo sem gerar/baixar a proposta antes.
+
+### 41.2 Modelos de mensagem (dropdown)
+
+`WHATSAPP_TEMPLATES` — array com 4 modelos (`formal`, `direto`, `proximidade`, `casual`), cada um com um texto usando os placeholders `{{consultor}}` e `{{cliente}}`. `whatsappPreencherTemplate(texto, client)` substitui `{{consultor}}` pelo nome do consultor logado (`proposalState.vendedorNome || currentUser.nome`, com fallback genérico "consultor(a) da Apex") e `{{cliente}}` pela razão social do cliente. O textarea `#propWhatsMensagem` já nasce preenchido com o 1º modelo (`formal`); trocar o `<select id="propWhatsTemplate">` substitui o conteúdo do textarea pelo texto do modelo escolhido (já com os placeholders resolvidos) — o consultor pode editar livremente depois, inclusive depois de trocar de modelo.
+
+### 41.3 Número de WhatsApp: auto-preenchimento condicional
+
+`whatsappNumerosDisponiveis(client)` lê `telefone_contato`/`tel1`/`tel2` do cliente (só os que existem e não são vazios) e devolve uma lista de `{label, valor}`. Cliente avulsa/Analisar Fatura não tem esses campos preenchidos (ficam `''`), então a lista vem vazia nesses casos.
+
+- **0 números disponíveis** (avulsa/Analisar Fatura): sem seletor; `#propWhatsNumero` nasce só com o DDD do cliente (`client.ddd`).
+- **1 número disponível** (base, comum): sem seletor; `#propWhatsNumero` já nasce com esse número.
+- **2+ números disponíveis** (base, quando há mais de um telefone cadastrado): aparece um `<select id="propWhatsNumeroSelect">` com cada número rotulado (ex: "Telefone 1: ...") mais a opção "Digitar outro número" (valor vazio); trocar o seletor atualiza `#propWhatsNumero`, e escolher "Digitar outro número" limpa o campo pro consultor digitar manualmente.
+
+Em todos os casos, `#propWhatsNumero` é um `<input>` de texto comum — sempre editável, independente de ter sido auto-preenchido ou não.
+
+### 41.4 Botão "Gerar Mensagem" e normalização do número
+
+`whatsappNumeroParaLink(numeroDigitado)` limpa tudo que não é dígito, exige pelo menos 10 dígitos (DDD + 8 do número) e garante o prefixo `55` (adiciona se não vier). Retorna `null` quando o número é curto demais/vazio — nesse caso o clique em `#btnGerarMensagemWhats` mostra o erro em `#propWhatsErr` ("Informe um número válido, com DDD...") sem abrir nada. Mensagem vazia também bloqueia com erro próprio.
+
+Com número e mensagem válidos, o clique monta `https://wa.me/<numero-normalizado>?text=<mensagem-url-encoded>` e abre em nova aba (`window.open(url, '_blank')`) — no navegador do consultor, isso abre o WhatsApp Web (ou tenta abrir o app, no celular) já com o número e a mensagem preenchidos, pronto pra enviar.
+
+### 41.5 Testado
+
+Novo arquivo `test_whatsapp_apresentacao.js` (26 asserts, 0 falhas):
+
+- Cliente da base com 1 número cadastrado: sem seletor, campo auto-preenchido, mensagem inicial já traz nome do consultor e razão social do cliente.
+- Cliente da base com 2+ números cadastrados: seletor aparece; trocar o seletor atualiza o campo; "Digitar outro número" limpa o campo.
+- Cliente avulsa (sem telefone cadastrado): sem seletor; campo nasce só com o DDD; troca de modelo no dropdown também substitui os placeholders corretamente.
+- Clique em "Gerar Mensagem" com número inválido/curto: mostra erro, não chama `window.open`.
+- Clique com número e mensagem válidos: chama `window.open` uma vez, com a URL `https://wa.me/55<DDD+numero>?text=<mensagem>` correta.
+- `whatsappNumeroParaLink()`: normaliza número sem 55 (adiciona), mantém número que já vem com 55, aceita número formatado (parênteses/traço/espaço), rejeita número curto demais e string vazia (retorna `null`).
+
+Reexecutados sem quebras (fluxo de proposta, que compartilha `renderProposalBody()`/listeners com esta mudança): `test_tipo_avulsa.js`, `test_oferta_valor_badge.js`.
+
+Rebuild (`python3 build_painel.py`) confirmado sem placeholders pendentes.
