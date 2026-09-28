@@ -15,8 +15,14 @@ Requer, na mesma pasta ou em /tmp:
   - logo da Apex e da Claro em base64 (recupera automaticamente do
     painel_clientes_apex.html atual, se /tmp/*.txt não existir)
 """
+import os
 import re
 import sys
+import tempfile
+
+# pasta temporária do sistema (/tmp no Linux/Mac, %TEMP% no Windows) — antes era "/tmp" fixo,
+# que não existe no Windows e fazia o build quebrar
+TMP_DIR = tempfile.gettempdir()
 
 SUPABASE_URL = "https://mdgfboijyqfkggcrhptn.supabase.co"
 SUPABASE_ANON_KEY = (
@@ -58,8 +64,8 @@ def main():
     with open("_template.html", encoding="utf-8") as f:
         tpl = f.read()
 
-    apex_b64 = read_or_recover_logo("/tmp/apex_logo_b64.txt", r"data:image/png;base64,([A-Za-z0-9+/=]+)")
-    claro_b64 = read_or_recover_logo("/tmp/claro_logo_b64.txt", r"data:image/jpeg;base64,([A-Za-z0-9+/=]+)")
+    apex_b64 = read_or_recover_logo(os.path.join(TMP_DIR, "apex_logo_b64.txt"), r"data:image/png;base64,([A-Za-z0-9+/=]+)")
+    claro_b64 = read_or_recover_logo(os.path.join(TMP_DIR, "claro_logo_b64.txt"), r"data:image/jpeg;base64,([A-Za-z0-9+/=]+)")
 
     out = tpl
     out = out.replace("__SUPABASE_URL__", SUPABASE_URL)
@@ -77,7 +83,8 @@ def main():
         print(f"ERRO: sobraram placeholders não substituídos: {leftover}", file=sys.stderr)
         sys.exit(1)
 
-    with open("painel_clientes_apex.html", "w", encoding="utf-8") as f:
+    # newline="\n": no Windows o Python troca \n por \r\n ao gravar, o que muda o arquivo inteiro
+    with open("painel_clientes_apex.html", "w", encoding="utf-8", newline="\n") as f:
         f.write(out)
 
     print(f"OK — painel_clientes_apex.html gerado ({len(out.encode('utf-8'))} bytes), sem placeholders pendentes.")

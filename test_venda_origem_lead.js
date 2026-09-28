@@ -5,6 +5,7 @@
 // (só admin/supervisor). Ver REGRAS_NEGOCIO.md, seção 17.9/17.10.
 const fs = require('fs');
 const { JSDOM } = require('jsdom');
+const { comRange } = require('./test_helper_mock.js');
 
 let html = fs.readFileSync('_template.html', 'utf8');
 const htmlNoScript = html.replace(/<script>[\s\S]*?<\/script>/g, '');
@@ -74,7 +75,7 @@ function makeQuery(dataFn){
   };
   return q;
 }
-window.supabase = { createClient: () => ({
+window.supabase = { createClient: comRange(() => ({
   auth: { getSession: async () => ({data:{session:null}}), onAuthStateChange: () => {}, signInWithPassword: async () => ({data:{},error:null}), signOut: async () => ({}) },
   from: (table) => {
     if(table === 'producao_pedidos') return makeQuery(() => ({ data: MOCK_PEDIDOS, error: null }));
@@ -86,7 +87,7 @@ window.supabase = { createClient: () => ({
     if(fnName === 'reconciliacao_neocrm') return { data: MOCK_RPC_RECONCILIACAO, error: null };
     return { data: null, error: null };
   },
-}) };
+})) };
 window.alert = (msg) => { console.log('ALERT:', msg); };
 window.confirm = () => true;
 window.navigator.clipboard = { writeText: async () => {} };

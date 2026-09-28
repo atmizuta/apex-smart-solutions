@@ -1,5 +1,6 @@
 const fs = require('fs');
 const { JSDOM } = require('jsdom');
+const { comRange } = require('./test_helper_mock.js');
 
 let html = fs.readFileSync('_template.html', 'utf8');
 const htmlNoScript = html.replace(/<script>[\s\S]*?<\/script>/g, '');
@@ -28,11 +29,11 @@ function mockQueryBuilder(table){
   };
   return builder;
 }
-window.supabase = { createClient: () => ({
+window.supabase = { createClient: comRange(() => ({
   auth: { getSession: async () => ({data:{session:null}}), onAuthStateChange: () => {}, signInWithPassword: async () => ({data:{},error:null}), signOut: async () => ({}) },
   from: (table) => mockQueryBuilder(table),
   functions: { invoke: async () => ({data:{},error:null}) },
-}) };
+})) };
 window.alert = (msg) => { console.log('ALERT:', msg); };
 window.confirm = () => true;
 window.jspdf = { jsPDF: function(){ return {}; } };

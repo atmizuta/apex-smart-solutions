@@ -4,6 +4,7 @@
 // roda dentro de um jsdom, checando funções puras e o DOM renderizado de verdade.
 const fs = require('fs');
 const { JSDOM } = require('jsdom');
+const { comRange } = require('./test_helper_mock.js');
 
 let html = fs.readFileSync('_template.html', 'utf8');
 const htmlNoScript = html.replace(/<script>[\s\S]*?<\/script>/g, '');
@@ -57,12 +58,12 @@ function mockQueryBuilder(table){
   };
   return builder;
 }
-window.supabase = { createClient: () => ({
+window.supabase = { createClient: comRange(() => ({
   auth: { getSession: async () => ({data:{session:null}}), onAuthStateChange: () => {}, signInWithPassword: async () => ({data:{},error:null}), signOut: async () => ({}) },
   from: (table) => mockQueryBuilder(table),
   functions: { invoke: async () => ({ data: {}, error: null }) },
   rpc: async () => ({ data: { total: 0, ganho: 0, perdido: 0, andamento: 0, semPedido: 0, pedidosGanho: [], pedidosPerdido: [], pedidosAndamento: [] }, error: null }),
-}) };
+})) };
 window.alert = (msg) => { console.log('ALERT:', msg); };
 window.confirm = () => true;
 window.Chart = function(ctx, cfg){ this.config = cfg; this.destroy = function(){}; return this; };

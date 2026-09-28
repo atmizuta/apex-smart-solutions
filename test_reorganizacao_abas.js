@@ -1,5 +1,6 @@
 const fs = require('fs');
 const { JSDOM } = require('jsdom');
+const { comRange } = require('./test_helper_mock.js');
 
 let html = fs.readFileSync('_template.html', 'utf8');
 const htmlNoScript = html.replace(/<script>[\s\S]*?<\/script>/g, '');
@@ -11,7 +12,7 @@ const dom = new JSDOM(htmlNoScript, { runScripts: 'outside-only', url: 'http://l
 const { window } = dom;
 
 window.__lastSelectCols = null;
-window.supabase = { createClient: () => ({
+window.supabase = { createClient: comRange(() => ({
   auth: { getSession: async () => ({data:{session:null}}), onAuthStateChange: () => {}, signInWithPassword: async () => ({data:{},error:null}), signOut: async () => ({}) },
   from: (table) => ({
     select: (cols) => {
@@ -26,7 +27,7 @@ window.supabase = { createClient: () => ({
     },
   }),
   functions: { invoke: async () => ({data:{},error:null}) },
-}) };
+})) };
 window.alert = (msg) => { console.log('ALERT:', msg); };
 window.confirm = () => true;
 
@@ -83,9 +84,9 @@ try{
   // NOTA (18/09/2026): lista atualizada pra incluir "biometria" (10/09/2026) e "fechamento"
   // (18/09/2026), abas adicionadas depois desse teste original de 26/08/2026 — ambas ficaram de
   // fora da lista por um tempo (teste desatualizado, não regressão) até essa correção.
-  const ordemEsperada = ['producao','conversao','busca','cobertura','proposta','funil','biometria','basedados','movimentacao','consultores','fechamento'];
+  const ordemEsperada = ['producao','conversao','busca','proposta','funil','biometria','basedados','movimentacao','consultores','fechamento'];
   assert(botoes.map(b => b.dataset.tab).join(',') === ordemEsperada.join(','), 'ordem das abas no menu segue: ' + ordemEsperada.join(', ') + ' (atual: ' + botoes.map(b => b.dataset.tab).join(',') + ')');
-  const rotulos = { producao: 'Dashboard', conversao: 'Digital', busca: 'Buscar Clientes', cobertura: 'Cobertura', proposta: 'Gerar Proposta', funil: 'Funil', basedados: 'Upload Base', movimentacao: 'Upload Dash', consultores: 'Usuários' };
+  const rotulos = { producao: 'Dashboard', conversao: 'Digital', busca: 'Buscar Clientes', proposta: 'Gerar Proposta', funil: 'Funil', basedados: 'Upload Base', movimentacao: 'Upload Dash', consultores: 'Usuários' };
   Object.entries(rotulos).forEach(([tab, rotulo]) => {
     const btn = document.querySelector('#tabsNav button[data-tab="' + tab + '"]');
     assert(btn.textContent.trim() === rotulo, 'aba "' + tab + '" mostra o rótulo "' + rotulo + '" (atual: "' + btn.textContent.trim() + '")');

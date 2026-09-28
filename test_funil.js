@@ -8,6 +8,7 @@
 // window.docx/downloadBlob aqui.
 const fs = require('fs');
 const { JSDOM } = require('jsdom');
+const { comRange } = require('./test_helper_mock.js');
 
 const html = fs.readFileSync('painel_clientes_apex.html', 'utf8');
 const htmlNoScript = html.replace(/<script>[\s\S]*?<\/script>/g, '');
@@ -86,7 +87,7 @@ function mockCreateClient(){
     functions: { invoke: async () => ({ data: {}, error: null }) },
   };
 }
-window.supabase = { createClient: mockCreateClient };
+window.supabase = { createClient: comRange(mockCreateClient) };
 window.alert = (m) => { throw new Error('ALERT INESPERADO: ' + m); };
 window.confirm = () => true;
 

@@ -2,7 +2,7 @@
 
 Documento vivo. Toda vez que uma regra de negócio do sistema for criada, alterada ou removida, atualize esta página (e registre no changelog no final). É a referência para treinamento de consultores, ajustes futuros e documentação do próprio sistema.
 
-Última atualização: 23/09/2026 (seção 30)
+Última atualização: 28/09/2026 (seção 45)
 
 ---
 
@@ -281,10 +281,12 @@ Sinaliza pro consultor se um endereço (CEP + número) provavelmente tem cobertu
 
 ### 12.2 Onde é usado
 
-- **Aba dedicada "Verificar Cobertura"** (visível a todos os perfis): consultor digita CEP + número e recebe o resultado (coberto / sem cobertura próxima / sem dados daquela cidade) sem precisar estar no meio de uma proposta.
+- ~~Aba dedicada "Verificar Cobertura"~~ — **removida em 25/09/2026** (pedido do Rafael: não estava sendo usada). A busca avulsa por CEP e o mapa (seção 12.3) saíram junto; o script do mapa do Google deixou de ser carregado (a geocodificação de CEP continua, usada pela checagem dentro da proposta). Ver seção 44.
 - **Dentro do fluxo de proposta**: ao marcar "Incluir Claro fibra" (tanto em cliente da base quanto em proposta avulsa), aparece um mini-formulário de CEP + número pra checar a cobertura ali mesmo, sem sair da tela. Na proposta avulsa, o campo CEP do formulário inicial pré-preenche esse campo.
 
 ### 12.3 Mapa de cobertura (visão aérea/satélite)
+
+**Removido em 25/09/2026 junto com a aba** — mantido aqui só como histórico.
 
 Na mesma aba "Verificar Cobertura", abaixo da busca por CEP, tem um mapa (Google Maps, view padrão "hybrid" — satélite com nomes de ruas) com um seletor de cidade. Cada ponto do KMZ vira uma mancha de cobertura semi-transparente com o raio de cobertura (150m) — laranja para HFC, azul para fibra (GPON) — com checkbox pra ligar/desligar cada camada. A opacidade é baixa de propósito, pra dar pra ver ruas e nomes por baixo das manchas.
 
@@ -1732,6 +1734,8 @@ Rebuild (`python3 build_painel.py`) confirmado sem placeholders pendentes.
 
 ## 42. Menu lateral (sidebar) no lugar do menu horizontal (27/09/2026)
 
+> **28/09/2026 — substituído pelo menu lateral do redesign "Sinal de Ápice" (seção 44).** Os grupos (Visão geral / Vendas / Ferramentas / Administração) foram mantidos; a gaveta com botão hambúrguer no celular saiu (no celular o menu fica só com ícones). O conteúdo abaixo fica como histórico.
+
 Pedido do usuário: *"havia uma versao do painel de dash em que as abas estavam em um menu na esquerda, efetuar a alteração deixando mais amigavel e usual, usar a melhores praticas de mercado"*. Sem necessidade de perguntas de esclarecimento — pedido claro (levar o menu principal do topo, horizontal, de volta pra esquerda, vertical) com liberdade de decisão de UX ("melhores práticas de mercado"), decisões abaixo tomadas com base em padrões comuns de dashboards (Linear, Vercel, Stripe, GitHub): sidebar fixa + agrupamento por contexto + item ativo destacado + comportamento de gaveta em mobile.
 
 ### 42.1 O que mudou
@@ -1822,3 +1826,54 @@ Novo arquivo `test_whatsapp_lote.js` (31 asserts, 0 falhas — incluindo o asser
 Reexecutados sem quebras (mesma tela/listeners compartilhados): `test_whatsapp_apresentacao.js` (26 asserts), `test_tipo_avulsa.js`, `test_oferta_valor_badge.js`.
 
 Rebuild (`python3 build_painel.py`) confirmado sem placeholders pendentes. Bug do 43.3 verificado corrigido também direto no site publicado (console do navegador, clicando no botão sem ter aberto proposta antes).
+
+## 44. Redesign do painel na identidade "Sinal de Ápice" + remoção da aba Cobertura (25/09/2026)
+
+Pedido do Rafael: "estamos nos tornando uma empresa grande… precisamos tornar esse CRM um CRM profissional". Spec: `docs/superpowers/specs/2026-09-25-redesign-crm-painel-design.md`; plano: `docs/superpowers/plans/2026-09-25-redesign-crm-painel.md`.
+
+### 44.1 O que mudou
+
+- **Aba "Cobertura" removida** (não estava sendo usada) — ver seção 12. Continuam a checagem de CEP dentro da proposta e o upload de KMZ/chave do Google na Base de Dados.
+- **Menu lateral bordô** no lugar das abas no topo: logo, abas com ícone, usuário e "Sair" no rodapé, triângulo do ápice ao fundo, indicador vermelho que desliza até a aba ativa. Dá pra recolher (lembra a escolha no navegador). A visibilidade das abas por perfil (seção 2) não mudou.
+- **Cabeçalho de página** com título condensado, subtítulo e a faixa de sinal.
+- **Sistema visual novo** substituiu todo o CSS antigo: só as cores do manual (+ verde de "ganho", única exceção, aprovada em 25/09), Barlow Condensed nos títulos e Barlow no texto, KPIs em "ficha técnica" (borda grafite, cruzes "+" vermelhas nos cantos, número grande em vermelho; KPI neutro em grafite).
+- **Animações nível "Marcante"**: carregador com o triângulo da Apex e a faixa de sinal (entrada no sistema, uploads de base/NeoCRM/KMZ, sincronização de leads, geração da proposta em Word), esqueletos enquanto os dados chegam, entrada em cascata, números contando até o valor, gráficos crescendo, modais animados, avisos no canto da tela (substituíram os `alert()` — exceto o aviso de "uso monitorado" da busca, que continua bloqueante de propósito), no celular o menu fica só com ícones, e no Dashboard de Produção/Modo TV os números pulsam quando mudam.
+- Quem desativa animações no Windows vê tudo sem movimento.
+
+### 44.2 Garantias
+
+- Nenhuma regra de negócio mudou; IDs e classes lidos pelo código e pelos testes foram preservados.
+- A contagem animada sempre termina com o texto exato do número (o valor real nunca é alterado).
+- `ApexMotion` fica desligado nos testes automáticos (jsdom) — por isso os testes continuam lendo o HTML final. Nesse modo os avisos voltam a ser `alert()`.
+- Suíte (28/09, já com os testes do Anderson): 38 arquivos — 36 passando e 2 pulados nesta máquina (sem as planilhas reais); o `run_tests.sh` mostra os pulados à parte. A checagem de CEP dentro da proposta tem teste próprio (`test_cobertura_proposta.js`), que não depende de planilha. Os que dependem de planilhas reais fora do git (`campinas.kmz`, `ExportacaoProducao18080917.xlsx`) são pulados com aviso quando o arquivo não está na máquina.
+
+### 44.3 Ferramentas novas
+
+- `crm/run_tests.sh` — build + todos os testes (`NODE_PATH` apontando pro `node_modules` se ele estiver em outra pasta).
+- `crm/dashboard_tpl.py extrair|empacotar` — editar o template do Dashboard de Produção (fica em base64 dentro do `_template.html`).
+- `node crm/demo_local.js` — gera `crm/demo_local.html`, o painel com dados fictícios e Supabase falso, só local (nunca publicado), para revisar o visual sem login.
+
+## 45. Versões publicadas fora do repositório, junções e regras para não perder o design (28/09/2026)
+
+### 45.1 O que aconteceu
+
+Entre 25 e 27/09 o painel foi publicado várias vezes a partir de cópias anteriores ao redesign (seção 44), e em todas o visual novo sumiu do ar — o arquivo publicado substitui o anterior inteiro, com o design junto. Cada vez, as novidades publicadas foram juntadas ao redesign (merge de três vias, sempre usando como base a versão de onde a alteração partiu):
+
+- 25/09 15:18 — modo manual da proposta, paginação de 1000 linhas, ranking por receita (seções 36–38).
+- 25/09 20:08–21:20 — badge com o valor da oferta, Renovação/Incremento na avulsa, sugestões do modo manual sem preço (seções 39–40).
+- 27–28/09 — mensagem de apresentação e notificação em lote pelo WhatsApp (seções 41 e 43) e o menu lateral da seção 42 (substituído pelo do redesign, mantendo os grupos).
+
+Nas junções, o que é regra de negócio de cada lado foi mantido integralmente; o único ponto em que um lado venceu o outro foi o visual (menu e estilos), que seguem o manual "Sinal de Ápice". Os estilos novos das telas do WhatsApp foram refeitos com as cores do manual.
+
+### 45.2 Regras para qualquer alteração (valem para pessoas e para o Claude)
+
+Estão também no arquivo `CLAUDE.md` na raiz do repositório, que o Claude lê automaticamente:
+
+1. Sempre partir da versão atual do repositório (`git pull`) — nunca de uma cópia antiga.
+2. Não alterar o sistema visual (bloco `<style>` "SISTEMA VISUAL SINAL DE ÁPICE", menu lateral, cabeçalho de página, `ApexMotion`). Telas novas reaproveitam as classes e as variáveis de cor existentes.
+3. Rodar `bash run_tests.sh` antes de publicar; tudo tem que passar.
+4. Antes de publicar, comparar com o que está no ar; se o do ar tiver algo que o repositório não tem, juntar antes.
+
+### 45.3 Segurança (28/09/2026)
+
+O repositório é **público**. Foram removidos a senha do SFTP (`deploy_biometria_v2.py`), a base de clientes (`base_clientes.*`), leads com nome e CPF/CNPJ, endereços de leads e a fatura real de um cliente usada como exemplo. O `.gitignore` impede que voltem. Eles continuam no histórico do git — **a senha do SFTP precisa ser trocada no Hostinger**. Credenciais nunca devem ser escritas em arquivos do repositório.

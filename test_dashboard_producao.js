@@ -266,6 +266,8 @@ try{
 `;
 
 // Le a planilha REAL com SheetJS (Node) antes de rodar o script — mais fiel que simular linhas à mão.
+const { exigirArquivo } = require('./test_helper_mock.js');
+if(!exigirArquivo('ExportacaoProducao18080917.xlsx', 'test_dashboard_producao.js')) process.exit(0);
 window.__testWorkbook = XLSX.readFile('ExportacaoProducao18080917.xlsx');
 window.__testXLSXUtils = XLSX.utils;
 

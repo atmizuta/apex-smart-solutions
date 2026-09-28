@@ -1,5 +1,6 @@
 const fs = require('fs');
 const { JSDOM } = require('jsdom');
+const { comRange } = require('./test_helper_mock.js');
 
 let html = fs.readFileSync('_template.html', 'utf8');
 const htmlNoScript = html.replace(/<script>[\s\S]*?<\/script>/g, '');
@@ -29,7 +30,7 @@ function mockQueryBuilder(table){
   };
   return builder;
 }
-window.supabase = { createClient: () => ({
+window.supabase = { createClient: comRange(() => ({
   auth: { getSession: async () => ({data:{session:null}}), onAuthStateChange: () => {}, signInWithPassword: async () => ({data:{},error:null}), signOut: async () => ({}) },
   from: (table) => mockQueryBuilder(table),
   functions: { invoke: async (name) => { window.__lastSyncInvoked = name; return window.__syncResult; } },
@@ -37,7 +38,7 @@ window.supabase = { createClient: () => ({
   // test_venda_origem_lead.js pro teste de verdade do card/drilldown) — aqui só evita
   // "sb.rpc is not a function" caso loadConversaoVendas() rode como consultor neste arquivo.
   rpc: async () => ({ data: { total: 0, ganho: 0, perdido: 0, andamento: 0, semPedido: 0, pedidosGanho: [], pedidosPerdido: [], pedidosAndamento: [] }, error: null }),
-}) };
+})) };
 window.alert = (msg) => { console.log('ALERT:', msg); };
 window.confirm = () => true;
 // jsdom não tem canvas/Chart.js de verdade — mesmo mock usado em test_movimentacao.js, só pra
@@ -220,11 +221,13 @@ try{
   document.querySelector('#conversaoPeriodoPills [data-periodo="7dias"]').click();
   assert(document.getElementById('conversaoResumoCards').innerHTML.includes('kpiValue">2<'), '"Últimos 7 dias" inclui hoje e ontem, mas não o lead de 10 dias atrás nem o sem data (2 de 5)');
 
-  // "Este mês": hoje e o lead do 1º dia do mês sempre caem dentro (garantido pela própria construção
-  // das datas de teste); "ontem" também entra a menos que hoje seja dia 1 — por isso aceita 2 ou 3.
+  // "Este mês": conta os leads de teste cujo mês é o mês de hoje (depende do dia em que o teste
+  // roda: "ontem" e "10 dias atrás" podem cair no mês anterior).
   document.querySelector('#conversaoPeriodoPills [data-periodo="mes"]').click();
   const kpiMesHtml = document.getElementById('conversaoResumoCards').innerHTML;
-  assert(kpiMesHtml.includes('kpiValue">2<') || kpiMesHtml.includes('kpiValue">3<'), '"Este mês" inclui pelo menos hoje e o lead do 1º dia do mês (2 ou 3, a depender se ontem cai no mesmo mês) — ' + kpiMesHtml);
+  const mesHoje = hoje.slice(0, 7);
+  const esperadoMes = [hoje, ontem, ha10dias, primeiroDoMes].filter(d => d.slice(0, 7) === mesHoje).length;
+  assert(kpiMesHtml.includes('kpiValue">' + esperadoMes + '<'), '"Este mês" conta ' + esperadoMes + ' leads do mês atual — ' + kpiMesHtml);
 
   // campos De/Até manuais (digitados, não por pílula): intervalo cobrindo "10 dias atrás" até "ontem"
   document.getElementById('conversaoPeriodoDe').value = ha10dias;

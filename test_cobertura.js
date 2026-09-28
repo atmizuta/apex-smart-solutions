@@ -48,6 +48,8 @@ window.jspdf = { jsPDF: function(){ return {}; } };
 // jsdom's Blob/File não é reconhecido pelo checks internos do jszip quando ele roda puro no Node
 // (instanceof cruzado entre realms) — pra testar a lógica de verdade (unzip + parse), usamos um
 // Buffer normal do Node com um .name colado, que é tudo que parseKMZ/extrairCidadeDoNome precisam.
+const { exigirArquivo } = require('./test_helper_mock.js');
+if(!exigirArquivo('campinas.kmz', 'test_cobertura.js')) process.exit(0);
 const bufCampinas = fs.readFileSync('campinas.kmz');
 bufCampinas.name = 'SP - CAMPINAS - 06.07.2026 (1).kmz';
 window.__fileCampinas = bufCampinas;
