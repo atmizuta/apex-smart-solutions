@@ -17,3 +17,6 @@ crm/.claude/
 
 # workspace de execução de planos (superpowers) — só ledger/scratch local, não é produto
 .superpowers/
+
+# worktrees isolados usados durante execução de planos
+.worktrees/
