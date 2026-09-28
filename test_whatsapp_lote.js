@@ -40,9 +40,15 @@ function assert(cond, msg){ if(cond){ ok++; } else { fail++; console.log('FALHOU
 
 currentUser = { id: 'u1', nome: 'Fernanda Souza', username: 'fernanda', role: 'consultor' };
 
-// abre a proposta avulsa (o card "Notificar clientes" fica na tela de proposta avulsa)
-const clienteAvulsa = { razao_social: '', cnpj: '', cidade: 'Sao Paulo', ddd: '11', linhas_atuais: 5, valor_contrato: 800, arpu: 160, cep_cabeado: '' };
-openProposal(clienteAvulsa, { avulsa: true, tipoAvulsa: 'novo' });
+// 27/09/2026 (bug real relatado pelo usuário em produção: "nao abriu o modal ao clicar no botao
+// notificar cliente") — o card "Notificar clientes" é ESTÁTICO na tela de proposta avulsa (não
+// depende de ter aberto uma proposta antes), mas whatsappPreencherTemplate() lia
+// proposalState.vendedorNome sem checar null — e proposalState só é populado dentro de
+// openProposal(), então clicar direto (sem antes gerar/abrir uma proposta) explodia com
+// "Cannot read properties of null (reading 'vendedorNome')". Por isso este teste
+// DELIBERADAMENTE NÃO chama openProposal() antes — reproduz o caminho real do usuário (entra na
+// aba, clica direto em "Notificar em lote") e teria pego esse bug antes do deploy.
+assert(proposalState === null, 'proposalState começa null (nenhuma proposta foi aberta) — reproduz o caminho real do bug');
 
 // ===== 1) card + modal existem =====
 const btnAbrir = document.getElementById('btnAbrirWhatsLote');

@@ -3035,7 +3035,11 @@ const WHATSAPP_TEMPLATES = [
 ];
 
 function whatsappPreencherTemplate(texto, client){
-  const nomeConsultor = (proposalState.vendedorNome || (currentUser && currentUser.nome) || '').trim() || 'consultor(a) da Apex';
+  // 27/09/2026: essa função agora também é chamada pelo modal "Notificar em lote" (fora do fluxo
+  // de proposta), onde proposalState ainda é null (só é populado dentro de openProposal()) — sem
+  // essa guarda, dava TypeError ("Cannot read properties of null (reading 'vendedorNome')") ao
+  // abrir o modal de lote sem ter aberto uma proposta antes.
+  const nomeConsultor = ((proposalState && proposalState.vendedorNome) || (currentUser && currentUser.nome) || '').trim() || 'consultor(a) da Apex';
   const nomeCliente = ((client && client.razao_social) || 'sua empresa').trim();
   return texto.replace(/\{\{consultor\}\}/g, nomeConsultor).replace(/\{\{cliente\}\}/g, nomeCliente);
 }

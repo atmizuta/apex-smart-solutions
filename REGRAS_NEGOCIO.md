@@ -1799,9 +1799,15 @@ Na tela de proposta avulsa ("Gerar Proposta" → avulsa), logo abaixo do card "A
 - Cada linha tem seu próprio botão "Remover" (tira só aquela linha, reindexando as demais) e seu próprio botão "Enviar".
 - "Enviar" de uma linha: valida o número via `whatsappNumeroParaLink()` (mesma normalização do §41 — 55+DDD+número, mínimo 10 dígitos) e a mensagem (não pode estar vazia); número inválido ou mensagem vazia mostra um erro **só naquela linha** (`.wLoteErr`), sem abrir nada; com número e mensagem válidos, abre `https://wa.me/<numero>?text=<mensagem>` numa nova aba — exatamente como o botão "Gerar Mensagem" de cliente único (§41), só que aplicado por linha da lista.
 
-### 43.3 Testado
+### 43.3 Bug corrigido logo após o primeiro deploy: modal não abria em produção
 
-Novo arquivo `test_whatsapp_lote.js` (30 asserts, 0 falhas):
+Relato do usuário: *"nao abriu o modal ao clicar no botao notificar cliente"*. Reproduzido direto no site publicado (apexsmart.com.br) via console do navegador: clicar em "Notificar em lote" **sem antes ter gerado/aberto uma proposta** disparava `TypeError: Cannot read properties of null (reading 'vendedorNome')` dentro de `whatsappPreencherTemplate()`, que lia `proposalState.vendedorNome` sem checar `null` — e `proposalState` só é populado dentro de `openProposal()` (fluxo de proposta), enquanto o card "Notificar clientes" é **estático** na tela avulsa e não depende de ter aberto uma proposta antes. Como o teste original (`test_whatsapp_lote.js`) chamava `openProposal()` antes de clicar no botão — sem perceber que isso mascarava justamente esse caminho —, os 30 asserts passaram no jsdom mas o bug só apareceu em produção, no caminho real do usuário (entrar na aba e clicar direto, sem gerar proposta primeiro).
+
+Corrigido com uma guarda simples em `whatsappPreencherTemplate()`: `(proposalState && proposalState.vendedorNome) || ...` em vez de `proposalState.vendedorNome || ...`. O teste foi reescrito pra **não** chamar `openProposal()` antes (reproduzindo o caminho real) e ganhou um assert explícito conferindo que `proposalState` começa `null` — pra esse regressão específica não voltar a passar despercebida.
+
+### 43.4 Testado
+
+Novo arquivo `test_whatsapp_lote.js` (31 asserts, 0 falhas — incluindo o assert de `proposalState === null` do 43.3):
 
 - Card e modal existem na tela de proposta avulsa; aviso de banimento sempre presente.
 - Modal nasce com 1 linha, mensagem já preenchida com o nome do consultor logado.
@@ -1814,4 +1820,4 @@ Novo arquivo `test_whatsapp_lote.js` (30 asserts, 0 falhas):
 
 Reexecutados sem quebras (mesma tela/listeners compartilhados): `test_whatsapp_apresentacao.js` (26 asserts), `test_tipo_avulsa.js`, `test_oferta_valor_badge.js`.
 
-Rebuild (`python3 build_painel.py`) confirmado sem placeholders pendentes.
+Rebuild (`python3 build_painel.py`) confirmado sem placeholders pendentes. Bug do 43.3 verificado corrigido também direto no site publicado (console do navegador, clicando no botão sem ter aberto proposta antes).
