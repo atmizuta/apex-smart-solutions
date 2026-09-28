@@ -47,7 +47,7 @@
 
   /* 27/09/2026 (pedido do usuário: notificação em massa via WhatsApp) — aviso de risco de banimento
      (sempre visível no topo do modal) e cartão de cada linha da lista de contatos. */
-  .whatsLoteWarning{background:#fff7ed;border:1px solid #fdba74;color:#9a3412;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:12.5px;line-height:1.5;}
+  .whatsLoteWarning{background:#fff7ed;border:1px solid #fdba74;color:#9a3412;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:12px;line-height:1.4;}
   .whatsLoteRow{border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;}
   .whatsLoteRow .wRowTop{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;align-items:flex-end;}
   .whatsLoteRow .wRowTop .field{flex:1;min-width:150px;margin:0;}
@@ -944,7 +944,7 @@
       <div class="mCnpj">Até 10 números — envie um de cada vez, no seu ritmo</div>
     </div>
     <div class="mBody" style="max-height:70vh;overflow-y:auto">
-      <div class="whatsLoteWarning">⚠️ <b>Risco de banimento:</b> mandar várias mensagens parecidas, uma atrás da outra, pra números diferentes é um padrão que o WhatsApp associa a disparo automatizado (spam) — isso pode banir seu número, temporária ou definitivamente. Envie um contato de cada vez, espace os envios ao longo do dia e prefira variar o modelo de mensagem entre os contatos.</div>
+      <div class="whatsLoteWarning">⚠️ Envie um contato de cada vez, no seu ritmo — várias mensagens seguidas podem banir seu número.</div>
       <div id="whatsLoteRowsWrap"></div>
       <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
         <button type="button" class="btn btn-sm btn-outline" id="btnWhatsLoteAdd" style="width:auto">+ Adicionar número</button>
@@ -3120,7 +3120,7 @@ function renderWhatsLoteRows(){
       </div>
       <div class="field">
         <label>Mensagem (editável)</label>
-        <textarea class="wLoteMensagem" rows="3">${escapeHtml(linha.mensagem)}</textarea>
+        <textarea class="wLoteMensagem" rows="7" style="width:100%;resize:vertical;font-size:13.5px;line-height:1.5">${escapeHtml(linha.mensagem)}</textarea>
       </div>
       <div class="wLoteErr" style="display:${linha.erro ? 'block' : 'none'};color:#c0392b;font-size:12px;margin-top:4px">${escapeHtml(linha.erro || '')}</div>
       <button type="button" class="btn btn-sm wLoteEnviar" style="width:auto;margin-top:8px">Enviar</button>
