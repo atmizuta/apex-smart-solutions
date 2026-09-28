@@ -1,0 +1,20 @@
+# Arquivos que NUNCA vão para o GitHub (28/09/2026) — o repositório é público.
+# Senhas e credenciais
+deploy_*.py
+*.env
+.env*
+segredos*
+# Dados de clientes e leads (LGPD)
+base_clientes*
+LeadsFibra*
+geocode_results*.json
+REAL_RH*
+realrh_*
+rrh_pg*
+*.kmz
+ExportacaoProducao*.xlsx
+# Arquivos locais
+node_modules/
+__pycache__/
+_dashboard_producao.html
+demo_local.html
