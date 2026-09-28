@@ -44,6 +44,14 @@
      Incremento) — só na tela, não entra no documento gerado. */
   .propOfertaValorWrap{margin-top:5px;}
   .propOfertaValorBadge{display:inline-block;font-size:12px;color:var(--accent-dark,#0a5c36);background:#eafaf1;border:1px solid #b9e8c9;border-radius:6px;padding:3px 8px;}
+
+  /* 27/09/2026 (pedido do usuário: notificação em massa via WhatsApp) — aviso de risco de banimento
+     (sempre visível no topo do modal) e cartão de cada linha da lista de contatos. */
+  .whatsLoteWarning{background:#fff7ed;border:1px solid #fdba74;color:#9a3412;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:12.5px;line-height:1.5;}
+  .whatsLoteRow{border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;}
+  .whatsLoteRow .wRowTop{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;align-items:flex-end;}
+  .whatsLoteRow .wRowTop .field{flex:1;min-width:150px;margin:0;}
+  .whatsLoteRow .wLoteRemover{flex:none;}
   .btn{background:var(--accent);color:#fff;border:none;padding:11px 16px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;width:100%;}
   .btn:hover{background:var(--accent-dark);}
   .btn-sm{width:auto;padding:8px 14px;font-size:13px;}
@@ -399,6 +407,23 @@
         <h3>Analisar Fatura</h3>
         <p class="desc">Anexe a fatura atual do cliente pra comparar com uma oferta do book ("de para"). A regra de análise ainda está sendo definida — por enquanto, o arquivo é só recebido e guardado nesta tela.</p>
         <button class="btn" id="btnAbrirAnaliseFatura" style="width:auto">Analisar Fatura</button>
+      </div>
+
+      <!-- 27/09/2026 (pedido do usuário: "nesta tela dar a opção também de enviar mensagens em lote
+           somente notificando o cliente pelo whatsapp da gestão da conta dele... inserir o número do
+           whatsapp do cliente e o nome, sugerir mensagem aleatoria conforme modelos com a opcao de
+           escolha para cada número, deixar no maximo 10 numeros e alertar para o risco de
+           banimento no whatsapp") — reaproveita WHATSAPP_TEMPLATES/whatsappPreencherTemplate/
+           whatsappNumeroParaLink da seção 41 (mesmos 4 modelos de apresentação), agora aplicados a
+           uma lista de até 10 contatos avulsos (nome + número), cada um com modelo/mensagem próprios.
+           Esclarecido via pergunta ao usuário: envio SEMPRE um contato de cada vez (botão "Enviar"
+           por linha), nunca um botão único que abre as 10 conversas de uma vez — justamente pra não
+           reproduzir o padrão de disparo automatizado que o WhatsApp associa a spam/banimento (por
+           isso também o aviso permanente no topo do modal). Ver renderWhatsLoteRows() e afins. -->
+      <div class="card" style="margin-top:16px">
+        <h3>Notificar clientes (WhatsApp em lote)</h3>
+        <p class="desc">Avise vários clientes, de uma vez, que você é o(a) responsável pela conta deles — sem precisar abrir uma proposta pra cada um. Adicione até 10 números, escolha um modelo de mensagem pra cada (ou edite à vontade) e envie um de cada vez.</p>
+        <button class="btn" id="btnAbrirWhatsLote" style="width:auto">Notificar em lote</button>
       </div>
     </section>
 
@@ -906,6 +931,25 @@
       <button class="btn" id="btnAnalisarFatura">Analisar</button>
       <div class="loginError" id="faturaErr" style="display:none;margin-top:10px"></div>
       <div id="faturaResultado" style="display:none;margin-top:14px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL NOTIFICAR CLIENTES EM LOTE (WHATSAPP, 27/09/2026) ===================== -->
+<div class="overlay" id="whatsLoteOverlay">
+  <div class="modal" style="max-width:880px">
+    <div class="mHead">
+      <button class="mClose" id="whatsLoteClose">&times;</button>
+      <h2>Notificar clientes em lote (WhatsApp)</h2>
+      <div class="mCnpj">Até 10 números — envie um de cada vez, no seu ritmo</div>
+    </div>
+    <div class="mBody" style="max-height:70vh;overflow-y:auto">
+      <div class="whatsLoteWarning">⚠️ <b>Risco de banimento:</b> mandar várias mensagens parecidas, uma atrás da outra, pra números diferentes é um padrão que o WhatsApp associa a disparo automatizado (spam) — isso pode banir seu número, temporária ou definitivamente. Envie um contato de cada vez, espace os envios ao longo do dia e prefira variar o modelo de mensagem entre os contatos.</div>
+      <div id="whatsLoteRowsWrap"></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+        <button type="button" class="btn btn-sm btn-outline" id="btnWhatsLoteAdd" style="width:auto">+ Adicionar número</button>
+        <span style="font-size:12px;color:var(--muted)" id="whatsLoteContagem"></span>
+      </div>
     </div>
   </div>
 </div>
@@ -1989,6 +2033,86 @@ document.getElementById('btnAbrirAnaliseFatura').addEventListener('click', funct
   faturaOverlayEl.classList.add('active');
 });
 document.getElementById('faturaClose').addEventListener('click', () => faturaOverlayEl.classList.remove('active'));
+
+// 27/09/2026 — listeners do modal "Notificar clientes (WhatsApp em lote)" (ver whatsLoteState/
+// renderWhatsLoteRows/WHATSLOTE_MAX, definidos acima, perto do "Gerar Mensagem" de cliente único).
+const whatsLoteOverlayEl = document.getElementById('whatsLoteOverlay');
+const btnAbrirWhatsLoteEl = document.getElementById('btnAbrirWhatsLote');
+if(btnAbrirWhatsLoteEl) btnAbrirWhatsLoteEl.addEventListener('click', function(){
+  whatsLoteState = { linhas: [whatsLoteNovaLinha()] };
+  renderWhatsLoteRows();
+  whatsLoteOverlayEl.classList.add('active');
+});
+const whatsLoteCloseEl = document.getElementById('whatsLoteClose');
+if(whatsLoteCloseEl) whatsLoteCloseEl.addEventListener('click', () => whatsLoteOverlayEl.classList.remove('active'));
+
+const btnWhatsLoteAddEl = document.getElementById('btnWhatsLoteAdd');
+if(btnWhatsLoteAddEl) btnWhatsLoteAddEl.addEventListener('click', function(){
+  if(whatsLoteState.linhas.length >= WHATSLOTE_MAX) return;
+  whatsLoteState.linhas.push(whatsLoteNovaLinha());
+  renderWhatsLoteRows();
+});
+
+const whatsLoteRowsWrapEl = document.getElementById('whatsLoteRowsWrap');
+if(whatsLoteRowsWrapEl){
+  whatsLoteRowsWrapEl.addEventListener('input', function(e){
+    const row = e.target.closest('.whatsLoteRow');
+    if(!row) return;
+    const idx = Number(row.dataset.idx);
+    const linha = whatsLoteState.linhas[idx];
+    if(!linha) return;
+    if(e.target.classList.contains('wLoteNome')) linha.nome = e.target.value;
+    else if(e.target.classList.contains('wLoteNumero')) linha.numero = e.target.value;
+    else if(e.target.classList.contains('wLoteMensagem')) linha.mensagem = e.target.value;
+  });
+
+  whatsLoteRowsWrapEl.addEventListener('change', function(e){
+    const row = e.target.closest('.whatsLoteRow');
+    if(!row) return;
+    const idx = Number(row.dataset.idx);
+    const linha = whatsLoteState.linhas[idx];
+    if(!linha) return;
+    if(e.target.classList.contains('wLoteTemplate')){
+      const tpl = WHATSAPP_TEMPLATES.find(t => t.id === e.target.value);
+      if(tpl){
+        linha.templateId = tpl.id;
+        linha.mensagem = whatsappPreencherTemplate(tpl.texto, { razao_social: linha.nome });
+        renderWhatsLoteRows();
+      }
+    }
+  });
+
+  whatsLoteRowsWrapEl.addEventListener('click', function(e){
+    const row = e.target.closest('.whatsLoteRow');
+    if(!row) return;
+    const idx = Number(row.dataset.idx);
+    if(e.target.classList.contains('wLoteRemover')){
+      whatsLoteState.linhas.splice(idx, 1);
+      renderWhatsLoteRows();
+      return;
+    }
+    if(e.target.classList.contains('wLoteEnviar')){
+      const linha = whatsLoteState.linhas[idx];
+      if(!linha) return;
+      const numeroLink = whatsappNumeroParaLink(linha.numero);
+      const mensagem = (linha.mensagem || '').trim();
+      if(!numeroLink){
+        linha.erro = 'Informe um número válido, com DDD (ex: 11987654321).';
+        renderWhatsLoteRows();
+        return;
+      }
+      if(!mensagem){
+        linha.erro = 'A mensagem não pode ficar vazia.';
+        renderWhatsLoteRows();
+        return;
+      }
+      linha.erro = '';
+      const url = `https://wa.me/${numeroLink}?text=${encodeURIComponent(mensagem)}`;
+      window.open(url, '_blank');
+      renderWhatsLoteRows();
+    }
+  });
+}
 // 23/09/2026 (pedido do usuário — "a tela fecha automaticamente clicando fora, corrigir para
 // deixar a página aberta"): removido o fechamento ao clicar no backdrop do overlay. Esse modal fica
 // aberto por bastante tempo (análise de fatura, ajuste de planos linha a linha) e um clique sem
@@ -2939,6 +3063,69 @@ function whatsappNumeroParaLink(numeroDigitado){
   if(digitos.length < 10) return null;
   if(!digitos.startsWith('55')) digitos = '55' + digitos;
   return digitos;
+}
+
+// 27/09/2026 (pedido do usuário, tela "Gerar Proposta" avulsa: "nesta tela dar a opção também de
+// enviar mensagens em lote somente notificando o cliente pelo whatsapp da gestão da conta dele...
+// inserir o número do whatsapp do cliente e o nome, sugerir mensagem aleatoria conforme modelos com
+// a opcao de escolha para cada número, deixar no maximo 10 numeros e alertar para o risco de
+// banimento no whatsapp" — esclarecido via pergunta ao usuário: cada contato tem seu próprio botão
+// "Enviar" (envio um de cada vez, no ritmo do consultor) em vez de um botão único que abre os 10 de
+// uma vez, justamente pra reduzir o padrão de disparo automatizado que o WhatsApp associa a
+// spam/banimento. Reaproveita WHATSAPP_TEMPLATES/whatsappPreencherTemplate/whatsappNumeroParaLink,
+// definidos acima pro botão "Gerar Mensagem" de cliente único.
+const WHATSLOTE_MAX = 10;
+let whatsLoteState = { linhas: [] };
+
+function whatsLoteTemplateAleatorio(){
+  return WHATSAPP_TEMPLATES[Math.floor(Math.random() * WHATSAPP_TEMPLATES.length)];
+}
+
+function whatsLoteNovaLinha(){
+  const tpl = whatsLoteTemplateAleatorio();
+  return {
+    nome: '',
+    numero: '',
+    templateId: tpl.id,
+    mensagem: whatsappPreencherTemplate(tpl.texto, { razao_social: '' }),
+    erro: '',
+  };
+}
+
+function renderWhatsLoteRows(){
+  const wrap = document.getElementById('whatsLoteRowsWrap');
+  if(!wrap) return;
+  wrap.innerHTML = whatsLoteState.linhas.map((linha, idx) => `
+    <div class="whatsLoteRow" data-idx="${idx}">
+      <div class="wRowTop">
+        <div class="field">
+          <label>Nome do cliente</label>
+          <input type="text" class="wLoteNome" placeholder="Ex: João, da Padaria Central" value="${escapeHtml(linha.nome)}">
+        </div>
+        <div class="field">
+          <label>Número do WhatsApp (com DDD)</label>
+          <input type="text" class="wLoteNumero" placeholder="Ex: 11987654321" value="${escapeHtml(linha.numero)}">
+        </div>
+        <div class="field">
+          <label>Modelo de mensagem</label>
+          <select class="wLoteTemplate">
+            ${WHATSAPP_TEMPLATES.map(t => `<option value="${t.id}" ${t.id===linha.templateId?'selected':''}>${t.label}</option>`).join('')}
+          </select>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline wLoteRemover" style="width:auto">Remover</button>
+      </div>
+      <div class="field">
+        <label>Mensagem (editável)</label>
+        <textarea class="wLoteMensagem" rows="3">${escapeHtml(linha.mensagem)}</textarea>
+      </div>
+      <div class="wLoteErr" style="display:${linha.erro ? 'block' : 'none'};color:#c0392b;font-size:12px;margin-top:4px">${escapeHtml(linha.erro || '')}</div>
+      <button type="button" class="btn btn-sm wLoteEnviar" style="width:auto;margin-top:8px">Enviar</button>
+    </div>
+  `).join('');
+  const btnAdd = document.getElementById('btnWhatsLoteAdd');
+  const contagem = document.getElementById('whatsLoteContagem');
+  if(contagem) contagem.textContent = `${whatsLoteState.linhas.length} de ${WHATSLOTE_MAX} números`;
+  if(btnAdd) btnAdd.style.display = whatsLoteState.linhas.length >= WHATSLOTE_MAX ? 'none' : '';
 }
 
 function renderWhatsAppApresentacaoHtml(client){

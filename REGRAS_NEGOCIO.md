@@ -1779,3 +1779,39 @@ Novo arquivo `test_sidebar_nav.js` (24 asserts, 0 falhas):
 Reexecutada a suíte completa de testes jsdom (28 arquivos) sem nenhuma quebra causada por esta mudança — as únicas falhas encontradas foram pré-existentes e não relacionadas: `test_cobertura.js` e `test_dashboard_producao.js` dependem de fixtures externos (`campinas.kmz`, planilha de exemplo) ausentes neste ambiente; `test_conversao_vendas.js` teve 1 assert sensível à data atual do sistema (comparação "este mês" perto da virada de mês), sem relação com a sidebar.
 
 Rebuild (`python3 build_painel.py`) confirmado sem placeholders pendentes.
+
+## 43. Notificar clientes em lote (WhatsApp) na tela de proposta avulsa (27/09/2026)
+
+Pedido do usuário (com uma captura de tela da tela "Gerar Proposta" avulsa, mostrando o card "Analisar Fatura"): *"nesta tela dar a opção também de enviar mensagens em lote somente notificando o cliente pelo whatsapp da gestão da conta dele, ou seja, inserir o número do whatsapp do cliente e o nome, sugerir mensagem aleatoria conforme modelos com a opcao de escolha para cada número, deixar no maximo 10 numeros e alertar para o risco de banimento no whatsapp."*
+
+Esclarecido com uma pergunta ao usuário sobre como o consultor deveria efetivamente disparar as mensagens da lista: "Botão por número" (cada contato tem seu próprio botão "Enviar", disparo um de cada vez) vs. "Um botão único abre tudo" (abre as até 10 conversas do WhatsApp de uma vez). O usuário escolheu **"Botão por número (Recomendado)"** — justamente a opção que reduz o risco de banimento, já que abrir várias conversas do WhatsApp de forma automatizada e em sequência rápida é o padrão que o WhatsApp associa a disparo em massa (spam). Por isso o recurso **não tem** um botão "enviar todos": cada linha só é disparada quando o consultor clica no "Enviar" daquela linha, no próprio ritmo dele.
+
+### 43.1 Onde fica
+
+Na tela de proposta avulsa ("Gerar Proposta" → avulsa), logo abaixo do card "Analisar Fatura", um novo card "Notificar clientes (WhatsApp em lote)" com um botão "Notificar em lote" que abre um modal (`#whatsLoteOverlay`).
+
+### 43.2 O modal
+
+- Aviso de risco de banimento (`.whatsLoteWarning`) sempre visível no topo do modal, explicando o motivo (padrão de disparo automatizado) e as recomendações (enviar um de cada vez, espaçar os envios, variar o modelo entre os contatos).
+- Nasce com 1 linha vazia; botão "+ Adicionar número" acrescenta linhas até o teto de **10** (`WHATSLOTE_MAX`) — o próprio botão some quando o limite é atingido, e um contador ("N de 10 números") mostra o progresso.
+- Cada linha (`.whatsLoteRow`) tem: campo de nome do cliente, campo de número (com DDD), dropdown de modelo de mensagem (reaproveita os mesmos 4 `WHATSAPP_TEMPLATES` do botão "Gerar Mensagem" de cliente único, §41) e um campo de mensagem editável — já preenchido, ao criar a linha, com um modelo **sorteado aleatoriamente** entre os 4 (pedido do usuário: "sugerir mensagem aleatoria conforme modelos"), com o nome do consultor logado já substituído via `whatsappPreencherTemplate()`.
+- Trocar o modelo no dropdown de uma linha recalcula **só a mensagem daquela linha** (usando o nome digitado nela pro placeholder `{{cliente}}`) — não afeta as outras linhas. Editar o nome ou o número depois **não** reescreve retroativamente uma mensagem já preenchida (o consultor pode ter editado a mensagem à mão) — só uma nova troca de modelo recalcula.
+- Cada linha tem seu próprio botão "Remover" (tira só aquela linha, reindexando as demais) e seu próprio botão "Enviar".
+- "Enviar" de uma linha: valida o número via `whatsappNumeroParaLink()` (mesma normalização do §41 — 55+DDD+número, mínimo 10 dígitos) e a mensagem (não pode estar vazia); número inválido ou mensagem vazia mostra um erro **só naquela linha** (`.wLoteErr`), sem abrir nada; com número e mensagem válidos, abre `https://wa.me/<numero>?text=<mensagem>` numa nova aba — exatamente como o botão "Gerar Mensagem" de cliente único (§41), só que aplicado por linha da lista.
+
+### 43.3 Testado
+
+Novo arquivo `test_whatsapp_lote.js` (30 asserts, 0 falhas):
+
+- Card e modal existem na tela de proposta avulsa; aviso de banimento sempre presente.
+- Modal nasce com 1 linha, mensagem já preenchida com o nome do consultor logado.
+- "+ Adicionar número" soma linhas até 10; botão some no limite; clique extra além do limite não cria uma 11ª linha; remover volta a mostrar o botão.
+- Trocar o modelo de uma linha recalcula só a mensagem daquela linha (nome digitado nela incluído), sem alterar a mensagem de outra linha.
+- Editar nome/número depois de a mensagem já estar preenchida não reescreve a mensagem retroativamente.
+- "Remover" tira a linha certa (a outra permanece intacta).
+- "Enviar" com número inválido mostra erro só naquela linha, sem chamar `window.open`.
+- "Enviar" com número e mensagem válidos chama `window.open` uma vez, com a URL `wa.me` (55+DDD+número) e a mensagem (url-encoded) corretas; o erro da linha some depois de um envio válido.
+
+Reexecutados sem quebras (mesma tela/listeners compartilhados): `test_whatsapp_apresentacao.js` (26 asserts), `test_tipo_avulsa.js`, `test_oferta_valor_badge.js`.
+
+Rebuild (`python3 build_painel.py`) confirmado sem placeholders pendentes.
