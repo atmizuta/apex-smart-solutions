@@ -1949,6 +1949,21 @@ A segunda parte — *"otimizar tambem para uma melhor visualização no smartpho
 
 Deploy feito via `deploy_biometria_v2.py` (backup automático do painel anterior em `backups_painel_clientes_apex/`, MD5 local×remoto conferido pra imagem e pro painel — ambos "OK").
 
+### 47.3 Depois de ver no celular real: menu em gaveta + cards mais leves (29/09/2026)
+
+O usuário testou no celular e mandou uma captura de tela: mesmo com a condensação da Visão Diária já no ar, a barra de ícones do menu lateral ficava **permanentemente visível** (72px fixos, ocupando quase 1/3 da largura de um celular comum), sobrando pouco espaço pra qualquer conteúdo — e os cards de KPI apareciam com borda preta grossa e "cantinhos +" decorativos (parte do estilo "Sinal de Ápice", pensado pra tela de computador), pesados demais numa tela pequena. Pedido: *"pode mudar o layout preservando as cores, ainda está ruim a visualização, use as melhores praticas e atualizadas para apresentação de dashboard do mercado"*.
+
+Antes desta mudança, o comportamento em telas ≤768px era documentado como "menu fica fixo só com ícones — o painel é pensado pra computador, mas continua usável" (decisão deliberada de uma sessão anterior). O pedido de hoje substitui essa decisão:
+
+- **Menu em gaveta (off-canvas)**: no celular, o menu lateral fica escondido por padrão (`transform:translateX(-100%)`) e o conteúdo ocupa 100% da largura (`.appBody{margin-left:0}`). Uma barra superior fixa e fina (`.mobileTopbar`, só visível ≤768px) mostra o logo da Apex, um botão hambúrguer e o nome da aba atual. Tocar no hambúrguer abre a gaveta (menu completo, com rótulos, 280px de largura) por cima do conteúdo, com um fundo escurecido atrás (`.sbBackdrop`); tocar no fundo ou escolher qualquer aba fecha a gaveta de novo automaticamente. Esse é o mesmo padrão usado hoje pela maioria dos painéis mobile de mercado (Gmail, Notion, quase todo SaaS atual): tela cheia pro conteúdo, menu só aparece quando pedido. Nas telas de computador (>768px) nada mudou — continua o menu lateral recolhível de sempre.
+- **Cards mais leves no mobile**: só dentro da Visão Diária e só em telas ≤600px, os cards de KPI/tipo de venda perderam a borda preta grossa (`border:1.5px solid var(--text)`) e os cantinhos "+" decorativos (parte do estilo "Sinal de Ápice"), voltando a um cartão com cantos arredondados e sombra suave — mesmas cores (`var(--accent)`, mesma faixa colorida no topo do card), só menos "peso" visual numa tela pequena. Em telas maiores (computador, TV) o estilo "Sinal de Ápice" original continua exatamente como estava.
+
+**Arquivos afetados:** `_template.html` (CSS da seção 4 "SHELL", HTML do `<aside class="sidebar">`/nova `.mobileTopbar`/`.sbBackdrop`, funções `alternarMenuMobile()` e `atualizarCabecalhoPagina()`, listener de clique do `#tabsNav`), `_dashboard_producao.html` reempacotado com o ajuste dos cards no `@media (max-width:600px)`.
+
+**Teste corrigido de passagem, sem relação com o pedido de hoje:** `test_redesign_shell.js` acusava `#FAFAFA` "solto" fora dos tokens de cor — na verdade é a cor de fundo da assinatura do e-mail em lote (`emailLoteMontarHtml()`, §46.6), que precisa de cor literal por ser HTML de e-mail (cliente de e-mail não lê `var(--token)`), igual aos geradores de PDF/Word que já tinham essa exceção. Adicionada a mesma exceção pra `emailLoteMontarHtml` na lista de funções que o teste ignora nessa checagem.
+
+**Testado:** `test_redesign_shell.js` (39 asserts, 0 falhas, depois do ajuste acima), `test_sidebar_nav.js` (11 asserts, 0 falhas), `test_reorganizacao_abas.js` (33 asserts, 0 falhas), `test_email_lote.js` (43 asserts, 0 falhas), `test_visao_diaria.js` (159 asserts, 0 falhas). `test_dashboard_producao.js` pulado (fixture real fora desta máquina, como sempre).
+
 Rebuild (`python3 build_painel.py`) confirmado sem placeholders pendentes (747436 bytes).
 
 ## 48. Pedidos em Alerta — pedidos ganhos parados nas etapas pós-venda (28/09/2026)
