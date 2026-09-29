@@ -1533,3 +1533,14 @@ Reportar ao usuário: números do Step 1 (itens/pedidos), do Step 2 (iguais / di
 **Placeholder scan:** sem TBD/TODO; todo passo de código tem o código. Os únicos trechos condicionais (reexecutar carga; investigar chaves do JSON) trazem o comando exato.
 
 **Type consistency:** `Registro`, `Descartes`, `Mapeado`, `NeoRow` (Task 2) usados igual nas Tasks 5–6; `Modo`/`Janela` (Task 3) idem; `Deps`/`FechamentoLog` (Task 5) implementados por `criarDeps()` (Task 6) com as mesmas assinaturas; `criarBuscarNeo(cfg)` devolve `(ini, fim) => Promise<NeoRow[]>` = `Deps.buscarNeo`.
+
+## Correções pós-revisão (29/09/2026) — o código supera o texto acima nestes pontos
+
+A revisão independente da branch (0 críticos, 4 importantes) levou a quatro mudanças, cada uma feita com teste falhando primeiro (suíte final: 47 testes). Onde o código e este plano divergem, vale o código:
+
+1. **`mapper.ts`:** `ARQUIVADO (NEOCRM)` é checado antes de GROSS e de "sem grupo", para o item arquivado sair da tabela mesmo que a API mande a linha sem grupo ou só como GROSS.
+2. **`sync.ts` / `index.ts`:** `escolherCursor()` — o cursor só considera execuções `ok`, não-manuais e de janela **completa** (sem "Janela reduzida"). Uma queda longa que termina de dia não empurra o cursor por cima da lacuna; a primeira execução horária da noite (sem limite de janela) a preenche.
+3. **`neosales.ts`:** sem retry. A NeoSales só aceita 1 consulta a cada ~2 min; repetir logo depois de um timeout/5xx bate no intervalo, esconde a causa real e pode derrubar o job seguinte (por exemplo, os jobs mensais da carga inicial). Timeout de 120 s.
+4. **`windows.ts`:** de dia, `inicio` explícito mais antigo que 85 min é recusado; janela vazia (início ≥ fim) é erro em vez de "sucesso com 0 linhas".
+
+Menores adiados (não corrigidos): gravação não atômica de pedidos + raw; execuções abertas por limite de tempo; reaplicar a migration de cron recria jobs para 30/09/2027 e as duas migrations compartilham o prefixo `20260929`; contadores para datas/valores inválidos; upsert sem guarda de "o mais novo vence"; carimbo de atualização após backfill de meses antigos; comentário impreciso em `sync.ts`.
