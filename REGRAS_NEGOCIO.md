@@ -1917,4 +1917,35 @@ Novo arquivo `test_email_lote.js` (43 asserts, 0 falhas): aba Configurações ex
 
 Reexecutados sem quebras: `test_whatsapp_lote.js` (31 asserts), `test_tipo_avulsa.js`, `test_redesign_shell.js` (39 asserts). `test_reorganizacao_abas.js` foi atualizado para incluir "config" na lista esperada da ordem das abas (a aba nova ficou no grupo Ferramentas, logo depois de Biometria) — 33 asserts, 0 falhas depois do ajuste.
 
+### 46.6 Ajustes pós-publicação: logos, botão de WhatsApp e troca de biblioteca de envio (29/09/2026)
+
+Depois da publicação inicial, o primeiro e-mail de teste real (Gmail) chegou com os logos quebrados (ícone de imagem faltando). Causa: o HTML usava `data:image/...;base64,...` embutido pros logos — a maioria dos clientes de e-mail (Gmail, Outlook) bloqueia/remove imagens em base64 embutidas por padrão. Corrigido extraindo os logos originais (`apex_logo_email.png`, `claro_logo_email.jpg`) e publicando-os como arquivos reais em `https://apexsmart.com.br/apex_logo_email.png` e `https://apexsmart.com.br/claro_logo_email.jpg` — o HTML do e-mail passou a referenciar essas URLs públicas em vez do base64.
+
+No mesmo pedido (*"ta com erro na imagem, da pra colocar uma imagem interna com um botao direcionando para o whatsapp do numero informado?"*), foi adicionado um botão "Falar com [nome] no WhatsApp" no corpo do e-mail, montado com `whatsappNumeroParaLink()` (a mesma função já usada no WhatsApp em lote, §43) a partir do telefone salvo em Configurações — só aparece se o consultor tiver telefone cadastrado.
+
+Depois de ver um e-mail-modelo de referência mais elaborado (faixa de destaque com título grande, lista de benefícios em cartão, botão de CTA, rodapé), o usuário pediu (*"pode ser algo parecido? isso para enviar no e-mail, manter a opção de texto editavel"*) um redesign do HTML mantendo o corpo 100% editável como texto puro (sem novos campos de formulário): `emailLoteCorpoParaBlocos()` agora separa o texto digitado em blocos por linha em branco, identificando automaticamente listas (linhas começando com `-`/`•`) para virar cartão de benefícios (`#FFF7F2`, com título opcional) e o primeiro parágrafo pra virar a "faixa de destaque" (fundo `#F7F5F1`, tag vermelha em caixa alta "APEX SMART SOLUTIONS · CLARO EMPRESAS", título grande em negrito, botão de WhatsApp logo abaixo); os demais parágrafos seguem como texto normal. Cabeçalho: barra branca com os dois logos lado a lado (linha divisória entre eles) e borda inferior vermelha de 3px. Rodapé: barra cinza clara "Apex Smart Solutions · Parceira autorizada Claro Empresas".
+
+Depois de outro teste real mostrando artefatos `=20`/`=` soltos acima e abaixo do texto (bug conhecido do encoder quoted-printable da biblioteca `denomailer`, usada até então no `send-email-lote`), a Edge Function foi reescrita para usar `nodemailer` (`npm:nodemailer@6.9.14`) em vez de `denomailer` — resolve o bug e é uma biblioteca mais madura. No mesmo pedido (*"melhorar a fonte para ser mais amigavel, deixar a assinatura mais clean"*), a fonte do corpo passou a usar uma pilha mais amigável (`'Segoe UI', Roboto, Helvetica, Arial, sans-serif`, constante `EMAIL_FONT_STACK`) e a assinatura deixou de ser um cartão escuro com os logos dentro (difícil de ler) para um cartão claro (`#FAFAFA`) com borda esquerda vermelha de 4px, nome em negrito, cargo em vermelho e telefone/e-mail em cinza — sem logos duplicados (os logos já aparecem só no cabeçalho).
+
+**Arquivos afetados:** `_template.html` (funções `emailLoteCorpoParaBlocos`, `emailLoteMontarHtml`, constantes `EMAIL_LOGO_APEX_URL`/`EMAIL_LOGO_CLARO_URL`/`EMAIL_FONT_STACK`), `edge_function_send_email_lote.ts` (troca denomailer→nodemailer), `apex_logo_email.png` e `claro_logo_email.jpg` (novos, hospedados direto no servidor via SFTP — não fazem parte do repositório git). Publicado com autorização do usuário, passo a passo, direto no Supabase (Edge Function) e no servidor (imagens + painel).
+
+## 47. Visão Diária: otimização para smartphone, com padrões modernos de mobile (29/09/2026)
+
+Pedido do usuário em duas partes na mesma mensagem. A primeira — *"no resultado de ontem do gabriel vieram duas renovações, mas na visao diaria aparece como migração"* — foi investigada rastreando todo o pipeline (`extractProducaoRecords()` → tabela `producao_pedidos` → `DIARIA_TIPOS_VENDA` em `_dashboard_producao.html`): `grupo` é um passthrough literal da coluna "GRUPO" da planilha do NeoCRM, sem nenhuma reclassificação no painel. Perguntado ao usuário via pergunta direta, que confirmou: **foi erro de cadastro do Gabriel no NeoCRM** — não é bug do painel, nenhuma alteração de código foi feita.
+
+A segunda parte — *"otimizar tambem para uma melhor visualização no smartphone, por exemplo no visao diaria condensar para que eu possa ver todo o resultado dia na tela"*, complementada depois por *"manter o desginer e cores, mas pode alterar o que achar necessarios para ficar mais ainda responsivo e moderno para smartphone, usar as melhores praticas de mercado"* — resultou em dois ajustes de CSS em `_dashboard_producao.html` (dentro do bloco `@media (max-width:600px)`, escopado só pra `body.tab-diaria`, sem afetar as outras sub-abas do Dashboard de Produção nem alterar cores/paleta):
+
+1. **Condensação inicial**: reduziu paddings, fontes e alturas dos cards de KPI, do gráfico de ritmo por hora e dos dois rankings (tipo de venda / vendedores), pra caber o resultado do dia inteiro na tela do celular com o mínimo de rolagem.
+2. **Refinamento com padrões modernos de mobile**: os cards de KPI e de "Por tipo de venda" viraram um carrossel horizontal com `scroll-snap` (`overflow-x:auto; scroll-snap-type:x proximity`, scrollbar escondida) — padrão comum em painéis mobile (App Store, Apple Health, Google Fit) que permite manter o texto num tamanho legível sem precisar espremer numa grade apertada, já que agora a altura economizada vem do scroll horizontal, não de fontes minúsculas. O campo de data e os demais controles do topo ganharam área de toque maior (mínimo de ~36px de altura, próximo da referência de acessibilidade de ~44px). Também foi adicionado padding de `env(safe-area-inset-*)` no modo TV (`body.tv-mode`) pra não cortar conteúdo atrás do notch/ilha dinâmica/cantos arredondados em celulares com tela cheia.
+
+**Arquivos afetados:** `_template.html` (o bloco `PRODUCAO_DASHBOARD_TPL_B64` foi reempacotado a partir de `_dashboard_producao.html` via `dashboard_tpl.py empacotar`) → `painel_clientes_apex.html` (regenerado via `build_painel.py`).
+
+### 47.1 Testado
+
+`test_visao_diaria.js` reexecutado sem quebras: 31 (estrutura) + 61 (convergência) + 67 (render real) = 159 asserts, 0 falhas.
+
+### 47.2 Publicado
+
+Deploy feito via `deploy_biometria_v2.py` (backup automático do painel anterior em `backups_painel_clientes_apex/`, MD5 local×remoto conferido pra imagem e pro painel — ambos "OK").
+
 Rebuild (`python3 build_painel.py`) confirmado sem placeholders pendentes (747436 bytes).
