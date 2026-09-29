@@ -5,7 +5,8 @@
   const dia = (n) => new Date(hoje.getTime() - n * 864e5).toISOString();
   const consultores = ['Caio Almeida', 'Giovanna Reis', 'Vitor Lima', 'Ana Souza', 'Bruno Costa'];
   const cidades = ['Campinas', 'São José dos Campos', 'Sorocaba', 'Ribeirão Preto', 'Jundiaí'];
-  const etapas = ['CONCLUIDO (NEOCRM)', 'ENTREGA (NEOCRM)', 'FATURAMENTO (NEOCRM)', 'VENDA PERDIDA (NEOCRM)', 'DEVOLVIDO (NEOCRM)', 'ANALISE DE CREDITO (NEOCRM)'];
+  const etapas = ['CONCLUIDO (NEOCRM)', 'ENTREGA (NEOCRM)', 'FATURAMENTO (NEOCRM)', 'VENDA PERDIDA (NEOCRM)', 'DEVOLVIDO (NEOCRM)', 'ANALISE DE CREDITO (NEOCRM)',
+    'ANTIFRAUDE (NEOCRM)', 'PORTABILIDADE EM ANDAMENTO (NEOCRM)', 'PORTABILIDADE EM TRATATIVA (NEOCRM)'];
   const produtos = ['Móvel 15GB', 'Móvel 30GB', 'Banda Larga 500MB', 'Banda Larga 1GB', 'Aparelho', 'SVA Fixa'];
   const r = (arr, i) => arr[i % arr.length];
   const cnpj = (i) => String(10000000000100 + i * 7919).padStart(14, '0');
@@ -29,7 +30,8 @@
     clientes_movimentacao: Array.from({ length: 40 }, (_, i) => ({ id: i + 1, tipo: r(['entrou', 'saiu', 'mudou'], i), cnpj: cnpj(i), razao_social: `EMPRESA EXEMPLO ${i + 1} LTDA`,
       cidade: r(cidades, i), dados_antes: {}, dados_depois: {}, campos_alterados: ['valor_contrato'], detectado_em: dia(i % 30) })),
     clientes_movimentacao_resumo: [], consultas_log: [], cobertura_kmz: [],
-    config: [{ chave: 'leads_ultima_sync', valor: new Date().toLocaleString('pt-BR') }],
+    config: [{ chave: 'leads_ultima_sync', valor: new Date().toLocaleString('pt-BR') },
+      { chave: 'producao_atualizado_em', valor: new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) }],
   };
 
   function builder(tabela){

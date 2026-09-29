@@ -212,6 +212,10 @@ const FIXTURE = [
     && celProdutos.children.length === 0 && celProdutos.textContent === '<img src=x>', 'cliente/produto com HTML são escapados');
 }
 
+// celular: com o 4º botão ("Pedidos em Alerta") a linha de abas passava da tela (293px numa área de
+// 271px) — em tela estreita os botões quebram linha (jsdom não calcula layout; checagem no CSS)
+assert(/@media \(max-width:480px\)\{ \.tabs\{flex-wrap:wrap;/.test(tplRaw), 'abas quebram linha no celular (4 botões não cabem em 375px)');
+
 // o painel externo passa o "Atualizado em" na atualização de 1h
 assert(/win\.atualizarDadosDashboard\(novos, \(cfgAuto && cfgAuto\.valor\) \|\| null\)/.test(outerHtml), 'painel externo chama atualizarDadosDashboard(novos, atualizadoEm)');
 
