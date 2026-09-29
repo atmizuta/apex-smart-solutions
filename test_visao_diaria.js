@@ -30,7 +30,7 @@ assert0(tplRaw.includes("document.body.classList.toggle('tab-diaria'"), 'switchT
 assert0(tplRaw.includes('body.tv-mode'), 'CSS do Modo TV (body.tv-mode) está presente');
 assert0(outerHtml.includes('id="producaoFrame"') && /id="producaoFrame"[^>]*allowfullscreen/.test(outerHtml), 'iframe externo (producaoFrame) tem o atributo allowfullscreen');
 assert0(outerHtml.includes('producaoAutoRefreshTimer'), 'painel externo tem o timer de auto-atualização horária');
-assert0(outerHtml.includes('atualizarDadosDashboard(novos)'), 'painel externo chama atualizarDadosDashboard() do iframe ao atualizar');
+assert0(outerHtml.includes('atualizarDadosDashboard(novos, '), 'painel externo chama atualizarDadosDashboard() do iframe ao atualizar (28/09/2026: + "Atualizado em" como 2º argumento)');
 assert0(/,\s*3600000\)/.test(outerHtml), 'auto-atualização roda a cada 3600000ms (1 hora), como pedido pelo usuário');
 // --- 0.1) cards "Por tipo de venda" (01/09/2026) ---
 assert0(tplRaw.includes('id="diariaTipoVenda"'), 'container #diariaTipoVenda dos cards por tipo de venda existe');

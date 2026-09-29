@@ -130,5 +130,90 @@ const FIXTURE = [
   assert(w.filtrarAlertas(lista, { etapa: '', nivel: 'maximo', consultor: 'Caio' }).length === 2, 'máximo + Caio = 2 (M1, A4)');
 }
 
+// ---------------- Task 3: tela ----------------
+{
+  // consultor (ADMIN_MODE=false): a aba não existe
+  const wc = montarDashboard({ adminMode: false, data: FIXTURE });
+  assert(!wc.document.querySelector('.tab-btn[data-tab="alertas"]'), 'consultor: botão da aba não existe');
+  assert(!wc.document.getElementById('tabAlertas'), 'consultor: painel #tabAlertas não existe no DOM');
+
+  const w = montarDashboard({ data: FIXTURE });
+  const d = w.document;
+  const btn = d.querySelector('.tab-btn[data-tab="alertas"]');
+  assert(btn && btn.textContent.trim() === 'Pedidos em Alerta', 'admin: botão "Pedidos em Alerta" existe');
+  w.switchTab('alertas');
+  assert(d.getElementById('tabAlertas').classList.contains('active'), 'switchTab("alertas") ativa o painel');
+  assert(d.body.classList.contains('tab-alertas'), 'switchTab("alertas") põe a classe tab-alertas no body (esconde a barra de filtros)');
+  w.switchTab('overview');
+  assert(!d.body.classList.contains('tab-alertas'), 'voltar pra Visão Geral tira a classe tab-alertas');
+  w.switchTab('alertas');
+
+  const valorCard = (k) => (d.querySelector('.alerta-card-' + k + ' .value') || {}).textContent;
+  assert(valorCard('total') === '7' && valorCard('maximo') === '2' && valorCard('medio') === '2' && valorCard('minimo') === '3',
+    'placar 7 / 2 máx / 2 méd / 3 mín: ' + [valorCard('total'), valorCard('maximo'), valorCard('medio'), valorCard('minimo')].join('/'));
+  assert(d.getElementById('alertaSub').textContent.includes('base de 28/09/2026 20:12'), 'subtítulo mostra a data da base: ' + d.getElementById('alertaSub').textContent);
+
+  const linhas = () => [...d.querySelectorAll('#alertaBody tr')];
+  const pedidos = () => linhas().map(tr => tr.dataset.pedido);
+  assert(JSON.stringify(pedidos()) === JSON.stringify(['M1', 'A4', 'A5', 'A3', 'U1', 'A8', 'A2']), 'tabela na ordem certa: ' + JSON.stringify(pedidos()));
+  assert(linhas()[0].classList.contains('alerta-maximo') && linhas()[2].classList.contains('alerta-medio') && linhas()[6].classList.contains('alerta-minimo'),
+    'linhas com a classe de cor do nível');
+  assert(linhas()[0].textContent.includes('MÁXIMO') && linhas()[0].textContent.includes('00123456000190') && linhas()[0].textContent.includes('Plano A + Plano B'),
+    'linha mostra selo, CNPJ (admin) e produtos');
+
+  // clique na matriz: Entrega × Mínimo
+  const link = d.querySelector('#alertaMatriz a[data-etapa="ENTREGA (NEOCRM)"][data-nivel="minimo"]');
+  assert(link && link.textContent === '2', 'matriz: Entrega × Mínimo = 2');
+  link.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  assert(JSON.stringify(pedidos()) === JSON.stringify(['U1', 'A2']), 'clique na matriz filtra a tabela: ' + JSON.stringify(pedidos()));
+  assert(d.getElementById('alertaFiltroEtapa').value === 'ENTREGA (NEOCRM)' && d.getElementById('alertaFiltroNivel').value === 'minimo', 'clique na matriz atualiza os selects');
+
+  // selects combinados
+  w.limparFiltrosAlerta();
+  assert(pedidos().length === 7, 'limpar filtros volta a 7');
+  d.getElementById('alertaFiltroNivel').value = 'maximo';
+  d.getElementById('alertaFiltroConsultor').value = 'Caio';
+  w.onFiltroAlerta();
+  assert(JSON.stringify(pedidos()) === JSON.stringify(['M1', 'A4']), 'máximo + Caio = M1, A4: ' + JSON.stringify(pedidos()));
+  assert(valorCard('total') === '7', 'placar continua mostrando o total geral com filtro ativo');
+
+  // atualização de hora em hora: nova referência 02/10 (sex), filtros preservados
+  w.limparFiltrosAlerta();
+  d.getElementById('alertaFiltroNivel').value = 'medio';
+  w.onFiltroAlerta();
+  w.atualizarDadosDashboard(FIXTURE, '02/10/2026, 09:00:00');
+  assert(d.querySelector('.topbar .updated').textContent === 'Atualizado em: 02/10/2026, 09:00:00', 'topo mostra o novo "Atualizado em"');
+  assert(d.getElementById('alertaFiltroNivel').value === 'medio', 'filtro de nível preservado após a atualização');
+  assert(pedidos().includes('A7') && pedidos().includes('A2'), 'com referência 02/10, A7 (6 d.u.) e A2 (7 d.u.) viram médio: ' + JSON.stringify(pedidos()));
+
+  // consultor filtrado que some na atualização → filtro volta pra "Todos"
+  w.limparFiltrosAlerta();
+  d.getElementById('alertaFiltroConsultor').value = 'Vitor';
+  w.onFiltroAlerta();
+  w.atualizarDadosDashboard(FIXTURE.filter(r => r.usuario !== 'Vitor'), '28/09/2026, 20:12:03');
+  assert(d.getElementById('alertaFiltroConsultor').value === '' && pedidos().length === 5, 'consultor que sumiu volta pra "Todos" (5 pedidos sem os do Vitor): ' + pedidos().length);
+
+  // estado vazio
+  const wv = montarDashboard({ data: [ped({ numero_pedido: 'A1', atualizacao: '2026-09-25T10:00:00-03:00' })] });
+  wv.switchTab('alertas');
+  assert(wv.document.getElementById('alertaMsg').textContent.includes('Nenhum pedido parado há 3 dias úteis'), 'estado vazio com mensagem');
+  assert(wv.document.getElementById('alertaExportBtn').disabled === true, 'Exportar desabilitado sem pedidos');
+
+  // referência ilegível → usa hoje e avisa
+  const wd = montarDashboard({ updatedAt: '—', data: FIXTURE });
+  assert(wd.document.getElementById('alertaSub').textContent.includes('data da base desconhecida'), 'sem data da base: aviso na tela');
+
+  // HTML em nome de cliente/produto aparece como texto
+  const wx = montarDashboard({ data: [ped({ numero_pedido: 'H1', atualizacao: '2026-09-01T10:00:00-03:00', cliente: '<b>ACME & "FILHOS"</b>', produto: '<img src=x>' })] });
+  const tr = wx.document.querySelector('#alertaBody tr');
+  // células 3 (Cliente) e 8 (Produtos) — o <b> dos dias úteis (célula 1) é intencional
+  const celCliente = tr && tr.children[3], celProdutos = tr && tr.children[8];
+  assert(celCliente && celCliente.children.length === 0 && celCliente.textContent === '<b>ACME & "FILHOS"</b>'
+    && celProdutos.children.length === 0 && celProdutos.textContent === '<img src=x>', 'cliente/produto com HTML são escapados');
+}
+
+// o painel externo passa o "Atualizado em" na atualização de 1h
+assert(/win\.atualizarDadosDashboard\(novos, \(cfgAuto && cfgAuto\.valor\) \|\| null\)/.test(outerHtml), 'painel externo chama atualizarDadosDashboard(novos, atualizadoEm)');
+
 console.log('--- test_pedidos_alerta RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
 if(fail > 0) process.exitCode = 1;
