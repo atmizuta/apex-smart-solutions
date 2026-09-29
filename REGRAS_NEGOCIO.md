@@ -2036,3 +2036,4 @@ As exportações de 28/09 não tinham esse grupo. Afetava tudo o que usa `produc
 - A confirmação do upload avisa quantas linhas "GROSS" foram ignoradas.
 - Os dados já carregados só se corrigem com um novo upload, que substitui a base inteira.
 - Teste: `test_upload_grupo_gross.js`.
+- **Publicado em 29/09/2026 às 14:28** (commit `6cc9c62`, MD5 `0c5b25d5663013c9ac6ed445e74f84da`, conferido no servidor e pelo site público). Backup da versão anterior: `~/backups_painel_clientes_apex/painel_clientes_apex_20260929_142848_antes_fix_gross.html`. Antes de publicar, o painel no ar era idêntico ao da publicação das 11:44 (seção 48.8). Os dados já tinham sido corrigidos por um novo upload às 14:04, sem as linhas GROSS.
