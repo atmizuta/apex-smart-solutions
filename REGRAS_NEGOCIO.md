@@ -2021,3 +2021,18 @@ Coluna FILA do NeoCRM (exigiria mudar upload e schema), envio automático do Exc
 - **Backup** da versão anterior: `~/backups_painel_clientes_apex/painel_clientes_apex_20260929_114424_antes_pedidos_em_alerta.html`.
 - **Envio:** via SSH (atalho `hostinger`, chave), para um arquivo temporário, trocado pelo definitivo só depois de o MD5 bater (`f8912bff8848cc22ed6012c372f5abb5`, 839.088 bytes = commit `861a2f0`). Conferido também pelo site público. A tela de login carrega sem erros no console.
 - **O que voltou/entrou no ar junto:** as mudanças de 28/09 (seção 48.6) e os Pedidos em Alerta, somados ao e-mail em lote (46) e à Visão Diária no celular (47).
+
+## 49. Upload do Dashboard de Produção ignora o grupo "GROSS" (29/09/2026)
+
+**Problema (29/09/2026):** o valor faturado do Dashboard de Produção quase dobrou de uma hora para outra (o usuário viu ~26 mil virarem ~50 mil). A causa era a planilha subida às 13:59. Essa exportação do NeoCRM veio com um grupo novo, **"GROSS"**, que repete cada linha do pedido: o mesmo pedido, produto e valor aparece no grupo real ("VOZ - Novo", "VOZ - Portabilidade"…) e de novo como "GROSS". Na base carregada:
+- havia 603 linhas "GROSS" (R$ 32.072,96), **todas** com gêmea num grupo real;
+- nenhum pedido existia só no "GROSS";
+- os pedidos faturados somavam R$ 30.748,32, dos quais R$ 16.665,93 eram reais.
+
+As exportações de 28/09 não tinham esse grupo. Afetava tudo o que usa `producao_pedidos`: Visão Geral, Cadastro Diário, Visão Diária, Fechamento (comissões) e Pedidos em Alerta.
+
+**Correção:**
+- `extractProducaoRecords()` pula as linhas cujo GRUPO é "GROSS", aceitando maiúsculas, minúsculas e espaços (`ehGrupoAgregadoProducao`), do mesmo jeito que já pulava "ARQUIVADO".
+- A confirmação do upload avisa quantas linhas "GROSS" foram ignoradas.
+- Os dados já carregados só se corrigem com um novo upload, que substitui a base inteira.
+- Teste: `test_upload_grupo_gross.js`.

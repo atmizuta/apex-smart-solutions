@@ -29,7 +29,7 @@ function extrairFuncao(src, nome){
 const ctx = { XLSX };
 vm.createContext(ctx);
 vm.runInContext("const FUSO_SAO_PAULO = '-03:00';\n"
-  + ['parseDataProducao', 'normalizarHeaderProducao', 'extractProducaoRecords'].map(n => extrairFuncao(outer, n)).join('\n')
+  + ['parseDataProducao', 'normalizarHeaderProducao', 'ehGrupoAgregadoProducao', 'extractProducaoRecords'].map(n => extrairFuncao(outer, n)).join('\n')
   + '\nthis.extractProducaoRecords = extractProducaoRecords;', ctx);
 
 const wb = XLSX.readFile(ARQ);

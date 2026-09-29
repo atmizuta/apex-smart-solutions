@@ -6670,6 +6670,22 @@ function normalizarHeaderProducao(s){
   return String(s || '').trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
 
+// Grupo "GROSS" (29/09/2026): algumas exportações do NeoCRM trazem, além do grupo real de cada linha
+// ("VOZ - Novo", "VOZ - Portabilidade"…), uma cópia da mesma linha no grupo agregado "GROSS" — somar
+// as duas quase dobrava o faturado (caso real: R$ 16,7 mil viraram R$ 30,7 mil; todas as 603 linhas
+// GROSS tinham gêmea num grupo real). Essas linhas são ignoradas no upload, como ARQUIVADO. Ver
+// REGRAS_NEGOCIO.md seção 49.
+function ehGrupoAgregadoProducao(grupo){
+  return grupo != null && String(grupo).trim().toUpperCase() === 'GROSS';
+}
+
+// Quantas linhas da planilha são do grupo agregado — só pro aviso na confirmação do upload.
+function contarLinhasGrupoAgregado(rows){
+  const iGrupo = (rows[0] || []).findIndex(h => h != null && String(h).trim() === 'GRUPO');
+  if(iGrupo < 0) return 0;
+  return rows.slice(1).filter(r => r && ehGrupoAgregadoProducao(r[iGrupo])).length;
+}
+
 function extractProducaoRecords(rows){
   const headerRow = rows[0] || [];
   const idx = {};
@@ -6693,6 +6709,7 @@ function extractProducaoRecords(rows){
     if(!row) continue;
     const grupo = get(row, 'GRUPO');
     if(grupo === null || grupo === undefined || grupo === '') continue;
+    if(ehGrupoAgregadoProducao(grupo)) continue; // cópia agregada de outra linha — ver ehGrupoAgregadoProducao
     const etapaVal = get(row, 'ETAPA PEDIDO') || '(Sem etapa)';
     if(etapaVal === 'ARQUIVADO (NEOCRM)') continue; // pedido duplicado — sempre excluído dos totais
     const valorRaw = get(row, 'VALOR UNIT');
@@ -6873,7 +6890,9 @@ document.getElementById('producaoUpload').addEventListener('change', function(e)
         const cat = producaoEtapaCategoria(r.etapa);
         if(cat === 'ganho') ganho++; else if(cat === 'perdido') perdido++; else if(cat === 'devolvido') devolvido++; else andamento++;
       });
-      const msgConfirm = `Substituir os dados atuais do Dashboard de Produção por ${records.length} pedido(s) desta planilha?\n\n${ganho} ganho(s) · ${perdido} perdido(s) · ${andamento} em andamento · ${devolvido} devolvido(s).`;
+      const linhasGross = contarLinhasGrupoAgregado(rows);
+      const avisoGross = linhasGross > 0 ? `\n\n${linhasGross} linha(s) do grupo GROSS ignorada(s) — são cópias de linhas que já estão nos grupos reais.` : '';
+      const msgConfirm = `Substituir os dados atuais do Dashboard de Produção por ${records.length} pedido(s) desta planilha?\n\n${ganho} ganho(s) · ${perdido} perdido(s) · ${andamento} em andamento · ${devolvido} devolvido(s).${avisoGross}`;
       if(!confirm(msgConfirm)){ statusEl.textContent = ''; e.target.value = ''; return; }
 
       statusEl.textContent = 'Apagando dados anteriores...';
