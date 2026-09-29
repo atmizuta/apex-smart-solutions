@@ -394,6 +394,26 @@
   /* esqueletos */
   .apxSkel{display:block;border-radius:var(--radius-sm);background:linear-gradient(90deg,var(--c-cinza-claro) 25%,var(--c-papel) 50%,var(--c-cinza-claro) 75%);background-size:200% 100%;animation:apexShimmer 1.2s linear infinite;}
 
+  /* Apex Mind: bolinha que leva pro pratica-vendas (login automático via SSO) */
+  #apexMindBubble{
+    position:fixed; right:var(--space-6); bottom:100px; z-index:95;
+    width:56px; height:56px; border-radius:50%;
+    background:linear-gradient(135deg, var(--c-sinal) 0%, var(--c-bordo) 100%);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; border:none; box-shadow:0 8px 24px -8px rgba(82,12,7,.55);
+    transition:transform .15s ease;
+  }
+  #apexMindBubble:hover{ transform:scale(1.06); }
+  #apexMindBubble:active{ transform:scale(0.97); }
+  #apexMindBubble svg{ width:26px; height:26px; }
+  #apexMindBubble .apxMindLabel{
+    position:absolute; right:64px; bottom:16px; white-space:nowrap;
+    background:var(--c-bordo); color:#fff; font-size:12.5px; font-weight:600;
+    padding:6px 12px; border-radius:8px; opacity:0; pointer-events:none;
+    transition:opacity .15s ease;
+  }
+  #apexMindBubble:hover .apxMindLabel{ opacity:1; }
+
   /* avisos */
   #apexToasts{position:fixed;right:var(--space-6);bottom:var(--space-6);z-index:90;display:flex;flex-direction:column;gap:var(--space-2);max-width:380px;}
   .apxToast{background:var(--c-grafite);color:var(--c-branco);padding:var(--space-3) var(--space-4);border-radius:var(--radius);box-shadow:var(--shadow-lg);font-size:var(--fs-base);border-left:4px solid var(--c-sinal);animation:apxToastIn var(--dur) var(--ease-out) both;}
@@ -450,6 +470,14 @@
 <div id="apexLoader" role="status" aria-live="polite"><span class="apxTri"></span><span class="apxSig"></span><span class="apxMsg">Carregando</span></div>
 <div id="apexToasts" aria-live="polite"></div>
 <div id="app">
+  <button id="apexMindBubble" type="button" title="Apex Mind — Praticar vendas com IA" aria-label="Abrir Apex Mind">
+    <span class="apxMindLabel">Apex Mind</span>
+    <svg viewBox="0 0 100 86" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M50 3 L4 82 H50 Z" fill="#ffffff" fill-opacity="0.92"/>
+      <path d="M50 3 L96 82 H50 Z" fill="#ffffff" fill-opacity="0.7"/>
+      <path d="M50 40 L28 82 H72 Z" fill="#ffffff" fill-opacity="0.5"/>
+    </svg>
+  </button>
   <aside class="sidebar" id="sidebar">
     <div class="sbBrand">
       <img class="sbLogoApex" id="appLogoApex" src="data:image/png;base64,__APEX_LOGO_B64__" alt="Apex Smart Solutions">
@@ -7244,6 +7272,26 @@ document.getElementById('btnConversaoSync').addEventListener('click', async func
     console.error(err);
     statusEl.textContent = 'Erro ao sincronizar: ' + err.message;
   }finally{
+    btn.disabled = false;
+  }
+});
+
+// Apex Mind: leva o consultor pro pratica-vendas já logado, via token de
+// handoff assinado pela Edge Function sso-pratica-vendas (ver
+// crm/edge_function_sso_pratica.ts e o spec de SSO em docs/superpowers).
+document.getElementById('apexMindBubble').addEventListener('click', async () => {
+  const btn = document.getElementById('apexMindBubble');
+  btn.disabled = true;
+  try {
+    const { data, error } = await sb.functions.invoke('sso-pratica-vendas');
+    if (error || !data || !data.url) {
+      mostrarAviso(await mensagemErroFuncao(error, data), 'erro');
+      return;
+    }
+    window.open(data.url, '_blank');
+  } catch (e) {
+    mostrarAviso('Não foi possível abrir a Apex Mind agora. Tente de novo.', 'erro');
+  } finally {
     btn.disabled = false;
   }
 });
