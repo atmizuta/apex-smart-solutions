@@ -2,7 +2,7 @@
 
 Documento vivo. Toda vez que uma regra de negócio do sistema for criada, alterada ou removida, atualize esta página (e registre no changelog no final). É a referência para treinamento de consultores, ajustes futuros e documentação do próprio sistema.
 
-Última atualização: 28/09/2026 (seção 45)
+Última atualização: 29/09/2026 (seção 50)
 
 ---
 
@@ -370,6 +370,7 @@ Card no topo da aba "Movimentação da Base", separado do resumo de 30 dias — 
 - **11/08/2026** — Registrada a área de atuação regional da Apex (seção 1.1): só RSC/RSI (São Paulo Capital/Interior, DDD 12-19). Com isso, a oferta regional de 15GB passou a ter DDD 12-19 confirmado (em vez de "sem DDD"), e as ofertas de 30GB (regional, grupo RMG/RPS/RBS/RNE) e 25GB portabilidade (mesmo grupo) foram **removidas** do sistema por não serem vendáveis pela Apex — evita mostrar ao consultor uma oferta que não pode ser fechada. Corrigida também a nota de preço do Claro fibra 600MEGA: confirmado que o valor promocional (R$59,90) vale só nos primeiros 3 meses, depois R$89,90/mês no preço "Combinado" (venda casada com plano móvel, que é como a Apex sempre vende) — confirmado que os demais planos de fibra (400MEGA/800MEGA/1GIGA/5GIGA/10GIGA) não têm prazo promocional, é preço cheio direto. Ver seções 1.1 e 5.
 - **11/08/2026** — Criada a detecção automática de **Oferta de Convergência**: quando a proposta tem fibra + qualquer linha móvel (renovação, incremento ou portabilidade), o sistema destaca isso com um badge na tela e uma nota no PDF, explicando o bônus de 30GB (Mega Bônus) do book. Corrigido também o aviso desatualizado do seletor de fibra, que dizia "valor avulso" quando na verdade o app sempre usa o preço "Combinado". Ver seções 4.4 e 4.4.1.
 - **12/08/2026** — Redesign da tela "Gerar Proposta" (interface, sem mudança de regra de negócio): resumo (valor atual/proposto/redução/Convergência/meta) passou a ficar sempre visível no topo, em vez de só aparecer depois de rolar toda a tela; as seções Renovação, Incremento, Claro Fibra e Claro Passaporte viraram blocos que abrem/fecham (accordion) com um interruptor (toggle) pra ligar/desligar cada item, abrindo sozinhas quando estão ativas e ficando fechadas quando não estão em uso. Objetivo: reduzir a quantidade de informação exibida de uma vez, sem remover nenhum campo ou cálculo existente. Ver seção 15.
+- **29/09/2026** — Criada a sincronização automática da produção via API do NeoSales (tabela separada `producao_pedidos_neo`, Edge Function `sync-producao`, agendada no pg_cron de hora em hora). O painel continua lendo `producao_pedidos`; a troca de fonte só acontece depois de conferir a paridade da carga inicial. Ver seção 50.
 
 ## 15. Interface da tela "Gerar Proposta" (redesign 12/08/2026)
 
@@ -2040,3 +2041,53 @@ As exportações de 28/09 não tinham esse grupo. Afetava tudo o que usa `produc
 - **Voltou a acontecer às 14:29** (um minuto depois da publicação). Pelos logs do Supabase, o upload veio do mesmo navegador (Chrome 152) dos uploads com GROSS das 13:57 e 13:59, com a página do painel aberta desde antes da publicação: uma aba aberta não recarrega sozinha e continuou rodando o código antigo. O servidor também não manda `Cache-Control` para o HTML, só `Last-Modified`, então o navegador pode reaproveitar a versão antiga por um tempo.
 - **Proteção no banco (29/09/2026, com autorização do usuário):** trigger `producao_pedidos_ignora_gross` (BEFORE INSERT) em `producao_pedidos` descarta qualquer linha cujo grupo seja "GROSS", venha de qualquer versão do painel. O insert não falha, a linha só não entra. Está em `supabase_schema.sql`. Testado com uma linha " gross " de teste: 0 linhas gravadas.
 - **Limpeza:** as 603 linhas GROSS da base foram apagadas depois de confirmar que todas tinham gêmea num grupo real. Resultado: 811 linhas, os mesmos 559 pedidos, faturado R$ 16.665,93.
+
+## 50. Sincronização automática da produção (API NeoSales) — 29/09/2026
+
+**Objetivo:** acabar com o ciclo "exportar o relatório de produção do NeoCRM → subir em Upload Dash". A produção passa a ser espelhada sozinha, de hora em hora, sem ninguém exportar ou atualizar.
+
+### 50.1 Situação atual (o que está no ar e o que ainda não)
+
+- **No ar:** a Edge Function `sync-producao` (código em `supabase/functions/sync-producao/`), o agendamento no `pg_cron` e três tabelas novas: `producao_pedidos_neo` (os pedidos), `producao_neo_raw` (JSON cru de cada item, só admin lê, por LGPD) e `producao_sync_log` (uma linha por execução).
+- **Ainda não:** o **dashboard continua lendo `producao_pedidos`** (a tabela do Upload Dash). A troca de fonte é a Fase 2 e só acontece depois de provar que a tabela nova bate com a atual (ver 50.7). Até lá o "Upload Dash" continua funcionando como sempre.
+
+### 50.2 A API do NeoSales (regras confirmadas em teste real, 29/09/2026)
+
+- Endpoint `POST https://apex.neosales.com.br/producao-painel-integration-v2`, corpo JSON como `text/plain`, com `tokenEstrutura`, `tokenUsuario`, `painelId`, `dataHoraInicioCarga`, `dataHoraFimCarga` (`YYYY-MM-DD HH:mm:ss`, horário de São Paulo) e `outputFormat: "json"`. Só devolve pedidos criados ou atualizados dentro da janela.
+- **Janela:** de dia (a mensagem de erro da API diz 05:00–22:00; a documentação diz 06:00–22:00) só aceita consulta de até 90 minutos. À noite (22:01–05:59) não há limite. O sistema usa uma margem conservadora: janela diurna de no máximo 85 min, e consulta sem limite só entre 22:02 e 04:58.
+- **Intervalo mínimo entre consultas (não está na documentação):** depois de uma consulta bem-sucedida, a seguinte responde `{"erro":"Integração de produção executada recentemente. Aguarde N segundos…"}` (N ≈ 120). Por isso cada execução da função faz **uma única consulta**, os jobs têm folga de pelo menos 5 minutos entre si e a carga inicial foi dividida em um job por mês.
+- **Erros vêm com HTTP 200** e corpo `{"erro":"…","success":false}` (token inválido, janela grande demais, intervalo mínimo). O código trata isso como falha; olhar só o status HTTP faria um token vencido parecer "nenhum pedido novo".
+- A resposta vem em ISO-8859-1 (não UTF-8). Janela sem pedidos devolve `[]`.
+
+### 50.3 Mapeamento para o formato do painel
+
+- Uma linha por item do pedido. A chave de gravação é o `itemId` (coluna `item_id`, única): repetir uma janela nunca duplica.
+- `numeroLinha` da API é a coluna **GRUPO** do export manual. As linhas com `numeroLinha = "GROSS"` são cópias que a API repete de cada item (mesmo problema da seção 49) e são **descartadas**, senão o valor dobra. O sistema conta quantas foram descartadas e quantos itens ficaram só com a linha GROSS ("órfãos", esperado 0).
+- Itens em `ARQUIVADO (NEOCRM)` e linhas sem grupo saem, como no upload manual; se um item já gravado for arquivado depois, ele é removido da tabela.
+- Usuário em maiúsculas; datas gravadas com o fuso de São Paulo (`-03:00`); valor no formato brasileiro (`"1.234,56"`) convertido para número.
+- Conferido em 29/09/2026 contra o export manual de 28/09: **17 de 17 pedidos** cruzados bateram em quantidade de linhas e valor.
+
+### 50.4 Agenda (pg_cron, em UTC; São Paulo = UTC-3)
+
+- **De hora em hora, minuto 7** (`sync-producao-horario`): busca desde o fim da última execução com sucesso menos 15 minutos de sobreposição (no máximo 85 minutos, de dia).
+- **Todo dia às 23:37** (`sync-producao-reconciliar`): refaz os últimos 2 dias, fora da janela diurna. Cura qualquer lacuna (queda longa, token vencido por horas).
+- **Carga inicial única** (`sync-producao-backfill-1` a `-5`): um job por mês (maio a setembro/2026), a partir das 22:12 de 29/09/2026 e de 5 em 5 minutos. Cada job se desagenda depois de rodar.
+- Se uma execução falhar, o cursor **não avança** (só execuções com `ok = true` contam) e a seguinte recupera a janela.
+
+### 50.5 Como acompanhar
+
+- `producao_sync_log` (admin e supervisor leem): cada linha tem modo, janela consultada, linhas devolvidas pela API, gravadas, removidas, descartes, observação e erro.
+- Última sincronização bem-sucedida: chave `producao_neo_atualizado_em` da tabela `config`, no mesmo formato de `producao_atualizado_em` (`dd/mm/aaaa, HH:MM:SS`).
+- Falhas comuns: `Token … Inválido` (tokens trocados ou vencidos), `Aguarde N segundos` (duas consultas coladas), `Janela reduzida` na observação (a função ficou parada mais de 85 minutos de dia; a lacuna é coberta pela reconciliação das 23:37).
+
+### 50.6 Segurança
+
+- Os tokens do NeoSales ficam **só** como secrets da Edge Function (`NEOSALES_TOKEN_ESTRUTURA`, `NEOSALES_TOKEN_USUARIO`, `NEOSALES_PAINEL_ID`, `NEOSALES_URL`). Nunca no HTML, no repositório (que é público) ou em log. Para trocar: `npx supabase secrets set NOME=valor --project-ref <ref>`.
+- A função roda sem JWT e só aceita quem manda o header `x-cron-secret` igual ao secret `SYNC_CRON_SECRET`. O mesmo valor fica no Vault do banco com o nome `sync_producao_cron_secret`, de onde o `pg_cron` o lê; ao trocar um, troque o outro.
+- `producao_pedidos_neo` segue a regra de `producao_pedidos` (leitura para qualquer usuário logado; o painel decide se pede cliente/CNPJ). Só a função grava. O JSON cru (`producao_neo_raw`) só admin lê.
+
+### 50.7 Pendências
+
+- **Provar a paridade** da tabela nova contra `producao_pedidos` depois da carga inicial desta noite, incluindo pedidos por grupo, etapa e valor.
+- **Motivo de perda:** o painel monta o diagnóstico de perdas a partir de `TAGS ATIVIDADE` do export manual (`#SEMINTERESSE`, `#SEMCREDITO`…). A API traz `tagPedido`/`tagUsuario`. Falta confirmar, olhando pedidos perdidos da carga inicial, se o motivo vem em algum campo; se não vier, pedir ao suporte do NeoSales para expor esse dado antes da Fase 2.
+- **Fase 2 (exige aprovação):** trocar o dashboard para `producao_pedidos_neo`, neutralizar o "Upload Dash", exibir "última sincronização" e publicar (regras de publicação no `CLAUDE.md`).
