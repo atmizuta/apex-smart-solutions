@@ -102,7 +102,11 @@ function montar(role){
   assert(/family=Barlow\+Condensed/.test(dash), 'dashboard carrega as fontes Barlow');
   assert(/Sinal de Ápice \(redesign 25\/09\/2026\)/.test(dash), 'dashboard tem a camada da marca');
   assert(/\/jsdom\/i\.test\(navigator\.userAgent/.test(dash) && /prefers-reduced-motion/.test(dash), 'movimento do dashboard desliga em jsdom e com reduced-motion');
-  assert(!/#16a34a|#dc2626|#eab308|#f97316/i.test(dash), 'dashboard sem as cores de status antigas');
+  // 28/09/2026 (versão publicada, pedido do usuário): "Em andamento" voltou a amarelo (#EAB308) e
+  // "Devolvido" a laranja (#F97316) pra não confundir com "Perdido" (vermelho) — só o verde/vermelho
+  // antigos continuam proibidos.
+  assert(!/#16a34a|#dc2626/i.test(dash), 'dashboard sem as cores de status antigas (verde/vermelho pré-redesign)');
+  assert(/--andamento:#EAB308; --devolvido:#F97316;/.test(dash), 'dashboard com andamento amarelo e devolvido laranja (28/09/2026)');
 
   console.log(`--- RESULTADO: ${ok} passaram, ${fail} falharam ---`);
   if(fail) process.exitCode = 1;
