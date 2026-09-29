@@ -2650,6 +2650,15 @@ function renderEmailLoteRows(){
 // proposta — whatsappNumeroParaLink).
 const EMAIL_LOGO_APEX_URL = 'https://apexsmart.com.br/apex_logo_email.png';
 const EMAIL_LOGO_CLARO_URL = 'https://apexsmart.com.br/claro_logo_email.jpg';
+// 29/09/2026 (pedido do usuário, depois de ver o e-mail de teste real: "corrigir o '=20' em cima e
+// embaixo, melhorar a fonte para ser mais amigavel, deixar a assinatura mais clean, esta de dificil
+// visualização das informações e do logo") — os "=20"/"=" soltos eram um bug conhecido do encoder
+// quoted-printable da biblioteca denomailer (corrigido trocando pela nodemailer, na Edge Function —
+// não é algo que se resolva aqui no HTML). Aqui: fonte trocada pra uma pilha mais amigável/moderna
+// (o e-mail cai na primeira que o cliente de e-mail tiver disponível), e a assinatura foi refeita
+// mais clara — fundo claro em vez de caixa escura, sem logo duplicado dentro dela (os logos já
+// aparecem no cabeçalho do e-mail).
+const EMAIL_FONT_STACK = "'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
 // monta o HTML final do e-mail (faixa de destaque + botão + corpo + lista de benefícios +
 // assinatura, no estilo do modelo enviado pelo usuário, com identidade Claro/Apex) — {{cliente}}
@@ -2659,7 +2668,7 @@ function emailLoteMontarHtml(corpoTexto, opts){
   const numeroWhats = opts.telefone ? whatsappNumeroParaLink(opts.telefone) : null;
   const primeiroNome = (opts.nome || '').trim().split(' ')[0] || 'a Apex';
   const botaoWhats = numeroWhats
-    ? `<a href="https://wa.me/${numeroWhats}" style="display:inline-block;background:#E30613;color:#FFFFFF;text-decoration:none;font-size:13px;font-weight:bold;font-family:Arial,Helvetica,sans-serif;padding:11px 22px;border-radius:6px">Falar com ${escapeHtml(primeiroNome)} no WhatsApp</a>`
+    ? `<a href="https://wa.me/${numeroWhats}" style="display:inline-block;background:#E30613;color:#FFFFFF;text-decoration:none;font-size:13px;font-weight:600;font-family:${EMAIL_FONT_STACK};padding:11px 22px;border-radius:6px">Falar com ${escapeHtml(primeiroNome)} no WhatsApp</a>`
     : '';
 
   let faixaDestaqueHtml = '';
@@ -2667,52 +2676,49 @@ function emailLoteMontarHtml(corpoTexto, opts){
   blocos.forEach((bloco, idx) => {
     if(idx === 0 && bloco.tipo === 'paragrafo'){
       faixaDestaqueHtml = `
-        <div style="background:#F7F5F1;padding:26px 24px 22px">
-          <div style="color:#E30613;font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;font-family:Arial,Helvetica,sans-serif">Apex Smart Solutions · Claro Empresas</div>
-          <div style="color:#1D1F20;font-size:21px;font-weight:800;line-height:1.28;margin-top:8px;font-family:Arial,Helvetica,sans-serif">${escapeHtml(bloco.texto).replace(/\n/g, '<br>')}</div>
-          ${botaoWhats ? `<div style="margin-top:16px">${botaoWhats}</div>` : ''}
+        <div style="background:#F7F5F1;padding:28px 28px 24px">
+          <div style="color:#E30613;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-family:${EMAIL_FONT_STACK}">Apex Smart Solutions · Claro Empresas</div>
+          <div style="color:#1D1F20;font-size:22px;font-weight:700;line-height:1.35;margin-top:10px;font-family:${EMAIL_FONT_STACK}">${escapeHtml(bloco.texto).replace(/\n/g, '<br>')}</div>
+          ${botaoWhats ? `<div style="margin-top:18px">${botaoWhats}</div>` : ''}
         </div>`;
     } else if(bloco.tipo === 'lista'){
       corpoHtml += `
-        <div style="background:#FFF7F2;border:1px solid #F2DDD2;border-radius:8px;padding:16px 20px;margin:0 0 16px">
-          ${bloco.titulo ? `<div style="color:#520C07;font-weight:bold;font-size:12.5px;letter-spacing:.3px;text-transform:uppercase;margin-bottom:8px;font-family:Arial,Helvetica,sans-serif">${escapeHtml(bloco.titulo)}</div>` : ''}
-          <ul style="margin:0;padding-left:18px;color:#1D1F20;font-size:13.5px;line-height:1.7;font-family:Arial,Helvetica,sans-serif">
+        <div style="background:#FFF7F2;border:1px solid #F2DDD2;border-radius:8px;padding:18px 22px;margin:0 0 18px">
+          ${bloco.titulo ? `<div style="color:#520C07;font-weight:700;font-size:12.5px;letter-spacing:.3px;text-transform:uppercase;margin-bottom:10px;font-family:${EMAIL_FONT_STACK}">${escapeHtml(bloco.titulo)}</div>` : ''}
+          <ul style="margin:0;padding-left:18px;color:#1D1F20;font-size:14px;line-height:1.8;font-family:${EMAIL_FONT_STACK}">
             ${bloco.itens.map(i => `<li>${escapeHtml(i)}</li>`).join('')}
           </ul>
         </div>`;
     } else {
-      corpoHtml += `<p style="margin:0 0 14px;color:#1D1F20;font-size:14px;line-height:1.6;font-family:Arial,Helvetica,sans-serif">${escapeHtml(bloco.texto).replace(/\n/g, '<br>')}</p>`;
+      corpoHtml += `<p style="margin:0 0 16px;color:#1D1F20;font-size:15px;line-height:1.7;font-family:${EMAIL_FONT_STACK}">${escapeHtml(bloco.texto).replace(/\n/g, '<br>')}</p>`;
     }
   });
   // se não houve faixa de destaque (texto sem parágrafo inicial simples), ainda mostra o botão
   // do WhatsApp uma vez, no fim do corpo, pra não perder o CTA.
-  const botaoWhatsFinal = (!faixaDestaqueHtml && botaoWhats) ? `<div style="margin:4px 0 18px">${botaoWhats}</div>` : '';
+  const botaoWhatsFinal = (!faixaDestaqueHtml && botaoWhats) ? `<div style="margin:4px 0 20px">${botaoWhats}</div>` : '';
 
   const contatoLinha = opts.telefone
-    ? `<div style="color:#CFCFD2;font-size:12.5px;margin-top:2px;font-family:Arial,Helvetica,sans-serif">${escapeHtml(opts.telefone)} · ${escapeHtml(opts.email)}</div>`
-    : `<div style="color:#CFCFD2;font-size:12.5px;margin-top:2px;font-family:Arial,Helvetica,sans-serif">${escapeHtml(opts.email)}</div>`;
+    ? `${escapeHtml(opts.telefone)} · ${escapeHtml(opts.email)}`
+    : escapeHtml(opts.email);
 
   return `
-  <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;border:1px solid #EDEDED;border-radius:10px;overflow:hidden">
-    <div style="background:#FFFFFF;padding:18px 24px;border-bottom:3px solid #E30613">
-      <img src="${EMAIL_LOGO_APEX_URL}" alt="Apex Smart Solutions" style="height:28px">
+  <div style="font-family:${EMAIL_FONT_STACK};max-width:560px;margin:0 auto;border:1px solid #EDEDED;border-radius:10px;overflow:hidden">
+    <div style="background:#FFFFFF;padding:20px 28px;border-bottom:3px solid #E30613">
+      <img src="${EMAIL_LOGO_APEX_URL}" alt="Apex Smart Solutions" style="height:30px;vertical-align:middle">
+      <span style="display:inline-block;width:1px;height:22px;background:#E5E5E5;margin:0 14px;vertical-align:middle"></span>
+      <img src="${EMAIL_LOGO_CLARO_URL}" alt="Claro Empresas" style="height:24px;vertical-align:middle">
     </div>
     ${faixaDestaqueHtml}
-    <div style="padding:22px 24px 6px;background:#FFFFFF">
+    <div style="padding:24px 28px 8px;background:#FFFFFF">
       ${corpoHtml}
       ${botaoWhatsFinal}
-      <div style="background:#520C07;border-radius:8px;padding:18px 20px;margin:8px 0 20px">
-        <div style="color:#FFFFFF;font-size:15px;font-weight:bold;font-family:Arial,Helvetica,sans-serif">${escapeHtml(opts.nome)}</div>
-        <div style="color:#E30613;font-size:12.5px;margin-top:2px;font-weight:bold;font-family:Arial,Helvetica,sans-serif">Gestor(a) de Contas · Apex Smart Solutions</div>
-        ${contatoLinha}
-        <div style="border-top:1px solid rgba(255,255,255,.2);margin:12px 0"></div>
-        <div style="display:flex;align-items:center;gap:12px">
-          <img src="${EMAIL_LOGO_APEX_URL}" alt="Apex Smart Solutions" style="height:26px">
-          <img src="${EMAIL_LOGO_CLARO_URL}" alt="Claro Empresas" style="height:26px">
-        </div>
+      <div style="border-left:4px solid #E30613;background:#FAFAFA;border-radius:0 6px 6px 0;padding:14px 18px;margin:10px 0 22px">
+        <div style="color:#1D1F20;font-size:15px;font-weight:700;font-family:${EMAIL_FONT_STACK}">${escapeHtml(opts.nome)}</div>
+        <div style="color:#E30613;font-size:12.5px;font-weight:600;margin-top:3px;font-family:${EMAIL_FONT_STACK}">Gestor(a) de Contas · Apex Smart Solutions</div>
+        <div style="color:#6B6B6B;font-size:12.5px;margin-top:6px;font-family:${EMAIL_FONT_STACK}">${contatoLinha}</div>
       </div>
     </div>
-    <div style="background:#F7F5F1;padding:14px 24px;text-align:center;color:#666666;font-size:11px;font-family:Arial,Helvetica,sans-serif">Apex Smart Solutions · Parceira autorizada Claro Empresas</div>
+    <div style="background:#F7F5F1;padding:16px 28px;text-align:center;color:#8A8A8A;font-size:11.5px;font-family:${EMAIL_FONT_STACK}">Apex Smart Solutions · Parceira autorizada Claro Empresas</div>
   </div>`;
 }
 
