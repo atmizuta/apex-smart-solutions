@@ -2063,22 +2063,25 @@ As exportações de 28/09 não tinham esse grupo. Afetava tudo o que usa `produc
 
 - Uma linha por item do pedido. A chave de gravação é o `itemId` (coluna `item_id`, única): repetir uma janela nunca duplica.
 - `numeroLinha` da API é a coluna **GRUPO** do export manual. As linhas com `numeroLinha = "GROSS"` são cópias que a API repete de cada item (mesmo problema da seção 49) e são **descartadas**, senão o valor dobra. O sistema conta quantas foram descartadas e quantos itens ficaram só com a linha GROSS ("órfãos", esperado 0).
-- Itens em `ARQUIVADO (NEOCRM)` e linhas sem grupo saem, como no upload manual; se um item já gravado for arquivado depois, ele é removido da tabela.
+- Itens em `ARQUIVADO (NEOCRM)` e linhas sem grupo saem, como no upload manual; se um item já gravado for arquivado depois, ele é removido da tabela (o arquivamento vale mesmo que a API mande a linha sem grupo ou só como GROSS).
 - Usuário em maiúsculas; datas gravadas com o fuso de São Paulo (`-03:00`); valor no formato brasileiro (`"1.234,56"`) convertido para número.
 - Conferido em 29/09/2026 contra o export manual de 28/09: **17 de 17 pedidos** cruzados bateram em quantidade de linhas e valor.
 
 ### 50.4 Agenda (pg_cron, em UTC; São Paulo = UTC-3)
 
 - **De hora em hora, minuto 7** (`sync-producao-horario`): busca desde o fim da última execução com sucesso menos 15 minutos de sobreposição (no máximo 85 minutos, de dia).
-- **Todo dia às 23:37** (`sync-producao-reconciliar`): refaz os últimos 2 dias, fora da janela diurna. Cura qualquer lacuna (queda longa, token vencido por horas).
+- **Todo dia às 23:37** (`sync-producao-reconciliar`): refaz os últimos 2 dias, fora da janela diurna. É uma rede de segurança para atualizações que chegam atrasadas no NeoCRM.
 - **Carga inicial única** (`sync-producao-backfill-1` a `-5`): um job por mês (maio a setembro/2026), a partir das 22:12 de 29/09/2026 e de 5 em 5 minutos. Cada job se desagenda depois de rodar.
 - Se uma execução falhar, o cursor **não avança** (só execuções com `ok = true` contam) e a seguinte recupera a janela.
+- **Queda longa (token vencido, função parada):** de dia a API só aceita 85 minutos por consulta, então a execução horária busca só o último trecho e registra "Janela reduzida" na observação. Essa execução **não move o cursor**: a lacuna fica marcada e é preenchida de uma vez pela primeira execução horária da noite (a partir das 22:07), que não tem limite de janela (até 35 dias por consulta; lacunas maiores exigem chamadas manuais em partes).
+- **Sem repetição automática dentro da mesma execução:** como a API só aceita uma consulta a cada ~2 minutos, repetir logo depois de um erro esconderia a causa real e atrapalharia o job seguinte. Quem "repete" é a próxima execução, que tem 15 minutos de sobreposição.
+- **Consulta manual de dia** só é aceita se a janela pedida estiver dentro dos últimos 85 minutos; fora disso, repetir à noite (22:02–04:58). Janela vazia (início ≥ fim) é erro, nunca "sucesso com 0 linhas".
 
 ### 50.5 Como acompanhar
 
 - `producao_sync_log` (admin e supervisor leem): cada linha tem modo, janela consultada, linhas devolvidas pela API, gravadas, removidas, descartes, observação e erro.
 - Última sincronização bem-sucedida: chave `producao_neo_atualizado_em` da tabela `config`, no mesmo formato de `producao_atualizado_em` (`dd/mm/aaaa, HH:MM:SS`).
-- Falhas comuns: `Token … Inválido` (tokens trocados ou vencidos), `Aguarde N segundos` (duas consultas coladas), `Janela reduzida` na observação (a função ficou parada mais de 85 minutos de dia; a lacuna é coberta pela reconciliação das 23:37).
+- Falhas comuns: `Token … Inválido` (tokens trocados ou vencidos), `Aguarde N segundos` (duas consultas coladas), `Janela reduzida` na observação (a função ficou parada mais de 85 minutos de dia; a lacuna é preenchida na primeira execução horária da noite). Execuções que ficaram abertas (`ok` nulo, sem `terminou_em`) significam que a função foi interrompida no meio; o cursor as ignora.
 
 ### 50.6 Segurança
 

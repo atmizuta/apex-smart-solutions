@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { executarSync } from "./sync.ts";
+import { escolherCursor, executarSync } from "./sync.ts";
 import type { Deps, FechamentoLog } from "./sync.ts";
 import type { NeoRow } from "./mapper.ts";
 
@@ -125,4 +125,16 @@ test("backfill fora da janela noturna: falha registrada, a API nunca é chamada"
   assert.equal(chamadas.buscar.length, 0);
   assert.equal(chamadas.abrir.length, 1);
   assert.equal(chamadas.fechar[0].ok, false);
+});
+
+test("escolherCursor: só conta execuções ok, não-manuais e de janela completa (sem observação de redução)", () => {
+  const logs = [
+    { ok: true, modo: "horario", janela_fim: "2026-09-29T20:00:00Z", observacao: null },
+    { ok: true, modo: "horario", janela_fim: "2026-09-29T21:00:00Z", observacao: "Janela reduzida a 85 min (limite diurno da API)" },
+    { ok: true, modo: "manual", janela_fim: "2026-09-29T22:00:00Z", observacao: null },
+    { ok: false, modo: "horario", janela_fim: "2026-09-29T23:00:00Z", observacao: null },
+    { ok: null, modo: "horario", janela_fim: "2026-09-30T00:00:00Z", observacao: null },
+  ];
+  assert.equal(escolherCursor(logs)?.toISOString(), "2026-09-29T20:00:00.000Z");
+  assert.equal(escolherCursor([]), null);
 });

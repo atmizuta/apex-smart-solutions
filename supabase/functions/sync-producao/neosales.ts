@@ -30,40 +30,27 @@ export function parseRespostaNeo(bytes: Uint8Array): NeoRow[] {
   throw new Error(`Resposta inesperada da NeoSales: ${texto.slice(0, 200)}`);
 }
 
-class ErroTransitorio extends Error {}
-
+// Sem retry, de propósito: a NeoSales só aceita 1 consulta a cada ~2 min. Repetir logo depois de um timeout
+// ou 5xx bateria nesse intervalo, esconderia a causa real ("Aguarde N segundos" no lugar do timeout) e
+// estouraria o tempo da função. Quem "repete" é o próximo job (janela com sobreposição de 15 min).
 export function criarBuscarNeo(
   cfg: ConfigNeo,
-  opts: { fetchImpl?: typeof fetch; esperar?: (ms: number) => Promise<void>; tentativas?: number } = {},
+  opts: { fetchImpl?: typeof fetch; timeoutMs?: number } = {},
 ): (ini: string, fim: string) => Promise<NeoRow[]> {
   const f = opts.fetchImpl ?? fetch;
-  const esperar = opts.esperar ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
-  const max = opts.tentativas ?? 3;
+  const timeoutMs = opts.timeoutMs ?? 120_000; // abaixo do limite de 150 s da função
 
   return async (ini, fim) => {
-    let ultimo: unknown;
-    for (let t = 1; t <= max; t++) {
-      try {
-        const res = await f(cfg.url, {
-          method: "POST",
-          headers: { "Content-Type": "text/plain" },
-          body: JSON.stringify({
-            tokenEstrutura: cfg.tokenEstrutura, tokenUsuario: cfg.tokenUsuario, painelId: cfg.painelId,
-            dataHoraInicioCarga: ini, dataHoraFimCarga: fim, outputFormat: "json",
-          }),
-          signal: AbortSignal.timeout(90_000),
-        });
-        if (res.status >= 500) throw new ErroTransitorio(`NeoSales HTTP ${res.status}`);
-        if (!res.ok) throw new Error(`NeoSales HTTP ${res.status}`);
-        return parseRespostaNeo(new Uint8Array(await res.arrayBuffer()));
-      } catch (e) {
-        const nome = (e as { name?: string }).name;
-        const repetivel = e instanceof ErroTransitorio || e instanceof TypeError || nome === "TimeoutError" || nome === "AbortError";
-        if (!repetivel) throw e;
-        ultimo = e;
-        if (t < max) await esperar(1000 * 2 ** (t - 1));
-      }
-    }
-    throw ultimo;
+    const res = await f(cfg.url, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({
+        tokenEstrutura: cfg.tokenEstrutura, tokenUsuario: cfg.tokenUsuario, painelId: cfg.painelId,
+        dataHoraInicioCarga: ini, dataHoraFimCarga: fim, outputFormat: "json",
+      }),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!res.ok) throw new Error(`NeoSales HTTP ${res.status}`);
+    return parseRespostaNeo(new Uint8Array(await res.arrayBuffer()));
   };
 }

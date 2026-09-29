@@ -27,12 +27,11 @@ test("corpo vazio, não-JSON e objeto sem erro também lançam", () => {
 });
 
 const cfg = { url: "https://exemplo.test/api", tokenEstrutura: "TE", tokenUsuario: "TU", painelId: "15455" };
-const semEspera = () => Promise.resolve();
 
 test("envia o corpo esperado como text/plain", async () => {
   let visto: { init?: RequestInit } = {};
   const fetchImpl = (_u: unknown, init?: RequestInit) => { visto = { init }; return Promise.resolve(new Response("[]")); };
-  const buscar = criarBuscarNeo(cfg, { fetchImpl: fetchImpl as typeof fetch, esperar: semEspera });
+  const buscar = criarBuscarNeo(cfg, { fetchImpl: fetchImpl as typeof fetch });
   assert.deepEqual(await buscar("2026-09-29 10:00:00", "2026-09-29 11:00:00"), []);
   assert.equal((visto.init!.headers as Record<string, string>)["Content-Type"], "text/plain");
   assert.deepEqual(JSON.parse(String(visto.init!.body)), {
@@ -41,34 +40,36 @@ test("envia o corpo esperado como text/plain", async () => {
   });
 });
 
-test("HTTP 5xx: tenta de novo e se recupera", async () => {
-  let n = 0;
-  const fetchImpl = () => Promise.resolve(++n < 3 ? new Response("boom", { status: 500 }) : new Response("[]"));
-  const buscar = criarBuscarNeo(cfg, { fetchImpl: fetchImpl as unknown as typeof fetch, esperar: semEspera });
-  assert.deepEqual(await buscar("a", "b"), []);
-  assert.equal(n, 3);
-});
-
-test("HTTP 5xx persistente: desiste após 3 tentativas", async () => {
+// A NeoSales só aceita 1 consulta a cada ~2 min: repetir logo depois de uma falha bateria nesse intervalo,
+// esconderia a causa real ("Aguarde N segundos" no lugar do timeout) e estouraria o tempo da função.
+test("HTTP 5xx: NÃO repete e registra o status", async () => {
   let n = 0;
   const fetchImpl = () => { n++; return Promise.resolve(new Response("boom", { status: 502 })); };
-  const buscar = criarBuscarNeo(cfg, { fetchImpl: fetchImpl as unknown as typeof fetch, esperar: semEspera });
+  const buscar = criarBuscarNeo(cfg, { fetchImpl: fetchImpl as unknown as typeof fetch });
   await assert.rejects(buscar("a", "b"), /HTTP 502/);
-  assert.equal(n, 3);
+  assert.equal(n, 1);
 });
 
-test("erro da API (token vencido) não é repetido: falha na primeira", async () => {
+test("erro da API (token vencido) falha na primeira, com a mensagem da NeoSales", async () => {
   let n = 0;
   const fetchImpl = () => { n++; return Promise.resolve(new Response('{"erro":"Token Usuário Inválido","success":false}')); };
-  const buscar = criarBuscarNeo(cfg, { fetchImpl: fetchImpl as unknown as typeof fetch, esperar: semEspera });
+  const buscar = criarBuscarNeo(cfg, { fetchImpl: fetchImpl as unknown as typeof fetch });
   await assert.rejects(buscar("a", "b"), /Token Usu/);
   assert.equal(n, 1);
 });
 
-test("falha de rede (TypeError) é repetida", async () => {
+test("falha de rede (TypeError): NÃO repete, o erro original é o registrado", async () => {
   let n = 0;
-  const fetchImpl = () => (++n < 2 ? Promise.reject(new TypeError("fetch failed")) : Promise.resolve(new Response("[]")));
-  const buscar = criarBuscarNeo(cfg, { fetchImpl: fetchImpl as unknown as typeof fetch, esperar: semEspera });
-  assert.deepEqual(await buscar("a", "b"), []);
-  assert.equal(n, 2);
+  const fetchImpl = () => { n++; return Promise.reject(new TypeError("fetch failed")); };
+  const buscar = criarBuscarNeo(cfg, { fetchImpl: fetchImpl as unknown as typeof fetch });
+  await assert.rejects(buscar("a", "b"), /fetch failed/);
+  assert.equal(n, 1);
+});
+
+test("timeout: NÃO repete e a falha registrada é o timeout", async () => {
+  let n = 0;
+  const fetchImpl = () => { n++; const e = new Error("The operation was aborted due to timeout"); e.name = "TimeoutError"; return Promise.reject(e); };
+  const buscar = criarBuscarNeo(cfg, { fetchImpl: fetchImpl as unknown as typeof fetch });
+  await assert.rejects(buscar("a", "b"), /timeout/);
+  assert.equal(n, 1);
 });

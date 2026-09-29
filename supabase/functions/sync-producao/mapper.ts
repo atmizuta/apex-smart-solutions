@@ -82,6 +82,15 @@ export function mapResponse(rows: NeoRow[]): Mapeado {
   for (const r of rows) {
     const itemId = idDoItem(r.itemId);
     const grupo = texto(r.numeroLinha);
+    const etapa = texto(r.nomeEtapa) ?? "(Sem etapa)";
+
+    // ARQUIVADO vence tudo (inclusive GROSS e linha sem grupo): um item já gravado que foi arquivado
+    // tem de sair da tabela, qualquer que seja a linha que a API mandou.
+    if (etapa === "ARQUIVADO (NEOCRM)" && Number.isFinite(itemId)) {
+      descartes.arquivado++;
+      arquivados.add(itemId);
+      continue;
+    }
 
     if (grupo !== null && grupo.toUpperCase() === "GROSS") {
       descartes.gross++;
@@ -90,13 +99,6 @@ export function mapResponse(rows: NeoRow[]): Mapeado {
     }
     if (grupo === null) { descartes.semGrupo++; continue; }
     if (!Number.isFinite(itemId)) { descartes.semItemId++; continue; }
-
-    const etapa = texto(r.nomeEtapa) ?? "(Sem etapa)";
-    if (etapa === "ARQUIVADO (NEOCRM)") {
-      descartes.arquivado++;
-      arquivados.add(itemId);
-      continue;
-    }
 
     const qtd = Number(r.quantidade);
     const reg: Registro = {

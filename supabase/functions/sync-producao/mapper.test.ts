@@ -95,3 +95,12 @@ test("etapa vazia vira (Sem etapa) e datas de ativação são convertidas", () =
   assert.equal(m.registros[0].data_portabilidade, "2026-09-30T00:00:00-03:00");
   assert.equal(m.registros[0].data_instalacao, "2026-10-01T08:00:00-03:00");
 });
+
+test("ARQUIVADO tem prioridade: mesmo sem grupo ou só como GROSS, o item ainda sai da tabela", () => {
+  const a = mapResponse([linha({ itemId: 5, numeroLinha: null, nomeEtapa: "ARQUIVADO (NEOCRM)" })]);
+  assert.deepEqual(a.arquivadosItemIds, [5]);
+  const b = mapResponse([linha({ itemId: 6, numeroLinha: "GROSS", nomeEtapa: "ARQUIVADO (NEOCRM)" })]);
+  assert.deepEqual(b.arquivadosItemIds, [6]);
+  assert.equal(b.descartes.grossOrfaos, 0);
+  assert.equal(b.registros.length, 0);
+});

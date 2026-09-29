@@ -2,7 +2,7 @@
 // Chamada só pelo pg_cron (header x-cron-secret); por isso roda sem JWT (--no-verify-jwt).
 // Publicar: cd crm && npx supabase functions deploy sync-producao --project-ref mdgfboijyqfkggcrhptn --no-verify-jwt --use-api
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { executarSync } from "./sync.ts";
+import { escolherCursor, executarSync } from "./sync.ts";
 import type { Deps } from "./sync.ts";
 import { criarBuscarNeo } from "./neosales.ts";
 import { formatoPainel, parseFormatoNeo } from "./windows.ts";
@@ -47,10 +47,12 @@ function criarDeps(): Deps {
     agora: () => new Date(),
     buscarNeo,
     async ultimoCursor() {
-      const { data, error } = await sb.from("producao_sync_log").select("janela_fim")
-        .eq("ok", true).neq("modo", "manual").order("janela_fim", { ascending: false }).limit(1);
+      // Só execuções ok, não-manuais e de janela COMPLETA (observacao nula): ver escolherCursor().
+      const { data, error } = await sb.from("producao_sync_log").select("ok, modo, janela_fim, observacao")
+        .eq("ok", true).neq("modo", "manual").is("observacao", null)
+        .order("janela_fim", { ascending: false }).limit(1);
       falha("ler cursor", error);
-      return data && data.length > 0 && data[0].janela_fim ? new Date(data[0].janela_fim) : null;
+      return escolherCursor(data ?? []);
     },
     async gravar(itens) {
       const agora = new Date().toISOString();

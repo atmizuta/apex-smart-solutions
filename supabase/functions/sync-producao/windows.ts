@@ -40,6 +40,11 @@ export function inicioDoDia(d: Date, diasAtras = 0): Date {
   return new Date(Date.UTC(s.getUTCFullYear(), s.getUTCMonth(), s.getUTCDate() - diasAtras, 3, 0, 0));
 }
 
+function validar(j: Janela): Janela {
+  if (j.ini >= j.fim) throw new Error("Janela vazia: o início não é anterior ao fim.");
+  return j;
+}
+
 export function calcularJanela(p: { modo: Modo; agora: Date; cursor: Date | null; inicio?: Date; fim?: Date }): Janela {
   const fim = p.fim && p.fim < p.agora ? p.fim : p.agora;
   const noite = janelaNoturna(p.agora);
@@ -48,21 +53,24 @@ export function calcularJanela(p: { modo: Modo; agora: Date; cursor: Date | null
     if (!noite) throw new Error("Este modo (sem limite de janela) só pode rodar na janela noturna, entre 22:02 e 04:58 (horário de SP).");
     const ini = p.modo === "backfill" ? p.inicio : (p.inicio ?? inicioDoDia(p.agora, 2));
     if (!ini) throw new Error("O modo backfill exige 'inicio'.");
-    return { ini, fim, observacao: null };
+    return validar({ ini, fim, observacao: null });
   }
 
   const base = p.inicio ??
     (p.cursor ? new Date(p.cursor.getTime() - OVERLAP_MS) : new Date(p.agora.getTime() - SEM_CURSOR_MS));
-  if (noite) return { ini: base, fim, observacao: null };
+  if (noite) return validar({ ini: base, fim, observacao: null });
 
   const minimo = new Date(p.agora.getTime() - DIA_MAX_MS);
-  if (base < minimo) {
-    return {
-      ini: minimo, fim,
-      observacao: `Janela reduzida a 85 min (limite diurno da API); a lacuna desde ${base.toISOString()} será coberta pelo reconciliar noturno.`,
-    };
+  if (p.inicio && p.inicio < minimo) {
+    throw new Error("De dia a API só aceita janelas dentro dos últimos 85 min (o limite da NeoSales é 90 min); repita entre 22:02 e 04:58 (horário de SP).");
   }
-  return { ini: base, fim, observacao: null };
+  if (base < minimo) {
+    return validar({
+      ini: minimo, fim,
+      observacao: `Janela reduzida a 85 min (limite diurno da API); a lacuna desde ${base.toISOString()} será coberta pela primeira execução horária da noite.`,
+    });
+  }
+  return validar({ ini: base, fim, observacao: null });
 }
 
 export function dividirEmBlocos(ini: Date, fim: Date, ms = 35 * 24 * HORA): { ini: Date; fim: Date }[] {

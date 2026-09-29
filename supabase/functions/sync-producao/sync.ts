@@ -26,6 +26,21 @@ export interface Deps {
 export interface ParamsSync { modo: Modo; inicio?: Date; fim?: Date }
 export interface ResultadoSync extends FechamentoLog { janelaIni: Date; janelaFim: Date; observacao: string | null }
 
+export interface LinhaLog { ok: boolean | null; modo: string; janela_fim: string | null; observacao: string | null }
+
+// O cursor é o fim da última execução BEM-SUCEDIDA, NÃO manual e de janela COMPLETA. Uma execução diurna que
+// teve a janela reduzida (observacao != null) deixou uma lacuna para trás: se ela movesse o cursor, a lacuna
+// nunca seria buscada. Sem mover, a primeira execução horária da noite (sem limite de janela) a preenche.
+export function escolherCursor(logs: LinhaLog[]): Date | null {
+  let melhor: number | null = null;
+  for (const l of logs) {
+    if (l.ok !== true || l.modo === "manual" || l.observacao !== null || !l.janela_fim) continue;
+    const t = new Date(l.janela_fim).getTime();
+    if (Number.isFinite(t) && (melhor === null || t > melhor)) melhor = t;
+  }
+  return melhor === null ? null : new Date(melhor);
+}
+
 function mensagem(e: unknown): string { return e instanceof Error ? e.message : String(e); }
 
 // Nunca lança: qualquer falha vira um log ok=false (o cursor só avança com logs ok=true).

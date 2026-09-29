@@ -84,3 +84,25 @@ test("dividirEmBlocos: o bloco padrão é de 35 dias (a API só aceita 1 consult
   assert.equal(dividirEmBlocos(ini, new Date(ini.getTime() + 34 * 24 * 3_600_000)).length, 1);
   assert.equal(dividirEmBlocos(ini, new Date(ini.getTime() + 50 * 24 * 3_600_000)).length, 2);
 });
+
+test("de dia, inicio explícito mais antigo que 85 min é recusado (a API só aceita janelas dentro dos últimos 90 min)", () => {
+  const agora = utc("2026-09-29T18:00:00Z"); // 15:00 SP
+  assert.throws(
+    () => calcularJanela({ modo: "manual", agora, cursor: null, inicio: utc("2026-09-29T13:00:00Z"), fim: utc("2026-09-29T14:00:00Z") }),
+    /85 min/,
+  );
+});
+
+test("de dia, inicio explícito dentro dos últimos 85 min é aceito como pedido", () => {
+  const agora = utc("2026-09-29T18:00:00Z");
+  const inicio = new Date(agora.getTime() - 60 * 60_000);
+  const j = calcularJanela({ modo: "manual", agora, cursor: null, inicio });
+  assert.equal(j.ini.getTime(), inicio.getTime());
+  assert.equal(j.observacao, null);
+});
+
+test("janela vazia (início >= fim) é erro, nunca um sucesso com 0 linhas", () => {
+  const noite = utc("2026-09-30T06:00:00Z"); // 03:00 SP
+  assert.throws(() => calcularJanela({ modo: "manual", agora: noite, cursor: null, inicio: new Date(noite.getTime() + 60_000) }), /vazia/);
+  assert.throws(() => calcularJanela({ modo: "backfill", agora: noite, cursor: null, inicio: new Date(noite.getTime() + 60_000) }), /vazia/);
+});
