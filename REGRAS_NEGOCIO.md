@@ -2015,3 +2015,9 @@ Em 29/09 a versão publicada às 10:15 (seções 46 e 47: e-mail em lote e Visã
 
 ### 48.7 Fora de escopo (por ora)
 Coluna FILA do NeoCRM (exigiria mudar upload e schema), envio automático do Excel, histórico de alertas, feriados estaduais e municipais.
+
+### 48.8 Publicado (29/09/2026, 11:44)
+- **Antes de publicar:** o painel no ar era idêntico ao commit `093ce88` (publicação do Anderson às 11:17), já contido no `main` publicado, então não havia nada no ar fora do repositório. `run_tests.sh`: 39 passaram, 0 falharam, 2 pulados (sem planilha real nesta máquina).
+- **Backup** da versão anterior: `~/backups_painel_clientes_apex/painel_clientes_apex_20260929_114424_antes_pedidos_em_alerta.html`.
+- **Envio:** via SSH (atalho `hostinger`, chave), para um arquivo temporário, trocado pelo definitivo só depois de o MD5 bater (`f8912bff8848cc22ed6012c372f5abb5`, 839.088 bytes = commit `861a2f0`). Conferido também pelo site público. A tela de login carrega sem erros no console.
+- **O que voltou/entrou no ar junto:** as mudanças de 28/09 (seção 48.6) e os Pedidos em Alerta, somados ao e-mail em lote (46) e à Visão Diária no celular (47).
