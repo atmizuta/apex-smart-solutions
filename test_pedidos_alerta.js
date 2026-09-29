@@ -215,5 +215,83 @@ const FIXTURE = [
 // o painel externo passa o "Atualizado em" na atualização de 1h
 assert(/win\.atualizarDadosDashboard\(novos, \(cfgAuto && cfgAuto\.valor\) \|\| null\)/.test(outerHtml), 'painel externo chama atualizarDadosDashboard(novos, atualizadoEm)');
 
-console.log('--- test_pedidos_alerta RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
-if(fail > 0) process.exitCode = 1;
+// ---------------- Task 4: Excel ----------------
+async function testarExcel(){
+  // ExcelJS do Node só pra RELER o arquivo gerado. Quem GERA é o mesmo bundle de navegador que o
+  // cdnjs serve (exceljs/dist/exceljs.min.js 4.4.0), carregado dentro do jsdom — assim Date/Array
+  // são do mesmo "realm" da página, como no navegador de verdade.
+  const ExcelJS = require('exceljs');
+  const w = montarDashboard({ data: FIXTURE });
+  const d = w.document;
+  w.eval(fs.readFileSync(require.resolve('exceljs/dist/exceljs.min.js'), 'utf8'));
+  assert(w.ExcelJS && typeof w.ExcelJS.Workbook === 'function', 'bundle de navegador da ExcelJS carregou no jsdom');
+  assert((await w.carregarExcelJS()) === w.ExcelJS, 'carregarExcelJS reaproveita window.ExcelJS quando já existe');
+
+  let baixado = null;
+  w.baixarArquivo = (buffer, nome) => { baixado = { buffer, nome }; };
+  w.switchTab('alertas');
+  await w.exportarAlertasExcel();
+  assert(baixado && baixado.nome === 'PedidosEmAlerta_2026-09-28.xlsx', 'nome do arquivo com a data da base: ' + (baixado && baixado.nome));
+
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(Buffer.from(baixado.buffer));
+  assert(JSON.stringify(wb.worksheets.map(s => s.name)) === JSON.stringify(['Pedidos em Alerta', 'Resumo']), 'abas "Pedidos em Alerta" e "Resumo"');
+  const ws = wb.getWorksheet('Pedidos em Alerta');
+  assert(String(ws.getCell('A1').value).includes('Pedidos em Alerta'), 'linha 1 = título');
+  const l2 = String(ws.getCell('A2').value);
+  assert(l2.includes('Base de 28/09/2026 20:12') && l2.includes('Filtros: todos') && l2.includes('Máximo 10+'), 'linha 2 = base, legenda e filtros: ' + l2);
+  const cab = [];
+  for(let c = 1; c <= 13; c++) cab.push(ws.getRow(3).getCell(c).value);
+  assert(JSON.stringify(cab) === JSON.stringify(['Nível', 'Dias úteis parado', 'Nº Pedido', 'Cliente', 'CPF/CNPJ', 'Consultor', 'Grupo', 'Etapa', 'Produtos', 'Qtd.', 'Valor total', 'Cadastro', 'Última atualização']),
+    'cabeçalho na linha 3: ' + JSON.stringify(cab));
+  assert(ws.getCell('A3').fill.fgColor.argb === 'FF1D1F20' && ws.getCell('A3').font.color.argb === 'FFFFFFFF', 'cabeçalho grafite com texto branco');
+  const af = ws.autoFilter;
+  assert(af === 'A3:M3' || (af && af.from && (af.from.row === 3 || af.from === 'A3')), 'filtro automático na linha 3: ' + JSON.stringify(af));
+  assert(ws.views[0] && ws.views[0].state === 'frozen' && ws.views[0].ySplit === 3, 'painel congelado abaixo do cabeçalho: ' + JSON.stringify(ws.views[0]));
+  assert(ws.actualRowCount === 3 + 7, '7 pedidos a partir da linha 4 (' + ws.actualRowCount + ' linhas)');
+
+  // linha 4 = M1 (máximo)
+  const r4 = ws.getRow(4);
+  assert(r4.getCell(1).value === 'MÁXIMO' && r4.getCell(1).fill.fgColor.argb === 'FFC1050F' && r4.getCell(1).font.color.argb === 'FFFFFFFF', 'selo MÁXIMO vermelho com texto branco');
+  assert(r4.getCell(2).fill.fgColor.argb === 'FFFFC7CE' && r4.getCell(13).fill.fgColor.argb === 'FFFFC7CE', 'linha inteira com fundo vermelho claro');
+  assert(r4.getCell(2).value === 17, 'dias úteis como número');
+  assert(r4.getCell(3).value === 'M1' && r4.getCell(5).value === '00123456000190', 'nº do pedido e CNPJ como texto (zeros preservados)');
+  assert(r4.getCell(11).value === 60 && String(r4.getCell(11).numFmt).includes('R$'), 'valor numérico com formato R$');
+  const atu = r4.getCell(13).value;
+  assert(atu instanceof Date && atu.getUTCDate() === 2 && atu.getUTCHours() === 15 && atu.getUTCMinutes() === 45 && r4.getCell(13).numFmt === 'dd/mm/yyyy hh:mm',
+    'última atualização como data do Excel no horário de São Paulo (02/09 15:45)');
+  assert(r4.getCell(12).value instanceof Date && r4.getCell(12).numFmt === 'dd/mm/yyyy', 'cadastro como data');
+  // linha 6 = A5 (médio) · linha 10 = A2 (mínimo)
+  assert(ws.getRow(6).getCell(1).value === 'MÉDIO' && ws.getRow(6).getCell(1).fill.fgColor.argb === 'FFF97316' && ws.getRow(6).getCell(4).fill.fgColor.argb === 'FFFFD8B0', 'médio laranja');
+  assert(ws.getRow(10).getCell(1).value === 'MÍNIMO' && ws.getRow(10).getCell(1).fill.fgColor.argb === 'FFEAB308'
+    && ws.getRow(10).getCell(1).font.color.argb === 'FF000000' && ws.getRow(10).getCell(4).fill.fgColor.argb === 'FFFFF2A8', 'mínimo amarelo com texto preto');
+
+  const rs = wb.getWorksheet('Resumo');
+  const linhaResumo = n => [1, 2, 3, 4, 5].map(c => rs.getRow(n).getCell(c).value);
+  assert(JSON.stringify(linhaResumo(1)) === JSON.stringify(['Etapa', 'Mínimo', 'Médio', 'Máximo', 'Total']), 'cabeçalho do resumo');
+  assert(JSON.stringify(linhaResumo(2)) === JSON.stringify(['ENTREGA', 2, 0, 1, 3]), 'resumo Entrega: ' + JSON.stringify(linhaResumo(2)));
+  assert(JSON.stringify(linhaResumo(6)) === JSON.stringify(['TOTAL', 3, 2, 2, 7]), 'resumo TOTAL: ' + JSON.stringify(linhaResumo(6)));
+
+  // exporta só o filtrado
+  d.getElementById('alertaFiltroNivel').value = 'maximo';
+  w.onFiltroAlerta();
+  await w.exportarAlertasExcel();
+  const wb2 = new ExcelJS.Workbook();
+  await wb2.xlsx.load(Buffer.from(baixado.buffer));
+  const ws2 = wb2.getWorksheet('Pedidos em Alerta');
+  assert(ws2.actualRowCount === 3 + 2 && String(ws2.getCell('A2').value).includes('Filtros: Nível: MÁXIMO'), 'Excel só com os 2 pedidos filtrados e o filtro descrito');
+  assert(wb2.getWorksheet('Resumo').getRow(6).getCell(5).value === 2, 'resumo do Excel filtrado soma 2');
+
+  // falha ao carregar a biblioteca: mensagem e botão reabilitado
+  w.carregarExcelJS = () => Promise.reject(new Error('sem internet'));
+  const errOrig = w.console.error; w.console.error = () => {};
+  await w.exportarAlertasExcel();
+  w.console.error = errOrig;
+  assert(d.getElementById('alertaMsg').textContent.includes('Não foi possível gerar o Excel'), 'falha ao carregar ExcelJS mostra aviso');
+  assert(d.getElementById('alertaExportBtn').disabled === false, 'botão volta a ficar habilitado depois da falha');
+}
+
+testarExcel().catch(err => { fail++; console.log('FALHOU (exceção no teste do Excel):', err && err.stack || err); }).finally(() => {
+  console.log('--- test_pedidos_alerta RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
+  if(fail > 0) process.exitCode = 1;
+});
