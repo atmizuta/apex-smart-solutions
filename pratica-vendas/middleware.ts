@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verificarTokenSessao } from './lib/auth/sessao';
 
 export async function middleware(req: NextRequest) {
-  const rotasPublicas = ['/login', '/api/auth/login'];
+  const rotasPublicas = ['/login', '/api/auth/login', '/api/auth/sso'];
   if (rotasPublicas.some((r) => req.nextUrl.pathname.startsWith(r))) {
     return NextResponse.next();
   }
