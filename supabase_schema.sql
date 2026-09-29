@@ -625,3 +625,8 @@ drop trigger if exists producao_pedidos_ignora_gross on public.producao_pedidos;
 create trigger producao_pedidos_ignora_gross
   before insert on public.producao_pedidos
   for each row execute function public.producao_pedidos_ignora_gross();
+
+-- SINCRONIZAÇÃO AUTOMÁTICA DA PRODUÇÃO (API NeoSales, 29/09/2026)
+-- Definida em supabase/migrations/20260929_producao_neo.sql (+ ..._cron.sql). Tabelas
+-- producao_pedidos_neo / producao_neo_raw / producao_sync_log, preenchidas pela Edge Function
+-- sync-producao (supabase/functions/sync-producao). Ver REGRAS_NEGOCIO.md seção 50.
