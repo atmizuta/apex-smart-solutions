@@ -216,6 +216,11 @@ const FIXTURE = [
 // 271px) — em tela estreita os botões quebram linha (jsdom não calcula layout; checagem no CSS)
 assert(/@media \(max-width:480px\)\{ \.tabs\{flex-wrap:wrap;/.test(tplRaw), 'abas quebram linha no celular (4 botões não cabem em 375px)');
 
+// _template.html usa LF como o main oficial: a junção com a versão de 28/09 (copiada do repositório
+// antigo) tinha trocado tudo pra CRLF — o diff contra o main mostraria ~15 mil linhas e qualquer outro
+// ramo que mexesse no arquivo daria conflito
+assert(!outerHtml.includes('\r\n'), '_template.html sem CRLF (LF, igual ao main oficial)');
+
 // o painel externo passa o "Atualizado em" na atualização de 1h
 assert(/win\.atualizarDadosDashboard\(novos, \(cfgAuto && cfgAuto\.valor\) \|\| null\)/.test(outerHtml), 'painel externo chama atualizarDadosDashboard(novos, atualizadoEm)');
 
