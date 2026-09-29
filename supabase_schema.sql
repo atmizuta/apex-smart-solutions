@@ -599,3 +599,29 @@ create policy "user_email_config_delete" on public.user_email_config for delete
 -- Administrador automaticamente. A partir da segunda conta, só um
 -- Admin/Supervisor logado consegue criar novos usuários (pela aba
 -- "Consultores" do painel).
+
+-- ============================================================
+-- producao_pedidos: descarta linhas do grupo agregado "GROSS" (29/09/2026)
+-- Algumas exportações do NeoCRM repetem cada linha do pedido no grupo "GROSS";
+-- somadas, quase dobravam o faturado. O upload do painel já ignora essas
+-- linhas, mas uma aba aberta antes da publicação ainda rodava o código antigo —
+-- esta regra no banco vale pra qualquer versão do painel (o insert não falha,
+-- a linha só não entra). Ver REGRAS_NEGOCIO.md seção 49.
+-- ============================================================
+create or replace function public.producao_pedidos_ignora_gross()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if upper(trim(coalesce(new.grupo, ''))) = 'GROSS' then
+    return null;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists producao_pedidos_ignora_gross on public.producao_pedidos;
+create trigger producao_pedidos_ignora_gross
+  before insert on public.producao_pedidos
+  for each row execute function public.producao_pedidos_ignora_gross();
