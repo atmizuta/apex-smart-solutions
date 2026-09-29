@@ -17,6 +17,7 @@
 - **Não alterar `producao_pedidos`** nem o dashboard nesta fase. A tabela nova é separada.
 - Tokens do NeoSales só como secrets da Edge Function; **nunca** em arquivo versionado, em HTML ou em log. Arquivos temporários com segredos ficam no scratchpad e são apagados ao final da Task 7.
 - Fuso: horários da API são de São Paulo (UTC-3, sem horário de verão). Gravar `timestamptz` com offset `-03:00`.
+- **A API só aceita uma consulta a cada ~2 min** (resposta HTTP 200 `{"erro":"Integração de produção executada recentemente. Aguarde N segundos…"}`): no máximo UMA consulta à API por execução da função, jobs do cron com ≥ 5 min de folga, e testes manuais reais espaçados de ≥ 130 s.
 - A API responde em ISO-8859-1; erros vêm com **HTTP 200** e `{"erro": "...", "success": false}`; janela vazia = `[]`.
 - Janela diurna máx. 90 min (usar 85). Modo sem limite (`backfill`/`reconciliar`) só entre 22:02 e 04:58 (SP) — margem conservadora entre "05:00" (mensagem da API) e "05:59" (doc).
 - Código TypeScript das Edge Functions: só sintaxe apagável (sem `enum`, sem parameter properties); usar `import type` para tipos; imports relativos com extensão `.ts`. Assim roda igual no Node (testes) e no Deno (produção).
@@ -28,7 +29,7 @@
 - Erro da NeoSales com HTTP 200 (`{"erro":…}`), ex.: token vencido → deve virar falha registrada, **não** "0 pedidos" (Task 4).
 - Resposta com o mesmo `itemId` repetido no mesmo lote → não pode quebrar o upsert nem sumir em silêncio (Task 2).
 - Item que depois vira `ARQUIVADO (NEOCRM)` → tem de sair da tabela (Tasks 2 e 5).
-- Falha no meio de uma carga em blocos → log `ok=false`, cursor **não** avança, blocos já gravados continuam válidos (idempotentes) (Task 5).
+- Consulta dentro do intervalo de espera da API (~2 min) ou falha ao gravar → log `ok=false`, cursor **não** avança, a próxima execução recupera (Task 5). Janela que exigiria mais de uma consulta é recusada antes de chamar a API (Task 5).
 - Janela diurna maior que 90 min (queda prolongada) → reduzir e avisar, nunca pedir janela que a API recusa (Task 3).
 - Reexecutar a mesma janela não pode duplicar linhas (Task 6, verificação em produção).
 - Acentos (ISO-8859-1) e valores em formato BR (`"1.234,56"`) (Tasks 2 e 4).
@@ -464,7 +465,7 @@ Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
   - `type Modo = "horario" | "reconciliar" | "backfill" | "manual"`
   - `interface Janela { ini: Date; fim: Date; observacao: string | null }`
   - `calcularJanela(p: { modo: Modo; agora: Date; cursor: Date | null; inicio?: Date; fim?: Date }): Janela` (lança `Error` se modo noturno fora da noite ou backfill sem `inicio`)
-  - `dividirEmBlocos(ini: Date, fim: Date, ms?: number): { ini: Date; fim: Date }[]` (padrão 3 dias)
+  - `dividirEmBlocos(ini: Date, fim: Date, ms?: number): { ini: Date; fim: Date }[]` (padrão 35 dias — uma janela normal cabe num bloco só)
   - `formatoNeo(d: Date): string` (`YYYY-MM-DD HH:mm:ss` em SP), `parseFormatoNeo(s: string): Date`, `formatoPainel(d: Date): string` (`dd/mm/aaaa, HH:MM:SS` em SP), `janelaNoturna(d: Date): boolean`, `inicioDoDia(d: Date, diasAtras?: number): Date`
 
 - [ ] **Step 1: Escrever os testes que falham**
@@ -544,13 +545,19 @@ test("reconciliar à noite começa às 00:00 (SP) de 2 dias antes", () => {
 test("dividirEmBlocos: contíguos, cobre tudo, vazio quando ini >= fim", () => {
   const ini = utc("2026-05-01T03:00:00Z");
   const fim = new Date(ini.getTime() + 7 * 24 * 3_600_000);
-  const b = dividirEmBlocos(ini, fim);
+  const b = dividirEmBlocos(ini, fim, 3 * 24 * 3_600_000);
   assert.equal(b.length, 3);
   assert.equal(b[0].ini.getTime(), ini.getTime());
   assert.equal(b[0].fim.getTime(), b[1].ini.getTime());
   assert.equal(b[2].fim.getTime(), fim.getTime());
   assert.deepEqual(dividirEmBlocos(fim, ini), []);
   assert.deepEqual(dividirEmBlocos(ini, ini), []);
+});
+
+test("dividirEmBlocos: o bloco padrão é de 35 dias (a API só aceita 1 consulta a cada ~2 min)", () => {
+  const ini = utc("2026-05-01T03:00:00Z");
+  assert.equal(dividirEmBlocos(ini, new Date(ini.getTime() + 34 * 24 * 3_600_000)).length, 1);
+  assert.equal(dividirEmBlocos(ini, new Date(ini.getTime() + 50 * 24 * 3_600_000)).length, 2);
 });
 ```
 
@@ -633,7 +640,7 @@ export function calcularJanela(p: { modo: Modo; agora: Date; cursor: Date | null
   return { ini: base, fim, observacao: null };
 }
 
-export function dividirEmBlocos(ini: Date, fim: Date, ms = 3 * 24 * HORA): { ini: Date; fim: Date }[] {
+export function dividirEmBlocos(ini: Date, fim: Date, ms = 35 * 24 * HORA): { ini: Date; fim: Date }[] {
   const out: { ini: Date; fim: Date }[] = [];
   let a = ini.getTime();
   const f = fim.getTime();
@@ -948,23 +955,41 @@ test("item arquivado é removido e não é gravado", async () => {
   assert.equal(chamadas.gravar.length, 0);
 });
 
-test("backfill de 7 dias à noite: 3 blocos contíguos e ordenados", async () => {
+test("backfill de 30 dias à noite: uma única consulta à API cobrindo a janela toda", async () => {
   const { deps, chamadas } = criar({}, "2026-09-30T01:10:00Z"); // 22:10 SP
-  const r = await executarSync(deps, { modo: "backfill", inicio: new Date("2026-09-23T01:10:00Z") });
+  const r = await executarSync(deps, { modo: "backfill", inicio: new Date("2026-08-31T01:10:00Z") });
   assert.equal(r.ok, true);
-  assert.equal(chamadas.buscar.length, 3);
-  assert.equal(chamadas.buscar[0][1], chamadas.buscar[1][0]);
-  assert.equal(chamadas.buscar[1][1], chamadas.buscar[2][0]);
+  assert.deepEqual(chamadas.buscar, [["2026-08-30 22:10:00", "2026-09-29 22:10:00"]]);
 });
 
-test("falha no 2º bloco: log ok=false, blocos anteriores ficam gravados, carimbo não muda", async () => {
-  let n = 0;
-  const { deps, chamadas } = criar({
-    buscarNeo: () => (++n === 2 ? Promise.reject(new Error("timeout")) : Promise.resolve([linha({ itemId: n })])),
-  }, "2026-09-30T01:10:00Z");
-  const r = await executarSync(deps, { modo: "backfill", inicio: new Date("2026-09-23T01:10:00Z") });
+test("janela que exigiria mais de uma consulta é recusada sem chamar a API (a NeoSales só aceita 1 consulta a cada ~2 min)", async () => {
+  const { deps, chamadas } = criar({}, "2026-09-30T01:10:00Z");
+  const r = await executarSync(deps, { modo: "backfill", inicio: new Date("2026-05-01T03:00:00Z") });
   assert.equal(r.ok, false);
-  assert.equal(chamadas.gravar.length, 1);
+  assert.match(r.erro ?? "", /35 dias/);
+  assert.equal(chamadas.buscar.length, 0);
+  assert.equal(chamadas.fechar[0].ok, false);
+});
+
+test("API em intervalo de espera: falha registrada com a mensagem da NeoSales, nada gravado", async () => {
+  const { deps, chamadas } = criar({
+    buscarNeo: () => Promise.reject(new Error("NeoSales recusou a consulta: Integração de produção executada recentemente. Aguarde 119 segundos para tentar novamente.")),
+  });
+  const r = await executarSync(deps, { modo: "horario" });
+  assert.equal(r.ok, false);
+  assert.match(r.erro ?? "", /Aguarde 119 segundos/);
+  assert.equal(chamadas.gravar.length, 0);
+  assert.equal(chamadas.atualizado, 0);
+});
+
+test("falha ao gravar: log ok=false, carimbo não atualizado (cursor não avança)", async () => {
+  const { deps, chamadas } = criar({
+    buscarNeo: () => Promise.resolve([linha()]),
+    gravar: () => Promise.reject(new Error("banco fora do ar")),
+  });
+  const r = await executarSync(deps, { modo: "horario" });
+  assert.equal(r.ok, false);
+  assert.match(r.erro ?? "", /banco fora do ar/);
   assert.equal(chamadas.fechar[0].ok, false);
   assert.equal(chamadas.atualizado, 0);
 });
@@ -1029,7 +1054,7 @@ export interface ResultadoSync extends FechamentoLog { janelaIni: Date; janelaFi
 function mensagem(e: unknown): string { return e instanceof Error ? e.message : String(e); }
 
 // Nunca lança: qualquer falha vira um log ok=false (o cursor só avança com logs ok=true).
-// Blocos já gravados continuam válidos: o upsert por item_id é idempotente.
+// O upsert por item_id é idempotente: repetir uma janela é seguro.
 export async function executarSync(deps: Deps, p: ParamsSync): Promise<ResultadoSync> {
   const agora = deps.agora();
   const total = zerarDescartes();
@@ -1047,7 +1072,13 @@ export async function executarSync(deps: Deps, p: ParamsSync): Promise<Resultado
 
   const logId = await deps.abrirLog(p.modo, janela.ini, janela.fim, janela.observacao);
   try {
-    for (const bloco of dividirEmBlocos(janela.ini, janela.fim)) {
+    const blocos = dividirEmBlocos(janela.ini, janela.fim);
+    // A NeoSales só aceita 1 consulta a cada ~2 min e esperar entre blocos estouraria o tempo da função:
+    // janelas grandes (carga inicial) são divididas em várias chamadas, uma por job do cron.
+    if (blocos.length > 1) {
+      throw new Error("Janela maior que 35 dias: a NeoSales só aceita uma consulta a cada ~2 min, então cada execução faz uma única consulta. Divida a janela em chamadas separadas.");
+    }
+    for (const bloco of blocos) {
       const rows = await deps.buscarNeo(formatoNeo(bloco.ini), formatoNeo(bloco.fim));
       linhasApi += rows.length;
       const m = mapResponse(rows);
@@ -1278,6 +1309,7 @@ SECRET=$(grep '^SYNC_CRON_SECRET=' "$SP/neosales.env" | cut -d= -f2)
 cd $WT
 Q(){ npx supabase db query --linked --project-ref mdgfboijyqfkggcrhptn "select count(*) as itens, count(distinct item_id) as itens_unicos from public.producao_pedidos_neo" -o json | grep -E '"itens'; }
 echo antes; Q
+sleep 130   # a API só aceita 1 consulta a cada ~2 min
 curl -s -X POST https://mdgfboijyqfkggcrhptn.supabase.co/functions/v1/sync-producao -H "x-cron-secret: $SECRET" -H "Content-Type: application/json" -d '{"modo":"horario"}' >/dev/null; sleep 25
 echo depois; Q
 ```
@@ -1300,7 +1332,7 @@ Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 
 **Interfaces:**
 - Consumes: endpoint e `SYNC_CRON_SECRET` da Task 6; extensões `pg_cron`, `pg_net`, Vault (Task 1).
-- Produces: jobs `sync-producao-horario` (`7 * * * *`), `sync-producao-reconciliar` (`10 2 * * *` UTC = 23:10 SP), `sync-producao-backfill-inicial` (`10 1 30 9 *` UTC = 22:10 SP de 29/09, autodestrói-se). Segredo no Vault com nome `sync_producao_cron_secret`.
+- Produces: jobs `sync-producao-horario` (`7 * * * *`), `sync-producao-reconciliar` (`37 2 * * *` UTC = 23:37 SP), `sync-producao-backfill-1` … `-5` (uma janela mensal cada, de 01/05 até agora; `12/17/22/27/32 1 30 9 *` UTC = 22:12…22:32 SP de 29/09; cada um se desagenda). Segredo no Vault com nome `sync_producao_cron_secret`.
 
 - [ ] **Step 1: Guardar o segredo no Vault (valor vem do arquivo temporário, não do repo)**
 
@@ -1322,7 +1354,7 @@ Criar `supabase/migrations/20260929_producao_neo_cron.sql`:
 -- pg_cron roda em UTC; São Paulo = UTC-3 (sem horário de verão).
 
 select cron.unschedule(jobid) from cron.job
- where jobname in ('sync-producao-horario','sync-producao-reconciliar','sync-producao-backfill-inicial');
+ where jobname like 'sync-producao-%';
 
 -- De hora em hora (minuto 7): janela desde o último sucesso - 15 min (no máx. 85 min de dia).
 select cron.schedule('sync-producao-horario', '7 * * * *', $job$
@@ -1334,8 +1366,8 @@ select cron.schedule('sync-producao-horario', '7 * * * *', $job$
     timeout_milliseconds := 10000);
 $job$);
 
--- 23:10 (SP), fora da janela diurna: refaz os últimos 2 dias sem limite — cura qualquer lacuna.
-select cron.schedule('sync-producao-reconciliar', '10 2 * * *', $job$
+-- 23:37 (SP), fora da janela diurna e longe do job horário (minuto 7): refaz os últimos 2 dias — cura qualquer lacuna.
+select cron.schedule('sync-producao-reconciliar', '37 2 * * *', $job$
   select net.http_post(
     url := 'https://mdgfboijyqfkggcrhptn.supabase.co/functions/v1/sync-producao',
     headers := jsonb_build_object('Content-Type','application/json',
@@ -1344,17 +1376,41 @@ select cron.schedule('sync-producao-reconciliar', '10 2 * * *', $job$
     timeout_milliseconds := 10000);
 $job$);
 
--- Carga inicial ÚNICA: 22:10 (SP) de 29/09/2026 = 01:10 UTC de 30/09. Depois de disparar, se desagenda
--- (o cron "30 de setembro" repetiria todo ano). Pode ser reexecutada à mão a qualquer hora da noite.
-select cron.schedule('sync-producao-backfill-inicial', '10 1 30 9 *', $job$
-  select net.http_post(
-    url := 'https://mdgfboijyqfkggcrhptn.supabase.co/functions/v1/sync-producao',
-    headers := jsonb_build_object('Content-Type','application/json',
-      'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'sync_producao_cron_secret')),
-    body := '{"modo":"backfill","inicio":"2026-05-01 00:00:00"}'::jsonb,
-    timeout_milliseconds := 10000);
-  select cron.unschedule('sync-producao-backfill-inicial');
-$job$);
+-- Carga inicial ÚNICA, uma consulta por job: a NeoSales só aceita 1 consulta a cada ~2 min e a função faz
+-- só uma por execução. 5 janelas mensais, uma a cada 5 min a partir das 22:12 (SP) de 29/09/2026 (= 01:12 UTC
+-- de 30/09), sempre longe do job horário (minuto 7). Cada job se desagenda (o cron de 30/09 repetiria todo ano).
+do $do$
+declare
+  r record;
+begin
+  for r in
+    select * from (values
+      (1, '2026-05-01 00:00:00', '2026-06-01 00:00:00'),
+      (2, '2026-06-01 00:00:00', '2026-07-01 00:00:00'),
+      (3, '2026-07-01 00:00:00', '2026-08-01 00:00:00'),
+      (4, '2026-08-01 00:00:00', '2026-09-01 00:00:00'),
+      (5, '2026-09-01 00:00:00', null)            -- sem "fim": vai até o momento da execução
+    ) as t(n, ini, fim) order by n
+  loop
+    perform cron.schedule(
+      'sync-producao-backfill-' || r.n,
+      (12 + (r.n - 1) * 5) || ' 1 30 9 *',
+      format($job$
+        select net.http_post(
+          url := 'https://mdgfboijyqfkggcrhptn.supabase.co/functions/v1/sync-producao',
+          headers := jsonb_build_object('Content-Type','application/json',
+            'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'sync_producao_cron_secret')),
+          body := %L::jsonb,
+          timeout_milliseconds := 10000);
+        select cron.unschedule('sync-producao-backfill-%s');
+      $job$,
+      (jsonb_build_object('modo','backfill','inicio', r.ini)
+        || case when r.fim is null then '{}'::jsonb else jsonb_build_object('fim', r.fim) end)::text,
+      r.n)
+    );
+  end loop;
+end
+$do$;
 ```
 
 - [ ] **Step 3: Aplicar e conferir os 3 jobs**
@@ -1364,12 +1420,13 @@ cd $WT
 npx supabase db query --linked --project-ref mdgfboijyqfkggcrhptn -f supabase/migrations/20260929_producao_neo_cron.sql
 npx supabase db query --linked --project-ref mdgfboijyqfkggcrhptn "select jobname, schedule, active from cron.job where jobname like 'sync-producao%' order by 1" -o json
 ```
-Expected: 3 jobs, todos `active: true`, com as agendas `7 * * * *`, `10 2 * * *`, `10 1 30 9 *`.
+Expected: 7 jobs, todos `active: true`: `sync-producao-horario` (`7 * * * *`), `sync-producao-reconciliar` (`37 2 * * *`) e `sync-producao-backfill-1` … `-5` (`12 1 30 9 *`, `17 1 30 9 *`, `22 1 30 9 *`, `27 1 30 9 *`, `32 1 30 9 *`).
 
 - [ ] **Step 4: Provar que o cron autentica (dispara o job horário agora, sem esperar o minuto 7)**
 
 ```bash
 cd $WT
+sleep 130   # a API só aceita 1 consulta a cada ~2 min (última consulta real: Task 6, Step 6)
 npx supabase db query --linked --project-ref mdgfboijyqfkggcrhptn "select net.http_post(url := 'https://mdgfboijyqfkggcrhptn.supabase.co/functions/v1/sync-producao', headers := jsonb_build_object('Content-Type','application/json','x-cron-secret',(select decrypted_secret from vault.decrypted_secrets where name='sync_producao_cron_secret')), body := '{\"modo\":\"horario\"}'::jsonb, timeout_milliseconds := 10000) as req" -o json | grep -c '"req"'
 sleep 30
 npx supabase db query --linked --project-ref mdgfboijyqfkggcrhptn "select status_code, left(content::text, 80) as corpo from net._http_response order by id desc limit 1; select id, modo, ok, gravadas, erro from public.producao_sync_log order by id desc limit 2" -o json
@@ -1396,22 +1453,22 @@ Expected: `0` (arquivo apagado). Os secrets seguem guardados no Supabase (secret
 - (Somente leitura no banco: `producao_pedidos` × `producao_pedidos_neo`)
 
 **Interfaces:**
-- Consumes: jobs da Task 7 (a carga inicial dispara sozinha às 22:10 SP de 29/09; se falhar, reexecutar manualmente à noite).
+- Consumes: jobs da Task 7 (a carga inicial dispara sozinha a partir das 22:12 SP de 29/09 (5 jobs mensais); se algum falhar, reexecutar só aquela janela à noite).
 - Produces: relatório de paridade (números) que autoriza — ou não — a Fase 2.
 
-- [ ] **Step 1: Após 22:15 SP, conferir a carga inicial**
+- [ ] **Step 1: Após 22:40 SP, conferir a carga inicial (5 jobs mensais)**
 
 ```bash
-cd $WT && npx supabase db query --linked --project-ref mdgfboijyqfkggcrhptn "select id, modo, ok, linhas_api, gravadas, removidas, descartes, erro, janela_ini, janela_fim, terminou_em - iniciou_em as duracao from public.producao_sync_log where modo='backfill' order by id desc limit 1; select count(*) itens, count(distinct numero_pedido) pedidos, min(cadastro) primeiro, max(atualizacao) ultimo from public.producao_pedidos_neo" -o json
+cd $WT && npx supabase db query --linked --project-ref mdgfboijyqfkggcrhptn "select id, modo, ok, linhas_api, gravadas, removidas, descartes, erro, janela_ini, janela_fim from public.producao_sync_log where modo='backfill' order by id limit 10" -o json
+cd $WT && npx supabase db query --linked --project-ref mdgfboijyqfkggcrhptn "select count(*) itens, count(distinct numero_pedido) pedidos, min(cadastro) primeiro, max(atualizacao) ultimo from public.producao_pedidos_neo" -o json
 ```
-Expected: log `backfill` com `ok: true`; `descartes.grossOrfaos: 0`; `descartes.duplicados` baixo (se `> 0`, investigar antes de seguir).
+Expected: 5 logs `backfill` com `ok: true` (um por mês); `descartes.grossOrfaos: 0` em todos; `descartes.duplicados` baixo (se `> 0`, investigar antes de seguir).
 
-**Se `ok: false` ou o log não existir**, reexecutar à mão (só entre 22:02 e 04:58 SP), com o mesmo caminho do cron:
+**Se algum mês falhou** (`ok: false`; ex.: "Aguarde N segundos" por dois jobs colados, ou timeout), reexecutar só aquela janela, à mão, entre 22:02 e 04:58 SP, **uma por vez, com ≥ 3 min entre elas** (o upsert é idempotente, repetir é seguro). Exemplo para junho:
 
 ```bash
-cd $WT && npx supabase db query --linked --project-ref mdgfboijyqfkggcrhptn "select net.http_post(url := 'https://mdgfboijyqfkggcrhptn.supabase.co/functions/v1/sync-producao', headers := jsonb_build_object('Content-Type','application/json','x-cron-secret',(select decrypted_secret from vault.decrypted_secrets where name='sync_producao_cron_secret')), body := '{\"modo\":\"backfill\",\"inicio\":\"2026-05-01 00:00:00\"}'::jsonb, timeout_milliseconds := 10000) as req" -o json
+cd $WT && npx supabase db query --linked --project-ref mdgfboijyqfkggcrhptn "select net.http_post(url := 'https://mdgfboijyqfkggcrhptn.supabase.co/functions/v1/sync-producao', headers := jsonb_build_object('Content-Type','application/json','x-cron-secret',(select decrypted_secret from vault.decrypted_secrets where name='sync_producao_cron_secret')), body := '{\"modo\":\"backfill\",\"inicio\":\"2026-06-01 00:00:00\",\"fim\":\"2026-07-01 00:00:00\"}'::jsonb, timeout_milliseconds := 10000) as req" -o json
 ```
-Depois repetir a consulta acima após ~2 min. Como o upsert é idempotente, repetir é seguro.
 
 - [ ] **Step 2: Paridade com o painel atual (apenas pedidos não alterados depois do último upload manual)**
 
@@ -1452,7 +1509,7 @@ Objetivo: acabar com o ciclo "exportar relatório do NeoCRM → Upload Dash". A 
 - **Fonte**: API "Produção v2" do NeoSales (tokens só como secrets da Edge Function; nunca no HTML). Devolve só pedidos criados/atualizados na janela consultada. De dia a janela máxima é de 90 min; à noite (22:01–05:59) não há limite. Erros da API vêm com HTTP 200 e `{"erro":…}` — tratados como falha.
 - **Tabela nova, separada**: `producao_pedidos_neo` (mesmas colunas de `producao_pedidos` + `item_id` único). Enquanto a paridade não foi aprovada, o dashboard continua lendo `producao_pedidos`.
 - **Mapeamento**: `numeroLinha` = GRUPO; linhas `GROSS` são duplicatas da API e são descartadas (senão o valor dobra); `ARQUIVADO (NEOCRM)` e linhas sem grupo saem, como no upload manual; usuário em maiúsculas; datas gravadas com offset -03:00.
-- **Agenda**: de hora em hora (minuto 7); reconciliação às 23:10 refazendo os últimos 2 dias (cura lacunas); carga inicial única em 29/09 22:10 desde 01/05/2026.
+- **Agenda**: de hora em hora (minuto 7); reconciliação às 23:37 refazendo os últimos 2 dias (cura lacunas); carga inicial em 29/09 a partir das 22:12, um job por mês desde 01/05/2026. A NeoSales só aceita 1 consulta a cada ~2 min (descoberto em teste real, não consta na documentação): por isso cada execução faz uma única consulta.
 - **Observabilidade**: `producao_sync_log` guarda cada execução (janela, contagens, erro); o cursor só avança em execução bem-sucedida. `producao_neo_raw` (só admin) guarda o JSON cru de cada item.
 - **Pendências (Fase 2, exige aprovação)**: trocar o dashboard para a tabela nova, neutralizar "Upload Dash", exibir "última sincronização" e publicar. Motivo de perda: conferir se `tagPedido` traz as tags de "TAGS ATIVIDADE" (resultado da verificação de 29/09 registrado no changelog).
 ```

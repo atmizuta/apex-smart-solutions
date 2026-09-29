@@ -70,11 +70,17 @@ test("reconciliar à noite começa às 00:00 (SP) de 2 dias antes", () => {
 test("dividirEmBlocos: contíguos, cobre tudo, vazio quando ini >= fim", () => {
   const ini = utc("2026-05-01T03:00:00Z");
   const fim = new Date(ini.getTime() + 7 * 24 * 3_600_000);
-  const b = dividirEmBlocos(ini, fim);
+  const b = dividirEmBlocos(ini, fim, 3 * 24 * 3_600_000);
   assert.equal(b.length, 3);
   assert.equal(b[0].ini.getTime(), ini.getTime());
   assert.equal(b[0].fim.getTime(), b[1].ini.getTime());
   assert.equal(b[2].fim.getTime(), fim.getTime());
   assert.deepEqual(dividirEmBlocos(fim, ini), []);
   assert.deepEqual(dividirEmBlocos(ini, ini), []);
+});
+
+test("dividirEmBlocos: o bloco padrão é de 35 dias (a API só aceita 1 consulta a cada ~2 min)", () => {
+  const ini = utc("2026-05-01T03:00:00Z");
+  assert.equal(dividirEmBlocos(ini, new Date(ini.getTime() + 34 * 24 * 3_600_000)).length, 1);
+  assert.equal(dividirEmBlocos(ini, new Date(ini.getTime() + 50 * 24 * 3_600_000)).length, 2);
 });

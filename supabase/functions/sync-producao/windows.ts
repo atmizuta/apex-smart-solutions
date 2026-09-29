@@ -65,7 +65,7 @@ export function calcularJanela(p: { modo: Modo; agora: Date; cursor: Date | null
   return { ini: base, fim, observacao: null };
 }
 
-export function dividirEmBlocos(ini: Date, fim: Date, ms = 3 * 24 * HORA): { ini: Date; fim: Date }[] {
+export function dividirEmBlocos(ini: Date, fim: Date, ms = 35 * 24 * HORA): { ini: Date; fim: Date }[] {
   const out: { ini: Date; fim: Date }[] = [];
   let a = ini.getTime();
   const f = fim.getTime();
