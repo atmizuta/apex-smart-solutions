@@ -17,21 +17,57 @@ export default async function HistoricoPage() {
   const sessoes = await listarSessoesPorUsuario(dados.usuarioId);
 
   return (
-    <div>
+    <div className="tela-app">
       <Nav />
-      <div style={{ maxWidth: 720, margin: '40px auto', padding: 24 }}>
-        <h1>Seu histórico</h1>
-        <table style={{ width: '100%', background: '#fff', borderRadius: 10, borderCollapse: 'collapse' }}>
-          <tbody>
-            {sessoes.map((s) => (
-              <tr key={s.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                <td style={{ padding: 10 }}>{new Date(s.iniciadoEm).toLocaleDateString('pt-BR')}</td>
-                <td style={{ padding: 10 }}>{s.nota != null ? `${s.nota}/100` : 'Em andamento'}</td>
-                <td style={{ padding: 10, fontSize: 13, color: '#6b7280' }}>{s.feedback ?? ''}</td>
-              </tr>
+      <div style={{ maxWidth: 760, margin: '0 auto', padding: '48px 24px' }}>
+        <p className="rotulo">Seu progresso</p>
+        <h1 style={{ color: 'var(--cor-branco)', fontSize: 30, marginTop: 8, marginBottom: 24 }}>Seu histórico</h1>
+
+        {sessoes.length === 0 ? (
+          <div className="cartao" style={{ padding: 24, textAlign: 'center', color: 'var(--cor-tinta-suave)', fontSize: 14 }}>
+            Você ainda não praticou nenhum cenário.
+          </div>
+        ) : (
+          <div className="cartao" style={{ overflow: 'hidden' }}>
+            {sessoes.map((s, i) => (
+              <div
+                key={s.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 16,
+                  padding: '14px 20px',
+                  borderTop: i === 0 ? 'none' : '1px solid var(--cor-linha)',
+                }}
+              >
+                <div style={{ fontSize: 13, color: 'var(--cor-tinta-suave)', width: 90, flexShrink: 0 }}>
+                  {new Date(s.iniciadoEm).toLocaleDateString('pt-BR')}
+                </div>
+                <div style={{ width: 84, flexShrink: 0 }}>
+                  {s.nota != null ? (
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        fontFamily: 'var(--fonte-display)',
+                        fontWeight: 600,
+                        fontSize: 13,
+                        padding: '3px 10px',
+                        borderRadius: 999,
+                        background: s.nota >= 70 ? 'rgba(31,122,77,0.12)' : 'rgba(227,6,19,0.1)',
+                        color: s.nota >= 70 ? 'var(--cor-sucesso)' : 'var(--cor-vermelho-600)',
+                      }}
+                    >
+                      {s.nota}/100
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 12.5, color: 'var(--cor-tinta-suave)', fontStyle: 'italic' }}>Em andamento</span>
+                  )}
+                </div>
+                <div style={{ fontSize: 13.5, color: 'var(--cor-tinta-suave)', lineHeight: 1.5 }}>{s.feedback ?? ''}</div>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+        )}
       </div>
     </div>
   );

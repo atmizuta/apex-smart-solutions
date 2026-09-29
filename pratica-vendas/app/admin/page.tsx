@@ -21,28 +21,54 @@ export default async function AdminPage() {
   const sessoes = await listarTodasSessoes();
 
   return (
-    <div>
+    <div className="tela-app">
       <Nav />
-      <div style={{ maxWidth: 900, margin: '40px auto', padding: 24 }}>
-        <h1>Todas as sessões de prática</h1>
-        <table style={{ width: '100%', background: '#fff', borderRadius: 10, borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th style={{ textAlign: 'left', padding: 10 }}>Consultor</th>
-              <th style={{ textAlign: 'left', padding: 10 }}>Data</th>
-              <th style={{ textAlign: 'left', padding: 10 }}>Nota</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sessoes.map((s) => (
-              <tr key={s.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                <td style={{ padding: 10 }}>{s.nomeUsuario}</td>
-                <td style={{ padding: 10 }}>{new Date(s.iniciadoEm).toLocaleDateString('pt-BR')}</td>
-                <td style={{ padding: 10 }}>{s.nota != null ? `${s.nota}/100` : 'Em andamento'}</td>
+      <div style={{ maxWidth: 920, margin: '0 auto', padding: '48px 24px' }}>
+        <p className="rotulo">Visão gerencial</p>
+        <h1 style={{ color: 'var(--cor-branco)', fontSize: 30, marginTop: 8, marginBottom: 24 }}>
+          Todas as sessões de prática
+        </h1>
+
+        <div className="cartao" style={{ overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--cor-linha)' }}>
+                <th style={{ textAlign: 'left', padding: '12px 20px', fontSize: 11.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--cor-tinta-suave)', fontWeight: 600 }}>Consultor</th>
+                <th style={{ textAlign: 'left', padding: '12px 20px', fontSize: 11.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--cor-tinta-suave)', fontWeight: 600 }}>Data</th>
+                <th style={{ textAlign: 'left', padding: '12px 20px', fontSize: 11.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--cor-tinta-suave)', fontWeight: 600 }}>Nota</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {sessoes.map((s) => (
+                <tr key={s.id} style={{ borderTop: '1px solid var(--cor-linha)' }}>
+                  <td style={{ padding: '12px 20px', fontSize: 14, color: 'var(--cor-tinta)' }}>{s.nomeUsuario}</td>
+                  <td style={{ padding: '12px 20px', fontSize: 14, color: 'var(--cor-tinta-suave)' }}>
+                    {new Date(s.iniciadoEm).toLocaleDateString('pt-BR')}
+                  </td>
+                  <td style={{ padding: '12px 20px', fontSize: 14 }}>
+                    {s.nota != null ? (
+                      <span
+                        style={{
+                          fontFamily: 'var(--fonte-display)',
+                          fontWeight: 600,
+                          fontSize: 13,
+                          padding: '3px 10px',
+                          borderRadius: 999,
+                          background: s.nota >= 70 ? 'rgba(31,122,77,0.12)' : 'rgba(227,6,19,0.1)',
+                          color: s.nota >= 70 ? 'var(--cor-sucesso)' : 'var(--cor-vermelho-600)',
+                        }}
+                      >
+                        {s.nota}/100
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--cor-tinta-suave)', fontStyle: 'italic', fontSize: 12.5 }}>Em andamento</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

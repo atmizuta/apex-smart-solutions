@@ -33,9 +33,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ sessao
   await adicionarMensagem(sessao.id, 'consultor', texto.trim());
   const historico = await listarMensagens(sessao.id);
 
-  let respostaIa: string;
+  let resultado: { resposta: string; dica: string | null };
   try {
-    respostaIa = await responderComoCliente(
+    resultado = await responderComoCliente(
       construirPromptCliente(cenario),
       historico.map((m) => ({ remetente: m.remetente, texto: m.texto }))
     );
@@ -47,6 +47,10 @@ export async function POST(req: NextRequest, context: { params: Promise<{ sessao
     );
   }
 
-  await adicionarMensagem(sessao.id, 'ia', respostaIa);
-  return NextResponse.json({ resposta: respostaIa });
+  // a dica é uma orientação em tempo real pro consultor, fora do personagem —
+  // não faz parte da fala do cliente, então só a transcrição (resposta) vai
+  // pra tabela de mensagens; a dica é devolvida direto e some no reload
+  // (é uma dica do momento, não histórico permanente).
+  await adicionarMensagem(sessao.id, 'ia', resultado.resposta);
+  return NextResponse.json({ resposta: resultado.resposta, dica: resultado.dica });
 }

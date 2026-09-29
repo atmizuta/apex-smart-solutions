@@ -9,6 +9,7 @@ export type SessaoPratica = {
   finalizadoEm: Date | null;
   nota: number | null;
   feedback: string | null;
+  dicas: string[] | null;
 };
 
 type LinhaSessao = {
@@ -20,6 +21,7 @@ type LinhaSessao = {
   finalizado_em: Date | null;
   nota: number | null;
   feedback: string | null;
+  dicas: string[] | null;
 };
 
 function mapearSessao(l: LinhaSessao): SessaoPratica {
@@ -32,22 +34,8 @@ function mapearSessao(l: LinhaSessao): SessaoPratica {
     finalizadoEm: l.finalizado_em,
     nota: l.nota,
     feedback: l.feedback,
+    dicas: l.dicas,
   };
-}
-
-// Conta só sessões "reais" (finalizadas OU com pelo menos uma mensagem do
-// consultor) — uma sessão criada e nunca usada (reload, aba fechada sem
-// mandar nada) não deve consumir uma vaga do limite diário (Review Focus).
-export async function contarSessoesHoje(usuarioId: string): Promise<number> {
-  const linhas = await sql<{ total: string }[]>`
-    select count(*)::text as total from sessoes_pratica s
-    where s.usuario_id = ${usuarioId} and s.iniciado_em >= current_date
-      and (
-        s.finalizado_em is not null
-        or exists (select 1 from mensagens m where m.sessao_id = s.id and m.remetente = 'consultor')
-      )
-  `;
-  return Number(linhas[0].total);
 }
 
 // Reaproveita uma sessão do mesmo cenário, hoje, ainda sem nenhuma mensagem e
@@ -96,9 +84,9 @@ export async function claimSessaoParaAvaliar(id: string): Promise<boolean> {
 
 // só atualiza se ainda não tiver sido finalizada — segunda camada de proteção
 // contra dupla avaliação, além do claim acima.
-export async function finalizarSessao(id: string, nota: number, feedback: string): Promise<number> {
+export async function finalizarSessao(id: string, nota: number, feedback: string, dicas: string[]): Promise<number> {
   const resultado = await sql`
-    update sessoes_pratica set finalizado_em = now(), nota = ${nota}, feedback = ${feedback}
+    update sessoes_pratica set finalizado_em = now(), nota = ${nota}, feedback = ${feedback}, dicas = ${sql.array(dicas)}
     where id = ${id} and finalizado_em is null
   `;
   return resultado.count;

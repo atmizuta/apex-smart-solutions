@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
+import { LogoApex } from './LogoApex';
 
 type Usuario = { nome: string; papel: 'consultor' | 'admin' };
 
@@ -10,6 +11,7 @@ type Usuario = { nome: string; papel: 'consultor' | 'admin' };
 export function Nav() {
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -23,16 +25,68 @@ export function Nav() {
     router.push('/login');
   }
 
+  const links = [
+    { href: '/cenarios', label: 'Praticar' },
+    { href: '/historico', label: 'Meu histórico' },
+    ...(usuario?.papel === 'admin' ? [{ href: '/admin', label: 'Admin' }] : []),
+  ];
+
+  // Dentro de uma sessão de prática o consultor está concentrado na
+  // conversa — a barra completa (Praticar/histórico/admin/sair) só
+  // distraía. Aqui a única ação que faz sentido é voltar pra lista.
+  const dentroDaPratica = pathname?.startsWith('/pratica/');
+
+  if (dentroDaPratica) {
+    return (
+      <nav className="nav-app">
+        <a
+          href="/cenarios"
+          style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--cor-branco)', textDecoration: 'none', fontSize: 14, fontWeight: 600 }}
+        >
+          <span aria-hidden>←</span> Voltar para cenários
+        </a>
+      </nav>
+    );
+  }
+
   return (
-    <nav style={{ background: '#1a0302', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
-      <a href="/cenarios" style={{ color: '#fff', fontWeight: 700, textDecoration: 'none', fontSize: 14 }}>Praticar</a>
-      <a href="/historico" style={{ color: '#e8b9b9', textDecoration: 'none', fontSize: 14 }}>Meu histórico</a>
-      {usuario?.papel === 'admin' && (
-        <a href="/admin" style={{ color: '#e8b9b9', textDecoration: 'none', fontSize: 14 }}>Admin</a>
-      )}
+    <nav className="nav-app">
+      <a href="/cenarios" className="marca-apex" style={{ textDecoration: 'none', flexShrink: 0 }}>
+        <LogoApex tamanho={22} />
+        <span>
+          <span className="nome">Apex</span>
+          <span className="subnome">Prática de vendas</span>
+        </span>
+      </a>
+      <div className="nav-divisor" />
+      <div className="nav-links">
+        {links.map((l) => {
+          const ativo = pathname === l.href;
+          return (
+            <a
+              key={l.href}
+              href={l.href}
+              style={{
+                color: ativo ? 'var(--cor-branco)' : 'var(--cor-rosa-label)',
+                textDecoration: 'none',
+                fontSize: 14,
+                fontWeight: ativo ? 600 : 500,
+                padding: '6px 2px',
+                borderBottom: ativo ? '2px solid var(--cor-vermelho)' : '2px solid transparent',
+              }}
+            >
+              {l.label}
+            </a>
+          );
+        })}
+      </div>
       <div style={{ flex: 1 }} />
-      {usuario && <span style={{ color: '#e8b9b9', fontSize: 13 }}>{usuario.nome}</span>}
-      <button onClick={sair} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,.3)', color: '#fff', padding: '5px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12 }}>
+      {usuario && (
+        <span className="nav-usuario" style={{ color: 'var(--cor-rosa-label)', fontSize: 13 }}>
+          {usuario.nome}
+        </span>
+      )}
+      <button onClick={sair} className="btn btn-fantasma" style={{ padding: '6px 14px', fontSize: 12, flexShrink: 0 }}>
         Sair
       </button>
     </nav>

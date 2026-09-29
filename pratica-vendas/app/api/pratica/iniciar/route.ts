@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verificarTokenSessao } from '@/lib/auth/sessao';
-import { contarSessoesHoje, criarSessao, buscarSessaoAbertaSemUso } from '@/db/sessoesPratica';
-import { podeIniciarSessao, LIMITE_SESSOES_POR_DIA } from '@/lib/limiteSessoes';
+import { criarSessao, buscarSessaoAbertaSemUso } from '@/db/sessoesPratica';
 
 export async function POST(req: NextRequest) {
   const dados = await verificarTokenSessao(req.cookies.get('sessao')?.value ?? '');
@@ -15,14 +14,6 @@ export async function POST(req: NextRequest) {
   const sessaoAberta = await buscarSessaoAbertaSemUso(dados.usuarioId, cenarioId);
   if (sessaoAberta) {
     return NextResponse.json({ sessaoId: sessaoAberta });
-  }
-
-  const sessoesHoje = await contarSessoesHoje(dados.usuarioId);
-  if (!podeIniciarSessao(sessoesHoje)) {
-    return NextResponse.json(
-      { erro: `Você já usou as ${LIMITE_SESSOES_POR_DIA} práticas de hoje. Volte amanhã.` },
-      { status: 429 }
-    );
   }
 
   const sessaoId = await criarSessao(dados.usuarioId, cenarioId);

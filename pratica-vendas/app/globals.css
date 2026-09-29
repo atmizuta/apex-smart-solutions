@@ -1,0 +1,229 @@
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+/* Tokens derivados do Manual de Identidade Apex x Claro (pasta "Identidade
+   Visual Apex Claro" na raiz do projeto) — nunca usar hex solto fora daqui. */
+:root {
+  --cor-vinho-900: #2a0808;
+  --cor-vinho-800: #3d0d0d;
+  --cor-vinho-700: #4d1212;
+  --cor-vermelho: #e30613;
+  --cor-vermelho-600: #c00510;
+  --cor-vermelho-escuro: #8c0000;
+  --cor-rosa-label: #e2a3a3;
+  --cor-papel: #fdfbfa;
+  --cor-papel-fosco: #f4f0ef;
+  --cor-tinta: #201413;
+  --cor-tinta-suave: #6b5f5e;
+  --cor-linha: #e8dedd;
+  --cor-branco: #ffffff;
+  --cor-sucesso: #1f7a4d;
+
+  --fonte-display: 'Oswald', system-ui, sans-serif;
+  --fonte-corpo: 'Inter', system-ui, sans-serif;
+
+  --raio: 10px;
+  --raio-pequeno: 6px;
+  --sombra-card: 0 1px 2px rgba(42, 8, 8, 0.06), 0 8px 24px -12px rgba(42, 8, 8, 0.18);
+  --sombra-elevado: 0 20px 60px -20px rgba(42, 8, 8, 0.45);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--cor-vinho-800);
+  font-family: var(--fonte-corpo);
+  color: var(--cor-tinta);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-family: var(--fonte-display);
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  font-weight: 600;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+}
+
+button, input {
+  font-family: var(--fonte-corpo);
+}
+
+:focus-visible {
+  outline: 2px solid var(--cor-vermelho);
+  outline-offset: 2px;
+}
+
+/* Casca do app: fundo vinho com grade sutil, igual à capa de apresentação
+   e ao manual de identidade. */
+.tela-app {
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.12) 100%),
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.045) 0px, rgba(255,255,255,0.045) 1px, transparent 1px, transparent 64px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.045) 0px, rgba(255,255,255,0.045) 1px, transparent 1px, transparent 64px),
+    var(--cor-vinho-800);
+}
+
+.rotulo {
+  font-family: var(--fonte-display);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 12px;
+  color: var(--cor-rosa-label);
+  font-weight: 500;
+}
+
+.cartao {
+  background: var(--cor-papel);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra-card);
+}
+
+.faixa-vermelha {
+  height: 4px;
+  background: linear-gradient(90deg, var(--cor-vermelho) 0%, var(--cor-vermelho-escuro) 100%);
+}
+
+/* Botões */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--fonte-corpo);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 11px 20px;
+  border-radius: var(--raio-pequeno);
+  border: none;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease, opacity 0.12s ease;
+}
+.btn:active {
+  transform: translateY(1px);
+}
+.btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.btn-primario {
+  background: var(--cor-vermelho);
+  color: var(--cor-branco);
+}
+.btn-primario:hover:not(:disabled) {
+  background: var(--cor-vermelho-600);
+}
+.btn-secundario {
+  background: var(--cor-tinta);
+  color: var(--cor-branco);
+}
+.btn-secundario:hover:not(:disabled) {
+  background: #33201f;
+}
+.btn-fantasma {
+  background: transparent;
+  color: var(--cor-branco);
+  border: 1px solid rgba(255,255,255,0.3);
+}
+.btn-fantasma:hover:not(:disabled) {
+  background: rgba(255,255,255,0.08);
+}
+
+.campo {
+  width: 100%;
+  padding: 11px 14px;
+  font-size: 14px;
+  border-radius: var(--raio-pequeno);
+  border: 1px solid var(--cor-linha);
+  background: var(--cor-branco);
+  color: var(--cor-tinta);
+}
+.campo:focus {
+  border-color: var(--cor-vermelho);
+}
+.campo::placeholder {
+  color: #a89c9b;
+}
+
+.marca-apex {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.marca-apex .nome {
+  font-family: var(--fonte-display);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  font-size: 18px;
+  color: var(--cor-branco);
+  line-height: 1;
+}
+.marca-apex .subnome {
+  font-family: var(--fonte-display);
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  font-size: 9px;
+  color: var(--cor-rosa-label);
+  text-transform: uppercase;
+  display: block;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+.nav-app {
+  background: var(--cor-vinho-900);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-height: 56px;
+}
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.nav-links::-webkit-scrollbar {
+  display: none;
+}
+.nav-links a {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.nav-divisor {
+  width: 1px;
+  align-self: stretch;
+  margin: 12px 0;
+  background: rgba(255,255,255,0.12);
+  flex-shrink: 0;
+}
+.nav-usuario {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .nav-app {
+    gap: 12px;
+    padding: 0 12px;
+  }
+  .marca-apex .subnome {
+    display: none;
+  }
+  .nav-usuario {
+    display: none;
+  }
+}

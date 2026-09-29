@@ -27,5 +27,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ sessaoI
     finalizado: Boolean(sessao.finalizadoEm),
     nota: sessao.nota,
     feedback: sessao.feedback,
+    dicas: sessao.dicas ?? [],
   });
 }

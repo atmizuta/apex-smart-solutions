@@ -19,9 +19,9 @@ async function seed() {
 
   for (const cenario of CENARIOS_INICIAIS) {
     await sql`
-      insert into cenarios (titulo, descricao, prompt_ia_cliente, categoria, nome_cliente, empresa_cliente)
-      values (${cenario.titulo}, ${cenario.descricao}, ${cenario.promptIaCliente}, ${cenario.categoria}, ${cenario.nomeCliente}, ${cenario.empresaCliente})
-      on conflict (titulo) do nothing
+      insert into cenarios (titulo, descricao, prompt_ia_cliente, categoria, nome_cliente, empresa_cliente, icone)
+      values (${cenario.titulo}, ${cenario.descricao}, ${cenario.promptIaCliente}, ${cenario.categoria}, ${cenario.nomeCliente}, ${cenario.empresaCliente}, ${cenario.icone})
+      on conflict (titulo) do update set icone = excluded.icone
     `;
   }
 

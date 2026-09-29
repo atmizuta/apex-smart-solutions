@@ -17,7 +17,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ sessao
   }
   if (sessao.finalizadoEm) {
     // já foi avaliada — devolve o resultado que já existe, não chama a IA de novo.
-    return NextResponse.json({ nota: sessao.nota, feedback: sessao.feedback });
+    return NextResponse.json({ nota: sessao.nota, feedback: sessao.feedback, dicas: sessao.dicas ?? [] });
   }
 
   // reivindica a sessão pra avaliação de forma atômica: se um clique duplo (ou
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ sessao
   if (!reivindicou) {
     const sessaoAtual = await buscarSessao(sessao.id);
     if (sessaoAtual?.finalizadoEm) {
-      return NextResponse.json({ nota: sessaoAtual.nota, feedback: sessaoAtual.feedback });
+      return NextResponse.json({ nota: sessaoAtual.nota, feedback: sessaoAtual.feedback, dicas: sessaoAtual.dicas ?? [] });
     }
     return NextResponse.json(
       { erro: 'Essa sessão já está sendo avaliada. Aguarde alguns segundos e tente de novo.' },
@@ -54,11 +54,11 @@ export async function POST(req: NextRequest, context: { params: Promise<{ sessao
     );
   }
 
-  const linhasAfetadas = await finalizarSessao(sessao.id, resultado.nota, resultado.feedback);
+  const linhasAfetadas = await finalizarSessao(sessao.id, resultado.nota, resultado.feedback, resultado.dicas);
   if (linhasAfetadas === 0) {
     // corrida: outra requisição finalizou entre o buscarSessao e agora — busca o resultado real salvo.
     const sessaoAtualizada = await buscarSessao(sessao.id);
-    return NextResponse.json({ nota: sessaoAtualizada?.nota, feedback: sessaoAtualizada?.feedback });
+    return NextResponse.json({ nota: sessaoAtualizada?.nota, feedback: sessaoAtualizada?.feedback, dicas: sessaoAtualizada?.dicas ?? [] });
   }
 
   return NextResponse.json(resultado);
