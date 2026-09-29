@@ -87,8 +87,9 @@ function montar(role){
   assert(!/IDENTIDADE VISUAL "SINAL DE ÁPICE" \(24\/09\/2026\)/.test(css), 'camada antiga de identidade (24/09) saiu do CSS');
   assert(!/border-radius:(10|12|14)px/.test(css), 'nenhum componente com os cantos arredondados antigos (10–14px)');
   assert(/\/\* ---------- 5\. COMPONENTES ---------- \*\//.test(css) && /\/\* ---------- 6\. TELAS ---------- \*\//.test(css), 'CSS novo tem as seções de componentes e telas');
-  // cores de status soltas nas telas (fora dos geradores de PDF/Word, que não mudam)
-  const semDocs = jsCode.replace(/function (montarPdfProposta|montarPdfPropostaCliente|montarDocxProposta|generateFaturaAnalisePDF)\b[\s\S]*?\n}\n/g, '');
+  // cores de status soltas nas telas (fora dos geradores de PDF/Word, que não mudam, e do HTML do
+  // e-mail em lote — seção 46 —, que precisa de cor fixa inline: cliente de e-mail não lê var(--…))
+  const semDocs = jsCode.replace(/function (montarPdfProposta|montarPdfPropostaCliente|montarDocxProposta|generateFaturaAnalisePDF|emailLoteMontarHtml)\b[\s\S]*?\n}\n/g, '');
   const soltas = (semDocs + htmlNoScript.replace(/<style>[\s\S]*?<\/style>/, '')).match(/#(fee2e2|dcfce7|16a34a|dc2626|9ca3af|6b7280|111827|f3f4f6|fafafa|f1f2f4|eef0f2|d97706|fef3c7|b45309|15803d|b91c1c|fdf2f2)\b/gi) || [];
   assert(soltas.length === 0, 'cores de status viraram tokens (sobraram: ' + [...new Set(soltas)].join(', ') + ')');
   assert(w.eval('typeof corToken') === 'function', 'corToken existe (cores pro Chart.js)');

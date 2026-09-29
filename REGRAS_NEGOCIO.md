@@ -1879,6 +1879,78 @@ Estão também no arquivo `CLAUDE.md` na raiz do repositório, que o Claude lê 
 
 O repositório é **público**. Foram removidos a senha do SFTP (`deploy_biometria_v2.py`), a base de clientes (`base_clientes.*`), leads com nome e CPF/CNPJ, endereços de leads e a fatura real de um cliente usada como exemplo. O `.gitignore` impede que voltem. Eles continuam no histórico do git — **a senha do SFTP precisa ser trocada no Hostinger**. Credenciais nunca devem ser escritas em arquivos do repositório.
 
+## 46. Notificar clientes por e-mail (em lote), com conexão do e-mail Hostinger por usuário (28/09/2026)
+
+Pedido do usuário, com uma captura de tela de um e-mail-modelo de outra operadora (assunto "novo gerente responsável", botão de WhatsApp e assinatura em cartão escuro): *"preciso que abaixo da sessao de envio de mensagem para whatsapp crie uma opcao agora por email e deixe a opcao de cada usuário conectar o seu email do hostinger com a plataforma e façoa o envio automatico. utilize o modelo anexo mas com o padrão da Claro e da APEX para que possa ser disparado por e-mail."*
+
+Esclarecido com duas perguntas:
+- Como o disparo em lote deveria funcionar: **"Um botão único envia todos"** (diferente do WhatsApp em lote, §43, que é um botão por linha) — porque o risco de banimento por disparo automatizado em sequência é um problema específico do WhatsApp; e-mail não carrega esse mesmo risco.
+- Onde ficaria a tela de conectar o e-mail: **"Nova aba 'Configurações'"** no menu lateral (não dentro do menu do usuário logado).
+
+### 46.1 Aba "Configurações"
+
+Nova aba no grupo "Ferramentas" do menu lateral, logo depois de "Biometria" (`data-tab="config"`). O consultor informa seu e-mail Hostinger, a senha do e-mail (senha de aplicativo/conta, não a senha do painel Claro/Apex), nome de exibição e telefone opcionais. Ao salvar, os dados vão para a tabela `user_email_config` (uma linha por usuário, RLS restrita ao próprio dono — nem Admin enxerga a senha salva de outro consultor). Reabrir a senha em branco e salvar de novo **mantém** a senha já salva (só é sobrescrita se o consultor digitar uma nova) — assim ele pode atualizar só o nome de exibição sem redigitar a senha.
+
+### 46.2 Notificar clientes por e-mail (em lote)
+
+Na tela de proposta avulsa, logo abaixo do card de notificação por WhatsApp (§43), um novo card "Notificar clientes por e-mail (em lote)" abre um modal com: assunto e corpo pré-preenchidos com um modelo padrão (no tom do modelo enviado pelo usuário, adaptado para a identidade Claro/Apex, com `{{cliente}}` e o nome do consultor logado já resolvido no corpo), até 10 linhas de destinatário (nome + e-mail, mesmo padrão visual do WhatsApp em lote) e um único botão **"Enviar para todos"**.
+
+Se o consultor ainda não conectou o e-mail em Configurações, o modal mostra um aviso e desabilita o botão de envio, com um link direto para a aba Configurações. Com e-mail conectado, "Enviar para todos" valida que todo destinatário tem e-mail em formato válido, monta o HTML final (parágrafos do corpo + cartão de assinatura escuro com nome, cargo, telefone/e-mail do consultor e os logos Apex/Claro, reaproveitando `getApexLogoSrc()`/`getClaroLogoSrc()`) e chama a Edge Function `send-email-lote` uma única vez, passando a lista de destinatários, assunto, corpo em HTML e o nome do consultor. O resultado (sucesso/erro) de cada destinatário é exibido no modal.
+
+### 46.3 Arquitetura (envio sempre pelo servidor, nunca pelo navegador)
+
+- **Tabela `user_email_config`** (seção 11 do `supabase_schema.sql`): `user_id` (chave primária, referencia `profiles`), `email`, `smtp_pass`, `nome_exibicao`, `telefone`, `smtp_host` (padrão `smtp.hostinger.com`), `smtp_port` (padrão 465), `ativo`. RLS: só o próprio dono lê/escreve/apaga a própria linha — sem exceção para admin/supervisor, já que a coluna guarda a senha do e-mail do consultor.
+- **Edge Function `send-email-lote`** (`edge_function_send_email_lote.ts`): confere o JWT de quem chamou, busca a config SMTP **daquele** usuário (nunca de outro), substitui `{{cliente}}` por destinatário no assunto e no corpo, e envia via SMTP Hostinger (porta 465, TLS, biblioteca `denomailer`). Limite de 10 destinatários por chamada, replicando o teto do modal.
+- O e-mail é sempre disparado no servidor (Edge Function) — a senha do e-mail do consultor nunca trafega para além da chamada de login em Configurações e nunca fica acessível no navegador depois de salva (o campo de senha some do formulário; reabrir a tela nunca reexibe a senha salva).
+
+### 46.4 Publicação pendente (fora do alcance direto do Claude nesta sessão)
+
+A tentativa de aplicar a migração SQL diretamente no projeto Supabase ("apex") foi bloqueada pela política de modo automático desta sessão ("Production Deploy") — o mesmo já acontece com o deploy direto de Edge Functions neste projeto. Por isso, como em todas as Edge Functions anteriores deste projeto, a entrega são os arquivos prontos para o usuário aplicar:
+
+1. Rodar o SQL da seção "11) CONFIGURAÇÃO DE E-MAIL POR USUÁRIO" em `supabase_schema.sql` (Supabase > SQL Editor > New query > Run) — é seguro rodar o arquivo inteiro de novo, mesmo já tendo rodado versões anteriores.
+2. Publicar a Edge Function `send-email-lote` (Supabase > Edge Functions > Deploy a new function > colar o conteúdo de `edge_function_send_email_lote.ts`).
+
+**Importante, separado desta funcionalidade:** o repositório é público desde a seção 45.3, e a senha do SFTP usada em `deploy_biometria_v2.py` continua no histórico do git — ela ainda precisa ser trocada no Hostinger pelo usuário.
+
+### 46.5 Testado
+
+Novo arquivo `test_email_lote.js` (43 asserts, 0 falhas): aba Configurações existe e carrega o status "não conectou" quando não há linha salva; salvar sem senha na primeira conexão dá erro sem chamar upsert; salvar com e-mail+senha válidos faz upsert em `user_email_config` e o status passa a "Conectado" (senha limpa do campo depois); abrir o modal de e-mail em lote sem conta conectada mostra aviso e desabilita "Enviar para todos"; com conta conectada, o modal nasce com 1 linha e assunto/corpo padrão (corpo já traz o nome do consultor logado); "+ Adicionar destinatário" soma linhas até o teto de 10 e o botão some no limite; remover linhas devolve ao teto; "Enviar para todos" valida destinatário obrigatório e formato de e-mail antes de chamar a function; com dados válidos, chama `sb.functions.invoke('send-email-lote', ...)` uma única vez com o payload esperado (destinatários, assunto, corpoHtml, nomeConsultor) e exibe o resultado por destinatário.
+
+Reexecutados sem quebras: `test_whatsapp_lote.js` (31 asserts), `test_tipo_avulsa.js`, `test_redesign_shell.js` (39 asserts). `test_reorganizacao_abas.js` foi atualizado para incluir "config" na lista esperada da ordem das abas (a aba nova ficou no grupo Ferramentas, logo depois de Biometria) — 33 asserts, 0 falhas depois do ajuste.
+
+### 46.6 Ajustes pós-publicação: logos, botão de WhatsApp e troca de biblioteca de envio (29/09/2026)
+
+Depois da publicação inicial, o primeiro e-mail de teste real (Gmail) chegou com os logos quebrados (ícone de imagem faltando). Causa: o HTML usava `data:image/...;base64,...` embutido pros logos — a maioria dos clientes de e-mail (Gmail, Outlook) bloqueia/remove imagens em base64 embutidas por padrão. Corrigido extraindo os logos originais (`apex_logo_email.png`, `claro_logo_email.jpg`) e publicando-os como arquivos reais em `https://apexsmart.com.br/apex_logo_email.png` e `https://apexsmart.com.br/claro_logo_email.jpg` — o HTML do e-mail passou a referenciar essas URLs públicas em vez do base64.
+
+No mesmo pedido (*"ta com erro na imagem, da pra colocar uma imagem interna com um botao direcionando para o whatsapp do numero informado?"*), foi adicionado um botão "Falar com [nome] no WhatsApp" no corpo do e-mail, montado com `whatsappNumeroParaLink()` (a mesma função já usada no WhatsApp em lote, §43) a partir do telefone salvo em Configurações — só aparece se o consultor tiver telefone cadastrado.
+
+Depois de ver um e-mail-modelo de referência mais elaborado (faixa de destaque com título grande, lista de benefícios em cartão, botão de CTA, rodapé), o usuário pediu (*"pode ser algo parecido? isso para enviar no e-mail, manter a opção de texto editavel"*) um redesign do HTML mantendo o corpo 100% editável como texto puro (sem novos campos de formulário): `emailLoteCorpoParaBlocos()` agora separa o texto digitado em blocos por linha em branco, identificando automaticamente listas (linhas começando com `-`/`•`) para virar cartão de benefícios (`#FFF7F2`, com título opcional) e o primeiro parágrafo pra virar a "faixa de destaque" (fundo `#F7F5F1`, tag vermelha em caixa alta "APEX SMART SOLUTIONS · CLARO EMPRESAS", título grande em negrito, botão de WhatsApp logo abaixo); os demais parágrafos seguem como texto normal. Cabeçalho: barra branca com os dois logos lado a lado (linha divisória entre eles) e borda inferior vermelha de 3px. Rodapé: barra cinza clara "Apex Smart Solutions · Parceira autorizada Claro Empresas".
+
+Depois de outro teste real mostrando artefatos `=20`/`=` soltos acima e abaixo do texto (bug conhecido do encoder quoted-printable da biblioteca `denomailer`, usada até então no `send-email-lote`), a Edge Function foi reescrita para usar `nodemailer` (`npm:nodemailer@6.9.14`) em vez de `denomailer` — resolve o bug e é uma biblioteca mais madura. No mesmo pedido (*"melhorar a fonte para ser mais amigavel, deixar a assinatura mais clean"*), a fonte do corpo passou a usar uma pilha mais amigável (`'Segoe UI', Roboto, Helvetica, Arial, sans-serif`, constante `EMAIL_FONT_STACK`) e a assinatura deixou de ser um cartão escuro com os logos dentro (difícil de ler) para um cartão claro (`#FAFAFA`) com borda esquerda vermelha de 4px, nome em negrito, cargo em vermelho e telefone/e-mail em cinza — sem logos duplicados (os logos já aparecem só no cabeçalho).
+
+**Arquivos afetados:** `_template.html` (funções `emailLoteCorpoParaBlocos`, `emailLoteMontarHtml`, constantes `EMAIL_LOGO_APEX_URL`/`EMAIL_LOGO_CLARO_URL`/`EMAIL_FONT_STACK`), `edge_function_send_email_lote.ts` (troca denomailer→nodemailer), `apex_logo_email.png` e `claro_logo_email.jpg` (novos, hospedados direto no servidor via SFTP — não fazem parte do repositório git). Publicado com autorização do usuário, passo a passo, direto no Supabase (Edge Function) e no servidor (imagens + painel).
+
+## 47. Visão Diária: otimização para smartphone, com padrões modernos de mobile (29/09/2026)
+
+Pedido do usuário em duas partes na mesma mensagem. A primeira — *"no resultado de ontem do gabriel vieram duas renovações, mas na visao diaria aparece como migração"* — foi investigada rastreando todo o pipeline (`extractProducaoRecords()` → tabela `producao_pedidos` → `DIARIA_TIPOS_VENDA` em `_dashboard_producao.html`): `grupo` é um passthrough literal da coluna "GRUPO" da planilha do NeoCRM, sem nenhuma reclassificação no painel. Perguntado ao usuário via pergunta direta, que confirmou: **foi erro de cadastro do Gabriel no NeoCRM** — não é bug do painel, nenhuma alteração de código foi feita.
+
+A segunda parte — *"otimizar tambem para uma melhor visualização no smartphone, por exemplo no visao diaria condensar para que eu possa ver todo o resultado dia na tela"*, complementada depois por *"manter o desginer e cores, mas pode alterar o que achar necessarios para ficar mais ainda responsivo e moderno para smartphone, usar as melhores praticas de mercado"* — resultou em dois ajustes de CSS em `_dashboard_producao.html` (dentro do bloco `@media (max-width:600px)`, escopado só pra `body.tab-diaria`, sem afetar as outras sub-abas do Dashboard de Produção nem alterar cores/paleta):
+
+1. **Condensação inicial**: reduziu paddings, fontes e alturas dos cards de KPI, do gráfico de ritmo por hora e dos dois rankings (tipo de venda / vendedores), pra caber o resultado do dia inteiro na tela do celular com o mínimo de rolagem.
+2. **Refinamento com padrões modernos de mobile**: os cards de KPI e de "Por tipo de venda" viraram um carrossel horizontal com `scroll-snap` (`overflow-x:auto; scroll-snap-type:x proximity`, scrollbar escondida) — padrão comum em painéis mobile (App Store, Apple Health, Google Fit) que permite manter o texto num tamanho legível sem precisar espremer numa grade apertada, já que agora a altura economizada vem do scroll horizontal, não de fontes minúsculas. O campo de data e os demais controles do topo ganharam área de toque maior (mínimo de ~36px de altura, próximo da referência de acessibilidade de ~44px). Também foi adicionado padding de `env(safe-area-inset-*)` no modo TV (`body.tv-mode`) pra não cortar conteúdo atrás do notch/ilha dinâmica/cantos arredondados em celulares com tela cheia.
+
+**Arquivos afetados:** `_template.html` (o bloco `PRODUCAO_DASHBOARD_TPL_B64` foi reempacotado a partir de `_dashboard_producao.html` via `dashboard_tpl.py empacotar`) → `painel_clientes_apex.html` (regenerado via `build_painel.py`).
+
+### 47.1 Testado
+
+`test_visao_diaria.js` reexecutado sem quebras: 31 (estrutura) + 61 (convergência) + 67 (render real) = 159 asserts, 0 falhas.
+
+### 47.2 Publicado
+
+Deploy feito via `deploy_biometria_v2.py` (backup automático do painel anterior em `backups_painel_clientes_apex/`, MD5 local×remoto conferido pra imagem e pro painel — ambos "OK").
+
+Rebuild (`python3 build_painel.py`) confirmado sem placeholders pendentes (747436 bytes).
+
 ## 48. Pedidos em Alerta — pedidos ganhos parados nas etapas pós-venda (28/09/2026)
 
 Aba nova dentro do Dashboard de Produção, ao lado de Visão Geral / Cadastro Diário / Visão Diária. Pedido do usuário: mostrar os pedidos que **já geraram venda mas estão parados**, com alerta por cor, e exportar um Excel para mandar ao back office. Spec: `docs/superpowers/specs/2026-09-28-pedidos-em-alerta-design.md`; plano: `docs/superpowers/plans/2026-09-28-pedidos-em-alerta.md`.
