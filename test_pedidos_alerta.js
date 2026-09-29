@@ -1,4 +1,4 @@
-// Testa a aba "Pedidos em Alerta" do Dashboard de Produção (28/09/2026, REGRAS_NEGOCIO.md seção 46).
+// Testa a aba "Pedidos em Alerta" do Dashboard de Produção (28/09/2026, REGRAS_NEGOCIO.md seção 48).
 // Mesma técnica de test_visao_diaria.js: decodifica o template embutido de verdade
 // (PRODUCAO_DASHBOARD_TPL_B64), preenche os placeholders com dados FICTÍCIOS e roda o script real num
 // jsdom. Nenhum dado real de cliente aqui — o repositório é público.

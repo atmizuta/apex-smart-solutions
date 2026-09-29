@@ -426,7 +426,7 @@ Reaproveita 100% do HTML/CSS/JS já testado do `Dashapex.html` (histórico de us
 
 - **Aba "Visão Geral"**: KPIs (valor total, pedidos, ticket médio, taxa de perda), insights automáticos, composição por vendedor (Ganho/Andamento/Devolvido/Perdido empilhado), valor por etapa, motivos de perda (por tag), diagnóstico com plano de ação por motivo de perda, valor por etapa detalhado por vendedor, valor por grupo.
 - **Aba "Cadastro Diário"**: volume cadastrado por dia (gráfico de barras), calendário de vendas com média por dia da semana, matriz diária por vendedor (dias sem venda em dia útil ficam em vermelho; fins de semana/feriados nacionais — calculados automaticamente, incluindo os móveis — ficam sombreados e não contam como falha), tabela detalhada por dia.
-- **Aba "Pedidos em Alerta"** (28/09/2026, só admin e supervisor): pedidos ganhos parados em Entrega, Antifraude e Portabilidade (andamento/tratativa), por dias úteis desde a última atualização, com exportação para Excel colorido — ver seção 46.
+- **Aba "Pedidos em Alerta"** (28/09/2026, só admin e supervisor): pedidos ganhos parados em Entrega, Antifraude e Portabilidade (andamento/tratativa), por dias úteis desde a última atualização, com exportação para Excel colorido — ver seção 48.
 - Filtros por Grupo, período (Cadastro ou Atualização), Vendedor(es) e Etapa — todos combináveis. Por padrão, os grupos **Aparelho, Renovação e Banda Larga** vêm desmarcados (só entram se o usuário marcar manualmente); os demais grupos (Novo, Portabilidade, Transf. Titularidade) vêm marcados.
 - Clicar em qualquer barra, célula, linha de tabela ou segmento do gráfico abre um detalhamento (drilldown) com a lista de pedidos por trás daquele número, exportável para Excel.
 
@@ -1879,14 +1879,14 @@ Estão também no arquivo `CLAUDE.md` na raiz do repositório, que o Claude lê 
 
 O repositório é **público**. Foram removidos a senha do SFTP (`deploy_biometria_v2.py`), a base de clientes (`base_clientes.*`), leads com nome e CPF/CNPJ, endereços de leads e a fatura real de um cliente usada como exemplo. O `.gitignore` impede que voltem. Eles continuam no histórico do git — **a senha do SFTP precisa ser trocada no Hostinger**. Credenciais nunca devem ser escritas em arquivos do repositório.
 
-## 46. Pedidos em Alerta — pedidos ganhos parados nas etapas pós-venda (28/09/2026)
+## 48. Pedidos em Alerta — pedidos ganhos parados nas etapas pós-venda (28/09/2026)
 
 Aba nova dentro do Dashboard de Produção, ao lado de Visão Geral / Cadastro Diário / Visão Diária. Pedido do usuário: mostrar os pedidos que **já geraram venda mas estão parados**, com alerta por cor, e exportar um Excel para mandar ao back office. Spec: `docs/superpowers/specs/2026-09-28-pedidos-em-alerta-design.md`; plano: `docs/superpowers/plans/2026-09-28-pedidos-em-alerta.md`.
 
-### 46.1 Quem vê
+### 48.1 Quem vê
 Só **admin e supervisor** (`ADMIN_MODE` do dashboard). Para o consultor o botão da aba nem é criado e o painel é removido do DOM. Não existe vínculo confiável entre o usuário do painel e o "Proprietário do pedido" do NeoCRM, então a opção "consultor vê só os próprios" ficou de fora.
 
-### 46.2 Regra
+### 48.2 Regra
 - **Etapas monitoradas:** `ENTREGA`, `ANTIFRAUDE`, `PORTABILIDADE EM ANDAMENTO` e `PORTABILIDADE EM TRATATIVA` (todas "(NEOCRM)"). Todos os grupos entram, independente dos filtros da barra lateral.
 - **1 linha por pedido** (`numero_pedido`):
   - vale a ATUALIZACAO mais recente entre as linhas e o CADASTRO mais antigo;
@@ -1898,14 +1898,14 @@ Só **admin e supervisor** (`ADMIN_MODE` do dashboard). Para o consultor o botã
 - **Níveis:** 0–2 dias úteis ficam fora · 3–5 🟡 MÍNIMO · 6–9 🟠 MÉDIO · 10+ 🔴 MÁXIMO (constante `ALERTA_FAIXAS`).
 - **ATUALIZACAO × seção 17.9:** a 17.9 mostrou que a ATUALIZACAO não serve como "data da venda" (sincronizações em massa do NeoCRM). Aqui ela é usada de propósito, porque a pergunta é justamente "há quanto tempo o pedido não se mexe". Na planilha de 28/09 nenhum pedido dessas 4 etapas tinha horário de atualização repetido (sem sinal de sync em massa). Se isso mudar, rever.
 
-### 46.3 Tela
+### 48.3 Tela
 - **Placar:** total em alerta, 🔴, 🟠 e 🟡.
 - **Matriz Etapa × Nível:** clicar num número filtra a tabela.
 - **Filtros próprios:** Etapa, Nível e Consultor, mais "Limpar filtros". Um consultor que some numa atualização volta para "Todos".
 - **Tabela:** do mais parado para o menos parado, com a linha inteira na cor clara do nível e o selo na cor forte.
 - **Cores:** tokens `--alerta-max/med/min` (derivados de `--perdido`, `--devolvido` e `--andamento`) e fundos `--alerta-*-bg`.
 
-### 46.4 Excel
+### 48.4 Excel
 - **Biblioteca:** o SheetJS gratuito do painel não grava cor de célula, então este Excel usa a **ExcelJS 4.4.0** (cdnjs), carregada só no clique em "Exportar Excel". Se falhar, aparece "Não foi possível gerar o Excel agora — tente de novo".
 - **Arquivo:** `PedidosEmAlerta_<data da base>.xlsx`.
 - **Aba "Pedidos em Alerta":**
@@ -1917,12 +1917,14 @@ Só **admin e supervisor** (`ADMIN_MODE` do dashboard). Para o consultor o botã
 - **Aba "Resumo":** a matriz dos pedidos exportados.
 - **O que exporta:** só o que está filtrado na tela.
 
-### 46.5 Testes
+### 48.5 Testes
 - `test_pedidos_alerta.js`: dias úteis, feriados, fronteiras dos níveis, fuso, agrupamento, tela, filtros, atualização de 1h e Excel. Usa dados fictícios. O Excel é gerado pelo bundle de navegador da ExcelJS (o mesmo do cdnjs) dentro do jsdom e relido com a ExcelJS do Node.
 - `test_pedidos_alerta_planilha.js`: confere a planilha real de 28/09 (61 em alerta: 21/6/34). Fica fora do git e imprime `PULADO` quando ausente.
 
-### 46.6 Junção com a versão publicada em 28/09
+### 48.6 Junção com a versão publicada em 28/09
 O `main` oficial não tinha a versão publicada às 19:24 de 28/09 (dashboard mobile, andamento amarelo/devolvido laranja, card Claro Monitor, "Linhas" só de voz). Ela foi juntada antes desta feature (regra da seção 45). O `test_redesign_shell.js` passou a aceitar o amarelo/laranja de status reintroduzidos a pedido do usuário, e continua proibindo o verde/vermelho antigos.
 
-### 46.7 Fora de escopo (por ora)
+Em 29/09 a versão publicada às 10:15 (seções 46 e 47: e-mail em lote e Visão Diária no celular) tinha sido feita a partir do `main` sem as mudanças de 28/09, que saíram do ar. A pedido do usuário, a junção desta feature traz as duas de volta juntas: o `main` de 29/09, as mudanças de 28/09 e os Pedidos em Alerta. As regras de celular da Visão Diária das duas versões coexistem (as de 29/09 vêm depois no CSS e prevalecem onde se sobrepõem).
+
+### 48.7 Fora de escopo (por ora)
 Coluna FILA do NeoCRM (exigiria mudar upload e schema), envio automático do Excel, histórico de alertas, feriados estaduais e municipais.
