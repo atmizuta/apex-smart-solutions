@@ -53,8 +53,9 @@ assert(Math.abs(total - 169.98) < 0.001, 'valor total sem as cópias (169,98): '
 assert(ctx.contar(rows) === 2, 'contarLinhasGrupoAgregado conta as 2 linhas GROSS pro aviso do upload: ' + ctx.contar(rows));
 assert(ctx.ehAgregado('GROSS') && ctx.ehAgregado(' Gross ') && !ctx.ehAgregado('VOZ - Novo') && !ctx.ehAgregado(null), 'ehGrupoAgregadoProducao reconhece GROSS (maiúsc./minúsc./espaços) e só ele');
 
-// o resumo do upload (confirm) avisa quantas linhas foram ignoradas
-assert(/linha\(s\) do grupo GROSS ignorada\(s\)/.test(outer), 'confirmação do upload menciona as linhas GROSS ignoradas');
+// (29/09/2026) o upload de planilha saiu do painel — a produção é sincronizada sozinha pela Edge Function
+// sync-producao, que também descarta o GROSS (ver supabase/functions/sync-producao/mapper.ts). As funções
+// acima ficam como fallback documentado e seguem ignorando GROSS; o aviso de confirmação do upload saiu com ele.
 
 console.log('--- test_upload_grupo_gross RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
 if(fail > 0) process.exitCode = 1;

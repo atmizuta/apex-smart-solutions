@@ -2,7 +2,7 @@
 
 Documento vivo. Toda vez que uma regra de negócio do sistema for criada, alterada ou removida, atualize esta página (e registre no changelog no final). É a referência para treinamento de consultores, ajustes futuros e documentação do próprio sistema.
 
-Última atualização: 29/09/2026 (seção 50)
+Última atualização: 29/09/2026 (seção 51)
 
 ---
 
@@ -371,6 +371,7 @@ Card no topo da aba "Movimentação da Base", separado do resumo de 30 dias — 
 - **11/08/2026** — Criada a detecção automática de **Oferta de Convergência**: quando a proposta tem fibra + qualquer linha móvel (renovação, incremento ou portabilidade), o sistema destaca isso com um badge na tela e uma nota no PDF, explicando o bônus de 30GB (Mega Bônus) do book. Corrigido também o aviso desatualizado do seletor de fibra, que dizia "valor avulso" quando na verdade o app sempre usa o preço "Combinado". Ver seções 4.4 e 4.4.1.
 - **12/08/2026** — Redesign da tela "Gerar Proposta" (interface, sem mudança de regra de negócio): resumo (valor atual/proposto/redução/Convergência/meta) passou a ficar sempre visível no topo, em vez de só aparecer depois de rolar toda a tela; as seções Renovação, Incremento, Claro Fibra e Claro Passaporte viraram blocos que abrem/fecham (accordion) com um interruptor (toggle) pra ligar/desligar cada item, abrindo sozinhas quando estão ativas e ficando fechadas quando não estão em uso. Objetivo: reduzir a quantidade de informação exibida de uma vez, sem remover nenhum campo ou cálculo existente. Ver seção 15.
 - **29/09/2026** — Criada a sincronização automática da produção via API do NeoSales (tabela separada `producao_pedidos_neo`, Edge Function `sync-producao`, agendada no pg_cron de hora em hora). O painel continua lendo `producao_pedidos`; a troca de fonte só acontece depois de conferir a paridade da carga inicial. Ver seção 50.
+- **29/09/2026** — Fase 2 da sincronização NeoSales: o Dashboard de Produção passa a ler a produção sincronizada (a tabela do upload manual vira backup e `producao_pedidos` vira uma view sobre `producao_pedidos_neo`); o upload de planilha saiu da aba "Upload Dash", que agora mostra o status da sincronização. Ver seção 51.
 
 ## 15. Interface da tela "Gerar Proposta" (redesign 12/08/2026)
 
@@ -2094,3 +2095,28 @@ As exportações de 28/09 não tinham esse grupo. Afetava tudo o que usa `produc
 - **Provar a paridade** da tabela nova contra `producao_pedidos` depois da carga inicial desta noite, incluindo pedidos por grupo, etapa e valor.
 - **Motivo de perda:** o painel monta o diagnóstico de perdas a partir de `TAGS ATIVIDADE` do export manual (`#SEMINTERESSE`, `#SEMCREDITO`…). A API traz `tagPedido`/`tagUsuario`. Falta confirmar, olhando pedidos perdidos da carga inicial, se o motivo vem em algum campo; se não vier, pedir ao suporte do NeoSales para expor esse dado antes da Fase 2.
 - **Fase 2 (exige aprovação):** trocar o dashboard para `producao_pedidos_neo`, neutralizar o "Upload Dash", exibir "última sincronização" e publicar (regras de publicação no `CLAUDE.md`).
+
+
+## 51. Fase 2 — o Dashboard de Produção lê a produção sincronizada (29/09/2026)
+
+**O que mudou:** o painel deixa de depender de planilha. O Dashboard, a Visão Diária, o Fechamento, o cruzamento do Digital e a função `reconciliacao_neocrm` passam a ler a produção espelhada do NeoCRM (seção 50), atualizada de hora em hora.
+
+### 51.1 Como a virada é feita (sem mexer nas leituras do painel)
+
+- A tabela do upload manual é **renomeada** para `producao_pedidos_manual` e vira **backup** (com o trigger que descarta GROSS, seção 49).
+- `producao_pedidos` passa a ser uma **view somente-leitura** sobre `producao_pedidos_neo` (`security_invoker`: respeita o RLS de quem consulta, mesma regra de antes: só usuário logado). Todas as leituras do painel e a função `reconciliacao_neocrm` continuam usando o nome `producao_pedidos`, sem nenhuma mudança de código.
+- A view **não tem permissão de escrita**: um "Upload Dash" antigo aberto numa aba falha com "permission denied" em vez de gravar algo.
+- A Edge Function `sync-producao` continua gravando em `producao_pedidos_neo`; nada muda nela.
+- SQL da virada: `supabase/migrations/20260930000000_producao_neo_cutover.sql`. **Reversão** (o dashboard volta a ler o backup manual, com os dados de antes da virada): `supabase/rollback/20260930000000_producao_neo_cutover_rollback.sql`.
+
+### 51.2 O que muda no painel
+
+- A aba **Upload Dash** não recebe mais planilha de produção. O card virou **"Produção — atualização automática"**: mostra a última sincronização bem-sucedida, se a última execução deu OK ou falhou, quantos pedidos ela gravou e, se falhou, o motivo. Avisa quando passa de **3 horas sem sincronização bem-sucedida**. Se a consulta do status falhar, o card mostra uma mensagem e não derruba a aba.
+- O "atualizado em" do Dashboard passou a ler a chave `producao_neo_atualizado_em` (gravada pela função a cada sincronização bem-sucedida).
+- A mensagem de estado vazio deixou de pedir planilha: fala em atualização automática.
+- Continua existindo, sem uso na tela, o código de leitura de planilha (`extractProducaoRecords` e afins) como fallback documentado; ele segue ignorando GROSS e é coberto por `test_upload_grupo_gross.js`. As seções 16.x que descrevem o upload de planilha ficam como histórico.
+- Testes: `test_producao_sync_status.js` (novo) e `test_reorganizacao_abas.js` (atualizado: o input de upload sai de propósito).
+
+### 51.3 Condição para a virada
+
+Só se faz depois de provar a paridade da tabela nova contra a antiga (seção 50.7) e de conferir se o motivo de perda vem na API. Enquanto isso não acontece, o painel publicado continua lendo a tabela do upload manual.

@@ -774,14 +774,11 @@
 
     <!-- MOVIMENTAÇÃO DA BASE (admin) -->
     <section class="panel" id="panel-movimentacao">
-      <div class="card">
-        <h3>Atualizar Dashboard de Produção</h3>
-        <p class="desc">Envie a planilha de exportação do NeoCRM (aba "Exportacao") para recalcular o Dashboard de Produção — substitui os dados atuais. Pedidos com etapa "ARQUIVADO (NEOCRM)" são duplicatas e são descartados automaticamente.</p>
-        <div class="fileInputWrap">
-          Arraste ou selecione o arquivo (.xlsx)
-          <br><input type="file" id="producaoUpload" accept=".xlsx,.xls">
-          <div id="producaoUploadStatus" style="margin-top:10px;font-size:12px;color:var(--muted)"></div>
-        </div>
+      <div class="card" id="producaoSyncCard">
+        <h3>Produção — atualização automática</h3>
+        <p class="desc">O Dashboard de Produção é atualizado sozinho, de hora em hora, direto do NeoCRM (NeoSales). Não é mais preciso exportar nem enviar planilha.</p>
+        <div class="statLine" id="producaoSyncStatus"><div class="stat"><b>—</b><span>carregando...</span></div></div>
+        <div id="producaoSyncAviso" style="margin-top:10px;font-size:12px;color:var(--muted)"></div>
       </div>
       <div class="card">
         <h3>Última atualização da base</h3>
@@ -6794,7 +6791,7 @@ async function loadProducaoDashboard(){
 
   const [{ data: records, error }, { data: cfg }] = await Promise.all([
     fetchAllRows(() => sb.from('producao_pedidos').select(cols)),
-    sb.from('config').select('valor').eq('chave', 'producao_atualizado_em').maybeSingle(),
+    sb.from('config').select('valor').eq('chave', 'producao_neo_atualizado_em').maybeSingle(),
   ]);
   if(error){ console.error(error); return; }
 
@@ -6802,8 +6799,8 @@ async function loadProducaoDashboard(){
     frameWrap.style.display = 'none';
     emptyCard.style.display = 'block';
     document.getElementById('producaoEmptyMsg').textContent = canUploadProducao()
-      ? 'Ainda não há nenhuma planilha de produção carregada. Vá em "Upload Dash" pra enviar a planilha do NeoCRM.'
-      : 'Ainda não há nenhuma planilha de produção carregada. Peça a um administrador pra enviar a planilha do NeoCRM em "Upload Dash".';
+      ? 'Ainda não há dados de produção. A atualização é automática (de hora em hora, direto do NeoCRM); veja o status em "Upload Dash".'
+      : 'Ainda não há dados de produção. A atualização é automática, de hora em hora; se esta mensagem persistir, avise um administrador.';
     return;
   }
   emptyCard.style.display = 'none';
@@ -6861,7 +6858,7 @@ async function loadProducaoDashboard(){
     try{
       const [{ data: novos, error: errAuto }, { data: cfgAuto }] = await Promise.all([
         fetchAllRows(() => sb.from('producao_pedidos').select(cols)),
-        sb.from('config').select('valor').eq('chave', 'producao_atualizado_em').maybeSingle(),
+        sb.from('config').select('valor').eq('chave', 'producao_neo_atualizado_em').maybeSingle(),
       ]);
       if(errAuto || !novos || novos.length === 0) return;
       const win = frame.contentWindow;
@@ -6871,88 +6868,60 @@ async function loadProducaoDashboard(){
   }, 3600000);
 }
 
-document.getElementById('producaoUpload').addEventListener('change', function(e){
-  const file = e.target.files[0];
-  if(!file) return;
-  const statusEl = document.getElementById('producaoUploadStatus');
-  statusEl.textContent = 'Lendo arquivo...';
-  const reader = new FileReader();
-  reader.onload = async function(evt){
-    ApexMotion.loader.show('Atualizando dashboard');
-    try{
-      const data = new Uint8Array(evt.target.result);
-      const wb = XLSX.read(data, { type: 'array' });
-      const sheetName = wb.SheetNames.find(n => n.trim().toLowerCase() === 'exportacao'
-        || n.trim().toLowerCase() === 'exportação');
-      if(!sheetName){
-        statusEl.textContent = 'Erro: essa planilha não tem uma aba "Exportacao" — parece não ser a exportação de produção do NeoCRM. Confira se não é a planilha de Base de Clientes por engano.';
-        return;
-      }
-      const ws = wb.Sheets[sheetName];
-      // A exportação do NeoCRM às vezes grava o "!ref" da planilha sem a linha 1 (cabeçalho) —
-      // ex.: "A2:BK559" em vez de "A1:BK559" — então o sheet_to_json por padrão descarta o
-      // cabeçalho e a primeira linha "virada header" acaba sendo uma linha de dados de verdade.
-      // Força o intervalo a sempre começar na linha 0 (linha 1 do Excel) antes de converter.
-      let range = ws['!ref'] ? XLSX.utils.decode_range(ws['!ref']) : null;
-      if(range && range.s.r > 0) range.s.r = 0;
-      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null, range: range || undefined });
-      if(!rows.length){
-        statusEl.textContent = 'Erro: a aba "Exportacao" está vazia.';
-        return;
-      }
-      const headerRow = (rows[0] || []).map(h => h == null ? '' : String(h).trim());
-      const faltando = PRODUCAO_COLUNAS_OBRIGATORIAS.filter(c => !headerRow.includes(c));
-      if(faltando.length){
-        statusEl.textContent = `Erro: colunas esperadas não encontradas na aba "Exportacao": ${faltando.join(', ')}. Confira se é a planilha certa (exportação de produção/pedidos do NeoCRM).`;
-        return;
-      }
-
-      const records = extractProducaoRecords(rows);
-      if(records.length === 0){
-        statusEl.textContent = 'Nenhum pedido válido encontrado (todos sem GRUPO ou só ARQUIVADO).';
-        return;
-      }
-
-      let ganho = 0, perdido = 0, andamento = 0, devolvido = 0;
-      records.forEach(r => {
-        const cat = producaoEtapaCategoria(r.etapa);
-        if(cat === 'ganho') ganho++; else if(cat === 'perdido') perdido++; else if(cat === 'devolvido') devolvido++; else andamento++;
-      });
-      const linhasGross = contarLinhasGrupoAgregado(rows);
-      const avisoGross = linhasGross > 0 ? `\n\n${linhasGross} linha(s) do grupo GROSS ignorada(s) — são cópias de linhas que já estão nos grupos reais.` : '';
-      const msgConfirm = `Substituir os dados atuais do Dashboard de Produção por ${records.length} pedido(s) desta planilha?\n\n${ganho} ganho(s) · ${perdido} perdido(s) · ${andamento} em andamento · ${devolvido} devolvido(s).${avisoGross}`;
-      if(!confirm(msgConfirm)){ statusEl.textContent = ''; e.target.value = ''; return; }
-
-      statusEl.textContent = 'Apagando dados anteriores...';
-      const { error: delErr } = await sb.from('producao_pedidos').delete().gt('id', 0);
-      if(delErr) throw new Error(delErr.message);
-
-      const chunkSize = 500;
-      for(let i = 0; i < records.length; i += chunkSize){
-        statusEl.textContent = `Enviando... ${Math.min(i + chunkSize, records.length)}/${records.length}`;
-        const chunk = records.slice(i, i + chunkSize);
-        const { error: insErr } = await sb.from('producao_pedidos').insert(chunk);
-        if(insErr) throw new Error(insErr.message);
-      }
-
-      // Fuso fixado em São Paulo (27/08/2026), mesmo raciocínio do fix em parseDataProducao —
-      // não depende do fuso configurado no computador de quem faz o upload.
-      const updatedAt = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-      const { error: cfgErr } = await sb.from('config').upsert({ chave: 'producao_atualizado_em', valor: updatedAt, atualizado_em: new Date().toISOString() });
-      if(cfgErr) throw new Error(cfgErr.message);
-
-      statusEl.textContent = `Dashboard atualizado: ${records.length} pedido(s) (${ganho} ganho(s), ${perdido} perdido(s), ${andamento} em andamento, ${devolvido} devolvido(s)).`;
-      await loadProducaoDashboard();
-    }catch(err){
-      console.error(err);
-      statusEl.textContent = 'Erro: ' + err.message;
-    }finally{
-      e.target.value = '';
-      ApexMotion.loader.hide();
-    }
+/* ============ Status da sincronização automática da produção (NeoSales) — aba Upload Dash ============ */
+// A produção é espelhada sozinha pela Edge Function sync-producao (pg_cron, de hora em hora, ver
+// REGRAS_NEGOCIO.md seção 50). O antigo upload de planilha saiu. Aqui só se mostra o status; producao_sync_log
+// é legível por admin/supervisor. Textos que vêm de fora (mensagem de erro) entram por textContent, nunca HTML.
+function fmtDataHoraSP(iso){
+  return new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+}
+async function carregarStatusSyncProducao(){
+  const statEl = document.getElementById('producaoSyncStatus');
+  const avisoEl = document.getElementById('producaoSyncAviso');
+  if(!statEl || !avisoEl) return;
+  const stat = (valor, rotulo) => {
+    const d = document.createElement('div'); d.className = 'stat';
+    const b = document.createElement('b'); b.textContent = valor;
+    const sp = document.createElement('span'); sp.textContent = rotulo;
+    d.append(b, sp);
+    return d;
   };
-  reader.readAsArrayBuffer(file);
-});
+  // Este card é informativo: se a consulta falhar (rede, permissão), não pode derrubar a aba nem lançar.
+  let ultimoOk, ultimo;
+  try{
+    const campos = 'terminou_em, gravadas, linhas_api, ok, erro';
+    [{ data: ultimoOk }, { data: ultimo }] = await Promise.all([
+      sb.from('producao_sync_log').select(campos).eq('ok', true).order('id', { ascending: false }).limit(1).maybeSingle(),
+      sb.from('producao_sync_log').select(campos).order('id', { ascending: false }).limit(1).maybeSingle(),
+    ]);
+  }catch(err){
+    console.error('carregarStatusSyncProducao:', err);
+    statEl.replaceChildren(stat('—', 'Não foi possível carregar o status da sincronização'));
+    avisoEl.textContent = '';
+    return;
+  }
+  statEl.replaceChildren();
+  avisoEl.textContent = '';
+  avisoEl.style.color = 'var(--muted)';
+  if(!ultimo){ statEl.append(stat('—', 'Nenhuma sincronização registrada')); return; }
+  statEl.append(
+    stat(ultimoOk && ultimoOk.terminou_em ? fmtDataHoraSP(ultimoOk.terminou_em) : '—', 'Última sincronização'),
+    stat(ultimo.ok ? 'OK' : 'Falhou', 'Última execução'),
+    stat(String(ultimo.gravadas == null ? 0 : ultimo.gravadas), 'Pedidos gravados na última execução'),
+  );
+  const partes = [];
+  if(!ultimo.ok){
+    partes.push('A última tentativa falhou: ' + (ultimo.erro || 'erro desconhecido') + '. Os dados continuam os da última sincronização bem-sucedida; a próxima tentativa é automática.');
+  }
+  const horasSemSucesso = ultimoOk && ultimoOk.terminou_em ? (Date.now() - new Date(ultimoOk.terminou_em).getTime()) / 3600000 : Infinity;
+  if(horasSemSucesso > 3){
+    partes.push('Sem sincronização bem-sucedida há mais de 3 horas — avise o responsável técnico.');
+  }
+  if(partes.length){
+    avisoEl.textContent = partes.join(' ');
+    avisoEl.style.color = 'var(--st-perdido)';
+  }
+}
 
 /* ============ DIGITAL (leads do Google/Meta) — admin/supervisor ============ */
 // Categorização e cálculos abaixo espelham exatamente a Edge Function sync-leads (que grava a
@@ -7877,6 +7846,7 @@ function movDataLocal(iso){
 }
 
 async function loadMovimentacao(){
+  carregarStatusSyncProducao();
   const cardsEl = document.getElementById('movResumoCards');
   cardsEl.innerHTML = '<div class="stat"><b>—</b><span>carregando...</span></div>';
   ApexMotion.skeleton(cardsEl, 'kpis');

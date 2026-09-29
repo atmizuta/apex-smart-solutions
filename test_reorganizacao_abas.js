@@ -40,8 +40,9 @@ try{
   assert(document.getElementById('producaoUploadCard') === null, 'card producaoUploadCard não existe mais (removido do painel-producao)');
   assert(document.querySelector('#panel-producao #producaoUpload') === null, 'input de upload de produção não está mais dentro de panel-producao');
 
-  // --- 2) o input de upload de produção agora vive dentro da aba "Atualização de Bases" (movimentacao) ---
-  assert(document.querySelector('#panel-movimentacao #producaoUpload') !== null, 'input de upload de produção está dentro de panel-movimentacao');
+  // --- 2) (29/09/2026) o upload de planilha saiu: a aba Upload Dash mostra o status da sincronização automática ---
+  assert(document.querySelector('#panel-movimentacao #producaoUpload') === null, 'não há mais input de upload de produção (a produção é sincronizada sozinha)');
+  assert(document.querySelector('#panel-movimentacao #producaoSyncCard') !== null, 'card de status da sincronização está dentro de panel-movimentacao');
 
   // --- 3) o botão de navegação foi renomeado (26/08/2026: "Atualização de Bases" -> "Upload Dash") ---
   const btnMov = document.getElementById('tabBtnMovimentacao');
