@@ -466,6 +466,10 @@
       <button data-tab="funil" id="tabBtnFunil" data-sub="Negociações em andamento, por estágio"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg><span class="sbLabel">Funil</span></button>
       <div class="navGroupLabel">Ferramentas</div>
       <button data-tab="biometria" id="tabBtnBiometria" data-sub="Biometria facial do cliente"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h.01"/><path d="M15 12h.01"/><path d="M10 15.5c.6.4 1.3.6 2 .6s1.4-.2 2-.6"/><path d="M12 3a9 9 0 0 0-9 9v6.5A2.5 2.5 0 0 0 5.5 21h0A2.5 2.5 0 0 0 8 18.5v-1a4 4 0 0 1 8 0v1a2.5 2.5 0 0 0 2.5 2.5h0a2.5 2.5 0 0 0 2.5-2.5V12a9 9 0 0 0-9-9z"/></svg><span class="sbLabel">Biometria</span></button>
+      <!-- 28/09/2026 (pedido do usuário: "deixe a opcao de cada usuário conectar o seu email do
+           hostinger com a plataforma e faça o envio automatico") — aba pessoal de configurações,
+           por enquanto só com a conexão do e-mail (ver panel-config). -->
+      <button data-tab="config" id="tabBtnConfig" data-sub="Sua conexão de e-mail pra notificar clientes"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="sbLabel">Configurações</span></button>
       <div class="navGroupLabel">Administração</div>
       <button data-tab="basedados" id="tabBtnBaseDados" style="display:none" data-sub="Base de clientes, mapas de cobertura e chaves"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 8 5-5 5 5"/><path d="M5 21h14"/></svg><span class="sbLabel">Upload Base</span></button>
       <button data-tab="movimentacao" id="tabBtnMovimentacao" style="display:none" data-sub="Atualização do dashboard e movimentação da base"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M3 21v-5h5"/></svg><span class="sbLabel">Upload Dash</span></button>
@@ -564,6 +568,20 @@
         <p class="desc">Avise vários clientes, de uma vez, que você é o(a) responsável pela conta deles — sem precisar abrir uma proposta pra cada um. Adicione até 10 números, escolha um modelo de mensagem pra cada (ou edite à vontade) e envie um de cada vez.</p>
         <button class="btn" id="btnAbrirWhatsLote" style="width:auto">Notificar em lote</button>
       </div>
+
+      <!-- 28/09/2026 (pedido do usuário: "crie uma opcao agora por email e deixe a opcao de cada
+           usuário conectar o seu email do hostinger com a plataforma e façoa o envio automatico" —
+           esclarecido via 2 perguntas: envio com UM botão que dispara pra todos de uma vez (não um
+           por linha, diferente do WhatsApp — e-mail não tem o mesmo risco de banimento por
+           disparo); e a conexão do e-mail fica numa aba própria "Configurações", não no menu do
+           usuário) — cada consultor conecta o próprio e-mail Hostinger (ver panel-config) e dispara
+           até 10 e-mails personalizados de uma vez, com o modelo Claro/Apex. Ver EMAIL_LOTE_MAX/
+           renderEmailLoteRows/montarEmailHtml e a Edge Function send-email-lote. -->
+      <div class="card" style="margin-top:16px">
+        <h3>Notificar clientes por e-mail (em lote)</h3>
+        <p class="desc">Avise até 10 clientes por e-mail, de uma vez, que você é o(a) responsável pela conta deles. Edite o assunto e a mensagem uma única vez e envie pra todos — cada e-mail sai personalizado com o nome de cada cliente.</p>
+        <button class="btn" id="btnAbrirEmailLote" style="width:auto">Notificar por e-mail</button>
+      </div>
     </section>
 
     <!-- FUNIL DE VENDAS (kanban — todos os perfis) -->
@@ -602,6 +620,27 @@
           <div class="loginOk" id="bioCopiadoMsg" style="display:none;margin-top:8px">Link copiado.</div>
           <p class="desc" style="margin-top:12px;font-size:12.5px">Passo a passo: 1) baixe a imagem; 2) abra a conversa no WhatsApp e envie a imagem como foto; 3) em seguida, envie este texto (com o link) como uma nova mensagem.</p>
         </div>
+      </div>
+    </section>
+
+    <!-- 28/09/2026 (pedido do usuário: "deixe a opcao de cada usuário conectar o seu email do
+         hostinger com a plataforma e faça o envio automatico" — esclarecido: fica numa aba própria
+         "Configurações", visível a todo perfil) — cada consultor guarda aqui o próprio e-mail/senha
+         Hostinger (tabela user_email_config, RLS só pro dono da linha) pra poder notificar clientes
+         por e-mail direto do painel (ver card "Notificar clientes por e-mail" na aba Gerar Proposta
+         e a Edge Function send-email-lote, que lê essas credenciais e dispara via SMTP). -->
+    <section class="panel" id="panel-config">
+      <div class="card" style="max-width:560px">
+        <h3>Meu e-mail (Hostinger)</h3>
+        <p class="desc">Conecte seu e-mail Hostinger pra notificar clientes por e-mail direto do painel, sem precisar sair daqui. Suas credenciais ficam visíveis só pra você — nem administradores conseguem ver.</p>
+        <div class="field"><label>E-mail</label><input type="email" id="cfgEmailEndereco" placeholder="seunome@suaempresa.com.br"></div>
+        <div class="field"><label>Senha (recomendado: uma senha de aplicativo, não a principal)</label><input type="password" id="cfgEmailSenha" placeholder="••••••••"></div>
+        <div class="field"><label>Nome de exibição (opcional)</label><input type="text" id="cfgEmailNomeExibicao" placeholder="Ex: Fernanda Souza — Apex Smart Solutions"></div>
+        <div class="field"><label>Telefone/WhatsApp de contato (opcional, aparece na assinatura)</label><input type="text" id="cfgEmailTelefone" placeholder="Ex: (11) 98765-4321"></div>
+        <button class="btn" id="btnSalvarEmailConfig" style="width:auto">Salvar</button>
+        <div class="loginError" id="cfgEmailErr" style="display:none;margin-top:10px"></div>
+        <div class="loginOk" id="cfgEmailOk" style="display:none;margin-top:10px">E-mail salvo com sucesso.</div>
+        <div id="cfgEmailStatus" style="margin-top:14px;font-size:13px;color:var(--muted)"></div>
       </div>
     </section>
 
@@ -1059,6 +1098,33 @@
         <button type="button" class="btn btn-sm btn-outline" id="btnWhatsLoteAdd" style="width:auto">+ Adicionar número</button>
         <span style="font-size:12px;color:var(--muted)" id="whatsLoteContagem"></span>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL NOTIFICAR CLIENTES POR E-MAIL EM LOTE (28/09/2026) ===================== -->
+<div class="overlay" id="emailLoteOverlay">
+  <div class="modal" style="max-width:880px">
+    <div class="mHead">
+      <button class="mClose" id="emailLoteClose">&times;</button>
+      <h2>Notificar clientes por e-mail (em lote)</h2>
+      <div class="mCnpj">Até 10 destinatários — um e-mail personalizado pra cada, disparado de uma vez</div>
+    </div>
+    <div class="mBody" style="max-height:75vh;overflow-y:auto">
+      <div class="loginError" id="emailLoteSemConta" style="display:none;margin-bottom:14px">Você ainda não conectou seu e-mail. <a href="#" id="linkIrConfigEmail" style="color:inherit;font-weight:700">Conectar agora em Configurações</a>.</div>
+      <div class="field"><label>Assunto</label><input type="text" id="emailLoteAssunto"></div>
+      <div class="field">
+        <label>Mensagem (editável — use {{cliente}} onde quiser que apareça o nome de cada destinatário)</label>
+        <textarea id="emailLoteCorpo" rows="8" style="width:100%;resize:vertical;font-size:13.5px;line-height:1.5"></textarea>
+      </div>
+      <div id="emailLoteRowsWrap"></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+        <button type="button" class="btn btn-sm btn-outline" id="btnEmailLoteAdd" style="width:auto">+ Adicionar destinatário</button>
+        <span style="font-size:12px;color:var(--muted)" id="emailLoteContagem"></span>
+      </div>
+      <button type="button" class="btn" id="btnEmailLoteEnviarTodos" style="width:auto;margin-top:16px">Enviar para todos</button>
+      <div class="loginError" id="emailLoteErr" style="display:none;margin-top:10px"></div>
+      <div id="emailLoteResultado" style="margin-top:14px"></div>
     </div>
   </div>
 </div>
@@ -1745,6 +1811,7 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
   if(btn.dataset.tab === 'producao') loadProducaoDashboard();
   if(btn.dataset.tab === 'conversao') loadConversaoVendas();
   if(btn.dataset.tab === 'fechamento') loadFechamento();
+  if(btn.dataset.tab === 'config') carregarEmailConfigStatus();
 });
 
 // 28/09/2026: o menu lateral do chefe (27/09, com gaveta/hambúrguer no celular) foi substituído pelo
@@ -2405,6 +2472,287 @@ if(whatsLoteRowsWrapEl){
     }
   });
 }
+
+// 28/09/2026 (pedido do usuário: "crie uma opcao agora por email e deixe a opcao de cada usuário
+// conectar o seu email do hostinger com a plataforma e façoa o envio automatico. utilize o modelo
+// anexo mas com o padrão da Claro e da APEX" — esclarecido via 2 perguntas: um único botão dispara
+// os e-mails de todos os destinatários de uma vez (e-mail não carrega o mesmo risco de banimento
+// por disparo que o WhatsApp, então não precisa do padrão "um botão por linha" do §43); a conexão
+// do e-mail (Hostinger) fica numa aba própria "Configurações", não no menu do usuário logado).
+//
+// Arquitetura: cada consultor guarda o próprio e-mail/senha Hostinger na tabela
+// user_email_config (RLS: só o dono da linha lê/escreve — nem admin enxerga a senha de outro
+// consultor). O disparo em si acontece na Edge Function send-email-lote (guardada localmente em
+// edge_function_send_email_lote.ts como referência, precisa ser publicada no Supabase e a tabela
+// criada com a migração em supabase_schema.sql seção "user_email_config"), que recebe a lista de
+// destinatários + assunto/corpo (com {{cliente}} ainda não resolvido) e o JWT de quem chamou,
+// confere as credenciais salvas daquele usuário e envia via SMTP (Hostinger, porta 465) —
+// nunca client-side, pra não expor a senha do e-mail no navegador.
+let emailConfigAtual = null; // cache da linha de user_email_config do usuário logado (null = não conectou ainda)
+let emailConfigCarregada = false;
+
+async function carregarEmailConfigStatus(){
+  const statusEl = document.getElementById('cfgEmailStatus');
+  if(statusEl) statusEl.textContent = 'Carregando...';
+  try{
+    const { data, error } = await sb.from('user_email_config')
+      .select('email, nome_exibicao, telefone, ativo')
+      .eq('user_id', currentUser.id)
+      .maybeSingle();
+    if(error) throw error;
+    emailConfigAtual = data || null;
+    emailConfigCarregada = true;
+    if(data){
+      document.getElementById('cfgEmailEndereco').value = data.email || '';
+      document.getElementById('cfgEmailNomeExibicao').value = data.nome_exibicao || '';
+      document.getElementById('cfgEmailTelefone').value = data.telefone || '';
+      // a senha nunca volta pro campo — fica em branco; salvar de novo com o campo vazio mantém a
+      // senha já salva (ver btnSalvarEmailConfig).
+      if(statusEl) statusEl.textContent = `Conectado: ${data.email}${data.ativo === false ? ' (desativado)' : ''}`;
+    } else {
+      if(statusEl) statusEl.textContent = 'Você ainda não conectou nenhum e-mail.';
+    }
+  }catch(e){
+    emailConfigCarregada = true;
+    if(statusEl) statusEl.textContent = '';
+    const errEl = document.getElementById('cfgEmailErr');
+    if(errEl){ errEl.textContent = 'Erro ao carregar sua configuração de e-mail: ' + e.message; errEl.style.display = 'block'; }
+  }
+}
+
+const btnSalvarEmailConfigEl = document.getElementById('btnSalvarEmailConfig');
+if(btnSalvarEmailConfigEl) btnSalvarEmailConfigEl.addEventListener('click', async function(){
+  const errEl = document.getElementById('cfgEmailErr');
+  const okEl = document.getElementById('cfgEmailOk');
+  errEl.style.display = 'none';
+  okEl.style.display = 'none';
+  const email = document.getElementById('cfgEmailEndereco').value.trim();
+  const senha = document.getElementById('cfgEmailSenha').value; // não faz trim — senha pode ter espaço proposital
+  const nomeExibicao = document.getElementById('cfgEmailNomeExibicao').value.trim();
+  const telefone = document.getElementById('cfgEmailTelefone').value.trim();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    errEl.textContent = 'Informe um e-mail válido.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if(!senha && !(emailConfigAtual && emailConfigAtual.email)){
+    errEl.textContent = 'Informe a senha do e-mail (na primeira conexão ela é obrigatória).';
+    errEl.style.display = 'block';
+    return;
+  }
+  const payload = { user_id: currentUser.id, email, nome_exibicao: nomeExibicao || null, telefone: telefone || null, ativo: true };
+  if(senha) payload.smtp_pass = senha; // campo vazio = mantém a senha já salva (não sobrescreve com string vazia)
+  try{
+    let query;
+    if(senha){
+      query = sb.from('user_email_config').upsert(payload, { onConflict: 'user_id' });
+    } else {
+      // sem senha nova: teria que já existir uma linha (update), senão cai no erro de senha obrigatória acima
+      query = sb.from('user_email_config').update(payload).eq('user_id', currentUser.id);
+    }
+    const { error } = await query;
+    if(error) throw error;
+    document.getElementById('cfgEmailSenha').value = '';
+    okEl.style.display = 'block';
+    await carregarEmailConfigStatus();
+  }catch(e){
+    errEl.textContent = 'Erro ao salvar: ' + e.message;
+    errEl.style.display = 'block';
+  }
+});
+
+// EMAIL_LOTE_MAX/emailLoteState: mesmo padrão de estrutura do whatsLoteState (§43), mas o envio é
+// um único clique pra todos os destinatários (ver btnEmailLoteEnviarTodos), não um por linha.
+const EMAIL_LOTE_MAX = 10;
+let emailLoteState = { linhas: [] };
+
+function emailLoteNovaLinha(){
+  return { nome: '', email: '' };
+}
+
+function emailLoteAssuntoPadrao(){
+  return 'Conta Claro Empresas da {{cliente}}: novo(a) gestor(a) responsável';
+}
+
+function emailLoteCorpoPadrao(){
+  const nomeConsultor = (proposalState && proposalState.vendedorNome) || (currentUser && currentUser.nome) || 'consultor(a) da Apex';
+  return `Olá, tudo bem?
+
+Sou ${nomeConsultor}, da Apex Smart Solutions, parceira autorizada Claro Empresas. A conta da {{cliente}} passou a ser atendida por mim, e a partir de agora sou o seu contato para qualquer assunto relacionado ao seu contrato.
+
+Fico à disposição para tirar dúvidas, dar suporte e trazer as melhores condições para sua empresa.
+
+Um abraço,`;
+}
+
+function renderEmailLoteRows(){
+  const wrap = document.getElementById('emailLoteRowsWrap');
+  if(!wrap) return;
+  wrap.innerHTML = emailLoteState.linhas.map((linha, idx) => `
+    <div class="whatsLoteRow" data-idx="${idx}">
+      <div class="wRowTop">
+        <div class="field">
+          <label>Nome do cliente</label>
+          <input type="text" class="eLoteNome" placeholder="Ex: João, da Padaria Central" value="${escapeHtml(linha.nome)}">
+        </div>
+        <div class="field">
+          <label>E-mail</label>
+          <input type="email" class="eLoteEmail" placeholder="Ex: joao@padariacentral.com.br" value="${escapeHtml(linha.email)}">
+        </div>
+        <button type="button" class="btn btn-sm btn-outline eLoteRemover" style="width:auto">Remover</button>
+      </div>
+    </div>
+  `).join('');
+  const btnAdd = document.getElementById('btnEmailLoteAdd');
+  const contagem = document.getElementById('emailLoteContagem');
+  if(contagem) contagem.textContent = `${emailLoteState.linhas.length} de ${EMAIL_LOTE_MAX} destinatários`;
+  if(btnAdd) btnAdd.style.display = emailLoteState.linhas.length >= EMAIL_LOTE_MAX ? 'none' : '';
+}
+
+// monta o HTML final do e-mail (assinatura com identidade Claro/Apex), reaproveitando os mesmos
+// logos já usados no Word/PDF da proposta (getApexLogoSrc/getClaroLogoSrc) — {{cliente}} dentro do
+// corpo é resolvido depois, uma vez por destinatário, na Edge Function (não aqui).
+function emailLoteMontarHtml(corpoTexto, opts){
+  const paragrafos = (corpoTexto || '').split(/\n{2,}/).map(p =>
+    `<p style="margin:0 0 14px;color:#1D1F20;font-size:14px;line-height:1.6;font-family:Arial,Helvetica,sans-serif">${escapeHtml(p).replace(/\n/g, '<br>')}</p>`
+  ).join('');
+  let apexLogoSrc = '', claroLogoSrc = '';
+  try{ apexLogoSrc = getApexLogoSrc(); }catch(e){}
+  try{ claroLogoSrc = getClaroLogoSrc(); }catch(e){}
+  const contatoLinha = opts.telefone
+    ? `<div style="color:#CFCFD2;font-size:12.5px;margin-top:2px;font-family:Arial,Helvetica,sans-serif">${escapeHtml(opts.telefone)} · ${escapeHtml(opts.email)}</div>`
+    : `<div style="color:#CFCFD2;font-size:12.5px;margin-top:2px;font-family:Arial,Helvetica,sans-serif">${escapeHtml(opts.email)}</div>`;
+  return `
+  <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto">
+    ${paragrafos}
+    <div style="background:#520C07;border-radius:8px;padding:18px 20px;margin-top:20px">
+      <div style="color:#FFFFFF;font-size:15px;font-weight:bold;font-family:Arial,Helvetica,sans-serif">${escapeHtml(opts.nome)}</div>
+      <div style="color:#E30613;font-size:12.5px;margin-top:2px;font-weight:bold;font-family:Arial,Helvetica,sans-serif">Gestor(a) de Contas · Apex Smart Solutions</div>
+      ${contatoLinha}
+      <div style="border-top:1px solid rgba(255,255,255,.2);margin:12px 0"></div>
+      <div style="display:flex;align-items:center;gap:12px">
+        ${apexLogoSrc ? `<img src="${apexLogoSrc}" alt="Apex Smart Solutions" style="height:26px">` : ''}
+        ${claroLogoSrc ? `<img src="${claroLogoSrc}" alt="Claro Empresas" style="height:26px">` : ''}
+      </div>
+    </div>
+    <div style="color:#666666;font-size:11px;margin-top:16px;font-family:Arial,Helvetica,sans-serif">Apex Smart Solutions · Parceira autorizada Claro Empresas</div>
+  </div>`;
+}
+
+const emailLoteOverlayEl = document.getElementById('emailLoteOverlay');
+const btnAbrirEmailLoteEl = document.getElementById('btnAbrirEmailLote');
+if(btnAbrirEmailLoteEl) btnAbrirEmailLoteEl.addEventListener('click', async function(){
+  emailLoteState = { linhas: [emailLoteNovaLinha()] };
+  document.getElementById('emailLoteAssunto').value = emailLoteAssuntoPadrao();
+  document.getElementById('emailLoteCorpo').value = emailLoteCorpoPadrao();
+  document.getElementById('emailLoteErr').style.display = 'none';
+  document.getElementById('emailLoteResultado').innerHTML = '';
+  renderEmailLoteRows();
+  if(!emailConfigCarregada) await carregarEmailConfigStatus();
+  const semConta = !emailConfigAtual || emailConfigAtual.ativo === false;
+  document.getElementById('emailLoteSemConta').style.display = semConta ? 'block' : 'none';
+  document.getElementById('btnEmailLoteEnviarTodos').disabled = semConta;
+  emailLoteOverlayEl.classList.add('active');
+});
+const emailLoteCloseEl = document.getElementById('emailLoteClose');
+if(emailLoteCloseEl) emailLoteCloseEl.addEventListener('click', () => fecharOverlay(emailLoteOverlayEl));
+const linkIrConfigEmailEl = document.getElementById('linkIrConfigEmail');
+if(linkIrConfigEmailEl) linkIrConfigEmailEl.addEventListener('click', function(e){
+  e.preventDefault();
+  fecharOverlay(emailLoteOverlayEl);
+  const btnConfig = document.getElementById('tabBtnConfig');
+  if(btnConfig) btnConfig.click();
+});
+
+const btnEmailLoteAddEl = document.getElementById('btnEmailLoteAdd');
+if(btnEmailLoteAddEl) btnEmailLoteAddEl.addEventListener('click', function(){
+  if(emailLoteState.linhas.length >= EMAIL_LOTE_MAX) return;
+  emailLoteState.linhas.push(emailLoteNovaLinha());
+  renderEmailLoteRows();
+});
+
+const emailLoteRowsWrapEl = document.getElementById('emailLoteRowsWrap');
+if(emailLoteRowsWrapEl){
+  emailLoteRowsWrapEl.addEventListener('input', function(e){
+    const row = e.target.closest('.whatsLoteRow');
+    if(!row) return;
+    const idx = Number(row.dataset.idx);
+    const linha = emailLoteState.linhas[idx];
+    if(!linha) return;
+    if(e.target.classList.contains('eLoteNome')) linha.nome = e.target.value;
+    else if(e.target.classList.contains('eLoteEmail')) linha.email = e.target.value;
+  });
+  emailLoteRowsWrapEl.addEventListener('click', function(e){
+    const row = e.target.closest('.whatsLoteRow');
+    if(!row) return;
+    const idx = Number(row.dataset.idx);
+    if(e.target.classList.contains('eLoteRemover')){
+      emailLoteState.linhas.splice(idx, 1);
+      renderEmailLoteRows();
+    }
+  });
+}
+
+const btnEmailLoteEnviarTodosEl = document.getElementById('btnEmailLoteEnviarTodos');
+if(btnEmailLoteEnviarTodosEl) btnEmailLoteEnviarTodosEl.addEventListener('click', async function(){
+  const errEl = document.getElementById('emailLoteErr');
+  const resultadoEl = document.getElementById('emailLoteResultado');
+  errEl.style.display = 'none';
+  resultadoEl.innerHTML = '';
+  if(!emailConfigAtual || emailConfigAtual.ativo === false){
+    errEl.textContent = 'Conecte seu e-mail em Configurações antes de enviar.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const assunto = document.getElementById('emailLoteAssunto').value.trim();
+  const corpo = document.getElementById('emailLoteCorpo').value;
+  if(!assunto || !corpo.trim()){
+    errEl.textContent = 'Preencha o assunto e a mensagem.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const destinatarios = emailLoteState.linhas
+    .map(l => ({ nome: (l.nome || '').trim(), email: (l.email || '').trim() }))
+    .filter(l => l.email);
+  if(destinatarios.length === 0){
+    errEl.textContent = 'Adicione pelo menos um destinatário com e-mail.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const emailInvalido = destinatarios.find(d => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email));
+  if(emailInvalido){
+    errEl.textContent = `E-mail inválido: ${emailInvalido.email}`;
+    errEl.style.display = 'block';
+    return;
+  }
+  const corpoHtml = emailLoteMontarHtml(corpo, {
+    nome: emailConfigAtual.nome_exibicao || currentUser.nome,
+    telefone: emailConfigAtual.telefone,
+    email: emailConfigAtual.email,
+  });
+  btnEmailLoteEnviarTodosEl.disabled = true;
+  btnEmailLoteEnviarTodosEl.textContent = 'Enviando...';
+  try{
+    const { data, error } = await sb.functions.invoke('send-email-lote', {
+      body: { destinatarios, assunto, corpoHtml, nomeConsultor: currentUser.nome },
+    });
+    if(error) throw error;
+    const resultados = (data && data.resultados) || [];
+    resultadoEl.innerHTML = resultados.map(r =>
+      `<div style="font-size:12.5px;padding:4px 0;color:${r.ok ? 'var(--st-ganho)' : 'var(--c-sinal-600)'}">${r.ok ? '✓' : '✗'} ${escapeHtml(r.email)}${r.ok ? '' : ' — ' + escapeHtml(r.erro || 'falha no envio')}</div>`
+    ).join('');
+    if(resultados.length && resultados.every(r => r.ok)) mostrarAviso('E-mails enviados com sucesso.', 'ok');
+    else if(resultados.some(r => r.ok)) mostrarAviso('Alguns e-mails não foram enviados — veja o detalhe abaixo.', 'info');
+    else mostrarAviso('Nenhum e-mail foi enviado — veja o detalhe abaixo.', 'erro');
+  }catch(e){
+    errEl.textContent = 'Erro ao enviar: ' + (e.message || e);
+    errEl.style.display = 'block';
+  }finally{
+    btnEmailLoteEnviarTodosEl.disabled = false;
+    btnEmailLoteEnviarTodosEl.textContent = 'Enviar para todos';
+  }
+});
+
 // 23/09/2026 (pedido do usuário — "a tela fecha automaticamente clicando fora, corrigir para
 // deixar a página aberta"): removido o fechamento ao clicar no backdrop do overlay. Esse modal fica
 // aberto por bastante tempo (análise de fatura, ajuste de planos linha a linha) e um clique sem

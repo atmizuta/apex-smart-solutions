@@ -553,6 +553,43 @@ $$;
 revoke all on function public.reconciliacao_neocrm(date, date) from public;
 grant execute on function public.reconciliacao_neocrm(date, date) to authenticated;
 
+-- 11) CONFIGURAÇÃO DE E-MAIL POR USUÁRIO (28/09/2026 — notificar clientes por e-mail em lote)
+-- Cada consultor conecta o próprio e-mail Hostinger na aba "Configurações" do painel; o envio em
+-- lote (botão "Enviar para todos") acontece via Edge Function send-email-lote, que lê a linha do
+-- usuário que chamou (pelo JWT) e dispara por SMTP (Hostinger, porta 465). A senha SMTP fica aqui
+-- só pra esse fim — RLS restringe cada linha só ao próprio dono, sem exceção nem pra admin.
+create table if not exists public.user_email_config (
+  user_id uuid primary key references public.profiles(id) on delete cascade,
+  email text not null,
+  smtp_pass text not null,
+  nome_exibicao text,
+  telefone text,
+  smtp_host text not null default 'smtp.hostinger.com',
+  smtp_port integer not null default 465,
+  ativo boolean not null default true,
+  criado_em timestamptz not null default now(),
+  atualizado_em timestamptz not null default now()
+);
+
+alter table public.user_email_config enable row level security;
+
+drop policy if exists "user_email_config_select" on public.user_email_config;
+create policy "user_email_config_select" on public.user_email_config for select
+  using ( auth.uid() = user_id );
+
+drop policy if exists "user_email_config_insert" on public.user_email_config;
+create policy "user_email_config_insert" on public.user_email_config for insert
+  with check ( auth.uid() = user_id );
+
+drop policy if exists "user_email_config_update" on public.user_email_config;
+create policy "user_email_config_update" on public.user_email_config for update
+  using ( auth.uid() = user_id )
+  with check ( auth.uid() = user_id );
+
+drop policy if exists "user_email_config_delete" on public.user_email_config;
+create policy "user_email_config_delete" on public.user_email_config for delete
+  using ( auth.uid() = user_id );
+
 -- ============================================================
 -- PRIMEIRO ADMINISTRADOR
 -- ============================================================

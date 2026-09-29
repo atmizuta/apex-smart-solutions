@@ -1877,3 +1877,44 @@ Estão também no arquivo `CLAUDE.md` na raiz do repositório, que o Claude lê 
 ### 45.3 Segurança (28/09/2026)
 
 O repositório é **público**. Foram removidos a senha do SFTP (`deploy_biometria_v2.py`), a base de clientes (`base_clientes.*`), leads com nome e CPF/CNPJ, endereços de leads e a fatura real de um cliente usada como exemplo. O `.gitignore` impede que voltem. Eles continuam no histórico do git — **a senha do SFTP precisa ser trocada no Hostinger**. Credenciais nunca devem ser escritas em arquivos do repositório.
+
+## 46. Notificar clientes por e-mail (em lote), com conexão do e-mail Hostinger por usuário (28/09/2026)
+
+Pedido do usuário, com uma captura de tela de um e-mail-modelo de outra operadora (assunto "novo gerente responsável", botão de WhatsApp e assinatura em cartão escuro): *"preciso que abaixo da sessao de envio de mensagem para whatsapp crie uma opcao agora por email e deixe a opcao de cada usuário conectar o seu email do hostinger com a plataforma e façoa o envio automatico. utilize o modelo anexo mas com o padrão da Claro e da APEX para que possa ser disparado por e-mail."*
+
+Esclarecido com duas perguntas:
+- Como o disparo em lote deveria funcionar: **"Um botão único envia todos"** (diferente do WhatsApp em lote, §43, que é um botão por linha) — porque o risco de banimento por disparo automatizado em sequência é um problema específico do WhatsApp; e-mail não carrega esse mesmo risco.
+- Onde ficaria a tela de conectar o e-mail: **"Nova aba 'Configurações'"** no menu lateral (não dentro do menu do usuário logado).
+
+### 46.1 Aba "Configurações"
+
+Nova aba no grupo "Ferramentas" do menu lateral, logo depois de "Biometria" (`data-tab="config"`). O consultor informa seu e-mail Hostinger, a senha do e-mail (senha de aplicativo/conta, não a senha do painel Claro/Apex), nome de exibição e telefone opcionais. Ao salvar, os dados vão para a tabela `user_email_config` (uma linha por usuário, RLS restrita ao próprio dono — nem Admin enxerga a senha salva de outro consultor). Reabrir a senha em branco e salvar de novo **mantém** a senha já salva (só é sobrescrita se o consultor digitar uma nova) — assim ele pode atualizar só o nome de exibição sem redigitar a senha.
+
+### 46.2 Notificar clientes por e-mail (em lote)
+
+Na tela de proposta avulsa, logo abaixo do card de notificação por WhatsApp (§43), um novo card "Notificar clientes por e-mail (em lote)" abre um modal com: assunto e corpo pré-preenchidos com um modelo padrão (no tom do modelo enviado pelo usuário, adaptado para a identidade Claro/Apex, com `{{cliente}}` e o nome do consultor logado já resolvido no corpo), até 10 linhas de destinatário (nome + e-mail, mesmo padrão visual do WhatsApp em lote) e um único botão **"Enviar para todos"**.
+
+Se o consultor ainda não conectou o e-mail em Configurações, o modal mostra um aviso e desabilita o botão de envio, com um link direto para a aba Configurações. Com e-mail conectado, "Enviar para todos" valida que todo destinatário tem e-mail em formato válido, monta o HTML final (parágrafos do corpo + cartão de assinatura escuro com nome, cargo, telefone/e-mail do consultor e os logos Apex/Claro, reaproveitando `getApexLogoSrc()`/`getClaroLogoSrc()`) e chama a Edge Function `send-email-lote` uma única vez, passando a lista de destinatários, assunto, corpo em HTML e o nome do consultor. O resultado (sucesso/erro) de cada destinatário é exibido no modal.
+
+### 46.3 Arquitetura (envio sempre pelo servidor, nunca pelo navegador)
+
+- **Tabela `user_email_config`** (seção 11 do `supabase_schema.sql`): `user_id` (chave primária, referencia `profiles`), `email`, `smtp_pass`, `nome_exibicao`, `telefone`, `smtp_host` (padrão `smtp.hostinger.com`), `smtp_port` (padrão 465), `ativo`. RLS: só o próprio dono lê/escreve/apaga a própria linha — sem exceção para admin/supervisor, já que a coluna guarda a senha do e-mail do consultor.
+- **Edge Function `send-email-lote`** (`edge_function_send_email_lote.ts`): confere o JWT de quem chamou, busca a config SMTP **daquele** usuário (nunca de outro), substitui `{{cliente}}` por destinatário no assunto e no corpo, e envia via SMTP Hostinger (porta 465, TLS, biblioteca `denomailer`). Limite de 10 destinatários por chamada, replicando o teto do modal.
+- O e-mail é sempre disparado no servidor (Edge Function) — a senha do e-mail do consultor nunca trafega para além da chamada de login em Configurações e nunca fica acessível no navegador depois de salva (o campo de senha some do formulário; reabrir a tela nunca reexibe a senha salva).
+
+### 46.4 Publicação pendente (fora do alcance direto do Claude nesta sessão)
+
+A tentativa de aplicar a migração SQL diretamente no projeto Supabase ("apex") foi bloqueada pela política de modo automático desta sessão ("Production Deploy") — o mesmo já acontece com o deploy direto de Edge Functions neste projeto. Por isso, como em todas as Edge Functions anteriores deste projeto, a entrega são os arquivos prontos para o usuário aplicar:
+
+1. Rodar o SQL da seção "11) CONFIGURAÇÃO DE E-MAIL POR USUÁRIO" em `supabase_schema.sql` (Supabase > SQL Editor > New query > Run) — é seguro rodar o arquivo inteiro de novo, mesmo já tendo rodado versões anteriores.
+2. Publicar a Edge Function `send-email-lote` (Supabase > Edge Functions > Deploy a new function > colar o conteúdo de `edge_function_send_email_lote.ts`).
+
+**Importante, separado desta funcionalidade:** o repositório é público desde a seção 45.3, e a senha do SFTP usada em `deploy_biometria_v2.py` continua no histórico do git — ela ainda precisa ser trocada no Hostinger pelo usuário.
+
+### 46.5 Testado
+
+Novo arquivo `test_email_lote.js` (43 asserts, 0 falhas): aba Configurações existe e carrega o status "não conectou" quando não há linha salva; salvar sem senha na primeira conexão dá erro sem chamar upsert; salvar com e-mail+senha válidos faz upsert em `user_email_config` e o status passa a "Conectado" (senha limpa do campo depois); abrir o modal de e-mail em lote sem conta conectada mostra aviso e desabilita "Enviar para todos"; com conta conectada, o modal nasce com 1 linha e assunto/corpo padrão (corpo já traz o nome do consultor logado); "+ Adicionar destinatário" soma linhas até o teto de 10 e o botão some no limite; remover linhas devolve ao teto; "Enviar para todos" valida destinatário obrigatório e formato de e-mail antes de chamar a function; com dados válidos, chama `sb.functions.invoke('send-email-lote', ...)` uma única vez com o payload esperado (destinatários, assunto, corpoHtml, nomeConsultor) e exibe o resultado por destinatário.
+
+Reexecutados sem quebras: `test_whatsapp_lote.js` (31 asserts), `test_tipo_avulsa.js`, `test_redesign_shell.js` (39 asserts). `test_reorganizacao_abas.js` foi atualizado para incluir "config" na lista esperada da ordem das abas (a aba nova ficou no grupo Ferramentas, logo depois de Biometria) — 33 asserts, 0 falhas depois do ajuste.
+
+Rebuild (`python3 build_painel.py`) confirmado sem placeholders pendentes (747436 bytes).
