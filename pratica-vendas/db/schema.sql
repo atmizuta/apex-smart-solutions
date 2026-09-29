@@ -18,7 +18,8 @@ create table if not exists cenarios (
   categoria text not null,
   nome_cliente text not null,
   empresa_cliente text not null,
-  ativo boolean not null default true
+  ativo boolean not null default true,
+  icone text
 );
 
 create table if not exists sessoes_pratica (
@@ -34,7 +35,8 @@ create table if not exists sessoes_pratica (
   avaliando_em timestamptz,
   finalizado_em timestamptz,
   nota integer,
-  feedback text
+  feedback text,
+  dicas text[]
 );
 
 create table if not exists mensagens (
@@ -47,3 +49,11 @@ create table if not exists mensagens (
 
 create index if not exists idx_sessoes_usuario on sessoes_pratica(usuario_id);
 create index if not exists idx_mensagens_sessao on mensagens(sessao_id);
+
+-- Guarda o "jti" (id único) de cada token de SSO já consumido — impede que
+-- a mesma URL de login automático seja usada duas vezes dentro da janela de
+-- validade de 60s (Review Focus: replay do token).
+create table if not exists sso_tokens_usados (
+  jti text primary key,
+  usado_em timestamptz not null default now()
+);
