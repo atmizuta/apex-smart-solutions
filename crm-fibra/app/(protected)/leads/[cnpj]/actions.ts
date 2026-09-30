@@ -6,7 +6,7 @@ import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { verifySessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { buscarConsultorPorId } from "@/lib/consultores";
-import { atribuirLead, registrarMensagem, LeadJaAtribuidoError } from "@/lib/leads";
+import { atribuirLead, registrarMensagem, buscarLeadPorCnpj, LeadJaAtribuidoError } from "@/lib/leads";
 
 async function sessaoAtiva() {
   const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
@@ -39,6 +39,11 @@ export async function registrarMensagemAction(
   canal: "whatsapp" | "ligacao" | "email"
 ): Promise<{ erro?: string }> {
   const consultor = await sessaoAtiva();
+
+  const lead = await buscarLeadPorCnpj(getSupabaseAdmin(), cnpjDigits);
+  if (!lead || lead.donoConsultorId !== consultor.id) {
+    return { erro: "Você precisa ser o dono deste lead para registrar contato" };
+  }
 
   if (!conteudo.trim()) {
     return { erro: "A mensagem não pode ficar em branco" };

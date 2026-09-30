@@ -11,12 +11,14 @@ vi.mock("@/lib/consultores", () => ({
 
 const atribuirLead = vi.fn();
 const registrarMensagem = vi.fn();
+const buscarLeadPorCnpj = vi.fn();
 vi.mock("@/lib/leads", async () => {
   const actual = await vi.importActual<typeof import("@/lib/leads")>("@/lib/leads");
   return {
     ...actual,
     atribuirLead: (...args: unknown[]) => atribuirLead(...args),
     registrarMensagem: (...args: unknown[]) => registrarMensagem(...args),
+    buscarLeadPorCnpj: (...args: unknown[]) => buscarLeadPorCnpj(...args),
   };
 });
 
@@ -58,6 +60,7 @@ beforeEach(() => {
   buscarConsultorPorId.mockReset();
   atribuirLead.mockReset();
   registrarMensagem.mockReset();
+  buscarLeadPorCnpj.mockReset();
   cookieGet.mockReset();
   verifySessionToken.mockReset();
 });
@@ -94,6 +97,7 @@ describe("atribuirLeadAction", () => {
 describe("registrarMensagemAction", () => {
   it("rejeita mensagem em branco sem chamar registrarMensagem", async () => {
     sessaoValida();
+    buscarLeadPorCnpj.mockResolvedValue({ donoConsultorId: "c1" });
     const resultado = await registrarMensagemAction("00005087000190", "   ", "whatsapp");
     expect(resultado.erro).toBeDefined();
     expect(registrarMensagem).not.toHaveBeenCalled();
@@ -101,6 +105,7 @@ describe("registrarMensagemAction", () => {
 
   it("registra a mensagem com o texto já sem espaços nas pontas", async () => {
     sessaoValida();
+    buscarLeadPorCnpj.mockResolvedValue({ donoConsultorId: "c1" });
     registrarMensagem.mockResolvedValue({
       id: "m1",
       cnpjDigits: "00005087000190",
@@ -119,5 +124,13 @@ describe("registrarMensagemAction", () => {
       canal: "whatsapp",
       conteudo: "Oi!",
     });
+  });
+
+  it("recusa registrar mensagem quando o consultor não é o dono do lead", async () => {
+    sessaoValida();
+    buscarLeadPorCnpj.mockResolvedValue({ donoConsultorId: "outro-consultor" });
+    const resultado = await registrarMensagemAction("00005087000190", "Oi", "whatsapp");
+    expect(resultado.erro).toMatch(/dono/);
+    expect(registrarMensagem).not.toHaveBeenCalled();
   });
 });

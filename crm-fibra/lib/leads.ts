@@ -73,12 +73,31 @@ export type FiltroCamada =
   | "sem_dono"
   | "todos";
 
-// Strips characters PostgREST's filter grammar treats specially (comma
-// separates filters, parens group them, % and * are ILIKE/wildcard
-// tokens) so user-typed search text can never restructure the .or()
-// filter or inject unintended wildcards.
 function sanitizarBusca(busca: string): string {
   return busca.replace(/[,()%*]/g, " ").trim();
+}
+
+const TAMANHO_PAGINA = 1000;
+
+// PostgREST caps every response at 1000 rows by default, silently — this
+// project has already been bitten by that exact bug once (see the
+// painel's own crm/test_fetch_all_rows.js). Loop with .range() until a
+// page comes back smaller than the page size, so every function reading
+// leads_segmentados sees the whole table, not just the first 1000 rows.
+async function buscarTodasAsLinhas<T>(
+  construirQuery: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>
+): Promise<T[]> {
+  const todas: T[] = [];
+  let offset = 0;
+  for (;;) {
+    const { data, error } = await construirQuery(offset, offset + TAMANHO_PAGINA - 1);
+    if (error) throw error;
+    const pagina = (data as T[] | null) ?? [];
+    todas.push(...pagina);
+    if (pagina.length < TAMANHO_PAGINA) break;
+    offset += TAMANHO_PAGINA;
+  }
+  return todas;
 }
 
 export async function listarLeadsSegmentados(
@@ -86,26 +105,32 @@ export async function listarLeadsSegmentados(
   filtro: FiltroCamada,
   busca?: string
 ): Promise<LeadSegmentado[]> {
-  let query = client.schema("crm_fibra").from("leads_segmentados").select();
-
-  if (filtro === "fibra_candidato") {
-    query = query.eq("camada_fibra", "fibra_candidato");
-  } else if (filtro === "apto_agora" || filtro === "apto_1_mes" || filtro === "apto_2_meses") {
-    query = query.eq("camada_renovacao", filtro);
-  } else if (filtro === "sem_dono") {
-    query = query.is("dono_consultor_id", null);
-  }
-
   const buscaLimpa = busca ? sanitizarBusca(busca) : "";
-  if (buscaLimpa) {
-    query = query.or(
-      `razao_social.ilike.%${buscaLimpa}%,cidade.ilike.%${buscaLimpa}%,cnpj_digits.ilike.%${buscaLimpa}%`
-    );
-  }
 
-  const { data, error } = await query.order("razao_social", { ascending: true });
-  if (error) throw error;
-  return (data as LeadRow[]).map(toLead);
+  const rows = await buscarTodasAsLinhas<LeadRow>((from, to) => {
+    let query = client.schema("crm_fibra").from("leads_segmentados").select();
+
+    if (filtro === "fibra_candidato") {
+      query = query.eq("camada_fibra", "fibra_candidato");
+    } else if (filtro === "apto_agora" || filtro === "apto_1_mes" || filtro === "apto_2_meses") {
+      query = query.eq("camada_renovacao", filtro);
+    } else if (filtro === "sem_dono") {
+      query = query.is("dono_consultor_id", null);
+    }
+
+    if (buscaLimpa) {
+      query = query.or(
+        `razao_social.ilike.%${buscaLimpa}%,cidade.ilike.%${buscaLimpa}%,cnpj_digits.ilike.%${buscaLimpa}%`
+      );
+    }
+
+    return query
+      .order("razao_social", { ascending: true })
+      .order("cnpj_digits", { ascending: true })
+      .range(from, to);
+  });
+
+  return rows.map(toLead);
 }
 
 export interface ContagemCamadas {
@@ -118,17 +143,18 @@ export interface ContagemCamadas {
 }
 
 export async function contarPorCamada(client: SupabaseClient): Promise<ContagemCamadas> {
-  const { data, error } = await client
-    .schema("crm_fibra")
-    .from("leads_segmentados")
-    .select("camada_fibra, camada_renovacao, dono_consultor_id");
-
-  if (error) throw error;
-  const rows = data as Array<{
+  const rows = await buscarTodasAsLinhas<{
     camada_fibra: string | null;
     camada_renovacao: string | null;
     dono_consultor_id: string | null;
-  }>;
+  }>((from, to) =>
+    client
+      .schema("crm_fibra")
+      .from("leads_segmentados")
+      .select("camada_fibra, camada_renovacao, dono_consultor_id")
+      .order("cnpj_digits", { ascending: true })
+      .range(from, to)
+  );
 
   return {
     fibraCandidato: rows.filter((r) => r.camada_fibra === "fibra_candidato").length,
@@ -144,15 +170,21 @@ export async function buscarLeadPorCnpj(
   client: SupabaseClient,
   cnpjDigits: string
 ): Promise<LeadSegmentado | null> {
+  // Deliberately not .maybeSingle(): public.clientes has no unique
+  // constraint on cnpj/cnpj_digits, so a duplicate row would make
+  // .maybeSingle() throw PGRST116 and 500 this page. .limit(1) + taking
+  // the first row degrades gracefully instead.
   const { data, error } = await client
     .schema("crm_fibra")
     .from("leads_segmentados")
     .select()
     .eq("cnpj_digits", cnpjDigits)
-    .maybeSingle();
+    .order("cnpj_digits", { ascending: true })
+    .limit(1);
 
   if (error) throw error;
-  return data ? toLead(data as LeadRow) : null;
+  const rows = (data as LeadRow[] | null) ?? [];
+  return rows.length > 0 ? toLead(rows[0]) : null;
 }
 
 export class LeadJaAtribuidoError extends Error {

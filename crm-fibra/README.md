@@ -57,6 +57,8 @@ não há cópia de dado. Se a base de clientes parecer errada (poucos
 resultados, números estranhos), confirme com o time se `public.clientes`
 está na sua versão correta antes de desconfiar do CRM Fibra.
 
+**Atenção — migração do Plano 2 ainda não aplicada em produção (2026-09-29):** as tabelas `atribuicoes`/`mensagens` e a view `leads_segmentados` estão escritas em `db/schema.sql`, mas só devem ser aplicadas no Supabase depois que `public.clientes` for restaurada pra sua versão correta (ela foi encontrada corrompida durante o planejamento — 1.010 linhas com colunas trocadas, em vez das 6.532 linhas corretas). Aplicar a migração antes disso faz a view herdar os dados corrompidos, e o dashboard/carteira vão mostrar números sem sentido. Depois de aplicar, confirme com a query do Task 1 Step 3 do plano (`docs/superpowers/plans/2026-09-29-crm-fibra-leads-carteira.md`) antes de considerar o ambiente pronto.
+
 ### Checklist de verificação manual (além do checklist do Plano 1)
 
 1. Logado como consultor, abra `/dashboard` → os 6 cartões devem mostrar

@@ -46,12 +46,30 @@ export default async function LeadDetailPage({
         <p style={{ fontSize: 13, color: "var(--cinza)" }}>Este lead já está atribuído a outro consultor.</p>
       )}
 
-      {telefone ? (
-        <NovaMensagemForm cnpjDigits={lead.cnpjDigits} telefone={telefone} />
+      {souODono ? (
+        telefone ? (
+          <NovaMensagemForm cnpjDigits={lead.cnpjDigits} telefone={telefone} />
+        ) : (
+          <div style={{ fontSize: 13, color: "var(--sinal)", marginBottom: 16 }}>
+            <p style={{ margin: "0 0 4px" }}>
+              Nenhum telefone válido encontrado — contato precisa ser manual.
+            </p>
+            {(lead.tel1 || lead.tel2 || lead.telefoneContato || lead.email) && (
+              <p style={{ margin: 0, color: "var(--cinza)" }}>
+                {lead.tel1 && `Tel 1: ${lead.tel1} `}
+                {lead.tel2 && `Tel 2: ${lead.tel2} `}
+                {lead.telefoneContato && `Contato: ${lead.telefoneContato} `}
+                {lead.email && `E-mail: ${lead.email}`}
+              </p>
+            )}
+          </div>
+        )
       ) : (
-        <p style={{ fontSize: 13, color: "var(--sinal)" }}>
-          Nenhum telefone válido encontrado para este cliente — contato precisa ser manual.
-        </p>
+        !lead.donoConsultorId && (
+          <p style={{ fontSize: 13, color: "var(--cinza)", marginBottom: 16 }}>
+            Atribua este lead a você para poder registrar contato.
+          </p>
+        )
       )}
 
       <h3 style={{ marginTop: 24 }}>Histórico de mensagens</h3>
