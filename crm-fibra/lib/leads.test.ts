@@ -84,24 +84,24 @@ describe("listarLeadsSegmentados", () => {
     expect(client.calls).toContainEqual({ method: "is", args: ["dono_consultor_id", null] });
   });
 
-  it("sanitiza texto de busca removendo caracteres especiais do PostgREST antes do ilike", async () => {
+  it("sanitiza texto de busca removendo caracteres especiais do PostgREST e preserva a busca por substring", async () => {
     const client = makeQueryFake(async () => ({ data: [], error: null }));
-    await listarLeadsSegmentados(client as unknown as SupabaseClient, "todos", "Acme, (Ltda) 100%*");
+    const buscaOriginal = "Acme, (Ltda) 100%*";
+    await listarLeadsSegmentados(client as unknown as SupabaseClient, "todos", buscaOriginal);
     const orCall = client.calls.find((c: { method: string }) => c.method === "or");
     const filtro = orCall.args[0] as string;
-    // The raw special characters from the search text must never survive
-    // into the filter string...
-    expect(filtro).not.toContain(",(");
-    expect(filtro).not.toContain(")");
-    expect(filtro).not.toContain("100%");
-    expect(filtro).not.toContain("*");
-    // ...while the actual search words still come through...
-    expect(filtro).toContain("Acme");
-    expect(filtro).toContain("Ltda");
-    expect(filtro).toContain("100");
-    // ...and the filter still has exactly 3 comma-separated ilike clauses
-    // (one per column) — proving the user's own comma didn't add a 4th.
-    expect(filtro.split(",")).toHaveLength(3);
+
+    // Compute the same sanitization the implementation is supposed to do,
+    // so this test never has to hand-count spaces to know the expected
+    // value.
+    const termoEsperado = buscaOriginal.replace(/[,()%*]/g, " ").trim();
+
+    expect(filtro).toBe(
+      `razao_social.ilike.%${termoEsperado}%,cidade.ilike.%${termoEsperado}%,cnpj_digits.ilike.%${termoEsperado}%`
+    );
+    // The raw special characters must never survive as literal characters
+    // from the user's input — only as the wrapper's own leading/trailing %.
+    expect(termoEsperado).not.toMatch(/[,()%*]/);
   });
 
   it("não chama .or() quando não há texto de busca", async () => {

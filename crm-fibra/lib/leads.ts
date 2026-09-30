@@ -99,7 +99,7 @@ export async function listarLeadsSegmentados(
   const buscaLimpa = busca ? sanitizarBusca(busca) : "";
   if (buscaLimpa) {
     query = query.or(
-      `razao_social.ilike.${buscaLimpa},cidade.ilike.${buscaLimpa},cnpj_digits.ilike.${buscaLimpa}`
+      `razao_social.ilike.%${buscaLimpa}%,cidade.ilike.%${buscaLimpa}%,cnpj_digits.ilike.%${buscaLimpa}%`
     );
   }
 
