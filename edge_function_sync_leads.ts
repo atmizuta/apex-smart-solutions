@@ -73,7 +73,7 @@ function sheetTabCsvUrl(gid: string): string {
 // repetidos colapsados — a planilha tem "TELEFONE ERRADO ou  SEM WHATSAPP" (2 espaços) e
 // "TELEFONE ERRADO ou Sem Whatsapp", que são o mesmo status digitado de formas diferentes.
 function normalizaStatus(s: string): string {
-  return (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+  return (s || "").normalize("NFD").replace(/\p{M}/gu, "").replace(/\s+/g, " ").trim().toUpperCase();
 }
 
 // Categorização do status interno de atendimento (coluna STATUS da planilha) — mesmo espírito da
