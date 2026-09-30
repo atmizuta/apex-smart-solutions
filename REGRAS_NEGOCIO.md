@@ -2287,3 +2287,35 @@ O conteúdo da Visão Geral fica num bloco central (`#tabOverview{max-width:1240
 - Antes de publicar, o painel no ar (MD5 `a0ad4f0d…`) era idêntico ao `oficial/main` (cf10963): nada por fora. Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`31fe76744c5b94dda7a31076b0c56bbd`**, igual no arquivo gerado, no servidor e no site público. Backup no servidor: `~/deploy_backups/painel_clientes_apex_20260930_194429_antes_dashboard_ajustes.html`. Vigia atualizado.
 - **Reverter:** copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. Não há mudança de banco nem de função nesta publicação.
 - Nome da etapa confirmado pelo usuário: **TERRITORIO** (sem acento). Suíte: 43 testes passam; a única falha é `test_pedidos_alerta.js` por falta do pacote `exceljs` nesta máquina (já falhava antes).
+
+## 56. Relatório de vendas das 17h (Visão Diária) — 30/09/2026
+
+Pedido do usuário: um botão ao lado do **Modo TV**, na Visão Diária do Dashboard, que gera um **texto escrito** com as vendas do dia para o Guilherme, sem ninguém precisar montar nada à mão.
+
+### 56.1 Como funciona
+- Botão **"Gerar relatório 17h"** (só **admin e supervisor** veem; no Modo TV ele some). Abre uma janela (o mesmo modal do dashboard) com o texto pronto, editável, e os botões **Copiar texto** e **Enviar pelo WhatsApp** (abre o WhatsApp com o texto para escolher o contato). Esc, o X ou clicar fora fecham.
+- O relatório é do **dia escolhido na Visão Diária** (campo "Dia"); mudar o dia muda o relatório.
+- **Corte às 17h (decisão do usuário):** conta só os pedidos cadastrados no dia **até 16:59 (fuso de São Paulo)**, mesmo que o botão seja clicado mais tarde — o texto é sempre o mesmo para aquele dia, como uma foto das 17h. Por isso os números podem ser menores que os cards da Visão Diária depois das 17h (os cards contam o dia inteiro). Se o botão for clicado **antes das 17h, no próprio dia**, o texto ganha o aviso "gerado às HH:MM, antes das 17h — os números são parciais".
+- **Mesmas regras da Visão Diária:** pedidos pela data de **cadastro**, todos os pedidos do dia (sem filtro de etapa); "Linhas do dia" = soma das quantidades dos grupos `VOZ - *` (igual ao card "Linhas"); cada tipo de venda conta as linhas do seu grupo (igual aos cards "Por tipo de venda"); "Valor total" soma o valor de todos os pedidos do dia (igual ao card "Valor Total").
+
+### 56.2 Texto gerado
+```
+RELATÓRIO DE VENDAS — 29/09/2026 (terça-feira)
+Posição das 17h (pedidos cadastrados até as 17:00)
+
+Linhas do dia: 8
+Banda larga: 1
+Migração (titularidade): 1
+Portabilidade: 3
+Linha nova: 2
+Renovação: 1
+Aparelho: 1
+Telefone fixo: 0
+Claro Monitor: 2
+
+Valor total: R$ 3.628,20
+```
+Correspondência com os grupos do NeoCRM (`RELATORIO_ROTULOS`, deriva de `DIARIA_TIPOS_VENDA`): Banda larga = `BANDA LARGA - Novo`; Migração = `VOZ - Tranf. Titularidade`; Portabilidade = `VOZ - Portabilidade`; Linha nova = `VOZ - Novo`; Renovação = `VOZ - Renovação`; Aparelho = `APARELHO`; **Telefone fixo = `SVA FIXA`**; Claro Monitor = `SVA MÓVEL`. Um tipo de venda novo acrescentado em `DIARIA_TIPOS_VENDA` entra sozinho no texto (com o rótulo do card). Fora do texto, por decisão do usuário: contratos, ticket médio, NET-TV e M2M (continuam contando no valor total).
+
+### 56.3 Testes
+`test_relatorio_17h.js` (34): botão ao lado do Modo TV, corte às 17h (16:59 entra; 17:00 fica de fora, inclusive quando o horário vem em UTC), contagem por tipo, linhas e valor, texto linha a linha, aviso de parcial, dia sem vendas, abrir/editar/copiar (com os dois métodos de cópia e a mensagem de erro), WhatsApp, fechar (Esc, X, fora), troca de dia, botão escondido do consultor e no Modo TV.
