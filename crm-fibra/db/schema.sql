@@ -77,9 +77,16 @@ select
     else null
   end as camada_fibra,
   case
-    when c.apto_renovacao = 'APTO' then 'apto_agora'
-    when c.apto_renovacao = '1 MÊS PARA APTO' then 'apto_1_mes'
-    when c.apto_renovacao = '2 MESES PARA APTO' then 'apto_2_meses'
+    -- Renewal eligibility now follows the painel's current rule
+    -- (tempo_contrato_voz > 15), not the apto_renovacao text field, which
+    -- the painel's own REGRAS_NEGOCIO.md says stopped being populated
+    -- reliably as of 2026-08-11. The three tiers mirror what
+    -- apto_renovacao used to express: "apto agora" once the contract
+    -- crosses the threshold, "1/2 meses para apto" while counting up to
+    -- it (tempo_contrato_voz increments by 1 per month under contract).
+    when c.tempo_contrato_voz > 15 then 'apto_agora'
+    when c.tempo_contrato_voz = 15 then 'apto_1_mes'
+    when c.tempo_contrato_voz = 14 then 'apto_2_meses'
     else null
   end as camada_renovacao,
   a.consultor_id as dono_consultor_id,
