@@ -148,6 +148,30 @@ Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t =>
   const css = [...d.querySelectorAll('style')].map(s => s.textContent).join('\n');
   assert(/body\.tv-mode \.rel-btn\{display:none;\}/.test(css), 'no Modo TV o botão do relatório some');
 
+  // ---------------------------------------------------------------- 6) posição da janela dentro do iframe alto (bug de 30/09/2026)
+  // O dashboard roda num iframe com a altura do conteúdo; um "fixed" comum ficava no meio do iframe inteiro, longe da tela.
+  const pos = (topo, tela, total) => w.calcularPosicaoOverlay(topo, tela, total);
+  let p = pos(-2407, 768, 4972);
+  assert(p.topo === 2407 && p.altura === 768, 'página rolada 2407px: a janela fica no trecho visível (topo 2407, altura 768) — ' + JSON.stringify(p));
+  p = pos(100, 768, 4972);
+  assert(p.topo === 0 && p.altura === 668, 'iframe começando 100px abaixo do topo da tela: só os 668px visíveis — ' + JSON.stringify(p));
+  p = pos(-4500, 768, 4972);
+  assert(p.topo === 4500 && p.altura === 472, 'no fim da página a janela não passa do fim do iframe (altura 472) — ' + JSON.stringify(p));
+  p = pos(0, 200, 4972);
+  assert(p.altura === 240, 'tela muito baixa: altura mínima de 240px — ' + JSON.stringify(p));
+  assert(pos(-10, 812, 3000).maxCartao === 650, 'o cartão da janela nunca passa de ~85% da tela real, menos folga (812px → 650px)');
+
+  // a janela do relatório usa o mesmo mecanismo do analítico, e abrir não rola a página até o campo de texto
+  const fonteDash = tplRaw;
+  assert(/\['drilldownOverlay', 'relatorioOverlay'\]\.forEach\(ajustarPosicaoOverlay\)/.test(fonteDash), 'o posicionamento vale para o analítico E para o relatório');
+  assert(/classList\.add\('open'\);\s*ajustarPosicaoDrilldown\(\);/.test(fonteDash), 'abrir o relatório já posiciona a janela na parte visível');
+  assert(/focus\(\{ preventScroll: true \}\)/.test(fonteDash), 'o foco no texto não rola a página');
+
+  // ---------------------------------------------------------------- 7) altura do iframe acompanha o conteúdo (rolagem "infinita" em branco)
+  assert(/const h = doc\.body \? Math\.ceil\(doc\.body\.getBoundingClientRect\(\)\.height\)/.test(outerHtml), 'a altura do iframe é a do CORPO do dashboard (antes usava documentElement.scrollHeight, que nunca diminui)');
+  assert(!/const h = Math\.max\(doc\.documentElement\.scrollHeight/.test(outerHtml), 'a medição antiga (que só crescia) foi removida');
+  assert(!/id="producaoFrame"[^>]*min-height:2400px/.test(outerHtml), 'o iframe não tem mais o mínimo de 2400px (abas curtas não sobram em branco)');
+
   console.log('--- test_relatorio_17h RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
   process.exit(fail > 0 ? 1 : 0);
 })();

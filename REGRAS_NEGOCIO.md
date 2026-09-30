@@ -2324,3 +2324,18 @@ Correspondência com os grupos do NeoCRM (`RELATORIO_ROTULOS`, deriva de `DIARIA
 - Antes de publicar, o painel no ar (MD5 `31fe7674…`) era idêntico ao `oficial/main` (9bef84b): nada por fora. Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`41a250fdc0f8572807cdbd6d11f46df7`**, igual no arquivo gerado, no servidor e no site público. Backup no servidor: `~/deploy_backups/painel_clientes_apex_20260930_195957_antes_relatorio_17h.html`. Vigia atualizado.
 - **Reverter:** copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. Não há mudança de banco nem de função.
 - Suíte: 44 testes passam; a única falha é `test_pedidos_alerta.js` por falta do pacote `exceljs` nesta máquina (já falhava antes).
+
+## 57. Correção: rolagem "infinita" em branco e janela do relatório fora da tela (30/09/2026)
+
+**Problema (relatado pelo usuário com vídeo, logo depois da publicação do relatório das 17h):** a página rolava sem parar e a janela do relatório aparecia lá embaixo, fora da parte visível. Reproduzido na demonstração: com o iframe do dashboard em 4.972 px, a janela abria a 2.407 px do topo da tela.
+
+**Causas (duas):**
+1. **Altura do iframe só crescia.** O painel ajusta a altura do iframe do dashboard ao conteúdo (`ajustarAltura` em `loadProducaoDashboard`), mas medindo `documentElement.scrollHeight`, que nunca é menor que a altura atual do próprio iframe. Depois de abrir a Visão Geral (alta), trocar para a Visão Diária (curta) deixava milhares de pixels em branco. Além disso o iframe tinha `min-height:2400px` fixo.
+2. **A janela do relatório usava `position:fixed` comum.** Dentro de um iframe alto o "fixed" fica no meio da caixa inteira do iframe. O analítico já tinha a correção (`ajustarPosicaoDrilldown`, que calcula o trecho visível do iframe pela janela externa); a janela do relatório não usava.
+
+**Correção:**
+- `ajustarAltura` passa a medir o **corpo** do dashboard (`body.getBoundingClientRect().height`) e o `min-height` do iframe caiu de 2400px para 400px: a altura acompanha o conteúdo de cada aba, para cima e para baixo (Visão Diária: página total de 5.238 px → 1.161 px na demonstração).
+- `ajustarPosicaoDrilldown` passou a posicionar **as duas janelas** (analítico e relatório), com o cálculo extraído para a função pura `calcularPosicaoOverlay` (testável). Abrir o relatório chama o posicionamento e o foco no texto usa `preventScroll` (antes o foco podia rolar a página até o campo).
+- Conferido no navegador (desktop 1366×768 e celular 375×812): a janela abre dentro da tela, sem mexer na rolagem, com os botões visíveis.
+
+**Testes:** `test_relatorio_17h.js` (45): casos do cálculo de posição (página rolada, topo, fim da página, tela baixa, limite de altura do cartão) e verificações do código para a medição pelo corpo, o posicionamento das duas janelas, o `preventScroll` e a ausência do `min-height:2400px`; o teste falha no painel anterior.
