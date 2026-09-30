@@ -2352,4 +2352,6 @@ Correspondência com os grupos do NeoCRM (`RELATORIO_ROTULOS`, deriva de `DIARIA
 - **Não mudam:** Visão Diária, Pedidos em Alerta e Modo TV (já eram coluna única / tela cheia).
 - **Só CSS** (`_dashboard_producao.html`, bloco "Página centralizada"). Sem mudança de banco nem de função. Testes: `test_dashboard_ajustes.js` (52).
 - Conferido na demonstração local em 1366px (4 cartões em linha, filtros em faixa única) e 1800px (conteúdo centralizado, margens de 117px de cada lado). Suíte: 44 passam; a única falha é `test_pedidos_alerta.js` por falta do `exceljs` nesta máquina (já falhava antes).
-- **Ainda não publicado** — aguarda o OK do usuário.
+### 58.1 Publicado (30/09/2026, 20:24)
+- Antes de publicar, o painel no ar (MD5 `e7d1133b…`) era idêntico ao `oficial/main` (d94d454): nada por fora. Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`d4ef7baa38473ec5bbff93a67da6ebcf`**, igual no arquivo gerado, no servidor e no site público. Backup no servidor: `~/deploy_backups/painel_clientes_apex_20260930_202344_antes_layout_centralizado.html`. Vigia atualizado.
+- **Reverter:** copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. Não há mudança de banco nem de função.
