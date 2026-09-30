@@ -9,8 +9,14 @@ export function ConsultorRow({ consultor }: { consultor: Consultor }) {
   const [mensagem, setMensagem] = useState<string | null>(null);
 
   function alternarAtivo() {
+    if (consultor.ativo && !window.confirm(`Desativar o acesso de ${consultor.nome}?`)) {
+      return;
+    }
     startTransition(async () => {
-      await definirAtivoAction(consultor.id, !consultor.ativo);
+      const resultado = await definirAtivoAction(consultor.id, !consultor.ativo);
+      if (resultado?.erro) {
+        setMensagem(resultado.erro);
+      }
     });
   }
 

@@ -146,4 +146,23 @@ describe("definirAtivoAction", () => {
     await expect(definirAtivoAction("2", false)).rejects.toThrow("REDIRECT:/login");
     expect(definirAtivo).not.toHaveBeenCalled();
   });
+
+  it("recusa a autodesativação e não chama definirAtivo", async () => {
+    cookieGet.mockReturnValue({ value: "token" });
+    verifySessionToken.mockResolvedValue({ consultorId: "1", papel: "admin" });
+    buscarConsultorPorId.mockResolvedValue({
+      id: "1",
+      nome: "Admin",
+      username: "admin",
+      papel: "admin",
+      ativo: true,
+      criadoEm: "x",
+      ultimoLogin: null,
+    });
+
+    const result = await definirAtivoAction("1", false);
+
+    expect(result).toEqual({ erro: "Você não pode desativar sua própria conta" });
+    expect(definirAtivo).not.toHaveBeenCalled();
+  });
 });

@@ -8,7 +8,7 @@
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed:admin": "tsx db/seed.ts"
+    "seed:admin": "tsx --env-file=.env.local db/seed.ts"
   },
   "dependencies": {
     "next": "^16.0.0",

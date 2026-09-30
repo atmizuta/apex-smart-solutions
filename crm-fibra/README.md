@@ -15,7 +15,9 @@ o desenho completo.
      caracteres.
 3. Rode a migração (`db/schema.sql`) contra o projeto Supabase — ver Task 4
    do plano de implementação.
-4. Crie o primeiro admin: `SEED_ADMIN_USERNAME=... SEED_ADMIN_SENHA=... npm run seed:admin`
+4. Crie o primeiro admin: adicione `SEED_ADMIN_NOME`, `SEED_ADMIN_USERNAME` e
+   `SEED_ADMIN_SENHA` ao mesmo `.env.local` (o arquivo que já tem
+   `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`) e rode `npm run seed:admin`.
 
    Nota: se você não tiver a SUPABASE_SERVICE_ROLE_KEY à mão localmente, um admin também pode ser criado por uma inserção SQL direta na tabela `crm_fibra.consultores`, com a senha hasheada via bcrypt (12 rounds) antes de inserir — foi assim que o primeiro admin desta instância foi criado.
 

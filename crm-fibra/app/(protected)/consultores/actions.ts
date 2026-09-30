@@ -22,6 +22,7 @@ async function exigirAdmin() {
   if (!consultor || !consultor.ativo || consultor.papel !== "admin") {
     throw new Error("Apenas administradores podem gerenciar consultores");
   }
+  return consultor;
 }
 
 export type CriarConsultorState = { erro?: string; sucesso?: boolean };
@@ -54,10 +55,17 @@ export async function criarConsultorAction(
   return { sucesso: true };
 }
 
-export async function definirAtivoAction(id: string, ativo: boolean): Promise<void> {
-  await exigirAdmin();
+export async function definirAtivoAction(
+  id: string,
+  ativo: boolean
+): Promise<{ erro?: string }> {
+  const admin = await exigirAdmin();
+  if (id === admin.id && !ativo) {
+    return { erro: "Você não pode desativar sua própria conta" };
+  }
   await definirAtivo(getSupabaseAdmin(), id, ativo);
   revalidatePath("/consultores");
+  return {};
 }
 
 export async function redefinirSenhaAction(

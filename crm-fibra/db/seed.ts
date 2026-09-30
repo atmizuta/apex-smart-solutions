@@ -2,7 +2,7 @@ import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { criarConsultor, UsernameJaExisteError } from "../lib/consultores";
 
 async function main() {
-  const nome = process.env.SEED_ADMIN_NOME ?? "Administrador";
+  const nome = process.env.SEED_ADMIN_NOME || "Administrador";
   const username = process.env.SEED_ADMIN_USERNAME;
   const senha = process.env.SEED_ADMIN_SENHA;
 
