@@ -72,7 +72,7 @@ const barraTerr = cartoes[0].querySelector('.uc-row[data-etapa*="TERRIT"] .uc-ba
 assert(barraTerr && barraTerr.style.width === '0%', 'barra do Território sem valor no cartão está vazia');
 assert([...d.querySelectorAll('#etapa-list input')].some(i => /TERRIT/i.test(i.value)), 'Território aparece no filtro de Etapa');
 assert(/TERRIT/i.test(d.getElementById('alertaMatriz').textContent), 'Território é uma linha/coluna da matriz de Pedidos em Alerta (etapa monitorada)');
-assert(w.eval("etapaCategory('TERRITÓRIO (NEOCRM)')") === 'andamento', 'etapaCategory(Território) = andamento');
+assert(w.eval("etapaCategory('TERRITORIO (NEOCRM)')") === 'andamento', 'etapaCategory(Território) = andamento');
 assert(w.eval("ehTerritorio('TERRITORIO (NEOCRM)') && ehTerritorio('Território (NEOCRM)') && !ehTerritorio('ENTREGA (NEOCRM)')"), 'reconhece o Território em qualquer grafia e não confunde outras etapas');
 
 // clicar na linha do Território (sem pedidos) não quebra nada
