@@ -2282,3 +2282,8 @@ O conteúdo da Visão Geral fica num bloco central (`#tabOverview{max-width:1240
 - O NeoCRM escreve nomes de etapa de forma inconsistente (`CREDITO` sem acento, `VALIDAÇÃO ESIM` com), então **qualquer grafia que contenha "TERRITORIO"** (sem acento, sem diferença de caixa) é tratada como a etapa canônica **`TERRITORIO (NEOCRM)`** (nome confirmado pelo usuário em 30/09/2026: sem acento, como `CREDITO` e `NEGOCIACAO`); nas listas do consultor as duas grafias estão em `PP_ETAPAS`.
 - **Em 30/09/2026 nenhum pedido estava nessa etapa** (nem na tabela nem no JSON bruto da API): por isso ela não aparecia. Assim que entrar o primeiro pedido, aparece com os valores reais.
 - Não verificado: o nome que a API vai mandar de fato quando chegar o primeiro pedido (a regra acima cobre com/sem acento) e a exportação do Excel de Pedidos em Alerta com a etapa nova (o teste do Excel depende do pacote `exceljs`, ausente nesta máquina).
+
+### 55.6 Publicado (30/09/2026, 19:44)
+- Antes de publicar, o painel no ar (MD5 `a0ad4f0d…`) era idêntico ao `oficial/main` (cf10963): nada por fora. Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`31fe76744c5b94dda7a31076b0c56bbd`**, igual no arquivo gerado, no servidor e no site público. Backup no servidor: `~/deploy_backups/painel_clientes_apex_20260930_194429_antes_dashboard_ajustes.html`. Vigia atualizado.
+- **Reverter:** copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. Não há mudança de banco nem de função nesta publicação.
+- Nome da etapa confirmado pelo usuário: **TERRITORIO** (sem acento). Suíte: 43 testes passam; a única falha é `test_pedidos_alerta.js` por falta do pacote `exceljs` nesta máquina (já falhava antes).
