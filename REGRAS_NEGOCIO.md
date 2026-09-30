@@ -2228,3 +2228,25 @@ Aditiva: nada que o painel atual usa foi alterado. Cria `usuario_id` + gatilhos,
 - **Painel:** antes de publicar, o painel no ar (MD5 `973b7787…`) era idêntico ao `oficial/main` (8bf246c), então não havia nada publicado por fora. Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`d89f7962ece4005ec887f389da764255`**, igual no arquivo gerado, no servidor e no site público. Backup do painel anterior no servidor: `~/deploy_backups/painel_clientes_apex_20260930_162557_antes_painel_consultor.html`.
 - **Reverter o painel:** copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. **Reverter o banco:** rodar `supabase/rollback/20260930200000_painel_consultor_rollback.sql` (só depois de reverter o painel; apaga vínculos e metas).
 - **Metas:** ainda não há meta cadastrada; o admin define em Equipe e acessos → "Metas do mês (R$)". Sem meta, o placar mostra só os números.
+
+## 54. Aba Digital: leads por aba da planilha (Setembro, Agosto e Repique não se misturam) — 30/09/2026
+
+**Problema (30/09/2026):** a contagem por consultor da aba Digital estava errada (a Yasmin aparecia com 68 leads sem ter nenhum em Setembro; a Mariana com 1 conversão quando tinha 12). Análise completa na conversa de 30/09; causas:
+1. Na aba SETEMBRO da planilha a coluna do consultor tem o **cabeçalho em branco** (nas outras abas é `CONSULTOR `). A função `sync-leads` não a reconhecia e os 836 leads do mês viravam "(Sem consultor)".
+2. A função lia as três abas (Agosto, Setembro e Repique) para a mesma tabela `leads`, sem guardar de qual aba cada lead veio, e a chave era só o `id` (o mesmo id em duas abas era sobrescrito pela última). Os números por consultor vinham quase só de Agosto + Repique.
+3. Vários status novos (TELEFONE ERRADO…, LEAD FORA DO PERFIL…) caíam em "andamento".
+
+### 54.1 Regras (decisões do usuário)
+- **Três abas separadas:** a aba Digital ganhou o cartão **"Aba da planilha"** com as pílulas **Setembro**, **Agosto** e **Repique** (mês mais recente primeiro, Repique por último; abre em Setembro). Cada pílula mostra só os leads daquela aba; nada se mistura. O filtro de período (Tudo/Hoje/7 dias/Este mês/De–Até) vale **dentro** da aba escolhida. Quando o time criar a aba de outubro, basta incluí-la na lista `SHEET_TABS` da função (com a chave `OUTUBRO`) e reimplantá-la: a pílula aparece sozinha.
+- **Consultor da aba de Setembro:** a função usa como coluna do consultor a que está imediatamente antes de `STATUS` quando não existe nenhuma coluna chamada `CONSULTOR` e ela está sem nome.
+- **Convertido:** vale **primeiro a coluna `CONVERTEU?` = "sim"**; se ela não disser "sim", olha o `STATUS`: "PEDIDO CONCLUIDO (VENDA)" também conta como convertido. (Valores soltos como "e" ou "f" na coluna não contam.)
+- **Venda perdida:** os status novos TELEFONE ERRADO OU SEM WHATSAPP, LEAD FORA DO PERFIL, CLIENTE SO QUERIA APARELHO, CLIENTE SÓ QUERIA FIBRA, CNPJ REPROVADO, SUSPEITA DE FRAUDE e CLIENTE NÃO QUER NO CNPJ passam a ser **perdido**. "PEDIDO EM ANÁLISE" continua em andamento. A comparação de status ignora acento, caixa e espaços repetidos (a planilha tem "TELEFONE ERRADO ou  SEM WHATSAPP" com 2 espaços).
+- **"Atualizar agora" continua** (só admin/supervisor) e agora mostra a contagem por aba ("Setembro 836 · Agosto 154 · Repique 427").
+
+### 54.2 Banco e função
+- Migration `supabase/migrations/20260930300000_leads_por_aba.sql` (rollback em `supabase/rollback/`): coluna `leads.aba`, chave primária `(aba, id)`, índice, reclassificação dos status novos nas linhas já gravadas e nova `reconciliacao_neocrm(p_de, p_ate, p_aba default null)` (o card "Conversão confirmada no NeoCRM" dos consultores respeita a aba; sem `p_aba` o comportamento é o de antes, então o painel antigo continua funcionando durante a troca).
+- `edge_function_sync_leads.ts`: chave `aba` em `SHEET_TABS`, `deduplicarLeads` por `(aba, id)`, upsert com `onConflict: "aba,id"`, consultor tolerante ao cabeçalho em branco, categorias com normalização de texto. Publicada pelo conector do Supabase (mesmo arquivo do repositório).
+- **Ordem de entrada no ar:** migration (com preenchimento da coluna `aba` a partir da planilha) → Edge Function nova → painel novo. O painel novo lê `leads.aba`; publicá-lo antes da migration quebraria a aba Digital.
+
+### 54.3 Testes
+`test_edge_function_sync_leads.js` (89 verificações: aba por lead, consultor da aba de Setembro, status novos, regra de convertido, dedup por aba), `test_digital_abas.js` (25: seletor, separação dos números, período dentro da aba, reconciliação com `p_aba`, mensagem de sincronização, banco sem a coluna) e `test_conversao_vendas.js` (inalterado, continua passando).

@@ -24,7 +24,7 @@
     producao_pedidos: Array.from({ length: 140 }, (_, i) => ({ id: i + 1, numero_pedido: 'PED' + (5000 + Math.floor(i / 2)), grupo: 'APEX', usuario: r(consultores, i),
       etapa: r(etapas, i), cadastro: dia(i % 25), atualizacao: dia(i % 25), valor: 60 + (i * 13) % 240, quantidade: 1 + i % 3, produto: r(produtos, i),
       cliente: `EMPRESA EXEMPLO ${1 + i % 60} LTDA`, cnpj: cnpj(i % 60), tag: '', criado_em: dia(i % 25) })),
-    leads: Array.from({ length: 90 }, (_, i) => ({ id: 'l' + i, criado_em_lead: dia(i % 28), full_name: 'Lead ' + (i + 1), cnpj: cnpj(i), city: r(cidades, i),
+    leads: Array.from({ length: 90 }, (_, i) => ({ id: 'l' + i, aba: i % 9 === 0 ? 'REPIQUE' : (i % 4 === 0 ? 'AGOSTO' : 'SETEMBRO'), criado_em_lead: dia(i % 28), full_name: 'Lead ' + (i + 1), cnpj: cnpj(i), city: r(cidades, i),
       consultor: r(consultores, i), status: r(['CONVERTIDO', 'EM ANDAMENTO', 'PERDIDO', 'SEM CONTATO'], i), categoria: r(['convertido', 'andamento', 'perdido', 'sem_contato'], i),
       converteu: i % 4 === 0, receita: i % 4 === 0 ? 120 + i * 3 : 0, platform: i % 2 ? 'ig' : 'fb', atualizado_em: dia(i % 5) })),
     clientes_movimentacao: Array.from({ length: 40 }, (_, i) => ({ id: i + 1, tipo: r(['entrou', 'saiu', 'mudou'], i), cnpj: cnpj(i), razao_social: `EMPRESA EXEMPLO ${i + 1} LTDA`,

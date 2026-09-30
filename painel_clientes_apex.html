@@ -913,6 +913,12 @@
       </div>
 
       <div id="conversaoWrap" style="display:none">
+        <!-- 30/09/2026: seletor de aba da planilha (Setembro / Agosto / Repique). Cada aba é contada separada — ver seção 54 do REGRAS_NEGOCIO.md -->
+        <div class="card" id="conversaoAbaCard" style="display:none">
+          <h3>Aba da planilha</h3>
+          <p class="desc">Cada aba da planilha é contada separadamente (elas não se misturam): os números abaixo são só da aba escolhida.</p>
+          <div class="filterPills" id="conversaoAbaPills"></div>
+        </div>
         <div class="card">
           <h3>Período</h3>
           <p class="desc">Os números abaixo consideram só os leads criados no período selecionado. Use "De"/"Até" com a mesma data pra ver um único dia.</p>
@@ -7096,6 +7102,47 @@ function miniBarHtml(pctFracao, corVar){
 let conversaoLeadsCache = [];
 let conversaoPeriodoDe = null;
 let conversaoPeriodoAte = null;
+// Aba da planilha escolhida (30/09/2026): cada lead vem com `aba` (AGOSTO, SETEMBRO, REPIQUE...) e a tela
+// só conta os leads da aba escolhida — o filtro de período vale DENTRO da aba. Sem nenhum lead com aba
+// (banco ainda sem a coluna), não há seletor e vale tudo, como antes.
+let conversaoAbaAtual = null;
+const CONVERSAO_MESES = ['JANEIRO', 'FEVEREIRO', 'MARCO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
+function conversaoAbaRotulo(aba){
+  const s = String(aba || '');
+  return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '';
+}
+// Ordem das abas: o mês mais recente primeiro, os demais meses em seguida e o REPIQUE por último.
+function conversaoOrdemAba(aba){
+  const nome = String(aba || '').toUpperCase();
+  const i = CONVERSAO_MESES.indexOf(nome.normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
+  if(i >= 0) return 100 - i;
+  return nome === 'REPIQUE' ? 1000 : 500;
+}
+function conversaoAbasDisponiveis(leads){
+  const n = {};
+  (leads || []).forEach(l => { if(l.aba) n[l.aba] = (n[l.aba] || 0) + 1; });
+  return Object.keys(n).map(aba => ({ aba, n: n[aba] }))
+    .sort((a, b) => (conversaoOrdemAba(a.aba) - conversaoOrdemAba(b.aba)) || a.aba.localeCompare(b.aba));
+}
+// Garante uma aba válida escolhida (a mais recente por padrão) e devolve a lista de abas.
+function conversaoGarantirAba(){
+  const abas = conversaoAbasDisponiveis(conversaoLeadsCache);
+  if(!abas.length){ conversaoAbaAtual = null; return abas; }
+  if(!abas.some(a => a.aba === conversaoAbaAtual)) conversaoAbaAtual = abas[0].aba;
+  return abas;
+}
+function conversaoLeadsDaAba(){
+  if(!conversaoAbaAtual) return conversaoLeadsCache;
+  return conversaoLeadsCache.filter(l => l.aba === conversaoAbaAtual);
+}
+function renderConversaoAbas(){
+  const card = document.getElementById('conversaoAbaCard');
+  const pills = document.getElementById('conversaoAbaPills');
+  if(!card || !pills) return;
+  const abas = conversaoGarantirAba();
+  card.style.display = abas.length ? '' : 'none';
+  pills.innerHTML = abas.map(a => `<button type="button" class="filterPill${a.aba === conversaoAbaAtual ? ' active' : ''}" data-aba="${escapeHtml(a.aba)}">${escapeHtml(conversaoAbaRotulo(a.aba))} <b>${a.n.toLocaleString('pt-BR')}</b></button>`).join('');
+}
 // Cache de producao_pedidos (só cnpj/etapa/atualizacao) pra reconciliar convertidos-na-planilha x
 // confirmados-no-NeoCRM — buscado uma vez em loadConversaoVendas, só pra admin/supervisor (precisa
 // de CNPJ), reaproveitado sem refetch a cada troca do filtro Período. Ver "Conversão confirmada no
@@ -7118,8 +7165,9 @@ function somaDiasStr(dateStr, delta){
   return dt.toISOString().slice(0, 10);
 }
 function conversaoLeadsFiltrados(){
-  if(!conversaoPeriodoDe && !conversaoPeriodoAte) return conversaoLeadsCache;
-  return conversaoLeadsCache.filter(l => {
+  const base = conversaoLeadsDaAba();
+  if(!conversaoPeriodoDe && !conversaoPeriodoAte) return base;
+  return base.filter(l => {
     const d = leadDateSP(l.criado_em_lead);
     if(!d) return false; // sem data conhecida: não dá pra confirmar que está no período, então some do filtro (mas continua contando em "Tudo")
     if(conversaoPeriodoDe && d < conversaoPeriodoDe) return false;
@@ -7136,8 +7184,8 @@ async function loadConversaoVendas(){
   // "Conversão confirmada no NeoCRM") — consultor não recebe a coluna, mesma cautela de privacidade
   // já usada no Dashboard de Produção (seção 16.4).
   const leadsCols = adminMode
-    ? 'consultor,status,categoria,converteu,receita,criado_em_lead,cnpj'
-    : 'consultor,status,categoria,converteu,receita,criado_em_lead';
+    ? 'consultor,status,categoria,converteu,receita,criado_em_lead,cnpj,aba'
+    : 'consultor,status,categoria,converteu,receita,criado_em_lead,aba';
 
   const queries = [
     fetchAllRows(() => sb.from('leads').select(leadsCols)),
@@ -7186,11 +7234,13 @@ function renderConversaoFiltrado(){
   emptyCard.style.display = 'none';
   wrap.style.display = 'block';
 
+  renderConversaoAbas();
   const leads = conversaoLeadsFiltrados();
   if(infoEl){
+    const naAba = conversaoAbaAtual ? ` da aba ${conversaoAbaRotulo(conversaoAbaAtual)}` : '';
     infoEl.textContent = (conversaoPeriodoDe || conversaoPeriodoAte)
-      ? `${leads.length.toLocaleString('pt-BR')} de ${conversaoLeadsCache.length.toLocaleString('pt-BR')} leads no período selecionado`
-      : `${leads.length.toLocaleString('pt-BR')} leads no total`;
+      ? `${leads.length.toLocaleString('pt-BR')} de ${conversaoLeadsDaAba().length.toLocaleString('pt-BR')} leads${naAba} no período selecionado`
+      : `${leads.length.toLocaleString('pt-BR')} leads${naAba} no total`;
   }
 
   const totalLeads = leads.length;
@@ -7432,7 +7482,7 @@ async function renderReconciliacaoNeoCRM(leadsPeriodo){
     r = reconciliarConversaoNeoCRM(leadsConvertidos, producaoPedidosCacheDigital);
     reconciliacaoDrilldownCache = montarDrilldownReconciliacao(leadsConvertidos, producaoPedidosCacheDigital);
   } else {
-    const { data, error } = await sb.rpc('reconciliacao_neocrm', { p_de: conversaoPeriodoDe, p_ate: conversaoPeriodoAte });
+    const { data, error } = await sb.rpc('reconciliacao_neocrm', { p_de: conversaoPeriodoDe, p_ate: conversaoPeriodoAte, p_aba: conversaoAbaAtual });
     if(error){
       console.error(error);
       document.getElementById('reconciliacaoCards').innerHTML = '<p style="color:var(--muted);grid-column:1/-1">Não foi possível carregar a reconciliação agora.</p>';
@@ -7869,8 +7919,9 @@ document.getElementById('btnConversaoSync').addEventListener('click', async func
       throw new Error(msg);
     }
     if(data && data.error) throw new Error(data.error);
-    statusEl.textContent = `Sincronizado: ${data.total} lead(s) — ${data.atualizado_em}`;
-    await loadConversaoVendas();
+    const porAba = data.por_aba ? Object.keys(data.por_aba).sort((a, b) => conversaoOrdemAba(a) - conversaoOrdemAba(b)).map(a => `${conversaoAbaRotulo(a)} ${data.por_aba[a]}`).join(' · ') : '';
+    await loadConversaoVendas(); // recarrega os números (e reescreve o texto de status)...
+    statusEl.textContent = `Sincronizado: ${data.total} lead(s)${porAba ? ' (' + porAba + ')' : ''} — ${data.atualizado_em}`; // ...então a contagem por aba aparece por cima
   }catch(err){
     console.error(err);
     statusEl.textContent = 'Erro ao sincronizar: ' + err.message;
@@ -7900,6 +7951,14 @@ document.getElementById('apexMindBubble').addEventListener('click', async () => 
 });
 
 document.getElementById('btnVendaOrigemBuscar').addEventListener('click', buscarVendasOrigemLead);
+
+// Pílulas de aba da planilha (Setembro/Agosto/Repique): só trocam a aba e re-renderizam, sem refetch.
+document.getElementById('conversaoAbaPills').addEventListener('click', function(ev){
+  const b = ev.target.closest('[data-aba]');
+  if(!b) return;
+  conversaoAbaAtual = b.dataset.aba;
+  renderConversaoFiltrado();
+});
 
 // Pílulas de atalho de período (Tudo/Hoje/Últimos 7 dias/Este mês) — cada uma só reposiciona
 // conversaoPeriodoDe/Ate e re-renderiza (sem refetch). Editar os campos De/Até manualmente também
