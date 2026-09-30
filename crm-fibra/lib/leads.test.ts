@@ -4,6 +4,10 @@ import {
   listarLeadsSegmentados,
   contarPorCamada,
   buscarLeadPorCnpj,
+  atribuirLead,
+  LeadJaAtribuidoError,
+  listarMensagens,
+  registrarMensagem,
 } from "./leads";
 
 function makeQueryFake(terminal: () => Promise<{ data?: unknown; error?: unknown }>) {
@@ -18,6 +22,8 @@ function makeQueryFake(terminal: () => Promise<{ data?: unknown; error?: unknown
     or: (...a: unknown[]) => { calls.push({ method: "or", args: a }); return q; },
     order: (...a: unknown[]) => { calls.push({ method: "order", args: a }); return terminal(); },
     maybeSingle: () => terminal(),
+    single: () => terminal(),
+    insert: (payload: unknown) => { q.__inserted = payload; return q; },
     then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) => terminal().then(resolve, reject),
   };
   return q;
@@ -151,5 +157,82 @@ describe("buscarLeadPorCnpj", () => {
     const result = await buscarLeadPorCnpj(client as unknown as SupabaseClient, "00005087000190");
     expect(result?.cnpjDigits).toBe("00005087000190");
     expect(result?.razaoSocial).toBe("NABAS & CAMARGO LTDA");
+  });
+});
+
+describe("atribuirLead", () => {
+  it("insere a atribuição com o cnpj e o consultor", async () => {
+    const client = makeQueryFake(async () => ({ error: null }));
+    await atribuirLead(client as unknown as SupabaseClient, "00005087000190", "consultor-1");
+    expect(client.__inserted).toEqual({ cnpj_digits: "00005087000190", consultor_id: "consultor-1" });
+  });
+
+  it("lança LeadJaAtribuidoError em conflito (código 23505)", async () => {
+    const client = makeQueryFake(async () => ({ error: { code: "23505", message: "duplicate key" } }));
+    await expect(
+      atribuirLead(client as unknown as SupabaseClient, "00005087000190", "consultor-1")
+    ).rejects.toThrow(LeadJaAtribuidoError);
+  });
+});
+
+describe("listarMensagens", () => {
+  it("mapeia mensagens em ordem decrescente de envio", async () => {
+    const row = {
+      id: "m1",
+      cnpj_digits: "00005087000190",
+      consultor_id: "c1",
+      canal: "whatsapp",
+      conteudo: "Oi, tudo bem?",
+      gerado_por_ia: false,
+      abordagem_tipo: null,
+      enviado_em: "2026-09-29T10:00:00Z",
+    };
+    const client = makeQueryFake(async () => ({ data: [row], error: null }));
+    const result = await listarMensagens(client as unknown as SupabaseClient, "00005087000190");
+    expect(result).toEqual([
+      {
+        id: "m1",
+        cnpjDigits: "00005087000190",
+        consultorId: "c1",
+        canal: "whatsapp",
+        conteudo: "Oi, tudo bem?",
+        geradoPorIa: false,
+        abordagemTipo: null,
+        enviadoEm: "2026-09-29T10:00:00Z",
+      },
+    ]);
+  });
+});
+
+describe("registrarMensagem", () => {
+  it("insere a mensagem e retorna a linha criada", async () => {
+    const rowCriada = {
+      id: "m2",
+      cnpj_digits: "00005087000190",
+      consultor_id: "c1",
+      canal: "whatsapp",
+      conteudo: "Olá!",
+      gerado_por_ia: false,
+      abordagem_tipo: null,
+      enviado_em: "2026-09-29T11:00:00Z",
+    };
+    const client = makeQueryFake(async () => ({ data: rowCriada, error: null }));
+
+    const result = await registrarMensagem(client as unknown as SupabaseClient, {
+      cnpjDigits: "00005087000190",
+      consultorId: "c1",
+      canal: "whatsapp",
+      conteudo: "Olá!",
+    });
+
+    expect(result.id).toBe("m2");
+    expect(client.__inserted).toEqual({
+      cnpj_digits: "00005087000190",
+      consultor_id: "c1",
+      canal: "whatsapp",
+      conteudo: "Olá!",
+      gerado_por_ia: false,
+      abordagem_tipo: null,
+    });
   });
 });

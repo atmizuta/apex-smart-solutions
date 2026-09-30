@@ -154,3 +154,107 @@ export async function buscarLeadPorCnpj(
   if (error) throw error;
   return data ? toLead(data as LeadRow) : null;
 }
+
+export class LeadJaAtribuidoError extends Error {
+  constructor(cnpjDigits: string) {
+    super(`O lead ${cnpjDigits} já foi atribuído a outro consultor`);
+    this.name = "LeadJaAtribuidoError";
+  }
+}
+
+export async function atribuirLead(
+  client: SupabaseClient,
+  cnpjDigits: string,
+  consultorId: string
+): Promise<void> {
+  const { error } = await client
+    .schema("crm_fibra")
+    .from("atribuicoes")
+    .insert({ cnpj_digits: cnpjDigits, consultor_id: consultorId });
+
+  if (error) {
+    if ((error as { code?: string }).code === "23505") {
+      throw new LeadJaAtribuidoError(cnpjDigits);
+    }
+    throw error;
+  }
+}
+
+export interface Mensagem {
+  id: string;
+  cnpjDigits: string;
+  consultorId: string;
+  canal: "whatsapp" | "ligacao" | "email";
+  conteudo: string;
+  geradoPorIa: boolean;
+  abordagemTipo: string | null;
+  enviadoEm: string;
+}
+
+interface MensagemRow {
+  id: string;
+  cnpj_digits: string;
+  consultor_id: string;
+  canal: "whatsapp" | "ligacao" | "email";
+  conteudo: string;
+  gerado_por_ia: boolean;
+  abordagem_tipo: string | null;
+  enviado_em: string;
+}
+
+function toMensagem(row: MensagemRow): Mensagem {
+  return {
+    id: row.id,
+    cnpjDigits: row.cnpj_digits,
+    consultorId: row.consultor_id,
+    canal: row.canal,
+    conteudo: row.conteudo,
+    geradoPorIa: row.gerado_por_ia,
+    abordagemTipo: row.abordagem_tipo,
+    enviadoEm: row.enviado_em,
+  };
+}
+
+export async function listarMensagens(
+  client: SupabaseClient,
+  cnpjDigits: string
+): Promise<Mensagem[]> {
+  const { data, error } = await client
+    .schema("crm_fibra")
+    .from("mensagens")
+    .select()
+    .eq("cnpj_digits", cnpjDigits)
+    .order("enviado_em", { ascending: false });
+
+  if (error) throw error;
+  return (data as MensagemRow[]).map(toMensagem);
+}
+
+export async function registrarMensagem(
+  client: SupabaseClient,
+  input: {
+    cnpjDigits: string;
+    consultorId: string;
+    canal: "whatsapp" | "ligacao" | "email";
+    conteudo: string;
+    geradoPorIa?: boolean;
+    abordagemTipo?: string;
+  }
+): Promise<Mensagem> {
+  const { data, error } = await client
+    .schema("crm_fibra")
+    .from("mensagens")
+    .insert({
+      cnpj_digits: input.cnpjDigits,
+      consultor_id: input.consultorId,
+      canal: input.canal,
+      conteudo: input.conteudo,
+      gerado_por_ia: input.geradoPorIa ?? false,
+      abordagem_tipo: input.abordagemTipo ?? null,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return toMensagem(data as MensagemRow);
+}
