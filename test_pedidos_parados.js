@@ -123,7 +123,8 @@ try{
   eq(fila.lista[1].bola, 'operadora', 'antifraude: a bola está com a operadora');
   eq(fila.lista[0].etapaCurta, 'Biometria', 'rótulo curto da etapa');
   eq(fila.porEtapa.map(e => [e.curta, e.n, e.valor]), [['Antifraude', 1, 100], ['Biometria', 1, 70], ['Portab. em tratativa', 1, 20]], 'por etapa: só etapas com parados, maior R$ primeiro');
-  eq(Object.keys(PP_ETAPAS).length, 8, 'são 8 etapas monitoradas (decisão D2)');
+  eq(new Set(Object.values(PP_ETAPAS).map(e => e.curta)).size, 9, 'são 9 etapas monitoradas (8 da decisão D2 + Território, 30/09/2026)');
+  eq(PP_ETAPAS['TERRITÓRIO (NEOCRM)'].bola + '/' + PP_ETAPAS['TERRITORIO (NEOCRM)'].bola, 'backoffice/backoffice', 'Território (com ou sem acento) é etapa monitorada, com a bola no back office');
 
   // --- 4) agenda ---
   const ag = [

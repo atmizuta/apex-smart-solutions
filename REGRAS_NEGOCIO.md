@@ -2258,3 +2258,27 @@ Aditiva: nada que o painel atual usa foi alterado. Cria `usuario_id` + gatilhos,
 - **Painel:** o painel no ar (MD5 `d89f7962…`) era idêntico ao `oficial/main` (3f61aaa), então não havia nada por fora. Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`a0ad4f0df7a745fe91805230e6af1d86`**, igual no arquivo gerado, no servidor e no site público. Backup no servidor: `~/deploy_backups/painel_clientes_apex_20260930_174256_antes_digital_abas.html`.
 - **Reverter:** painel → copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`; função → reimplantar a versão 8 (arquivo anterior no histórico do git) e depois rodar `supabase/rollback/20260930300000_leads_por_aba_rollback.sql`.
 - **Quando vier a aba de outubro:** incluir `{ aba: "OUTUBRO", label, gid }` em `SHEET_TABS` e reimplantar a função (a pílula "Outubro" aparece sozinha no painel, antes de Setembro).
+
+## 55. Ajustes do Dashboard de Produção: barras, fonte dos números, seções recolhíveis, cards centralizados e etapa Território (30/09/2026)
+
+Pedido do usuário (30/09/2026), com base em um print do cartão do Caio: a barra de cada etapa passava por cima do nome e do valor. Alterações no template do dashboard embutido (`dashboard_tpl.py extrair|empacotar`) e na aba Pedidos Parados. Testes: `test_dashboard_ajustes.js` (47) e `test_pedidos_parados.js`.
+
+### 55.1 Layout das barras
+- **Causa:** `.uc-bar-track` (barra de "Valor por Etapa, detalhado por Vendedor") tinha `margin:-3px` dentro de uma grade de 2 colunas; a barra subia e cobria o nome e o valor da linha. Agora cada linha é nome + valor numa linha e **a barra sempre numa linha própria embaixo** (`.uc-row` com `row-gap:6px`, `.uc-bar-track{grid-column:1 / -1;margin:0}`), com o nome limitado por reticências. Na "Composição por Vendedor" as colunas passaram a `minmax(120px,190px) minmax(0,1fr) minmax(112px,auto)` (nome longo e valor não colidem). Conferido em tela larga, média e no celular.
+- Os ajustes ficam num bloco "Ajustes de layout (30/09/2026)" no **fim** do CSS do dashboard, para vencerem as regras antigas sem apagá-las.
+
+### 55.2 Fonte dos números
+Números (valores dos cartões, totais, valores e contagens das barras, colunas numéricas das tabelas e contagens da Visão Diária) usam **Nunito** (arredondada) por meio da variável `--font-num`; os textos continuam em Barlow. A fonte vem do Google Fonts no mesmo `<link>` da Barlow.
+
+### 55.3 Seções recolhíveis (fechadas ao abrir)
+Viraram `<details class="collapse-sec">`, fechadas por padrão e abertas com um clique no título: **Valor por Etapa (Total Geral)**, **Motivos de Perda (Vendas Perdidas)** e **Diagnóstico e Plano de Ação**. O conteúdo não mudou e continua sendo calculado (abrir só mostra). "Valor por Etapa, detalhado por Vendedor" e "Valor por Grupo" seguem sempre visíveis.
+
+### 55.4 Cards centralizados (Visão Geral)
+O conteúdo da Visão Geral fica num bloco central (`#tabOverview{max-width:1240px;margin:auto}`) e as grades de cartões (resumo, vendedores, diagnóstico) têm colunas de largura fixa com `justify-content:center`. Só a Visão Geral; a Visão Diária e as outras abas não mudaram.
+
+### 55.5 Etapa TERRITÓRIO
+- Decisões do usuário: categoria **Em andamento**; **etapa monitorada** em Pedidos Parados (passam a ser 9 etapas; a bola fica com o back office) e em Pedidos em Alerta (admin).
+- **Aparece em todas as listas de etapas mesmo sem pedidos** (com 0 pedidos e R$ 0,00 e barra vazia): Valor por Etapa (total geral), cada cartão por vendedor, filtro de Etapa, matriz de Pedidos em Alerta e fila do consultor (quando há pedido). Com dados nenhum, as telas continuam mostrando "Sem dados".
+- O NeoCRM escreve nomes de etapa de forma inconsistente (`CREDITO` sem acento, `VALIDAÇÃO ESIM` com), então **qualquer grafia que contenha "TERRITORIO"** (sem acento, sem diferença de caixa) é tratada como a etapa canônica `TERRITÓRIO (NEOCRM)`; nas listas do consultor as duas grafias estão em `PP_ETAPAS`.
+- **Em 30/09/2026 nenhum pedido estava nessa etapa** (nem na tabela nem no JSON bruto da API): por isso ela não aparecia. Assim que entrar o primeiro pedido, aparece com os valores reais.
+- Não verificado: o nome exato que a API vai mandar (a regra acima cobre as grafias com/sem acento) e a exportação do Excel de Pedidos em Alerta com a etapa nova (o teste do Excel depende do pacote `exceljs`, ausente nesta máquina).
