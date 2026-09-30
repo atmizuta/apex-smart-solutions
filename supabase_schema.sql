@@ -630,3 +630,7 @@ create trigger producao_pedidos_ignora_gross
 -- Definida em supabase/migrations/20260929_producao_neo.sql (+ ..._cron.sql). Tabelas
 -- producao_pedidos_neo / producao_neo_raw / producao_sync_log, preenchidas pela Edge Function
 -- sync-producao (supabase/functions/sync-producao). Ver REGRAS_NEGOCIO.md seção 50.
+
+-- ALERTA DE SINCRONIZAÇÃO PARADA (30/09/2026)
+-- Definido em supabase/migrations/20260930100000_producao_sync_alerta.sql: tabela producao_sync_alerta e job
+-- alerta-sync-producao (15 em 15 min). Função em supabase/functions/alerta-sync-producao. Ver REGRAS_NEGOCIO.md seção 52.

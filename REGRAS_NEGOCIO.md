@@ -2,7 +2,7 @@
 
 Documento vivo. Toda vez que uma regra de negócio do sistema for criada, alterada ou removida, atualize esta página (e registre no changelog no final). É a referência para treinamento de consultores, ajustes futuros e documentação do próprio sistema.
 
-Última atualização: 29/09/2026 (seção 51)
+Última atualização: 30/09/2026 (seção 52)
 
 ---
 
@@ -372,6 +372,7 @@ Card no topo da aba "Movimentação da Base", separado do resumo de 30 dias — 
 - **12/08/2026** — Redesign da tela "Gerar Proposta" (interface, sem mudança de regra de negócio): resumo (valor atual/proposto/redução/Convergência/meta) passou a ficar sempre visível no topo, em vez de só aparecer depois de rolar toda a tela; as seções Renovação, Incremento, Claro Fibra e Claro Passaporte viraram blocos que abrem/fecham (accordion) com um interruptor (toggle) pra ligar/desligar cada item, abrindo sozinhas quando estão ativas e ficando fechadas quando não estão em uso. Objetivo: reduzir a quantidade de informação exibida de uma vez, sem remover nenhum campo ou cálculo existente. Ver seção 15.
 - **29/09/2026** — Criada a sincronização automática da produção via API do NeoSales (tabela separada `producao_pedidos_neo`, Edge Function `sync-producao`, agendada no pg_cron de hora em hora). O painel continua lendo `producao_pedidos`; a troca de fonte só acontece depois de conferir a paridade da carga inicial. Ver seção 50.
 - **29/09/2026** — Fase 2 da sincronização NeoSales: o Dashboard de Produção passa a ler a produção sincronizada (a tabela do upload manual vira backup e `producao_pedidos` vira uma view sobre `producao_pedidos_neo`); o upload de planilha saiu da aba "Upload Dash", que agora mostra o status da sincronização. Ver seção 51.
+- **30/09/2026** — Criado o alerta de sincronização parada da produção (Edge Function `alerta-sync-producao`, tabela `producao_sync_alerta`, job de 15 em 15 minutos): abre um alerta quando passa de 3 horas sem sincronização bem-sucedida e avisa pelo Telegram, quando o canal estiver configurado. Ver seção 52.
 
 ## 15. Interface da tela "Gerar Proposta" (redesign 12/08/2026)
 
@@ -2127,3 +2128,44 @@ As exportações de 28/09 não tinham esse grupo. Afetava tudo o que usa `produc
 - **Depois da virada:** a sincronização das 23:07 rodou normalmente (`ok = true`), e o painel público carrega sem erro no console.
 - **O que muda nos números:** como o export manual só trazia pedidos atualizados a partir de 29/07, o painel antigo mostrava 573 pedidos. A sincronização traz o histórico completo desde 01/05/2026: **818 pedidos**. Os 245 a mais estão parados desde antes de 29/07 (179 perdidos, 52 concluídos e 14 em outras etapas). Com o filtro de período aberto, os totais de "Perdido" e a taxa de perda sobem; com o filtro de período fechado nas datas recentes, os números continuam os de antes. Para limitar o histórico de vez, basta recriar a view com um corte (`where atualizacao >= <data>`).
 - **Reversão** (dashboard volta a ler o backup manual, com os dados de antes da virada): rodar `supabase/rollback/20260930000000_producao_neo_cutover_rollback.sql` e restaurar o painel anterior no servidor (`ssh hostinger cp ~/deploy_backups/<arquivo> domains/apexsmart.com.br/public_html/painel_clientes_apex.html`). A tabela `producao_pedidos_manual` fica como backup e não é apagada.
+
+
+## 52. Alerta de sincronização parada (30/09/2026)
+
+**Para que serve:** se o token do NeoSales vencer ou a API cair, a sincronização (seção 50) falha e o painel continua mostrando os dados da última que deu certo. Sem alerta, isso só apareceria para quem abrisse a aba "Upload Dash". Este alerta avisa sozinho.
+
+### 52.1 Como funciona
+
+- A Edge Function `alerta-sync-producao` roda **de 15 em 15 minutos** (job `alerta-sync-producao` no pg_cron). Ela **não consulta o NeoSales**: só lê `producao_sync_log`, então não interfere no intervalo mínimo entre consultas da API.
+- Se a última sincronização bem-sucedida tem **mais de 3 horas** (só passando do limite; exatamente 3 h não alerta), abre **um** alerta em `producao_sync_alerta` e avisa. Enquanto continuar parado **não repete** a mensagem a cada 15 minutos.
+- Quando a sincronização volta, o alerta é resolvido e sai uma mensagem "voltou ao normal" (só se alguém chegou a ser avisado do problema).
+- Só existe um alerta aberto por vez (índice único parcial).
+- A madrugada sem pedidos **não** dispara alerta: uma execução que roda com sucesso e traz 0 linhas continua contando como sincronização bem-sucedida.
+- O alerta também pega o caso em que a função ou o agendamento da sincronização pararam de rodar (a mensagem diz "Nenhum erro registrado: o agendamento (pg_cron) ou a função podem estar parados").
+- Falha ao enviar a mensagem nunca derruba a execução: o alerta fica aberto e a próxima execução tenta de novo.
+
+### 52.2 Canal de aviso (Telegram) e como configurar
+
+O aviso sai pelo **Telegram**, quando os secrets `ALERTA_TELEGRAM_TOKEN` e `ALERTA_TELEGRAM_CHAT_ID` da função existem. Sem eles, o alerta fica só registrado na tabela e o aviso pendente **sai sozinho assim que o canal for configurado**.
+
+1. No Telegram, converse com `@BotFather`, envie `/newbot` e siga as instruções; ele devolve o **token** do bot.
+2. Abra uma conversa com o bot que você criou e envie qualquer mensagem (o bot só consegue escrever para quem falou com ele antes).
+3. Descubra o seu **chat id** (por exemplo com o bot `@userinfobot`, ou abrindo `https://api.telegram.org/bot<TOKEN>/getUpdates` depois de mandar a mensagem).
+4. Guarde os dois como secrets, sem colocá-los em nenhum arquivo do repositório:
+   `npx supabase secrets set ALERTA_TELEGRAM_TOKEN=<token> ALERTA_TELEGRAM_CHAT_ID=<chat id> --project-ref mdgfboijyqfkggcrhptn`
+
+O token nunca aparece em mensagem de erro nem em log (é mascarado). Para avisar um grupo, adicione o bot ao grupo e use o id do grupo (começa com `-`).
+
+### 52.3 Ajustes e testes
+
+- **Limite:** secret `ALERTA_LIMITE_HORAS` (padrão 3).
+- **Ver os alertas:** tabela `producao_sync_alerta` (leitura para admin e supervisor).
+- **Simular uma parada em produção:** chamar a função com o segredo do cron e o corpo `{"limiteHoras":0.0001}` (abre um alerta de teste); uma chamada normal seguinte o resolve. Apague a linha de teste depois.
+- **Testes:** `supabase/functions/alerta-sync-producao/alerta.test.ts` (21 testes: regra de decisão, mensagens, envio ao Telegram sem vazar o token e a orquestração).
+- **Verificado em produção em 30/09/2026:** sem segredo responde 401; execução normal não faz nada; com limite simulado abre o alerta; a execução normal seguinte o resolve.
+
+### 52.4 O que este alerta não cobre
+
+- Se o próprio `pg_cron` do Supabase parar por inteiro, nada roda (nem a sincronização, nem este alerta).
+- Se a sincronização roda com sucesso mas o NeoCRM passou a devolver dados incompletos, não há alerta (ele mede se a sincronização está rodando, não se o conteúdo está certo).
+- **Ainda não existe** faixa de aviso dentro do painel para admin e supervisor; hoje o painel só mostra o card da aba "Upload Dash" (seção 51.2).
