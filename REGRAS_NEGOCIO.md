@@ -2339,3 +2339,8 @@ Correspondência com os grupos do NeoCRM (`RELATORIO_ROTULOS`, deriva de `DIARIA
 - Conferido no navegador (desktop 1366×768 e celular 375×812): a janela abre dentro da tela, sem mexer na rolagem, com os botões visíveis.
 
 **Testes:** `test_relatorio_17h.js` (45): casos do cálculo de posição (página rolada, topo, fim da página, tela baixa, limite de altura do cartão) e verificações do código para a medição pelo corpo, o posicionamento das duas janelas, o `preventScroll` e a ausência do `min-height:2400px`; o teste falha no painel anterior.
+
+### 57.1 Publicado (30/09/2026, 20:14)
+- Antes de publicar, o painel no ar (MD5 `41a250fd…`) era idêntico ao `oficial/main` (40465e1): nada por fora. Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`e7d1133bd2d15c44c355d72791062812`**, igual no arquivo gerado, no servidor e no site público. Backup no servidor: `~/deploy_backups/painel_clientes_apex_20260930_201405_antes_correcao_scroll.html`. Vigia atualizado.
+- **Reverter:** copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. Não há mudança de banco nem de função.
+- Suíte: 44 testes passam; a única falha é `test_pedidos_alerta.js` por falta do pacote `exceljs` nesta máquina (já falhava antes). A conferência no computador real do usuário ainda depende dele (o vídeo enviado era do celular filmando o notebook, sem nitidez).
