@@ -16,7 +16,7 @@ export function normalizarTelefone(input: {
     const digitos = somenteDigitos(candidato);
     if (!digitos || digitos === "0") continue;
 
-    if (digitos.length >= 12 && digitos.startsWith("55")) {
+    if ((digitos.length === 12 || digitos.length === 13) && digitos.startsWith("55")) {
       return digitos;
     }
 

@@ -37,6 +37,10 @@ describe("normalizarTelefone", () => {
   it("remove caracteres não numéricos antes de avaliar o tamanho", () => {
     expect(normalizarTelefone({ telefoneContato: "(17) 99229-3873" })).toBe("5517992293873");
   });
+
+  it("rejeita um número com código do país mas dígitos demais (ex.: dois telefones concatenados por erro de digitação)", () => {
+    expect(normalizarTelefone({ telefoneContato: "551999100221355119876543" })).toBeNull();
+  });
 });
 
 describe("montarLinkWhatsapp", () => {
