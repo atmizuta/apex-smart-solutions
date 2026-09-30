@@ -1,0 +1,49 @@
+# CRM Fibra
+
+App separado do painel de clientes existente, para consultores selecionados
+trabalharem os segmentos de fibra e renovação. Ver
+`docs/superpowers/specs/2026-09-25-crm-leads-fibra-renovacao-design.md` para
+o desenho completo.
+
+## Setup
+
+1. `npm install`
+2. Copie `.env.example` para `.env.local` e preencha:
+   - `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`: do projeto Supabase
+     "apex" (`mdgfboijyqfkggcrhptn`) — a **service role key**, não a anon key.
+   - `CRM_FIBRA_SESSION_SECRET`: uma string aleatória de pelo menos 32
+     caracteres.
+3. Rode a migração (`db/schema.sql`) contra o projeto Supabase — ver Task 4
+   do plano de implementação.
+4. Crie o primeiro admin: `SEED_ADMIN_USERNAME=... SEED_ADMIN_SENHA=... npm run seed:admin`
+
+   Nota: se você não tiver a SUPABASE_SERVICE_ROLE_KEY à mão localmente, um admin também pode ser criado por uma inserção SQL direta na tabela `crm_fibra.consultores`, com a senha hasheada via bcrypt (12 rounds) antes de inserir — foi assim que o primeiro admin desta instância foi criado.
+
+5. `npm run dev` e abra `http://localhost:3000/login`
+
+## Testes
+
+`npm test` roda todos os testes automatizados (Vitest).
+
+## Checklist de verificação manual
+
+Depois de rodar as migrações e o seed:
+
+1. Abra `/dashboard` sem estar logado → deve redirecionar para `/login`.
+2. Faça login com usuário/senha errados → mensagem de erro genérica, sem
+   dizer se o usuário existe ou não.
+3. Faça login com as credenciais do admin criado pelo seed → deve entrar em
+   `/dashboard` e ver a topbar com seu nome e papel `admin`.
+4. Vá em `/consultores`, crie um novo consultor (papel `consultor`).
+5. Em outra aba/navegador anônimo, faça login com o novo consultor → deve
+   entrar normalmente.
+6. Volte pro admin, desative esse consultor em `/consultores`.
+7. Na aba onde o consultor estava logado, recarregue qualquer página
+   protegida (ex: `/dashboard`) **sem fazer logout manual** → deve
+   redirecionar para `/login`, mesmo que o cookie de sessão dele ainda não
+   tenha expirado. Isso confirma a checagem viva de `ativo` no banco
+   (Task 10), não só a validade do token.
+8. Tente acessar `/consultores` logado como um consultor comum (não admin)
+   → deve redirecionar para `/dashboard`.
+9. Clique em "Sair" → deve voltar para `/login` e qualquer página protegida
+   volta a redirecionar.
