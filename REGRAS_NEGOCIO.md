@@ -2319,3 +2319,8 @@ Correspondência com os grupos do NeoCRM (`RELATORIO_ROTULOS`, deriva de `DIARIA
 
 ### 56.3 Testes
 `test_relatorio_17h.js` (34): botão ao lado do Modo TV, corte às 17h (16:59 entra; 17:00 fica de fora, inclusive quando o horário vem em UTC), contagem por tipo, linhas e valor, texto linha a linha, aviso de parcial, dia sem vendas, abrir/editar/copiar (com os dois métodos de cópia e a mensagem de erro), WhatsApp, fechar (Esc, X, fora), troca de dia, botão escondido do consultor e no Modo TV.
+
+### 56.4 Publicado (30/09/2026, 20:00)
+- Antes de publicar, o painel no ar (MD5 `31fe7674…`) era idêntico ao `oficial/main` (9bef84b): nada por fora. Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`41a250fdc0f8572807cdbd6d11f46df7`**, igual no arquivo gerado, no servidor e no site público. Backup no servidor: `~/deploy_backups/painel_clientes_apex_20260930_195957_antes_relatorio_17h.html`. Vigia atualizado.
+- **Reverter:** copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. Não há mudança de banco nem de função.
+- Suíte: 44 testes passam; a única falha é `test_pedidos_alerta.js` por falta do pacote `exceljs` nesta máquina (já falhava antes).
