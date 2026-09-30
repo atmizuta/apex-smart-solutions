@@ -85,10 +85,11 @@ try{
   // NOTA (18/09/2026): lista atualizada pra incluir "biometria" (10/09/2026) e "fechamento"
   // (18/09/2026), abas adicionadas depois desse teste original de 26/08/2026 — ambas ficaram de
   // fora da lista por um tempo (teste desatualizado, não regressão) até essa correção.
+  // NOTA (30/09/2026): incluída "pedidosparados" (aba do consultor, só ele a vê), no grupo Vendas logo depois de "funil".
   // NOTA (28/09/2026): incluída "config" (aba "Configurações", pedido do usuário pra conectar o
   // e-mail Hostinger e notificar clientes em lote por e-mail) — fica no grupo Ferramentas, logo
   // depois de "biometria".
-  const ordemEsperada = ['producao','conversao','busca','proposta','funil','biometria','config','basedados','movimentacao','consultores','fechamento'];
+  const ordemEsperada = ['producao','conversao','busca','proposta','funil','pedidosparados','biometria','config','basedados','movimentacao','consultores','fechamento'];
   assert(botoes.map(b => b.dataset.tab).join(',') === ordemEsperada.join(','), 'ordem das abas no menu segue: ' + ordemEsperada.join(', ') + ' (atual: ' + botoes.map(b => b.dataset.tab).join(',') + ')');
   const rotulos = { producao: 'Dashboard', conversao: 'Digital', busca: 'Buscar Clientes', proposta: 'Gerar Proposta', funil: 'Funil', basedados: 'Upload Base', movimentacao: 'Upload Dash', consultores: 'Usuários' };
   Object.entries(rotulos).forEach(([tab, rotulo]) => {

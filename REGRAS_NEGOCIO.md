@@ -2178,3 +2178,46 @@ O token nunca aparece em mensagem de erro nem em log (é mascarado). Para avisar
 - O alerta só abre depois de **mais de 3 horas** sem sincronização bem-sucedida (mais até 15 minutos até o próximo ciclo do alerta), então a faixa pode demorar esse tempo para aparecer depois que a sincronização para.
 - Código: `verificarAlertaSyncProducao()` no `_template.html`; teste `test_alerta_sync_banner.js`.
 - **Publicada em 30/09/2026 (~12:55, horário de SP):** MD5 do painel `973b7787fef8e3bcd38487287d018a77`, igual no arquivo gerado, no servidor e no site público. Backup do painel anterior no servidor: `~/deploy_backups/painel_clientes_apex_20260930_125529_antes_faixa_alerta.html` (MD5 `295db564…`). Para reverter, basta copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`.
+
+## 53. Painel do Consultor — Pedidos Parados, Agenda, Meu Placar e extras (30/09/2026)
+
+Pedido do usuário: dar a cada consultor, dentro do painel, o que ele precisa para não deixar dinheiro parado e saber onde está na meta. Spec: `docs/superpowers/specs/2026-09-30-painel-do-consultor-design.md`; planos: `docs/superpowers/plans/2026-09-30-painel-consultor-0{0..3}-*.md`. **Status: implementado no repositório e testado; a migration do banco e a publicação dependem de OK do usuário.**
+
+### 53.1 Quem vê o quê (decisões do usuário)
+- **Consultor:** ganha a aba **Pedidos Parados** (grupo Vendas, depois de Funil) e o cartão **"Meu dia"** no topo do Dashboard. Na aba ele vê **só os pedidos dele**.
+- **Dashboard e ranking não mudam:** o consultor continua vendo todos os pedidos da equipe ali, como antes. Por isso a leitura da tabela `producao_pedidos_neo` **não foi restringida** (decisão do usuário, 30/09). O "só os meus" vale para a aba nova e é aplicado no servidor (RPC `producao_meus_pedidos`, por `auth.uid()`). Quem abrir as ferramentas do navegador ainda consegue ler a tabela inteira, como já conseguia.
+- **Admin e supervisor:** nada muda. Continuam com "Pedidos em Alerta" (seção 48), que não foi alterado. Não veem a aba nova nem o "Meu dia". Só o admin vê os dois editores novos em Equipe e acessos (vínculos e metas).
+
+### 53.2 Vínculo painel × NeoCRM
+- A chave é o `estruturaUsuarioId` do JSON bruto da API (ID numérico do consultor no NeoCRM), copiado para `producao_pedidos_neo.usuario_id` (backfill do `producao_neo_raw` + gatilho `trg_producao_neo_raw_usuario`, sem mexer na Edge Function `sync-producao`).
+- Tabela `consultor_neo(profile_id, neo_usuario_id UNIQUE)`: 1 perfil ↔ 1 ID. O nome não precisa bater (Manuella/Manuela, Yasmin Bezerra/Yasmin Silva). Editor em **Equipe e acessos → "Vínculo com o NeoCRM"** (admin): sugere pelo nome (`ppSugerirVinculos`: "forte" = todos os nomes do perfil aparecem em ordem no NeoCRM; "fraca" = só o 1º nome, único dos dois lados, marcada com "?") e o admin confirma e salva. Casos ambíguos (dois "Gabriel") não recebem sugestão. Usuários do NeoCRM sem perfil (ex.: Danilo) são listados no rodapé do editor.
+- Sem vínculo, o consultor vê "seu usuário ainda não foi ligado ao NeoCRM" e nenhum pedido.
+
+### 53.3 Pedidos Parados
+- **Regra de tempo:** a da seção 48 (dias úteis seg–sex, sem feriados nacionais, até a data da última sincronização; níveis MÍNIMO 3–5, MÉDIO 6–9, MÁXIMO 10+). Dias contados desde a entrada na etapa atual (`na_etapa_desde`: histórico de etapas; sem histórico, a `ATUALIZACAO`).
+- **8 etapas monitoradas** (decisão D2): ANTIFRAUDE, CRÉDITO, BIOMETRIA, AGUARDANDO ASSINATURA, VALIDAÇÃO ESIM, PORTABILIDADE EM ANDAMENTO, PORTABILIDADE EM TRATATIVA, ENTREGA. Cada uma diz "de quem é a bola": cliente (biometria, assinatura, eSIM), operadora (antifraude, crédito, portabilidade em andamento), back office (portabilidade em tratativa), entrega. Constante `PP_ETAPAS` (`_template.html`).
+- **Valores em R$/mês** (decisão D3: o valor do pedido é mensalidade). Cartões: pedidos parados, R$/mês parados, R$/mês em aberto. "Onde está o dinheiro parado": uma linha por etapa (nº de pedidos e R$). Lista: nível, pedido, cliente/CNPJ, etapa + bola, produtos, R$, dias úteis parado, Copiar e WhatsApp (só onde a bola está com o cliente e há telefone na base `clientes`).
+- Um pedido = todas as linhas do mesmo `numero_pedido` (valor e quantidade somados), como na seção 48.
+
+### 53.4 Agenda
+Pedidos em aberto pela data de portabilidade (ou instalação): **Atrasados** (data passou e não concluiu), Hoje, Amanhã, Próximos 7 dias, Mais adiante e **Sem data** (etapas ENTREGA, portabilidade e eSIM sem data no NeoCRM). Botão de WhatsApp de confirmação com mensagem pronta (o consultor revisa antes de enviar; o painel não envia sozinho). Em 30/09 só havia 2 datas futuras e 22 vencidas nos pedidos abertos: a agenda do futuro cresce conforme o time preencher as datas.
+
+### 53.5 Meu Placar e "Meu dia"
+- **Placar do mês:** ativações, receita das ativações, pedidos cadastrados, % da meta, "faltam", ritmo (receita ÷ dias úteis decorridos × dias úteis do mês) e previsão (receita + valor em aberto × taxa de conclusão do próprio consultor; só estima com 10 ou mais pedidos fechados). **Ativação = regra do Fechamento (16.14)**, reaproveitando `filtrarRegistrosFechamento`/`agruparFechamentoPorConsultor` (por isso um pedido em ENTREGA com data de portabilidade no mês conta, igual ao relatório do admin). **Não mostra comissão** (decisão de 18/09).
+- **Meta em R$** (decisão D4): tabela `metas_consultor(profile_id, mes [dia 1], meta_receita)`, editor em Equipe e acessos → "Metas do mês (R$)" (admin), com "Copiar do mês anterior". Sem meta, o placar mostra só os números.
+- **"Meu dia"** (decisão D5: cartão no painel; envio por Slack/Telegram ficou como opção futura): saudação, pedidos parados, R$/mês parados, agenda de hoje, datas atrasadas e % da meta, com atalho para a aba.
+
+### 53.6 Extras
+- **Recuperar vendas perdidas:** perdidas nos últimos 90 dias, pelo motivo em `tagPedido` (a API traz o motivo). Ordem: `#HOTLEAD` (quente), `#COMCREDITO` (crédito aprovado), restrição (`#SEMCREDITO`, `#COMRESTRICAO`, `#RESTRICAOOPERADORA`; só reabordar depois de 30 dias), sem motivo. `#SEMINTERESSE` e `#SEMCOBERTURA` ficam de fora (contados como descartados), assim como clientes que já voltaram em outro pedido aberto do próprio consultor.
+- **Devolvidos:** últimos 90 dias, sem outro pedido aberto do mesmo cliente.
+- **Reoferecer:** clientes com pedido concluído há 30 a 120 dias e nenhum pedido aberto, agrupados por CNPJ.
+- **Novidades:** pedidos que mudaram de etapa nos últimos 3 dias (RPC `minhas_movimentacoes`, a partir do histórico).
+- **Anti-duplicidade:** selo "outro consultor" quando o CNPJ tem pedido aberto de outro consultor (RPC `cnpjs_com_pedido_aberto_de_outros`; devolve só o CNPJ, nunca o dono).
+- **Histórico de etapas:** tabela `producao_etapa_historico` + gatilho `trg_producao_neo_etapa` (grava a cada mudança de etapa na sincronização; estado inicial semeado com a `ATUALIZACAO`). Só admin/supervisor leem a tabela; o consultor usa as RPCs.
+- **Fora desta entrega:** "vendas × origem do lead" (já existe na aba Digital) e "desafio do dia" (era condicional).
+
+### 53.7 Banco (migration `supabase/migrations/20260930200000_painel_consultor.sql`, rollback em `supabase/rollback/`)
+Aditiva: nada que o painel atual usa foi alterado. Cria `usuario_id` + gatilhos, `consultor_neo`, `producao_etapa_historico`, `metas_consultor` e as RPCs `meu_neo_usuario_id`, `neo_usuarios_detectados`, `producao_dono_neo`, `producao_meus_pedidos`, `minhas_movimentacoes`, `cnpjs_com_pedido_aberto_de_outros` (todas `security definer` com `search_path` fixo, execução só para `authenticated`). Sem a migration, a aba mostra "Não foi possível carregar" (não quebra o resto do painel). **Ordem de entrada no ar:** aplicar a migration primeiro, depois publicar o painel.
+
+### 53.8 Testes
+`test_pedidos_parados.js` (128 verificações): dias úteis e feriados, agrupamento, fila, agenda, recuperação, reoferecer, placar, sugestão de vínculos, e a tela (consultor vê só o que a RPC devolve, sem vínculo nada aparece, admin/supervisor não veem a aba, editores de vínculo e metas gravam o esperado). `test_reorganizacao_abas.js` passou a incluir `pedidosparados` na ordem do menu. `demo_supabase.js` aceita `?papel=consultor` para ver a aba com dados fictícios.

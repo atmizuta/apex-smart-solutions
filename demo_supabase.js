@@ -14,7 +14,7 @@
   const db = {
     profiles: [{ id: 'demo-admin', nome: 'Demonstração', username: 'demo', role: 'admin', created_at: dia(90) }]
       .concat(consultores.map((n, i) => ({ id: 'demo-c' + i, nome: n, username: n.split(' ')[0].toLowerCase(), role: 'consultor', created_at: dia(60) }))),
-    clientes: Array.from({ length: 80 }, (_, i) => ({ id: i + 1, cnpj: cnpj(i), razao_social: `EMPRESA EXEMPLO ${i + 1} LTDA`, tempo_contrato_voz: 6 + (i * 7) % 30,
+    clientes: Array.from({ length: 80 }, (_, i) => ({ id: i + 1, cnpj: cnpj(i), cnpj_digits: cnpj(i), tel1: '(19) 99999-' + String(1000 + i).slice(-4), razao_social: `EMPRESA EXEMPLO ${i + 1} LTDA`, tempo_contrato_voz: 6 + (i * 7) % 30,
       linhas_voz: 1 + (i % 12), linhas_fixas: i % 3, telefone_contato: '(19) 99999-' + String(1000 + i).slice(-4), nome_admin: r(consultores, i), cidade: r(cidades, i),
       apto_renovacao: (6 + (i * 7) % 30) > 15 ? 'APTO' : 'NAO APTO', cep: '13000-000', valor_contrato: 150 + (i * 37) % 900, arpu: 45 + i % 40, ddd: '19', atualizado_em: dia(i % 20) })),
     propostas: Array.from({ length: 18 }, (_, i) => ({ id: 'p' + i, consultor_id: 'demo-c' + (i % 5), cliente_nome: `EMPRESA EXEMPLO ${i + 1} LTDA`, cliente_cnpj: cnpj(i),
@@ -49,12 +49,44 @@
     return q;
   }
 
-  const sessao = { user: { id: 'demo-admin', email: 'demo@apexclientes.com' } };
+  // 30/09/2026: "?papel=consultor" abre a demo como o Caio Almeida (consultor), com a aba "Pedidos Parados" cheia de dados fictícios.
+  const papel = new URLSearchParams(location.search).get('papel') === 'consultor' ? 'consultor' : 'admin';
+  const sessao = { user: { id: papel === 'consultor' ? 'demo-c0' : 'demo-admin', email: 'demo@apexclientes.com' } };
+  const ped = (n, etapa, diasAtras, valor, cli, extra) => Object.assign({ numero_pedido: 'DEMO' + n, grupo: 'VOZ - Portabilidade', usuario: 'CAIO ALMEIDA', etapa: etapa + ' (NEOCRM)',
+    cadastro: dia(diasAtras + 6), atualizacao: dia(diasAtras), na_etapa_desde: dia(diasAtras), valor, quantidade: 1, produto: 'Claro Pós 25GB', cliente: cli, cnpj: cnpj(n), tag: '',
+    data_portabilidade: null, data_instalacao: null }, extra || {});
+  const meusPedidos = [
+    ped(1, 'ANTIFRAUDE', 12, 189.9, 'Mercado Santo Antônio LTDA'), ped(2, 'ANTIFRAUDE', 4, 99.9, 'Clínica Vida e Saúde ME'),
+    ped(3, 'BIOMETRIA', 9, 59.99, 'Padaria Pão Quente LTDA'), ped(4, 'BIOMETRIA', 3, 79.99, 'Oficina Irmãos Silva ME'),
+    ped(5, 'AGUARDANDO ASSINATURA', 7, 149.9, 'Transportes Rota 66 LTDA'), ped(6, 'PORTABILIDADE EM TRATATIVA', 15, 119.9, 'Escritório Lima & Souza'),
+    ped(7, 'PORTABILIDADE EM ANDAMENTO', 5, 89.9, 'Farmácia Central ME'), ped(8, 'ENTREGA', 2, 69.9, 'Loja Bella Moda LTDA', { data_portabilidade: dia(1) }),
+    ped(9, 'ENTREGA', 8, 99.9, 'Academia Corpo Ativo LTDA', { data_portabilidade: dia(-3) }), ped(10, 'VALIDAÇÃO ESIM', 6, 59.99, 'Consultoria Nova Era ME', { data_portabilidade: dia(3) }),
+    ped(11, 'CREDITO', 4, 109.9, 'Construtora Alicerce LTDA'), ped(12, 'NEGOCIACAO', 1, 79.9, 'Hotel Mirante LTDA'),
+    ped(13, 'VENDA PERDIDA', 20, 129.9, 'Restaurante Sabor Caseiro', { tag: '#HOTLEAD' }), ped(14, 'VENDA PERDIDA', 45, 89.9, 'Auto Peças Horizonte', { tag: '#SEMCREDITO' }),
+    ped(15, 'VENDA PERDIDA', 12, 59.9, 'Studio Corte Fino', { tag: '#SEMCREDITO' }), ped(16, 'VENDA PERDIDA', 30, 99.9, 'Imobiliária Norte Sul', { tag: '#SEMINTERESSE' }),
+    ped(17, 'DEVOLVIDO', 10, 79.9, 'Distribuidora Boa Safra', { tag: '#COMRESTRICAO' }),
+    ped(18, 'CONCLUIDO', 55, 149.9, 'Escola Aprender Mais LTDA', { data_portabilidade: dia(55) }), ped(19, 'CONCLUIDO', 80, 219.9, 'Grupo Horizonte Serviços', { data_portabilidade: dia(80) }),
+    ped(20, 'CONCLUIDO', 9, 179.9, 'Vidraçaria Cristal ME', { data_portabilidade: dia(9) }), ped(21, 'CONCLUIDO', 14, 259.9, 'Gráfica Expressa LTDA', { data_instalacao: dia(14), grupo: 'BANDA LARGA - Novo' }),
+  ];
+  if(papel === 'consultor'){
+    db.consultor_neo = [{ profile_id: 'demo-c0', neo_usuario_id: 1 }];
+    db.metas_consultor = [{ profile_id: 'demo-c0', mes: new Date().toISOString().slice(0, 8) + '01', meta_receita: 1500 }];
+    db.config.push({ chave: 'producao_neo_atualizado_em', valor: new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) });
+  }
+  function rpcFalso(nome){
+    let res = { data: { total: 22, ganho: 9, perdido: 5, andamento: 6, semPedido: 2, pedidosGanho: [], pedidosPerdido: [], pedidosAndamento: [] }, error: null };
+    if(nome === 'get_my_role') res = { data: papel, error: null };
+    if(nome === 'producao_meus_pedidos') res = { data: meusPedidos, error: null };
+    if(nome === 'minhas_movimentacoes') res = { data: [{ numero_pedido: 'DEMO2', cliente: 'Clínica Vida e Saúde ME', etapa_anterior: 'CREDITO (NEOCRM)', etapa_nova: 'ANTIFRAUDE (NEOCRM)', em: dia(0.1), valor: 99.9 }], error: null };
+    if(nome === 'cnpjs_com_pedido_aberto_de_outros') res = { data: [cnpj(13)], error: null };
+    if(nome === 'neo_usuarios_detectados') res = { data: [], error: null };
+    return { range: (a, b) => Promise.resolve(Array.isArray(res.data) ? Object.assign({}, res, { data: res.data.slice(a, b + 1) }) : res), then: (ok, ko) => Promise.resolve(res).then(ok, ko) };
+  }
   window.supabase = { createClient: () => ({
     auth: { getSession: async () => ({ data: { session: sessao } }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe(){} } } }),
       signInWithPassword: async () => ({ data: { session: sessao, user: sessao.user }, error: null }), signOut: async () => ({ error: null }), getUser: async () => ({ data: { user: sessao.user } }) },
     from: builder,
-    rpc: async (nome) => nome === 'get_my_role' ? { data: 'admin', error: null } : { data: { total: 22, ganho: 9, perdido: 5, andamento: 6, semPedido: 2, pedidosGanho: [], pedidosPerdido: [], pedidosAndamento: [] }, error: null },
+    rpc: rpcFalso,
     functions: { invoke: async () => ({ data: { ok: true, demo: true, total: 90, atualizado_em: new Date().toLocaleString('pt-BR') }, error: null }) },
     storage: { from: () => ({ upload: async () => ({ error: null }), getPublicUrl: () => ({ data: { publicUrl: '' } }) }) },
   }) };

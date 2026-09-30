@@ -445,6 +445,35 @@
     *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;}
   }
 </style>
+<style id="ppStyles">
+  /* Pedidos Parados (30/09/2026) — só tokens do design; níveis usam as mesmas cores da seção 48 */
+  .ppPills{margin:var(--space-4) 0;}
+  .ppKpis{margin-top:var(--space-5);}
+  .ppNivel{display:inline-block;padding:2px 8px;font-size:var(--fs-xs);font-weight:700;letter-spacing:.06em;white-space:nowrap;}
+  .ppNivel.minimo{background:var(--st-andamento-bg);color:var(--st-andamento);}
+  .ppNivel.medio{background:var(--st-devolvido-bg);color:var(--st-devolvido);}
+  .ppNivel.maximo{background:var(--st-perdido-bg);color:var(--st-perdido);}
+  .ppNivel.ok{background:var(--st-ganho-bg);color:var(--st-ganho);}
+  .ppNivel.neutro{background:var(--st-neutro-bg);color:var(--st-neutro);}
+  .ppEtapaRow{display:grid;grid-template-columns:minmax(140px,1.2fr) 3fr auto;gap:var(--space-4);align-items:center;padding:10px 0;border-bottom:1px solid var(--c-linha);cursor:pointer;}
+  .ppEtapaRow:hover .ppEtapaNome{color:var(--c-sinal);}
+  .ppEtapaNome{font-weight:600;}
+  .ppEtapaNome small{display:block;font-weight:400;color:var(--muted);font-size:var(--fs-xs);}
+  .ppBar{height:6px;background:var(--c-linha);overflow:hidden;}
+  .ppBar>i{display:block;height:100%;background:var(--c-sinal);}
+  .ppEtapaVal{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .ppEtapaVal b{display:block;}
+  .ppFiltros{display:flex;gap:var(--space-4);flex-wrap:wrap;align-items:flex-end;margin:0 0 var(--space-4);}
+  .ppScroll{overflow-x:auto;}
+  .ppFaixa{margin:0 0 var(--space-5);}
+  .ppFaixa h4{margin:0 0 var(--space-2);font-size:var(--fs-sm);text-transform:uppercase;letter-spacing:.08em;}
+  .ppVazio{color:var(--muted);font-size:var(--fs-sm);padding:var(--space-3) 0;}
+  .ppOutro{display:inline-block;margin-left:6px;padding:1px 6px;font-size:var(--fs-xs);background:var(--st-andamento-bg);color:var(--st-andamento);font-weight:600;}
+  .ppAcoes{white-space:nowrap;}
+  .ppAcoes .btn{margin-right:4px;}
+  .ppRodape{margin-top:var(--space-4);font-size:var(--fs-xs);}
+  @media (max-width:640px){ .ppEtapaRow{grid-template-columns:1fr;gap:var(--space-2);} .ppEtapaVal{text-align:left;} }
+</style>
 </head>
 <body>
 
@@ -521,6 +550,8 @@
       <button data-tab="busca" data-sub="Base de clientes por razão social, CNPJ ou telefone"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span class="sbLabel">Buscar Clientes</span></button>
       <button data-tab="proposta" id="tabBtnProposta" data-sub="Proposta avulsa e análise de fatura"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg><span class="sbLabel">Gerar Proposta</span></button>
       <button data-tab="funil" id="tabBtnFunil" data-sub="Negociações em andamento, por estágio"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg><span class="sbLabel">Funil</span></button>
+      <!-- 30/09/2026: aba só do consultor (vê apenas os pedidos dele). Admin/supervisor seguem com "Pedidos em Alerta" no Dashboard. Ver seção 53 do REGRAS_NEGOCIO.md. -->
+      <button data-tab="pedidosparados" id="tabBtnPedidosParados" style="display:none" data-sub="Seus pedidos parados, agenda e oportunidades"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="sbLabel">Pedidos Parados</span></button>
       <div class="navGroupLabel">Ferramentas</div>
       <button data-tab="biometria" id="tabBtnBiometria" data-sub="Biometria facial do cliente"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h.01"/><path d="M15 12h.01"/><path d="M10 15.5c.6.4 1.3.6 2 .6s1.4-.2 2-.6"/><path d="M12 3a9 9 0 0 0-9 9v6.5A2.5 2.5 0 0 0 5.5 21h0A2.5 2.5 0 0 0 8 18.5v-1a4 4 0 0 1 8 0v1a2.5 2.5 0 0 0 2.5 2.5h0a2.5 2.5 0 0 0 2.5-2.5V12a9 9 0 0 0-9-9z"/></svg><span class="sbLabel">Biometria</span></button>
       <!-- 28/09/2026 (pedido do usuário: "deixe a opcao de cada usuário conectar o seu email do
@@ -733,6 +764,35 @@
         </table>
         <p class="desc" style="margin-top:12px;margin-bottom:0">Contagem de consultas realizadas na base por cada usuário. Destacado em vermelho quando ultrapassa 20 consultas.</p>
       </div>
+      <!-- 30/09/2026 (só admin, ver ppAdminMostrar): vínculo do perfil com o usuário do NeoCRM e metas mensais. Seção 53 do REGRAS_NEGOCIO.md. -->
+      <div class="card" id="ppVincCard" style="display:none">
+        <h3>Vínculo com o NeoCRM</h3>
+        <p class="desc">Liga cada perfil ao usuário dele no NeoCRM. É o que faz a aba "Pedidos Parados" mostrar ao consultor só os pedidos dele. O nome não precisa ser igual (Manuella/Manuela, Yasmin Bezerra/Yasmin Silva): o painel sugere pelo nome e você confirma. Sugestões marcadas com "?" são mais incertas.</p>
+        <div style="overflow-x:auto"><table class="tbl">
+          <thead><tr><th>Perfil do painel</th><th>Usuário no NeoCRM</th><th>Situação</th></tr></thead>
+          <tbody id="ppVincTbody"><tr><td colspan="3" class="spinnerNote isLoading">Carregando...</td></tr></tbody>
+        </table></div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px">
+          <button class="btn btn-sm" type="button" id="btnPpVincSalvar" style="width:auto">Salvar vínculos</button>
+          <span id="ppVincInfo" style="font-size:12px;color:var(--muted)"></span>
+        </div>
+      </div>
+      <div class="card" id="ppMetasCard" style="display:none">
+        <h3>Metas do mês (R$)</h3>
+        <p class="desc">Meta de receita das ativações de cada consultor no mês (mesma regra do Fechamento). Aparece no "Meu placar" de cada um. Não é valor de comissão.</p>
+        <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+          <div class="field" style="margin:0;width:170px"><label>Mês</label><input type="month" id="ppMetasMes"></div>
+          <button class="btn btn-sm btn-outline" type="button" id="btnPpMetasCopiar" style="width:auto">Copiar do mês anterior</button>
+        </div>
+        <div style="overflow-x:auto"><table class="tbl">
+          <thead><tr><th>Consultor</th><th>Meta de receita (R$)</th></tr></thead>
+          <tbody id="ppMetasTbody"><tr><td colspan="2" class="spinnerNote isLoading">Carregando...</td></tr></tbody>
+        </table></div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px">
+          <button class="btn btn-sm" type="button" id="btnPpMetasSalvar" style="width:auto">Salvar metas</button>
+          <span id="ppMetasInfo" style="font-size:12px;color:var(--muted)"></span>
+        </div>
+      </div>
     </section>
 
     <!-- BASE DE DADOS (admin) -->
@@ -822,6 +882,12 @@
     <!-- DASHBOARD DE PRODUÇÃO (Apex/Claro) — página inicial pós-login, visível a qualquer perfil
          logado. Upload da planilha fica na aba "Atualização de Bases" (admin), não aqui. -->
     <section class="panel" id="panel-producao">
+      <!-- "Meu dia" (30/09/2026): resumo do consultor logado; só aparece para role=consultor (ppRenderMeuDia) -->
+      <div class="dashFunil" id="meuDiaCard" style="display:none">
+        <div class="dfHead"><h3 id="meuDiaTitulo">Meu dia</h3><a data-tab="pedidosparados" id="meuDiaLink">Abrir Pedidos Parados →</a></div>
+        <div class="dfRow" id="meuDiaStats"></div>
+        <div class="dfAlert" id="meuDiaAlerta" data-tab="pedidosparados" style="display:none"></div>
+      </div>
       <div class="card" id="producaoEmptyCard" style="display:none">
         <h3>Dashboard de Produção</h3>
         <p class="desc" id="producaoEmptyMsg">Ainda não há nenhuma planilha de produção carregada.</p>
@@ -973,6 +1039,29 @@
             </table>
           </div>
         </div>
+      </div>
+    </section>
+    <!-- PEDIDOS PARADOS (consultor) — ver seção 53 do REGRAS_NEGOCIO.md -->
+    <section class="panel" id="panel-pedidosparados">
+      <div class="card" id="ppSemVinculo" style="display:none">
+        <h3>Seu usuário ainda não foi ligado ao NeoCRM</h3>
+        <p class="desc">Para mostrar só os seus pedidos, o painel precisa saber qual é o seu usuário no NeoCRM. Avise um administrador para fazer esse vínculo (leva um minuto).</p>
+      </div>
+      <div class="card" id="ppErro" style="display:none">
+        <p class="desc" id="ppErroMsg">Não foi possível carregar os seus pedidos agora. Tente de novo em instantes.</p>
+        <button class="btn btn-sm" type="button" id="btnPpTentar" style="width:auto">Tentar de novo</button>
+      </div>
+      <div id="ppCarregando" class="card" style="display:none"><div class="spinnerNote isLoading">Carregando seus pedidos...</div></div>
+      <div id="ppConteudo" style="display:none">
+        <div class="card">
+          <h3 id="ppPlacarTitulo">Meu placar</h3>
+          <p class="desc" id="ppPlacarDesc"></p>
+          <div class="kpiGrid" id="ppPlacar"></div>
+        </div>
+        <div class="kpiGrid ppKpis" id="ppKpis"></div>
+        <div class="filterPills ppPills" id="ppPills"></div>
+        <div id="ppSecao"></div>
+        <p class="desc ppRodape" id="ppRodape"></p>
       </div>
     </section>
   </main>
@@ -1667,6 +1756,9 @@ function enterApp(){
     if(canSeeBaseDados) renderDataInfo();
     loadFunil();
     verificarAlertaSyncProducao();
+    // 30/09/2026: aba "Pedidos Parados" + cartão "Meu dia" só para consultor; editores de vínculo/metas só para admin (seção 53).
+    ppIniciar();
+    ppAdminMostrar();
 
     // Dashboard de Produção é a página inicial pós-login (em vez de Buscar Clientes) — reaproveita o
     // mesmo clique que o consultor daria manualmente na aba, então já ativa a aba certa e carrega os
@@ -1884,7 +1976,8 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
   // as demais abas continuam com a largura de leitura padrão do painel (ver CSS main.mainWide).
   document.getElementById('appMain').classList.toggle('mainWide', btn.dataset.tab === 'producao');
   verificarAlertaSyncProducao();
-  if(btn.dataset.tab === 'consultores') renderUsersTable();
+  if(btn.dataset.tab === 'consultores'){ renderUsersTable(); ppAdminCarregar(); }
+  if(btn.dataset.tab === 'pedidosparados') loadPedidosParados();
   if(btn.dataset.tab === 'basedados') renderDataInfo();
   if(btn.dataset.tab === 'funil') loadFunil();
   if(btn.dataset.tab === 'movimentacao') loadMovimentacao();
@@ -8335,6 +8428,731 @@ async function loadGoogleApiKeyField(){
   const { data } = await sb.from('config').select('valor').eq('chave', 'google_maps_api_key').maybeSingle();
   el.value = (data && data.valor) ? data.valor : '';
 }
+
+/* ============ PEDIDOS PARADOS (consultor) — 30/09/2026, REGRAS_NEGOCIO.md seção 53 ============
+   Aba só do CONSULTOR: mostra apenas os pedidos dele (a RPC producao_meus_pedidos filtra no servidor
+   pelo vínculo perfil x ID do consultor no NeoCRM). Admin/supervisor continuam com "Pedidos em Alerta"
+   (dentro do Dashboard de Produção), que não foi alterado. As contas abaixo são puras (sem DOM) para
+   poderem ser testadas; a tela vem depois (ppRender*). Regra de tempo = a da seção 48: dias úteis
+   (seg–sex, sem feriados nacionais) até a data de referência da sincronização, níveis 3/6/10. */
+const PP_ETAPAS = {
+  'ANTIFRAUDE (NEOCRM)':                 { curta: 'Antifraude',           bola: 'operadora' },
+  'CREDITO (NEOCRM)':                    { curta: 'Crédito',              bola: 'operadora' },
+  'BIOMETRIA (NEOCRM)':                  { curta: 'Biometria',            bola: 'cliente' },
+  'AGUARDANDO ASSINATURA (NEOCRM)':      { curta: 'Assinatura',           bola: 'cliente' },
+  'VALIDAÇÃO ESIM (NEOCRM)':             { curta: 'Validação eSIM',       bola: 'cliente' },
+  'PORTABILIDADE EM ANDAMENTO (NEOCRM)': { curta: 'Portab. em andamento', bola: 'operadora' },
+  'PORTABILIDADE EM TRATATIVA (NEOCRM)': { curta: 'Portab. em tratativa', bola: 'backoffice' },
+  'ENTREGA (NEOCRM)':                    { curta: 'Entrega',              bola: 'logistica' },
+};
+const PP_BOLA_ROTULO = { cliente: 'Com o cliente', operadora: 'Com a operadora', backoffice: 'Com o back office', logistica: 'Em entrega' };
+const PP_FAIXAS = { minimo: 3, medio: 6, maximo: 10 };
+const PP_NIVEL_ROTULO = { minimo: 'MÍNIMO', medio: 'MÉDIO', maximo: 'MÁXIMO' };
+const PP_ETAPAS_FECHADAS = ['VENDA PERDIDA (NEOCRM)', 'CONCLUIDO (NEOCRM)', 'DEVOLVIDO (NEOCRM)'];
+// etapas em que o pedido depende de uma data de portabilidade/instalação (sem data = entra em "Sem data")
+const PP_ETAPAS_COM_DATA = ['ENTREGA (NEOCRM)', 'PORTABILIDADE EM ANDAMENTO (NEOCRM)', 'PORTABILIDADE EM TRATATIVA (NEOCRM)', 'VALIDAÇÃO ESIM (NEOCRM)'];
+const PP_MIN_FECHADOS_POTENCIAL = 10; // abaixo disso a taxa de conclusão não é confiável e o potencial não é estimado
+
+function ppEasterISO(ano){
+  const a = ano % 19, b = Math.floor(ano / 100), c = ano % 100;
+  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const mes = Math.floor((h + l - 7 * m + 114) / 31);
+  const dia = ((h + l - 7 * m + 114) % 31) + 1;
+  return ano + '-' + String(mes).padStart(2, '0') + '-' + String(dia).padStart(2, '0');
+}
+const PP_FERIADOS_CACHE = {};
+// Mesmos feriados nacionais do Dashboard de Produção (Cadastro Diário / Pedidos em Alerta).
+function ppFeriados(ano){
+  if(PP_FERIADOS_CACHE[ano]) return PP_FERIADOS_CACHE[ano];
+  const s = new Set(['01-01', '04-21', '05-01', '09-07', '10-12', '11-02', '11-15', '11-20', '12-25'].map(md => ano + '-' + md));
+  const pascoa = ppEasterISO(ano);
+  [-47, -46, -2, 60].forEach(delta => s.add(somaDiasStr(pascoa, delta))); // carnaval (seg/ter), sexta santa, corpus christi
+  PP_FERIADOS_CACHE[ano] = s;
+  return s;
+}
+function ppDiaUtil(iso){
+  const wd = new Date(iso + 'T00:00:00Z').getUTCDay();
+  if(wd === 0 || wd === 6) return false;
+  return !ppFeriados(Number(iso.slice(0, 4))).has(iso);
+}
+// Dias úteis DEPOIS de `ini` até `ref` (inclusive). Ex.: sexta 25/09 -> segunda 28/09 = 1.
+function ppDiasUteisDesde(ini, ref){
+  if(!ini || !ref || ref <= ini) return 0;
+  let n = 0, d = ini;
+  for(let guard = 0; guard < 4000; guard++){
+    d = somaDiasStr(d, 1);
+    if(d > ref) break;
+    if(ppDiaUtil(d)) n++;
+  }
+  return n;
+}
+// Dias úteis do mês 'YYYY-MM' (até `ate`, se informado).
+function ppDiasUteisNoMes(ym, ate){
+  const [y, m] = ym.split('-').map(Number);
+  const primeiro = ym + '-01';
+  const ultimo = ym + '-' + String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0');
+  const fim = (ate && ate < ultimo) ? ate : ultimo;
+  if(fim < primeiro) return 0;
+  let n = 0, d = primeiro;
+  for(let guard = 0; guard < 40 && d <= fim; guard++){
+    if(ppDiaUtil(d)) n++;
+    d = somaDiasStr(d, 1);
+  }
+  return n;
+}
+function ppNivel(dias){
+  if(dias >= PP_FAIXAS.maximo) return 'maximo';
+  if(dias >= PP_FAIXAS.medio) return 'medio';
+  if(dias >= PP_FAIXAS.minimo) return 'minimo';
+  return null;
+}
+function ppDiffDias(de, ate){
+  const u = s => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+  return Math.round((u(ate) - u(de)) / 86400000);
+}
+function ppDigitos(s){ return String(s == null ? '' : s).replace(/\D/g, ''); }
+function ppEtapaAberta(etapa){ return PP_ETAPAS_FECHADAS.indexOf(etapa) < 0; }
+function ppR2(v){ return Math.round(v * 100) / 100; }
+// "30/09/2026, 14:07:01" (config producao_neo_atualizado_em) -> '2026-09-30'; sem data legível, hoje (SP).
+function ppDataReferencia(texto){
+  const m = String(texto || '').match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : hojeSP();
+}
+
+// Agrupa as linhas (1 por produto) em 1 pedido: soma valor/qtd, etapa da linha mais recente, datas extremas.
+function ppAgruparPedidos(linhas){
+  const porNum = new Map();
+  (linhas || []).forEach(r => {
+    const num = r && r.numero_pedido != null ? String(r.numero_pedido).trim() : '';
+    if(!num) return;
+    if(!porNum.has(num)) porNum.set(num, []);
+    porNum.get(num).push(r);
+  });
+  const t = x => (x ? new Date(x).getTime() : NaN);
+  const primeiro = (ls, campo) => { const r = ls.find(x => x[campo] != null && String(x[campo]).trim() !== ''); return r ? String(r[campo]) : ''; };
+  const lista = [];
+  porNum.forEach((ls, num) => {
+    const comAtualizacao = ls.filter(r => !isNaN(t(r.atualizacao)));
+    const ultima = comAtualizacao.length ? comAtualizacao.reduce((a, b) => t(b.atualizacao) > t(a.atualizacao) ? b : a) : ls[0];
+    const datas = campo => ls.map(r => r[campo]).filter(x => !isNaN(t(x))).sort((a, b) => t(a) - t(b));
+    const desdes = ls.map(r => r.na_etapa_desde || r.atualizacao).filter(x => !isNaN(t(x))).sort((a, b) => t(b) - t(a));
+    const tags = new Set();
+    ls.forEach(r => String(r.tag || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).forEach(g => tags.add(g)));
+    lista.push({
+      numero: num,
+      cliente: primeiro(ls, 'cliente'), cnpj: primeiro(ls, 'cnpj'), grupo: primeiro(ls, 'grupo'), usuario: primeiro(ls, 'usuario'),
+      etapa: ultima.etapa,
+      produtos: [...new Set(ls.map(r => r.produto).filter(p => p != null && String(p).trim() !== '').map(String))].sort((a, b) => a.localeCompare(b, 'pt-BR')).join(' + '),
+      qtd: ls.reduce((s, r) => s + (Number(r.quantidade) || 0), 0),
+      valor: ls.reduce((s, r) => s + (Number(r.valor) || 0), 0),
+      cadastro: datas('cadastro')[0] || null,
+      atualizacao: datas('atualizacao').slice(-1)[0] || null,
+      desde: desdes[0] || null,
+      dataPortabilidade: datas('data_portabilidade')[0] || null,
+      dataInstalacao: datas('data_instalacao')[0] || null,
+      tags: [...tags],
+    });
+  });
+  return lista;
+}
+
+// Só as etapas monitoradas, com dias úteis parado e nível (null = em dia).
+function ppClassificarFila(pedidos, ref){
+  return (pedidos || []).filter(p => PP_ETAPAS[p.etapa]).map(p => {
+    const dias = ppDiasUteisDesde(leadDateSP(p.desde || p.atualizacao), ref);
+    return Object.assign({}, p, { dias, nivel: ppNivel(dias), bola: PP_ETAPAS[p.etapa].bola, etapaCurta: PP_ETAPAS[p.etapa].curta });
+  });
+}
+function ppResumoFila(pedidos, ref){
+  const abertos = (pedidos || []).filter(p => ppEtapaAberta(p.etapa));
+  const lista = ppClassificarFila(pedidos, ref).filter(p => p.nivel)
+    .sort((a, b) => (b.dias - a.dias) || (b.valor - a.valor) || a.numero.localeCompare(b.numero));
+  const porEtapa = new Map();
+  lista.forEach(p => {
+    if(!porEtapa.has(p.etapa)) porEtapa.set(p.etapa, { etapa: p.etapa, curta: p.etapaCurta, bola: p.bola, n: 0, valor: 0, niveis: { minimo: 0, medio: 0, maximo: 0 } });
+    const e = porEtapa.get(p.etapa);
+    e.n++; e.valor += p.valor; e.niveis[p.nivel]++;
+  });
+  return {
+    parados: lista.length,
+    valorParado: lista.reduce((s, p) => s + p.valor, 0),
+    abertos: abertos.length,
+    valorAberto: abertos.reduce((s, p) => s + p.valor, 0),
+    porEtapa: [...porEtapa.values()].sort((a, b) => b.valor - a.valor),
+    lista,
+  };
+}
+
+// Agenda de portabilidades/instalações dos pedidos abertos.
+function ppAgenda(pedidos, hoje){
+  const amanha = somaDiasStr(hoje, 1), limite = somaDiasStr(hoje, 7);
+  const r = { atrasados: [], hoje: [], amanha: [], proximos7: [], depois: [], semData: [] };
+  (pedidos || []).filter(p => ppEtapaAberta(p.etapa)).forEach(p => {
+    const alvo = p.dataPortabilidade || p.dataInstalacao;
+    const dia = alvo ? leadDateSP(alvo) : null;
+    if(!dia){
+      if(PP_ETAPAS_COM_DATA.indexOf(p.etapa) >= 0) r.semData.push(Object.assign({}, p, { diaAlvo: null, diasAtraso: 0 }));
+      return;
+    }
+    const item = Object.assign({}, p, { diaAlvo: dia, tipoData: p.dataPortabilidade ? 'portabilidade' : 'instalação', diasAtraso: Math.max(0, ppDiffDias(dia, hoje)) });
+    if(dia < hoje) r.atrasados.push(item);
+    else if(dia === hoje) r.hoje.push(item);
+    else if(dia === amanha) r.amanha.push(item);
+    else if(dia <= limite) r.proximos7.push(item);
+    else r.depois.push(item);
+  });
+  const porData = (a, b) => a.diaAlvo.localeCompare(b.diaAlvo) || (b.valor - a.valor);
+  r.atrasados.sort((a, b) => (b.diasAtraso - a.diasAtraso) || (b.valor - a.valor));
+  ['hoje', 'amanha', 'proximos7', 'depois'].forEach(k => r[k].sort(porData));
+  r.semData.sort((a, b) => b.valor - a.valor);
+  r.total = r.atrasados.length + r.hoje.length + r.amanha.length + r.proximos7.length + r.depois.length + r.semData.length;
+  return r;
+}
+
+function ppCnpjsAbertos(pedidos){
+  const s = new Set();
+  (pedidos || []).forEach(p => { if(ppEtapaAberta(p.etapa) && ppDigitos(p.cnpj)) s.add(ppDigitos(p.cnpj)); });
+  return s;
+}
+const PP_MOTIVO_TEXTO = { quente: 'Lead quente', credito_ok: 'Crédito aprovado', restricao: 'Restrição / sem crédito', sem_motivo: 'Motivo não informado' };
+// Vendas perdidas que valem uma nova tentativa, pelo motivo gravado em tagPedido.
+function ppRecuperaveis(pedidos, hoje){
+  const abertos = ppCnpjsAbertos(pedidos), corte = somaDiasStr(hoje, -90);
+  const lista = []; let descartados = 0;
+  (pedidos || []).filter(p => p.etapa === 'VENDA PERDIDA (NEOCRM)').forEach(p => {
+    const dia = leadDateSP(p.atualizacao);
+    if(!dia || dia < corte) return;
+    const tem = tag => p.tags.indexOf(tag) >= 0;
+    if(tem('#SEMINTERESSE') || tem('#SEMCOBERTURA')){ descartados++; return; }
+    if(ppDigitos(p.cnpj) && abertos.has(ppDigitos(p.cnpj))) return; // o cliente já voltou em outro pedido
+    const motivo = tem('#HOTLEAD') ? 'quente'
+      : (tem('#SEMCREDITO') || tem('#COMRESTRICAO') || tem('#RESTRICAOOPERADORA')) ? 'restricao'
+      : tem('#COMCREDITO') ? 'credito_ok' : 'sem_motivo';
+    const diasDesde = ppDiffDias(dia, hoje);
+    lista.push(Object.assign({}, p, { motivo, motivoTexto: PP_MOTIVO_TEXTO[motivo], diasDesde, podeReabordar: motivo === 'restricao' ? diasDesde >= 30 : true }));
+  });
+  const rank = p => p.motivo === 'quente' ? 0 : p.motivo === 'credito_ok' ? 1 : p.motivo === 'restricao' ? (p.podeReabordar ? 2 : 3) : 4;
+  lista.sort((a, b) => (rank(a) - rank(b)) || (b.valor - a.valor));
+  return { lista, valorReabordavel: lista.reduce((s, p) => s + p.valor, 0), descartados };
+}
+function ppDevolvidos(pedidos, hoje){
+  const abertos = ppCnpjsAbertos(pedidos), corte = somaDiasStr(hoje, -90);
+  return (pedidos || []).filter(p => p.etapa === 'DEVOLVIDO (NEOCRM)').map(p => Object.assign({}, p, { dia: leadDateSP(p.atualizacao) }))
+    .filter(p => p.dia && p.dia >= corte && !(ppDigitos(p.cnpj) && abertos.has(ppDigitos(p.cnpj))))
+    .sort((a, b) => b.dia.localeCompare(a.dia) || (b.valor - a.valor));
+}
+// Clientes com pedido concluído há 30–120 dias e nenhum pedido aberto: hora de reoferecer (mais linhas, fibra, etc.).
+function ppOportunidades(pedidos, hoje){
+  const abertos = ppCnpjsAbertos(pedidos), grupos = new Map();
+  (pedidos || []).filter(p => p.etapa === 'CONCLUIDO (NEOCRM)').forEach(p => {
+    const dia = leadDateSP(p.dataPortabilidade || p.dataInstalacao || p.atualizacao);
+    if(!dia) return;
+    const diasDesde = ppDiffDias(dia, hoje);
+    if(diasDesde < 30 || diasDesde > 120) return;
+    const dig = ppDigitos(p.cnpj);
+    if(dig && abertos.has(dig)) return;
+    const chave = dig || ('nome:' + p.cliente);
+    if(!grupos.has(chave)) grupos.set(chave, { cliente: p.cliente, cnpj: p.cnpj, pedidos: 0, valor: 0, produtos: new Set(), diasDesde });
+    const g = grupos.get(chave);
+    g.pedidos++; g.valor += p.valor; g.diasDesde = Math.min(g.diasDesde, diasDesde);
+    p.produtos.split(' + ').filter(Boolean).forEach(x => g.produtos.add(x));
+  });
+  return [...grupos.values()].map(g => Object.assign({}, g, { produtos: [...g.produtos].join(' + ') }))
+    .sort((a, b) => (b.valor - a.valor) || a.cliente.localeCompare(b.cliente, 'pt-BR'));
+}
+
+// Placar do mês (recebe as LINHAS, porque a regra de ativação do Fechamento trabalha por linha).
+// Ativação = a do Fechamento (seção 16.14). Não calcula comissão (decisão do usuário de 18/09/2026).
+function ppPlacar(linhas, ym, hoje, metaReceita){
+  const [y, m] = ym.split('-').map(Number);
+  const ultimo = ym + '-' + String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0');
+  const resumo = agruparFechamentoPorConsultor(filtrarRegistrosFechamento(linhas, ym + '-01', ultimo));
+  const ativacoes = resumo.reduce((s, r) => s + r.total, 0);
+  const receita = ppR2(resumo.reduce((s, r) => s + r.valor, 0));
+  const pedidos = ppAgruparPedidos(linhas);
+  const cadastrados = pedidos.filter(p => (leadDateSP(p.cadastro) || '').slice(0, 7) === ym).length;
+  const aberto = ppR2(pedidos.filter(p => ppEtapaAberta(p.etapa)).reduce((s, p) => s + p.valor, 0));
+  const fechados = pedidos.filter(p => !ppEtapaAberta(p.etapa));
+  const concluidos = fechados.filter(p => p.etapa === 'CONCLUIDO (NEOCRM)').length;
+  const potencial = fechados.length >= PP_MIN_FECHADOS_POTENCIAL ? ppR2(aberto * concluidos / fechados.length) : null;
+  const diasUteisMes = ppDiasUteisNoMes(ym), diasUteisDecorridos = ppDiasUteisNoMes(ym, hoje);
+  const meta = Number(metaReceita) || 0;
+  return {
+    ym, ativacoes, receita, cadastrados, aberto, potencial,
+    previsao: potencial === null ? null : ppR2(receita + potencial),
+    diasUteisMes, diasUteisDecorridos, diasUteisRestantes: Math.max(0, diasUteisMes - diasUteisDecorridos),
+    ritmo: diasUteisDecorridos > 0 ? ppR2(receita / diasUteisDecorridos * diasUteisMes) : 0,
+    meta,
+    pct: meta > 0 ? Math.round(receita / meta * 1000) / 10 : null,
+    faltam: meta > 0 ? Math.max(0, ppR2(meta - receita)) : null,
+  };
+}
+
+// Sugere o vínculo perfil do painel x usuário do NeoCRM comparando nomes (sem acento, sem letra dobrada:
+// "Manuella" = "Manuela"). "forte" = todos os nomes do perfil aparecem, em ordem, no nome do NeoCRM e só
+// há um candidato; "fraca" = só o primeiro nome bate e é único dos dois lados (o admin confirma).
+function ppTokensNome(nome){
+  return String(nome || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z\s]/g, ' ')
+    .split(/\s+/).filter(t => t && ['da', 'de', 'do', 'das', 'dos', 'e'].indexOf(t) < 0).map(t => t.replace(/(.)\1+/g, '$1'));
+}
+function ppSubsequencia(pequeno, grande){
+  let i = 0;
+  grande.forEach(t => { if(i < pequeno.length && t === pequeno[i]) i++; });
+  return i === pequeno.length;
+}
+function ppSugerirVinculos(perfis, neos, vinculos){
+  const ocupadosP = new Set((vinculos || []).map(v => v.profile_id)), ocupadosN = new Set((vinculos || []).map(v => Number(v.neo_usuario_id)));
+  const ps = (perfis || []).filter(p => !ocupadosP.has(p.id)).map(p => ({ id: p.id, tk: ppTokensNome(p.nome) })).filter(p => p.tk.length);
+  const ns = (neos || []).filter(n => !ocupadosN.has(Number(n.usuario_id))).map(n => ({ id: Number(n.usuario_id), tk: ppTokensNome(n.nome) })).filter(n => n.tk.length);
+  const saida = [], usadosP = new Set(), usadosN = new Set();
+  // 1) forte
+  const candidatos = new Map(ps.map(p => [p.id, p.tk.length >= 2 ? ns.filter(n => ppSubsequencia(p.tk, n.tk)) : []]));
+  ps.forEach(p => {
+    const c = candidatos.get(p.id);
+    if(c.length !== 1) return;
+    const disputa = ps.filter(q => candidatos.get(q.id).some(n => n.id === c[0].id)).length;
+    if(disputa !== 1) return;
+    saida.push({ profile_id: p.id, usuario_id: c[0].id, forca: 'forte' });
+    usadosP.add(p.id); usadosN.add(c[0].id);
+  });
+  // 2) fraca: mesmo primeiro nome, único entre os que sobraram
+  const restP = ps.filter(p => !usadosP.has(p.id)), restN = ns.filter(n => !usadosN.has(n.id));
+  restP.forEach(p => {
+    const mesmosP = restP.filter(q => q.tk[0] === p.tk[0]), mesmosN = restN.filter(n => n.tk[0] === p.tk[0]);
+    if(mesmosP.length === 1 && mesmosN.length === 1) saida.push({ profile_id: p.id, usuario_id: mesmosN[0].id, forca: 'fraca' });
+  });
+  return saida;
+}
+
+/* ---- Pedidos Parados: carregamento, tela e ações (30/09/2026) ---- */
+const ppEstado = { carregadoEm: 0, carregando: null, semVinculo: false, erro: false, linhas: [], calc: null, hoje: '', ref: '', meta: 0,
+  movimentos: [], neoOutros: new Set(), telefones: new Map(), secao: 'parados', fEtapa: '', fNivel: '', geracao: 0 };
+function canSeePedidosParados(){ return !!currentUser && currentUser.role === 'consultor'; }
+function ppPrimeiroNome(){ return String((currentUser && currentUser.nome) || '').trim().split(/\s+/)[0] || ''; }
+function ppSaudacao(){
+  const h = Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hourCycle: 'h23', timeZone: 'America/Sao_Paulo' }).format(new Date()));
+  return h < 12 ? 'Bom dia' : (h < 18 ? 'Boa tarde' : 'Boa noite');
+}
+const ppFmtDia = iso => (iso ? iso.split('-').reverse().join('/') : '—');
+const ppMesRotulo = ym => ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'][Number(ym.slice(5, 7)) - 1] + '/' + ym.slice(0, 4);
+function ppHa(iso){
+  const min = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if(min < 60) return 'há ' + Math.max(1, min) + ' min';
+  if(min < 1440) return 'há ' + Math.round(min / 60) + ' h';
+  return 'há ' + Math.round(min / 1440) + ' d';
+}
+
+// Calcula tudo o que as telas usam a partir das linhas já carregadas.
+function ppCalcular(){
+  const e = ppEstado, hoje = e.hoje, ym = hoje.slice(0, 7);
+  const pedidos = ppAgruparPedidos(e.linhas);
+  e.calc = {
+    pedidos, fila: ppResumoFila(pedidos, e.ref), agenda: ppAgenda(pedidos, hoje), rec: ppRecuperaveis(pedidos, hoje),
+    dev: ppDevolvidos(pedidos, hoje), ops: ppOportunidades(pedidos, hoje), placar: ppPlacar(e.linhas, ym, hoje, e.meta),
+  };
+}
+
+// Cada consulta roda isolada: uma que falhe (inclusive função inexistente) vira {error} em vez de derrubar as outras.
+function ppSeguro(fn){
+  try{ return Promise.resolve(fn()).catch(error => ({ data: null, error })); }
+  catch(error){ return Promise.resolve({ data: null, error }); }
+}
+async function ppCarregarDados(forcar){
+  if(!canSeePedidosParados()) return ppEstado;
+  if(!forcar && ppEstado.carregadoEm && Date.now() - ppEstado.carregadoEm < 120000) return ppEstado;
+  if(ppEstado.carregando) return ppEstado.carregando;
+  const geracao = ppEstado.geracao;   // muda quando o usuário troca (ppResetar): carga antiga não pode sobrescrever a nova
+  ppEstado.carregando = (async () => {
+    try{
+      const hoje = hojeSP(), ym = hoje.slice(0, 7);
+      const [vinc, linhasRes, cfg, meta, mov] = await Promise.all([
+        ppSeguro(() => sb.from('consultor_neo').select('neo_usuario_id').eq('profile_id', currentUser.id).maybeSingle()),
+        ppSeguro(() => fetchAllRows(() => sb.rpc('producao_meus_pedidos', { p_consultor: null }))),
+        ppSeguro(() => sb.from('config').select('valor').eq('chave', 'producao_neo_atualizado_em').maybeSingle()),
+        ppSeguro(() => sb.from('metas_consultor').select('meta_receita').eq('profile_id', currentUser.id).eq('mes', ym + '-01').maybeSingle()),
+        ppSeguro(() => sb.rpc('minhas_movimentacoes', { p_dias: 3, p_consultor: null })),
+      ]);
+      if(geracao !== ppEstado.geracao) return ppEstado;
+      const falhou = (vinc && vinc.error) || (linhasRes && linhasRes.error) || null;   // erro de leitura NÃO é "sem vínculo"
+      if(falhou) console.error(falhou);
+      ppEstado.semVinculo = !falhou && !(vinc && vinc.data && vinc.data.neo_usuario_id != null);
+      ppEstado.erro = !!falhou;
+      ppEstado.linhas = ppEstado.semVinculo ? [] : ((linhasRes && linhasRes.data) || []);   // sem vínculo: nunca guarda linhas
+      ppEstado.hoje = hoje;
+      ppEstado.ref = ppDataReferencia(cfg && cfg.data && cfg.data.valor);
+      ppEstado.meta = Number(meta && meta.data && meta.data.meta_receita) || 0;
+      ppEstado.movimentos = (mov && !mov.error && mov.data) || [];
+      ppEstado.carregadoEm = Date.now();
+      ppCalcular();
+    }catch(err){
+      console.error(err);
+      if(geracao === ppEstado.geracao) ppEstado.erro = true;
+    }finally{
+      if(geracao === ppEstado.geracao) ppEstado.carregando = null;
+    }
+    return ppEstado;
+  })();
+  return ppEstado.carregando;
+}
+
+// Segundo passo (não bloqueia a tela): CNPJs com pedido aberto de OUTRO consultor e telefones da base de clientes.
+async function ppCarregarExtras(){
+  const c = ppEstado.calc, ger = ppEstado.geracao;
+  if(!c) return;
+  const cnpjs = new Set();
+  c.fila.lista.forEach(p => cnpjs.add(ppDigitos(p.cnpj)));
+  [].concat(c.agenda.atrasados, c.agenda.hoje, c.agenda.amanha, c.agenda.proximos7, c.agenda.semData).forEach(p => cnpjs.add(ppDigitos(p.cnpj)));
+  c.rec.lista.forEach(p => cnpjs.add(ppDigitos(p.cnpj)));
+  c.dev.forEach(p => cnpjs.add(ppDigitos(p.cnpj)));
+  c.ops.forEach(p => cnpjs.add(ppDigitos(p.cnpj)));
+  cnpjs.delete('');
+  const lista = [...cnpjs];
+  if(!lista.length) return;
+  try{
+    const r = await sb.rpc('cnpjs_com_pedido_aberto_de_outros', { p_cnpjs: lista.slice(0, 500) });
+    if(ger !== ppEstado.geracao) return;
+    if(r && !r.error && Array.isArray(r.data)) ppEstado.neoOutros = new Set(r.data.map(ppDigitos));
+  }catch(err){ console.error(err); }
+  try{
+    for(let i = 0; i < lista.length; i += 150){
+      const r = await sb.from('clientes').select('cnpj_digits,tel1,tel2,telefone_contato').in('cnpj_digits', lista.slice(i, i + 150));
+      if(ger !== ppEstado.geracao) return;
+      ((r && r.data) || []).forEach(c2 => {
+        const tel = ppEscolherTelefone([c2.tel1, c2.tel2, c2.telefone_contato]);
+        if(tel) ppEstado.telefones.set(ppDigitos(c2.cnpj_digits), tel);
+      });
+    }
+  }catch(err){ console.error(err); }
+}
+// Telefone no formato do wa.me (55 + DDD + número); prefere celular (9º dígito).
+function ppEscolherTelefone(candidatos){
+  const validos = (candidatos || []).map(ppDigitos).map(d => d.replace(/^0+/, '')).map(d => (d.length >= 12 && d.startsWith('55')) ? d : ((d.length === 10 || d.length === 11) ? '55' + d : null)).filter(Boolean);
+  return validos.find(d => d.length === 13 && d[4] === '9') || validos[0] || null;
+}
+const ppWhatsappTipoPorEtapa = { 'BIOMETRIA (NEOCRM)': 'biometria', 'AGUARDANDO ASSINATURA (NEOCRM)': 'assinatura', 'VALIDAÇÃO ESIM (NEOCRM)': 'esim' };
+function ppMensagem(tipo, p){
+  const eu = `Olá! Aqui é ${ppPrimeiroNome()} da Apex, parceira Claro.`;
+  const prod = p.produtos || 'os planos da Claro';
+  if(tipo === 'biometria') return `${eu} Para concluir o seu pedido falta só a biometria facial. Posso te enviar o link agora?`;
+  if(tipo === 'assinatura') return `${eu} Para concluir o seu pedido falta só a sua assinatura. Posso te reenviar o documento agora?`;
+  if(tipo === 'esim') return `${eu} Para concluir o seu pedido falta validar o seu eSIM. Posso te ajudar com isso agora?`;
+  if(tipo === 'agenda') return `${eu} Passando para confirmar a ${p.tipoData} prevista para ${ppFmtDia(p.diaAlvo)}. Está tudo certo para essa data?`;
+  if(tipo === 'recuperar') return `${eu} Conversamos há algum tempo sobre ${prod}. Queria retomar e ver se agora faz sentido para você. Podemos conversar?`;
+  if(tipo === 'reoferecer') return `${eu} Faz um tempo que concluímos o seu pedido de ${prod}. Como está o serviço? Posso te apresentar mais opções para a sua empresa?`;
+  return eu;
+}
+function ppBotoes(p, tipo, copiar){
+  const tel = ppEstado.telefones.get(ppDigitos(p.cnpj));
+  let h = `<button type="button" class="btn btn-sm btn-outline" data-copiar="${escapeHtml(copiar || p.numero || '')}" style="width:auto">Copiar</button>`;
+  if(tipo && tel) h += `<a class="btn btn-sm" target="_blank" rel="noopener" href="https://wa.me/${tel}?text=${encodeURIComponent(ppMensagem(tipo, p))}" style="width:auto">WhatsApp</a>`;
+  return h;
+}
+const ppOutroSelo = p => (ppEstado.neoOutros.has(ppDigitos(p.cnpj)) ? '<span class="ppOutro" title="Este CNPJ tem pedido aberto de outro consultor">outro consultor</span>' : '');
+const ppCliente = p => `${escapeHtml(p.cliente || '—')}${ppOutroSelo(p)}<div style="font-size:var(--fs-xs);color:var(--muted)">${escapeHtml(p.cnpj || '')}</div>`;
+
+function ppHtmlKpis(c){
+  const f = c.fila;
+  const k = (label, valor, sub, cor) => `<div class="kpiCard"${cor ? ` style="--kpi-color:${cor}"` : ''}><div class="kpiLabel">${label}</div><div class="kpiValue">${valor}</div><div class="kpiSub">${sub}</div></div>`;
+  return k('Pedidos parados', f.parados, `há ${PP_FAIXAS.minimo}+ dias úteis na mesma etapa`, f.parados ? 'var(--st-perdido)' : 'var(--st-ganho)')
+    + k('R$/mês parados', fmtBRL(f.valorParado), 'dinheiro esperando andar', f.parados ? 'var(--st-perdido)' : 'var(--st-ganho)')
+    + k('R$/mês em aberto', fmtBRL(f.valorAberto), `${f.abertos} pedido(s) em andamento`, 'var(--muted)');
+}
+function ppHtmlPlacar(c){
+  const p = c.placar;
+  const k = (label, valor, sub, extra) => `<div class="kpiCard"><div class="kpiLabel">${label}</div><div class="kpiValue">${valor}</div><div class="kpiSub">${sub}</div>${extra || ''}</div>`;
+  const barra = p.pct === null ? '' : `<div class="kpiBarTrack"><div class="kpiBarFill" style="width:${Math.min(100, p.pct)}%"></div></div>`;
+  return k('Receita das ativações', fmtBRL(p.receita), `${p.ativacoes} ativação(ões) · ${p.cadastrados} pedido(s) cadastrado(s)`)
+    + k('Meta do mês', p.meta > 0 ? `${String(p.pct).replace('.', ',')}%` : '—', p.meta > 0 ? `meta ${fmtBRL(p.meta)} · faltam ${fmtBRL(p.faltam)}` : 'sua meta ainda não foi definida', barra)
+    + k('Ritmo atual', fmtBRL(p.ritmo), `projeção do mês · ${p.diasUteisRestantes} dia(s) útil(eis) restante(s)`)
+    + k('Previsão do mês', p.previsao === null ? '—' : fmtBRL(p.previsao), p.previsao === null ? 'poucos pedidos fechados para estimar' : `receita + ${fmtBRL(p.potencial)} do que está em aberto (estimativa)`);
+}
+function ppHtmlParados(c){
+  const f = c.fila, e = ppEstado;
+  if(!f.parados) return `<div class="card"><h3>Pedidos parados</h3><p class="ppVazio">Nenhum pedido seu parado há ${PP_FAIXAS.minimo} dias úteis ou mais. 🎉</p></div>`;
+  const maior = Math.max(...f.porEtapa.map(x => x.valor), 1);
+  const etapas = f.porEtapa.map(x => `<div class="ppEtapaRow" data-ppetapa="${escapeHtml(x.etapa)}">
+      <div class="ppEtapaNome">${escapeHtml(x.curta)}<small>${PP_BOLA_ROTULO[x.bola]}</small></div>
+      <div class="ppBar"><i style="width:${Math.max(4, Math.round(x.valor / maior * 100))}%"></i></div>
+      <div class="ppEtapaVal"><b>${fmtBRL(x.valor)}</b>${x.n} pedido(s)</div></div>`).join('');
+  const lista = f.lista.filter(p => (!e.fEtapa || p.etapa === e.fEtapa) && (!e.fNivel || p.nivel === e.fNivel));
+  const opt = (v, t, sel) => `<option value="${escapeHtml(v)}"${v === sel ? ' selected' : ''}>${escapeHtml(t)}</option>`;
+  const linhas = lista.map(p => `<tr>
+      <td><span class="ppNivel ${p.nivel}">${PP_NIVEL_ROTULO[p.nivel]}</span></td>
+      <td>${escapeHtml(p.numero)}</td><td>${ppCliente(p)}</td>
+      <td>${escapeHtml(p.etapaCurta)}<div style="font-size:var(--fs-xs);color:var(--muted)">${PP_BOLA_ROTULO[p.bola]}</div></td>
+      <td>${escapeHtml(p.produtos)}</td><td>${fmtBRL(p.valor)}</td>
+      <td>${p.dias} d.ú.<div style="font-size:var(--fs-xs);color:var(--muted)">desde ${ppFmtDia(leadDateSP(p.desde || p.atualizacao))}</div></td>
+      <td class="ppAcoes">${ppBotoes(p, ppWhatsappTipoPorEtapa[p.etapa])}</td></tr>`).join('');
+  return `<div class="card"><h3>Onde está o dinheiro parado</h3>
+      <p class="desc">Valores em R$/mês dos pedidos que não se mexem há ${PP_FAIXAS.minimo} dias úteis ou mais. Clique numa etapa para filtrar a lista.</p>${etapas}</div>
+    <div class="card"><h3>Pedidos parados (${lista.length})</h3>
+      <div class="ppFiltros">
+        <div class="field" style="margin:0;width:200px"><label>Etapa</label><select data-ppf="etapa">${opt('', 'Todas', e.fEtapa)}${f.porEtapa.map(x => opt(x.etapa, x.curta, e.fEtapa)).join('')}</select></div>
+        <div class="field" style="margin:0;width:160px"><label>Nível</label><select data-ppf="nivel">${opt('', 'Todos', e.fNivel)}${['maximo', 'medio', 'minimo'].map(n => opt(n, PP_NIVEL_ROTULO[n], e.fNivel)).join('')}</select></div>
+        <button type="button" class="btn btn-sm btn-outline" data-ppf-limpar style="width:auto">Limpar filtros</button>
+      </div>
+      <div class="ppScroll"><table class="tbl"><thead><tr><th>Nível</th><th>Pedido</th><th>Cliente</th><th>Etapa</th><th>Produtos</th><th>R$/mês</th><th>Parado</th><th></th></tr></thead><tbody>${linhas}</tbody></table></div></div>`;
+}
+function ppHtmlAgenda(c){
+  const a = c.agenda;
+  if(!a.total) return '<div class="card"><h3>Agenda</h3><p class="ppVazio">Nenhuma portabilidade ou instalação agendada nos seus pedidos em aberto.</p></div>';
+  const faixa = (titulo, itens) => {
+    if(!itens.length) return '';
+    const linhas = itens.map(p => `<tr><td>${escapeHtml(p.numero)}</td><td>${ppCliente(p)}</td><td>${escapeHtml((PP_ETAPAS[p.etapa] || { curta: p.etapa.replace(' (NEOCRM)', '') }).curta)}</td>
+        <td>${p.diaAlvo ? ppFmtDia(p.diaAlvo) + ' (' + p.tipoData + ')' : '<span style="color:var(--muted)">preencher no NeoCRM</span>'}</td>
+        <td>${p.diasAtraso ? `<span class="ppNivel maximo">${p.diasAtraso} dia(s)</span>` : ''}</td><td>${fmtBRL(p.valor)}</td>
+        <td class="ppAcoes">${ppBotoes(p, p.diaAlvo ? 'agenda' : null)}</td></tr>`).join('');
+    return `<div class="ppFaixa"><h4>${titulo} (${itens.length})</h4><div class="ppScroll"><table class="tbl"><thead><tr><th>Pedido</th><th>Cliente</th><th>Etapa</th><th>Data prevista</th><th>Atraso</th><th>R$/mês</th><th></th></tr></thead><tbody>${linhas}</tbody></table></div></div>`;
+  };
+  return `<div class="card"><h3>Agenda</h3>
+    <p class="desc">Portabilidades e instalações dos seus pedidos em aberto. "Atrasados" são os que passaram da data e ainda não concluíram: vale cobrar. "Sem data" são pedidos que dependem de data e ainda não têm uma no NeoCRM.</p>
+    ${faixa('Atrasados', a.atrasados)}${faixa('Hoje', a.hoje)}${faixa('Amanhã', a.amanha)}${faixa('Próximos 7 dias', a.proximos7)}${faixa('Mais adiante', a.depois)}${faixa('Sem data', a.semData)}</div>`;
+}
+function ppHtmlRecuperar(c){
+  const r = c.rec;
+  const linhasRec = r.lista.map(p => `<tr><td><span class="ppNivel ${p.motivo === 'quente' ? 'maximo' : (p.motivo === 'credito_ok' ? 'ok' : 'neutro')}">${escapeHtml(p.motivoTexto)}</span></td>
+      <td>${ppCliente(p)}</td><td>${escapeHtml(p.produtos)}</td><td>${fmtBRL(p.valor)}</td><td>${p.diasDesde} dia(s)</td>
+      <td>${p.podeReabordar ? 'Pode reabordar agora' : 'Reabordar a partir de ' + ppFmtDia(somaDiasStr(leadDateSP(p.atualizacao), 30))}</td>
+      <td class="ppAcoes">${ppBotoes(p, p.podeReabordar ? 'recuperar' : null)}</td></tr>`).join('');
+  const linhasDev = c.dev.map(p => `<tr><td>${ppCliente(p)}</td><td>${escapeHtml(p.produtos)}</td><td>${fmtBRL(p.valor)}</td><td>${ppFmtDia(p.dia)}</td><td>${escapeHtml(p.tags.join(' '))}</td><td class="ppAcoes">${ppBotoes(p, 'recuperar')}</td></tr>`).join('');
+  return `<div class="card"><h3>Vendas perdidas que valem outra tentativa</h3>
+    <p class="desc">Perdidas nos últimos 90 dias, pelo motivo registrado no NeoCRM. Leads quentes e crédito aprovado primeiro; restrição/sem crédito só depois de 30 dias. Ficam de fora as perdas por desinteresse ou falta de cobertura${r.descartados ? ` (${r.descartados} no período)` : ''} e clientes que já voltaram em outro pedido. Em jogo: <b>${fmtBRL(r.valorReabordavel)}/mês</b>.</p>
+    ${r.lista.length ? `<div class="ppScroll"><table class="tbl"><thead><tr><th>Motivo</th><th>Cliente</th><th>Produtos</th><th>R$/mês</th><th>Perdida há</th><th>Quando</th><th></th></tr></thead><tbody>${linhasRec}</tbody></table></div>` : '<p class="ppVazio">Nenhuma venda perdida para retomar agora.</p>'}</div>
+    <div class="card"><h3>Pedidos devolvidos (${c.dev.length})</h3><p class="desc">Devolvidos nos últimos 90 dias, sem outro pedido aberto do mesmo cliente. Veja o motivo e tente corrigir.</p>
+    ${c.dev.length ? `<div class="ppScroll"><table class="tbl"><thead><tr><th>Cliente</th><th>Produtos</th><th>R$/mês</th><th>Devolvido em</th><th>Marcações</th><th></th></tr></thead><tbody>${linhasDev}</tbody></table></div>` : '<p class="ppVazio">Nenhum pedido devolvido recente.</p>'}</div>`;
+}
+function ppHtmlReoferecer(c){
+  const linhas = c.ops.map(o => `<tr><td>${ppCliente(o)}</td><td>${escapeHtml(o.produtos)}</td><td>${o.pedidos}</td><td>${fmtBRL(o.valor)}</td><td>${o.diasDesde} dia(s)</td><td class="ppAcoes">${ppBotoes(o, 'reoferecer', o.cnpj || o.cliente)}</td></tr>`).join('');
+  return `<div class="card"><h3>Clientes para reoferecer</h3>
+    <p class="desc">Clientes seus com pedido concluído há 30 a 120 dias e nenhum pedido aberto. É a hora de oferecer mais linhas, fibra ou uma renovação.</p>
+    ${c.ops.length ? `<div class="ppScroll"><table class="tbl"><thead><tr><th>Cliente</th><th>O que já tem</th><th>Pedidos</th><th>R$/mês</th><th>Concluído há</th><th></th></tr></thead><tbody>${linhas}</tbody></table></div>` : '<p class="ppVazio">Nenhum cliente nessa janela agora.</p>'}</div>`;
+}
+function ppHtmlNovidades(){
+  const m = ppEstado.movimentos;
+  const linhas = m.map(x => `<tr><td>${escapeHtml(x.numero_pedido)}</td><td>${escapeHtml(x.cliente || '—')}</td><td>${escapeHtml(String(x.etapa_anterior || '').replace(' (NEOCRM)', ''))} → <b>${escapeHtml(String(x.etapa_nova || '').replace(' (NEOCRM)', ''))}</b></td><td>${fmtBRL(Number(x.valor) || 0)}</td><td>${ppHa(x.em)}</td></tr>`).join('');
+  return `<div class="card"><h3>Novidades nos seus pedidos</h3><p class="desc">Pedidos seus que mudaram de etapa nos últimos 3 dias.</p>
+    ${m.length ? `<div class="ppScroll"><table class="tbl"><thead><tr><th>Pedido</th><th>Cliente</th><th>Mudança</th><th>R$/mês</th><th>Quando</th></tr></thead><tbody>${linhas}</tbody></table></div>` : '<p class="ppVazio">Nenhuma mudança de etapa nos últimos 3 dias.</p>'}</div>`;
+}
+
+function ppRender(){
+  const e = ppEstado, c = e.calc;
+  const mostrar = (id, sim) => { document.getElementById(id).style.display = sim ? 'block' : 'none'; };
+  mostrar('ppCarregando', false);
+  mostrar('ppSemVinculo', e.semVinculo);
+  mostrar('ppErro', !e.semVinculo && e.erro);
+  const ok = !e.semVinculo && !e.erro && !!c;
+  mostrar('ppConteudo', ok);
+  if(!ok) return;
+  document.getElementById('ppPlacarTitulo').textContent = 'Meu placar — ' + ppMesRotulo(e.hoje.slice(0, 7));
+  document.getElementById('ppPlacarDesc').textContent = 'Receita bruta das ativações do mês (mesma regra do Fechamento). Não é valor de comissão.';
+  document.getElementById('ppPlacar').innerHTML = ppHtmlPlacar(c);
+  document.getElementById('ppKpis').innerHTML = ppHtmlKpis(c);
+  const pill = (id, rotulo, n) => `<button type="button" class="filterPill${e.secao === id ? ' active' : ''}" data-pp="${id}">${rotulo} <b>${n}</b></button>`;
+  document.getElementById('ppPills').innerHTML = pill('parados', 'Parados', c.fila.parados)
+    + pill('agenda', 'Agenda', c.agenda.atrasados.length + c.agenda.hoje.length + c.agenda.amanha.length)
+    + pill('recuperar', 'Recuperar vendas', c.rec.lista.length + c.dev.length)
+    + pill('reoferecer', 'Reoferecer', c.ops.length)
+    + pill('novidades', 'Novidades', e.movimentos.length);
+  document.getElementById('ppSecao').innerHTML = { parados: ppHtmlParados, agenda: ppHtmlAgenda, recuperar: ppHtmlRecuperar, reoferecer: ppHtmlReoferecer, novidades: ppHtmlNovidades }[e.secao](c);
+  document.getElementById('ppRodape').textContent = `Dados do NeoCRM sincronizados de hora em hora (referência ${ppFmtDia(e.ref)}). Dias úteis: segunda a sexta, sem feriados nacionais. Valores em R$/mês.`;
+}
+
+async function loadPedidosParados(){
+  if(!canSeePedidosParados()) return;
+  ppEstado.secao = ppEstado.secao || 'parados';
+  document.getElementById('ppCarregando').style.display = ppEstado.calc ? 'none' : 'block';
+  await ppCarregarDados(false);
+  ppRender();
+  ppRenderMeuDia();
+  await ppCarregarExtras();
+  ppRender();
+}
+
+// Cartão "Meu dia" no topo do Dashboard (só consultor, só com vínculo e dados carregados).
+function ppRenderMeuDia(){
+  const card = document.getElementById('meuDiaCard');
+  if(!card) return;
+  const e = ppEstado, c = e.calc;
+  if(!canSeePedidosParados() || e.semVinculo || e.erro || !c){ card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  document.getElementById('meuDiaTitulo').textContent = `${ppSaudacao()}, ${ppPrimeiroNome()}!`;
+  const stat = (n, rotulo) => `<div class="dfStat"><b>${n}</b><span>${rotulo}</span></div>`;
+  const agendaHoje = c.agenda.hoje.length, atrasados = c.agenda.atrasados.length;
+  document.getElementById('meuDiaStats').innerHTML = stat(c.fila.parados, 'Pedidos parados') + stat(fmtBRL(c.fila.valorParado), 'R$/mês parados')
+    + stat(agendaHoje, 'Na agenda hoje') + stat(atrasados, 'Datas atrasadas')
+    + stat(c.placar.pct === null ? '—' : String(c.placar.pct).replace('.', ',') + '%', 'Da meta do mês');
+  const alerta = document.getElementById('meuDiaAlerta');
+  if(c.fila.parados > 0){
+    alerta.style.display = 'flex';
+    alerta.textContent = `${c.fila.parados} pedido(s) parado(s) somam ${fmtBRL(c.fila.valorParado)}/mês. Veja em que etapa cada um está.`;
+  } else alerta.style.display = 'none';
+}
+// Zera tudo do usuário anterior (troca de login no mesmo navegador): memória e telas.
+function ppResetar(){
+  ppEstado.geracao++;
+  Object.assign(ppEstado, { carregadoEm: 0, carregando: null, semVinculo: false, erro: false, linhas: [], calc: null, hoje: '', ref: '', meta: 0,
+    movimentos: [], neoOutros: new Set(), telefones: new Map(), secao: 'parados', fEtapa: '', fNivel: '' });
+  ['ppPlacar', 'ppKpis', 'ppPills', 'ppSecao', 'meuDiaStats'].forEach(id => { document.getElementById(id).innerHTML = ''; });
+  ['ppConteudo', 'ppSemVinculo', 'ppErro', 'ppCarregando', 'meuDiaCard'].forEach(id => { document.getElementById(id).style.display = 'none'; });
+}
+async function ppIniciar(){
+  ppResetar();
+  const vis = canSeePedidosParados();
+  document.getElementById('tabBtnPedidosParados').style.display = vis ? 'inline-block' : 'none';
+  if(!vis){ document.getElementById('meuDiaCard').style.display = 'none'; return; }
+  await ppCarregarDados(true);
+  ppRenderMeuDia();
+}
+
+document.getElementById('panel-pedidosparados').addEventListener('click', function(ev){
+  const pill = ev.target.closest('[data-pp]');
+  if(pill){ ppEstado.secao = pill.dataset.pp; ppRender(); return; }
+  const etapa = ev.target.closest('[data-ppetapa]');
+  if(etapa){ ppEstado.fEtapa = etapa.dataset.ppetapa; ppRender(); return; }
+  if(ev.target.closest('[data-ppf-limpar]')){ ppEstado.fEtapa = ''; ppEstado.fNivel = ''; ppRender(); return; }
+  const cp = ev.target.closest('[data-copiar]');
+  if(cp){
+    const txt = cp.dataset.copiar;
+    try{ navigator.clipboard.writeText(txt); mostrarAviso('Copiado: ' + txt, 'ok'); }catch(err){ mostrarAviso(txt, 'info'); }
+    return;
+  }
+  if(ev.target.id === 'btnPpTentar'){ ppEstado.carregadoEm = 0; loadPedidosParados(); }
+});
+document.getElementById('panel-pedidosparados').addEventListener('change', function(ev){
+  const f = ev.target.closest('[data-ppf]');
+  if(!f) return;
+  if(f.dataset.ppf === 'etapa') ppEstado.fEtapa = f.value; else ppEstado.fNivel = f.value;
+  ppRender();
+});
+document.getElementById('meuDiaCard').addEventListener('click', function(ev){
+  if(ev.target.closest('[data-tab]')) document.querySelector('#tabsNav button[data-tab="pedidosparados"]').click();
+});
+
+/* ---- Editores do admin: vínculo com o NeoCRM e metas (30/09/2026) ---- */
+const ppAdminCache = { perfis: [], neos: [], vinculos: [] };
+function ppAdminMostrar(){
+  const adm = !!currentUser && currentUser.role === 'admin';
+  document.getElementById('ppVincCard').style.display = adm ? 'block' : 'none';
+  document.getElementById('ppMetasCard').style.display = adm ? 'block' : 'none';
+  return adm;
+}
+async function ppAdminCarregar(){
+  if(!ppAdminMostrar()) return;
+  const mes = document.getElementById('ppMetasMes');
+  if(!mes.value) mes.value = hojeSP().slice(0, 7);
+  await ppAdminCarregarVinculos();
+  await ppAdminCarregarMetas();
+}
+async function ppAdminCarregarVinculos(){
+  const tbody = document.getElementById('ppVincTbody');
+  const [pf, neo, vc] = await Promise.all([
+    sb.from('profiles').select('id,nome,username,role').order('nome'),
+    sb.rpc('neo_usuarios_detectados'),
+    sb.from('consultor_neo').select('profile_id,neo_usuario_id'),
+  ]);
+  if((pf && pf.error) || (neo && neo.error) || (vc && vc.error)){
+    console.error((pf && pf.error) || (neo && neo.error) || (vc && vc.error));
+    tbody.innerHTML = '<tr><td colspan="3" class="spinnerNote">Não foi possível carregar os vínculos agora (a atualização do banco pode ainda não ter sido aplicada).</td></tr>';
+    return;
+  }
+  ppAdminCache.perfis = (pf.data || []).slice().sort((a, b) => (a.role === 'consultor' ? 0 : 1) - (b.role === 'consultor' ? 0 : 1) || String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+  ppAdminCache.neos = neo.data || [];
+  ppAdminCache.vinculos = vc.data || [];
+  const sug = ppSugerirVinculos(ppAdminCache.perfis, ppAdminCache.neos.map(n => ({ usuario_id: n.usuario_id, nome: n.nome })), ppAdminCache.vinculos);
+  const sugPor = new Map(sug.map(s => [s.profile_id, s]));
+  const vincPor = new Map(ppAdminCache.vinculos.map(v => [v.profile_id, Number(v.neo_usuario_id)]));
+  const opcoes = sel => '<option value="">— sem vínculo —</option>' + ppAdminCache.neos.map(n =>
+    `<option value="${n.usuario_id}"${Number(n.usuario_id) === sel ? ' selected' : ''}>${escapeHtml(n.nome)} · ${n.pedidos} pedido(s) · #${n.usuario_id}</option>`).join('');
+  tbody.innerHTML = ppAdminCache.perfis.map(p => {
+    const v = vincPor.get(p.id), s = sugPor.get(p.id);
+    const sel = v != null ? v : (s ? s.usuario_id : null);
+    const situacao = v != null ? '<span class="ppNivel ok">Vinculado</span>'
+      : s ? `<span class="ppNivel ${s.forca === 'forte' ? 'minimo' : 'medio'}">Sugestão${s.forca === 'fraca' ? ' ?' : ''} — confirme e salve</span>` : '<span class="ppNivel neutro">Sem vínculo</span>';
+    return `<tr data-perfil="${escapeHtml(p.id)}"><td>${escapeHtml(p.nome)} <span style="color:var(--muted);font-size:var(--fs-xs)">(${escapeHtml(ROLE_LABELS[p.role] || p.role)})</span></td>
+      <td><select data-vinc-perfil="${escapeHtml(p.id)}" style="max-width:340px">${opcoes(sel)}</select></td><td>${situacao}</td></tr>`;
+  }).join('');
+  const usados = new Set(ppAdminCache.neos.filter(n => n.profile_id).map(n => Number(n.usuario_id)));
+  const semPerfil = ppAdminCache.neos.filter(n => !usados.has(Number(n.usuario_id)) && !sug.some(s => s.usuario_id === Number(n.usuario_id)));
+  document.getElementById('ppVincInfo').textContent = semPerfil.length
+    ? 'Usuários do NeoCRM sem perfil no painel: ' + semPerfil.map(n => `${n.nome} (${n.pedidos})`).join(', ') + '.' : '';
+}
+async function ppAdminSalvarVinculos(){
+  const escolhas = new Map();
+  document.querySelectorAll('#ppVincTbody select[data-vinc-perfil]').forEach(s => { if(s.value) escolhas.set(s.dataset.vincPerfil, Number(s.value)); });
+  const vistos = new Map();
+  for(const [perfil, neo] of escolhas){
+    if(vistos.has(neo)){ mostrarAviso('O mesmo usuário do NeoCRM está escolhido para dois perfis. Cada usuário só pode ter um vínculo.', 'erro'); return; }
+    vistos.set(neo, perfil);
+  }
+  const antes = new Map(ppAdminCache.vinculos.map(v => [v.profile_id, Number(v.neo_usuario_id)]));
+  const mudaram = [...antes.keys()].filter(id => antes.get(id) !== escolhas.get(id));      // removidos ou trocados
+  const novos = [...escolhas.entries()].filter(([id, neo]) => antes.get(id) !== neo).map(([id, neo]) => ({ profile_id: id, neo_usuario_id: neo, atualizado_em: new Date().toISOString() }));
+  if(!mudaram.length && !novos.length){ mostrarAviso('Nenhuma alteração para salvar.', 'info'); return; }
+  if(mudaram.length){
+    const d = await sb.from('consultor_neo').delete().in('profile_id', mudaram);
+    if(d.error){ mostrarAviso('Não foi possível salvar: ' + d.error.message, 'erro'); return; }
+  }
+  if(novos.length){
+    const u = await sb.from('consultor_neo').upsert(novos, { onConflict: 'profile_id' });
+    if(u.error){ mostrarAviso('Não foi possível salvar: ' + u.error.message, 'erro'); return; }
+  }
+  mostrarAviso('Vínculos salvos.', 'ok');
+  await ppAdminCarregarVinculos();
+  await ppAdminCarregarMetas();
+}
+function ppMetasMesValor(){ return document.getElementById('ppMetasMes').value || hojeSP().slice(0, 7); }
+async function ppAdminCarregarMetas(){
+  const tbody = document.getElementById('ppMetasTbody'), ym = ppMetasMesValor();
+  const [pf, vc, mt] = await Promise.all([
+    sb.from('profiles').select('id,nome,role').order('nome'),
+    sb.from('consultor_neo').select('profile_id'),
+    sb.from('metas_consultor').select('profile_id,meta_receita').eq('mes', ym + '-01'),
+  ]);
+  if((pf && pf.error) || (mt && mt.error)){ tbody.innerHTML = '<tr><td colspan="2" class="spinnerNote">Não foi possível carregar as metas agora.</td></tr>'; return; }
+  const vinculados = new Set(((vc && vc.data) || []).map(v => v.profile_id));
+  const metas = new Map((mt.data || []).map(m => [m.profile_id, m.meta_receita]));
+  const alvo = (pf.data || []).filter(p => p.role === 'consultor' || vinculados.has(p.id)).sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+  ppAdminCache.metasAntes = metas;
+  tbody.innerHTML = alvo.length ? alvo.map(p => `<tr><td>${escapeHtml(p.nome)}</td><td><input type="number" min="0" step="50" data-meta-perfil="${escapeHtml(p.id)}" value="${metas.has(p.id) ? metas.get(p.id) : ''}" style="width:160px"></td></tr>`).join('')
+    : '<tr><td colspan="2" class="spinnerNote">Nenhum consultor cadastrado.</td></tr>';
+}
+async function ppAdminSalvarMetas(){
+  const ym = ppMetasMesValor(), mes = ym + '-01', antes = ppAdminCache.metasAntes || new Map();
+  const upserts = [], apagar = [];
+  document.querySelectorAll('#ppMetasTbody input[data-meta-perfil]').forEach(inp => {
+    const id = inp.dataset.metaPerfil, v = inp.value.trim();
+    if(v === ''){ if(antes.has(id)) apagar.push(id); return; }
+    const n = Number(v);
+    if(!(n >= 0)){ return; }
+    upserts.push({ profile_id: id, mes, meta_receita: n, atualizado_em: new Date().toISOString() });
+  });
+  if(apagar.length){
+    const d = await sb.from('metas_consultor').delete().eq('mes', mes).in('profile_id', apagar);
+    if(d.error){ mostrarAviso('Não foi possível salvar: ' + d.error.message, 'erro'); return; }
+  }
+  if(upserts.length){
+    const u = await sb.from('metas_consultor').upsert(upserts, { onConflict: 'profile_id,mes' });
+    if(u.error){ mostrarAviso('Não foi possível salvar: ' + u.error.message, 'erro'); return; }
+  }
+  mostrarAviso('Metas de ' + ppMesRotulo(ym) + ' salvas.', 'ok');
+  await ppAdminCarregarMetas();
+}
+async function ppAdminCopiarMetas(){
+  const ym = ppMetasMesValor();
+  const ant = somaDiasStr(ym + '-01', -1).slice(0, 7);
+  const r = await sb.from('metas_consultor').select('profile_id,meta_receita').eq('mes', ant + '-01');
+  if(r.error || !(r.data || []).length){ mostrarAviso('Não há metas em ' + ppMesRotulo(ant) + ' para copiar.', 'info'); return; }
+  const por = new Map(r.data.map(m => [m.profile_id, m.meta_receita]));
+  document.querySelectorAll('#ppMetasTbody input[data-meta-perfil]').forEach(inp => { if(por.has(inp.dataset.metaPerfil)) inp.value = por.get(inp.dataset.metaPerfil); });
+  mostrarAviso('Valores de ' + ppMesRotulo(ant) + ' copiados. Clique em "Salvar metas" para confirmar.', 'info');
+}
+document.getElementById('btnPpVincSalvar').addEventListener('click', ppAdminSalvarVinculos);
+document.getElementById('btnPpMetasSalvar').addEventListener('click', ppAdminSalvarMetas);
+document.getElementById('btnPpMetasCopiar').addEventListener('click', ppAdminCopiarMetas);
+document.getElementById('ppMetasMes').addEventListener('change', ppAdminCarregarMetas);
 
 /* ============ INIT — restaura sessão já existente, se houver ============ */
 (async function init(){
