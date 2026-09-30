@@ -2168,4 +2168,12 @@ O token nunca aparece em mensagem de erro nem em log (é mascarado). Para avisar
 
 - Se o próprio `pg_cron` do Supabase parar por inteiro, nada roda (nem a sincronização, nem este alerta).
 - Se a sincronização roda com sucesso mas o NeoCRM passou a devolver dados incompletos, não há alerta (ele mede se a sincronização está rodando, não se o conteúdo está certo).
-- **Ainda não existe** faixa de aviso dentro do painel para admin e supervisor; hoje o painel só mostra o card da aba "Upload Dash" (seção 51.2).
+- A faixa do painel (52.5) só aparece para quem está com o painel aberto; quem não abre o painel só é avisado pelo Telegram.
+
+### 52.5 Faixa de aviso dentro do painel
+
+- Quando existe um alerta aberto em `producao_sync_alerta`, aparece uma **faixa vermelha no topo do conteúdo** (acima das abas, sem mexer no cabeçalho de página nem no menu) para **admin e supervisor**: "Sincronização da produção parada. A produção não é atualizada desde <data e hora de SP>. Os números do Dashboard, do Fechamento e do Digital podem estar desatualizados…". O admin é apontado para a aba "Upload Dash"; o supervisor, que não tem essa aba, só é orientado a avisar o responsável técnico. **Consultor nunca vê** a faixa e nem consulta a tabela.
+- A faixa é conferida **ao entrar**, **ao trocar de aba**, **ao voltar o foco para a janela** e junto com a **atualização horária** do Dashboard. Não usa timer próprio (um `setInterval` a mais mantém vivo o processo dos testes e não era necessário).
+- Se a consulta falhar, a faixa **some** em vez de mostrar um aviso que não dá para confirmar; se o alerta for resolvido, some na próxima verificação; ao sair do sistema, é escondida.
+- O alerta só abre depois de **mais de 3 horas** sem sincronização bem-sucedida (mais até 15 minutos até o próximo ciclo do alerta), então a faixa pode demorar esse tempo para aparecer depois que a sincronização para.
+- Código: `verificarAlertaSyncProducao()` no `_template.html`; teste `test_alerta_sync_banner.js`.
