@@ -2090,12 +2090,13 @@ As exportações de 28/09 não tinham esse grupo. Afetava tudo o que usa `produc
 - A função roda sem JWT e só aceita quem manda o header `x-cron-secret` igual ao secret `SYNC_CRON_SECRET`. O mesmo valor fica no Vault do banco com o nome `sync_producao_cron_secret`, de onde o `pg_cron` o lê; ao trocar um, troque o outro.
 - `producao_pedidos_neo` segue a regra de `producao_pedidos` (leitura para qualquer usuário logado; o painel decide se pede cliente/CNPJ). Só a função grava. O JSON cru (`producao_neo_raw`) só admin lê.
 
-### 50.7 Pendências
+### 50.7 Resultado da carga inicial e limitações conhecidas
 
-- **Provar a paridade** da tabela nova contra `producao_pedidos` depois da carga inicial desta noite, incluindo pedidos por grupo, etapa e valor.
-- **Motivo de perda:** o painel monta o diagnóstico de perdas a partir de `TAGS ATIVIDADE` do export manual (`#SEMINTERESSE`, `#SEMCREDITO`…). A API traz `tagPedido`/`tagUsuario`. Falta confirmar, olhando pedidos perdidos da carga inicial, se o motivo vem em algum campo; se não vier, pedir ao suporte do NeoSales para expor esse dado antes da Fase 2.
-- **Fase 2 (exige aprovação):** trocar o dashboard para `producao_pedidos_neo`, neutralizar o "Upload Dash", exibir "última sincronização" e publicar (regras de publicação no `CLAUDE.md`).
-
+- **Carga inicial (29/09/2026, 22:12–22:32):** 5 execuções mensais (maio a setembro), todas com `ok = true`, 0 itens órfãos de GROSS e 0 duplicados. Resultado: 1.138 itens em 818 pedidos.
+- **Paridade provada:** dos pedidos comparados com a base do upload manual, **573 são idênticos** (mesma quantidade de linhas, valor e quantidade), **0 divergem** e **0 existem só na base antiga**. Os outros **245 pedidos só existem na API**: todos têm última atualização até 28/07/2026, e a base antiga só tinha pedidos atualizados a partir de 29/07 (o export manual era uma janela de cerca de 2 meses por data de atualização). Ver 51.3 para o efeito nos números.
+- **Motivo de perda:** confirmado. `tagPedido` traz `#SEMINTERESSE`, `#SEMCREDITO`, `#RESTRICAOOPERADORA`, `#COMRESTRICAO` etc. no mesmo formato da coluna `tag` do painel.
+- **Fase 2:** feita (seção 51).
+- **Limitações conhecidas (adiadas de propósito):** um item apagado no NeoCRM (não arquivado) não sai do espelho, porque a API só devolve mudanças; pedidos e JSON cru não são gravados numa única transação; uma execução interrompida pelo limite de tempo da função fica aberta (`ok` nulo) até alguém olhar; datas ou valores em formato inesperado viram vazio/0 sem contador; o carimbo de "última atualização" também é gravado depois de recarregar meses antigos; reaplicar a migration de cron depois de 29/09 recriaria os jobs da carga inicial para 30/09/2027, e as duas migrations de 29/09 compartilham o mesmo prefixo de versão.
 
 ## 51. Fase 2 — o Dashboard de Produção lê a produção sincronizada (29/09/2026)
 
@@ -2117,6 +2118,12 @@ As exportações de 28/09 não tinham esse grupo. Afetava tudo o que usa `produc
 - Continua existindo, sem uso na tela, o código de leitura de planilha (`extractProducaoRecords` e afins) como fallback documentado; ele segue ignorando GROSS e é coberto por `test_upload_grupo_gross.js`. As seções 16.x que descrevem o upload de planilha ficam como histórico.
 - Testes: `test_producao_sync_status.js` (novo) e `test_reorganizacao_abas.js` (atualizado: o input de upload sai de propósito).
 
-### 51.3 Condição para a virada
+### 51.3 Virada feita em 29/09/2026 (22:50 a 22:52, horário de São Paulo)
 
-Só se faz depois de provar a paridade da tabela nova contra a antiga (seção 50.7) e de conferir se o motivo de perda vem na API. Enquanto isso não acontece, o painel publicado continua lendo a tabela do upload manual.
+- **Provas antes da virada:** carga inicial sem erros, paridade sem divergências e motivo de perda disponível na API (ver 50.7).
+- **Aplicado:** o SQL da virada às 22:50 e, às 22:52, o painel novo. Publicou-se só o arquivo do painel (sem o `deploy.sh`, que envia tudo do `public_html`), depois de conferir que o painel no ar era idêntico à base da branch (MD5 `0362af864feb636dedeb2dc2f10c9413`).
+- **MD5 do painel publicado:** `295db56444ae18bc389bb723ec86ca83`, igual no arquivo gerado, no servidor e no site público.
+- **Backup do painel anterior no servidor:** `~/deploy_backups/painel_clientes_apex_20260929_225119_antes_fase2.html` (MD5 `0362af86…`).
+- **Depois da virada:** a sincronização das 23:07 rodou normalmente (`ok = true`), e o painel público carrega sem erro no console.
+- **O que muda nos números:** como o export manual só trazia pedidos atualizados a partir de 29/07, o painel antigo mostrava 573 pedidos. A sincronização traz o histórico completo desde 01/05/2026: **818 pedidos**. Os 245 a mais estão parados desde antes de 29/07 (179 perdidos, 52 concluídos e 14 em outras etapas). Com o filtro de período aberto, os totais de "Perdido" e a taxa de perda sobem; com o filtro de período fechado nas datas recentes, os números continuam os de antes. Para limitar o histórico de vez, basta recriar a view com um corte (`where atualizacao >= <data>`).
+- **Reversão** (dashboard volta a ler o backup manual, com os dados de antes da virada): rodar `supabase/rollback/20260930000000_producao_neo_cutover_rollback.sql` e restaurar o painel anterior no servidor (`ssh hostinger cp ~/deploy_backups/<arquivo> domains/apexsmart.com.br/public_html/painel_clientes_apex.html`). A tabela `producao_pedidos_manual` fica como backup e não é apagada.
