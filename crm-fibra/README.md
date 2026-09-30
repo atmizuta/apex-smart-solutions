@@ -49,3 +49,35 @@ Depois de rodar as migrações e o seed:
    → deve redirecionar para `/dashboard`.
 9. Clique em "Sair" → deve voltar para `/login` e qualquer página protegida
    volta a redirecionar.
+
+## Leads & Carteira (Plano 2)
+
+A segmentação (`crm_fibra.leads_segmentados`) lê `public.clientes` ao vivo —
+não há cópia de dado. Se a base de clientes parecer errada (poucos
+resultados, números estranhos), confirme com o time se `public.clientes`
+está na sua versão correta antes de desconfiar do CRM Fibra.
+
+### Checklist de verificação manual (além do checklist do Plano 1)
+
+1. Logado como consultor, abra `/dashboard` → os 6 cartões devem mostrar
+   números plausíveis (não zero, a menos que a base realmente esteja vazia).
+2. Clique em qualquer cartão → deve ir para `/leads` já filtrado pela
+   camada certa.
+3. Em `/leads`, digite um texto de busca com vírgula e parênteses, por
+   exemplo `Acme, (Ltda)` → a lista não deve quebrar nem retornar todos os
+   resultados sem filtro.
+4. Clique em um lead sem dono → deve aparecer o botão "Atribuir a mim".
+   Clique nele → deve sumir o botão e aparecer o formulário de mensagem.
+5. **Teste a disputa de atribuição:** com dois logins de consultor
+   diferentes (duas abas anônimas), abram o mesmo lead sem dono e cliquem
+   em "Atribuir a mim" quase ao mesmo tempo nas duas — um deve conseguir,
+   o outro deve ver uma mensagem de erro clara (não travar, não duplicar
+   o dono).
+6. Escreva uma mensagem em branco (só espaços) e tente enviar pelo
+   WhatsApp ou registrar ligação → deve aparecer erro, nada deve ser
+   salvo.
+7. Escreva uma mensagem de verdade e clique "Enviar pelo WhatsApp" → deve
+   abrir uma aba nova do WhatsApp com o número e o texto certos, e a
+   mensagem deve aparecer no histórico da página ao voltar.
+8. Abra um lead cujo cliente não tenha telefone válido na base → deve
+   aparecer o aviso de contato manual, não um botão de WhatsApp quebrado.
