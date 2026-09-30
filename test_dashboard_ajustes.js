@@ -127,7 +127,12 @@ assert(/:root\{--font-num:'Nunito'/.test(finalCss), 'variável --font-num com a 
 assert(/\.card \.value,\.uc-total,\.uc-value/.test(finalCss) && /font-family:var\(--font-num\)/.test(finalCss), 'valores dos cartões, totais e barras usam a fonte arredondada');
 assert(/#etapaTotalTable td:not\(:first-child\)/.test(finalCss) && /#lossReasonTable td:not\(:first-child\)/.test(finalCss), 'colunas numéricas das tabelas usam a fonte arredondada');
 assert(/#tabOverview \.user-cards\{grid-template-columns:repeat\(auto-fit,minmax\(310px,390px\)\);justify-content:center;\}/.test(finalCss), 'cartões por vendedor centralizados');
-assert(/#tabOverview \.cards\{grid-template-columns:repeat\(auto-fit,minmax\(180px,260px\)\);justify-content:center;\}/.test(finalCss), 'cartões de resumo centralizados');
+assert(/#tabOverview \.cards\{grid-template-columns:repeat\(4,minmax\(0,1fr\)\);\}/.test(finalCss), 'os 4 cartões de resumo ficam SEMPRE numa linha (4 colunas iguais)');
+assert(/#tabOverview \.cards \.value\{font-size:clamp\(15px,2vw,24px\);\}/.test(finalCss), 'a fonte dos cartões de resumo diminui em tela estreita para caberem os 4 numa linha');
+assert(/@media \(max-width:560px\)\{ #tabOverview \.cards\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\);\} \}/.test(finalCss), 'só em celular bem estreito os cartões passam a 2 por linha');
+assert(/\.layout\{grid-template-columns:1fr;\}/.test(finalCss), 'a página tem coluna única (some a coluna vazia da esquerda)');
+assert(/\.layout > \.panel\{display:flex;flex-wrap:wrap;/.test(finalCss) && /\.layout > \.panel \.filter-group\{margin:0;flex:1 1 150px;/.test(finalCss), 'os filtros viram uma faixa horizontal no topo');
+assert(/body:not\(\.tab-diaria\):not\(\.tab-alertas\):not\(\.tv-mode\) \.layout\{max-width:1240px;margin-left:auto;margin-right:auto;\}/.test(finalCss), 'o conteúdo (filtros e cartões) fica num bloco central; Visão Diária, Alertas e Modo TV não mudam');
 assert(/#tabOverview \.diag-cards\{[^}]*justify-content:center;/.test(finalCss) && /#tabOverview \.insights\{[^}]*margin-left:auto;margin-right:auto;/.test(finalCss), 'diagnóstico e insights centralizados');
 assert(/#tabOverview\{max-width:1240px;margin-left:auto;margin-right:auto;\}/.test(finalCss), 'o conteúdo da Visão Geral fica num bloco central com margens iguais');
 assert(!/body\.tab-diaria/.test(finalCss), 'os ajustes de centralização não mexem na Visão Diária (só #tabOverview)');

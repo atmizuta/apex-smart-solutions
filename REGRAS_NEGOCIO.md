@@ -2344,3 +2344,12 @@ Correspondência com os grupos do NeoCRM (`RELATORIO_ROTULOS`, deriva de `DIARIA
 - Antes de publicar, o painel no ar (MD5 `41a250fd…`) era idêntico ao `oficial/main` (40465e1): nada por fora. Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`e7d1133bd2d15c44c355d72791062812`**, igual no arquivo gerado, no servidor e no site público. Backup no servidor: `~/deploy_backups/painel_clientes_apex_20260930_201405_antes_correcao_scroll.html`. Vigia atualizado.
 - **Reverter:** copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. Não há mudança de banco nem de função.
 - Suíte: 44 testes passam; a única falha é `test_pedidos_alerta.js` por falta do pacote `exceljs` nesta máquina (já falhava antes). A conferência no computador real do usuário ainda depende dele (o vídeo enviado era do celular filmando o notebook, sem nitidez).
+
+## 58. Dashboard de Produção: página centralizada e 4 cartões numa linha (30/09/2026)
+
+- **Problema:** depois da centralização da seção 55, os 4 cartões do topo (Valor Total, Pedidos, Ticket Médio, Taxa de Perda) passaram para duas linhas (colunas de largura fixa 180–260px) e a coluna dos filtros (280px, à esquerda) ficava vazia quando a página rolava, empurrando o conteúdo para a direita.
+- **Regra:** os filtros (Grupo, Filtrar por data, Vendedor(es), Etapa, Limpar tudo) viram **uma faixa horizontal no topo**; o conteúdo inteiro fica **num bloco central** (máx. 1240px, margens iguais). Os 4 cartões ficam **sempre em 4 colunas iguais**, com fonte `clamp(15px, 2vw, 24px)` (diminui em tela estreita); só abaixo de 560px de largura passam a 2 por linha.
+- **Não mudam:** Visão Diária, Pedidos em Alerta e Modo TV (já eram coluna única / tela cheia).
+- **Só CSS** (`_dashboard_producao.html`, bloco "Página centralizada"). Sem mudança de banco nem de função. Testes: `test_dashboard_ajustes.js` (52).
+- Conferido na demonstração local em 1366px (4 cartões em linha, filtros em faixa única) e 1800px (conteúdo centralizado, margens de 117px de cada lado). Suíte: 44 passam; a única falha é `test_pedidos_alerta.js` por falta do `exceljs` nesta máquina (já falhava antes).
+- **Ainda não publicado** — aguarda o OK do usuário.
