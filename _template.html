@@ -8854,6 +8854,46 @@ document.getElementById('mlEquipeTbody').addEventListener('click', async functio
   await mlCarregar();
 });
 
+/* ---- Monitoramento Leads: exportar para Excel (SheetJS, sem cores) ---- */
+function mlBaixarXlsx(nomeArquivo, abas){
+  const wb = XLSX.utils.book_new();
+  abas.forEach(a => XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(a.linhas.length ? a.linhas : [{ Aviso: 'Nada para exportar' }]), a.nome));
+  XLSX.writeFile(wb, nomeArquivo);
+}
+const mlTelLimpo = t => String(t || '').replace(/^p:/, '');
+function mlLinhasExportFila(cl){
+  return cl.semLigacao.map(x => ({ Lead: x.nome || '', Telefone: mlTelLimpo(x.telefone), Consultor: x.consultor || '', 'Status na planilha': (x.status || '').trim(),
+    'Entrou há (horas)': x.horasDesdeEntrada == null ? '' : Math.round(x.horasDesdeEntrada), 'Acima do SLA': x.atrasadoSla ? 'Sim' : 'Não' }));
+}
+function mlLinhasExportCadencia(lista){
+  return lista.map(x => ({ Lead: x.nome || '', Telefone: mlTelLimpo(x.telefone), Consultor: x.consultor || '', Status: (x.status || '').trim(), Tentativas: x.tentativas,
+    'Última ligação': x.ultima_ligacao ? mlFmtDiaHora(x.ultima_ligacao) : '' }));
+}
+function mlLinhasExportInconsistencias(cl){
+  const i = cl.inconsistencias, out = [];
+  [['Planilha desatualizada', i.planilhaDesatualizada], ['Perdido cedo demais', i.perdidoCedo], ['Venda sem ligação', i.vendaSemLigacao]].forEach(g =>
+    g[1].forEach(x => out.push({ Tipo: g[0], Lead: x.nome || '', Consultor: x.consultor || '', Telefone: mlTelLimpo(x.telefone), Status: (x.status || '').trim(), Tentativas: x.tentativas })));
+  return out;
+}
+function mlLinhasExportTabela(linhas){
+  return linhas.map(x => ({ Consultor: x.nome, 'Ligações manuais': x.total, 'Ligações para leads': x.ligLeads, '% do total': fmtPctConversao(x.pctTotal), Atendidas: x.atendidas,
+    'Leads diferentes': x.leadsDistintos, 'Tentativas por lead': Math.round(x.tentativasPorLead * 10) / 10, Hoje: x.hoje, Ontem: x.ontem, '7 dias': x.d7, '30 dias': x.d30 }));
+}
+
+document.getElementById('btnMlExportFila').addEventListener('click', function(){
+  const cl = mlEstado.classificado || mlClassificarLeads([], mlEstado.metas, Date.now());
+  mlBaixarXlsx(`LeadsSemLigacao_${mlEstado.aba || 'SEM-ABA'}_${hojeSP()}.xlsx`, [
+    { nome: 'Sem ligação', linhas: mlLinhasExportFila(cl) },
+    { nome: 'Abaixo do mínimo', linhas: mlLinhasExportCadencia(cl.abaixoMin) },
+    { nome: 'Acima do teto', linhas: mlLinhasExportCadencia(cl.acimaTeto) },
+    { nome: 'Inconsistências', linhas: mlLinhasExportInconsistencias(cl) },
+  ]);
+});
+document.getElementById('btnMlExportTabela').addEventListener('click', function(){
+  const linhas = mlTabelaLinhas(mlEstado.porUsuario, mlEstado.equipe, mlEstado.tabela);
+  mlBaixarXlsx(`LigacoesPorConsultor_${mlEstado.de || 'inicio'}_${mlEstado.ate || 'hoje'}.xlsx`, [{ nome: 'Ligações por consultor', linhas: mlLinhasExportTabela(linhas) }]);
+});
+
 /* ==== FIM MONITORAMENTO LEADS ==== */
 
 // Pílulas de aba da planilha (Setembro/Agosto/Repique): só trocam a aba e re-renderizam, sem refetch.

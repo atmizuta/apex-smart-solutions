@@ -452,6 +452,38 @@ try{
   await espera(60);
   assert(window.__escritas.length === 0, 'valor que não é número não grava');
 
+  // ==== TASK 8: exportar Excel ====
+  window.__rpcRespostas.monitor_leads_leads = { data: leadsFila, error: null };
+  window.__rpcRespostas.monitor_ligacoes_por_usuario = { data: porUsu, error: null };
+  window.__tabelas.leads_equipe = JSON.parse(JSON.stringify(equipeBanco));
+  mlEstado.de = undefined; mlEstado.ate = undefined; mlEstado.tabela = 'equipe';
+  conversaoAbaAtual = 'OUTUBRO';
+  await mlCarregar();
+  window.__xlsx.length = 0;
+  document.getElementById('btnMlExportFila').click();
+  assert(window.__xlsx.length === 1 && /^LeadsSemLigacao_OUTUBRO_\\d{4}-\\d{2}-\\d{2}\\.xlsx$/.test(window.__xlsx[0].nome), 'exporta a fila com nome \da aba e \data');
+  const wbF = window.__xlsx[0].wb;
+  eq(wbF.SheetNames, ['Sem ligação', 'Abaixo do mínimo', 'Acima do teto', 'Inconsistências'], 'abas do arquivo da fila');
+  const linhasF = XLSX.utils.sheet_to_json(wbF.Sheets['Sem ligação']);
+  eq(linhasF.map(l => l.Lead), ['Fila Antigo', 'Fila Novo'], 'linhas da fila, mais antigo primeiro');
+  assert(linhasF[0].Telefone === '+5519900000011' && linhasF[0]['Acima do SLA'] === 'Sim' && linhasF[1]['Acima do SLA'] === 'Não', 'telefone sem "p:" e SLA como Sim/Não');
+  const incF = XLSX.utils.sheet_to_json(wbF.Sheets['Inconsistências']);
+  assert(incF.some(l => l.Tipo === 'Planilha desatualizada' && l.Lead === 'Desatualizado Um'), 'inconsistências exportadas com o tipo');
+  // lista vazia vira uma linha de aviso (planilha sem linhas confunde o Excel)
+  window.__rpcRespostas.monitor_leads_leads = { data: [], error: null };
+  await mlCarregar();
+  window.__xlsx.length = 0;
+  document.getElementById('btnMlExportFila').click();
+  eq(XLSX.utils.sheet_to_json(window.__xlsx[0].wb.Sheets['Sem ligação']), [{ Aviso: 'Nada para exportar' }], 'sem linhas: aviso em vez de aba vazia');
+
+  // tabela por consultor
+  window.__xlsx.length = 0;
+  document.getElementById('btnMlExportTabela').click();
+  assert(window.__xlsx.length === 1 && /^LigacoesPorConsultor_\\d{4}-\\d{2}-\\d{2}_\\d{4}-\\d{2}-\\d{2}\\.xlsx$/.test(window.__xlsx[0].nome), 'exporta a tabela com o perío\do no nome');
+  const linhasT = XLSX.utils.sheet_to_json(window.__xlsx[0].wb.Sheets['Ligações por consultor']);
+  eq(linhasT.map(l => l.Consultor), ['Caio', 'Luria'], 'tabela exportada = a que está na tela (os consultores de leads)');
+  assert(linhasT[0]['Ligações para leads'] === 40 && linhasT[0]['Tentativas por lead'] === 4 && linhasT[0]['% do total'] === '40,0%', 'colunas e valores do Caio');
+
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
   process.exit(fail > 0 ? 1 : 0);
 }catch(err){
