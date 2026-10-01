@@ -2491,7 +2491,7 @@ Com mais de 10 leads, a fila mostra só os 10 mais antigos e um botão "Mostrar 
 
 ## 61. "Meus leads para tratar" vira sub-aba da Digital, separada por mês, com status e OBS da planilha (01/10/2026)
 
-Pedido do usuário (01/10): (1) separar os leads do consultor por mês (Agosto, Setembro, Outubro) em abinhas; (2) mostrar o status que está na planilha e a última movimentação; (3) tirar a seção de Pedidos Parados e criar uma sub-aba própria na Digital, como a "Monitoramento Leads", que só o consultor vê. A seção "Meus leads e retornos" (Digital → Leads) continua como está. **Status: preparado no worktree `.worktrees/leads-outubro` (branch `feat/meus-leads-digital`), ainda não publicado.**
+Pedido do usuário (01/10): (1) separar os leads do consultor por mês (Agosto, Setembro, Outubro) em abinhas; (2) mostrar o status que está na planilha e a última movimentação; (3) tirar a seção de Pedidos Parados e criar uma sub-aba própria na Digital, como a "Monitoramento Leads", que só o consultor vê. A seção "Meus leads e retornos" (Digital → Leads) continua como está. **Status: publicado em 01/10/2026 (ver 61.6).**
 
 ### 61.1 Onde fica e quem vê
 - Digital ganha a sub-aba **"Meus leads para tratar"** (`data-digital-sub="meus"`, bloco `#digitalSubMeus`). Aparece só para o **consultor** que tem pelo menos um lead fora do Repique (`meus_leads_vinculado()`, seção 60.5). A barra de sub-abas passa a aparecer para esse consultor (Leads | Meus leads para tratar); admin/supervisor continuam com Leads | Monitoramento Leads e nunca veem a do consultor. Consultor sem lead: Digital como antes, sem barra.
@@ -2511,3 +2511,8 @@ Os leads só mudam quando alguém (admin/supervisor) clica "Atualizar agora" na 
 
 ### 61.5 Testes
 `test_monitoramento_leads.js` (182 ok): pílulas por mês e contagem, troca de mês, status e OBS, seção fora de Pedidos Parados, sub-aba só do consultor com lead, admin não vê nem abre, reset limpa as pílulas. Falhas antigas e não relacionadas: `test_conversao_vendas.js` (relógio) e `test_pedidos_alerta.js` (falta `exceljs`).
+
+### 61.6 Publicado (01/10/2026, ~22:22)
+- **Banco:** migration `meus_leads_obs` aplicada no Supabase `apex` (antes: a função era a da seção 60 e nada dependia dela). Conferido com um consultor real simulado em transação com rollback (Giovanna: Agosto 8 em aberto, 6 com OBS; Setembro 20, 13 com OBS; nenhum do Repique) e que anon continua sem EXECUTE.
+- **Painel:** o painel no ar (MD5 `e7a6de56…`) era idêntico ao `oficial/main` (nada publicado por fora). Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`8b66271b27275bfc0a9bc9d1278e6af5`**, igual no arquivo gerado, no servidor e no site público. Vigia atualizado (`-Aceitar`). Backup no servidor: `~/deploy_backups/painel_clientes_apex_20261001_222218_antes_meus_leads_digital.html`.
+- **Reverter:** copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`; depois (opcional) `supabase/rollback/20261001300000_meus_leads_obs_rollback.sql`.
