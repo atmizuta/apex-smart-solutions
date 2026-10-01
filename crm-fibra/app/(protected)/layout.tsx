@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { verifySessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { buscarConsultorPorId } from "@/lib/consultores";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-import { TopBar } from "./top-bar";
+import { AppSidebar } from "@/components/app-sidebar";
 
 export default async function ProtectedLayout({
   children,
@@ -26,9 +26,8 @@ export default async function ProtectedLayout({
   }
 
   return (
-    <div>
-      <TopBar nome={consultor.nome} papel={consultor.papel} />
-      <main style={{ padding: "24px" }}>{children}</main>
-    </div>
+    <AppSidebar nome={consultor.nome} papel={consultor.papel}>
+      {children}
+    </AppSidebar>
   );
 }
