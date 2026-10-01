@@ -143,11 +143,21 @@ describe("listarLeadsSegmentados", () => {
     expect(result.total).toBe(437);
   });
 
-  it("retorna lista vazia nessa página mas mantém o total quando a página pedida está além do que existe", async () => {
-    const client = makeQueryFake([{ data: [], error: null, count: 2 }]);
+  it("quando a página pedida está além do total, o PostgREST retorna 416/PGRST103 — busca o total de novo e retorna lista vazia em vez de quebrar", async () => {
+    const client = makeQueryFake([
+      { data: null, error: { code: "PGRST103", message: "An offset of 100 was requested, but there are only 2 rows." }, count: null },
+      { data: null, error: null, count: 2 },
+    ]);
     const result = await listarLeadsSegmentados(client as unknown as SupabaseClient, "todos", undefined, 5, 25);
     expect(result.leads).toEqual([]);
     expect(result.total).toBe(2);
+  });
+
+  it("propaga outros erros do PostgREST normalmente — só PGRST103 é tratado como \"página além do limite\"", async () => {
+    const client = makeQueryFake([{ data: null, error: { code: "PGRST116", message: "outro erro" }, count: null }]);
+    await expect(
+      listarLeadsSegmentados(client as unknown as SupabaseClient, "todos")
+    ).rejects.toMatchObject({ code: "PGRST116" });
   });
 });
 

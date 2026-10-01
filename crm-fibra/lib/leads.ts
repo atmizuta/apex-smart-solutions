@@ -107,16 +107,13 @@ export interface ResultadoPaginado {
   total: number;
 }
 
-export async function listarLeadsSegmentados(
+function consultaLeadsFiltrada(
   client: SupabaseClient,
   filtro: FiltroCamada,
-  busca?: string,
-  pagina: number = 1,
-  tamanhoPagina: number = TAMANHO_PAGINA_PADRAO
-): Promise<ResultadoPaginado> {
-  const buscaLimpa = busca ? sanitizarBusca(busca) : "";
-
-  let query = client.schema("crm_fibra").from("leads_segmentados").select("*", { count: "exact" });
+  buscaLimpa: string,
+  selectOptions: { count: "exact"; head?: boolean }
+) {
+  let query = client.schema("crm_fibra").from("leads_segmentados").select("*", selectOptions);
 
   if (filtro === "fibra_candidato") {
     query = query.eq("camada_fibra", "fibra_candidato");
@@ -132,15 +129,40 @@ export async function listarLeadsSegmentados(
     );
   }
 
+  return query;
+}
+
+export async function listarLeadsSegmentados(
+  client: SupabaseClient,
+  filtro: FiltroCamada,
+  busca?: string,
+  pagina: number = 1,
+  tamanhoPagina: number = TAMANHO_PAGINA_PADRAO
+): Promise<ResultadoPaginado> {
+  const buscaLimpa = busca ? sanitizarBusca(busca) : "";
   const from = (pagina - 1) * tamanhoPagina;
   const to = from + tamanhoPagina - 1;
 
-  const { data, error, count } = await query
+  const { data, error, count } = await consultaLeadsFiltrada(client, filtro, buscaLimpa, { count: "exact" })
     .order("razao_social", { ascending: true })
     .order("cnpj_digits", { ascending: true })
     .range(from, to);
 
-  if (error) throw error;
+  if (error) {
+    // PostgREST retorna 416/PGRST103 quando o offset pedido está além do
+    // total de linhas que batem no filtro (ex.: página 5 de um filtro com
+    // só 2 resultados — comum quando "sem_dono" encolhe à medida que
+    // consultores atribuem leads, ou uma URL salva/antiga). Isso não é um
+    // erro de verdade pro usuário: a página só não tem nada pra mostrar.
+    if ((error as { code?: string }).code === "PGRST103") {
+      const { count: totalReal } = await consultaLeadsFiltrada(client, filtro, buscaLimpa, {
+        count: "exact",
+        head: true,
+      });
+      return { leads: [], total: totalReal ?? 0 };
+    }
+    throw error;
+  }
 
   return {
     leads: ((data as LeadRow[] | null) ?? []).map(toLead),

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { listarLeadsSegmentados, TAMANHO_PAGINA_PADRAO, type FiltroCamada } from "@/lib/leads";
 import { listarConsultores } from "@/lib/consultores";
-import { hrefCarteiraPagina } from "@/lib/leads-urls";
+import { hrefCarteiraPagina, paginasParaExibir } from "@/lib/leads-urls";
 import { FiltroBar } from "./filtro-bar";
 import { CamadaBadges } from "@/components/camada-badges";
 import {
@@ -16,6 +16,7 @@ import {
 import {
   Pagination,
   PaginationContent,
+  PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
@@ -114,20 +115,26 @@ export default async function LeadsPage({
 
       {totalPaginas > 1 && (
         <Pagination className="mt-4">
-          <PaginationContent>
+          <PaginationContent className="flex-wrap">
             <PaginationItem>
               <PaginationPrevious
                 href={hrefCarteiraPagina(filtro, busca, Math.max(pagina - 1, 1))}
                 className={pagina <= 1 ? "pointer-events-none opacity-50" : undefined}
               />
             </PaginationItem>
-            {Array.from({ length: totalPaginas }, (_, i) => i + 1).map((p) => (
-              <PaginationItem key={p}>
-                <PaginationLink href={hrefCarteiraPagina(filtro, busca, p)} isActive={p === pagina}>
-                  {p}
-                </PaginationLink>
-              </PaginationItem>
-            ))}
+            {paginasParaExibir(pagina, totalPaginas).map((item, index) =>
+              item === "reticencias" ? (
+                <PaginationItem key={`reticencias-${index}`}>
+                  <PaginationEllipsis />
+                </PaginationItem>
+              ) : (
+                <PaginationItem key={item}>
+                  <PaginationLink href={hrefCarteiraPagina(filtro, busca, item)} isActive={item === pagina}>
+                    {item}
+                  </PaginationLink>
+                </PaginationItem>
+              )
+            )}
             <PaginationItem>
               <PaginationNext
                 href={hrefCarteiraPagina(filtro, busca, Math.min(pagina + 1, totalPaginas))}
