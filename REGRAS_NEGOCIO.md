@@ -2472,7 +2472,7 @@ Com mais de 10 leads, a fila mostra só os 10 mais antigos e um botão "Mostrar 
 2. Reimplantar a `sync-leads` (conector, `verify_jwt` true) → "Atualizar agora" → script 60.3.
 3. Painel: comparar com o no ar, backup, enviar, MD5, `vigia_painel.ps1 -Aceitar`, registrar aqui (60.7).
 
-### 60.7 Publicado (01/10/2026, ~20:38)
+### 60.7 Publicado (01/10/2026, ~17:38, horário de SP)
 - **Banco:** migration `meus_leads_por_nome` aplicada no Supabase `apex`. Antes, conferido que só existia a `meus_leads_para_tratar` da seção 59. Depois, `meus_leads_por_nome_check.sql` rodou em produção dentro de transação com rollback, sem erro (nome único, nome repetido, só Repique, vínculo pela equipe, anon recusado, função interna sem EXECUTE para authenticated); conferido que `plpgsql.check_asserts` está ligado e que nenhum dado fictício ficou.
 - **sync-leads:** a versão no ar (v9) era a do `oficial/main`; reimplantada como **v10** (`verify_jwt` true) com o `SHEET_TABS` novo. Limpeza das cópias erradas (60.3): ver 60.8.
 - **Painel:** o painel no ar (MD5 `91e2c666…`) era idêntico ao `oficial/main` (nada publicado por fora). Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`e7a6de56cee3e7530684c742e1cd41a9`**, igual no arquivo gerado, no servidor e no site público. Vigia atualizado (`-Aceitar`). Backup no servidor: `~/deploy_backups/painel_clientes_apex_20261001_203829_antes_leads_outubro.html`.
@@ -2512,7 +2512,35 @@ Os leads só mudam quando alguém (admin/supervisor) clica "Atualizar agora" na 
 ### 61.5 Testes
 `test_monitoramento_leads.js` (182 ok): pílulas por mês e contagem, troca de mês, status e OBS, seção fora de Pedidos Parados, sub-aba só do consultor com lead, admin não vê nem abre, reset limpa as pílulas. Falhas antigas e não relacionadas: `test_conversao_vendas.js` (relógio) e `test_pedidos_alerta.js` (falta `exceljs`).
 
-### 61.6 Publicado (01/10/2026, ~22:22)
+### 61.6 Publicado (01/10/2026, ~19:22, horário de SP)
 - **Banco:** migration `meus_leads_obs` aplicada no Supabase `apex` (antes: a função era a da seção 60 e nada dependia dela). Conferido com um consultor real simulado em transação com rollback (Giovanna: Agosto 8 em aberto, 6 com OBS; Setembro 20, 13 com OBS; nenhum do Repique) e que anon continua sem EXECUTE.
 - **Painel:** o painel no ar (MD5 `e7a6de56…`) era idêntico ao `oficial/main` (nada publicado por fora). Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`8b66271b27275bfc0a9bc9d1278e6af5`**, igual no arquivo gerado, no servidor e no site público. Vigia atualizado (`-Aceitar`). Backup no servidor: `~/deploy_backups/painel_clientes_apex_20261001_222218_antes_meus_leads_digital.html`.
 - **Reverter:** copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`; depois (opcional) `supabase/rollback/20261001300000_meus_leads_obs_rollback.sql`.
+
+## 62. Sincronização automática dos leads a cada 30 minutos, com trava de mês (01/10/2026)
+
+Pedido do usuário (01/10): os leads da planilha passarem para o painel sozinhos, sem precisar clicar "Atualizar agora". Pedido junto: a trava de segurança contra aba renomeada (o incidente da seção 60.2). **Status: publicado em 01/10/2026 (ver 62.5).**
+
+### 62.1 Como funciona
+- Job `sync-leads-auto` no pg_cron (migration `supabase/migrations/20261001400000_sync_leads_cron.sql`, rollback em `supabase/rollback/`): nos minutos **22 e 52** de cada hora chama a `sync-leads` com o header `x-cron-secret`, lido do Vault (`sync_producao_cron_secret`, o mesmo da sync-producao). Longe da sync-producao (minuto 7) e dos múltiplos de 15 do alerta.
+- A `sync-leads` confere o header contra o secret `SYNC_CRON_SECRET` em tempo constante; secret vazio nunca libera. Sem o header certo, continua exigindo admin/supervisor logado (botão "Atualizar agora" igual). Implantada com `verify_jwt = false` porque o cron não manda JWT — a função faz a autenticação ela mesma (mesmo padrão da sync-producao). Conferido no ar: sem nada → 401 "Não autenticado."; segredo errado → 401; token falso → 401 "Sessão inválida."; chamada como o cron → 200 com `origem: "cron"`.
+- A resposta traz `origem` ("cron" ou "manual"). O status da Digital diz "(automática a cada 30 min)".
+
+### 62.2 Trava de mês
+- Antes de gravar qualquer lead, `verificarTrava()`: se uma aba de MÊS (AGOSTO, SETEMBRO, OUTUBRO...) trouxer **mais de 10** leads criados num mês **posterior** ao dela (1 a 5 meses depois, no horário de São Paulo), a sincronização inteira para sem gravar nada. Mês anterior não trava (lead antigo colado numa aba nova; dezembro numa aba de janeiro conta como anterior). Repique não é mês; lead sem data não conta.
+- Limite 10 (e não 5): em 01/10 a aba Setembro da planilha já tinha 4 leads de outubro lançados nela; a aba renomeada da seção 60.2 trouxe 22.
+- Vale também para o botão manual (resposta 409 com a mensagem).
+
+### 62.3 Aviso de falha
+- Qualquer falha (trava, aba fora do ar/sem cabeçalho, planilha vazia, erro ao gravar) é gravada em `config.leads_sync_erro` ("data — motivo"); rodada com sucesso limpa (vazio).
+- Digital mostra o aviso em vermelho embaixo do botão (`#conversaoSyncErro`), só para admin/supervisor. O consultor não vê.
+- O que fazer se aparecer a trava: abrir `https://docs.google.com/spreadsheets/d/<id>/htmlview`, conferir nome × gid de cada aba e corrigir `SHEET_TABS` (seção 60.2); nada foi gravado enquanto a trava estava ativa.
+
+### 62.4 Testes
+`test_edge_function_sync_leads.js` (109 ok: mês em SP, trava com o caso de 01/10, tolerância, mês anterior, virada de ano, Repique, sem data, comparação do segredo, a trava antes do upsert) e `test_monitoramento_leads.js` (186 ok: aviso para admin, some sem erro, consultor não vê). Falhas antigas e não relacionadas: `test_conversao_vendas.js` (relógio) e `test_pedidos_alerta.js` (falta `exceljs`).
+
+### 62.5 Publicado (01/10/2026, ~19:40, horário de SP)
+- **sync-leads v11** (`verify_jwt` false) — testes de acesso da 62.1 feitos no ar; chamada de teste como o cron às 19:38 gravou 1.464 leads (Agosto 154, Setembro 851, Outubro 32, Repique 427) e deixou `leads_sync_erro` vazio.
+- **Cron** `sync-leads-auto` (`22,52 * * * *`) ativo; primeira rodada automática às 19:52.
+- **Painel:** o no ar (MD5 `8b66271b…`) era idêntico ao `oficial/main`. Publicado **`5a326f658a98990a138d578e19e531a6`** (gerado = servidor = site). Vigia atualizado. Backup: `~/deploy_backups/painel_clientes_apex_20261001_193954_antes_sync_leads_auto.html`.
+- **Desligar só a automação:** `supabase/rollback/20261001400000_sync_leads_cron_rollback.sql` (o botão continua). **Reverter o painel:** copiar o backup de volta. **Reverter a função:** reimplantar a versão do `oficial/main` anterior a esta seção com `verify_jwt` true.
