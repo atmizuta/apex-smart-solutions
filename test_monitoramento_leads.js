@@ -137,6 +137,78 @@ try{
   eq(cards[0], { nome: 'Caio', usuario: 'apex.caiocosta', leads: 6, convertidos: 3, perdidos: 1, andamento: 1, semContato: 1, receita: 150, ticket: 50, taxa: 0.5, semLigacao: 2 }, 'card do Caio (nome da planilha sem acento/caixa/espaço)');
   eq(cards[1], { nome: 'Luria', usuario: 'Apex.luria', leads: 0, convertidos: 0, perdidos: 0, andamento: 0, semContato: 0, receita: 0, ticket: 0, taxa: 0, semLigacao: 0 }, 'quem não tem lead fica com zeros (sem NaN)');
 
+  // ==== TASK 3: sub-abas, carga e cards ====
+  const equipeBanco = [
+    { id: 1, nome_planilha: 'Caio', usuario_telefonia: 'apex.caiocosta', profile_id: null, monitorar: true },
+    { id: 2, nome_planilha: 'Luria', usuario_telefonia: 'Apex.luria', profile_id: null, monitorar: true },
+    { id: 3, nome_planilha: 'Zé', usuario_telefonia: null, profile_id: null, monitorar: false },
+  ];
+  const leadsOut = [
+    L('o1', 'convertido', 2, { receita: 200, consultor: 'Caio' }), L('o2', 'perdido', 3, { consultor: 'Caio' }),
+    L('o3', 'andamento', 0, { consultor: 'Luria' }), L('o4', 'sem_contato', 0, { consultor: 'Luria' }),
+  ];
+  window.__tabelas.leads_equipe = equipeBanco;
+  window.__rpcRespostas.monitor_leads_leads = { data: leadsOut, error: null };
+  window.__rpcRespostas.monitor_ligacoes_resumo = { data: [{ total: 10, primeira: '2026-10-01T12:00:00Z', ultima: '2026-10-03T12:00:00Z', ultima_importacao: '2026-10-03T13:00:00Z' }], error: null };
+  conversaoLeadsCache = [{ aba: 'OUTUBRO' }, { aba: 'OUTUBRO' }, { aba: 'SETEMBRO' }];
+  conversaoAbaAtual = 'OUTUBRO';
+
+  // consultor: sem barra, e pedir "monitor" cai em "leads" sem chamar a RPC de admin
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  digitalSubPreparar();
+  assert(document.getElementById('digitalSubTabs').style.display === 'none', 'consultor não vê a barra de sub-abas');
+  digitalSubAtivar('monitor');
+  await espera(30);
+  assert(document.getElementById('digitalSubMonitor').style.display === 'none' && document.getElementById('digitalSubLeads').style.display !== 'none', 'consultor continua em "Leads"');
+  assert(!window.__rpcCalls.some(c => c.nome === 'monitor_leads_leads'), 'consultor não dispara a RPC de admin');
+  await mlCarregar();
+  assert(!window.__rpcCalls.some(c => c.nome === 'monitor_leads_leads'), 'mlCarregar não faz nada para consultor');
+
+  // admin: barra aparece, abrir o monitoramento carrega e desenha os cards
+  currentUser = { id: 'a1', nome: 'Admin Teste', username: 'adm', role: 'admin' };
+  digitalSubPreparar();
+  assert(document.getElementById('digitalSubTabs').style.display !== 'none', 'admin vê a barra de sub-abas');
+  document.querySelector('#digitalSubTabs [data-digital-sub="monitor"]').click();
+  await espera(60);
+  assert(document.getElementById('digitalSubMonitor').style.display !== 'none' && document.getElementById('digitalSubLeads').style.display === 'none', 'monitor visível, leads escondido');
+  const chamada = window.__rpcCalls.filter(c => c.nome === 'monitor_leads_leads').pop();
+  assert(chamada && chamada.args.p_aba === 'OUTUBRO', 'busca os leads da aba escolhida (OUTUBRO)');
+  const cs = [...document.querySelectorAll('#mlCards .mlCard')];
+  eq(cs.map(c => c.dataset.mlCard), ['Caio', 'Luria'], 'um card por consultor monitorado (Zé não)');
+  assert(cs[0].textContent.includes('50,0%') && cs[0].textContent.includes('1 venda') && cs[0].textContent.includes('R$'), 'card do Caio: 50,0%, 1 venda, receita');
+  assert(cs[1].textContent.includes('0,0%') && cs[1].textContent.includes('Sem ligação 2'), 'card da Luria: 0,0% e 2 sem ligação');
+  assert(!/NaN|undefined/.test(document.getElementById('digitalSubMonitor').textContent), 'nada de NaN/undefined na tela');
+  assert(document.getElementById('mlResumoRelatorio').textContent.includes('10 ligações'), 'cabeçalho mostra quantas ligações estão guardadas');
+  eq([...document.querySelectorAll('#mlAbaPills .filterPill')].map(b => b.textContent.replace(/\s+/g, ' ').trim()), ['Outubro 2', 'Setembro 1'], 'pílulas de mês no monitoramento');
+
+  // trocar o mês no monitoramento recarrega com a aba nova
+  document.querySelector('#mlAbaPills [data-ml-aba="SETEMBRO"]').click();
+  await espera(60);
+  assert(conversaoAbaAtual === 'SETEMBRO' && window.__rpcCalls.filter(c => c.nome === 'monitor_leads_leads').pop().args.p_aba === 'SETEMBRO', 'trocar a pílula recarrega com SETEMBRO');
+  conversaoAbaAtual = 'OUTUBRO';
+  await mlCarregar();
+
+  // clicar num card filtra; clicar de novo limpa
+  document.querySelector('#mlCards [data-ml-card="Caio"]').click();
+  eq(mlLeadsFiltrados().map(l => l.lead_id), ['o1', 'o2'], 'filtro por consultor');
+  assert(document.querySelector('#mlCards [data-ml-card="Caio"]').classList.contains('ativo'), 'card ativo marcado');
+  document.querySelector('#mlCards [data-ml-card="Caio"]').click();
+  eq(mlLeadsFiltrados().length, 4, 'segundo clique limpa o filtro');
+
+  // vazio: sem equipe monitorada, sem leads, sem relatório
+  window.__tabelas.leads_equipe = [];
+  window.__rpcRespostas.monitor_leads_leads = { data: [], error: null };
+  window.__rpcRespostas.monitor_ligacoes_resumo = { data: [], error: null };
+  await mlCarregar();
+  assert(document.getElementById('mlCards').textContent.includes('Nenhum consultor'), 'sem equipe: mensagem em vez de cards');
+  assert(document.getElementById('mlResumoRelatorio').textContent.includes('Nenhum relatório'), 'sem relatório: mensagem');
+  assert(!/NaN|undefined/.test(document.getElementById('digitalSubMonitor').textContent), 'vazio também sem NaN/undefined');
+
+  // erro da RPC (migration ainda não aplicada): aviso, sem quebrar
+  window.__rpcRespostas.monitor_leads_leads = { data: null, error: { message: 'function does not exist' } };
+  await mlCarregar();
+  assert(document.getElementById('mlErro').style.display !== 'none', 'erro mostra o aviso de que não foi possível carregar');
+
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
   process.exit(fail > 0 ? 1 : 0);
 }catch(err){

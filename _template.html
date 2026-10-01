@@ -469,6 +469,11 @@
   }
 </style>
 <style id="ppStyles">
+  /* Monitoramento Leads (01/10/2026) — só tokens do design */
+  .mlCard{cursor:pointer;}
+  .mlCard.ativo{outline:2px solid var(--c-sinal);outline-offset:-2px;}
+  .mlAtraso{color:var(--st-perdido);font-weight:600;}
+  .mlTabelaWrap{overflow-x:auto;}
   /* Pedidos Parados (30/09/2026) — só tokens do design; níveis usam as mesmas cores da seção 48 */
   .ppPills{margin:var(--space-4) 0;}
   .ppKpis{margin-top:var(--space-5);}
@@ -922,6 +927,11 @@
 
     <!-- DIGITAL (leads do Google/Meta) — só admin e supervisor -->
     <section class="panel" id="panel-conversao">
+      <div class="filterPills" id="digitalSubTabs" style="display:none;margin-bottom:14px">
+        <button type="button" class="filterPill active" data-digital-sub="leads">Leads</button>
+        <button type="button" class="filterPill" data-digital-sub="monitor">Monitoramento Leads</button>
+      </div>
+      <div id="digitalSubLeads">
       <div class="card">
         <h3>Digital</h3>
         <p class="desc">Leads de campanhas (Facebook/Instagram) e o acompanhamento de cada consultor até a venda. A planilha de origem fica no Google — clique em "Atualizar agora" para buscar os dados mais recentes.</p>
@@ -1046,6 +1056,115 @@
           </table>
         </div>
       </div>
+      </div><!-- /digitalSubLeads -->
+
+      <!-- MONITORAMENTO LEADS (só admin/supervisor) — 01/10/2026, REGRAS_NEGOCIO.md seção 59 -->
+      <div id="digitalSubMonitor" style="display:none">
+        <div class="card">
+          <h3>Monitoramento Leads</h3>
+          <p class="desc">Acompanha se quem recebe leads está ligando, tratando e vendendo. As ligações vêm do relatório de chamadas manuais da telefonia, enviado por arquivo (a telefonia não tem API).</p>
+          <div class="filterPills" id="mlAbaPills"></div>
+          <p class="desc" id="mlResumoRelatorio" style="margin-top:10px"></p>
+          <p class="desc mlAtraso" id="mlErro" style="display:none">Não foi possível carregar o monitoramento agora (a atualização do banco pode ainda não ter sido aplicada). Tente de novo em instantes.</p>
+        </div>
+
+        <div class="card">
+          <h3>Consultores de leads — <span id="mlCardsMes"></span></h3>
+          <p class="desc">Do mês escolhido. Clique num card para filtrar os blocos abaixo por aquela pessoa.</p>
+          <div class="kpiGrid" id="mlCards"></div>
+        </div>
+
+        <div class="card" id="mlUploadCard">
+          <h3>Enviar relatório de ligações manuais</h3>
+          <p class="desc">Envie o arquivo exportado da telefonia (Excel). Pode enviar o mês inteiro de novo: o que já existe não é duplicado.</p>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <input type="file" id="mlArquivo" accept=".xlsx,.xls,.csv" style="display:none">
+            <button class="btn btn-sm" type="button" id="btnMlArquivo" style="width:auto">Escolher arquivo</button>
+            <span id="mlUploadStatus" style="font-size:12px;color:var(--muted)"></span>
+          </div>
+          <div class="kpiGrid" id="mlUploadResumo" style="margin-top:10px"></div>
+        </div>
+
+        <div class="card">
+          <h3>Leads sem nenhuma ligação</h3>
+          <p class="desc" id="mlFilaInfo"></p>
+          <div class="mlTabelaWrap"><table class="tbl">
+            <thead><tr><th>Lead</th><th>Telefone</th><th>Consultor</th><th>Status na planilha</th><th>Entrou há</th></tr></thead>
+            <tbody id="mlFilaTbody"></tbody>
+          </table></div>
+          <button class="btn btn-sm btn-outline" type="button" id="btnMlExportFila" style="width:auto;margin-top:10px">Exportar Excel</button>
+        </div>
+
+        <div class="card">
+          <h3>Cadência de tentativas</h3>
+          <p class="desc" id="mlAbaixoInfo"></p>
+          <div class="mlTabelaWrap"><table class="tbl">
+            <thead><tr><th>Lead</th><th>Consultor</th><th>Status</th><th>Tentativas</th><th>Última ligação</th></tr></thead>
+            <tbody id="mlAbaixoTbody"></tbody>
+          </table></div>
+          <p class="desc" id="mlAcimaInfo" style="margin-top:14px"></p>
+          <div class="mlTabelaWrap"><table class="tbl">
+            <thead><tr><th>Lead</th><th>Consultor</th><th>Status</th><th>Tentativas</th><th>Última ligação</th></tr></thead>
+            <tbody id="mlAcimaTbody"></tbody>
+          </table></div>
+        </div>
+
+        <div class="card">
+          <h3>Placar do dia</h3>
+          <p class="desc">Ligações para números de lead feitas hoje, contra a meta diária.</p>
+          <div class="mlTabelaWrap"><table class="tbl">
+            <thead><tr><th>Consultor</th><th>Ligações hoje</th><th>% da meta</th><th>Atendidas</th><th>Leads tocados</th><th>Min. falados</th><th>Última ligação</th></tr></thead>
+            <tbody id="mlPlacarTbody"></tbody>
+          </table></div>
+        </div>
+
+        <div class="card">
+          <h3>Qualidade das ligações</h3>
+          <p class="desc">No período escolhido na tabela por consultor (abaixo). Atendida não é o mesmo que conversa: veja quanto tempo falaram.</p>
+          <div class="mlTabelaWrap"><table class="tbl">
+            <thead><tr><th>Consultor</th><th>Para leads</th><th>Taxa de atendimento</th><th>Duração média falada</th><th>Conversas boas</th><th>Atendidas tabuladas "sem contato"</th></tr></thead>
+            <tbody id="mlQualidadeTbody"></tbody>
+          </table></div>
+        </div>
+
+        <div class="card">
+          <h3>Inconsistências</h3>
+          <p class="desc">Onde a planilha de leads e as ligações não batem.</p>
+          <div id="mlInconsLista"></div>
+        </div>
+
+        <div class="card">
+          <h3>Ligações por consultor</h3>
+          <div class="filterPills" id="mlTabelaPills">
+            <button type="button" class="filterPill active" data-ml-tabela="equipe">Os consultores de leads</button>
+            <button type="button" class="filterPill" data-ml-tabela="todos">Todos os consultores</button>
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-top:10px">
+            <div class="field" style="margin:0;width:170px"><label>De</label><input type="date" id="mlPeriodoDe"></div>
+            <div class="field" style="margin:0;width:170px"><label>Até</label><input type="date" id="mlPeriodoAte"></div>
+          </div>
+          <div class="mlTabelaWrap"><table class="tbl" style="margin-top:12px">
+            <thead><tr><th>Consultor</th><th>Ligações manuais</th><th>Para leads</th><th>% do total</th><th>Atendidas</th><th>Leads diferentes</th><th>Tentativas por lead</th><th>Hoje</th><th>Ontem</th><th>7 dias</th><th>30 dias</th></tr></thead>
+            <tbody id="mlTabelaTbody"></tbody>
+          </table></div>
+          <button class="btn btn-sm btn-outline" type="button" id="btnMlExportTabela" style="width:auto;margin-top:10px">Exportar Excel</button>
+        </div>
+
+        <div class="card" id="mlEquipeCard" style="display:none">
+          <h3>Equipe de leads e metas</h3>
+          <p class="desc">Quem recebe leads agora, como o nome aparece na planilha e na telefonia, e o perfil do painel (é o que mostra a cada consultor só os próprios leads). As metas valem para os blocos acima.</p>
+          <div class="mlTabelaWrap"><table class="tbl">
+            <thead><tr><th>Nome na planilha de leads</th><th>Usuário na telefonia</th><th>Perfil do painel</th><th>Monitorar</th><th></th></tr></thead>
+            <tbody id="mlEquipeTbody"></tbody>
+          </table></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+            <button class="btn btn-sm btn-outline" type="button" id="btnMlEquipeAdd" style="width:auto">Adicionar pessoa</button>
+            <button class="btn btn-sm" type="button" id="btnMlEquipeSalvar" style="width:auto">Salvar equipe</button>
+          </div>
+          <div id="mlMetasCampos" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px"></div>
+          <button class="btn btn-sm" type="button" id="btnMlMetasSalvar" style="width:auto;margin-top:10px">Salvar metas</button>
+        </div>
+      </div><!-- /digitalSubMonitor -->
     </section>
 
     <!-- FECHAMENTO (18/09/2026) — só admin: relatório de comissionamento do consultor. Data de
@@ -7230,6 +7349,7 @@ function conversaoLeadsFiltrados(){
 }
 
 async function loadConversaoVendas(){
+  digitalSubPreparar();
   ApexMotion.skeleton(document.getElementById('conversaoResumoCards'), 'kpis');
   const statusEl = document.getElementById('conversaoSyncStatus');
   const adminMode = producaoAdminMode();
@@ -7274,6 +7394,7 @@ async function loadConversaoVendas(){
       cardVendaOrigem.style.display = 'none';
     }
   }
+  if(mlEstado.sub === 'monitor') mlCarregar();   // voltou à Digital com o monitoramento aberto: recarrega com a aba atual
 }
 
 // Recalcula e redesenha tudo (KPIs, gráfico, tabelas) a partir de conversaoLeadsCache + o período
@@ -8339,6 +8460,105 @@ function mlCardsEquipe(equipe, leads){
       semContato: c.sem_contato, receita, ticket: c.convertido ? receita / c.convertido : 0, taxa: n ? c.convertido / n : 0, semLigacao };
   });
 }
+
+/* ---- Monitoramento Leads: estado, carga e telas (admin/supervisor) ---- */
+const mlEstado = { geracao: 0, aba: null, sub: 'leads', equipe: [], metas: Object.assign({}, ML_METAS_PADRAO), leads: [], resumo: null,
+  porUsuario: [], tabela: 'equipe', de: null, ate: null, filtro: '', erro: false };
+function canSeeMonitoramentoLeads(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
+function mlFmtDiaHora(iso){
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? '—' : d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+function mlLeadsFiltrados(){
+  if(!mlEstado.filtro) return mlEstado.leads;
+  const alvo = normalizarNomeConsultor(mlEstado.filtro);
+  return mlEstado.leads.filter(l => normalizarNomeConsultor(l.consultor) === alvo);
+}
+
+// Barra de sub-abas da Digital: só admin/supervisor veem; para os demais a aba é a de sempre.
+function digitalSubAtivar(nome){
+  if(nome === 'monitor' && !canSeeMonitoramentoLeads()) nome = 'leads';
+  mlEstado.sub = nome;
+  document.getElementById('digitalSubLeads').style.display = nome === 'leads' ? '' : 'none';
+  document.getElementById('digitalSubMonitor').style.display = nome === 'monitor' ? '' : 'none';
+  document.querySelectorAll('#digitalSubTabs [data-digital-sub]').forEach(b => b.classList.toggle('active', b.dataset.digitalSub === nome));
+  if(nome === 'monitor') mlCarregar();
+}
+function digitalSubPreparar(){
+  const vis = canSeeMonitoramentoLeads();
+  document.getElementById('digitalSubTabs').style.display = vis ? '' : 'none';
+  if(!vis) digitalSubAtivar('leads');   // evita ficar preso no monitoramento ao trocar de login
+}
+
+async function mlCarregar(){
+  if(!canSeeMonitoramentoLeads()) return;
+  const geracao = ++mlEstado.geracao;
+  mlEstado.aba = conversaoAbaAtual;
+  const [eq, cfg, res, lds] = await Promise.all([
+    ppSeguro(() => sb.from('leads_equipe').select('id,nome_planilha,usuario_telefonia,profile_id,monitorar').order('id')),
+    ppSeguro(() => sb.from('config').select('valor').eq('chave', 'monitor_leads_metas').maybeSingle()),
+    ppSeguro(() => sb.rpc('monitor_ligacoes_resumo')),
+    mlEstado.aba ? ppSeguro(() => fetchAllRows(() => sb.rpc('monitor_leads_leads', { p_aba: mlEstado.aba }))) : Promise.resolve({ data: [], error: null }),
+  ]);
+  if(geracao !== mlEstado.geracao) return;   // chegou outra carga depois: esta já é velha
+  const falhou = (eq && eq.error) || (lds && lds.error) || (res && res.error) || null;
+  if(falhou) console.error(falhou);
+  mlEstado.erro = !!falhou;
+  mlEstado.equipe = (eq && eq.data) || [];
+  mlEstado.metas = mlMetas(cfg && cfg.data && cfg.data.valor);
+  mlEstado.resumo = (res && Array.isArray(res.data) && res.data[0]) || null;
+  mlEstado.leads = (lds && lds.data) || [];
+  // ==== mais cargas entram aqui ====
+  if(geracao !== mlEstado.geracao) return;
+  mlRenderTudo();
+}
+
+function mlRenderCabecalho(){
+  const abas = conversaoAbasDisponiveis(conversaoLeadsCache);
+  document.getElementById('mlAbaPills').innerHTML = abas.map(a => `<button type="button" class="filterPill${a.aba === mlEstado.aba ? ' active' : ''}" data-ml-aba="${escapeHtml(a.aba)}">${escapeHtml(conversaoAbaRotulo(a.aba))} <b>${a.n.toLocaleString('pt-BR')}</b></button>`).join('');
+  const r = mlEstado.resumo, el = document.getElementById('mlResumoRelatorio');
+  if(!r || !Number(r.total)){ el.textContent = 'Nenhum relatório de ligações foi enviado ainda. Envie o arquivo mais abaixo para começar.'; return; }
+  const ultimoDia = leadDateSP(r.ultima);
+  const velho = ultimoDia && ultimoDia < somaDiasStr(hojeSP(), -1);
+  el.innerHTML = `Relatório de ligações até <b>${escapeHtml(mlFmtDiaHora(r.ultima))}</b> · ${Number(r.total).toLocaleString('pt-BR')} ligações guardadas (desde ${escapeHtml(mlFmtDiaHora(r.primeira))})`
+    + (velho ? ' <span class="mlAtraso">— desatualizado: envie o relatório mais recente.</span>' : '');
+}
+
+function mlRenderCards(){
+  document.getElementById('mlErro').style.display = mlEstado.erro ? '' : 'none';
+  document.getElementById('mlCardsMes').textContent = mlEstado.aba ? conversaoAbaRotulo(mlEstado.aba) : '';
+  const box = document.getElementById('mlCards');
+  const cards = mlCardsEquipe(mlEstado.equipe, mlEstado.leads);
+  if(!cards.length){
+    box.innerHTML = '<p class="desc">Nenhum consultor de leads cadastrado. Cadastre a equipe no fim desta página, em "Equipe de leads e metas".</p>';
+    return;
+  }
+  box.innerHTML = cards.map(c => `<div class="kpiCard mlCard${mlEstado.filtro === c.nome ? ' ativo' : ''}" data-ml-card="${escapeHtml(c.nome)}">
+      <div class="kpiLabel">${escapeHtml(c.nome)}</div>
+      <div class="kpiValue">${fmtPctConversao(c.taxa)}</div>
+      <div class="kpiSub">${c.convertidos} ${c.convertidos === 1 ? 'venda' : 'vendas'} · ${c.leads} ${c.leads === 1 ? 'lead' : 'leads'}</div>
+      <div class="kpiBarTrack"><div class="kpiBarFill" style="width:${Math.min(100, c.taxa * 100)}%"></div></div>
+      <div class="kpiSub">Perdidos ${c.perdidos} · Em andamento ${c.andamento} · Sem contato ${c.semContato}</div>
+      <div class="kpiSub">Receita ${fmtBRL(c.receita)}${c.convertidos ? ' (ticket ' + fmtBRL(c.ticket) + ')' : ''} · Sem ligação ${c.semLigacao}</div>
+    </div>`).join('');
+}
+
+function mlRenderTudo(){
+  mlRenderCabecalho();
+  mlRenderCards();
+  // ==== mais renders entram aqui ====
+}
+
+document.getElementById('digitalSubTabs').addEventListener('click', function(ev){
+  const b = ev.target.closest('[data-digital-sub]');
+  if(b) digitalSubAtivar(b.dataset.digitalSub);
+});
+document.getElementById('digitalSubMonitor').addEventListener('click', function(ev){
+  const pa = ev.target.closest('[data-ml-aba]');
+  if(pa){ conversaoAbaAtual = pa.dataset.mlAba; renderConversaoFiltrado(); mlCarregar(); return; }
+  const cd = ev.target.closest('[data-ml-card]');
+  if(cd){ mlEstado.filtro = mlEstado.filtro === cd.dataset.mlCard ? '' : cd.dataset.mlCard; mlRenderTudo(); }
+});
 
 /* ==== FIM MONITORAMENTO LEADS ==== */
 
