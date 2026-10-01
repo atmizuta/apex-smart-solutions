@@ -2478,3 +2478,8 @@ Com mais de 10 leads, a fila mostra só os 10 mais antigos e um botão "Mostrar 
 - **Painel:** o painel no ar (MD5 `91e2c666…`) era idêntico ao `oficial/main` (nada publicado por fora). Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`e7a6de56cee3e7530684c742e1cd41a9`**, igual no arquivo gerado, no servidor e no site público. Vigia atualizado (`-Aceitar`). Backup no servidor: `~/deploy_backups/painel_clientes_apex_20261001_203829_antes_leads_outubro.html`.
 - **Reverter o painel:** copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. **Reverter o banco:** `supabase/rollback/20261001200000_meus_leads_por_nome_rollback.sql` (depois de reverter o painel). **Reverter a sync:** reimplantar a versão do `oficial/main` anterior a esta seção (mas ela volta a gravar outubro como SETEMBRO).
 - **Falta fazer (usuário):** ligar o Gabriel Macedo (e quem mais quiser) ao perfil em Digital → Monitoramento Leads → "Equipe de leads e metas" — o editor agora salva.
+
+### 60.8 Limpeza feita (01/10/2026, ~17:45)
+- O usuário clicou "Atualizar agora" às 17:41 (sync-leads v10): OUTUBRO passou a ter **27** leads (igual à aba da planilha).
+- Cópias erradas em SETEMBRO (mesmo `id` que em OUTUBRO): **22** (18 ainda sem consultor + 4 do Gabriel), todas criadas em 01/10. Apagadas com ok do usuário, numa transação que só gravava se as contagens batessem. Resultado: **SETEMBRO 851** (= aba "SETEMBRO 26" da planilha), **OUTUBRO 27**, AGOSTO 154, REPIQUE 427.
+- Os "31 leads de outubro" de 60.2 eram contados em UTC: 9 deles entraram entre 21h e 0h de 30/09 (horário de SP) e são de setembro de verdade — ficaram onde estavam.
