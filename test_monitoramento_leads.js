@@ -86,6 +86,15 @@ try{
   eq(p.invalidas, 2, 'duas linhas inválidas');
   eq(p.linhas[0], { id: 1001, usuario: 'apex.fulano', telefone: '19900000001', chave_tel: '1900000001', gerada_em: '2026-09-08T12:20:59-03:00', atendida: true, seg_falados: 90, tabulacao: 'SEM CONTATO', transferido: null, gravacao: 'g/1' }, 'linha 1 convertida');
   assert(p.linhas[1].atendida === false && p.linhas[1].seg_falados === 0 && p.linhas[1].gerada_em === '2026-09-08T23:59:59-03:00', 'linha 2: falhou, 0 s, 23:59 mantém o dia');
+  // 01/10/2026 (seção 65): usuários da Eagle (eagle.*) não fazem parte da operação — ignorados, contados à parte
+  const pE = mlParseRelatorio(rel.concat([
+    { 'ID': 1101, 'Usuario': 'eagle.anaferreira', 'Telefone': 19900000001, 'Status': 'ANSWERED', 'DataHora_Geracao': '08/09/2026 12:00:00' },
+    { 'ID': 1102, 'Usuario': ' EAGLE.Rosana ', 'Telefone': 19900000001, 'Status': 'FAILED', 'DataHora_Geracao': '08/09/2026 12:05:00' },
+    { 'ID': 1103, 'Usuario': 'apex.eagleton', 'Telefone': 19900000001, 'Status': 'FAILED', 'DataHora_Geracao': '08/09/2026 12:06:00' },
+  ]));
+  eq(pE.linhas.map(l => l.id), [1001, 1002, 1103], 'ligações eagle.* ficam de fora (só quem COMEÇA com eagle)');
+  eq(pE.ignoradasEagle, 2, 'conta as ligações da Eagle ignoradas');
+  eq(pE.invalidas, 2, 'Eagle não conta como linha inválida');
   // cabeçalho com outra grafia
   const p2 = mlParseRelatorio([{ ' id ': 5, 'USUÁRIO': 'x', 'telefone': 1, 'STATUS': 'ANSWERED', 'datahora geração': '01/10/2026 09:00' }]);
   eq(p2.faltando, [], 'cabeçalho com acento/caixa/espaço diferente é aceito');
@@ -258,6 +267,17 @@ try{
   r = await mlImportarLinhas(grande);
   eq(window.__escritas.filter(e => e.tabela === 'ligacoes_manuais').map(e => e.rows.length), [500, 500, 203], 'três lotes: 500, 500, 203');
   assert(r.lidas === 1203 && r.invalidas === 1, 'linha inválida contada, não enviada');
+
+  // arquivo com ligações da Eagle: não envia, mostra quantas foram ignoradas
+  window.__escritas.length = 0;
+  r = await mlImportarLinhas(linhasWb.concat([{ ID: 30001, Usuario: 'eagle.luigi', Telefone: 19900000001, Status: 'FAILED', DataHora_Geracao: '03/10/2026 09:00:00' }]));
+  assert(!window.__escritas.some(e => e.tabela === 'ligacoes_manuais' && e.rows.some(l => /^eagle/i.test(l.usuario))), 'nenhuma ligação da Eagle é enviada');
+  assert(r.ignoradasEagle === 1 && document.getElementById('mlUploadResumo').textContent.includes('Eagle'), 'resumo mostra as ligações da Eagle ignoradas');
+  // arquivo só com Eagle: recusado com mensagem clara
+  window.__escritas.length = 0;
+  r = await mlImportarLinhas([{ ID: 30002, Usuario: 'eagle.kauan', Telefone: 19900000001, Status: 'FAILED', DataHora_Geracao: '03/10/2026 09:00:00' }]);
+  assert(r === null && window.__escritas.length === 0 && document.getElementById('mlUploadStatus').textContent.includes('Eagle'), 'arquivo só da Eagle: nada enviado, mensagem explica');
+  r = await mlImportarLinhas(grande);   // volta o estado do aviso de quem não aparece no arquivo
 
   // equipe sem ligação no arquivo é avisada
   assert(document.getElementById('mlUploadStatus').textContent.includes('Caio') && document.getElementById('mlUploadStatus').textContent.includes('Luria'), 'avisa quem da equipe não aparece no arquivo');

@@ -8412,8 +8412,11 @@ function mlDataHora(v){
   return m ? m[1] + '-' + m[2] + '-' + m[3] + 'T' + m[4] + ':' + m[5] + ':' + (m[6] || '00') + '-03:00' : null;
 }
 // rows = linhas do relatório como objetos {cabeçalho: valor} (XLSX.utils.sheet_to_json).
+// 01/10/2026 (seção 65): usuários da Eagle (eagle.*) não fazem parte da operação — ficam fora do monitoramento.
+// O banco também recusa (gatilho ligacoes_manuais_ignora_eagle); aqui é para contar e avisar no upload.
+function mlEhEagle(usuario){ return /^eagle/i.test(String(usuario || '').trim()); }
 function mlParseRelatorio(rows){
-  const out = { linhas: [], invalidas: 0, faltando: [] };
+  const out = { linhas: [], invalidas: 0, faltando: [], ignoradasEagle: 0 };
   if(!rows || !rows.length){ out.faltando = ML_OBRIGATORIAS.slice(); return out; }
   const mapa = {};
   Object.keys(rows[0]).forEach(k => {
@@ -8429,6 +8432,7 @@ function mlParseRelatorio(rows){
     const gerada = mlDataHora(txt(r, 'gerada'));
     const usuario = txt(r, 'usuario');
     if(!Number.isFinite(id) || id <= 0 || !gerada || !usuario){ out.invalidas++; return; }
+    if(mlEhEagle(usuario)){ out.ignoradasEagle++; return; }
     if(vistos.has(id)) return;
     vistos.add(id);
     const tel = (txt(r, 'telefone') || '').replace(/\D/g, '');
@@ -8650,7 +8654,9 @@ async function mlImportarLinhas(rows){
     return null;
   }
   if(!p.linhas.length){
-    st.textContent = 'Arquivo recusado: nenhuma ligação válida encontrada.';
+    st.textContent = p.ignoradasEagle
+      ? `Arquivo recusado: as ${p.ignoradasEagle.toLocaleString('pt-BR')} ligações do arquivo são de usuários da Eagle, que não fazem parte da operação.`
+      : 'Arquivo recusado: nenhuma ligação válida encontrada.';
     mostrarAviso('Nenhuma ligação válida encontrada no arquivo.', 'erro');
     return null;
   }
@@ -8668,11 +8674,12 @@ async function mlImportarLinhas(rows){
   const depois = await mlTotalGuardado();
   const novas = Math.max(0, depois - antes);
   const dias = p.linhas.map(l => l.gerada_em).sort();
-  const res = { lidas: p.linhas.length, novas, existentes: p.linhas.length - novas, invalidas: p.invalidas, de: dias[0], ate: dias[dias.length - 1] };
+  const res = { lidas: p.linhas.length, novas, existentes: p.linhas.length - novas, invalidas: p.invalidas, ignoradasEagle: p.ignoradasEagle, de: dias[0], ate: dias[dias.length - 1] };
   const usuarios = new Set(p.linhas.map(l => l.usuario.toLowerCase()));
   const ausentes = mlEstado.equipe.filter(e => e.monitorar && e.usuario_telefonia && !usuarios.has(String(e.usuario_telefonia).toLowerCase())).map(e => e.nome_planilha);
   const kpi = (rotulo, valor) => `<div class="kpiCard"><div class="kpiLabel">${rotulo}</div><div class="kpiValue">${valor.toLocaleString('pt-BR')}</div></div>`;
-  box.innerHTML = kpi('Ligações lidas', res.lidas) + kpi('Novas', res.novas) + kpi('Já existiam', res.existentes) + kpi('Linhas inválidas', res.invalidas);
+  box.innerHTML = kpi('Ligações lidas', res.lidas) + kpi('Novas', res.novas) + kpi('Já existiam', res.existentes) + kpi('Linhas inválidas', res.invalidas)
+    + (res.ignoradasEagle ? kpi('Ignoradas (Eagle)', res.ignoradasEagle) : '');
   st.textContent = `Período do arquivo: ${mlDiaBR(res.de)} a ${mlDiaBR(res.ate)}.` + (ausentes.length ? ' Sem ligações no arquivo: ' + ausentes.join(', ') + '.' : '');
   mostrarAviso(`Relatório enviado: ${res.novas} ligações novas.`, 'ok');
   await mlCarregar();
