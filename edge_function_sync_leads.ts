@@ -56,18 +56,32 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 // pro atual (1292366194), obtido de novo direto na planilha. Também adicionada a aba "REPIQUE"
 // (mesma estrutura de colunas, um lote de recontato de leads), a pedido do usuário.
 const SHEET_ID = "1nu3yNLedr3ier2f7S6dI95XX6gxyJpsg4dtpi66AP5w";
+// 30/09/2026: cada aba agora tem uma chave `aba` que é gravada em cada lead (coluna leads.aba) e vira
+// o seletor da aba Digital — assim Setembro, Agosto e Repique NUNCA se misturam (antes tudo ia pra
+// mesma tabela sem saber a origem, e o mesmo id em duas abas era sobrescrito pela última). Quando o
+// time criar a aba de OUTUBRO: adicionar `{ aba: "OUTUBRO", label: "...", gid: "..." }` aqui.
 const SHEET_TABS = [
-  { label: "FORM- LEADS CLARO B2B APEX - AGOSTO", gid: "0" },
-  { label: "LEADS CLARO B2B APEX - SETEMBRO", gid: "1292366194" },
-  { label: "REPIQUE", gid: "532368128" },
+  { aba: "AGOSTO", label: "FORM- LEADS CLARO B2B APEX - AGOSTO", gid: "0" },
+  { aba: "SETEMBRO", label: "LEADS CLARO B2B APEX - SETEMBRO", gid: "1292366194" },
+  { aba: "REPIQUE", label: "REPIQUE", gid: "532368128" },
 ];
 function sheetTabCsvUrl(gid: string): string {
   return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
 }
 
+// Comparação de texto do STATUS: sem acento, sem diferença de maiúsculas/minúsculas e com espaços
+// repetidos colapsados — a planilha tem "TELEFONE ERRADO ou  SEM WHATSAPP" (2 espaços) e
+// "TELEFONE ERRADO ou Sem Whatsapp", que são o mesmo status digitado de formas diferentes.
+function normalizaStatus(s: string): string {
+  return (s || "").normalize("NFD").replace(/\p{M}/gu, "").replace(/\s+/g, " ").trim().toUpperCase();
+}
+
 // Categorização do status interno de atendimento (coluna STATUS da planilha) — mesmo espírito da
 // categorização Ganho/Perdido/Andamento do Dashboard de Produção (ver seção 16.2 do
 // REGRAS_NEGOCIO.md), adaptada aos status que o time usa nessa planilha de leads.
+// 30/09/2026 (decisão do usuário): os status abaixo marcados "novos" são VENDA PERDIDA — antes
+// caíam em "andamento" por não estarem na lista e inflavam o funil. "PEDIDO EM ANÁLISE" segue em
+// andamento (o pedido ainda está sendo analisado).
 const STATUS_CONVERTIDO = ["PEDIDO CONCLUIDO (VENDA)"];
 const STATUS_PERDIDO = [
   "CLIENTE NÃO RESPONDE",
@@ -75,30 +89,49 @@ const STATUS_PERDIDO = [
   "CLIENTE SEM INTERESSE NO PLANO",
   "LEAD PAROU DE RESPONDER",
   "CNPJ INAPTO",
+  // novos (30/09/2026):
+  "TELEFONE ERRADO OU SEM WHATSAPP",
+  "LEAD FORA DO PERFIL",
+  "CLIENTE SO QUERIA APARELHO",
+  "CLIENTE SÓ QUERIA FIBRA",
+  "CNPJ REPROVADO",
+  "SUSPEITA DE FRAUDE",
+  "CLIENTE NÃO QUER NO CNPJ",
 ];
 const STATUS_ANDAMENTO = [
   "EM NEGOCIAÇÂO",
   "AGENDADO RETORNO",
   "AGUARDANDO DOCUMENTAÇÃO",
   "AGUARDANDO CLIENTE DECIDIR",
+  "PEDIDO EM ANÁLISE",
 ];
-
-function normalizaStatus(s: string): string {
-  return (s || "").trim().toUpperCase();
-}
+const SET_CONVERTIDO = new Set(STATUS_CONVERTIDO.map(normalizaStatus));
+const SET_PERDIDO = new Set(STATUS_PERDIDO.map(normalizaStatus));
+const SET_ANDAMENTO = new Set(STATUS_ANDAMENTO.map(normalizaStatus));
 
 export function categoriaDoStatus(statusBruto: string): string {
   const s = normalizaStatus(statusBruto);
   if (!s) return "sem_contato";
-  if (STATUS_CONVERTIDO.includes(s)) return "convertido";
-  if (STATUS_PERDIDO.includes(s)) return "perdido";
-  if (STATUS_ANDAMENTO.includes(s)) return "andamento";
+  if (SET_CONVERTIDO.has(s)) return "convertido";
+  if (SET_PERDIDO.has(s)) return "perdido";
+  if (SET_ANDAMENTO.has(s)) return "andamento";
   return "andamento"; // status desconhecido/novo entra como andamento, não some do funil
 }
 
+// Regra de "convertido" (decisão do usuário, 30/09/2026): vale PRIMEIRO a coluna CONVERTEU? = "sim"; se
+// ela não disser "sim", olha o STATUS — "PEDIDO CONCLUIDO (VENDA)" também conta como convertido.
 export function calcConverteu(statusBruto: string, converteuBruto: string): boolean {
-  if (normalizaStatus(statusBruto) === "PEDIDO CONCLUIDO (VENDA)") return true;
-  return (converteuBruto || "").trim().toLowerCase() === "sim";
+  if ((converteuBruto || "").trim().toLowerCase() === "sim") return true;
+  return SET_CONVERTIDO.has(normalizaStatus(statusBruto));
+}
+
+// Junta os leads de todas as abas SEM misturar: a chave é (aba, id). O mesmo id em duas abas vira duas
+// linhas; repetido dentro da MESMA aba mantém a última ocorrência (evita o erro "ON CONFLICT DO UPDATE
+// command cannot affect row a second time" do Postgres no upsert).
+export function deduplicarLeads(registros: { aba: string; id: string }[]) {
+  const porChave = new Map();
+  for (const r of registros) porChave.set(r.aba + "|" + r.id, r);
+  return Array.from(porChave.values());
 }
 
 export function parseReceita(v: string): number {
@@ -119,7 +152,7 @@ function get(row: Record<string, string>, key: string): string {
 // cabeçalho tolerante a linha extra na frente, usada desde o fix de 04/09/2026 — ver comentário
 // mais abaixo, ao lado de onde essa função é chamada). Lança erro (com mensagem amigável,
 // identificando a aba) se não achar a linha de cabeçalho.
-export function parseSheetCsv(csvText: string, tabLabel: string): ReturnType<typeof mapearLinha>[] {
+export function parseSheetCsv(csvText: string, tabLabel: string, aba = ""): ReturnType<typeof mapearLinha>[] {
   const parsedRaw = Papa.parse(csvText, { skipEmptyLines: true });
   if (parsedRaw.errors && parsedRaw.errors.length > 0) {
     console.error(`Erros ao parsear CSV da aba "${tabLabel}":`, parsedRaw.errors.slice(0, 5));
@@ -142,6 +175,14 @@ export function parseSheetCsv(csvText: string, tabLabel: string): ReturnType<typ
     vistos.add(h);
     return h;
   });
+  // 30/09/2026: na aba de SETEMBRO a coluna do consultor está com o cabeçalho EM BRANCO (nas outras abas
+  // é "CONSULTOR "), então o painel não a reconhecia e jogava os 836 leads do mês em "(Sem consultor)".
+  // A coluna do consultor é sempre a que fica imediatamente antes de "STATUS": se não existe nenhuma
+  // coluna chamada CONSULTOR e a anterior a STATUS está sem nome, ela é a do consultor.
+  const idxStatus = headers.indexOf("STATUS");
+  if (!headers.some((h) => h.trim() === "CONSULTOR") && idxStatus > 0 && headers[idxStatus - 1].startsWith("__col")) {
+    headers[idxStatus - 1] = "CONSULTOR";
+  }
   const rows: Record<string, string>[] = allRows
     .slice(headerIdx + 1)
     .filter((r) => r.some((c) => (c || "").trim() !== ""))
@@ -152,14 +193,15 @@ export function parseSheetCsv(csvText: string, tabLabel: string): ReturnType<typ
     })
     .filter((r) => get(r, "id"));
 
-  return rows.map(mapearLinha).filter((r) => r.id);
+  return rows.map((r) => mapearLinha(r, aba)).filter((r) => r.id);
 }
 
-export function mapearLinha(row: Record<string, string>) {
+export function mapearLinha(row: Record<string, string>, aba = "") {
   const status = get(row, "STATUS");
   const converteuBruto = get(row, "CONVERTEU?");
   return {
     id: get(row, "id"),
+    aba, // de qual aba da planilha o lead veio (AGOSTO, SETEMBRO, REPIQUE...)
     criado_em_lead: get(row, "created_time") || null,
     ad_id: get(row, "ad_id") || null,
     ad_name: get(row, "ad_name") || null,
@@ -245,7 +287,7 @@ Deno.serve(async (req) => {
       }
       const csvText = await resp.text();
       try {
-        registros = registros.concat(parseSheetCsv(csvText, tab.label));
+        registros = registros.concat(parseSheetCsv(csvText, tab.label, tab.aba));
       } catch (e) {
         return json({ error: (e as Error).message }, 502, corsHeaders);
       }
@@ -254,17 +296,18 @@ Deno.serve(async (req) => {
       return json({ error: "A planilha não retornou nenhuma linha válida (sem coluna 'id') em nenhuma das abas." }, 502, corsHeaders);
     }
 
-    // de-duplica por id antes de gravar — um upsert com o mesmo id repetido no mesmo lote quebra
+    // de-duplica por (aba, id) antes de gravar — um upsert com a mesma chave repetida no mesmo lote quebra
     // com erro do Postgres ("ON CONFLICT DO UPDATE command cannot affect row a second time"); em
-    // caso de duplicata mantém a última ocorrência (linha mais recente na planilha).
-    const porId = new Map<string, ReturnType<typeof mapearLinha>>();
-    for (const r of registros) porId.set(r.id, r);
-    const registrosUnicos = Array.from(porId.values());
+    // caso de duplicata DENTRO da mesma aba mantém a última ocorrência (linha mais recente). Abas
+    // diferentes nunca se sobrescrevem (30/09/2026).
+    const registrosUnicos = deduplicarLeads(registros);
+    const porAba: Record<string, number> = {};
+    for (const r of registrosUnicos) porAba[r.aba] = (porAba[r.aba] || 0) + 1;
 
     // upsert em lotes de 500 (mesmo padrão usado no upload da base de clientes e de produção)
     for (let i = 0; i < registrosUnicos.length; i += 500) {
       const lote = registrosUnicos.slice(i, i + 500);
-      const { error: upsertErr } = await admin.from("leads").upsert(lote, { onConflict: "id" });
+      const { error: upsertErr } = await admin.from("leads").upsert(lote, { onConflict: "aba,id" });
       if (upsertErr) {
         console.error("Erro ao gravar leads:", upsertErr);
         return json({ error: "Erro ao gravar leads: " + upsertErr.message }, 500, corsHeaders);
@@ -274,7 +317,7 @@ Deno.serve(async (req) => {
     const agora = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
     await admin.from("config").upsert({ chave: "leads_atualizado_em", valor: agora }, { onConflict: "chave" });
 
-    return json({ ok: true, total: registrosUnicos.length, atualizado_em: agora }, 200, corsHeaders);
+    return json({ ok: true, total: registrosUnicos.length, por_aba: porAba, atualizado_em: agora }, 200, corsHeaders);
   } catch (e) {
     console.error("Erro inesperado em sync-leads:", e);
     return json({ error: "Erro inesperado: " + (e as Error).message }, 500, corsHeaders);

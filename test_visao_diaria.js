@@ -15,7 +15,7 @@ let ok0 = 0, fail0 = 0;
 function assert0(cond, msg){ if(cond){ ok0++; } else { fail0++; console.log('FALHOU (estrutura):', msg); } }
 
 // --- 0) checagens estruturais direto na string do template decodificado ---
-assert0(tplRaw.includes('data-tab="diaria"') && tplRaw.includes(">Visao Diaria<"), 'botao da aba "Visao Diaria" existe no template embutido');
+assert0(tplRaw.includes('data-tab="diaria"') && tplRaw.includes(">Visão Diária<"), 'botao da aba "Visao Diaria" existe no template embutido');
 assert0(tplRaw.includes('id="tabDiaria"'), 'painel #tabDiaria existe');
 assert0(tplRaw.includes('let DATA = __DATA__;'), 'DATA virou "let" (precisa ser mutável pra aceitar atualização horária)');
 assert0(!tplRaw.includes('const DATA = __DATA__;'), 'DATA não é mais "const"');
@@ -30,7 +30,7 @@ assert0(tplRaw.includes("document.body.classList.toggle('tab-diaria'"), 'switchT
 assert0(tplRaw.includes('body.tv-mode'), 'CSS do Modo TV (body.tv-mode) está presente');
 assert0(outerHtml.includes('id="producaoFrame"') && /id="producaoFrame"[^>]*allowfullscreen/.test(outerHtml), 'iframe externo (producaoFrame) tem o atributo allowfullscreen');
 assert0(outerHtml.includes('producaoAutoRefreshTimer'), 'painel externo tem o timer de auto-atualização horária');
-assert0(outerHtml.includes('atualizarDadosDashboard(novos)'), 'painel externo chama atualizarDadosDashboard() do iframe ao atualizar');
+assert0(outerHtml.includes('atualizarDadosDashboard(novos, '), 'painel externo chama atualizarDadosDashboard() do iframe ao atualizar (28/09/2026: + "Atualizado em" como 2º argumento)');
 assert0(/,\s*3600000\)/.test(outerHtml), 'auto-atualização roda a cada 3600000ms (1 hora), como pedido pelo usuário');
 // --- 0.1) cards "Por tipo de venda" (01/09/2026) ---
 assert0(tplRaw.includes('id="diariaTipoVenda"'), 'container #diariaTipoVenda dos cards por tipo de venda existe');
@@ -43,9 +43,12 @@ assert0(tplRaw.includes("grupo: 'VOZ - Renovação'"), 'categoria Renovação ma
 assert0(tplRaw.includes("{ label: 'Portabilidade', grupo: 'VOZ - Portabilidade'"), 'categoria Portabilidade (01/09/2026, dividida da Linha Nova) mapeada pro grupo "VOZ - Portabilidade"');
 assert0(tplRaw.includes("{ label: 'Aparelho', grupo: 'APARELHO'"), 'categoria Aparelho (15/09/2026) mapeada pro grupo "APARELHO"');
 assert0(tplRaw.includes("{ label: 'SVA Fixa', grupo: 'SVA FIXA'"), 'categoria SVA Fixa (15/09/2026) mapeada pro grupo "SVA FIXA"');
-// --- 0.2) condensacao + rename do card "Linhas" -> "Produtos" (01/09/2026) ---
-assert0(tplRaw.includes('<div class="label">Produtos</div>'), 'card de KPI (abaixo do Modo TV) renomeado de "Linhas" pra "Produtos"');
-assert0(!tplRaw.includes('<div class="label">Linhas</div>'), 'o card de KPI não usa mais o rótulo "Linhas"');
+assert0(tplRaw.includes("{ label: 'Claro Monitor', grupo: 'SVA M\\u00d3VEL'"), 'categoria Claro Monitor (28/09/2026) mapeada pro grupo "SVA MÓVEL"');
+// --- 0.2) condensacao + rename do card "Linhas" -> "Produtos" (01/09/2026), depois "Produtos" ->
+// "Linhas" de novo (28/09/2026), agora contando só linha móvel (grupo VOZ - *) ---
+assert0(tplRaw.includes('<div class="label">Linhas</div>'), 'card de KPI (abaixo do Modo TV) renomeado de "Produtos" pra "Linhas"');
+assert0(!tplRaw.includes('<div class="label">Produtos</div>'), 'o card de KPI não usa mais o rótulo "Produtos"');
+assert0(tplRaw.includes("rows.filter(r => String(r.grupo || '').indexOf('VOZ -') === 0).reduce"), 'o card "Linhas" soma só quantidade de grupos VOZ - * (linha móvel), não banda larga/aparelho/Claro Monitor');
 assert0(tplRaw.includes('body.tab-diaria .card{'), 'CSS condensado (escopado só pra Visão Diária) está presente');
 assert0(tplRaw.includes('body.tab-diaria .leaderboard{'), 'ranking (leaderboard) tem altura máxima com rolagem própria, escopado só pra Visão Diária');
 console.log('--- (estrutura) RESULTADO:', ok0, 'passaram,', fail0, 'falharam ---');
@@ -101,6 +104,11 @@ const FIXTURE = [
   lead({ numero_pedido: 'CONV-B2', usuario: 'Caio', grupo: 'VOZ - Renovação',    cadastro: '2026-09-21T10:15:00-03:00', valor: 80, quantidade: 1, cnpj: 'BBB222' }),
   lead({ numero_pedido: 'CONV-C1', usuario: 'Caio', grupo: 'BANDA LARGA - Novo', cadastro: '2026-09-21T10:20:00-03:00', valor: 90, quantidade: 1, cnpj: 'CCC333' }),
   lead({ numero_pedido: 'CONV-C2', usuario: 'Caio', grupo: 'BANDA LARGA - Novo', cadastro: '2026-09-21T10:25:00-03:00', valor: 95, quantidade: 1, cnpj: 'CCC333' }),
+  // 28/09/2026: dia separado (22/09), pedido do usuário — Claro Monitor (grupo "SVA MÓVEL") entra no
+  // card próprio "Claro Monitor" mas NÃO conta como linha (só linha móvel de VOZ - * conta pro KPI
+  // "Linhas"). MON-2 é uma linha VOZ normal no mesmo dia, pra provar que ela continua contando.
+  lead({ numero_pedido: 'MON-1', usuario: 'Caio', grupo: 'SVA MÓVEL', cadastro: '2026-09-22T10:00:00-03:00', valor: 5,   quantidade: 1, produto: 'CLARO MONITOR' }),
+  lead({ numero_pedido: 'MON-2', usuario: 'Caio', grupo: 'VOZ - Novo', cadastro: '2026-09-22T10:05:00-03:00', valor: 100, quantidade: 1 }),
 ];
 
 const htmlNoScript = tplRaw.replace(/<script>[\s\S]*?<\/script>/g, '');
@@ -140,15 +148,16 @@ try{
   // (Aparelho e SVA Fixa, 15/09/2026) —, o do dia 21 e o de 19/08(SP) ficam de fora) ---
   const kpiHtml = document.getElementById('diariaKpis').innerHTML;
   assert(kpiHtml.includes('>10<'), 'KPI de contratos mostra 10 (só os pedidos do dia 20 em SP) — ' + kpiHtml);
-  // linhas: (1+2+1+1+3) + (1+1+2) + (1+1) = 8 + 4 + 2 = 14
-  assert(kpiHtml.includes('>14<'), 'KPI de linhas soma 14 (8 originais + 1+1+2 das categorias + 1+1 de Aparelho/SVA Fixa)');
+  // linhas (28/09/2026: só grupo VOZ - *, não conta banda larga/aparelho/SVA fixa/Claro Monitor):
+  // Novo (1+2) + Portabilidade (1+1+3) + Titularidade (1) + Renovação (2) = 3 + 5 + 1 + 2 = 11
+  assert(kpiHtml.includes('>11<'), 'KPI de linhas soma 11 (só as linhas VOZ - *, sem banda larga/aparelho/SVA fixa)');
   // valor total: 1250 + (400+250+600) + (350+10) = 2860
   assert(kpiHtml.includes('2.860,00'), 'KPI de valor total soma R$ 2.860,00 (' + kpiHtml + ')');
   // ticket medio: 2860/10 = 286,00
   assert(kpiHtml.includes('286,00'), 'KPI de ticket médio mostra R$ 286,00 (2860/10)');
-  // rotulo do 2o card (abaixo do Modo TV) renomeado de "Linhas" pra "Produtos" (01/09/2026)
-  assert(kpiHtml.includes('>Produtos<'), 'card renderizado mostra o rótulo "Produtos" — ' + kpiHtml);
-  assert(!kpiHtml.includes('>Linhas<'), 'card renderizado NÃO mostra mais o rótulo "Linhas"');
+  // rotulo do 2o card (abaixo do Modo TV) renomeado de "Produtos" pra "Linhas" (28/09/2026)
+  assert(kpiHtml.includes('>Linhas<'), 'card renderizado mostra o rótulo "Linhas" — ' + kpiHtml);
+  assert(!kpiHtml.includes('>Produtos<'), 'card renderizado NÃO mostra mais o rótulo "Produtos"');
 
   // --- 3) o pedido de outro dia (21/08) e o pedido que cai em 19/08 no fuso de SP NÃO aparecem ---
   const hourlyHtmlAntes = document.getElementById('diariaHourly').innerHTML;
@@ -253,13 +262,14 @@ try{
   assert(produtoHtml.indexOf('VOZ - Portabilidade') < produtoHtml.indexOf('VOZ - Novo'), 'Portabilidade (3 contratos) aparece antes de Novo (2 contratos)');
 
   // --- 7.1) cards "Por tipo de venda" (01/09/2026, +Portabilidade em 01/09/2026 tarde,
-  // +Aparelho/SVA Fixa em 15/09/2026 — pedido do usuário, pra soma dos cards bater com o total):
-  // Banda Larga=1, Migração=1, Portabilidade=3, Linha Nova=2, Renovação=1, Aparelho=1, SVA Fixa=1 ---
+  // +Aparelho/SVA Fixa em 15/09/2026, +Claro Monitor em 28/09/2026 — pedido do usuário, pra soma
+  // dos cards bater com o total): Banda Larga=1, Migração=1, Portabilidade=3, Linha Nova=2,
+  // Renovação=1, Aparelho=1, SVA Fixa=1, Claro Monitor=0 (nenhum pedido SVA MÓVEL no dia 20) ---
   const tipoVendaEl = document.getElementById('diariaTipoVenda');
   const tipoVendaHtml = tipoVendaEl.innerHTML;
   const tipoCards = Array.from(tipoVendaEl.querySelectorAll('.card[data-grupo]'));
-  assert(tipoCards.length === 7, 'renderiza exatamente os 7 cards de categoria (obtido ' + tipoCards.length + ')');
-  assert(tipoVendaHtml.includes('Banda Larga') && tipoVendaHtml.includes('Migracao') && tipoVendaHtml.includes('Portabilidade') && tipoVendaHtml.includes('Linha Nova') && tipoVendaHtml.includes('Renovacao') && tipoVendaHtml.includes('Aparelho') && tipoVendaHtml.includes('SVA Fixa'), 'os 7 rótulos aparecem: Banda Larga, Migração, Portabilidade, Linha Nova, Renovação, Aparelho, SVA Fixa — ' + tipoVendaHtml);
+  assert(tipoCards.length === 8, 'renderiza exatamente os 8 cards de categoria (obtido ' + tipoCards.length + ')');
+  assert(tipoVendaHtml.includes('Banda Larga') && tipoVendaHtml.includes('Migracao') && tipoVendaHtml.includes('Portabilidade') && tipoVendaHtml.includes('Linha Nova') && tipoVendaHtml.includes('Renovacao') && tipoVendaHtml.includes('Aparelho') && tipoVendaHtml.includes('SVA Fixa') && tipoVendaHtml.includes('Claro Monitor'), 'os 8 rótulos aparecem: Banda Larga, Migração, Portabilidade, Linha Nova, Renovação, Aparelho, SVA Fixa, Claro Monitor — ' + tipoVendaHtml);
   const cardBanda = tipoCards.find(c => c.dataset.grupo === 'BANDA LARGA - Novo');
   const cardMigracao = tipoCards.find(c => c.dataset.grupo === 'VOZ - Tranf. Titularidade');
   const cardPortabilidade = tipoCards.find(c => c.dataset.grupo === 'VOZ - Portabilidade');
@@ -267,6 +277,7 @@ try{
   const cardRenovacao = tipoCards.find(c => c.dataset.grupo === 'VOZ - Renovação');
   const cardAparelho = tipoCards.find(c => c.dataset.grupo === 'APARELHO');
   const cardSvaFixa = tipoCards.find(c => c.dataset.grupo === 'SVA FIXA');
+  const cardClaroMonitor = tipoCards.find(c => c.dataset.grupo === 'SVA MÓVEL');
   assert(cardBanda && cardBanda.querySelector('.value').textContent === '1', 'card Banda Larga mostra 1 (pedido 8) — obtido ' + (cardBanda && cardBanda.querySelector('.value').textContent));
   assert(cardMigracao && cardMigracao.querySelector('.value').textContent === '1', 'card Migração mostra 1 (pedido 9) — obtido ' + (cardMigracao && cardMigracao.querySelector('.value').textContent));
   assert(cardPortabilidade && cardPortabilidade.querySelector('.value').textContent === '3', 'card Portabilidade mostra 3 (pedidos 3, 4 e 5) — obtido ' + (cardPortabilidade && cardPortabilidade.querySelector('.value').textContent));
@@ -274,12 +285,13 @@ try{
   assert(cardRenovacao && cardRenovacao.querySelector('.value').textContent === '1', 'card Renovação mostra 1 (pedido 10) — obtido ' + (cardRenovacao && cardRenovacao.querySelector('.value').textContent));
   assert(cardAparelho && cardAparelho.querySelector('.value').textContent === '1', 'card Aparelho mostra 1 (pedido 11) — obtido ' + (cardAparelho && cardAparelho.querySelector('.value').textContent));
   assert(cardSvaFixa && cardSvaFixa.querySelector('.value').textContent === '1', 'card SVA Fixa mostra 1 (pedido 12) — obtido ' + (cardSvaFixa && cardSvaFixa.querySelector('.value').textContent));
-  // soma dos 7 cards bate com o total de contratos do dia (10) — era exatamente essa a reclamação
+  assert(cardClaroMonitor && cardClaroMonitor.querySelector('.value').textContent === '0', 'card Claro Monitor mostra 0 (nenhum pedido SVA MÓVEL no dia 20) — obtido ' + (cardClaroMonitor && cardClaroMonitor.querySelector('.value').textContent));
+  // soma dos 8 cards bate com o total de contratos do dia (10) — era exatamente essa a reclamação
   const somaCards = tipoCards.reduce((s, c) => s + parseInt(c.querySelector('.value').textContent, 10), 0);
-  assert(somaCards === 10, 'a soma dos 7 cards bate com o KPI de contratos do dia (10) — obtido ' + somaCards);
-  // ordem: banda larga, migração, portabilidade, linha nova, renovação, aparelho, sva fixa
+  assert(somaCards === 10, 'a soma dos 8 cards bate com o KPI de contratos do dia (10) — obtido ' + somaCards);
+  // ordem: banda larga, migração, portabilidade, linha nova, renovação, aparelho, sva fixa, claro monitor
   const ordemGrupos = tipoCards.map(c => c.dataset.grupo);
-  assert(JSON.stringify(ordemGrupos) === JSON.stringify(['BANDA LARGA - Novo', 'VOZ - Tranf. Titularidade', 'VOZ - Portabilidade', 'VOZ - Novo', 'VOZ - Renovação', 'APARELHO', 'SVA FIXA']), 'ordem dos cards é banda larga, migração, portabilidade, linha nova, renovação, aparelho, sva fixa — obtido ' + ordemGrupos.join(', '));
+  assert(JSON.stringify(ordemGrupos) === JSON.stringify(['BANDA LARGA - Novo', 'VOZ - Tranf. Titularidade', 'VOZ - Portabilidade', 'VOZ - Novo', 'VOZ - Renovação', 'APARELHO', 'SVA FIXA', 'SVA MÓVEL']), 'ordem dos cards é banda larga, migração, portabilidade, linha nova, renovação, aparelho, sva fixa, claro monitor — obtido ' + ordemGrupos.join(', '));
 
   // --- 7.2) clicar num card de categoria abre o analítico só com os pedidos daquela categoria ---
   let drilldownTipo = null;
@@ -297,8 +309,10 @@ try{
   renderVisaoDiaria();
   const kpiHtmlMulti = document.getElementById('diariaKpis').innerHTML;
   assert(kpiHtmlMulti.includes('>2<'), 'dia com pedido de 2 linhas: KPI Contratos mostra 2 (MULTI-1 + SOLO-1), não 3 — ' + kpiHtmlMulti);
-  assert(kpiHtmlMulti.includes('>3<'), 'dia com pedido de 2 linhas: KPI Produtos mostra 3 (2 linhas do MULTI-1 + 1 do SOLO-1)');
-  assert(kpiHtmlMulti.includes('575,00'), 'ticket médio usa Contratos (2), não Produtos: 1.150/2 = R$ 575,00 — ' + kpiHtmlMulti);
+  // Linhas (28/09/2026: só VOZ - *): a linha de portabilidade do MULTI-1 (1) + a linha do SOLO-1 (1)
+  // = 2; a linha de APARELHO do MULTI-1 não entra mais nessa soma.
+  assert(kpiHtmlMulti.includes('>2<'), 'dia com pedido de 2 linhas: KPI Linhas mostra 2 (portabilidade do MULTI-1 + SOLO-1, sem contar o aparelho)');
+  assert(kpiHtmlMulti.includes('575,00'), 'ticket médio usa Contratos (2), não Linhas: 1.150/2 = R$ 575,00 — ' + kpiHtmlMulti);
 
   const hourElsMulti = Array.from(document.querySelectorAll('.diaria-hour-col'));
   const hora10Multi = hourElsMulti.find(el => el.dataset.hora === '10');
@@ -322,8 +336,9 @@ try{
   const kpiHtmlConv = document.getElementById('diariaKpis').innerHTML;
   // contratos: 1 (AAA fundido) + 2 (BBB) + 2 (CCC) = 5 — não 6
   assert(kpiHtmlConv.includes('>5<'), 'dia de convergência: KPI Contratos mostra 5 (AAA fundido + BBB + CCC), não 6 — ' + kpiHtmlConv);
-  // produtos: 6 linhas (uma por pedido, nenhuma linha é descartada)
-  assert(kpiHtmlConv.includes('>6<'), 'dia de convergência: KPI Produtos mostra 6 (as 6 linhas, mesmo com 1 contrato fundido)');
+  // Linhas (28/09/2026: só VOZ - *): CONV-A2, CONV-B1, CONV-B2 = 3 (as 3 linhas de banda larga,
+  // CONV-A1/C1/C2, não entram mais nessa soma)
+  assert(kpiHtmlConv.includes('>3<'), 'dia de convergência: KPI Linhas mostra 3 (só as 3 linhas VOZ, sem contar banda larga)');
 
   const hourElsConv = Array.from(document.querySelectorAll('.diaria-hour-col'));
   const hora10Conv = hourElsConv.find(el => el.dataset.hora === '10');
@@ -344,13 +359,23 @@ try{
 
   console.log('--- (convergência) RESULTADO parcial:', ok, 'passaram,', fail, 'falharam ---');
 
+  // --- 7.5) Claro Monitor (28/09/2026, pedido do usuário): grupo "SVA MÓVEL" aparece no card
+  // próprio "Claro Monitor", mas não é contado como "Linha" (só linha móvel de VOZ - * conta) ---
+  document.getElementById('diariaDate').value = '2026-09-22';
+  renderVisaoDiaria();
+  const kpiHtmlMonitor = document.getElementById('diariaKpis').innerHTML;
+  assert(kpiHtmlMonitor.includes('>2<'), 'dia do Claro Monitor: KPI Contratos mostra 2 (MON-1 + MON-2) — ' + kpiHtmlMonitor);
+  assert(kpiHtmlMonitor.includes('>1<'), 'dia do Claro Monitor: KPI Linhas mostra 1 (só a linha VOZ - Novo do MON-2, sem contar o Claro Monitor) — ' + kpiHtmlMonitor);
+  const cardClaroMonitorDia = Array.from(document.getElementById('diariaTipoVenda').querySelectorAll('.card[data-grupo]')).find(c => c.dataset.grupo === 'SVA MÓVEL');
+  assert(cardClaroMonitorDia && cardClaroMonitorDia.querySelector('.value').textContent === '1', 'card Claro Monitor mostra 1 (pedido MON-1) — obtido ' + (cardClaroMonitorDia && cardClaroMonitorDia.querySelector('.value').textContent));
+
   // --- 8) dia sem nenhum pedido mostra "Sem dados", sem quebrar, inclusive nos cards por tipo de venda ---
   document.getElementById('diariaDate').value = '2099-01-01';
   renderVisaoDiaria();
   assert(document.getElementById('diariaConsultores').innerHTML.includes('Sem dados'), 'dia sem pedidos mostra "Sem dados" no ranking por consultor, sem erro');
   assert(document.getElementById('diariaKpis').innerHTML.includes('kpiValue') || document.getElementById('diariaKpis').innerHTML.includes('>0<'), 'dia sem pedidos mostra os KPIs zerados, sem travar a tela');
   const tipoVendaVazio = Array.from(document.getElementById('diariaTipoVenda').querySelectorAll('.card[data-grupo] .value'));
-  assert(tipoVendaVazio.length === 7 && tipoVendaVazio.every(v => v.textContent === '0'), 'dia sem pedidos mostra os 7 cards de categoria zerados, sem sumir nenhum');
+  assert(tipoVendaVazio.length === 8 && tipoVendaVazio.every(v => v.textContent === '0'), 'dia sem pedidos mostra os 8 cards de categoria zerados, sem sumir nenhum');
 
   // --- 9) função pura computeDiariaLinePath: quebra a linha nas horas sem contrato (não força 0) ---
   const porHoraFake = [

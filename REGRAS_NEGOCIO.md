@@ -2,7 +2,7 @@
 
 Documento vivo. Toda vez que uma regra de negócio do sistema for criada, alterada ou removida, atualize esta página (e registre no changelog no final). É a referência para treinamento de consultores, ajustes futuros e documentação do próprio sistema.
 
-Última atualização: 28/09/2026 (seção 45)
+Última atualização: 30/09/2026 (seção 52)
 
 ---
 
@@ -370,6 +370,9 @@ Card no topo da aba "Movimentação da Base", separado do resumo de 30 dias — 
 - **11/08/2026** — Registrada a área de atuação regional da Apex (seção 1.1): só RSC/RSI (São Paulo Capital/Interior, DDD 12-19). Com isso, a oferta regional de 15GB passou a ter DDD 12-19 confirmado (em vez de "sem DDD"), e as ofertas de 30GB (regional, grupo RMG/RPS/RBS/RNE) e 25GB portabilidade (mesmo grupo) foram **removidas** do sistema por não serem vendáveis pela Apex — evita mostrar ao consultor uma oferta que não pode ser fechada. Corrigida também a nota de preço do Claro fibra 600MEGA: confirmado que o valor promocional (R$59,90) vale só nos primeiros 3 meses, depois R$89,90/mês no preço "Combinado" (venda casada com plano móvel, que é como a Apex sempre vende) — confirmado que os demais planos de fibra (400MEGA/800MEGA/1GIGA/5GIGA/10GIGA) não têm prazo promocional, é preço cheio direto. Ver seções 1.1 e 5.
 - **11/08/2026** — Criada a detecção automática de **Oferta de Convergência**: quando a proposta tem fibra + qualquer linha móvel (renovação, incremento ou portabilidade), o sistema destaca isso com um badge na tela e uma nota no PDF, explicando o bônus de 30GB (Mega Bônus) do book. Corrigido também o aviso desatualizado do seletor de fibra, que dizia "valor avulso" quando na verdade o app sempre usa o preço "Combinado". Ver seções 4.4 e 4.4.1.
 - **12/08/2026** — Redesign da tela "Gerar Proposta" (interface, sem mudança de regra de negócio): resumo (valor atual/proposto/redução/Convergência/meta) passou a ficar sempre visível no topo, em vez de só aparecer depois de rolar toda a tela; as seções Renovação, Incremento, Claro Fibra e Claro Passaporte viraram blocos que abrem/fecham (accordion) com um interruptor (toggle) pra ligar/desligar cada item, abrindo sozinhas quando estão ativas e ficando fechadas quando não estão em uso. Objetivo: reduzir a quantidade de informação exibida de uma vez, sem remover nenhum campo ou cálculo existente. Ver seção 15.
+- **29/09/2026** — Criada a sincronização automática da produção via API do NeoSales (tabela separada `producao_pedidos_neo`, Edge Function `sync-producao`, agendada no pg_cron de hora em hora). O painel continua lendo `producao_pedidos`; a troca de fonte só acontece depois de conferir a paridade da carga inicial. Ver seção 50.
+- **29/09/2026** — Fase 2 da sincronização NeoSales: o Dashboard de Produção passa a ler a produção sincronizada (a tabela do upload manual vira backup e `producao_pedidos` vira uma view sobre `producao_pedidos_neo`); o upload de planilha saiu da aba "Upload Dash", que agora mostra o status da sincronização. Ver seção 51.
+- **30/09/2026** — Criado o alerta de sincronização parada da produção (Edge Function `alerta-sync-producao`, tabela `producao_sync_alerta`, job de 15 em 15 minutos): abre um alerta quando passa de 3 horas sem sincronização bem-sucedida e avisa pelo Telegram, quando o canal estiver configurado. Ver seção 52.
 
 ## 15. Interface da tela "Gerar Proposta" (redesign 12/08/2026)
 
@@ -426,6 +429,7 @@ Reaproveita 100% do HTML/CSS/JS já testado do `Dashapex.html` (histórico de us
 
 - **Aba "Visão Geral"**: KPIs (valor total, pedidos, ticket médio, taxa de perda), insights automáticos, composição por vendedor (Ganho/Andamento/Devolvido/Perdido empilhado), valor por etapa, motivos de perda (por tag), diagnóstico com plano de ação por motivo de perda, valor por etapa detalhado por vendedor, valor por grupo.
 - **Aba "Cadastro Diário"**: volume cadastrado por dia (gráfico de barras), calendário de vendas com média por dia da semana, matriz diária por vendedor (dias sem venda em dia útil ficam em vermelho; fins de semana/feriados nacionais — calculados automaticamente, incluindo os móveis — ficam sombreados e não contam como falha), tabela detalhada por dia.
+- **Aba "Pedidos em Alerta"** (28/09/2026, só admin e supervisor): pedidos ganhos parados em Entrega, Antifraude e Portabilidade (andamento/tratativa), por dias úteis desde a última atualização, com exportação para Excel colorido — ver seção 48.
 - Filtros por Grupo, período (Cadastro ou Atualização), Vendedor(es) e Etapa — todos combináveis. Por padrão, os grupos **Aparelho, Renovação e Banda Larga** vêm desmarcados (só entram se o usuário marcar manualmente); os demais grupos (Novo, Portabilidade, Transf. Titularidade) vêm marcados.
 - Clicar em qualquer barra, célula, linha de tabela ou segmento do gráfico abre um detalhamento (drilldown) com a lista de pedidos por trás daquele número, exportável para Excel.
 
@@ -2007,3 +2011,389 @@ Regressão: `test_conversao_vendas.js` (70 asserts, 0 falhas) — cobre `loadCon
 ### 48.4 Publicação pendente
 
 A tabela `leads_followups` precisa ser criada manualmente no Supabase (SQL Editor) antes do deploy do painel — o trecho correspondente está em `supabase_schema.sql`, seção "RETORNOS DE LEAD (leads_followups, 29/09/2026)". Depois de rodar o SQL, o `painel_clientes_apex.html` regenerado pode ser publicado normalmente via `deploy_biometria_v2.py`.
+## 48. Pedidos em Alerta — pedidos ganhos parados nas etapas pós-venda (28/09/2026)
+
+Aba nova dentro do Dashboard de Produção, ao lado de Visão Geral / Cadastro Diário / Visão Diária. Pedido do usuário: mostrar os pedidos que **já geraram venda mas estão parados**, com alerta por cor, e exportar um Excel para mandar ao back office. Spec: `docs/superpowers/specs/2026-09-28-pedidos-em-alerta-design.md`; plano: `docs/superpowers/plans/2026-09-28-pedidos-em-alerta.md`.
+
+### 48.1 Quem vê
+Só **admin e supervisor** (`ADMIN_MODE` do dashboard). Para o consultor o botão da aba nem é criado e o painel é removido do DOM. Não existe vínculo confiável entre o usuário do painel e o "Proprietário do pedido" do NeoCRM, então a opção "consultor vê só os próprios" ficou de fora.
+
+### 48.2 Regra
+- **Etapas monitoradas:** `ENTREGA`, `ANTIFRAUDE`, `PORTABILIDADE EM ANDAMENTO` e `PORTABILIDADE EM TRATATIVA` (todas "(NEOCRM)"). Todos os grupos entram, independente dos filtros da barra lateral.
+- **1 linha por pedido** (`numero_pedido`):
+  - vale a ATUALIZACAO mais recente entre as linhas e o CADASTRO mais antigo;
+  - valor é a soma de `valor` e Qtd. é a soma de `quantidade` (mesmas regras do resto do dashboard);
+  - produtos distintos unidos por " + ";
+  - pedido sem número ou sem ATUALIZACAO é ignorado.
+- **Tempo parado em dias úteis:** seg–sex, sem feriados nacionais (os mesmos do Cadastro Diário). Conta os dias **depois** da data da ATUALIZACAO (dia em São Paulo) até a data de referência. Ex.: atualizado na sexta, visto na segunda = 1.
+- **Data de referência:** a data do "Atualizado em" (última subida da planilha), **não** o dia de hoje. Assim a contagem reflete a foto do NeoCRM e não infla sozinha se ninguém subir planilha nova. Se a data não puder ser lida, conta até hoje e avisa na tela. A atualização automática de 1h passa também o "Atualizado em" (2º argumento de `atualizarDadosDashboard`).
+- **Níveis:** 0–2 dias úteis ficam fora · 3–5 🟡 MÍNIMO · 6–9 🟠 MÉDIO · 10+ 🔴 MÁXIMO (constante `ALERTA_FAIXAS`).
+- **ATUALIZACAO × seção 17.9:** a 17.9 mostrou que a ATUALIZACAO não serve como "data da venda" (sincronizações em massa do NeoCRM). Aqui ela é usada de propósito, porque a pergunta é justamente "há quanto tempo o pedido não se mexe". Na planilha de 28/09 nenhum pedido dessas 4 etapas tinha horário de atualização repetido (sem sinal de sync em massa). Se isso mudar, rever.
+
+### 48.3 Tela
+- **Placar:** total em alerta, 🔴, 🟠 e 🟡.
+- **Matriz Etapa × Nível:** clicar num número filtra a tabela.
+- **Filtros próprios:** Etapa, Nível e Consultor, mais "Limpar filtros". Um consultor que some numa atualização volta para "Todos".
+- **Tabela:** do mais parado para o menos parado, com a linha inteira na cor clara do nível e o selo na cor forte.
+- **Cores:** tokens `--alerta-max/med/min` (derivados de `--perdido`, `--devolvido` e `--andamento`) e fundos `--alerta-*-bg`.
+
+### 48.4 Excel
+- **Biblioteca:** o SheetJS gratuito do painel não grava cor de célula, então este Excel usa a **ExcelJS 4.4.0** (cdnjs), carregada só no clique em "Exportar Excel". Se falhar, aparece "Não foi possível gerar o Excel agora — tente de novo".
+- **Arquivo:** `PedidosEmAlerta_<data da base>.xlsx`.
+- **Aba "Pedidos em Alerta":**
+  - linha 1 com o título;
+  - linha 2 com a base, a legenda e os filtros aplicados;
+  - linha 3 com o cabeçalho (congelado, com filtro automático);
+  - uma linha por pedido, com a linha inteira colorida e a célula "Nível" na cor forte;
+  - CPF/CNPJ e nº como texto, valor em R$, datas reais do Excel no horário de São Paulo.
+- **Aba "Resumo":** a matriz dos pedidos exportados.
+- **O que exporta:** só o que está filtrado na tela.
+
+### 48.5 Testes
+- `test_pedidos_alerta.js`: dias úteis, feriados, fronteiras dos níveis, fuso, agrupamento, tela, filtros, atualização de 1h e Excel. Usa dados fictícios. O Excel é gerado pelo bundle de navegador da ExcelJS (o mesmo do cdnjs) dentro do jsdom e relido com a ExcelJS do Node.
+- `test_pedidos_alerta_planilha.js`: confere a planilha real de 28/09 (61 em alerta: 21/6/34). Fica fora do git e imprime `PULADO` quando ausente.
+
+### 48.6 Junção com a versão publicada em 28/09
+O `main` oficial não tinha a versão publicada às 19:24 de 28/09 (dashboard mobile, andamento amarelo/devolvido laranja, card Claro Monitor, "Linhas" só de voz). Ela foi juntada antes desta feature (regra da seção 45). O `test_redesign_shell.js` passou a aceitar o amarelo/laranja de status reintroduzidos a pedido do usuário, e continua proibindo o verde/vermelho antigos.
+
+Em 29/09 a versão publicada às 10:15 (seções 46 e 47: e-mail em lote e Visão Diária no celular) tinha sido feita a partir do `main` sem as mudanças de 28/09, que saíram do ar. A pedido do usuário, a junção desta feature traz as duas de volta juntas: o `main` de 29/09, as mudanças de 28/09 e os Pedidos em Alerta. As regras de celular da Visão Diária das duas versões coexistem (as de 29/09 vêm depois no CSS e prevalecem onde se sobrepõem).
+
+### 48.7 Fora de escopo (por ora)
+Coluna FILA do NeoCRM (exigiria mudar upload e schema), envio automático do Excel, histórico de alertas, feriados estaduais e municipais.
+
+### 48.8 Publicado (29/09/2026, 11:44)
+- **Antes de publicar:** o painel no ar era idêntico ao commit `093ce88` (publicação do Anderson às 11:17), já contido no `main` publicado, então não havia nada no ar fora do repositório. `run_tests.sh`: 39 passaram, 0 falharam, 2 pulados (sem planilha real nesta máquina).
+- **Backup** da versão anterior: `~/backups_painel_clientes_apex/painel_clientes_apex_20260929_114424_antes_pedidos_em_alerta.html`.
+- **Envio:** via SSH (atalho `hostinger`, chave), para um arquivo temporário, trocado pelo definitivo só depois de o MD5 bater (`f8912bff8848cc22ed6012c372f5abb5`, 839.088 bytes = commit `861a2f0`). Conferido também pelo site público. A tela de login carrega sem erros no console.
+- **O que voltou/entrou no ar junto:** as mudanças de 28/09 (seção 48.6) e os Pedidos em Alerta, somados ao e-mail em lote (46) e à Visão Diária no celular (47).
+
+## 49. Upload do Dashboard de Produção ignora o grupo "GROSS" (29/09/2026)
+
+**Problema (29/09/2026):** o valor faturado do Dashboard de Produção quase dobrou de uma hora para outra (o usuário viu ~26 mil virarem ~50 mil). A causa era a planilha subida às 13:59. Essa exportação do NeoCRM veio com um grupo novo, **"GROSS"**, que repete cada linha do pedido: o mesmo pedido, produto e valor aparece no grupo real ("VOZ - Novo", "VOZ - Portabilidade"…) e de novo como "GROSS". Na base carregada:
+- havia 603 linhas "GROSS" (R$ 32.072,96), **todas** com gêmea num grupo real;
+- nenhum pedido existia só no "GROSS";
+- os pedidos faturados somavam R$ 30.748,32, dos quais R$ 16.665,93 eram reais.
+
+As exportações de 28/09 não tinham esse grupo. Afetava tudo o que usa `producao_pedidos`: Visão Geral, Cadastro Diário, Visão Diária, Fechamento (comissões) e Pedidos em Alerta.
+
+**Correção:**
+- `extractProducaoRecords()` pula as linhas cujo GRUPO é "GROSS", aceitando maiúsculas, minúsculas e espaços (`ehGrupoAgregadoProducao`), do mesmo jeito que já pulava "ARQUIVADO".
+- A confirmação do upload avisa quantas linhas "GROSS" foram ignoradas.
+- Os dados já carregados só se corrigem com um novo upload, que substitui a base inteira.
+- Teste: `test_upload_grupo_gross.js`.
+- **Publicado em 29/09/2026 às 14:28** (commit `6cc9c62`, MD5 `0c5b25d5663013c9ac6ed445e74f84da`, conferido no servidor e pelo site público). Backup da versão anterior: `~/backups_painel_clientes_apex/painel_clientes_apex_20260929_142848_antes_fix_gross.html`. Antes de publicar, o painel no ar era idêntico ao da publicação das 11:44 (seção 48.8). Os dados já tinham sido corrigidos por um novo upload às 14:04, sem as linhas GROSS.
+- **Voltou a acontecer às 14:29** (um minuto depois da publicação). Pelos logs do Supabase, o upload veio do mesmo navegador (Chrome 152) dos uploads com GROSS das 13:57 e 13:59, com a página do painel aberta desde antes da publicação: uma aba aberta não recarrega sozinha e continuou rodando o código antigo. O servidor também não manda `Cache-Control` para o HTML, só `Last-Modified`, então o navegador pode reaproveitar a versão antiga por um tempo.
+- **Proteção no banco (29/09/2026, com autorização do usuário):** trigger `producao_pedidos_ignora_gross` (BEFORE INSERT) em `producao_pedidos` descarta qualquer linha cujo grupo seja "GROSS", venha de qualquer versão do painel. O insert não falha, a linha só não entra. Está em `supabase_schema.sql`. Testado com uma linha " gross " de teste: 0 linhas gravadas.
+- **Limpeza:** as 603 linhas GROSS da base foram apagadas depois de confirmar que todas tinham gêmea num grupo real. Resultado: 811 linhas, os mesmos 559 pedidos, faturado R$ 16.665,93.
+
+## 50. Sincronização automática da produção (API NeoSales) — 29/09/2026
+
+**Objetivo:** acabar com o ciclo "exportar o relatório de produção do NeoCRM → subir em Upload Dash". A produção passa a ser espelhada sozinha, de hora em hora, sem ninguém exportar ou atualizar.
+
+### 50.1 Situação atual (o que está no ar e o que ainda não)
+
+- **No ar:** a Edge Function `sync-producao` (código em `supabase/functions/sync-producao/`), o agendamento no `pg_cron` e três tabelas novas: `producao_pedidos_neo` (os pedidos), `producao_neo_raw` (JSON cru de cada item, só admin lê, por LGPD) e `producao_sync_log` (uma linha por execução).
+- **Ainda não:** o **dashboard continua lendo `producao_pedidos`** (a tabela do Upload Dash). A troca de fonte é a Fase 2 e só acontece depois de provar que a tabela nova bate com a atual (ver 50.7). Até lá o "Upload Dash" continua funcionando como sempre.
+
+### 50.2 A API do NeoSales (regras confirmadas em teste real, 29/09/2026)
+
+- Endpoint `POST https://apex.neosales.com.br/producao-painel-integration-v2`, corpo JSON como `text/plain`, com `tokenEstrutura`, `tokenUsuario`, `painelId`, `dataHoraInicioCarga`, `dataHoraFimCarga` (`YYYY-MM-DD HH:mm:ss`, horário de São Paulo) e `outputFormat: "json"`. Só devolve pedidos criados ou atualizados dentro da janela.
+- **Janela:** de dia (a mensagem de erro da API diz 05:00–22:00; a documentação diz 06:00–22:00) só aceita consulta de até 90 minutos. À noite (22:01–05:59) não há limite. O sistema usa uma margem conservadora: janela diurna de no máximo 85 min, e consulta sem limite só entre 22:02 e 04:58.
+- **Intervalo mínimo entre consultas (não está na documentação):** depois de uma consulta bem-sucedida, a seguinte responde `{"erro":"Integração de produção executada recentemente. Aguarde N segundos…"}` (N ≈ 120). Por isso cada execução da função faz **uma única consulta**, os jobs têm folga de pelo menos 5 minutos entre si e a carga inicial foi dividida em um job por mês.
+- **Erros vêm com HTTP 200** e corpo `{"erro":"…","success":false}` (token inválido, janela grande demais, intervalo mínimo). O código trata isso como falha; olhar só o status HTTP faria um token vencido parecer "nenhum pedido novo".
+- A resposta vem em ISO-8859-1 (não UTF-8). Janela sem pedidos devolve `[]`.
+
+### 50.3 Mapeamento para o formato do painel
+
+- Uma linha por item do pedido. A chave de gravação é o `itemId` (coluna `item_id`, única): repetir uma janela nunca duplica.
+- `numeroLinha` da API é a coluna **GRUPO** do export manual. As linhas com `numeroLinha = "GROSS"` são cópias que a API repete de cada item (mesmo problema da seção 49) e são **descartadas**, senão o valor dobra. O sistema conta quantas foram descartadas e quantos itens ficaram só com a linha GROSS ("órfãos", esperado 0).
+- Itens em `ARQUIVADO (NEOCRM)` e linhas sem grupo saem, como no upload manual; se um item já gravado for arquivado depois, ele é removido da tabela (o arquivamento vale mesmo que a API mande a linha sem grupo ou só como GROSS).
+- Usuário em maiúsculas; datas gravadas com o fuso de São Paulo (`-03:00`); valor no formato brasileiro (`"1.234,56"`) convertido para número.
+- Conferido em 29/09/2026 contra o export manual de 28/09: **17 de 17 pedidos** cruzados bateram em quantidade de linhas e valor.
+
+### 50.4 Agenda (pg_cron, em UTC; São Paulo = UTC-3)
+
+- **De hora em hora, minuto 7** (`sync-producao-horario`): busca desde o fim da última execução com sucesso menos 15 minutos de sobreposição (no máximo 85 minutos, de dia).
+- **Todo dia às 23:37** (`sync-producao-reconciliar`): refaz os últimos 2 dias, fora da janela diurna. É uma rede de segurança para atualizações que chegam atrasadas no NeoCRM.
+- **Carga inicial única** (`sync-producao-backfill-1` a `-5`): um job por mês (maio a setembro/2026), a partir das 22:12 de 29/09/2026 e de 5 em 5 minutos. Cada job se desagenda depois de rodar.
+- Se uma execução falhar, o cursor **não avança** (só execuções com `ok = true` contam) e a seguinte recupera a janela.
+- **Queda longa (token vencido, função parada):** de dia a API só aceita 85 minutos por consulta, então a execução horária busca só o último trecho e registra "Janela reduzida" na observação. Essa execução **não move o cursor**: a lacuna fica marcada e é preenchida de uma vez pela primeira execução horária da noite (a partir das 22:07), que não tem limite de janela (até 35 dias por consulta; lacunas maiores exigem chamadas manuais em partes).
+- **Sem repetição automática dentro da mesma execução:** como a API só aceita uma consulta a cada ~2 minutos, repetir logo depois de um erro esconderia a causa real e atrapalharia o job seguinte. Quem "repete" é a próxima execução, que tem 15 minutos de sobreposição.
+- **Consulta manual de dia** só é aceita se a janela pedida estiver dentro dos últimos 85 minutos; fora disso, repetir à noite (22:02–04:58). Janela vazia (início ≥ fim) é erro, nunca "sucesso com 0 linhas".
+
+### 50.5 Como acompanhar
+
+- `producao_sync_log` (admin e supervisor leem): cada linha tem modo, janela consultada, linhas devolvidas pela API, gravadas, removidas, descartes, observação e erro.
+- Última sincronização bem-sucedida: chave `producao_neo_atualizado_em` da tabela `config`, no mesmo formato de `producao_atualizado_em` (`dd/mm/aaaa, HH:MM:SS`).
+- Falhas comuns: `Token … Inválido` (tokens trocados ou vencidos), `Aguarde N segundos` (duas consultas coladas), `Janela reduzida` na observação (a função ficou parada mais de 85 minutos de dia; a lacuna é preenchida na primeira execução horária da noite). Execuções que ficaram abertas (`ok` nulo, sem `terminou_em`) significam que a função foi interrompida no meio; o cursor as ignora.
+
+### 50.6 Segurança
+
+- Os tokens do NeoSales ficam **só** como secrets da Edge Function (`NEOSALES_TOKEN_ESTRUTURA`, `NEOSALES_TOKEN_USUARIO`, `NEOSALES_PAINEL_ID`, `NEOSALES_URL`). Nunca no HTML, no repositório (que é público) ou em log. Para trocar: `npx supabase secrets set NOME=valor --project-ref <ref>`.
+- A função roda sem JWT e só aceita quem manda o header `x-cron-secret` igual ao secret `SYNC_CRON_SECRET`. O mesmo valor fica no Vault do banco com o nome `sync_producao_cron_secret`, de onde o `pg_cron` o lê; ao trocar um, troque o outro.
+- `producao_pedidos_neo` segue a regra de `producao_pedidos` (leitura para qualquer usuário logado; o painel decide se pede cliente/CNPJ). Só a função grava. O JSON cru (`producao_neo_raw`) só admin lê.
+
+### 50.7 Resultado da carga inicial e limitações conhecidas
+
+- **Carga inicial (29/09/2026, 22:12–22:32):** 5 execuções mensais (maio a setembro), todas com `ok = true`, 0 itens órfãos de GROSS e 0 duplicados. Resultado: 1.138 itens em 818 pedidos.
+- **Paridade provada:** dos pedidos comparados com a base do upload manual, **573 são idênticos** (mesma quantidade de linhas, valor e quantidade), **0 divergem** e **0 existem só na base antiga**. Os outros **245 pedidos só existem na API**: todos têm última atualização até 28/07/2026, e a base antiga só tinha pedidos atualizados a partir de 29/07 (o export manual era uma janela de cerca de 2 meses por data de atualização). Ver 51.3 para o efeito nos números.
+- **Motivo de perda:** confirmado. `tagPedido` traz `#SEMINTERESSE`, `#SEMCREDITO`, `#RESTRICAOOPERADORA`, `#COMRESTRICAO` etc. no mesmo formato da coluna `tag` do painel.
+- **Fase 2:** feita (seção 51).
+- **Limitações conhecidas (adiadas de propósito):** um item apagado no NeoCRM (não arquivado) não sai do espelho, porque a API só devolve mudanças; pedidos e JSON cru não são gravados numa única transação; uma execução interrompida pelo limite de tempo da função fica aberta (`ok` nulo) até alguém olhar; datas ou valores em formato inesperado viram vazio/0 sem contador; o carimbo de "última atualização" também é gravado depois de recarregar meses antigos; reaplicar a migration de cron depois de 29/09 recriaria os jobs da carga inicial para 30/09/2027, e as duas migrations de 29/09 compartilham o mesmo prefixo de versão.
+
+## 51. Fase 2 — o Dashboard de Produção lê a produção sincronizada (29/09/2026)
+
+**O que mudou:** o painel deixa de depender de planilha. O Dashboard, a Visão Diária, o Fechamento, o cruzamento do Digital e a função `reconciliacao_neocrm` passam a ler a produção espelhada do NeoCRM (seção 50), atualizada de hora em hora.
+
+### 51.1 Como a virada é feita (sem mexer nas leituras do painel)
+
+- A tabela do upload manual é **renomeada** para `producao_pedidos_manual` e vira **backup** (com o trigger que descarta GROSS, seção 49).
+- `producao_pedidos` passa a ser uma **view somente-leitura** sobre `producao_pedidos_neo` (`security_invoker`: respeita o RLS de quem consulta, mesma regra de antes: só usuário logado). Todas as leituras do painel e a função `reconciliacao_neocrm` continuam usando o nome `producao_pedidos`, sem nenhuma mudança de código.
+- A view **não tem permissão de escrita**: um "Upload Dash" antigo aberto numa aba falha com "permission denied" em vez de gravar algo.
+- A Edge Function `sync-producao` continua gravando em `producao_pedidos_neo`; nada muda nela.
+- SQL da virada: `supabase/migrations/20260930000000_producao_neo_cutover.sql`. **Reversão** (o dashboard volta a ler o backup manual, com os dados de antes da virada): `supabase/rollback/20260930000000_producao_neo_cutover_rollback.sql`.
+
+### 51.2 O que muda no painel
+
+- A aba **Upload Dash** não recebe mais planilha de produção. O card virou **"Produção — atualização automática"**: mostra a última sincronização bem-sucedida, se a última execução deu OK ou falhou, quantos pedidos ela gravou e, se falhou, o motivo. Avisa quando passa de **3 horas sem sincronização bem-sucedida**. Se a consulta do status falhar, o card mostra uma mensagem e não derruba a aba.
+- O "atualizado em" do Dashboard passou a ler a chave `producao_neo_atualizado_em` (gravada pela função a cada sincronização bem-sucedida).
+- A mensagem de estado vazio deixou de pedir planilha: fala em atualização automática.
+- Continua existindo, sem uso na tela, o código de leitura de planilha (`extractProducaoRecords` e afins) como fallback documentado; ele segue ignorando GROSS e é coberto por `test_upload_grupo_gross.js`. As seções 16.x que descrevem o upload de planilha ficam como histórico.
+- Testes: `test_producao_sync_status.js` (novo) e `test_reorganizacao_abas.js` (atualizado: o input de upload sai de propósito).
+
+### 51.3 Virada feita em 29/09/2026 (22:50 a 22:52, horário de São Paulo)
+
+- **Provas antes da virada:** carga inicial sem erros, paridade sem divergências e motivo de perda disponível na API (ver 50.7).
+- **Aplicado:** o SQL da virada às 22:50 e, às 22:52, o painel novo. Publicou-se só o arquivo do painel (sem o `deploy.sh`, que envia tudo do `public_html`), depois de conferir que o painel no ar era idêntico à base da branch (MD5 `0362af864feb636dedeb2dc2f10c9413`).
+- **MD5 do painel publicado:** `295db56444ae18bc389bb723ec86ca83`, igual no arquivo gerado, no servidor e no site público.
+- **Backup do painel anterior no servidor:** `~/deploy_backups/painel_clientes_apex_20260929_225119_antes_fase2.html` (MD5 `0362af86…`).
+- **Depois da virada:** a sincronização das 23:07 rodou normalmente (`ok = true`), e o painel público carrega sem erro no console.
+- **O que muda nos números:** como o export manual só trazia pedidos atualizados a partir de 29/07, o painel antigo mostrava 573 pedidos. A sincronização traz o histórico completo desde 01/05/2026: **818 pedidos**. Os 245 a mais estão parados desde antes de 29/07 (179 perdidos, 52 concluídos e 14 em outras etapas). Com o filtro de período aberto, os totais de "Perdido" e a taxa de perda sobem; com o filtro de período fechado nas datas recentes, os números continuam os de antes. Para limitar o histórico de vez, basta recriar a view com um corte (`where atualizacao >= <data>`).
+- **Reversão** (dashboard volta a ler o backup manual, com os dados de antes da virada): rodar `supabase/rollback/20260930000000_producao_neo_cutover_rollback.sql` e restaurar o painel anterior no servidor (`ssh hostinger cp ~/deploy_backups/<arquivo> domains/apexsmart.com.br/public_html/painel_clientes_apex.html`). A tabela `producao_pedidos_manual` fica como backup e não é apagada.
+
+
+## 52. Alerta de sincronização parada (30/09/2026)
+
+**Para que serve:** se o token do NeoSales vencer ou a API cair, a sincronização (seção 50) falha e o painel continua mostrando os dados da última que deu certo. Sem alerta, isso só apareceria para quem abrisse a aba "Upload Dash". Este alerta avisa sozinho.
+
+### 52.1 Como funciona
+
+- A Edge Function `alerta-sync-producao` roda **de 15 em 15 minutos** (job `alerta-sync-producao` no pg_cron). Ela **não consulta o NeoSales**: só lê `producao_sync_log`, então não interfere no intervalo mínimo entre consultas da API.
+- Se a última sincronização bem-sucedida tem **mais de 3 horas** (só passando do limite; exatamente 3 h não alerta), abre **um** alerta em `producao_sync_alerta` e avisa. Enquanto continuar parado **não repete** a mensagem a cada 15 minutos.
+- Quando a sincronização volta, o alerta é resolvido e sai uma mensagem "voltou ao normal" (só se alguém chegou a ser avisado do problema).
+- Só existe um alerta aberto por vez (índice único parcial).
+- A madrugada sem pedidos **não** dispara alerta: uma execução que roda com sucesso e traz 0 linhas continua contando como sincronização bem-sucedida.
+- O alerta também pega o caso em que a função ou o agendamento da sincronização pararam de rodar (a mensagem diz "Nenhum erro registrado: o agendamento (pg_cron) ou a função podem estar parados").
+- Falha ao enviar a mensagem nunca derruba a execução: o alerta fica aberto e a próxima execução tenta de novo.
+
+### 52.2 Canal de aviso (Telegram) e como configurar
+
+O aviso sai pelo **Telegram**, quando os secrets `ALERTA_TELEGRAM_TOKEN` e `ALERTA_TELEGRAM_CHAT_ID` da função existem. Sem eles, o alerta fica só registrado na tabela e o aviso pendente **sai sozinho assim que o canal for configurado**.
+
+1. No Telegram, converse com `@BotFather`, envie `/newbot` e siga as instruções; ele devolve o **token** do bot.
+2. Abra uma conversa com o bot que você criou e envie qualquer mensagem (o bot só consegue escrever para quem falou com ele antes).
+3. Descubra o seu **chat id** (por exemplo com o bot `@userinfobot`, ou abrindo `https://api.telegram.org/bot<TOKEN>/getUpdates` depois de mandar a mensagem).
+4. Guarde os dois como secrets, sem colocá-los em nenhum arquivo do repositório:
+   `npx supabase secrets set ALERTA_TELEGRAM_TOKEN=<token> ALERTA_TELEGRAM_CHAT_ID=<chat id> --project-ref mdgfboijyqfkggcrhptn`
+
+O token nunca aparece em mensagem de erro nem em log (é mascarado). Para avisar um grupo, adicione o bot ao grupo e use o id do grupo (começa com `-`).
+
+### 52.3 Ajustes e testes
+
+- **Limite:** secret `ALERTA_LIMITE_HORAS` (padrão 3).
+- **Ver os alertas:** tabela `producao_sync_alerta` (leitura para admin e supervisor).
+- **Simular uma parada em produção:** chamar a função com o segredo do cron e o corpo `{"limiteHoras":0.0001}` (abre um alerta de teste); uma chamada normal seguinte o resolve. Apague a linha de teste depois.
+- **Testes:** `supabase/functions/alerta-sync-producao/alerta.test.ts` (21 testes: regra de decisão, mensagens, envio ao Telegram sem vazar o token e a orquestração).
+- **Verificado em produção em 30/09/2026:** sem segredo responde 401; execução normal não faz nada; com limite simulado abre o alerta; a execução normal seguinte o resolve.
+
+### 52.4 O que este alerta não cobre
+
+- Se o próprio `pg_cron` do Supabase parar por inteiro, nada roda (nem a sincronização, nem este alerta).
+- Se a sincronização roda com sucesso mas o NeoCRM passou a devolver dados incompletos, não há alerta (ele mede se a sincronização está rodando, não se o conteúdo está certo).
+- A faixa do painel (52.5) só aparece para quem está com o painel aberto; quem não abre o painel só é avisado pelo Telegram.
+
+### 52.5 Faixa de aviso dentro do painel
+
+- Quando existe um alerta aberto em `producao_sync_alerta`, aparece uma **faixa vermelha no topo do conteúdo** (acima das abas, sem mexer no cabeçalho de página nem no menu) para **admin e supervisor**: "Sincronização da produção parada. A produção não é atualizada desde <data e hora de SP>. Os números do Dashboard, do Fechamento e do Digital podem estar desatualizados…". O admin é apontado para a aba "Upload Dash"; o supervisor, que não tem essa aba, só é orientado a avisar o responsável técnico. **Consultor nunca vê** a faixa e nem consulta a tabela.
+- A faixa é conferida **ao entrar**, **ao trocar de aba**, **ao voltar o foco para a janela** e junto com a **atualização horária** do Dashboard. Não usa timer próprio (um `setInterval` a mais mantém vivo o processo dos testes e não era necessário).
+- Se a consulta falhar, a faixa **some** em vez de mostrar um aviso que não dá para confirmar; se o alerta for resolvido, some na próxima verificação; ao sair do sistema, é escondida.
+- O alerta só abre depois de **mais de 3 horas** sem sincronização bem-sucedida (mais até 15 minutos até o próximo ciclo do alerta), então a faixa pode demorar esse tempo para aparecer depois que a sincronização para.
+- Código: `verificarAlertaSyncProducao()` no `_template.html`; teste `test_alerta_sync_banner.js`.
+- **Publicada em 30/09/2026 (~12:55, horário de SP):** MD5 do painel `973b7787fef8e3bcd38487287d018a77`, igual no arquivo gerado, no servidor e no site público. Backup do painel anterior no servidor: `~/deploy_backups/painel_clientes_apex_20260930_125529_antes_faixa_alerta.html` (MD5 `295db564…`). Para reverter, basta copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`.
+
+## 53. Painel do Consultor — Pedidos Parados, Agenda, Meu Placar e extras (30/09/2026)
+
+Pedido do usuário: dar a cada consultor, dentro do painel, o que ele precisa para não deixar dinheiro parado e saber onde está na meta. Spec: `docs/superpowers/specs/2026-09-30-painel-do-consultor-design.md`; planos: `docs/superpowers/plans/2026-09-30-painel-consultor-0{0..3}-*.md`. **Status: implementado no repositório e testado; a migration do banco e a publicação dependem de OK do usuário.**
+
+### 53.1 Quem vê o quê (decisões do usuário)
+- **Consultor:** ganha a aba **Pedidos Parados** (grupo Vendas, depois de Funil) e o cartão **"Meu dia"** no topo do Dashboard. Na aba ele vê **só os pedidos dele**.
+- **Dashboard e ranking não mudam:** o consultor continua vendo todos os pedidos da equipe ali, como antes. Por isso a leitura da tabela `producao_pedidos_neo` **não foi restringida** (decisão do usuário, 30/09). O "só os meus" vale para a aba nova e é aplicado no servidor (RPC `producao_meus_pedidos`, por `auth.uid()`). Quem abrir as ferramentas do navegador ainda consegue ler a tabela inteira, como já conseguia.
+- **Admin e supervisor:** nada muda. Continuam com "Pedidos em Alerta" (seção 48), que não foi alterado. Não veem a aba nova nem o "Meu dia". Só o admin vê os dois editores novos em Equipe e acessos (vínculos e metas).
+
+### 53.2 Vínculo painel × NeoCRM
+- A chave é o `estruturaUsuarioId` do JSON bruto da API (ID numérico do consultor no NeoCRM), copiado para `producao_pedidos_neo.usuario_id` (backfill do `producao_neo_raw` + gatilho `trg_producao_neo_raw_usuario`, sem mexer na Edge Function `sync-producao`).
+- Tabela `consultor_neo(profile_id, neo_usuario_id UNIQUE)`: 1 perfil ↔ 1 ID. O nome não precisa bater (Manuella/Manuela, Yasmin Bezerra/Yasmin Silva). Editor em **Equipe e acessos → "Vínculo com o NeoCRM"** (admin): sugere pelo nome (`ppSugerirVinculos`: "forte" = todos os nomes do perfil aparecem em ordem no NeoCRM; "fraca" = só o 1º nome, único dos dois lados, marcada com "?") e o admin confirma e salva. Casos ambíguos (dois "Gabriel") não recebem sugestão. Usuários do NeoCRM sem perfil (ex.: Danilo) são listados no rodapé do editor.
+- Sem vínculo, o consultor vê "seu usuário ainda não foi ligado ao NeoCRM" e nenhum pedido.
+
+### 53.3 Pedidos Parados
+- **Regra de tempo:** a da seção 48 (dias úteis seg–sex, sem feriados nacionais, até a data da última sincronização; níveis MÍNIMO 3–5, MÉDIO 6–9, MÁXIMO 10+). Dias contados desde a entrada na etapa atual (`na_etapa_desde`: histórico de etapas; sem histórico, a `ATUALIZACAO`).
+- **8 etapas monitoradas** (decisão D2): ANTIFRAUDE, CRÉDITO, BIOMETRIA, AGUARDANDO ASSINATURA, VALIDAÇÃO ESIM, PORTABILIDADE EM ANDAMENTO, PORTABILIDADE EM TRATATIVA, ENTREGA. Cada uma diz "de quem é a bola": cliente (biometria, assinatura, eSIM), operadora (antifraude, crédito, portabilidade em andamento), back office (portabilidade em tratativa), entrega. Constante `PP_ETAPAS` (`_template.html`).
+- **Valores em R$/mês** (decisão D3: o valor do pedido é mensalidade). Cartões: pedidos parados, R$/mês parados, R$/mês em aberto. "Onde está o dinheiro parado": uma linha por etapa (nº de pedidos e R$). Lista: nível, pedido, cliente/CNPJ, etapa + bola, produtos, R$, dias úteis parado, Copiar e WhatsApp (só onde a bola está com o cliente e há telefone na base `clientes`).
+- Um pedido = todas as linhas do mesmo `numero_pedido` (valor e quantidade somados), como na seção 48.
+
+### 53.4 Agenda
+Pedidos em aberto pela data de portabilidade (ou instalação): **Atrasados** (data passou e não concluiu), Hoje, Amanhã, Próximos 7 dias, Mais adiante e **Sem data** (etapas ENTREGA, portabilidade e eSIM sem data no NeoCRM). Botão de WhatsApp de confirmação com mensagem pronta (o consultor revisa antes de enviar; o painel não envia sozinho). Em 30/09 só havia 2 datas futuras e 22 vencidas nos pedidos abertos: a agenda do futuro cresce conforme o time preencher as datas.
+
+### 53.5 Meu Placar e "Meu dia"
+- **Placar do mês:** ativações, receita das ativações, pedidos cadastrados, % da meta, "faltam", ritmo (receita ÷ dias úteis decorridos × dias úteis do mês) e previsão (receita + valor em aberto × taxa de conclusão do próprio consultor; só estima com 10 ou mais pedidos fechados). **Ativação = regra do Fechamento (16.14)**, reaproveitando `filtrarRegistrosFechamento`/`agruparFechamentoPorConsultor` (por isso um pedido em ENTREGA com data de portabilidade no mês conta, igual ao relatório do admin). **Não mostra comissão** (decisão de 18/09).
+- **Meta em R$** (decisão D4): tabela `metas_consultor(profile_id, mes [dia 1], meta_receita)`, editor em Equipe e acessos → "Metas do mês (R$)" (admin), com "Copiar do mês anterior". Sem meta, o placar mostra só os números.
+- **"Meu dia"** (decisão D5: cartão no painel; envio por Slack/Telegram ficou como opção futura): saudação, pedidos parados, R$/mês parados, agenda de hoje, datas atrasadas e % da meta, com atalho para a aba.
+
+### 53.6 Extras
+- **Recuperar vendas perdidas:** perdidas nos últimos 90 dias, pelo motivo em `tagPedido` (a API traz o motivo). Ordem: `#HOTLEAD` (quente), `#COMCREDITO` (crédito aprovado), restrição (`#SEMCREDITO`, `#COMRESTRICAO`, `#RESTRICAOOPERADORA`; só reabordar depois de 30 dias), sem motivo. `#SEMINTERESSE` e `#SEMCOBERTURA` ficam de fora (contados como descartados), assim como clientes que já voltaram em outro pedido aberto do próprio consultor.
+- **Devolvidos:** últimos 90 dias, sem outro pedido aberto do mesmo cliente.
+- **Reoferecer:** clientes com pedido concluído há 30 a 120 dias e nenhum pedido aberto, agrupados por CNPJ.
+- **Novidades:** pedidos que mudaram de etapa nos últimos 3 dias (RPC `minhas_movimentacoes`, a partir do histórico).
+- **Anti-duplicidade:** selo "outro consultor" quando o CNPJ tem pedido aberto de outro consultor (RPC `cnpjs_com_pedido_aberto_de_outros`; devolve só o CNPJ, nunca o dono).
+- **Histórico de etapas:** tabela `producao_etapa_historico` + gatilho `trg_producao_neo_etapa` (grava a cada mudança de etapa na sincronização; estado inicial semeado com a `ATUALIZACAO`). Só admin/supervisor leem a tabela; o consultor usa as RPCs.
+- **Fora desta entrega:** "vendas × origem do lead" (já existe na aba Digital) e "desafio do dia" (era condicional).
+
+### 53.7 Banco (migration `supabase/migrations/20260930200000_painel_consultor.sql`, rollback em `supabase/rollback/`)
+Aditiva: nada que o painel atual usa foi alterado. Cria `usuario_id` + gatilhos, `consultor_neo`, `producao_etapa_historico`, `metas_consultor` e as RPCs `meu_neo_usuario_id`, `neo_usuarios_detectados`, `producao_dono_neo`, `producao_meus_pedidos`, `minhas_movimentacoes`, `cnpjs_com_pedido_aberto_de_outros` (todas `security definer` com `search_path` fixo, execução só para `authenticated`). Sem a migration, a aba mostra "Não foi possível carregar" (não quebra o resto do painel). **Ordem de entrada no ar:** aplicar a migration primeiro, depois publicar o painel.
+
+### 53.8 Testes
+`test_pedidos_parados.js` (128 verificações): dias úteis e feriados, agrupamento, fila, agenda, recuperação, reoferecer, placar, sugestão de vínculos, e a tela (consultor vê só o que a RPC devolve, sem vínculo nada aparece, admin/supervisor não veem a aba, editores de vínculo e metas gravam o esperado). `test_reorganizacao_abas.js` passou a incluir `pedidosparados` na ordem do menu. `demo_supabase.js` aceita `?papel=consultor` para ver a aba com dados fictícios.
+
+### 53.9 Publicado (30/09/2026, ~16:26)
+- **Banco (antes do painel):** migrations `painel_consultor` e `painel_consultor_revoga_funcoes_de_gatilho` aplicadas no Supabase `apex`. Conferido em produção: 1.156 linhas com `usuario_id` (19 consultores), histórico de etapas semeado (1.156), 2 gatilhos, 6 funções sem acesso do `anon`; a view `producao_pedidos` segue com as mesmas 1.156 linhas. Isolamento testado simulando cada papel: o Caio vê só os 297 registros (203 pedidos) dele; a Giovanna pedindo os do Caio recebe "sem permissão"; consultor sem vínculo recebe zero; o admin vê os 19 usuários do NeoCRM e pode "ver como"; consultor não lista usuários do NeoCRM; anônimo é barrado.
+- **Vínculos gravados (14):** Bianca, Caio, Giovanna, Henrique, Lucas, Luria, Mariana, Victoria, Vitor e Vitoria (nome idêntico) + **Manuella = Manuela Bento Macedo** e **Yasmin Bezerra = Yasmin Silva** (confirmados pelo usuário) + **Gabriel "Gabriels" = Gabriel da Silva Gomes** (confirmado) e **Gabriel "gabriel" = Gabriel Macedo Martins** (por exclusão). **Pendentes de confirmação no editor:** Fabiana (Fabiana Silva) e Roberta (Roberta da Silva Bottura Calamari). Danilo Morais Araujo saiu da empresa e não recebe perfil. Bruno e Silvana não têm usuário no NeoCRM.
+- **Painel:** antes de publicar, o painel no ar (MD5 `973b7787…`) era idêntico ao `oficial/main` (8bf246c), então não havia nada publicado por fora. Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`d89f7962ece4005ec887f389da764255`**, igual no arquivo gerado, no servidor e no site público. Backup do painel anterior no servidor: `~/deploy_backups/painel_clientes_apex_20260930_162557_antes_painel_consultor.html`.
+- **Reverter o painel:** copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. **Reverter o banco:** rodar `supabase/rollback/20260930200000_painel_consultor_rollback.sql` (só depois de reverter o painel; apaga vínculos e metas).
+- **Metas:** ainda não há meta cadastrada; o admin define em Equipe e acessos → "Metas do mês (R$)". Sem meta, o placar mostra só os números.
+
+## 54. Aba Digital: leads por aba da planilha (Setembro, Agosto e Repique não se misturam) — 30/09/2026
+
+**Problema (30/09/2026):** a contagem por consultor da aba Digital estava errada (a Yasmin aparecia com 68 leads sem ter nenhum em Setembro; a Mariana com 1 conversão quando tinha 12). Análise completa na conversa de 30/09; causas:
+1. Na aba SETEMBRO da planilha a coluna do consultor tem o **cabeçalho em branco** (nas outras abas é `CONSULTOR `). A função `sync-leads` não a reconhecia e os 836 leads do mês viravam "(Sem consultor)".
+2. A função lia as três abas (Agosto, Setembro e Repique) para a mesma tabela `leads`, sem guardar de qual aba cada lead veio, e a chave era só o `id` (o mesmo id em duas abas era sobrescrito pela última). Os números por consultor vinham quase só de Agosto + Repique.
+3. Vários status novos (TELEFONE ERRADO…, LEAD FORA DO PERFIL…) caíam em "andamento".
+
+### 54.1 Regras (decisões do usuário)
+- **Três abas separadas:** a aba Digital ganhou o cartão **"Aba da planilha"** com as pílulas **Setembro**, **Agosto** e **Repique** (mês mais recente primeiro, Repique por último; abre em Setembro). Cada pílula mostra só os leads daquela aba; nada se mistura. O filtro de período (Tudo/Hoje/7 dias/Este mês/De–Até) vale **dentro** da aba escolhida. Quando o time criar a aba de outubro, basta incluí-la na lista `SHEET_TABS` da função (com a chave `OUTUBRO`) e reimplantá-la: a pílula aparece sozinha.
+- **Consultor da aba de Setembro:** a função usa como coluna do consultor a que está imediatamente antes de `STATUS` quando não existe nenhuma coluna chamada `CONSULTOR` e ela está sem nome.
+- **Convertido:** vale **primeiro a coluna `CONVERTEU?` = "sim"**; se ela não disser "sim", olha o `STATUS`: "PEDIDO CONCLUIDO (VENDA)" também conta como convertido. (Valores soltos como "e" ou "f" na coluna não contam.)
+- **Venda perdida:** os status novos TELEFONE ERRADO OU SEM WHATSAPP, LEAD FORA DO PERFIL, CLIENTE SO QUERIA APARELHO, CLIENTE SÓ QUERIA FIBRA, CNPJ REPROVADO, SUSPEITA DE FRAUDE e CLIENTE NÃO QUER NO CNPJ passam a ser **perdido**. "PEDIDO EM ANÁLISE" continua em andamento. A comparação de status ignora acento, caixa e espaços repetidos (a planilha tem "TELEFONE ERRADO ou  SEM WHATSAPP" com 2 espaços).
+- **"Atualizar agora" continua** (só admin/supervisor) e agora mostra a contagem por aba ("Setembro 836 · Agosto 154 · Repique 427").
+
+### 54.2 Banco e função
+- Migration `supabase/migrations/20260930300000_leads_por_aba.sql` (rollback em `supabase/rollback/`): coluna `leads.aba`, chave primária `(aba, id)`, índice, reclassificação dos status novos nas linhas já gravadas e nova `reconciliacao_neocrm(p_de, p_ate, p_aba default null)` (o card "Conversão confirmada no NeoCRM" dos consultores respeita a aba; sem `p_aba` o comportamento é o de antes, então o painel antigo continua funcionando durante a troca).
+- `edge_function_sync_leads.ts`: chave `aba` em `SHEET_TABS`, `deduplicarLeads` por `(aba, id)`, upsert com `onConflict: "aba,id"`, consultor tolerante ao cabeçalho em branco, categorias com normalização de texto. Publicada pelo conector do Supabase (mesmo arquivo do repositório).
+- **Ordem de entrada no ar:** migration (com preenchimento da coluna `aba` a partir da planilha) → Edge Function nova → painel novo. O painel novo lê `leads.aba`; publicá-lo antes da migration quebraria a aba Digital.
+
+### 54.3 Testes
+`test_edge_function_sync_leads.js` (89 verificações: aba por lead, consultor da aba de Setembro, status novos, regra de convertido, dedup por aba), `test_digital_abas.js` (25: seletor, separação dos números, período dentro da aba, reconciliação com `p_aba`, mensagem de sincronização, banco sem a coluna) e `test_conversao_vendas.js` (inalterado, continua passando).
+
+### 54.4 Publicado (30/09/2026, ~17:43)
+- **Banco (antes da função e do painel):** coluna `leads.aba` preenchida a partir da planilha (Agosto 154, Setembro 836, Repique 427 leads; o consultor dos 836 de Setembro vem da coluna sem cabeçalho) com trava: a transação só confirma se os totais por aba e por consultor baterem com a planilha (a 1ª tentativa foi cancelada pela trava porque a planilha, editada ao vivo, mudou um lead de consultor entre dois downloads; repetida com os números atuais). Dois leads antigos que saíram da planilha (um sem status e um perdido do Repique, sem conversão nem receita) foram removidos por travarem a troca da chave. Migration `leads_por_aba` aplicada: chave `(aba, id)`, índice, 91 leads de "telefone errado…" e demais status novos reclassificados como perdidos, `reconciliacao_neocrm(p_de, p_ate, p_aba)`.
+- **Setembro no banco depois da correção:** Gabriel 258 leads / 52 convertidos, Caio 158/40, Rafael 114/37, Giovanna 70/8, Mariana 63/12, Lucas 37/4, Manuela 36/7, Henrique 35/3, Danilo 33/7, Victoria 31/2, 1 sem consultor. Yasmin e Bianca só existem no Repique (68 e 46 leads). Receita ausente na planilha (29 convertidos de Setembro sem valor em RECEITA, incluindo os 12 da Mariana) continua vindo como R$ 0 — é preenchimento da planilha.
+- **Função `sync-leads`:** versão 9 publicada pelo conector do Supabase (mesmo arquivo do repositório). Conferido que inicializa (chamada sem sessão devolve "Sessão inválida" do próprio código). A próxima vez que alguém clicar em "Atualizar agora" ela grava tudo por `(aba, id)` e mostra "Setembro N · Agosto N · Repique N".
+- **Painel:** o painel no ar (MD5 `d89f7962…`) era idêntico ao `oficial/main` (3f61aaa), então não havia nada por fora. Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`a0ad4f0df7a745fe91805230e6af1d86`**, igual no arquivo gerado, no servidor e no site público. Backup no servidor: `~/deploy_backups/painel_clientes_apex_20260930_174256_antes_digital_abas.html`.
+- **Reverter:** painel → copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`; função → reimplantar a versão 8 (arquivo anterior no histórico do git) e depois rodar `supabase/rollback/20260930300000_leads_por_aba_rollback.sql`.
+- **Quando vier a aba de outubro:** incluir `{ aba: "OUTUBRO", label, gid }` em `SHEET_TABS` e reimplantar a função (a pílula "Outubro" aparece sozinha no painel, antes de Setembro).
+
+## 55. Ajustes do Dashboard de Produção: barras, fonte dos números, seções recolhíveis, cards centralizados e etapa Território (30/09/2026)
+
+Pedido do usuário (30/09/2026), com base em um print do cartão do Caio: a barra de cada etapa passava por cima do nome e do valor. Alterações no template do dashboard embutido (`dashboard_tpl.py extrair|empacotar`) e na aba Pedidos Parados. Testes: `test_dashboard_ajustes.js` (47) e `test_pedidos_parados.js`.
+
+### 55.1 Layout das barras
+- **Causa:** `.uc-bar-track` (barra de "Valor por Etapa, detalhado por Vendedor") tinha `margin:-3px` dentro de uma grade de 2 colunas; a barra subia e cobria o nome e o valor da linha. Agora cada linha é nome + valor numa linha e **a barra sempre numa linha própria embaixo** (`.uc-row` com `row-gap:6px`, `.uc-bar-track{grid-column:1 / -1;margin:0}`), com o nome limitado por reticências. Na "Composição por Vendedor" as colunas passaram a `minmax(120px,190px) minmax(0,1fr) minmax(112px,auto)` (nome longo e valor não colidem). Conferido em tela larga, média e no celular.
+- Os ajustes ficam num bloco "Ajustes de layout (30/09/2026)" no **fim** do CSS do dashboard, para vencerem as regras antigas sem apagá-las.
+
+### 55.2 Fonte dos números
+Números (valores dos cartões, totais, valores e contagens das barras, colunas numéricas das tabelas e contagens da Visão Diária) usam **Nunito** (arredondada) por meio da variável `--font-num`; os textos continuam em Barlow. A fonte vem do Google Fonts no mesmo `<link>` da Barlow.
+
+### 55.3 Seções recolhíveis (fechadas ao abrir)
+Viraram `<details class="collapse-sec">`, fechadas por padrão e abertas com um clique no título: **Valor por Etapa (Total Geral)**, **Motivos de Perda (Vendas Perdidas)** e **Diagnóstico e Plano de Ação**. O conteúdo não mudou e continua sendo calculado (abrir só mostra). "Valor por Etapa, detalhado por Vendedor" e "Valor por Grupo" seguem sempre visíveis.
+
+### 55.4 Cards centralizados (Visão Geral)
+O conteúdo da Visão Geral fica num bloco central (`#tabOverview{max-width:1240px;margin:auto}`) e as grades de cartões (resumo, vendedores, diagnóstico) têm colunas de largura fixa com `justify-content:center`. Só a Visão Geral; a Visão Diária e as outras abas não mudaram.
+
+### 55.5 Etapa TERRITÓRIO
+- Decisões do usuário: categoria **Em andamento**; **etapa monitorada** em Pedidos Parados (passam a ser 9 etapas; a bola fica com o back office) e em Pedidos em Alerta (admin).
+- **Aparece em todas as listas de etapas mesmo sem pedidos** (com 0 pedidos e R$ 0,00 e barra vazia): Valor por Etapa (total geral), cada cartão por vendedor, filtro de Etapa, matriz de Pedidos em Alerta e fila do consultor (quando há pedido). Com dados nenhum, as telas continuam mostrando "Sem dados".
+- O NeoCRM escreve nomes de etapa de forma inconsistente (`CREDITO` sem acento, `VALIDAÇÃO ESIM` com), então **qualquer grafia que contenha "TERRITORIO"** (sem acento, sem diferença de caixa) é tratada como a etapa canônica **`TERRITORIO (NEOCRM)`** (nome confirmado pelo usuário em 30/09/2026: sem acento, como `CREDITO` e `NEGOCIACAO`); nas listas do consultor as duas grafias estão em `PP_ETAPAS`.
+- **Em 30/09/2026 nenhum pedido estava nessa etapa** (nem na tabela nem no JSON bruto da API): por isso ela não aparecia. Assim que entrar o primeiro pedido, aparece com os valores reais.
+- Não verificado: o nome que a API vai mandar de fato quando chegar o primeiro pedido (a regra acima cobre com/sem acento) e a exportação do Excel de Pedidos em Alerta com a etapa nova (o teste do Excel depende do pacote `exceljs`, ausente nesta máquina).
+
+### 55.6 Publicado (30/09/2026, 19:44)
+- Antes de publicar, o painel no ar (MD5 `a0ad4f0d…`) era idêntico ao `oficial/main` (cf10963): nada por fora. Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`31fe76744c5b94dda7a31076b0c56bbd`**, igual no arquivo gerado, no servidor e no site público. Backup no servidor: `~/deploy_backups/painel_clientes_apex_20260930_194429_antes_dashboard_ajustes.html`. Vigia atualizado.
+- **Reverter:** copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. Não há mudança de banco nem de função nesta publicação.
+- Nome da etapa confirmado pelo usuário: **TERRITORIO** (sem acento). Suíte: 43 testes passam; a única falha é `test_pedidos_alerta.js` por falta do pacote `exceljs` nesta máquina (já falhava antes).
+
+## 56. Relatório de vendas das 17h (Visão Diária) — 30/09/2026
+
+Pedido do usuário: um botão ao lado do **Modo TV**, na Visão Diária do Dashboard, que gera um **texto escrito** com as vendas do dia para o Guilherme, sem ninguém precisar montar nada à mão.
+
+### 56.1 Como funciona
+- Botão **"Gerar relatório 17h"** (só **admin e supervisor** veem; no Modo TV ele some). Abre uma janela (o mesmo modal do dashboard) com o texto pronto, editável, e os botões **Copiar texto** e **Enviar pelo WhatsApp** (abre o WhatsApp com o texto para escolher o contato). Esc, o X ou clicar fora fecham.
+- O relatório é do **dia escolhido na Visão Diária** (campo "Dia"); mudar o dia muda o relatório.
+- **Corte às 17h (decisão do usuário):** conta só os pedidos cadastrados no dia **até 16:59 (fuso de São Paulo)**, mesmo que o botão seja clicado mais tarde — o texto é sempre o mesmo para aquele dia, como uma foto das 17h. Por isso os números podem ser menores que os cards da Visão Diária depois das 17h (os cards contam o dia inteiro). Se o botão for clicado **antes das 17h, no próprio dia**, o texto ganha o aviso "gerado às HH:MM, antes das 17h — os números são parciais".
+- **Mesmas regras da Visão Diária:** pedidos pela data de **cadastro**, todos os pedidos do dia (sem filtro de etapa); "Linhas do dia" = soma das quantidades dos grupos `VOZ - *` (igual ao card "Linhas"); cada tipo de venda conta as linhas do seu grupo (igual aos cards "Por tipo de venda"); "Valor total" soma o valor de todos os pedidos do dia (igual ao card "Valor Total").
+
+### 56.2 Texto gerado
+```
+RELATÓRIO DE VENDAS — 29/09/2026 (terça-feira)
+Posição das 17h (pedidos cadastrados até as 17:00)
+
+Linhas do dia: 8
+Banda larga: 1
+Migração (titularidade): 1
+Portabilidade: 3
+Linha nova: 2
+Renovação: 1
+Aparelho: 1
+Telefone fixo: 0
+Claro Monitor: 2
+
+Valor total: R$ 3.628,20
+```
+Correspondência com os grupos do NeoCRM (`RELATORIO_ROTULOS`, deriva de `DIARIA_TIPOS_VENDA`): Banda larga = `BANDA LARGA - Novo`; Migração = `VOZ - Tranf. Titularidade`; Portabilidade = `VOZ - Portabilidade`; Linha nova = `VOZ - Novo`; Renovação = `VOZ - Renovação`; Aparelho = `APARELHO`; **Telefone fixo = `SVA FIXA`**; Claro Monitor = `SVA MÓVEL`. Um tipo de venda novo acrescentado em `DIARIA_TIPOS_VENDA` entra sozinho no texto (com o rótulo do card). Fora do texto, por decisão do usuário: contratos, ticket médio, NET-TV e M2M (continuam contando no valor total).
+
+### 56.3 Testes
+`test_relatorio_17h.js` (34): botão ao lado do Modo TV, corte às 17h (16:59 entra; 17:00 fica de fora, inclusive quando o horário vem em UTC), contagem por tipo, linhas e valor, texto linha a linha, aviso de parcial, dia sem vendas, abrir/editar/copiar (com os dois métodos de cópia e a mensagem de erro), WhatsApp, fechar (Esc, X, fora), troca de dia, botão escondido do consultor e no Modo TV.
+
+### 56.4 Publicado (30/09/2026, 20:00)
+- Antes de publicar, o painel no ar (MD5 `31fe7674…`) era idêntico ao `oficial/main` (9bef84b): nada por fora. Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`41a250fdc0f8572807cdbd6d11f46df7`**, igual no arquivo gerado, no servidor e no site público. Backup no servidor: `~/deploy_backups/painel_clientes_apex_20260930_195957_antes_relatorio_17h.html`. Vigia atualizado.
+- **Reverter:** copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. Não há mudança de banco nem de função.
+- Suíte: 44 testes passam; a única falha é `test_pedidos_alerta.js` por falta do pacote `exceljs` nesta máquina (já falhava antes).
+
+## 57. Correção: rolagem "infinita" em branco e janela do relatório fora da tela (30/09/2026)
+
+**Problema (relatado pelo usuário com vídeo, logo depois da publicação do relatório das 17h):** a página rolava sem parar e a janela do relatório aparecia lá embaixo, fora da parte visível. Reproduzido na demonstração: com o iframe do dashboard em 4.972 px, a janela abria a 2.407 px do topo da tela.
+
+**Causas (duas):**
+1. **Altura do iframe só crescia.** O painel ajusta a altura do iframe do dashboard ao conteúdo (`ajustarAltura` em `loadProducaoDashboard`), mas medindo `documentElement.scrollHeight`, que nunca é menor que a altura atual do próprio iframe. Depois de abrir a Visão Geral (alta), trocar para a Visão Diária (curta) deixava milhares de pixels em branco. Além disso o iframe tinha `min-height:2400px` fixo.
+2. **A janela do relatório usava `position:fixed` comum.** Dentro de um iframe alto o "fixed" fica no meio da caixa inteira do iframe. O analítico já tinha a correção (`ajustarPosicaoDrilldown`, que calcula o trecho visível do iframe pela janela externa); a janela do relatório não usava.
+
+**Correção:**
+- `ajustarAltura` passa a medir o **corpo** do dashboard (`body.getBoundingClientRect().height`) e o `min-height` do iframe caiu de 2400px para 400px: a altura acompanha o conteúdo de cada aba, para cima e para baixo (Visão Diária: página total de 5.238 px → 1.161 px na demonstração).
+- `ajustarPosicaoDrilldown` passou a posicionar **as duas janelas** (analítico e relatório), com o cálculo extraído para a função pura `calcularPosicaoOverlay` (testável). Abrir o relatório chama o posicionamento e o foco no texto usa `preventScroll` (antes o foco podia rolar a página até o campo).
+- Conferido no navegador (desktop 1366×768 e celular 375×812): a janela abre dentro da tela, sem mexer na rolagem, com os botões visíveis.
+
+**Testes:** `test_relatorio_17h.js` (45): casos do cálculo de posição (página rolada, topo, fim da página, tela baixa, limite de altura do cartão) e verificações do código para a medição pelo corpo, o posicionamento das duas janelas, o `preventScroll` e a ausência do `min-height:2400px`; o teste falha no painel anterior.
+
+### 57.1 Publicado (30/09/2026, 20:14)
+- Antes de publicar, o painel no ar (MD5 `41a250fd…`) era idêntico ao `oficial/main` (40465e1): nada por fora. Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`e7d1133bd2d15c44c355d72791062812`**, igual no arquivo gerado, no servidor e no site público. Backup no servidor: `~/deploy_backups/painel_clientes_apex_20260930_201405_antes_correcao_scroll.html`. Vigia atualizado.
+- **Reverter:** copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. Não há mudança de banco nem de função.
+- Suíte: 44 testes passam; a única falha é `test_pedidos_alerta.js` por falta do pacote `exceljs` nesta máquina (já falhava antes). A conferência no computador real do usuário ainda depende dele (o vídeo enviado era do celular filmando o notebook, sem nitidez).
+
+## 58. Dashboard de Produção: página centralizada e 4 cartões numa linha (30/09/2026)
+
+- **Problema:** depois da centralização da seção 55, os 4 cartões do topo (Valor Total, Pedidos, Ticket Médio, Taxa de Perda) passaram para duas linhas (colunas de largura fixa 180–260px) e a coluna dos filtros (280px, à esquerda) ficava vazia quando a página rolava, empurrando o conteúdo para a direita.
+- **Regra:** os filtros (Grupo, Filtrar por data, Vendedor(es), Etapa, Limpar tudo) viram **uma faixa horizontal no topo**; o conteúdo inteiro fica **num bloco central** (máx. 1240px, margens iguais). Os 4 cartões ficam **sempre em 4 colunas iguais**, com fonte `clamp(15px, 2vw, 24px)` (diminui em tela estreita); só abaixo de 560px de largura passam a 2 por linha.
+- **Não mudam:** Visão Diária, Pedidos em Alerta e Modo TV (já eram coluna única / tela cheia).
+- **Só CSS** (`_dashboard_producao.html`, bloco "Página centralizada"). Sem mudança de banco nem de função. Testes: `test_dashboard_ajustes.js` (52).
+- Conferido na demonstração local em 1366px (4 cartões em linha, filtros em faixa única) e 1800px (conteúdo centralizado, margens de 117px de cada lado). Suíte: 44 passam; a única falha é `test_pedidos_alerta.js` por falta do `exceljs` nesta máquina (já falhava antes).
+### 58.1 Publicado (30/09/2026, 20:24)
+- Antes de publicar, o painel no ar (MD5 `e7d1133b…`) era idêntico ao `oficial/main` (d94d454): nada por fora. Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`d4ef7baa38473ec5bbff93a67da6ebcf`**, igual no arquivo gerado, no servidor e no site público. Backup no servidor: `~/deploy_backups/painel_clientes_apex_20260930_202344_antes_layout_centralizado.html`. Vigia atualizado.
+- **Reverter:** copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. Não há mudança de banco nem de função.

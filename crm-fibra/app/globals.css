@@ -1,0 +1,43 @@
+:root {
+  --sinal: #E30613;
+  --carmim: #8E0B1B;
+  --bordo: #520C07;
+  --grafite: #1D1F20;
+  --cinza: #666666;
+  --papel: #F2F2F3;
+  --rosa: #FBE3E4;
+  --font-head: "Barlow Condensed", system-ui, sans-serif;
+  --font-body: "Barlow", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--papel);
+  color: var(--grafite);
+  font-family: var(--font-body);
+}
+
+h1, h2, h3 {
+  font-family: var(--font-head);
+  font-weight: 600;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+button {
+  font-family: inherit;
+}
+
+table {
+  font-size: 14px;
+}
+
+th, td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e2e2e4;
+  text-align: left;
+}

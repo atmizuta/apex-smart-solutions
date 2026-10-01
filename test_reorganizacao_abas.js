@@ -40,8 +40,9 @@ try{
   assert(document.getElementById('producaoUploadCard') === null, 'card producaoUploadCard não existe mais (removido do painel-producao)');
   assert(document.querySelector('#panel-producao #producaoUpload') === null, 'input de upload de produção não está mais dentro de panel-producao');
 
-  // --- 2) o input de upload de produção agora vive dentro da aba "Atualização de Bases" (movimentacao) ---
-  assert(document.querySelector('#panel-movimentacao #producaoUpload') !== null, 'input de upload de produção está dentro de panel-movimentacao');
+  // --- 2) (29/09/2026) o upload de planilha saiu: a aba Upload Dash mostra o status da sincronização automática ---
+  assert(document.querySelector('#panel-movimentacao #producaoUpload') === null, 'não há mais input de upload de produção (a produção é sincronizada sozinha)');
+  assert(document.querySelector('#panel-movimentacao #producaoSyncCard') !== null, 'card de status da sincronização está dentro de panel-movimentacao');
 
   // --- 3) o botão de navegação foi renomeado (26/08/2026: "Atualização de Bases" -> "Upload Dash") ---
   const btnMov = document.getElementById('tabBtnMovimentacao');
@@ -84,10 +85,11 @@ try{
   // NOTA (18/09/2026): lista atualizada pra incluir "biometria" (10/09/2026) e "fechamento"
   // (18/09/2026), abas adicionadas depois desse teste original de 26/08/2026 — ambas ficaram de
   // fora da lista por um tempo (teste desatualizado, não regressão) até essa correção.
+  // NOTA (30/09/2026): incluída "pedidosparados" (aba do consultor, só ele a vê), no grupo Vendas logo depois de "funil".
   // NOTA (28/09/2026): incluída "config" (aba "Configurações", pedido do usuário pra conectar o
   // e-mail Hostinger e notificar clientes em lote por e-mail) — fica no grupo Ferramentas, logo
   // depois de "biometria".
-  const ordemEsperada = ['producao','conversao','busca','proposta','funil','biometria','config','basedados','movimentacao','consultores','fechamento'];
+  const ordemEsperada = ['producao','conversao','busca','proposta','funil','pedidosparados','biometria','config','basedados','movimentacao','consultores','fechamento'];
   assert(botoes.map(b => b.dataset.tab).join(',') === ordemEsperada.join(','), 'ordem das abas no menu segue: ' + ordemEsperada.join(', ') + ' (atual: ' + botoes.map(b => b.dataset.tab).join(',') + ')');
   const rotulos = { producao: 'Dashboard', conversao: 'Digital', busca: 'Buscar Clientes', proposta: 'Gerar Proposta', funil: 'Funil', basedados: 'Upload Base', movimentacao: 'Upload Dash', consultores: 'Usuários' };
   Object.entries(rotulos).forEach(([tab, rotulo]) => {

@@ -24,6 +24,7 @@ src = src
   // frente (ex.: `: Record<string, string>[]`, `: ReturnType<typeof mapearLinha>[]`) — precisa
   // remover a versão COM `[]` antes da versão sem, senão sobra um `[]` solto que quebra a sintaxe
   // (ex.: "const rows[] = ..." não é JS válido).
+  .replace(/: \{ aba: string; id: string \}\[\]/g, '') // deduplicarLeads(registros: { aba: string; id: string }[])
   .replace(/: Record<string, string>\[\]/g, '')
   .replace(/: Record<string, string>/g, '')
   .replace(/: ReturnType<typeof mapearLinha>\[\]/g, '')
@@ -49,6 +50,7 @@ new Function('sandbox', trechoPuro + `
   sandbox.get = get;
   sandbox.mapearLinha = mapearLinha;
   sandbox.parseSheetCsv = parseSheetCsv;
+  sandbox.deduplicarLeads = deduplicarLeads;
   sandbox.SHEET_TABS = SHEET_TABS;
   sandbox.sheetTabCsvUrl = sheetTabCsvUrl;
 `)(sandbox);
@@ -159,25 +161,68 @@ try{ sandbox.parseSheetCsv('a,b,c\n1,2,3', 'OUTUBRO (teste)'); }
 catch(e){ erroSemCabecalho = e.message; }
 assert(!!erroSemCabecalho && erroSemCabecalho.includes('OUTUBRO (teste)'), 'parseSheetCsv lança erro identificando qual aba não tem cabeçalho reconhecível (' + erroSemCabecalho + ')');
 
-// --- consolidação de múltiplas abas: concatenar + dedup por id (mesmo padrão usado no Deno.serve,
-// que mantém a ÚLTIMA ocorrência — aqui simulando Agosto seguido de Setembro, como na lista real) ---
-const csvAgosto = HEADER_CSV + '\n' +
-  'l:dup,2026-08-05T09:00:00-03:00,ag:3,A3,as:3,C3,c:3,Camp3,f:3,F3,false,fb,mei,1_linha,11111111000199,d@e.com,Cliente Antigo,Cidade,SP,p:+551177777777,CREATED,Rafael,EM NEGOCIAÇÂO,obs agosto,,\n' +
-  'l:soagosto,2026-08-06T09:00:00-03:00,ag:4,A4,as:4,C4,c:4,Camp4,f:4,F4,false,fb,mei,1_linha,22222222000199,f@g.com,Só em Agosto,Cidade,SP,p:+551166666666,CREATED,Rafael,EM NEGOCIAÇÂO,obs,,';
-const csvSetembro = HEADER_CSV + '\n' +
-  'l:dup,2026-09-05T09:00:00-03:00,ag:5,A5,as:5,C5,c:5,Camp5,f:5,F5,false,fb,mei,1_linha,11111111000199,d@e.com,Cliente Antigo,Cidade,SP,p:+551177777777,CREATED,Rafael,PEDIDO CONCLUIDO (VENDA),cliente voltou em setembro e fechou,sim,"R$54,99"';
-const regsAgosto = sandbox.parseSheetCsv(csvAgosto, 'AGOSTO (teste)');
-const regsSetembro = sandbox.parseSheetCsv(csvSetembro, 'SETEMBRO (teste)');
-const consolidados = regsAgosto.concat(regsSetembro);
-assert(consolidados.length === 3, 'concatenar as duas abas soma os registros das duas (3 linhas: 2 de agosto + 1 de setembro, antes do dedup)');
-const porIdTeste = new Map();
-for(const r of consolidados) porIdTeste.set(r.id, r);
-const unicosTeste = Array.from(porIdTeste.values());
-assert(unicosTeste.length === 2, 'dedup por id consolida o lead repetido (l:dup) num só, mantendo o total de leads únicos');
-const dupFinal = unicosTeste.find(r => r.id === 'l:dup');
-assert(dupFinal.categoria === 'convertido', 'dedup por id mantém a ÚLTIMA ocorrência (a de Setembro, já convertida) e não a de Agosto');
-assert(dupFinal.receita === 54.99, 'dedup por id também traz a receita da última ocorrência (Setembro)');
-assert(unicosTeste.some(r => r.id === 'l:soagosto'), 'lead que só existe em Agosto continua presente após consolidar com Setembro');
+// =====================================================================================
+// 30/09/2026 — aba Digital: abas separadas, consultor da aba de Setembro e novas regras de status.
+// =====================================================================================
+
+// --- cada aba tem a sua chave (vira leads.aba e o seletor da aba Digital) ---
+assert(sandbox.SHEET_TABS.map(t => t.aba).join(',') === 'AGOSTO,SETEMBRO,REPIQUE', 'SHEET_TABS tem as chaves de aba AGOSTO, SETEMBRO e REPIQUE');
+assert(sandbox.SHEET_TABS.find(t => t.gid === '1292366194').aba === 'SETEMBRO', 'o gid da aba de Setembro aponta pra chave SETEMBRO');
+assert(sandbox.SHEET_TABS.find(t => t.gid === '532368128').aba === 'REPIQUE', 'o gid da aba REPIQUE aponta pra chave REPIQUE');
+
+// --- mapearLinha carimba de qual aba o lead veio ---
+assert(sandbox.mapearLinha({ id: 'l:1' }, 'SETEMBRO').aba === 'SETEMBRO', 'mapearLinha grava a aba de origem');
+assert(sandbox.mapearLinha({ id: 'l:1' }).aba === '', 'sem aba informada, fica vazio (nunca inventa uma aba)');
+
+// --- a aba de SETEMBRO tem a coluna do consultor com o cabeçalho EM BRANCO ---
+// (cabeçalho real da aba: ...,lead_status, <coluna sem nome>, STATUS, OBS, CONVERTEU?, RECEITA)
+const HEADER_SETEMBRO = 'id,created_time,ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,form_id,form_name,is_organic,platform,qual_o_tipo_da_sua_empresa?,qual_a_quantidade_de_linhas?,qual_o_seu_cnpj?,email,full_name,city,state,phone_number,lead_status, ,STATUS,OBS,CONVERTEU?,RECEITA';
+const linhaSet = (id, consultor, status, sim, receita) => id + ',2026-09-10T10:00:00-03:00,a,b,c,d,e,f,g,h,false,fb,mei,1_linha,123,x@y.com,Nome,Cidade,SP,p:+55,CREATED,' + consultor + ',' + status + ',obs,' + sim + ',' + receita;
+const csvSetBranco = HEADER_SETEMBRO + '\n' + linhaSet('l:s1', 'Mariana', 'PEDIDO CONCLUIDO (VENDA)', '', '') + '\n' + linhaSet('l:s2', 'Gabriel', 'EM NEGOCIAÇÂO', '', '') + '\n' + linhaSet('l:s3', '', 'CLIENTE NÃO RESPONDE', '', '');
+const regsSetBranco = sandbox.parseSheetCsv(csvSetBranco, 'SETEMBRO (teste)', 'SETEMBRO');
+assert(regsSetBranco.length === 3, 'aba de Setembro com coluna de consultor sem cabeçalho: lê as 3 linhas');
+assert(regsSetBranco.find(r => r.id === 'l:s1').consultor === 'Mariana', 'lê o consultor da coluna sem cabeçalho (antes ficava "(Sem consultor)")');
+assert(regsSetBranco.find(r => r.id === 'l:s2').consultor === 'Gabriel', 'lê o consultor de outra linha da aba de Setembro');
+assert(regsSetBranco.find(r => r.id === 'l:s3').consultor === null, 'linha de Setembro sem consultor preenchido continua null');
+assert(regsSetBranco.every(r => r.aba === 'SETEMBRO'), 'todos os leads da aba de Setembro saem com aba = SETEMBRO');
+assert(regsSetBranco.find(r => r.id === 'l:s1').converteu === true, 'venda concluída em Setembro conta como convertido');
+// as outras abas (cabeçalho "CONSULTOR ") continuam lendo normalmente e não são afetadas pelo ajuste
+const csvComConsultor = HEADER_SETEMBRO.replace('lead_status, ,STATUS', 'lead_status,CONSULTOR ,STATUS') + '\n' + linhaSet('l:r1', 'Yasmin', 'CLIENTE NÃO RESPONDE', '', '');
+const regsComConsultor = sandbox.parseSheetCsv(csvComConsultor, 'REPIQUE (teste)', 'REPIQUE');
+assert(regsComConsultor[0].consultor === 'Yasmin' && regsComConsultor[0].aba === 'REPIQUE', 'aba com cabeçalho CONSULTOR continua funcionando e carimba REPIQUE');
+// o ajuste só vale pra coluna SEM nome: uma coluna nomeada qualquer antes de STATUS não é tomada como consultor
+const csvOutraColuna = HEADER_SETEMBRO.replace('lead_status, ,STATUS', 'lead_status,OUTRA COISA,STATUS') + '\n' + linhaSet('l:o1', 'Fulano', 'CLIENTE NÃO RESPONDE', '', '');
+assert(sandbox.parseSheetCsv(csvOutraColuna, 'X (teste)', 'X')[0].consultor === null, 'coluna com nome próprio antes de STATUS não é confundida com a do consultor');
+
+// --- status NOVOS viram VENDA PERDIDA (decisão do usuário, 30/09/2026) ---
+['TELEFONE ERRADO OU SEM WHATSAPP', 'TELEFONE ERRADO ou  SEM WHATSAPP', 'TELEFONE ERRADO ou Sem Whatsapp', 'LEAD FORA DO PERFIL', 'CLIENTE SO QUERIA APARELHO',
+  'CLIENTE SÓ QUERIA FIBRA', 'CNPJ REPROVADO', 'SUSPEITA DE FRAUDE', 'Cliente não quer no CNPJ'].forEach(s => {
+  assert(sandbox.categoriaDoStatus(s) === 'perdido', 'status "' + s + '" é venda perdida');
+});
+assert(sandbox.categoriaDoStatus('PEDIDO EM ANÁLISE') === 'andamento', 'PEDIDO EM ANÁLISE segue em andamento');
+assert(sandbox.categoriaDoStatus('pedido em analise') === 'andamento', 'PEDIDO EM ANÁLISE sem acento e em minúsculas também é andamento (conhecido, não "desconhecido")');
+assert(sandbox.categoriaDoStatus('EM NEGOCIACAO') === 'andamento' && sandbox.categoriaDoStatus('em negociaçâo') === 'andamento', 'comparação de status ignora acento, caixa e o "Â" da planilha');
+assert(sandbox.categoriaDoStatus('CLIENTE  NÃO   RESPONDE') === 'perdido', 'espaços repetidos no meio do status são ignorados');
+
+// --- regra de convertido: primeiro a coluna CONVERTEU?="sim"; sem "sim", o STATUS de venda concluída ---
+assert(sandbox.calcConverteu('CLIENTE NÃO RESPONDE', 'sim') === true, '"sim" na coluna vale mesmo com outro status (a coluna vem primeiro)');
+assert(sandbox.calcConverteu('CNPJ INAPTO', 'SIM') === true, '"SIM" maiúsculo também vale');
+assert(sandbox.calcConverteu('PEDIDO CONCLUIDO (VENDA)', '') === true, 'sem "sim", o status PEDIDO CONCLUIDO (VENDA) conta como convertido');
+assert(sandbox.calcConverteu('pedido concluido (venda)', 'e') === true, 'valor estranho na coluna ("e") não impede o status de converter');
+assert(sandbox.calcConverteu('EM NEGOCIAÇÂO', 'e') === false && sandbox.calcConverteu('EM NEGOCIAÇÂO', 'f') === false, 'valores soltos ("e", "f") na coluna CONVERTEU? não contam como sim');
+assert(sandbox.calcConverteu('PEDIDO EM ANÁLISE', '') === false, 'pedido em análise ainda não é convertido');
+
+// --- junta as abas SEM misturar: a chave é (aba, id) ---
+const dupAgosto = { aba: 'AGOSTO', id: 'l:dup', consultor: 'Rafael', status: 'EM NEGOCIAÇÂO' };
+const dupSetembro = { aba: 'SETEMBRO', id: 'l:dup', consultor: 'Rafael', status: 'PEDIDO CONCLUIDO (VENDA)' };
+const dupRepique = { aba: 'REPIQUE', id: 'l:dup', consultor: 'Yasmin', status: 'CLIENTE NÃO RESPONDE' };
+const juntos = sandbox.deduplicarLeads([dupAgosto, dupSetembro, dupRepique, { aba: 'AGOSTO', id: 'l:so-agosto' }]);
+assert(juntos.length === 4, 'o mesmo id em 3 abas vira 3 linhas (uma por aba) + 1 lead só de Agosto = 4 — achou ' + juntos.length);
+assert(juntos.find(r => r.aba === 'SETEMBRO' && r.id === 'l:dup').consultor === 'Rafael', 'a linha de Setembro NÃO é sobrescrita pela do Repique (o consultor continua Rafael)');
+assert(juntos.find(r => r.aba === 'REPIQUE' && r.id === 'l:dup').consultor === 'Yasmin', 'a linha do Repique fica com o consultor do Repique');
+// repetido dentro da MESMA aba: mantém a última (evita o erro do upsert do Postgres)
+const repetido = sandbox.deduplicarLeads([{ aba: 'REPIQUE', id: 'l:r', status: 'antigo' }, { aba: 'REPIQUE', id: 'l:r', status: 'novo' }]);
+assert(repetido.length === 1 && repetido[0].status === 'novo', 'id repetido dentro da mesma aba mantém a última ocorrência');
 
 console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
 if(fail > 0) process.exitCode = 1;

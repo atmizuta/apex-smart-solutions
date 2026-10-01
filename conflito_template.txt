@@ -1,0 +1,20 @@
+﻿<<<<<<< HEAD
+        <!-- 29/09/2026 (pedido do usuÃ¡rio: "os consultores estÃ£o se perdendo no controle da
+             planilha nos retornos, follow ups, agendamentos... preciso que isso fique otimizado
+             para cada vendedor") â€” ver REGRAS_NEGOCIO.md Â§48. Cada consultor agenda/resolve os
+             prÃ³prios retornos aqui dentro, em vez de anotar na planilha do Google. -->
+        <div class="card" id="meusRetornosCard" style="display:none">
+          <h3>Meus leads e retornos</h3>
+          <p class="desc">Seus leads (pelo nome de consultor da planilha) com o controle de retorno direto aqui â€” sem precisar mais anotar em outro lugar. Atrasados aparecem em vermelho; leads sem nenhum retorno agendado aparecem em rosa.</p>
+          <div id="meusRetornosResumo" style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 4px"></div>
+          <div id="meusRetornosLista"></div>
+        </div>
+
+=======
+        <!-- 30/09/2026: seletor de aba da planilha (Setembro / Agosto / Repique). Cada aba Ã© contada separada â€” ver seÃ§Ã£o 54 do REGRAS_NEGOCIO.md -->
+        <div class="card" id="conversaoAbaCard" style="display:none">
+          <h3>Aba da planilha</h3>
+          <p class="desc">Cada aba da planilha Ã© contada separadamente (elas nÃ£o se misturam): os nÃºmeros abaixo sÃ£o sÃ³ da aba escolhida.</p>
+          <div class="filterPills" id="conversaoAbaPills"></div>
+        </div>
+>>>>>>> origin/main
