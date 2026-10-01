@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   --sinal: #E30613;
   --carmim: #8E0B1B;
@@ -8,6 +12,27 @@
   --rosa: #FBE3E4;
   --font-head: "Barlow Condensed", system-ui, sans-serif;
   --font-body: "Barlow", system-ui, sans-serif;
+
+  --background: #ffffff;
+  --foreground: var(--grafite);
+  --card: #ffffff;
+  --card-foreground: var(--grafite);
+  --popover: #ffffff;
+  --popover-foreground: var(--grafite);
+  --primary: var(--sinal);
+  --primary-foreground: #ffffff;
+  --secondary: var(--papel);
+  --secondary-foreground: var(--grafite);
+  --muted: var(--papel);
+  --muted-foreground: var(--cinza);
+  --accent: var(--rosa);
+  --accent-foreground: var(--bordo);
+  --destructive: var(--sinal);
+  --destructive-foreground: #ffffff;
+  --border: #e2e2e4;
+  --input: #e2e2e4;
+  --ring: var(--sinal);
+  --radius: 0.5rem;
 }
 
 * {
@@ -40,4 +65,22 @@ th, td {
   padding: 8px 10px;
   border-bottom: 1px solid #e2e2e4;
   text-align: left;
+}
+
+@layer base {
+  :root {
+    /* Sidebar variables use the HSL-triplet convention the shadcn sidebar
+       registry component expects (wrapped in hsl() in tailwind.config.ts),
+       unlike the rest of this file's tokens — kept separate deliberately.
+       Values below are the Apex "Sinal de Ápice" palette converted to HSL,
+       not the shadcn defaults. */
+    --sidebar-background: 240 4% 95%; /* --papel */
+    --sidebar-foreground: 200 5% 12%; /* --grafite */
+    --sidebar-primary: 356 95% 46%; /* --sinal */
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 357 75% 94%; /* --rosa */
+    --sidebar-accent-foreground: 4 84% 17%; /* --bordo */
+    --sidebar-border: 240 4% 89%;
+    --sidebar-ring: 356 95% 46%; /* --sinal */
+  }
 }
