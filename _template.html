@@ -1214,6 +1214,19 @@
     </section>
     <!-- PEDIDOS PARADOS (consultor) — ver seção 53 do REGRAS_NEGOCIO.md -->
     <section class="panel" id="panel-pedidosparados">
+      <!-- 01/10/2026: leads do consultor para tratar (só quem está em leads_equipe) — seção 59 do REGRAS_NEGOCIO.md -->
+      <div id="plWrap" style="display:none">
+        <div class="card" id="plErro" style="display:none">
+          <h3>Meus leads para tratar</h3>
+          <p class="desc">Não foi possível carregar os seus leads agora. Tente de novo em instantes.</p>
+        </div>
+        <div class="card" id="plCard" style="display:none">
+          <h3>Meus leads para tratar</h3>
+          <p class="desc">Seus leads que ainda estão em aberto, de todas as abas da planilha. O que precisa de ação primeiro aparece no topo.</p>
+          <div id="plResumo" style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 4px"></div>
+          <div id="plLista"></div>
+        </div>
+      </div>
       <div class="card" id="ppSemVinculo" style="display:none">
         <h3>Seu usuário ainda não foi ligado ao NeoCRM</h3>
         <p class="desc">Para mostrar só os seus pedidos, o painel precisa saber qual é o seu usuário no NeoCRM. Avise um administrador para fazer esse vínculo (leva um minuto).</p>
@@ -8894,6 +8907,115 @@ document.getElementById('btnMlExportTabela').addEventListener('click', function(
   mlBaixarXlsx(`LigacoesPorConsultor_${mlEstado.de || 'inicio'}_${mlEstado.ate || 'hoje'}.xlsx`, [{ nome: 'Ligações por consultor', linhas: mlLinhasExportTabela(linhas) }]);
 });
 
+/* ---- Pedidos Parados: "Meus leads para tratar" (consultor) — 01/10/2026, REGRAS_NEGOCIO.md seção 59 ---- */
+const plEstado = { geracao: 0, vinculado: false, erro: false, leads: [], followups: [] };
+const PL_ORDEM = { semLigacao: 0, atrasado: 1, esfriando: 2, hoje: 3, ok: 4 };
+
+function plClassificar(leads, followups, hoje, agoraMs){
+  const pend = {};   // próximo retorno pendente de cada lead
+  (followups || []).forEach(f => { if(!f.feito && (!pend[f.lead_id] || f.data_prevista < pend[f.lead_id].data_prevista)) pend[f.lead_id] = f; });
+  return (leads || []).map(l => {
+    const t = Number(l.tentativas) || 0, p = pend[l.lead_id] || null;
+    const ms = new Date(l.ultima_ligacao || l.criado_em_lead).getTime();
+    const dias = isNaN(ms) ? null : Math.floor((agoraMs - ms) / 86400000);
+    let situacao = 'ok';
+    if(t === 0) situacao = 'semLigacao';
+    else if(p && p.data_prevista < hoje) situacao = 'atrasado';
+    else if(dias !== null && dias >= LEAD_ESFRIANDO_DIAS) situacao = 'esfriando';
+    else if(p && p.data_prevista === hoje) situacao = 'hoje';
+    return { lead: l, tentativas: t, pendente: p, diasParado: dias, situacao };
+  }).sort((a, b) => (PL_ORDEM[a.situacao] - PL_ORDEM[b.situacao]) || String(a.lead.criado_em_lead).localeCompare(String(b.lead.criado_em_lead)));
+}
+
+function plRender(){
+  const wrap = document.getElementById('plWrap'), card = document.getElementById('plCard'), erro = document.getElementById('plErro');
+  wrap.style.display = plEstado.vinculado ? '' : 'none';
+  erro.style.display = plEstado.vinculado && plEstado.erro ? '' : 'none';
+  card.style.display = plEstado.vinculado && !plEstado.erro ? '' : 'none';
+  if(!plEstado.vinculado || plEstado.erro) return;
+  const hoje = hojeSP();
+  const linhas = plClassificar(plEstado.leads, plEstado.followups, hoje, Date.now());
+  const n = s => linhas.filter(x => x.situacao === s).length;
+  document.getElementById('plResumo').innerHTML = [['atrasado', n('semLigacao') + ' sem ligação'], ['atrasado', n('atrasado') + ' retorno atrasado'],
+    ['hoje', n('esfriando') + ' esfriando'], ['hoje', n('hoje') + ' para hoje']].map(c => `<span class="retornoResumoChip ${c[0]}">${c[1]}</span>`).join('');
+  const classeBadge = { semLigacao: 'atrasado', atrasado: 'atrasado', esfriando: 'hoje', hoje: 'hoje', ok: 'futuro' };
+  const rotulo = x => {
+    if(x.situacao === 'semLigacao') return 'Nenhuma ligação ainda' + (x.diasParado !== null ? ' · entrou há ' + x.diasParado + ' d' : '');
+    if(x.situacao === 'atrasado') return 'Retorno atrasado desde ' + ppFmtDia(x.pendente.data_prevista);
+    if(x.situacao === 'esfriando') return 'Esfriando · sem ligação há ' + x.diasParado + ' d';
+    if(x.situacao === 'hoje') return 'Retorno hoje';
+    return x.pendente ? 'Retorno em ' + ppFmtDia(x.pendente.data_prevista) : 'Em dia';
+  };
+  document.getElementById('plLista').innerHTML = linhas.length ? linhas.map(x => {
+    const l = x.lead, id = escapeHtml(l.lead_id), tel = String(l.telefone || '').replace(/^p:/, '');
+    return `<div class="retornoLeadRow" data-lead-id="${id}">
+      <div class="retornoLeadInfo"><strong>${escapeHtml(l.nome || '(sem nome)')}</strong>
+        <span class="retornoLeadSub">${escapeHtml((l.status || '').trim() || 'sem status')} · ${escapeHtml(conversaoAbaRotulo(l.aba))} · ${x.tentativas} ${x.tentativas === 1 ? 'tentativa' : 'tentativas'}${l.ultima_ligacao ? ' · última ligação ' + escapeHtml(mlFmtDiaHora(l.ultima_ligacao)) : ''}</span></div>
+      <div class="retornoLeadAcoes">
+        <span class="retornoBadge ${classeBadge[x.situacao]}">${escapeHtml(rotulo(x))}</span>
+        ${x.pendente ? `<button type="button" class="btn btn-sm btn-outline btnPlFeito" data-followup-id="${escapeHtml(x.pendente.id)}">Marcar feito</button>` : ''}
+        ${tel ? `<button type="button" class="btn btn-sm btn-outline" data-copiar="${escapeHtml(tel)}" style="width:auto">${escapeHtml(tel)}</button>` : ''}
+        <button type="button" class="btn btn-sm btn-ghost btnPlAgendar" data-lead-id="${id}">Agendar retorno</button>
+      </div>
+      <div class="retornoAgendarForm" id="plForm_${id}" style="display:none">
+        <input type="date" class="retornoFormData" value="${hoje}">
+        <select class="retornoFormTipo">${Object.keys(FOLLOWUP_TIPO_LABEL).map(t => `<option value="${t}">${FOLLOWUP_TIPO_LABEL[t]}</option>`).join('')}</select>
+        <input type="text" class="retornoFormObs" placeholder="Observação (opcional)">
+        <button type="button" class="btn btn-sm btnPlSalvar" data-lead-id="${id}">Salvar</button>
+      </div></div>`;
+  }).join('') : '<p class="desc">Nenhum lead em aberto. 🎉</p>';
+}
+
+async function plCarregar(){
+  if(!canSeePedidosParados()) return;
+  const geracao = ++plEstado.geracao;
+  const [vinc, lds, fu] = await Promise.all([
+    ppSeguro(() => sb.from('leads_equipe').select('nome_planilha').eq('profile_id', currentUser.id).maybeSingle()),
+    ppSeguro(() => fetchAllRows(() => sb.rpc('meus_leads_para_tratar'))),
+    ppSeguro(() => sb.from('leads_followups').select('id,lead_id,consultor_id,data_prevista,tipo,feito').eq('consultor_id', currentUser.id).eq('feito', false)),
+  ]);
+  if(geracao !== plEstado.geracao) return;   // trocou de usuário/recarregou no meio
+  plEstado.vinculado = !!(vinc && !vinc.error && vinc.data && vinc.data.nome_planilha);
+  plEstado.erro = !!((lds && lds.error) || (fu && fu.error));
+  if(plEstado.erro) console.error((lds && lds.error) || (fu && fu.error));
+  plEstado.leads = (lds && lds.data) || [];
+  plEstado.followups = (fu && fu.data) || [];
+  plRender();
+}
+function plResetar(){
+  plEstado.geracao++;
+  Object.assign(plEstado, { vinculado: false, erro: false, leads: [], followups: [] });
+  ['plResumo', 'plLista'].forEach(id => { document.getElementById(id).innerHTML = ''; });
+  ['plWrap', 'plCard', 'plErro'].forEach(id => { document.getElementById(id).style.display = 'none'; });
+}
+
+document.getElementById('plLista').addEventListener('click', async function(ev){
+  const ag = ev.target.closest('.btnPlAgendar');
+  if(ag){ const f = document.getElementById('plForm_' + ag.dataset.leadId); if(f) f.style.display = f.style.display === 'none' ? 'flex' : 'none'; return; }
+  const sv = ev.target.closest('.btnPlSalvar');
+  if(sv){
+    const f = document.getElementById('plForm_' + sv.dataset.leadId);
+    const data = f.querySelector('.retornoFormData').value;
+    if(!data){ mostrarAviso('Escolha uma data para o retorno.', 'erro'); return; }
+    sv.disabled = true;
+    const { error } = await sb.from('leads_followups').insert({ lead_id: sv.dataset.leadId, consultor_id: currentUser.id, data_prevista: data,
+      tipo: f.querySelector('.retornoFormTipo').value, observacao: f.querySelector('.retornoFormObs').value.trim() || null });
+    sv.disabled = false;
+    if(error){ mostrarAviso('Não foi possível salvar o retorno: ' + error.message, 'erro'); return; }
+    mostrarAviso('Retorno agendado.', 'ok');
+    await plCarregar();
+    return;
+  }
+  const fe = ev.target.closest('.btnPlFeito');
+  if(fe){
+    fe.disabled = true;
+    const { error } = await sb.from('leads_followups').update({ feito: true, feito_em: new Date().toISOString() }).eq('id', fe.dataset.followupId);
+    fe.disabled = false;
+    if(error){ mostrarAviso('Não foi possível marcar como feito: ' + error.message, 'erro'); return; }
+    await plCarregar();
+  }
+});
+
 /* ==== FIM MONITORAMENTO LEADS ==== */
 
 // Pílulas de aba da planilha (Setembro/Agosto/Repique): só trocam a aba e re-renderizam, sem refetch.
@@ -9969,6 +10091,7 @@ function ppRender(){
 
 async function loadPedidosParados(){
   if(!canSeePedidosParados()) return;
+  plCarregar().catch(err => console.error(err));   // leads do consultor (seção 59); roda em paralelo com os pedidos
   ppEstado.secao = ppEstado.secao || 'parados';
   document.getElementById('ppCarregando').style.display = ppEstado.calc ? 'none' : 'block';
   await ppCarregarDados(false);
@@ -10004,6 +10127,7 @@ function ppResetar(){
     movimentos: [], neoOutros: new Set(), telefones: new Map(), secao: 'parados', fEtapa: '', fNivel: '' });
   ['ppPlacar', 'ppKpis', 'ppPills', 'ppSecao', 'meuDiaStats'].forEach(id => { document.getElementById(id).innerHTML = ''; });
   ['ppConteudo', 'ppSemVinculo', 'ppErro', 'ppCarregando', 'meuDiaCard'].forEach(id => { document.getElementById(id).style.display = 'none'; });
+  plResetar();
 }
 async function ppIniciar(){
   ppResetar();

@@ -20,6 +20,7 @@ window.__rpcRespostas = {};   // nome da rpc -> { data, error } | função(args)
 window.__tabelas = {};        // tabela -> linhas
 window.__escritas = [];       // upsert/insert/delete feitos pelo painel
 window.__xlsx = [];           // arquivos que o painel mandou baixar
+window.__lidas = [];          // tabelas lidas pelo painel (prova de que o consultor nunca lê ligacoes_manuais)
 function builder(tabela){
   const linhasFiltradas = () => { const f = b.__eq || {}; return (window.__tabelas[tabela] || []).filter(l => Object.keys(f).every(c => l[c] === undefined || l[c] === f[c])); };
   const b = {
@@ -27,6 +28,7 @@ function builder(tabela){
     eq: (c, v) => { b.__eq = Object.assign(b.__eq || {}, { [c]: v }); return b; },
     upsert: (rows, opts) => { window.__escritas.push({ tabela, op: 'upsert', rows, opts }); return Promise.resolve({ error: window.__erroEscrita || null }); },
     insert: (rows) => { window.__escritas.push({ tabela, op: 'insert', rows }); return Promise.resolve({ error: null }); },
+    update: (patch) => ({ eq: (c, v) => { window.__escritas.push({ tabela, op: 'update', patch, filtro: { [c]: v } }); return Promise.resolve({ error: null }); } }),
     delete: () => ({ eq: (c, v) => { window.__escritas.push({ tabela, op: 'delete', filtro: { [c]: v } }); return Promise.resolve({ error: null }); } }),
     maybeSingle: async () => ({ data: linhasFiltradas()[0] || null, error: null }),
     then: (resolve) => resolve({ data: linhasFiltradas(), error: null }),
@@ -35,7 +37,7 @@ function builder(tabela){
 }
 window.supabase = { createClient: comRange(() => ({
   auth: { getSession: async () => ({data:{session:null}}), onAuthStateChange: () => {}, signInWithPassword: async () => ({data:{},error:null}), signOut: async () => ({}) },
-  from: (t) => builder(t),
+  from: (t) => { window.__lidas.push(t); return builder(t); },
   functions: { invoke: async () => ({ data: {}, error: null }) },
   rpc: (nome, args) => {
     window.__rpcCalls.push({ nome, args });
@@ -483,6 +485,99 @@ try{
   const linhasT = XLSX.utils.sheet_to_json(window.__xlsx[0].wb.Sheets['Ligações por consultor']);
   eq(linhasT.map(l => l.Consultor), ['Caio', 'Luria'], 'tabela exportada = a que está na tela (os consultores de leads)');
   assert(linhasT[0]['Ligações para leads'] === 40 && linhasT[0]['Tentativas por lead'] === 4 && linhasT[0]['% do total'] === '40,0%', 'colunas e valores do Caio');
+
+  // ==== TASK 9: Meus leads para tratar (consultor) ====
+  const diaIso = (d) => new Date(Date.now() - d * 86400000).toISOString();
+  const hojeP = hojeSP(), ontemP = somaDiasStr(hojeP, -1);
+  const lp = (id, tent, extra) => Object.assign({ aba: 'OUTUBRO', lead_id: id, nome: 'Lead ' + id, telefone: 'p:+5519900000099', status: 'EM NEGOCIAÇÃO', categoria: 'andamento',
+    criado_em_lead: diaIso(2), tentativas: tent, atendidas: 0, ultima_ligacao: null }, extra || {});
+
+  // função pura: ordem de urgência e fronteira de "esfriando"
+  const cls = plClassificar([
+    lp('ok1', 2, { ultima_ligacao: diaIso(1) }),
+    lp('hoje1', 2, { ultima_ligacao: diaIso(1) }),
+    lp('esf1', 4, { ultima_ligacao: diaIso(10) }),
+    lp('atr1', 3, { ultima_ligacao: diaIso(1) }),
+    lp('sem1', 0, { criado_em_lead: diaIso(5) }),
+    lp('lim1', 2, { ultima_ligacao: diaIso(5) }),   // exatamente 5 dias = esfriando (fronteira)
+    lp('lim2', 2, { ultima_ligacao: diaIso(4) }),   // 4 dias = ainda não
+  ], [{ id: 'f1', lead_id: 'atr1', data_prevista: ontemP, feito: false }, { id: 'f2', lead_id: 'hoje1', data_prevista: hojeP, feito: false }, { id: 'f3', lead_id: 'ok1', data_prevista: ontemP, feito: true }], hojeP, Date.now());
+  eq(cls.map(x => x.lead.lead_id + ':' + x.situacao), ['sem1:semLigacao', 'atr1:atrasado', 'esf1:esfriando', 'lim1:esfriando', 'hoje1:hoje', 'ok1:ok', 'lim2:ok'], 'ordem de urgência: sem ligação, retorno atrasado, esfriando, retorno hoje, resto; retorno já feito não conta');
+  assert(plClassificar(null, null, hojeP, Date.now()).length === 0, 'null não quebra');
+
+  // tela
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  window.__lidas.length = 0; window.__rpcCalls.length = 0; window.__escritas.length = 0;
+  window.__tabelas.leads_equipe = [{ id: 1, nome_planilha: 'Caio', profile_id: 'c1', monitorar: true }];
+  window.__tabelas.leads_followups = [{ id: 'f1', lead_id: 'atr1', consultor_id: 'c1', data_prevista: ontemP, tipo: 'retorno', feito: false }];
+  window.__rpcRespostas.meus_leads_para_tratar = { data: [lp('ok1', 2, { ultima_ligacao: diaIso(1) }), lp('atr1', 3, { ultima_ligacao: diaIso(1) }), lp('sem1', 0, { criado_em_lead: diaIso(5) })], error: null };
+  await plCarregar();
+  assert(document.getElementById('plWrap').style.display !== 'none' && document.getElementById('plCard').style.display !== 'none', 'consultor vinculado vê a seção');
+  eq([...document.querySelectorAll('#plLista .retornoLeadRow')].map(r => r.dataset.leadId), ['sem1', 'atr1', 'ok1'], 'linhas na ordem de urgência');
+  const chips = document.getElementById('plResumo').textContent;
+  assert(chips.includes('1 sem ligação') && chips.includes('1 retorno atrasado') && chips.includes('0 esfriando'), 'chips de resumo');
+  const linhaSem = document.querySelector('#plLista [data-lead-id="sem1"]').textContent;
+  assert(linhaSem.includes('Nenhuma ligação') && linhaSem.includes('Outubro'), 'lead sem ligação diz isso e mostra a aba');
+  assert(document.querySelector('#plLista [data-lead-id="atr1"]').textContent.includes('3 tentativas'), 'mostra o número de tentativas');
+  assert(document.querySelector('#plLista [data-lead-id="sem1"] [data-copiar="+5519900000099"]'), 'telefone copiável (sem o prefixo p:)');
+  assert(window.__rpcCalls.some(c => c.nome === 'meus_leads_para_tratar') && !window.__lidas.includes('ligacoes_manuais'), 'só usa a RPC do consultor; nunca lê ligacoes_manuais');
+  assert(!window.__rpcCalls.some(c => /^monitor_/.test(c.nome)), 'consultor nunca chama as RPCs do monitoramento');
+
+  // marcar retorno como feito
+  document.querySelector('#plLista [data-followup-id="f1"]').click();
+  await espera(60);
+  const upd = window.__escritas.find(e => e.tabela === 'leads_followups' && e.op === 'update');
+  assert(upd && upd.filtro.id === 'f1' && upd.patch.feito === true, 'marca o retorno certo como feito');
+
+  // agendar retorno
+  const formSel = '#plLista [data-lead-id="ok1"]';
+  document.querySelector(formSel + ' .btnPlAgendar').click();
+  const form = document.getElementById('plForm_ok1');
+  assert(form.style.display !== 'none', 'o botão abre o formulário de retorno');
+  form.querySelector('.retornoFormData').value = hojeP;
+  form.querySelector('.retornoFormObs').value = 'ligar de manhã';
+  window.__escritas.length = 0;
+  document.querySelector(formSel + ' .btnPlSalvar').click();
+  await espera(60);
+  const ins9 = window.__escritas.find(e => e.tabela === 'leads_followups' && e.op === 'insert');
+  assert(ins9 && ins9.rows.lead_id === 'ok1' && ins9.rows.consultor_id === 'c1' && ins9.rows.data_prevista === hojeP && ins9.rows.observacao === 'ligar de manhã', 'agenda o retorno do lead certo, no nome do consultor');
+  document.querySelector(formSel + ' .btnPlAgendar').click();
+  document.getElementById('plForm_ok1').querySelector('.retornoFormData').value = '';   // a lista recarregou depois de salvar: pegar o formulário novo
+  window.__escritas.length = 0;
+  document.querySelector(formSel + ' .btnPlSalvar').click();
+  await espera(40);
+  assert(window.__escritas.length === 0, 'sem data não grava');
+
+  // vindo pela aba: loadPedidosParados chama a seção
+  window.__rpcCalls.length = 0;
+  await loadPedidosParados();
+  await espera(60);
+  assert(window.__rpcCalls.some(c => c.nome === 'meus_leads_para_tratar'), 'abrir Pedidos Parados carrega os leads do consultor');
+
+  // lista vazia
+  window.__rpcRespostas.meus_leads_para_tratar = { data: [], error: null };
+  await plCarregar();
+  assert(document.getElementById('plLista').textContent.includes('Nenhum lead em aberto') && !/NaN|undefined/.test(document.getElementById('plWrap').textContent), 'sem leads em aberto: mensagem, sem NaN');
+
+  // erro ao buscar os leads (com vínculo): aviso na seção
+  window.__rpcRespostas.meus_leads_para_tratar = { data: null, error: { message: 'boom' } };
+  await plCarregar();
+  assert(document.getElementById('plErro').style.display !== 'none' && document.getElementById('plCard').style.display === 'none', 'erro dos leads mostra o aviso');
+  window.__rpcRespostas.meus_leads_para_tratar = { data: [lp('ok1', 2)], error: null };
+
+  // sem vínculo: a seção some, sem aviso e sem erro
+  window.__tabelas.leads_equipe = [{ id: 2, nome_planilha: 'Outro', profile_id: 'outro', monitorar: true }];
+  await plCarregar();
+  assert(document.getElementById('plWrap').style.display === 'none', 'consultor sem vínculo não vê a seção');
+  window.__tabelas.leads_equipe = [{ id: 1, nome_planilha: 'Caio', profile_id: 'c1', monitorar: true }];
+
+  // admin não vê a seção
+  currentUser = { id: 'a1', nome: 'Admin Teste', username: 'adm', role: 'admin' };
+  window.__rpcCalls.length = 0;
+  await plCarregar();
+  assert(!window.__rpcCalls.some(c => c.nome === 'meus_leads_para_tratar'), 'admin não carrega a seção do consultor');
+  plResetar();
+  assert(document.getElementById('plWrap').style.display === 'none' && document.getElementById('plLista').innerHTML === '', 'reset limpa a tela (troca de login)');
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
   process.exit(fail > 0 ? 1 : 0);
