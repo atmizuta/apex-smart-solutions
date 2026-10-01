@@ -2483,3 +2483,8 @@ Com mais de 10 leads, a fila mostra só os 10 mais antigos e um botão "Mostrar 
 - O usuário clicou "Atualizar agora" às 17:41 (sync-leads v10): OUTUBRO passou a ter **27** leads (igual à aba da planilha).
 - Cópias erradas em SETEMBRO (mesmo `id` que em OUTUBRO): **22** (18 ainda sem consultor + 4 do Gabriel), todas criadas em 01/10. Apagadas com ok do usuário, numa transação que só gravava se as contagens batessem. Resultado: **SETEMBRO 851** (= aba "SETEMBRO 26" da planilha), **OUTUBRO 27**, AGOSTO 154, REPIQUE 427.
 - Os "31 leads de outubro" de 60.2 eram contados em UTC: 9 deles entraram entre 21h e 0h de 30/09 (horário de SP) e são de setembro de verdade — ficaram onde estavam.
+
+### 60.9 Equipe de leads completada (01/10/2026, noite)
+- Pedido do usuário: ligar à equipe todos os consultores com pelo menos um lead na planilha. O próprio usuário já tinha ligado Caio, Gabriel (Macedo), Luria e Mariana pelo editor (monitorar = sim).
+- Gravados com ok do usuário (`monitorar = false`, para não entrarem nos cards do Monitoramento; dá para marcar no editor): Giovanna → Giovanna Firmina, Henrique → Henrique Pavin, Lucas → Lucas Izidoro, Victoria → Victoria Horni e **Manuela → Manuella Bento** (o login tem dois "L" e a planilha um — por isso a regra do primeiro nome não pegava).
+- Ficaram de fora: Danilo (sem login; saiu da empresa — os leads em aberto dele precisam de novo dono na planilha), Rafael (admin; Pedidos Parados é só de consultor) e quem só tem lead no Repique (Yasmin, Bianca).
