@@ -930,6 +930,8 @@
       <div class="filterPills" id="digitalSubTabs" style="display:none;margin-bottom:14px">
         <button type="button" class="filterPill active" data-digital-sub="leads">Leads</button>
         <button type="button" class="filterPill" data-digital-sub="monitor">Monitoramento Leads</button>
+        <!-- 01/10/2026 (seção 61): só o consultor que tem lead vê esta sub-aba -->
+        <button type="button" class="filterPill" data-digital-sub="meus" style="display:none">Meus leads para tratar</button>
       </div>
       <div id="digitalSubLeads">
       <div class="card">
@@ -1166,6 +1168,23 @@
           <button class="btn btn-sm" type="button" id="btnMlMetasSalvar" style="width:auto;margin-top:10px">Salvar metas</button>
         </div>
       </div><!-- /digitalSubMonitor -->
+
+      <!-- 01/10/2026: leads do consultor para tratar, um mês por vez (sem Repique) — seções 59, 60 e 61 do REGRAS_NEGOCIO.md -->
+      <div id="digitalSubMeus" style="display:none">
+      <div id="plWrap" style="display:none">
+        <div class="card" id="plErro" style="display:none">
+          <h3>Meus leads para tratar</h3>
+          <p class="desc">Não foi possível carregar os seus leads agora. Tente de novo em instantes.</p>
+        </div>
+        <div class="card" id="plCard" style="display:none">
+          <h3>Meus leads para tratar</h3>
+          <p class="desc">Seus leads que ainda estão em aberto, separados pelo mês da planilha (o Repique fica de fora). O que precisa de ação primeiro aparece no topo; o status e a OBS são os que estão na planilha.</p>
+          <div class="filterPills" id="plAbaPills" style="margin:10px 0 4px"></div>
+          <div id="plResumo" style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 4px"></div>
+          <div id="plLista"></div>
+        </div>
+      </div>
+      </div><!-- /digitalSubMeus -->
     </section>
 
     <!-- FECHAMENTO (18/09/2026) — só admin: relatório de comissionamento do consultor. Data de
@@ -1215,19 +1234,7 @@
     </section>
     <!-- PEDIDOS PARADOS (consultor) — ver seção 53 do REGRAS_NEGOCIO.md -->
     <section class="panel" id="panel-pedidosparados">
-      <!-- 01/10/2026: leads do consultor para tratar (quem tem lead nas abas do mês; sem Repique) — seções 59 e 60 do REGRAS_NEGOCIO.md -->
-      <div id="plWrap" style="display:none">
-        <div class="card" id="plErro" style="display:none">
-          <h3>Meus leads para tratar</h3>
-          <p class="desc">Não foi possível carregar os seus leads agora. Tente de novo em instantes.</p>
-        </div>
-        <div class="card" id="plCard" style="display:none">
-          <h3>Meus leads para tratar</h3>
-          <p class="desc">Seus leads que ainda estão em aberto, dos meses da planilha (o Repique fica de fora). O que precisa de ação primeiro aparece no topo.</p>
-          <div id="plResumo" style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 4px"></div>
-          <div id="plLista"></div>
-        </div>
-      </div>
+      <!-- 01/10/2026: "Meus leads para tratar" saiu daqui e foi para a sub-aba da Digital (seção 61 do REGRAS_NEGOCIO.md) -->
       <div class="card" id="ppSemVinculo" style="display:none">
         <h3>Seu usuário ainda não foi ligado ao NeoCRM</h3>
         <p class="desc">Para mostrar só os seus pedidos, o painel precisa saber qual é o seu usuário no NeoCRM. Avise um administrador para fazer esse vínculo (leva um minuto).</p>
@@ -8489,19 +8496,31 @@ function mlLeadsFiltrados(){
   return mlEstado.leads.filter(l => normalizarNomeConsultor(l.consultor) === alvo);
 }
 
-// Barra de sub-abas da Digital: só admin/supervisor veem; para os demais a aba é a de sempre.
+// Barra de sub-abas da Digital: admin/supervisor veem "Monitoramento Leads"; o consultor que tem lead vê
+// "Meus leads para tratar" (01/10/2026, seção 61). Para os demais a aba é a de sempre, sem barra.
+function canSeeMeusLeadsDigital(){ return canSeePedidosParados() && plEstado.vinculado; }
 function digitalSubAtivar(nome){
   if(nome === 'monitor' && !canSeeMonitoramentoLeads()) nome = 'leads';
+  if(nome === 'meus' && !canSeeMeusLeadsDigital()) nome = 'leads';
   mlEstado.sub = nome;
   document.getElementById('digitalSubLeads').style.display = nome === 'leads' ? '' : 'none';
   document.getElementById('digitalSubMonitor').style.display = nome === 'monitor' ? '' : 'none';
+  document.getElementById('digitalSubMeus').style.display = nome === 'meus' ? '' : 'none';
   document.querySelectorAll('#digitalSubTabs [data-digital-sub]').forEach(b => b.classList.toggle('active', b.dataset.digitalSub === nome));
   if(nome === 'monitor') mlCarregar();
+  if(nome === 'meus') plCarregar().catch(err => console.error(err));
+}
+function digitalSubBarra(){
+  const mon = canSeeMonitoramentoLeads(), meus = canSeeMeusLeadsDigital();
+  document.querySelector('#digitalSubTabs [data-digital-sub="monitor"]').style.display = mon ? '' : 'none';
+  document.querySelector('#digitalSubTabs [data-digital-sub="meus"]').style.display = meus ? '' : 'none';
+  document.getElementById('digitalSubTabs').style.display = mon || meus ? '' : 'none';
+  if((mlEstado.sub === 'monitor' && !mon) || (mlEstado.sub === 'meus' && !meus)) digitalSubAtivar('leads');   // evita ficar preso numa sub-aba ao trocar de login
 }
 function digitalSubPreparar(){
-  const vis = canSeeMonitoramentoLeads();
-  document.getElementById('digitalSubTabs').style.display = vis ? '' : 'none';
-  if(!vis) digitalSubAtivar('leads');   // evita ficar preso no monitoramento ao trocar de login
+  digitalSubBarra();
+  // o consultor só ganha a sub-aba depois que o banco diz que ele tem lead (meus_leads_vinculado)
+  if(canSeePedidosParados()) plCarregar().then(digitalSubBarra).catch(err => console.error(err));
 }
 
 async function mlCarregar(){
@@ -8927,8 +8946,8 @@ document.getElementById('btnMlExportTabela').addEventListener('click', function(
   mlBaixarXlsx(`LigacoesPorConsultor_${mlEstado.de || 'inicio'}_${mlEstado.ate || 'hoje'}.xlsx`, [{ nome: 'Ligações por consultor', linhas: mlLinhasExportTabela(linhas) }]);
 });
 
-/* ---- Pedidos Parados: "Meus leads para tratar" (consultor) — 01/10/2026, REGRAS_NEGOCIO.md seção 59 ---- */
-const plEstado = { geracao: 0, vinculado: false, erro: false, leads: [], followups: [] };
+/* ---- Digital → "Meus leads para tratar" (consultor) — 01/10/2026, REGRAS_NEGOCIO.md seções 59 a 61 ---- */
+const plEstado = { geracao: 0, vinculado: false, erro: false, leads: [], followups: [], aba: null };
 const PL_ORDEM = { semLigacao: 0, atrasado: 1, esfriando: 2, hoje: 3, ok: 4 };
 
 function plClassificar(leads, followups, hoje, agoraMs){
@@ -8954,7 +8973,13 @@ function plRender(){
   card.style.display = plEstado.vinculado && !plEstado.erro ? '' : 'none';
   if(!plEstado.vinculado || plEstado.erro) return;
   const hoje = hojeSP();
-  const linhas = plClassificar(plEstado.leads, plEstado.followups, hoje, Date.now());
+  // 01/10/2026 (seção 61): um mês da planilha por vez — mesma ordem das pílulas da Digital (o mais recente primeiro)
+  const abas = conversaoAbasDisponiveis(plEstado.leads);
+  if(!abas.some(a => a.aba === plEstado.aba)) plEstado.aba = abas.length ? abas[0].aba : null;
+  document.getElementById('plAbaPills').innerHTML = abas.map(a =>
+    `<button type="button" class="filterPill${a.aba === plEstado.aba ? ' active' : ''}" data-pl-aba="${escapeHtml(a.aba)}">${escapeHtml(conversaoAbaRotulo(a.aba))} (${a.n})</button>`).join('');
+  const doMes = plEstado.aba ? plEstado.leads.filter(l => l.aba === plEstado.aba) : plEstado.leads;
+  const linhas = plClassificar(doMes, plEstado.followups, hoje, Date.now());
   const n = s => linhas.filter(x => x.situacao === s).length;
   document.getElementById('plResumo').innerHTML = [['atrasado', n('semLigacao') + ' sem ligação'], ['atrasado', n('atrasado') + ' retorno atrasado'],
     ['hoje', n('esfriando') + ' esfriando'], ['hoje', n('hoje') + ' para hoje']].map(c => `<span class="retornoResumoChip ${c[0]}">${c[1]}</span>`).join('');
@@ -8969,8 +8994,9 @@ function plRender(){
   document.getElementById('plLista').innerHTML = linhas.length ? linhas.map(x => {
     const l = x.lead, id = escapeHtml(l.lead_id), tel = String(l.telefone || '').replace(/^p:/, '');
     return `<div class="retornoLeadRow" data-lead-id="${id}">
-      <div class="retornoLeadInfo"><strong>${escapeHtml(l.nome || '(sem nome)')}</strong>
-        <span class="retornoLeadSub">${escapeHtml((l.status || '').trim() || 'sem status')} · ${escapeHtml(conversaoAbaRotulo(l.aba))} · ${x.tentativas} ${x.tentativas === 1 ? 'tentativa' : 'tentativas'}${l.ultima_ligacao ? ' · última ligação ' + escapeHtml(mlFmtDiaHora(l.ultima_ligacao)) : ''}</span></div>
+      <div class="retornoLeadInfo"><strong>${escapeHtml(l.nome || '(sem nome)')}</strong> <span class="badge plStatus">${escapeHtml((l.status || '').trim() || 'sem status')}</span>
+        <span class="retornoLeadSub">${x.tentativas} ${x.tentativas === 1 ? 'tentativa' : 'tentativas'}${l.ultima_ligacao ? ' · última ligação ' + escapeHtml(mlFmtDiaHora(l.ultima_ligacao)) : ''}</span>
+        ${(l.obs || '').trim() ? `<span class="retornoLeadSub plObs">OBS na planilha: ${escapeHtml(l.obs.trim())}</span>` : ''}</div>
       <div class="retornoLeadAcoes">
         <span class="retornoBadge ${classeBadge[x.situacao]}">${escapeHtml(rotulo(x))}</span>
         ${x.pendente ? `<button type="button" class="btn btn-sm btn-outline btnPlFeito" data-followup-id="${escapeHtml(x.pendente.id)}">Marcar feito</button>` : ''}
@@ -9005,10 +9031,18 @@ async function plCarregar(){
 }
 function plResetar(){
   plEstado.geracao++;
-  Object.assign(plEstado, { vinculado: false, erro: false, leads: [], followups: [] });
-  ['plResumo', 'plLista'].forEach(id => { document.getElementById(id).innerHTML = ''; });
+  Object.assign(plEstado, { vinculado: false, erro: false, leads: [], followups: [], aba: null });
+  ['plResumo', 'plLista', 'plAbaPills'].forEach(id => { document.getElementById(id).innerHTML = ''; });
   ['plWrap', 'plCard', 'plErro'].forEach(id => { document.getElementById(id).style.display = 'none'; });
+  document.querySelector('#digitalSubTabs [data-digital-sub="meus"]').style.display = 'none';
 }
+
+document.getElementById('plAbaPills').addEventListener('click', function(ev){
+  const b = ev.target.closest('[data-pl-aba]');
+  if(!b) return;
+  plEstado.aba = b.dataset.plAba;
+  plRender();
+});
 
 document.getElementById('plLista').addEventListener('click', async function(ev){
   const ag = ev.target.closest('.btnPlAgendar');
@@ -10112,7 +10146,6 @@ function ppRender(){
 
 async function loadPedidosParados(){
   if(!canSeePedidosParados()) return;
-  plCarregar().catch(err => console.error(err));   // leads do consultor (seção 59); roda em paralelo com os pedidos
   ppEstado.secao = ppEstado.secao || 'parados';
   document.getElementById('ppCarregando').style.display = ppEstado.calc ? 'none' : 'block';
   await ppCarregarDados(false);

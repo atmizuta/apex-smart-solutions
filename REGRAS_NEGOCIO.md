@@ -2488,3 +2488,26 @@ Com mais de 10 leads, a fila mostra só os 10 mais antigos e um botão "Mostrar 
 - Pedido do usuário: ligar à equipe todos os consultores com pelo menos um lead na planilha. O próprio usuário já tinha ligado Caio, Gabriel (Macedo), Luria e Mariana pelo editor (monitorar = sim).
 - Gravados com ok do usuário (`monitorar = false`, para não entrarem nos cards do Monitoramento; dá para marcar no editor): Giovanna → Giovanna Firmina, Henrique → Henrique Pavin, Lucas → Lucas Izidoro, Victoria → Victoria Horni e **Manuela → Manuella Bento** (o login tem dois "L" e a planilha um — por isso a regra do primeiro nome não pegava).
 - Ficaram de fora: Danilo (sem login; saiu da empresa — os leads em aberto dele precisam de novo dono na planilha), Rafael (admin; Pedidos Parados é só de consultor) e quem só tem lead no Repique (Yasmin, Bianca).
+
+## 61. "Meus leads para tratar" vira sub-aba da Digital, separada por mês, com status e OBS da planilha (01/10/2026)
+
+Pedido do usuário (01/10): (1) separar os leads do consultor por mês (Agosto, Setembro, Outubro) em abinhas; (2) mostrar o status que está na planilha e a última movimentação; (3) tirar a seção de Pedidos Parados e criar uma sub-aba própria na Digital, como a "Monitoramento Leads", que só o consultor vê. A seção "Meus leads e retornos" (Digital → Leads) continua como está. **Status: preparado no worktree `.worktrees/leads-outubro` (branch `feat/meus-leads-digital`), ainda não publicado.**
+
+### 61.1 Onde fica e quem vê
+- Digital ganha a sub-aba **"Meus leads para tratar"** (`data-digital-sub="meus"`, bloco `#digitalSubMeus`). Aparece só para o **consultor** que tem pelo menos um lead fora do Repique (`meus_leads_vinculado()`, seção 60.5). A barra de sub-abas passa a aparecer para esse consultor (Leads | Meus leads para tratar); admin/supervisor continuam com Leads | Monitoramento Leads e nunca veem a do consultor. Consultor sem lead: Digital como antes, sem barra.
+- Pedidos Parados volta a ter só os pedidos (não chama mais `meus_leads_para_tratar`).
+- O vínculo é verificado ao abrir a Digital (`digitalSubPreparar` → `plCarregar` → `digitalSubBarra`); abrir a sub-aba recarrega os leads.
+
+### 61.2 Dentro da sub-aba
+- Pílulas por mês (`#plAbaPills`, mesma ordem da Digital: o mês mais recente primeiro e aberto por padrão), cada uma com a quantidade de leads em aberto. Mês novo na planilha (seção 60.2) aparece sozinho. Resumo (sem ligação, retorno atrasado, esfriando, para hoje) e lista valem para o mês escolhido.
+- Cada lead mostra o **status da planilha** em etiqueta (`.badge.plStatus`; vazio = "sem status") e a **OBS da planilha** (`.plObs`, só quando preenchida), além de tentativas, última ligação e agendar retorno / marcar feito.
+- "Última movimentação": a planilha não guarda data de edição por linha; o que existe é o STATUS e a OBS que o consultor anotou — é o que aparece.
+
+### 61.3 Banco
+Migration `supabase/migrations/20261001300000_meus_leads_obs.sql` (rollback em `supabase/rollback/`): recria `meus_leads_para_tratar()` com a coluna `obs` no fim (mudar o retorno exige drop + create). Regras de vínculo e de Repique iguais à seção 60. O painel antigo funciona com a função nova.
+
+### 61.4 Atualização dos dados
+Os leads só mudam quando alguém (admin/supervisor) clica "Atualizar agora" na Digital: a `sync-leads` não tem agendamento (o cron existe só para a produção NeoSales). O consultor vê a mudança ao abrir/recarregar a sub-aba depois da sincronização.
+
+### 61.5 Testes
+`test_monitoramento_leads.js` (182 ok): pílulas por mês e contagem, troca de mês, status e OBS, seção fora de Pedidos Parados, sub-aba só do consultor com lead, admin não vê nem abre, reset limpa as pílulas. Falhas antigas e não relacionadas: `test_conversao_vendas.js` (relógio) e `test_pedidos_alerta.js` (falta `exceljs`).

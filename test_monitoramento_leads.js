@@ -546,14 +546,29 @@ try{
   window.__tabelas.leads_equipe = [];
   window.__rpcRespostas.meus_leads_vinculado = { data: true, error: null };
   window.__tabelas.leads_followups = [{ id: 'f1', lead_id: 'atr1', consultor_id: 'c1', data_prevista: ontemP, tipo: 'retorno', feito: false }];
-  window.__rpcRespostas.meus_leads_para_tratar = { data: [lp('ok1', 2, { ultima_ligacao: diaIso(1) }), lp('atr1', 3, { ultima_ligacao: diaIso(1) }), lp('sem1', 0, { criado_em_lead: diaIso(5) })], error: null };
+  window.__rpcRespostas.meus_leads_para_tratar = { data: [lp('ok1', 2, { ultima_ligacao: diaIso(1), obs: 'cliente pediu proposta por email' }), lp('atr1', 3, { ultima_ligacao: diaIso(1), status: 'AGENDADO RETORNO' }), lp('sem1', 0, { criado_em_lead: diaIso(5), status: '' }),
+    lp('set1', 1, { aba: 'SETEMBRO', ultima_ligacao: diaIso(1) }), lp('ago1', 0, { aba: 'AGOSTO' }), lp('ago2', 0, { aba: 'AGOSTO' })], error: null };
   await plCarregar();
   assert(document.getElementById('plWrap').style.display !== 'none' && document.getElementById('plCard').style.display !== 'none', 'consultor vinculado vê a seção');
-  eq([...document.querySelectorAll('#plLista .retornoLeadRow')].map(r => r.dataset.leadId), ['sem1', 'atr1', 'ok1'], 'linhas na ordem de urgência');
+  // 01/10/2026 (seção 61): uma pílula por mês, o mais recente primeiro e aberto por padrão, com a contagem
+  eq([...document.querySelectorAll('#plAbaPills [data-pl-aba]')].map(b => b.dataset.plAba), ['OUTUBRO', 'SETEMBRO', 'AGOSTO'], 'pílulas por mês, o mais recente primeiro');
+  eq([...document.querySelectorAll('#plAbaPills [data-pl-aba]')].map(b => b.textContent.trim()), ['Outubro (3)', 'Setembro (1)', 'Agosto (2)'], 'pílula mostra o mês e quantos leads em aberto');
+  assert(document.querySelector('#plAbaPills [data-pl-aba="OUTUBRO"]').classList.contains('active'), 'abre no mês mais recente');
+  eq([...document.querySelectorAll('#plLista .retornoLeadRow')].map(r => r.dataset.leadId), ['sem1', 'atr1', 'ok1'], 'só os leads do mês escolhido, na ordem de urgência');
   const chips = document.getElementById('plResumo').textContent;
-  assert(chips.includes('1 sem ligação') && chips.includes('1 retorno atrasado') && chips.includes('0 esfriando'), 'chips de resumo');
+  assert(chips.includes('1 sem ligação') && chips.includes('1 retorno atrasado') && chips.includes('0 esfriando'), 'chips de resumo do mês');
   const linhaSem = document.querySelector('#plLista [data-lead-id="sem1"]').textContent;
-  assert(linhaSem.includes('Nenhuma ligação') && linhaSem.includes('Outubro'), 'lead sem ligação diz isso e mostra a aba');
+  assert(linhaSem.includes('Nenhuma ligação'), 'lead sem ligação diz isso');
+  // status da planilha em destaque (etiqueta) e a OBS da planilha
+  assert(document.querySelector('#plLista [data-lead-id="atr1"] .plStatus').textContent.trim() === 'AGENDADO RETORNO', 'status da planilha em etiqueta');
+  assert(document.querySelector('#plLista [data-lead-id="sem1"] .plStatus').textContent.trim() === 'sem status', 'status vazio vira "sem status"');
+  assert(document.querySelector('#plLista [data-lead-id="ok1"] .plObs').textContent.includes('cliente pediu proposta por email'), 'mostra a OBS da planilha');
+  assert(!document.querySelector('#plLista [data-lead-id="atr1"] .plObs'), 'sem OBS: não mostra a linha vazia');
+  // trocar de mês
+  document.querySelector('#plAbaPills [data-pl-aba="AGOSTO"]').click();
+  eq([...document.querySelectorAll('#plLista .retornoLeadRow')].map(r => r.dataset.leadId), ['ago1', 'ago2'], 'clicar em Agosto mostra só agosto');
+  assert(document.getElementById('plResumo').textContent.includes('2 sem ligação'), 'resumo acompanha o mês');
+  document.querySelector('#plAbaPills [data-pl-aba="OUTUBRO"]').click();
   assert(document.querySelector('#plLista [data-lead-id="atr1"]').textContent.includes('3 tentativas'), 'mostra o número de tentativas');
   assert(document.querySelector('#plLista [data-lead-id="sem1"] [data-copiar="+5519900000099"]'), 'telefone copiável (sem o prefixo p:)');
   assert(window.__rpcCalls.some(c => c.nome === 'meus_leads_para_tratar') && !window.__lidas.includes('ligacoes_manuais'), 'só usa a RPC do consultor; nunca lê ligacoes_manuais');
@@ -584,11 +599,27 @@ try{
   await espera(40);
   assert(window.__escritas.length === 0, 'sem data não grava');
 
-  // vindo pela aba: loadPedidosParados chama a seção
+  // 01/10/2026 (seção 61): a seção mora numa sub-aba da Digital, só do consultor — não mais em Pedidos Parados
+  assert(!document.getElementById('panel-pedidosparados').querySelector('#plWrap'), 'a seção saiu de Pedidos Parados');
+  assert(document.getElementById('panel-conversao').querySelector('#digitalSubMeus #plWrap'), 'a seção está na sub-aba da Digital');
   window.__rpcCalls.length = 0;
   await loadPedidosParados();
   await espera(60);
-  assert(window.__rpcCalls.some(c => c.nome === 'meus_leads_para_tratar'), 'abrir Pedidos Parados carrega os leads do consultor');
+  assert(!window.__rpcCalls.some(c => c.nome === 'meus_leads_para_tratar'), 'abrir Pedidos Parados não carrega mais os leads');
+  digitalSubPreparar();
+  await espera(60);
+  const btnMeus = document.querySelector('#digitalSubTabs [data-digital-sub="meus"]');
+  const btnMon = document.querySelector('#digitalSubTabs [data-digital-sub="monitor"]');
+  assert(document.getElementById('digitalSubTabs').style.display !== 'none' && btnMeus.style.display !== 'none', 'consultor com lead vê a barra com "Meus leads para tratar"');
+  assert(btnMon.style.display === 'none', 'consultor não vê o botão do Monitoramento');
+  window.__rpcCalls.length = 0;
+  btnMeus.click();
+  await espera(60);
+  assert(document.getElementById('digitalSubMeus').style.display !== 'none' && document.getElementById('digitalSubLeads').style.display === 'none', 'clicar abre a sub-aba e esconde a de Leads');
+  assert(window.__rpcCalls.some(c => c.nome === 'meus_leads_para_tratar'), 'abrir a sub-aba recarrega os leads do consultor');
+  digitalSubAtivar('monitor');
+  assert(document.getElementById('digitalSubMonitor').style.display === 'none', 'consultor não consegue abrir o Monitoramento');
+  digitalSubAtivar('leads');
 
   // lista vazia
   window.__rpcRespostas.meus_leads_para_tratar = { data: [], error: null };
@@ -605,6 +636,11 @@ try{
   window.__rpcRespostas.meus_leads_vinculado = { data: false, error: null };
   await plCarregar();
   assert(document.getElementById('plWrap').style.display === 'none', 'consultor sem lead não vê a seção');
+  digitalSubPreparar();
+  await espera(60);
+  assert(document.getElementById('digitalSubTabs').style.display === 'none', 'consultor sem lead: sem barra de sub-abas (Digital como antes)');
+  digitalSubAtivar('meus');
+  assert(document.getElementById('digitalSubMeus').style.display === 'none', 'consultor sem lead não abre a sub-aba');
   // erro ao checar o vínculo: some também (não incomoda quem não recebe lead)
   window.__rpcRespostas.meus_leads_vinculado = { data: null, error: { message: 'boom' } };
   await plCarregar();
@@ -619,8 +655,14 @@ try{
   window.__rpcCalls.length = 0;
   await plCarregar();
   assert(!window.__rpcCalls.some(c => c.nome === 'meus_leads_para_tratar'), 'admin não carrega a seção do consultor');
+  digitalSubPreparar();
+  await espera(60);
+  assert(document.querySelector('#digitalSubTabs [data-digital-sub="meus"]').style.display === 'none' && document.querySelector('#digitalSubTabs [data-digital-sub="monitor"]').style.display !== 'none', 'admin vê Monitoramento e não vê "Meus leads para tratar"');
+  digitalSubAtivar('meus');
+  assert(document.getElementById('digitalSubMeus').style.display === 'none', 'admin não abre a sub-aba do consultor');
+  digitalSubAtivar('leads');
   plResetar();
-  assert(document.getElementById('plWrap').style.display === 'none' && document.getElementById('plLista').innerHTML === '', 'reset limpa a tela (troca de login)');
+  assert(document.getElementById('plWrap').style.display === 'none' && document.getElementById('plLista').innerHTML === '' && document.getElementById('plAbaPills').innerHTML === '', 'reset limpa a tela (troca de login)');
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
   process.exit(fail > 0 ? 1 : 0);
