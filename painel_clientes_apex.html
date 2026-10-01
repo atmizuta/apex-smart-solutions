@@ -469,6 +469,11 @@
   }
 </style>
 <style id="ppStyles">
+  /* Monitoramento Leads (01/10/2026) — só tokens do design */
+  .mlCard{cursor:pointer;}
+  .mlCard.ativo{outline:2px solid var(--c-sinal);outline-offset:-2px;}
+  .mlAtraso{color:var(--st-perdido);font-weight:600;}
+  .mlTabelaWrap{overflow-x:auto;}
   /* Pedidos Parados (30/09/2026) — só tokens do design; níveis usam as mesmas cores da seção 48 */
   .ppPills{margin:var(--space-4) 0;}
   .ppKpis{margin-top:var(--space-5);}
@@ -922,6 +927,11 @@
 
     <!-- DIGITAL (leads do Google/Meta) — só admin e supervisor -->
     <section class="panel" id="panel-conversao">
+      <div class="filterPills" id="digitalSubTabs" style="display:none;margin-bottom:14px">
+        <button type="button" class="filterPill active" data-digital-sub="leads">Leads</button>
+        <button type="button" class="filterPill" data-digital-sub="monitor">Monitoramento Leads</button>
+      </div>
+      <div id="digitalSubLeads">
       <div class="card">
         <h3>Digital</h3>
         <p class="desc">Leads de campanhas (Facebook/Instagram) e o acompanhamento de cada consultor até a venda. A planilha de origem fica no Google — clique em "Atualizar agora" para buscar os dados mais recentes.</p>
@@ -1046,6 +1056,115 @@
           </table>
         </div>
       </div>
+      </div><!-- /digitalSubLeads -->
+
+      <!-- MONITORAMENTO LEADS (só admin/supervisor) — 01/10/2026, REGRAS_NEGOCIO.md seção 59 -->
+      <div id="digitalSubMonitor" style="display:none">
+        <div class="card">
+          <h3>Monitoramento Leads</h3>
+          <p class="desc">Acompanha se quem recebe leads está ligando, tratando e vendendo. As ligações vêm do relatório de chamadas manuais da telefonia, enviado por arquivo (a telefonia não tem API).</p>
+          <div class="filterPills" id="mlAbaPills"></div>
+          <p class="desc" id="mlResumoRelatorio" style="margin-top:10px"></p>
+          <p class="desc mlAtraso" id="mlErro" style="display:none">Não foi possível carregar o monitoramento agora (a atualização do banco pode ainda não ter sido aplicada). Tente de novo em instantes.</p>
+        </div>
+
+        <div class="card">
+          <h3>Consultores de leads — <span id="mlCardsMes"></span></h3>
+          <p class="desc">Do mês escolhido. Clique num card para filtrar os blocos abaixo por aquela pessoa.</p>
+          <div class="kpiGrid" id="mlCards"></div>
+        </div>
+
+        <div class="card" id="mlUploadCard">
+          <h3>Enviar relatório de ligações manuais</h3>
+          <p class="desc">Envie o arquivo exportado da telefonia (Excel). Pode enviar o mês inteiro de novo: o que já existe não é duplicado.</p>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <input type="file" id="mlArquivo" accept=".xlsx,.xls,.csv" style="display:none">
+            <button class="btn btn-sm" type="button" id="btnMlArquivo" style="width:auto">Escolher arquivo</button>
+            <span id="mlUploadStatus" style="font-size:12px;color:var(--muted)"></span>
+          </div>
+          <div class="kpiGrid" id="mlUploadResumo" style="margin-top:10px"></div>
+        </div>
+
+        <div class="card">
+          <h3>Leads sem nenhuma ligação</h3>
+          <p class="desc" id="mlFilaInfo"></p>
+          <div class="mlTabelaWrap"><table class="tbl">
+            <thead><tr><th>Lead</th><th>Telefone</th><th>Consultor</th><th>Status na planilha</th><th>Entrou há</th></tr></thead>
+            <tbody id="mlFilaTbody"></tbody>
+          </table></div>
+          <button class="btn btn-sm btn-outline" type="button" id="btnMlExportFila" style="width:auto;margin-top:10px">Exportar Excel</button>
+        </div>
+
+        <div class="card">
+          <h3>Cadência de tentativas</h3>
+          <p class="desc" id="mlAbaixoInfo"></p>
+          <div class="mlTabelaWrap"><table class="tbl">
+            <thead><tr><th>Lead</th><th>Consultor</th><th>Status</th><th>Tentativas</th><th>Última ligação</th></tr></thead>
+            <tbody id="mlAbaixoTbody"></tbody>
+          </table></div>
+          <p class="desc" id="mlAcimaInfo" style="margin-top:14px"></p>
+          <div class="mlTabelaWrap"><table class="tbl">
+            <thead><tr><th>Lead</th><th>Consultor</th><th>Status</th><th>Tentativas</th><th>Última ligação</th></tr></thead>
+            <tbody id="mlAcimaTbody"></tbody>
+          </table></div>
+        </div>
+
+        <div class="card">
+          <h3>Placar do dia</h3>
+          <p class="desc">Ligações para números de lead feitas hoje, contra a meta diária.</p>
+          <div class="mlTabelaWrap"><table class="tbl">
+            <thead><tr><th>Consultor</th><th>Ligações hoje</th><th>% da meta</th><th>Atendidas</th><th>Leads tocados</th><th>Min. falados</th><th>Última ligação</th></tr></thead>
+            <tbody id="mlPlacarTbody"></tbody>
+          </table></div>
+        </div>
+
+        <div class="card">
+          <h3>Qualidade das ligações</h3>
+          <p class="desc">No período escolhido na tabela por consultor (abaixo). Atendida não é o mesmo que conversa: veja quanto tempo falaram.</p>
+          <div class="mlTabelaWrap"><table class="tbl">
+            <thead><tr><th>Consultor</th><th>Para leads</th><th>Taxa de atendimento</th><th>Duração média falada</th><th>Conversas boas</th><th>Atendidas tabuladas "sem contato"</th></tr></thead>
+            <tbody id="mlQualidadeTbody"></tbody>
+          </table></div>
+        </div>
+
+        <div class="card">
+          <h3>Inconsistências</h3>
+          <p class="desc">Onde a planilha de leads e as ligações não batem.</p>
+          <div id="mlInconsLista"></div>
+        </div>
+
+        <div class="card">
+          <h3>Ligações por consultor</h3>
+          <div class="filterPills" id="mlTabelaPills">
+            <button type="button" class="filterPill active" data-ml-tabela="equipe">Os consultores de leads</button>
+            <button type="button" class="filterPill" data-ml-tabela="todos">Todos os consultores</button>
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-top:10px">
+            <div class="field" style="margin:0;width:170px"><label>De</label><input type="date" id="mlPeriodoDe"></div>
+            <div class="field" style="margin:0;width:170px"><label>Até</label><input type="date" id="mlPeriodoAte"></div>
+          </div>
+          <div class="mlTabelaWrap"><table class="tbl" style="margin-top:12px">
+            <thead><tr><th>Consultor</th><th>Ligações manuais</th><th>Para leads</th><th>% do total</th><th>Atendidas</th><th>Leads diferentes</th><th>Tentativas por lead</th><th>Hoje</th><th>Ontem</th><th>7 dias</th><th>30 dias</th></tr></thead>
+            <tbody id="mlTabelaTbody"></tbody>
+          </table></div>
+          <button class="btn btn-sm btn-outline" type="button" id="btnMlExportTabela" style="width:auto;margin-top:10px">Exportar Excel</button>
+        </div>
+
+        <div class="card" id="mlEquipeCard" style="display:none">
+          <h3>Equipe de leads e metas</h3>
+          <p class="desc">Quem recebe leads agora, como o nome aparece na planilha e na telefonia, e o perfil do painel (é o que mostra a cada consultor só os próprios leads). As metas valem para os blocos acima.</p>
+          <div class="mlTabelaWrap"><table class="tbl">
+            <thead><tr><th>Nome na planilha de leads</th><th>Usuário na telefonia</th><th>Perfil do painel</th><th>Monitorar</th><th></th></tr></thead>
+            <tbody id="mlEquipeTbody"></tbody>
+          </table></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+            <button class="btn btn-sm btn-outline" type="button" id="btnMlEquipeAdd" style="width:auto">Adicionar pessoa</button>
+            <button class="btn btn-sm" type="button" id="btnMlEquipeSalvar" style="width:auto">Salvar equipe</button>
+          </div>
+          <div id="mlMetasCampos" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px"></div>
+          <button class="btn btn-sm" type="button" id="btnMlMetasSalvar" style="width:auto;margin-top:10px">Salvar metas</button>
+        </div>
+      </div><!-- /digitalSubMonitor -->
     </section>
 
     <!-- FECHAMENTO (18/09/2026) — só admin: relatório de comissionamento do consultor. Data de
@@ -1095,6 +1214,19 @@
     </section>
     <!-- PEDIDOS PARADOS (consultor) — ver seção 53 do REGRAS_NEGOCIO.md -->
     <section class="panel" id="panel-pedidosparados">
+      <!-- 01/10/2026: leads do consultor para tratar (só quem está em leads_equipe) — seção 59 do REGRAS_NEGOCIO.md -->
+      <div id="plWrap" style="display:none">
+        <div class="card" id="plErro" style="display:none">
+          <h3>Meus leads para tratar</h3>
+          <p class="desc">Não foi possível carregar os seus leads agora. Tente de novo em instantes.</p>
+        </div>
+        <div class="card" id="plCard" style="display:none">
+          <h3>Meus leads para tratar</h3>
+          <p class="desc">Seus leads que ainda estão em aberto, de todas as abas da planilha. O que precisa de ação primeiro aparece no topo.</p>
+          <div id="plResumo" style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 4px"></div>
+          <div id="plLista"></div>
+        </div>
+      </div>
       <div class="card" id="ppSemVinculo" style="display:none">
         <h3>Seu usuário ainda não foi ligado ao NeoCRM</h3>
         <p class="desc">Para mostrar só os seus pedidos, o painel precisa saber qual é o seu usuário no NeoCRM. Avise um administrador para fazer esse vínculo (leva um minuto).</p>
@@ -7230,6 +7362,7 @@ function conversaoLeadsFiltrados(){
 }
 
 async function loadConversaoVendas(){
+  digitalSubPreparar();
   ApexMotion.skeleton(document.getElementById('conversaoResumoCards'), 'kpis');
   const statusEl = document.getElementById('conversaoSyncStatus');
   const adminMode = producaoAdminMode();
@@ -7274,6 +7407,7 @@ async function loadConversaoVendas(){
       cardVendaOrigem.style.display = 'none';
     }
   }
+  if(mlEstado.sub === 'monitor') mlCarregar();   // voltou à Digital com o monitoramento aberto: recarrega com a aba atual
 }
 
 // Recalcula e redesenha tudo (KPIs, gráfico, tabelas) a partir de conversaoLeadsCache + o período
@@ -8228,6 +8362,661 @@ document.getElementById('apexMindBubble').addEventListener('click', async () => 
 });
 
 document.getElementById('btnVendaOrigemBuscar').addEventListener('click', buscarVendasOrigemLead);
+
+/* ============ MONITORAMENTO LEADS (admin/supervisor) — 01/10/2026, REGRAS_NEGOCIO.md seção 59 ============
+   Cruza o relatório de ligações manuais da telefonia (upload) com a tabela leads. Funções puras primeiro
+   (testadas em test_monitoramento_leads.js), depois dados, telas e ações. */
+const ML_METAS_PADRAO = { min_tentativas: 3, max_tentativas: 10, meta_ligacoes_dia: 80, conversa_boa_seg: 60, sla_primeira_ligacao_h: 24 };
+
+// Telefone -> DDD + 8 últimos dígitos (ignora o 9º dígito e o 55 inicial). Mesma regra da função SQL chave_tel.
+function chaveTel(v){
+  let d = String(v == null ? '' : v).replace(/\D/g, '');
+  if(d.startsWith('55') && d.length >= 12) d = d.slice(2);
+  return d.length >= 10 ? d.slice(0, 2) + d.slice(-8) : null;
+}
+function mlNormCol(s){ return String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+function mlNormTexto(s){ return String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim(); }
+
+// Colunas do relatório da telefonia (nome já normalizado por mlNormCol).
+const ML_COLUNAS = { id: 'id', usuario: 'usuario', telefone: 'telefone', gerada: 'datahorageracao', status: 'status', tempo: 'tempochamada', tab: 'ultimatabulacao', transf: 'transferido', grav: 'gravacao' };
+const ML_OBRIGATORIAS = ['id', 'usuario', 'telefone', 'gerada', 'status'];
+function mlSegundos(t){
+  const m = /^(\d+):(\d{2}):(\d{2})$/.exec(String(t == null ? '' : t).trim());
+  return m ? (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) : 0;
+}
+// "08/09/2026 12:20:59" (ou ISO "2026-09-08 12:20:59") -> "2026-09-08T12:20:59-03:00"; qualquer outra coisa -> null
+function mlDataHora(v){
+  const s = String(v == null ? '' : v).trim();
+  let m = /^(\d{2})\/(\d{2})\/(\d{4})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/.exec(s);
+  if(m) return m[3] + '-' + m[2] + '-' + m[1] + 'T' + m[4] + ':' + m[5] + ':' + (m[6] || '00') + '-03:00';
+  m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/.exec(s);
+  return m ? m[1] + '-' + m[2] + '-' + m[3] + 'T' + m[4] + ':' + m[5] + ':' + (m[6] || '00') + '-03:00' : null;
+}
+// rows = linhas do relatório como objetos {cabeçalho: valor} (XLSX.utils.sheet_to_json).
+function mlParseRelatorio(rows){
+  const out = { linhas: [], invalidas: 0, faltando: [] };
+  if(!rows || !rows.length){ out.faltando = ML_OBRIGATORIAS.slice(); return out; }
+  const mapa = {};
+  Object.keys(rows[0]).forEach(k => {
+    const n = mlNormCol(k);
+    Object.keys(ML_COLUNAS).forEach(ch => { if(ML_COLUNAS[ch] === n && !(ch in mapa)) mapa[ch] = k; });
+  });
+  out.faltando = ML_OBRIGATORIAS.filter(ch => !(ch in mapa));
+  if(out.faltando.length) return out;
+  const txt = (r, ch) => (mapa[ch] && r[mapa[ch]] != null && String(r[mapa[ch]]).trim() !== '') ? String(r[mapa[ch]]).trim() : null;
+  const vistos = new Set();
+  rows.forEach(r => {
+    const id = Number(txt(r, 'id'));
+    const gerada = mlDataHora(txt(r, 'gerada'));
+    const usuario = txt(r, 'usuario');
+    if(!Number.isFinite(id) || id <= 0 || !gerada || !usuario){ out.invalidas++; return; }
+    if(vistos.has(id)) return;
+    vistos.add(id);
+    const tel = (txt(r, 'telefone') || '').replace(/\D/g, '');
+    out.linhas.push({
+      id, usuario, telefone: tel || null, chave_tel: chaveTel(tel), gerada_em: gerada,
+      atendida: String(txt(r, 'status') || '').toUpperCase() === 'ANSWERED',
+      seg_falados: mlSegundos(txt(r, 'tempo')),
+      tabulacao: txt(r, 'tab'), transferido: txt(r, 'transf'), gravacao: txt(r, 'grav'),
+    });
+  });
+  return out;
+}
+
+// valor de config.monitor_leads_metas (texto JSON) -> metas completas
+function mlMetas(valor){
+  let o = {};
+  try{ o = JSON.parse(valor || '{}') || {}; }catch(e){ o = {}; }
+  const m = Object.assign({}, ML_METAS_PADRAO);
+  Object.keys(ML_METAS_PADRAO).forEach(k => { const n = Number(o[k]); if(o[k] != null && Number.isFinite(n) && n >= 0) m[k] = n; });
+  return m;
+}
+
+function mlEmAberto(l){ return l.categoria === 'andamento' || l.categoria === 'sem_contato'; }
+// Fila de leads sem ligação, cadência (abaixo do mínimo / acima do teto) e inconsistências.
+function mlClassificarLeads(leads, metas, agoraMs){
+  const m = Object.assign({}, ML_METAS_PADRAO, metas || {});
+  const out = { semLigacao: [], abaixoMin: [], acimaTeto: [], inconsistencias: { planilhaDesatualizada: [], perdidoCedo: [], vendaSemLigacao: [] } };
+  (leads || []).forEach(l => {
+    const t = Number(l.tentativas) || 0;
+    const ms = new Date(l.criado_em_lead).getTime();
+    const horas = isNaN(ms) ? null : (agoraMs - ms) / 3600000;
+    const it = Object.assign({}, l, { tentativas: t, horasDesdeEntrada: horas, atrasadoSla: t === 0 && horas !== null && horas > m.sla_primeira_ligacao_h });
+    const aberto = mlEmAberto(l);
+    if(aberto && t === 0) out.semLigacao.push(it);
+    else if(aberto && t < m.min_tentativas) out.abaixoMin.push(it);
+    if(aberto && t > m.max_tentativas) out.acimaTeto.push(it);
+    if(l.categoria === 'sem_contato' && t >= m.min_tentativas) out.inconsistencias.planilhaDesatualizada.push(it);
+    if(l.categoria === 'perdido' && t < m.min_tentativas && mlNormTexto(l.status).includes('NAO RESPONDE')) out.inconsistencias.perdidoCedo.push(it);
+    if(l.categoria === 'convertido' && t === 0) out.inconsistencias.vendaSemLigacao.push(it);
+  });
+  out.semLigacao.sort((a, b) => (b.horasDesdeEntrada || 0) - (a.horasDesdeEntrada || 0));   // mais antigo primeiro
+  out.abaixoMin.sort((a, b) => a.tentativas - b.tentativas);
+  out.acimaTeto.sort((a, b) => b.tentativas - a.tentativas);
+  return out;
+}
+
+// Um card por pessoa monitorada da equipe: contagens do mês (aba) a partir das linhas da RPC monitor_leads_leads.
+function mlCardsEquipe(equipe, leads){
+  return (equipe || []).filter(e => e.monitorar).map(e => {
+    const alvo = normalizarNomeConsultor(e.nome_planilha);
+    const meus = (leads || []).filter(l => normalizarNomeConsultor(l.consultor) === alvo);
+    const c = { convertido: 0, perdido: 0, andamento: 0, sem_contato: 0 };
+    let receita = 0, semLigacao = 0;
+    meus.forEach(l => {
+      if(Object.prototype.hasOwnProperty.call(c, l.categoria)) c[l.categoria]++;
+      if(l.categoria === 'convertido') receita += Number(l.receita) || 0;
+      if(!(Number(l.tentativas) > 0)) semLigacao++;
+    });
+    const n = meus.length;
+    return { nome: e.nome_planilha, usuario: e.usuario_telefonia, leads: n, convertidos: c.convertido, perdidos: c.perdido, andamento: c.andamento,
+      semContato: c.sem_contato, receita, ticket: c.convertido ? receita / c.convertido : 0, taxa: n ? c.convertido / n : 0, semLigacao };
+  });
+}
+
+/* ---- Monitoramento Leads: estado, carga e telas (admin/supervisor) ---- */
+const mlEstado = { geracao: 0, aba: null, sub: 'leads', equipe: [], metas: Object.assign({}, ML_METAS_PADRAO), leads: [], resumo: null,
+  porUsuario: [], tabela: 'equipe', de: undefined, ate: undefined, filtro: '', erro: false };
+function canSeeMonitoramentoLeads(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
+function mlFmtDiaHora(iso){
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? '—' : d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+function mlLeadsFiltrados(){
+  if(!mlEstado.filtro) return mlEstado.leads;
+  const alvo = normalizarNomeConsultor(mlEstado.filtro);
+  return mlEstado.leads.filter(l => normalizarNomeConsultor(l.consultor) === alvo);
+}
+
+// Barra de sub-abas da Digital: só admin/supervisor veem; para os demais a aba é a de sempre.
+function digitalSubAtivar(nome){
+  if(nome === 'monitor' && !canSeeMonitoramentoLeads()) nome = 'leads';
+  mlEstado.sub = nome;
+  document.getElementById('digitalSubLeads').style.display = nome === 'leads' ? '' : 'none';
+  document.getElementById('digitalSubMonitor').style.display = nome === 'monitor' ? '' : 'none';
+  document.querySelectorAll('#digitalSubTabs [data-digital-sub]').forEach(b => b.classList.toggle('active', b.dataset.digitalSub === nome));
+  if(nome === 'monitor') mlCarregar();
+}
+function digitalSubPreparar(){
+  const vis = canSeeMonitoramentoLeads();
+  document.getElementById('digitalSubTabs').style.display = vis ? '' : 'none';
+  if(!vis) digitalSubAtivar('leads');   // evita ficar preso no monitoramento ao trocar de login
+}
+
+async function mlCarregar(){
+  if(!canSeeMonitoramentoLeads()) return;
+  const geracao = ++mlEstado.geracao;
+  mlEstado.aba = conversaoAbaAtual;
+  const [eq, cfg, res, lds] = await Promise.all([
+    ppSeguro(() => sb.from('leads_equipe').select('id,nome_planilha,usuario_telefonia,profile_id,monitorar').order('id')),
+    ppSeguro(() => sb.from('config').select('valor').eq('chave', 'monitor_leads_metas').maybeSingle()),
+    ppSeguro(() => sb.rpc('monitor_ligacoes_resumo')),
+    mlEstado.aba ? ppSeguro(() => fetchAllRows(() => sb.rpc('monitor_leads_leads', { p_aba: mlEstado.aba }))) : Promise.resolve({ data: [], error: null }),
+  ]);
+  if(geracao !== mlEstado.geracao) return;   // chegou outra carga depois: esta já é velha
+  const falhou = (eq && eq.error) || (lds && lds.error) || (res && res.error) || null;
+  if(falhou) console.error(falhou);
+  mlEstado.erro = !!falhou;
+  mlEstado.equipe = (eq && eq.data) || [];
+  mlEstado.metas = mlMetas(cfg && cfg.data && cfg.data.valor);
+  mlEstado.resumo = (res && Array.isArray(res.data) && res.data[0]) || null;
+  mlEstado.leads = (lds && lds.data) || [];
+  await mlCarregarPorUsuario();
+  if(currentUser.role === 'admin'){
+    const pf = await ppSeguro(() => sb.from('profiles').select('id,nome,username,role').order('nome'));
+    mlEstado.perfis = (pf && pf.data) || [];
+  }
+  // ==== mais cargas entram aqui ====
+  if(geracao !== mlEstado.geracao) return;
+  mlRenderTudo();
+  mlRenderEquipeEditor();   // fora do mlRenderTudo de propósito: filtrar por card não pode apagar o que o admin está digitando
+}
+
+function mlRenderCabecalho(){
+  const abas = conversaoAbasDisponiveis(conversaoLeadsCache);
+  document.getElementById('mlAbaPills').innerHTML = abas.map(a => `<button type="button" class="filterPill${a.aba === mlEstado.aba ? ' active' : ''}" data-ml-aba="${escapeHtml(a.aba)}">${escapeHtml(conversaoAbaRotulo(a.aba))} <b>${a.n.toLocaleString('pt-BR')}</b></button>`).join('');
+  const r = mlEstado.resumo, el = document.getElementById('mlResumoRelatorio');
+  if(!r || !Number(r.total)){ el.textContent = 'Nenhum relatório de ligações foi enviado ainda. Envie o arquivo mais abaixo para começar.'; return; }
+  const ultimoDia = leadDateSP(r.ultima);
+  const velho = ultimoDia && ultimoDia < somaDiasStr(hojeSP(), -1);
+  el.innerHTML = `Relatório de ligações até <b>${escapeHtml(mlFmtDiaHora(r.ultima))}</b> · ${Number(r.total).toLocaleString('pt-BR')} ligações guardadas (desde ${escapeHtml(mlFmtDiaHora(r.primeira))})`
+    + (velho ? ' <span class="mlAtraso">— desatualizado: envie o relatório mais recente.</span>' : '');
+}
+
+function mlRenderCards(){
+  document.getElementById('mlErro').style.display = mlEstado.erro ? '' : 'none';
+  document.getElementById('mlCardsMes').textContent = mlEstado.aba ? conversaoAbaRotulo(mlEstado.aba) : '';
+  const box = document.getElementById('mlCards');
+  const cards = mlCardsEquipe(mlEstado.equipe, mlEstado.leads);
+  if(!cards.length){
+    box.innerHTML = '<p class="desc">Nenhum consultor de leads cadastrado. Cadastre a equipe no fim desta página, em "Equipe de leads e metas".</p>';
+    return;
+  }
+  box.innerHTML = cards.map(c => `<div class="kpiCard mlCard${mlEstado.filtro === c.nome ? ' ativo' : ''}" data-ml-card="${escapeHtml(c.nome)}">
+      <div class="kpiLabel">${escapeHtml(c.nome)}</div>
+      <div class="kpiValue">${fmtPctConversao(c.taxa)}</div>
+      <div class="kpiSub">${c.convertidos} ${c.convertidos === 1 ? 'venda' : 'vendas'} · ${c.leads} ${c.leads === 1 ? 'lead' : 'leads'}</div>
+      <div class="kpiBarTrack"><div class="kpiBarFill" style="width:${Math.min(100, c.taxa * 100)}%"></div></div>
+      <div class="kpiSub">Perdidos ${c.perdidos} · Em andamento ${c.andamento} · Sem contato ${c.semContato}</div>
+      <div class="kpiSub">Receita ${fmtBRL(c.receita)}${c.convertidos ? ' (ticket ' + fmtBRL(c.ticket) + ')' : ''} · Sem ligação ${c.semLigacao}</div>
+    </div>`).join('');
+}
+
+function mlRenderTudo(){
+  mlRenderCabecalho();
+  mlRenderCards();
+  const cl = mlClassificarLeads(mlLeadsFiltrados(), mlEstado.metas, Date.now());
+  mlEstado.classificado = cl;
+  mlRenderFila(cl);
+  mlRenderCadencia(cl);
+  mlRenderInconsistencias(cl);
+  mlRenderPlacar();
+  mlRenderQualidade();
+  mlRenderTabela();
+  // ==== mais renders entram aqui ====
+}
+
+document.getElementById('digitalSubTabs').addEventListener('click', function(ev){
+  const b = ev.target.closest('[data-digital-sub]');
+  if(b) digitalSubAtivar(b.dataset.digitalSub);
+});
+document.getElementById('digitalSubMonitor').addEventListener('click', function(ev){
+  const pa = ev.target.closest('[data-ml-aba]');
+  if(pa){ conversaoAbaAtual = pa.dataset.mlAba; renderConversaoFiltrado(); mlCarregar(); return; }
+  const cd = ev.target.closest('[data-ml-card]');
+  if(cd){ mlEstado.filtro = mlEstado.filtro === cd.dataset.mlCard ? '' : cd.dataset.mlCard; mlRenderTudo(); }
+});
+
+/* ---- Monitoramento Leads: upload do relatório de ligações ---- */
+function mlLinhasDoWorkbook(wb){
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  return XLSX.utils.sheet_to_json(ws, { raw: true, defval: null });
+}
+function mlLerArquivo(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = evt => {
+      try{ resolve(mlLinhasDoWorkbook(XLSX.read(new Uint8Array(evt.target.result), { type: 'array' }))); }
+      catch(e){ reject(e); }
+    };
+    reader.onerror = () => reject(reader.error || new Error('Falha ao ler o arquivo'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+async function mlTotalGuardado(){
+  const r = await ppSeguro(() => sb.rpc('monitor_ligacoes_resumo'));
+  return Number(r && r.data && r.data[0] && r.data[0].total) || 0;
+}
+function mlDiaBR(iso){ const d = leadDateSP(iso); return d ? d.split('-').reverse().join('/') : '—'; }
+
+async function mlImportarLinhas(rows){
+  const st = document.getElementById('mlUploadStatus'), box = document.getElementById('mlUploadResumo');
+  box.innerHTML = '';
+  const p = mlParseRelatorio(rows);
+  if(p.faltando.length){
+    st.textContent = 'Arquivo recusado: faltam as colunas ' + p.faltando.join(', ') + '.';
+    mostrarAviso('Esse arquivo não parece o relatório de ligações manuais da telefonia.', 'erro');
+    return null;
+  }
+  if(!p.linhas.length){
+    st.textContent = 'Arquivo recusado: nenhuma ligação válida encontrada.';
+    mostrarAviso('Nenhuma ligação válida encontrada no arquivo.', 'erro');
+    return null;
+  }
+  const antes = await mlTotalGuardado();
+  for(let i = 0; i < p.linhas.length; i += 500){
+    const lote = p.linhas.slice(i, i + 500).map(l => Object.assign({}, l, { importado_por: currentUser.id }));
+    const { error } = await sb.from('ligacoes_manuais').upsert(lote, { onConflict: 'id' });
+    if(error){
+      st.textContent = 'Não foi possível gravar as ligações: ' + error.message;
+      mostrarAviso('Não foi possível gravar as ligações. Nada foi apagado; tente de novo.', 'erro');
+      return null;
+    }
+    st.textContent = `Enviando... ${Math.min(i + 500, p.linhas.length)} de ${p.linhas.length}`;
+  }
+  const depois = await mlTotalGuardado();
+  const novas = Math.max(0, depois - antes);
+  const dias = p.linhas.map(l => l.gerada_em).sort();
+  const res = { lidas: p.linhas.length, novas, existentes: p.linhas.length - novas, invalidas: p.invalidas, de: dias[0], ate: dias[dias.length - 1] };
+  const usuarios = new Set(p.linhas.map(l => l.usuario.toLowerCase()));
+  const ausentes = mlEstado.equipe.filter(e => e.monitorar && e.usuario_telefonia && !usuarios.has(String(e.usuario_telefonia).toLowerCase())).map(e => e.nome_planilha);
+  const kpi = (rotulo, valor) => `<div class="kpiCard"><div class="kpiLabel">${rotulo}</div><div class="kpiValue">${valor.toLocaleString('pt-BR')}</div></div>`;
+  box.innerHTML = kpi('Ligações lidas', res.lidas) + kpi('Novas', res.novas) + kpi('Já existiam', res.existentes) + kpi('Linhas inválidas', res.invalidas);
+  st.textContent = `Período do arquivo: ${mlDiaBR(res.de)} a ${mlDiaBR(res.ate)}.` + (ausentes.length ? ' Sem ligações no arquivo: ' + ausentes.join(', ') + '.' : '');
+  mostrarAviso(`Relatório enviado: ${res.novas} ligações novas.`, 'ok');
+  await mlCarregar();
+  return res;
+}
+
+document.getElementById('btnMlArquivo').addEventListener('click', () => document.getElementById('mlArquivo').click());
+document.getElementById('mlArquivo').addEventListener('change', async function(ev){
+  const file = ev.target.files[0];
+  if(!file) return;
+  document.getElementById('mlUploadStatus').textContent = 'Lendo o arquivo...';
+  try{ await mlImportarLinhas(await mlLerArquivo(file)); }
+  catch(e){ console.error(e); document.getElementById('mlUploadStatus').textContent = 'Não foi possível ler o arquivo.'; mostrarAviso('Não foi possível ler o arquivo. Confira se é o Excel da telefonia.', 'erro'); }
+  ev.target.value = '';
+});
+
+/* ---- Monitoramento Leads: fila sem ligação, cadência e inconsistências ---- */
+function mlTelBotao(t){
+  const s = String(t || '').replace(/^p:/, '');
+  return s ? `<button type="button" class="btn btn-sm btn-outline" data-ml-copiar="${escapeHtml(s)}" style="width:auto">${escapeHtml(s)}</button>` : '—';
+}
+function mlHaTexto(horas){
+  if(horas == null) return '—';
+  return horas < 24 ? Math.max(1, Math.round(horas)) + ' h' : Math.floor(horas / 24) + ' d';
+}
+const mlLinhaVazia = (cols, msg) => `<tr><td colspan="${cols}" class="desc">${msg}</td></tr>`;
+
+function mlRenderFila(cl){
+  const m = mlEstado.metas, f = cl.semLigacao, atrasados = f.filter(x => x.atrasadoSla).length;
+  document.getElementById('mlFilaInfo').textContent = f.length
+    ? `${f.length} ${f.length === 1 ? 'lead' : 'leads'} em aberto sem nenhuma ligação manual, o mais antigo primeiro. ${atrasados} acima do SLA de ${m.sla_primeira_ligacao_h} h para a primeira ligação.`
+    : 'Todo lead em aberto já recebeu pelo menos uma ligação.';
+  document.getElementById('mlFilaTbody').innerHTML = f.length ? f.map(x => `<tr>
+      <td>${escapeHtml(x.nome || '(sem nome)')}</td><td>${mlTelBotao(x.telefone)}</td><td>${escapeHtml(x.consultor || '')}</td>
+      <td>${escapeHtml((x.status || '').trim() || 'sem status')}</td><td${x.atrasadoSla ? ' class="mlAtraso"' : ''}>${mlHaTexto(x.horasDesdeEntrada)}</td></tr>`).join('')
+    : mlLinhaVazia(5, 'Nenhum lead sem ligação.');
+}
+function mlLinhasCadencia(lista){
+  return lista.map(x => `<tr><td>${escapeHtml(x.nome || '(sem nome)')}</td><td>${escapeHtml(x.consultor || '')}</td>
+      <td>${escapeHtml((x.status || '').trim() || 'sem status')}</td><td>${x.tentativas}</td><td>${x.ultima_ligacao ? escapeHtml(mlFmtDiaHora(x.ultima_ligacao)) : '—'}</td></tr>`).join('');
+}
+function mlRenderCadencia(cl){
+  const m = mlEstado.metas;
+  document.getElementById('mlAbaixoInfo').textContent = `Abaixo do mínimo: leads em aberto com 1 a ${m.min_tentativas - 1} tentativas (o mínimo combinado é ${m.min_tentativas} antes de desistir).`;
+  document.getElementById('mlAbaixoTbody').innerHTML = cl.abaixoMin.length ? mlLinhasCadencia(cl.abaixoMin) : mlLinhaVazia(5, 'Nenhum lead abaixo do mínimo.');
+  document.getElementById('mlAcimaInfo').textContent = `Acima do teto: leads ainda em aberto com mais de ${m.max_tentativas} tentativas — vale decidir se continua ou encerra.`;
+  document.getElementById('mlAcimaTbody').innerHTML = cl.acimaTeto.length ? mlLinhasCadencia(cl.acimaTeto) : mlLinhaVazia(5, 'Nenhum lead acima do teto.');
+}
+function mlRenderInconsistencias(cl){
+  const m = mlEstado.metas, i = cl.inconsistencias;
+  const grupos = [
+    [i.planilhaDesatualizada, 'Planilha desatualizada', `leads marcados "sem contato" que já têm ${m.min_tentativas} ou mais ligações`],
+    [i.perdidoCedo, 'Perdido cedo demais', `leads marcados "cliente não responde" com menos de ${m.min_tentativas} tentativas`],
+    [i.vendaSemLigacao, 'Venda sem ligação', 'vendas sem nenhuma ligação manual (pode ter vindo por WhatsApp; só confirmar)'],
+  ];
+  const nomes = l => l.slice(0, 10).map(x => `${escapeHtml(x.nome || '(sem nome)')} (${escapeHtml(x.consultor || '')}, ${x.tentativas} lig.)`).join('; ')
+    + (l.length > 10 ? `; e mais ${l.length - 10}` : '');
+  const html = grupos.filter(g => g[0].length).map(g => `<p><b>${g[1]} (${g[0].length})</b> — ${g[2]}.<br><span class="desc">${nomes(g[0])}</span></p>`).join('');
+  document.getElementById('mlInconsLista').innerHTML = html || '<p class="desc">Nenhuma inconsistência encontrada.</p>';
+}
+
+document.getElementById('digitalSubMonitor').addEventListener('click', function(ev){
+  const cp = ev.target.closest('[data-ml-copiar]');
+  if(!cp) return;
+  const txt = cp.dataset.mlCopiar;
+  try{ navigator.clipboard.writeText(txt); mostrarAviso('Copiado: ' + txt, 'ok'); }catch(err){ mostrarAviso(txt, 'info'); }
+});
+
+/* ---- Monitoramento Leads: ligações por consultor (placar do dia, qualidade, tabela) ---- */
+const mlNum = v => Number(v) || 0;
+const mlMesmoUsuario = (a, b) => !!a && !!b && String(a).toLowerCase() === String(b).toLowerCase();
+function mlLinhaDoUsuario(porUsuario, usuario){ return (porUsuario || []).find(r => mlMesmoUsuario(r.usuario, usuario)) || {}; }
+
+function mlPlacarLinhas(porUsuario, equipe, metas){
+  const meta = mlNum(metas && metas.meta_ligacoes_dia);
+  return (equipe || []).filter(e => e.monitorar).map(e => {
+    const r = mlLinhaDoUsuario(porUsuario, e.usuario_telefonia);
+    const lig = mlNum(r.h_hoje);
+    return { nome: e.nome_planilha, usuario: e.usuario_telefonia, ligHoje: lig, atendidasHoje: mlNum(r.hoje_atend), leadsHoje: mlNum(r.hoje_leads),
+      minHoje: Math.round(mlNum(r.hoje_seg) / 60), pctMeta: meta ? lig / meta : null, ultima: r.hoje_ultima || null };
+  });
+}
+function mlQualidadeLinhas(porUsuario, equipe){
+  return (equipe || []).filter(e => e.monitorar).map(e => {
+    const r = mlLinhaDoUsuario(porUsuario, e.usuario_telefonia);
+    const lig = mlNum(r.lig_leads), at = mlNum(r.atend_leads);
+    return { nome: e.nome_planilha, ligLeads: lig, taxaAtend: lig ? at / lig : 0, mediaSeg: at ? Math.round(mlNum(r.seg_leads) / at) : 0,
+      boas: mlNum(r.boas_leads), atendSemContato: mlNum(r.atend_sem_contato) };
+  });
+}
+function mlTabelaLinhas(porUsuario, equipe, modo){
+  const linha = (usuario, nome) => {
+    const r = mlLinhaDoUsuario(porUsuario, usuario), lig = mlNum(r.lig_leads), tot = mlNum(r.total), dist = mlNum(r.leads_distintos);
+    return { usuario, nome, total: tot, ligLeads: lig, pctTotal: tot ? lig / tot : 0, atendidas: mlNum(r.atend_leads), leadsDistintos: dist,
+      tentativasPorLead: dist ? lig / dist : 0, hoje: mlNum(r.h_hoje), ontem: mlNum(r.h_ontem), d7: mlNum(r.h_7), d30: mlNum(r.h_30) };
+  };
+  if(modo === 'equipe') return (equipe || []).filter(e => e.monitorar).map(e => linha(e.usuario_telefonia, e.nome_planilha));
+  return (porUsuario || []).map(r => {
+    const e = (equipe || []).find(x => mlMesmoUsuario(x.usuario_telefonia, r.usuario));
+    return linha(r.usuario, e ? e.nome_planilha : r.usuario);
+  }).sort((a, b) => b.ligLeads - a.ligLeads);
+}
+
+async function mlCarregarPorUsuario(){
+  if(mlEstado.de === undefined && mlEstado.ate === undefined){ const h = hojeSP(); mlEstado.de = h.slice(0, 8) + '01'; mlEstado.ate = h; }
+  const r = await ppSeguro(() => sb.rpc('monitor_ligacoes_por_usuario', { p_ref: hojeSP(), p_de: mlEstado.de || null, p_ate: mlEstado.ate || null }));
+  if(r && r.error){ console.error(r.error); mlEstado.erro = true; }
+  mlEstado.porUsuario = (r && Array.isArray(r.data)) ? r.data : [];
+}
+
+const mlFmtMin = seg => seg ? (seg < 60 ? seg + ' s' : Math.floor(seg / 60) + ' min ' + String(seg % 60).padStart(2, '0') + ' s') : '—';
+function mlRenderPlacar(){
+  const l = mlPlacarLinhas(mlEstado.porUsuario, mlEstado.equipe, mlEstado.metas);
+  document.getElementById('mlPlacarTbody').innerHTML = l.length ? l.map(x => `<tr><td>${escapeHtml(x.nome)}</td><td>${x.ligHoje}</td>
+      <td>${x.pctMeta === null ? '—' : miniBarHtml(x.pctMeta)}</td><td>${x.atendidasHoje}</td><td>${x.leadsHoje}</td><td>${x.minHoje}</td>
+      <td>${x.ultima ? escapeHtml(mlFmtDiaHora(x.ultima)) : 'nenhuma hoje'}</td></tr>`).join('') : mlLinhaVazia(7, 'Nenhum consultor de leads cadastrado.');
+}
+function mlRenderQualidade(){
+  const l = mlQualidadeLinhas(mlEstado.porUsuario, mlEstado.equipe);
+  document.getElementById('mlQualidadeTbody').innerHTML = l.length ? l.map(x => `<tr><td>${escapeHtml(x.nome)}</td><td>${x.ligLeads}</td>
+      <td>${fmtPctConversao(x.taxaAtend)}</td><td>${mlFmtMin(x.mediaSeg)}</td><td>${x.boas}</td><td>${x.atendSemContato}</td></tr>`).join('') : mlLinhaVazia(6, 'Nenhum consultor de leads cadastrado.');
+}
+function mlRenderTabela(){
+  document.querySelectorAll('#mlTabelaPills [data-ml-tabela]').forEach(b => b.classList.toggle('active', b.dataset.mlTabela === mlEstado.tabela));
+  document.getElementById('mlPeriodoDe').value = mlEstado.de || '';
+  document.getElementById('mlPeriodoAte').value = mlEstado.ate || '';
+  const l = mlTabelaLinhas(mlEstado.porUsuario, mlEstado.equipe, mlEstado.tabela);
+  document.getElementById('mlTabelaTbody').innerHTML = l.length ? l.map(x => `<tr><td>${escapeHtml(x.nome)}</td><td>${x.total}</td><td>${x.ligLeads}</td>
+      <td>${fmtPctConversao(x.pctTotal)}</td><td>${x.atendidas}</td><td>${x.leadsDistintos}</td><td>${x.tentativasPorLead.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>
+      <td>${x.hoje}</td><td>${x.ontem}</td><td>${x.d7}</td><td>${x.d30}</td></tr>`).join('') : mlLinhaVazia(11, 'Nenhuma ligação guardada neste período.');
+}
+
+document.getElementById('digitalSubMonitor').addEventListener('click', function(ev){
+  const t = ev.target.closest('[data-ml-tabela]');
+  if(!t) return;
+  mlEstado.tabela = t.dataset.mlTabela;
+  mlRenderTabela();
+});
+['mlPeriodoDe', 'mlPeriodoAte'].forEach(function(id){
+  document.getElementById(id).addEventListener('change', async function(){
+    mlEstado.de = document.getElementById('mlPeriodoDe').value || null;
+    mlEstado.ate = document.getElementById('mlPeriodoAte').value || null;
+    await mlCarregarPorUsuario();
+    mlRenderTudo();
+  });
+});
+
+/* ---- Monitoramento Leads: editor da equipe de leads e das metas (só admin) ---- */
+const ML_META_ROTULOS = { min_tentativas: 'Mínimo de tentativas por lead', max_tentativas: 'Teto de tentativas', meta_ligacoes_dia: 'Meta de ligações por dia',
+  conversa_boa_seg: 'Conversa boa (segundos falados)', sla_primeira_ligacao_h: 'SLA da 1ª ligação (horas)' };
+
+function mlLinhaEquipeHtml(e){
+  const perfis = mlEstado.perfis || [];
+  const opcoes = '<option value="">(sem perfil)</option>' + perfis.map(p => `<option value="${escapeHtml(p.id)}"${p.id === e.profile_id ? ' selected' : ''}>${escapeHtml(p.nome)} (${escapeHtml(p.username)})</option>`).join('');
+  return `<tr data-ml-eq-id="${e.id == null ? '' : escapeHtml(String(e.id))}">
+    <td><input type="text" class="mlEqNome" value="${escapeHtml(e.nome_planilha || '')}"></td>
+    <td><input type="text" class="mlEqUsuario" value="${escapeHtml(e.usuario_telefonia || '')}"></td>
+    <td><select class="mlEqPerfil">${opcoes}</select></td>
+    <td><input type="checkbox" class="mlEqMonitorar"${e.monitorar ? ' checked' : ''}></td>
+    <td><button type="button" class="btn btn-sm btn-outline" data-ml-eq-del="${e.id == null ? '' : escapeHtml(String(e.id))}" style="width:auto">Remover</button></td></tr>`;
+}
+function mlRenderEquipeEditor(){
+  const card = document.getElementById('mlEquipeCard');
+  const adm = !!currentUser && currentUser.role === 'admin';
+  card.style.display = adm ? '' : 'none';
+  if(!adm) return;
+  document.getElementById('mlEquipeTbody').innerHTML = mlEstado.equipe.map(mlLinhaEquipeHtml).join('');
+  document.getElementById('mlMetasCampos').innerHTML = Object.keys(ML_META_ROTULOS).map(k =>
+    `<div class="field" style="margin:0;width:200px"><label>${ML_META_ROTULOS[k]}</label><input type="number" min="0" data-ml-meta="${k}" value="${mlEstado.metas[k]}"></div>`).join('');
+}
+
+async function mlSalvarEquipe(){
+  const linhas = [...document.querySelectorAll('#mlEquipeTbody tr[data-ml-eq-id]')].map(tr => ({
+    id: tr.dataset.mlEqId ? Number(tr.dataset.mlEqId) : null,
+    nome_planilha: tr.querySelector('.mlEqNome').value.trim(),
+    usuario_telefonia: tr.querySelector('.mlEqUsuario').value.trim() || null,
+    profile_id: tr.querySelector('.mlEqPerfil').value || null,
+    monitorar: tr.querySelector('.mlEqMonitorar').checked,
+  })).filter(l => l.nome_planilha);
+  const perfis = linhas.map(l => l.profile_id).filter(Boolean);
+  if(new Set(perfis).size !== perfis.length){ mostrarAviso('O mesmo perfil do painel não pode estar em duas pessoas.', 'erro'); return; }
+  const agora = new Date().toISOString();
+  const existentes = linhas.filter(l => l.id !== null).map(l => Object.assign({}, l, { atualizado_em: agora }));
+  const novas = linhas.filter(l => l.id === null).map(l => ({ nome_planilha: l.nome_planilha, usuario_telefonia: l.usuario_telefonia, profile_id: l.profile_id, monitorar: l.monitorar }));
+  if(existentes.length){
+    const { error } = await sb.from('leads_equipe').upsert(existentes, { onConflict: 'id' });
+    if(error){ mostrarAviso('Não foi possível salvar a equipe: ' + error.message, 'erro'); return; }
+  }
+  if(novas.length){
+    const { error } = await sb.from('leads_equipe').insert(novas);
+    if(error){ mostrarAviso('Não foi possível adicionar a pessoa nova: ' + error.message, 'erro'); return; }
+  }
+  mostrarAviso('Equipe de leads salva.', 'ok');
+  await mlCarregar();
+}
+async function mlSalvarMetas(){
+  const m = {};
+  for(const k of Object.keys(ML_META_ROTULOS)){
+    const v = document.querySelector('#mlMetasCampos [data-ml-meta="' + k + '"]').value;
+    const n = Number(v);
+    if(v === '' || !Number.isFinite(n) || n < 0){ mostrarAviso('Confira as metas: "' + ML_META_ROTULOS[k] + '" precisa ser um número.', 'erro'); return; }
+    m[k] = n;
+  }
+  if(m.min_tentativas > m.max_tentativas){ mostrarAviso('O mínimo de tentativas não pode ser maior que o teto.', 'erro'); return; }
+  const { error } = await sb.from('config').upsert({ chave: 'monitor_leads_metas', valor: JSON.stringify(m), atualizado_em: new Date().toISOString() }, { onConflict: 'chave' });
+  if(error){ mostrarAviso('Não foi possível salvar as metas: ' + error.message, 'erro'); return; }
+  mostrarAviso('Metas salvas.', 'ok');
+  await mlCarregar();
+}
+
+document.getElementById('btnMlEquipeAdd').addEventListener('click', function(){
+  document.getElementById('mlEquipeTbody').insertAdjacentHTML('beforeend', mlLinhaEquipeHtml({ id: null, nome_planilha: '', usuario_telefonia: '', profile_id: null, monitorar: true }));
+});
+document.getElementById('btnMlEquipeSalvar').addEventListener('click', mlSalvarEquipe);
+document.getElementById('btnMlMetasSalvar').addEventListener('click', mlSalvarMetas);
+document.getElementById('mlEquipeTbody').addEventListener('click', async function(ev){
+  const b = ev.target.closest('[data-ml-eq-del]');
+  if(!b) return;
+  if(!b.dataset.mlEqDel){ b.closest('tr').remove(); return; }   // linha ainda não gravada: só tira da tela
+  if(!confirm('Remover esta pessoa da equipe de leads? Os leads dela na planilha não mudam.')) return;
+  const { error } = await sb.from('leads_equipe').delete().eq('id', Number(b.dataset.mlEqDel));
+  if(error){ mostrarAviso('Não foi possível remover: ' + error.message, 'erro'); return; }
+  await mlCarregar();
+});
+
+/* ---- Monitoramento Leads: exportar para Excel (SheetJS, sem cores) ---- */
+function mlBaixarXlsx(nomeArquivo, abas){
+  const wb = XLSX.utils.book_new();
+  abas.forEach(a => XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(a.linhas.length ? a.linhas : [{ Aviso: 'Nada para exportar' }]), a.nome));
+  XLSX.writeFile(wb, nomeArquivo);
+}
+const mlTelLimpo = t => String(t || '').replace(/^p:/, '');
+function mlLinhasExportFila(cl){
+  return cl.semLigacao.map(x => ({ Lead: x.nome || '', Telefone: mlTelLimpo(x.telefone), Consultor: x.consultor || '', 'Status na planilha': (x.status || '').trim(),
+    'Entrou há (horas)': x.horasDesdeEntrada == null ? '' : Math.round(x.horasDesdeEntrada), 'Acima do SLA': x.atrasadoSla ? 'Sim' : 'Não' }));
+}
+function mlLinhasExportCadencia(lista){
+  return lista.map(x => ({ Lead: x.nome || '', Telefone: mlTelLimpo(x.telefone), Consultor: x.consultor || '', Status: (x.status || '').trim(), Tentativas: x.tentativas,
+    'Última ligação': x.ultima_ligacao ? mlFmtDiaHora(x.ultima_ligacao) : '' }));
+}
+function mlLinhasExportInconsistencias(cl){
+  const i = cl.inconsistencias, out = [];
+  [['Planilha desatualizada', i.planilhaDesatualizada], ['Perdido cedo demais', i.perdidoCedo], ['Venda sem ligação', i.vendaSemLigacao]].forEach(g =>
+    g[1].forEach(x => out.push({ Tipo: g[0], Lead: x.nome || '', Consultor: x.consultor || '', Telefone: mlTelLimpo(x.telefone), Status: (x.status || '').trim(), Tentativas: x.tentativas })));
+  return out;
+}
+function mlLinhasExportTabela(linhas){
+  return linhas.map(x => ({ Consultor: x.nome, 'Ligações manuais': x.total, 'Ligações para leads': x.ligLeads, '% do total': fmtPctConversao(x.pctTotal), Atendidas: x.atendidas,
+    'Leads diferentes': x.leadsDistintos, 'Tentativas por lead': Math.round(x.tentativasPorLead * 10) / 10, Hoje: x.hoje, Ontem: x.ontem, '7 dias': x.d7, '30 dias': x.d30 }));
+}
+
+document.getElementById('btnMlExportFila').addEventListener('click', function(){
+  const cl = mlEstado.classificado || mlClassificarLeads([], mlEstado.metas, Date.now());
+  mlBaixarXlsx(`LeadsSemLigacao_${mlEstado.aba || 'SEM-ABA'}_${hojeSP()}.xlsx`, [
+    { nome: 'Sem ligação', linhas: mlLinhasExportFila(cl) },
+    { nome: 'Abaixo do mínimo', linhas: mlLinhasExportCadencia(cl.abaixoMin) },
+    { nome: 'Acima do teto', linhas: mlLinhasExportCadencia(cl.acimaTeto) },
+    { nome: 'Inconsistências', linhas: mlLinhasExportInconsistencias(cl) },
+  ]);
+});
+document.getElementById('btnMlExportTabela').addEventListener('click', function(){
+  const linhas = mlTabelaLinhas(mlEstado.porUsuario, mlEstado.equipe, mlEstado.tabela);
+  mlBaixarXlsx(`LigacoesPorConsultor_${mlEstado.de || 'inicio'}_${mlEstado.ate || 'hoje'}.xlsx`, [{ nome: 'Ligações por consultor', linhas: mlLinhasExportTabela(linhas) }]);
+});
+
+/* ---- Pedidos Parados: "Meus leads para tratar" (consultor) — 01/10/2026, REGRAS_NEGOCIO.md seção 59 ---- */
+const plEstado = { geracao: 0, vinculado: false, erro: false, leads: [], followups: [] };
+const PL_ORDEM = { semLigacao: 0, atrasado: 1, esfriando: 2, hoje: 3, ok: 4 };
+
+function plClassificar(leads, followups, hoje, agoraMs){
+  const pend = {};   // próximo retorno pendente de cada lead
+  (followups || []).forEach(f => { if(!f.feito && (!pend[f.lead_id] || f.data_prevista < pend[f.lead_id].data_prevista)) pend[f.lead_id] = f; });
+  return (leads || []).map(l => {
+    const t = Number(l.tentativas) || 0, p = pend[l.lead_id] || null;
+    const ms = new Date(l.ultima_ligacao || l.criado_em_lead).getTime();
+    const dias = isNaN(ms) ? null : Math.floor((agoraMs - ms) / 86400000);
+    let situacao = 'ok';
+    if(t === 0) situacao = 'semLigacao';
+    else if(p && p.data_prevista < hoje) situacao = 'atrasado';
+    else if(dias !== null && dias >= LEAD_ESFRIANDO_DIAS) situacao = 'esfriando';
+    else if(p && p.data_prevista === hoje) situacao = 'hoje';
+    return { lead: l, tentativas: t, pendente: p, diasParado: dias, situacao };
+  }).sort((a, b) => (PL_ORDEM[a.situacao] - PL_ORDEM[b.situacao]) || String(a.lead.criado_em_lead).localeCompare(String(b.lead.criado_em_lead)));
+}
+
+function plRender(){
+  const wrap = document.getElementById('plWrap'), card = document.getElementById('plCard'), erro = document.getElementById('plErro');
+  wrap.style.display = plEstado.vinculado ? '' : 'none';
+  erro.style.display = plEstado.vinculado && plEstado.erro ? '' : 'none';
+  card.style.display = plEstado.vinculado && !plEstado.erro ? '' : 'none';
+  if(!plEstado.vinculado || plEstado.erro) return;
+  const hoje = hojeSP();
+  const linhas = plClassificar(plEstado.leads, plEstado.followups, hoje, Date.now());
+  const n = s => linhas.filter(x => x.situacao === s).length;
+  document.getElementById('plResumo').innerHTML = [['atrasado', n('semLigacao') + ' sem ligação'], ['atrasado', n('atrasado') + ' retorno atrasado'],
+    ['hoje', n('esfriando') + ' esfriando'], ['hoje', n('hoje') + ' para hoje']].map(c => `<span class="retornoResumoChip ${c[0]}">${c[1]}</span>`).join('');
+  const classeBadge = { semLigacao: 'atrasado', atrasado: 'atrasado', esfriando: 'hoje', hoje: 'hoje', ok: 'futuro' };
+  const rotulo = x => {
+    if(x.situacao === 'semLigacao') return 'Nenhuma ligação ainda' + (x.diasParado !== null ? ' · entrou há ' + x.diasParado + ' d' : '');
+    if(x.situacao === 'atrasado') return 'Retorno atrasado desde ' + ppFmtDia(x.pendente.data_prevista);
+    if(x.situacao === 'esfriando') return 'Esfriando · sem ligação há ' + x.diasParado + ' d';
+    if(x.situacao === 'hoje') return 'Retorno hoje';
+    return x.pendente ? 'Retorno em ' + ppFmtDia(x.pendente.data_prevista) : 'Em dia';
+  };
+  document.getElementById('plLista').innerHTML = linhas.length ? linhas.map(x => {
+    const l = x.lead, id = escapeHtml(l.lead_id), tel = String(l.telefone || '').replace(/^p:/, '');
+    return `<div class="retornoLeadRow" data-lead-id="${id}">
+      <div class="retornoLeadInfo"><strong>${escapeHtml(l.nome || '(sem nome)')}</strong>
+        <span class="retornoLeadSub">${escapeHtml((l.status || '').trim() || 'sem status')} · ${escapeHtml(conversaoAbaRotulo(l.aba))} · ${x.tentativas} ${x.tentativas === 1 ? 'tentativa' : 'tentativas'}${l.ultima_ligacao ? ' · última ligação ' + escapeHtml(mlFmtDiaHora(l.ultima_ligacao)) : ''}</span></div>
+      <div class="retornoLeadAcoes">
+        <span class="retornoBadge ${classeBadge[x.situacao]}">${escapeHtml(rotulo(x))}</span>
+        ${x.pendente ? `<button type="button" class="btn btn-sm btn-outline btnPlFeito" data-followup-id="${escapeHtml(x.pendente.id)}">Marcar feito</button>` : ''}
+        ${tel ? `<button type="button" class="btn btn-sm btn-outline" data-copiar="${escapeHtml(tel)}" style="width:auto">${escapeHtml(tel)}</button>` : ''}
+        <button type="button" class="btn btn-sm btn-ghost btnPlAgendar" data-lead-id="${id}">Agendar retorno</button>
+      </div>
+      <div class="retornoAgendarForm" id="plForm_${id}" style="display:none">
+        <input type="date" class="retornoFormData" value="${hoje}">
+        <select class="retornoFormTipo">${Object.keys(FOLLOWUP_TIPO_LABEL).map(t => `<option value="${t}">${FOLLOWUP_TIPO_LABEL[t]}</option>`).join('')}</select>
+        <input type="text" class="retornoFormObs" placeholder="Observação (opcional)">
+        <button type="button" class="btn btn-sm btnPlSalvar" data-lead-id="${id}">Salvar</button>
+      </div></div>`;
+  }).join('') : '<p class="desc">Nenhum lead em aberto. 🎉</p>';
+}
+
+async function plCarregar(){
+  if(!canSeePedidosParados()) return;
+  const geracao = ++plEstado.geracao;
+  const [vinc, lds, fu] = await Promise.all([
+    ppSeguro(() => sb.from('leads_equipe').select('nome_planilha').eq('profile_id', currentUser.id).maybeSingle()),
+    ppSeguro(() => fetchAllRows(() => sb.rpc('meus_leads_para_tratar'))),
+    ppSeguro(() => sb.from('leads_followups').select('id,lead_id,consultor_id,data_prevista,tipo,feito').eq('consultor_id', currentUser.id).eq('feito', false)),
+  ]);
+  if(geracao !== plEstado.geracao) return;   // trocou de usuário/recarregou no meio
+  plEstado.vinculado = !!(vinc && !vinc.error && vinc.data && vinc.data.nome_planilha);
+  plEstado.erro = !!((lds && lds.error) || (fu && fu.error));
+  if(plEstado.erro) console.error((lds && lds.error) || (fu && fu.error));
+  plEstado.leads = (lds && lds.data) || [];
+  plEstado.followups = (fu && fu.data) || [];
+  plRender();
+}
+function plResetar(){
+  plEstado.geracao++;
+  Object.assign(plEstado, { vinculado: false, erro: false, leads: [], followups: [] });
+  ['plResumo', 'plLista'].forEach(id => { document.getElementById(id).innerHTML = ''; });
+  ['plWrap', 'plCard', 'plErro'].forEach(id => { document.getElementById(id).style.display = 'none'; });
+}
+
+document.getElementById('plLista').addEventListener('click', async function(ev){
+  const ag = ev.target.closest('.btnPlAgendar');
+  if(ag){ const f = document.getElementById('plForm_' + ag.dataset.leadId); if(f) f.style.display = f.style.display === 'none' ? 'flex' : 'none'; return; }
+  const sv = ev.target.closest('.btnPlSalvar');
+  if(sv){
+    const f = document.getElementById('plForm_' + sv.dataset.leadId);
+    const data = f.querySelector('.retornoFormData').value;
+    if(!data){ mostrarAviso('Escolha uma data para o retorno.', 'erro'); return; }
+    sv.disabled = true;
+    const { error } = await sb.from('leads_followups').insert({ lead_id: sv.dataset.leadId, consultor_id: currentUser.id, data_prevista: data,
+      tipo: f.querySelector('.retornoFormTipo').value, observacao: f.querySelector('.retornoFormObs').value.trim() || null });
+    sv.disabled = false;
+    if(error){ mostrarAviso('Não foi possível salvar o retorno: ' + error.message, 'erro'); return; }
+    mostrarAviso('Retorno agendado.', 'ok');
+    await plCarregar();
+    return;
+  }
+  const fe = ev.target.closest('.btnPlFeito');
+  if(fe){
+    fe.disabled = true;
+    const { error } = await sb.from('leads_followups').update({ feito: true, feito_em: new Date().toISOString() }).eq('id', fe.dataset.followupId);
+    fe.disabled = false;
+    if(error){ mostrarAviso('Não foi possível marcar como feito: ' + error.message, 'erro'); return; }
+    await plCarregar();
+  }
+});
+
+/* ==== FIM MONITORAMENTO LEADS ==== */
 
 // Pílulas de aba da planilha (Setembro/Agosto/Repique): só trocam a aba e re-renderizam, sem refetch.
 document.getElementById('conversaoAbaPills').addEventListener('click', function(ev){
@@ -9302,6 +10091,7 @@ function ppRender(){
 
 async function loadPedidosParados(){
   if(!canSeePedidosParados()) return;
+  plCarregar().catch(err => console.error(err));   // leads do consultor (seção 59); roda em paralelo com os pedidos
   ppEstado.secao = ppEstado.secao || 'parados';
   document.getElementById('ppCarregando').style.display = ppEstado.calc ? 'none' : 'block';
   await ppCarregarDados(false);
@@ -9337,6 +10127,7 @@ function ppResetar(){
     movimentos: [], neoOutros: new Set(), telefones: new Map(), secao: 'parados', fEtapa: '', fNivel: '' });
   ['ppPlacar', 'ppKpis', 'ppPills', 'ppSecao', 'meuDiaStats'].forEach(id => { document.getElementById(id).innerHTML = ''; });
   ['ppConteudo', 'ppSemVinculo', 'ppErro', 'ppCarregando', 'meuDiaCard'].forEach(id => { document.getElementById(id).style.display = 'none'; });
+  plResetar();
 }
 async function ppIniciar(){
   ppResetar();

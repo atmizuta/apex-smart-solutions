@@ -2397,3 +2397,40 @@ Correspondência com os grupos do NeoCRM (`RELATORIO_ROTULOS`, deriva de `DIARIA
 ### 58.1 Publicado (30/09/2026, 20:24)
 - Antes de publicar, o painel no ar (MD5 `e7d1133b…`) era idêntico ao `oficial/main` (d94d454): nada por fora. Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`d4ef7baa38473ec5bbff93a67da6ebcf`**, igual no arquivo gerado, no servidor e no site público. Backup no servidor: `~/deploy_backups/painel_clientes_apex_20260930_202344_antes_layout_centralizado.html`. Vigia atualizado.
 - **Reverter:** copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. Não há mudança de banco nem de função.
+
+## 59. Monitoramento Leads — ligações manuais x leads (01/10/2026)
+
+Pedido do usuário: a partir de outubro/2026 os leads ficam com 4 pessoas (Caio, Gabriel Macedo, Luria, Mariana) e é preciso acompanhar de perto se elas ligam, tratam e vendem. A telefonia não tem API; o relatório de chamadas manuais chega em Excel. Spec: `docs/superpowers/specs/2026-10-01-monitoramento-leads-design.md`; plano: `docs/superpowers/plans/2026-10-01-monitoramento-leads.md`. **Status: implementado e testado no repositório; a migration do banco e a publicação dependem de OK do usuário.**
+
+### 59.1 Onde fica e quem vê
+- **Digital → "Monitoramento Leads"** (sub-aba ao lado de "Leads"): só **admin e supervisor**. O consultor não vê a barra de sub-abas. A sub-aba só é escondida na tela; a proteção real é do banco (as RPCs recusam quem não é admin/supervisor e a tabela `ligacoes_manuais` tem RLS).
+- **Pedidos Parados → "Meus leads para tratar"**: só o **consultor** que tem linha em `leads_equipe` com `profile_id` = login dele. Vê apenas os próprios leads em aberto (de todas as abas), com tentativas e última ligação. Nunca lê `ligacoes_manuais`. Consultor sem vínculo não vê a seção (nem aviso nem erro: quase todos os consultores não recebem lead).
+- Mês do monitoramento = a aba da planilha escolhida (mesmas pílulas da Digital, seção 54).
+
+### 59.2 Telefone e "número de lead"
+`chave_tel` = DDD + 8 últimos dígitos (tira o `55` quando há 12+ dígitos; ignora o 9º dígito), igual em SQL (`public.chave_tel`) e em JS (`chaveTel`). "Número de lead" = telefone presente em qualquer aba de `leads`. Telefone com menos de 10 dígitos não casa com ninguém.
+
+### 59.3 Upload do relatório
+Botão "Escolher arquivo" (Excel/CSV da telefonia). Colunas obrigatórias: `ID`, `Usuario`, `Telefone`, `Status`, `DataHora_Geracao` (o resto é opcional; o nome da coluna ignora acento, caixa e espaços). Grava em `ligacoes_manuais` por `upsert` no `id`, em lotes de 500: reenviar o mês inteiro não duplica. Mostra lidas / novas / já existiam / inválidas e quem da equipe não aparece no arquivo. Horário do relatório = São Paulo (`-03:00`). Linha com ID vazio ou data fora do formato é contada como inválida e não é enviada.
+
+### 59.4 O que a página mostra (nesta ordem)
+1. Cards dos consultores monitorados (leads, vendas, conversão, perdidos, em andamento, sem contato, receita, sem ligação). Clicar filtra os blocos abaixo.
+2. Upload.
+3. **Fila de leads sem ligação** (em aberto, mais antigo primeiro; vermelho acima do SLA de 24 h).
+4. **Cadência**: abaixo do mínimo (1 a 2 tentativas) e acima do teto (mais de 10) — padrões 3 e 10.
+5. **Placar do dia**: ligações para lead hoje contra a meta (padrão 80), atendidas, leads tocados, minutos, hora da última.
+6. **Qualidade**: taxa de atendimento, duração média falada, conversas boas (≥ 60 s) e atendidas tabuladas "SEM CONTATO".
+7. **Inconsistências**: "sem contato" com 3+ ligações; "cliente não responde" com menos de 3 tentativas; venda sem nenhuma ligação.
+8. **Tabela por consultor**, com "Os consultores de leads" e "Todos os consultores": ligações manuais, para leads, % do total, atendidas, leads diferentes, tentativas por lead e as janelas hoje/ontem/7 dias/30 dias (sempre relativas a hoje); o período De/Até (padrão = mês corrente) vale para os totais.
+9. **Equipe de leads e metas** (só admin): nome na planilha, usuário na telefonia, perfil do painel, monitorar; metas `min_tentativas`, `max_tentativas`, `meta_ligacoes_dia`, `conversa_boa_seg`, `sla_primeira_ligacao_h` (guardadas em `config.monitor_leads_metas`).
+- Excel (SheetJS, **sem cores**; a ExcelJS colorida só existe no Dashboard de Produção): fila + cadência + inconsistências, e a tabela por consultor.
+
+### 59.5 Banco (migration `supabase/migrations/20261001000000_monitoramento_leads.sql`, rollback em `supabase/rollback/`)
+Aditiva. Cria `chave_tel`, `norm_nome`, `ligacoes_manuais` (RLS admin/supervisor), `leads_equipe` (leitura: o próprio perfil e admin/supervisor; escrita: admin), as RPCs `monitor_leads_leads`, `monitor_ligacoes_por_usuario`, `monitor_ligacoes_resumo` (admin/supervisor) e `meus_leads_para_tratar` (consultor vinculado), e semeia `leads_equipe` com Caio / Gabriel / Luria / Mariana (`profile_id` vazio: o admin liga cada um no editor). Verificação: `supabase/tests/monitoramento_leads_check.sql` (transação com rollback). **Ordem de entrada no ar:** migration primeiro, depois o painel (sem a migration as telas novas mostram "não foi possível carregar" e o resto não quebra).
+
+### 59.6 Decisões e limites
+- "Gabriel" na planilha de leads é o Gabriel Macedo (`apex.gabrielM`); o outro Gabriel (`apex.gabriels`) não recebe lead.
+- A hora da última ligação aparece no placar do dia; o alerta "parado há X h" e o link para a gravação ficaram para depois (o campo `gravacao` já é guardado).
+- Fora do escopo: API da telefonia, aviso por Slack/WhatsApp, o consultor ver o próprio placar de ligações, ajustar "Meus leads e retornos" da Digital para usar `leads_equipe`.
+- `test_conversao_vendas.js` tem 3 falhas que já existem no `oficial/main` (filtros "Hoje" / "Últimos 7 dias" dependem do horário da máquina); não são desta feature.
+- Testes: `test_monitoramento_leads.js` (dados fictícios).
