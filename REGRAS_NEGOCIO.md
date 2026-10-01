@@ -2555,7 +2555,7 @@ Pedido do usuário (01/10): os leads da planilha passarem para o painel sozinhos
 
 ## 64. "Meus leads para tratar": leads para resgatar, WhatsApp com mensagem pronta, retorno em 1 clique e placar de ligações (01/10/2026)
 
-Pedido do usuário (01/10): (1) confirmar que a lista mostra só leads que não viraram venda nem venda perdida — e incluir "não obtive contato"; (2) botão de WhatsApp com mensagem pronta para "ressuscitar" o lead, dizendo "da Claro Empresas"; (3) o consultor ver quantas ligações fez hoje para os leads, comparado com a média, com orientação (ligar mais / insistir mais / ligar menos para o mesmo lead), sem ver os números do Monitoramento; (4) "algo que facilite o consultor a retornar para os leads". **Status: preparado no worktree `.worktrees/leads-outubro` (branch `feat/meus-leads-whatsapp-placar`), ainda não publicado.**
+Pedido do usuário (01/10): (1) confirmar que a lista mostra só leads que não viraram venda nem venda perdida — e incluir "não obtive contato"; (2) botão de WhatsApp com mensagem pronta para "ressuscitar" o lead, dizendo "da Claro Empresas"; (3) o consultor ver quantas ligações fez hoje para os leads, comparado com a média, com orientação (ligar mais / insistir mais / ligar menos para o mesmo lead), sem ver os números do Monitoramento; (4) "algo que facilite o consultor a retornar para os leads". **Status: publicado em 01/10/2026 (ver 64.6).**
 
 ### 64.1 Quais leads aparecem
 - Continua: em andamento (EM NEGOCIAÇÃO, AGUARDANDO DOCUMENTAÇÃO, AGENDADO RETORNO, AGUARDANDO CLIENTE DECIDIR, PEDIDO EM ANÁLISE e qualquer status novo) e sem status. Fora: venda e os perdidos.
@@ -2570,7 +2570,12 @@ Botões "Amanhã" e "Em 3 dias" em cada lead gravam o retorno direto em `leads_f
 ### 64.4 Placar do consultor
 - Cartão no topo da sub-aba (`#plPlacar`): "Você fez X ligações para os seus leads hoje; a média da equipe é Y" + "Ligue mais hoje" (abaixo de 80% da média) ou "Acima da média — continue assim!"; "Insista mais" (leads em aberto com 1 a min−1 tentativas); "Ligue menos para o mesmo lead" (mais que o teto). Metas de `config.monitor_leads_metas` (padrão 3 / 10).
 - RPC `meu_placar_ligacoes(p_ref)`: só as ligações do login (pelo `leads_equipe.usuario_telefonia`) e a média agregada da equipe; nunca números de outra pessoa; o consultor continua sem ler `ligacoes_manuais`.
-- Só aparece com usuário da telefonia preenchido e algum relatório de ligações importado (em 01/10 nenhum relatório foi enviado e só Caio, Gabriel, Luria e Mariana têm usuário da telefonia).
+- Só aparece com usuário da telefonia preenchido e algum relatório de ligações importado (em 01/10 à noite `ligacoes_manuais` já tinha 17.497 ligações de 01/09 a 01/10; só Caio, Gabriel, Luria e Mariana tinham usuário da telefonia).
 
 ### 64.5 Banco e testes
 Migration `supabase/migrations/20261001600000_meus_leads_resgatar_placar.sql` (rollback em `supabase/rollback/`). `test_monitoramento_leads.js` 213 ok. Falhas antigas e não relacionadas: `test_conversao_vendas.js` (relógio) e `test_pedidos_alerta.js` (falta `exceljs`).
+
+### 64.6 Publicado (01/10/2026, ~20:22, horário de SP)
+- **Banco:** migration `meus_leads_resgatar_placar` aplicada (antes: lista da seção 61, placar inexistente). Conferido simulando o Caio em transação com rollback, com ligações fictícias de hoje (3 dele para lead + 1 para número que não é lead + 7 de outra pessoa): a lista passou a ter 96 leads, 21 deles para resgatar; o placar somou só as ligações para lead e a média da equipe; anon sem EXECUTE; nada fictício ficou.
+- **Painel:** o no ar (MD5 `5a326f65…`) era idêntico ao `oficial/main`. Publicado **`69278d1c26ac43d442d89e58512c6339`** (gerado = servidor = site). Vigia atualizado. Backup: `~/deploy_backups/painel_clientes_apex_20261001_202145_antes_meus_leads_whatsapp.html`.
+- **Reverter:** copiar o backup de volta; depois (opcional) `supabase/rollback/20261001600000_meus_leads_resgatar_placar_rollback.sql`.
