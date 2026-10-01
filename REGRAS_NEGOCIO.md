@@ -2544,3 +2544,11 @@ Pedido do usuário (01/10): os leads da planilha passarem para o painel sozinhos
 - **Cron** `sync-leads-auto` (`22,52 * * * *`) ativo; primeira rodada automática às 19:52.
 - **Painel:** o no ar (MD5 `8b66271b…`) era idêntico ao `oficial/main`. Publicado **`5a326f658a98990a138d578e19e531a6`** (gerado = servidor = site). Vigia atualizado. Backup: `~/deploy_backups/painel_clientes_apex_20261001_193954_antes_sync_leads_auto.html`.
 - **Desligar só a automação:** `supabase/rollback/20261001400000_sync_leads_cron_rollback.sql` (o botão continua). **Reverter o painel:** copiar o backup de volta. **Reverter a função:** reimplantar a versão do `oficial/main` anterior a esta seção com `verify_jwt` true.
+
+## 63. Sincronização horária da produção (NeoSales) passa para o minuto 59 (01/10/2026)
+
+- Pedido do usuário: o relatório das 17h (seção 56) corta em 16:59 e tem que sair até 17:00. Com o job no minuto 7, os dados mais novos disponíveis às 17:00 eram os das 16:07.
+- Job `sync-producao-horario`: `7 * * * *` → **`59 * * * *`** (migration `supabase/migrations/20261001500000_sync_producao_minuto_59.sql`, rollback em `supabase/rollback/`). Aplicado em 01/10 ~19:45 (SP). Só muda o horário; o comando é o mesmo da seção 50.
+- Sem lacuna: a janela da consulta vem do cursor (última execução ok) com 15 min de sobreposição; a 1ª rodada no minuto 59 cobre ~67 min, abaixo do limite diurno de 85 min da API (seção 50).
+- Agenda dos jobs depois da mudança: `sync-producao-horario` 59 · `sync-leads-auto` 22 e 52 (seção 62) · `alerta-sync-producao` a cada 15 min · `sync-producao-reconciliar` 02:37 UTC (23:37 SP).
+- Limite: o que o consultor cadastrar no NeoCRM entre 16:59 e 17:00 entra só na rodada das 17:59.
