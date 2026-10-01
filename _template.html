@@ -8546,6 +8546,11 @@ function mlRenderCards(){
 function mlRenderTudo(){
   mlRenderCabecalho();
   mlRenderCards();
+  const cl = mlClassificarLeads(mlLeadsFiltrados(), mlEstado.metas, Date.now());
+  mlEstado.classificado = cl;
+  mlRenderFila(cl);
+  mlRenderCadencia(cl);
+  mlRenderInconsistencias(cl);
   // ==== mais renders entram aqui ====
 }
 
@@ -8629,6 +8634,58 @@ document.getElementById('mlArquivo').addEventListener('change', async function(e
   try{ await mlImportarLinhas(await mlLerArquivo(file)); }
   catch(e){ console.error(e); document.getElementById('mlUploadStatus').textContent = 'Não foi possível ler o arquivo.'; mostrarAviso('Não foi possível ler o arquivo. Confira se é o Excel da telefonia.', 'erro'); }
   ev.target.value = '';
+});
+
+/* ---- Monitoramento Leads: fila sem ligação, cadência e inconsistências ---- */
+function mlTelBotao(t){
+  const s = String(t || '').replace(/^p:/, '');
+  return s ? `<button type="button" class="btn btn-sm btn-outline" data-ml-copiar="${escapeHtml(s)}" style="width:auto">${escapeHtml(s)}</button>` : '—';
+}
+function mlHaTexto(horas){
+  if(horas == null) return '—';
+  return horas < 24 ? Math.max(1, Math.round(horas)) + ' h' : Math.floor(horas / 24) + ' d';
+}
+const mlLinhaVazia = (cols, msg) => `<tr><td colspan="${cols}" class="desc">${msg}</td></tr>`;
+
+function mlRenderFila(cl){
+  const m = mlEstado.metas, f = cl.semLigacao, atrasados = f.filter(x => x.atrasadoSla).length;
+  document.getElementById('mlFilaInfo').textContent = f.length
+    ? `${f.length} ${f.length === 1 ? 'lead' : 'leads'} em aberto sem nenhuma ligação manual, o mais antigo primeiro. ${atrasados} acima do SLA de ${m.sla_primeira_ligacao_h} h para a primeira ligação.`
+    : 'Todo lead em aberto já recebeu pelo menos uma ligação.';
+  document.getElementById('mlFilaTbody').innerHTML = f.length ? f.map(x => `<tr>
+      <td>${escapeHtml(x.nome || '(sem nome)')}</td><td>${mlTelBotao(x.telefone)}</td><td>${escapeHtml(x.consultor || '')}</td>
+      <td>${escapeHtml((x.status || '').trim() || 'sem status')}</td><td${x.atrasadoSla ? ' class="mlAtraso"' : ''}>${mlHaTexto(x.horasDesdeEntrada)}</td></tr>`).join('')
+    : mlLinhaVazia(5, 'Nenhum lead sem ligação.');
+}
+function mlLinhasCadencia(lista){
+  return lista.map(x => `<tr><td>${escapeHtml(x.nome || '(sem nome)')}</td><td>${escapeHtml(x.consultor || '')}</td>
+      <td>${escapeHtml((x.status || '').trim() || 'sem status')}</td><td>${x.tentativas}</td><td>${x.ultima_ligacao ? escapeHtml(mlFmtDiaHora(x.ultima_ligacao)) : '—'}</td></tr>`).join('');
+}
+function mlRenderCadencia(cl){
+  const m = mlEstado.metas;
+  document.getElementById('mlAbaixoInfo').textContent = `Abaixo do mínimo: leads em aberto com 1 a ${m.min_tentativas - 1} tentativas (o mínimo combinado é ${m.min_tentativas} antes de desistir).`;
+  document.getElementById('mlAbaixoTbody').innerHTML = cl.abaixoMin.length ? mlLinhasCadencia(cl.abaixoMin) : mlLinhaVazia(5, 'Nenhum lead abaixo do mínimo.');
+  document.getElementById('mlAcimaInfo').textContent = `Acima do teto: leads ainda em aberto com mais de ${m.max_tentativas} tentativas — vale decidir se continua ou encerra.`;
+  document.getElementById('mlAcimaTbody').innerHTML = cl.acimaTeto.length ? mlLinhasCadencia(cl.acimaTeto) : mlLinhaVazia(5, 'Nenhum lead acima do teto.');
+}
+function mlRenderInconsistencias(cl){
+  const m = mlEstado.metas, i = cl.inconsistencias;
+  const grupos = [
+    [i.planilhaDesatualizada, 'Planilha desatualizada', `leads marcados "sem contato" que já têm ${m.min_tentativas} ou mais ligações`],
+    [i.perdidoCedo, 'Perdido cedo demais', `leads marcados "cliente não responde" com menos de ${m.min_tentativas} tentativas`],
+    [i.vendaSemLigacao, 'Venda sem ligação', 'vendas sem nenhuma ligação manual (pode ter vindo por WhatsApp; só confirmar)'],
+  ];
+  const nomes = l => l.slice(0, 10).map(x => `${escapeHtml(x.nome || '(sem nome)')} (${escapeHtml(x.consultor || '')}, ${x.tentativas} lig.)`).join('; ')
+    + (l.length > 10 ? `; e mais ${l.length - 10}` : '');
+  const html = grupos.filter(g => g[0].length).map(g => `<p><b>${g[1]} (${g[0].length})</b> — ${g[2]}.<br><span class="desc">${nomes(g[0])}</span></p>`).join('');
+  document.getElementById('mlInconsLista').innerHTML = html || '<p class="desc">Nenhuma inconsistência encontrada.</p>';
+}
+
+document.getElementById('digitalSubMonitor').addEventListener('click', function(ev){
+  const cp = ev.target.closest('[data-ml-copiar]');
+  if(!cp) return;
+  const txt = cp.dataset.mlCopiar;
+  try{ navigator.clipboard.writeText(txt); mostrarAviso('Copiado: ' + txt, 'ok'); }catch(err){ mostrarAviso(txt, 'info'); }
 });
 
 /* ==== FIM MONITORAMENTO LEADS ==== */

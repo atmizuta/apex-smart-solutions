@@ -266,6 +266,48 @@ try{
   assert(r === null && document.getElementById('mlUploadStatus').textContent.includes('Não foi possível'), 'erro de gravação mostra mensagem');
   window.__erroEscrita = null;
 
+  // ==== TASK 5: fila, cadência, inconsistências ====
+  const agoraIso = new Date().toISOString();
+  const leadsFila = [
+    L('f1', 'sem_contato', 0, { nome: 'Fila Antigo', consultor: 'Caio', telefone: 'p:+5519900000011', criado_em_lead: '2020-01-01T00:00:00Z' }),
+    L('f2', 'sem_contato', 0, { nome: 'Fila Novo', consultor: 'Luria', criado_em_lead: agoraIso }),
+    L('f3', 'andamento', 1, { nome: 'Abaixo Um', consultor: 'Caio', status: 'EM NEGOCIAÇÃO' }),
+    L('f4', 'andamento', 12, { nome: 'Acima Um', consultor: 'Luria', status: 'AGUARDANDO CLIENTE', ultima_ligacao: '2026-10-03T15:00:00Z' }),
+    L('f5', 'sem_contato', 5, { nome: 'Desatualizado Um', consultor: 'Caio' }),
+    L('f6', 'perdido', 1, { nome: 'Perdido Cedo', consultor: 'Luria', status: 'CLIENTE NÃO RESPONDE' }),
+    L('f7', 'convertido', 0, { nome: 'Venda Sem Ligacao', consultor: 'Caio', receita: 100 }),
+  ];
+  window.__tabelas.leads_equipe = equipeBanco;
+  window.__rpcRespostas.monitor_leads_leads = { data: leadsFila, error: null };
+  window.__rpcRespostas.monitor_ligacoes_resumo = { data: [], error: null };
+  mlEstado.filtro = '';
+  await mlCarregar();
+  const linhasFila = [...document.querySelectorAll('#mlFilaTbody tr')];
+  eq(linhasFila.map(tr => tr.children[0].textContent.trim()), ['Fila Antigo', 'Fila Novo'], 'fila: dois leads, o mais antigo primeiro');
+  assert(linhasFila[0].children[4].classList.contains('mlAtraso') && !linhasFila[1].children[4].classList.contains('mlAtraso'), 'só o lead antigo estoura o SLA (vermelho)');
+  assert(linhasFila[0].querySelector('[data-ml-copiar="+5519900000011"]'), 'botão de copiar o telefone (sem o prefixo p:)');
+  assert(document.getElementById('mlFilaInfo').textContent.includes('2 leads') && document.getElementById('mlFilaInfo').textContent.includes('1 acima do SLA'), 'resumo da fila');
+  eq([...document.querySelectorAll('#mlAbaixoTbody tr')].map(tr => tr.children[0].textContent.trim()), ['Abaixo Um'], 'abaixo do mínimo');
+  eq([...document.querySelectorAll('#mlAcimaTbody tr')].map(tr => tr.children[0].textContent.trim()), ['Acima Um'], 'acima do teto');
+  const inc = document.getElementById('mlInconsLista').textContent;
+  assert(inc.includes('Desatualizado Um') && inc.includes('Perdido Cedo') && inc.includes('Venda Sem Ligacao'), 'as três inconsistências aparecem');
+
+  // filtro por consultor afeta os blocos
+  mlEstado.filtro = 'Luria'; mlRenderTudo();
+  eq([...document.querySelectorAll('#mlFilaTbody tr')].map(tr => tr.children[0].textContent.trim()), ['Fila Novo'], 'filtro Luria: só a fila dela');
+  mlEstado.filtro = '';
+
+  // vazio: mensagens, sem NaN
+  window.__rpcRespostas.monitor_leads_leads = { data: [], error: null };
+  await mlCarregar();
+  assert(document.getElementById('mlFilaTbody').textContent.includes('Nenhum lead') && document.getElementById('mlAbaixoTbody').textContent.includes('Nenhum') && document.getElementById('mlInconsLista').textContent.includes('Nenhuma'), 'listas vazias mostram mensagem');
+  assert(!/NaN|undefined/.test(document.getElementById('digitalSubMonitor').textContent), 'listas vazias sem NaN/undefined');
+
+  // inconsistências muito longas: mostra 10 e resume o resto
+  window.__rpcRespostas.monitor_leads_leads = { data: Array.from({ length: 14 }, (_, i) => L('v' + i, 'convertido', 0, { nome: 'Venda ' + i })), error: null };
+  await mlCarregar();
+  assert(document.getElementById('mlInconsLista').textContent.includes('e mais 4'), 'inconsistência com 14 leads mostra 10 e "e mais 4"');
+
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
   process.exit(fail > 0 ? 1 : 0);
 }catch(err){
