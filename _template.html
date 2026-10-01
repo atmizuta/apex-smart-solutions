@@ -8229,6 +8229,119 @@ document.getElementById('apexMindBubble').addEventListener('click', async () => 
 
 document.getElementById('btnVendaOrigemBuscar').addEventListener('click', buscarVendasOrigemLead);
 
+/* ============ MONITORAMENTO LEADS (admin/supervisor) — 01/10/2026, REGRAS_NEGOCIO.md seção 59 ============
+   Cruza o relatório de ligações manuais da telefonia (upload) com a tabela leads. Funções puras primeiro
+   (testadas em test_monitoramento_leads.js), depois dados, telas e ações. */
+const ML_METAS_PADRAO = { min_tentativas: 3, max_tentativas: 10, meta_ligacoes_dia: 80, conversa_boa_seg: 60, sla_primeira_ligacao_h: 24 };
+
+// Telefone -> DDD + 8 últimos dígitos (ignora o 9º dígito e o 55 inicial). Mesma regra da função SQL chave_tel.
+function chaveTel(v){
+  let d = String(v == null ? '' : v).replace(/\D/g, '');
+  if(d.startsWith('55') && d.length >= 12) d = d.slice(2);
+  return d.length >= 10 ? d.slice(0, 2) + d.slice(-8) : null;
+}
+function mlNormCol(s){ return String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+function mlNormTexto(s){ return String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim(); }
+
+// Colunas do relatório da telefonia (nome já normalizado por mlNormCol).
+const ML_COLUNAS = { id: 'id', usuario: 'usuario', telefone: 'telefone', gerada: 'datahorageracao', status: 'status', tempo: 'tempochamada', tab: 'ultimatabulacao', transf: 'transferido', grav: 'gravacao' };
+const ML_OBRIGATORIAS = ['id', 'usuario', 'telefone', 'gerada', 'status'];
+function mlSegundos(t){
+  const m = /^(\d+):(\d{2}):(\d{2})$/.exec(String(t == null ? '' : t).trim());
+  return m ? (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) : 0;
+}
+// "08/09/2026 12:20:59" (ou ISO "2026-09-08 12:20:59") -> "2026-09-08T12:20:59-03:00"; qualquer outra coisa -> null
+function mlDataHora(v){
+  const s = String(v == null ? '' : v).trim();
+  let m = /^(\d{2})\/(\d{2})\/(\d{4})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/.exec(s);
+  if(m) return m[3] + '-' + m[2] + '-' + m[1] + 'T' + m[4] + ':' + m[5] + ':' + (m[6] || '00') + '-03:00';
+  m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/.exec(s);
+  return m ? m[1] + '-' + m[2] + '-' + m[3] + 'T' + m[4] + ':' + m[5] + ':' + (m[6] || '00') + '-03:00' : null;
+}
+// rows = linhas do relatório como objetos {cabeçalho: valor} (XLSX.utils.sheet_to_json).
+function mlParseRelatorio(rows){
+  const out = { linhas: [], invalidas: 0, faltando: [] };
+  if(!rows || !rows.length){ out.faltando = ML_OBRIGATORIAS.slice(); return out; }
+  const mapa = {};
+  Object.keys(rows[0]).forEach(k => {
+    const n = mlNormCol(k);
+    Object.keys(ML_COLUNAS).forEach(ch => { if(ML_COLUNAS[ch] === n && !(ch in mapa)) mapa[ch] = k; });
+  });
+  out.faltando = ML_OBRIGATORIAS.filter(ch => !(ch in mapa));
+  if(out.faltando.length) return out;
+  const txt = (r, ch) => (mapa[ch] && r[mapa[ch]] != null && String(r[mapa[ch]]).trim() !== '') ? String(r[mapa[ch]]).trim() : null;
+  const vistos = new Set();
+  rows.forEach(r => {
+    const id = Number(txt(r, 'id'));
+    const gerada = mlDataHora(txt(r, 'gerada'));
+    const usuario = txt(r, 'usuario');
+    if(!Number.isFinite(id) || id <= 0 || !gerada || !usuario){ out.invalidas++; return; }
+    if(vistos.has(id)) return;
+    vistos.add(id);
+    const tel = (txt(r, 'telefone') || '').replace(/\D/g, '');
+    out.linhas.push({
+      id, usuario, telefone: tel || null, chave_tel: chaveTel(tel), gerada_em: gerada,
+      atendida: String(txt(r, 'status') || '').toUpperCase() === 'ANSWERED',
+      seg_falados: mlSegundos(txt(r, 'tempo')),
+      tabulacao: txt(r, 'tab'), transferido: txt(r, 'transf'), gravacao: txt(r, 'grav'),
+    });
+  });
+  return out;
+}
+
+// valor de config.monitor_leads_metas (texto JSON) -> metas completas
+function mlMetas(valor){
+  let o = {};
+  try{ o = JSON.parse(valor || '{}') || {}; }catch(e){ o = {}; }
+  const m = Object.assign({}, ML_METAS_PADRAO);
+  Object.keys(ML_METAS_PADRAO).forEach(k => { const n = Number(o[k]); if(o[k] != null && Number.isFinite(n) && n >= 0) m[k] = n; });
+  return m;
+}
+
+function mlEmAberto(l){ return l.categoria === 'andamento' || l.categoria === 'sem_contato'; }
+// Fila de leads sem ligação, cadência (abaixo do mínimo / acima do teto) e inconsistências.
+function mlClassificarLeads(leads, metas, agoraMs){
+  const m = Object.assign({}, ML_METAS_PADRAO, metas || {});
+  const out = { semLigacao: [], abaixoMin: [], acimaTeto: [], inconsistencias: { planilhaDesatualizada: [], perdidoCedo: [], vendaSemLigacao: [] } };
+  (leads || []).forEach(l => {
+    const t = Number(l.tentativas) || 0;
+    const ms = new Date(l.criado_em_lead).getTime();
+    const horas = isNaN(ms) ? null : (agoraMs - ms) / 3600000;
+    const it = Object.assign({}, l, { tentativas: t, horasDesdeEntrada: horas, atrasadoSla: t === 0 && horas !== null && horas > m.sla_primeira_ligacao_h });
+    const aberto = mlEmAberto(l);
+    if(aberto && t === 0) out.semLigacao.push(it);
+    else if(aberto && t < m.min_tentativas) out.abaixoMin.push(it);
+    if(aberto && t > m.max_tentativas) out.acimaTeto.push(it);
+    if(l.categoria === 'sem_contato' && t >= m.min_tentativas) out.inconsistencias.planilhaDesatualizada.push(it);
+    if(l.categoria === 'perdido' && t < m.min_tentativas && mlNormTexto(l.status).includes('NAO RESPONDE')) out.inconsistencias.perdidoCedo.push(it);
+    if(l.categoria === 'convertido' && t === 0) out.inconsistencias.vendaSemLigacao.push(it);
+  });
+  out.semLigacao.sort((a, b) => (b.horasDesdeEntrada || 0) - (a.horasDesdeEntrada || 0));   // mais antigo primeiro
+  out.abaixoMin.sort((a, b) => a.tentativas - b.tentativas);
+  out.acimaTeto.sort((a, b) => b.tentativas - a.tentativas);
+  return out;
+}
+
+// Um card por pessoa monitorada da equipe: contagens do mês (aba) a partir das linhas da RPC monitor_leads_leads.
+function mlCardsEquipe(equipe, leads){
+  return (equipe || []).filter(e => e.monitorar).map(e => {
+    const alvo = normalizarNomeConsultor(e.nome_planilha);
+    const meus = (leads || []).filter(l => normalizarNomeConsultor(l.consultor) === alvo);
+    const c = { convertido: 0, perdido: 0, andamento: 0, sem_contato: 0 };
+    let receita = 0, semLigacao = 0;
+    meus.forEach(l => {
+      if(Object.prototype.hasOwnProperty.call(c, l.categoria)) c[l.categoria]++;
+      if(l.categoria === 'convertido') receita += Number(l.receita) || 0;
+      if(!(Number(l.tentativas) > 0)) semLigacao++;
+    });
+    const n = meus.length;
+    return { nome: e.nome_planilha, usuario: e.usuario_telefonia, leads: n, convertidos: c.convertido, perdidos: c.perdido, andamento: c.andamento,
+      semContato: c.sem_contato, receita, ticket: c.convertido ? receita / c.convertido : 0, taxa: n ? c.convertido / n : 0, semLigacao };
+  });
+}
+
+/* ==== FIM MONITORAMENTO LEADS ==== */
+
 // Pílulas de aba da planilha (Setembro/Agosto/Repique): só trocam a aba e re-renderizam, sem refetch.
 document.getElementById('conversaoAbaPills').addEventListener('click', function(ev){
   const b = ev.target.closest('[data-aba]');
