@@ -57,4 +57,6 @@ $$;
 
 revoke all on function public.meus_leads_nomes(), public.meus_leads_vinculado(), public.meus_leads_para_tratar() from public, anon;
 grant execute on function public.meus_leads_vinculado(), public.meus_leads_para_tratar() to authenticated;
--- meus_leads_nomes() é interna: só as duas funções acima (security definer) a chamam.
+-- meus_leads_nomes() é interna: só as duas funções acima (security definer) a chamam. O Supabase dá EXECUTE a
+-- authenticated por padrão em função nova, então revoga também.
+revoke execute on function public.meus_leads_nomes() from authenticated;
