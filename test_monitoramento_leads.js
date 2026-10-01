@@ -367,6 +367,91 @@ try{
   await mlCarregar();
   assert(!/NaN|undefined/.test(document.getElementById('digitalSubMonitor').textContent), 'sem ligações guardadas: sem NaN/undefined');
 
+  // ==== TASK 7: editor da equipe e das metas ====
+  window.__tabelas.profiles = [{ id: 'p1', nome: 'Caio Costa', username: 'caio', role: 'consultor' }, { id: 'p2', nome: 'Luria Teste', username: 'luria', role: 'consultor' }];
+  window.__tabelas.leads_equipe = JSON.parse(JSON.stringify(equipeBanco));
+  window.__tabelas.config = [];
+  window.__rpcRespostas.monitor_leads_leads = { data: [], error: null };
+  window.__rpcRespostas.monitor_ligacoes_por_usuario = { data: [], error: null };
+  mlEstado.filtro = '';
+  currentUser = { id: 'a1', nome: 'Admin Teste', username: 'adm', role: 'supervisor' };
+  await mlCarregar();
+  assert(document.getElementById('mlEquipeCard').style.display === 'none', 'supervisor não vê o editor da equipe');
+  currentUser = { id: 'a1', nome: 'Admin Teste', username: 'adm', role: 'admin' };
+  await mlCarregar();
+  assert(document.getElementById('mlEquipeCard').style.display !== 'none', 'admin vê o editor');
+  const trs = () => [...document.querySelectorAll('#mlEquipeTbody tr[data-ml-eq-id]')];
+  eq(trs().length, 3, 'uma linha por pessoa da equipe');
+  eq([...trs()[0].querySelectorAll('.mlEqPerfil option')].map(o => o.value), ['', 'p1', 'p2'], 'opções: sem perfil + perfis do painel');
+  eq(trs()[0].querySelector('.mlEqNome').value, 'Caio', 'nome na planilha preenchido');
+  assert(trs()[0].querySelector('.mlEqMonitorar').checked === true && trs()[2].querySelector('.mlEqMonitorar').checked === false, 'monitorar reflete o banco');
+
+  // ligar perfis e salvar
+  trs()[0].querySelector('.mlEqPerfil').value = 'p1';
+  trs()[1].querySelector('.mlEqPerfil').value = 'p2';
+  window.__escritas.length = 0;
+  document.getElementById('btnMlEquipeSalvar').click();
+  await espera(60);
+  const upEq = window.__escritas.find(e => e.tabela === 'leads_equipe' && e.op === 'upsert');
+  assert(upEq && upEq.opts.onConflict === 'id' && upEq.rows.length === 3, 'salva as 3 linhas existentes por id');
+  assert(upEq.rows.find(r => r.id === 1).profile_id === 'p1' && upEq.rows.find(r => r.id === 2).profile_id === 'p2' && upEq.rows.find(r => r.id === 3).profile_id === null, 'perfis gravados (vazio = null)');
+  assert(upEq.rows.find(r => r.id === 1).monitorar === true && upEq.rows.find(r => r.id === 3).monitorar === false, 'monitorar gravado');
+
+  // o mesmo perfil em duas pessoas: recusa sem gravar
+  await mlCarregar();
+  trs()[0].querySelector('.mlEqPerfil').value = 'p1';
+  trs()[1].querySelector('.mlEqPerfil').value = 'p1';
+  window.__escritas.length = 0;
+  document.getElementById('btnMlEquipeSalvar').click();
+  await espera(60);
+  assert(window.__escritas.length === 0, 'perfil repetido não grava nada');
+
+  // adicionar pessoa nova (sem id) -> insert; nome vazio é ignorado
+  await mlCarregar();
+  document.getElementById('btnMlEquipeAdd').click();
+  eq(trs().length, 4, 'adicionar cria uma linha em branco');
+  document.getElementById('btnMlEquipeSalvar').click();
+  await espera(60);
+  assert(!window.__escritas.some(e => e.op === 'insert'), 'linha nova sem nome não é gravada');
+  document.getElementById('btnMlEquipeAdd').click();   // o salvar acima recarregou a tela e tirou a linha em branco
+  eq(trs().length, 4, 'linha em branco de novo');
+  const nova = trs()[3];
+  nova.querySelector('.mlEqNome').value = '  Novo Consultor ';
+  nova.querySelector('.mlEqUsuario').value = 'apex.novo';
+  window.__escritas.length = 0;
+  document.getElementById('btnMlEquipeSalvar').click();
+  await espera(60);
+  const ins = window.__escritas.find(e => e.tabela === 'leads_equipe' && e.op === 'insert');
+  assert(ins && ins.rows.length === 1 && ins.rows[0].nome_planilha === 'Novo Consultor' && ins.rows[0].usuario_telefonia === 'apex.novo' && ins.rows[0].id === undefined, 'insert da pessoa nova, nome sem espaços sobrando');
+
+  // remover pessoa já gravada
+  await mlCarregar();
+  window.__escritas.length = 0;
+  trs()[2].querySelector('[data-ml-eq-del]').click();
+  await espera(60);
+  assert(window.__escritas.some(e => e.tabela === 'leads_equipe' && e.op === 'delete' && e.filtro.id === 3), 'remover apaga a pessoa certa (id 3)');
+
+  // metas
+  const meta = k => document.querySelector('#mlMetasCampos [data-ml-meta="' + k + '"]');
+  eq([meta('min_tentativas').value, meta('max_tentativas').value, meta('meta_ligacoes_dia').value, meta('conversa_boa_seg').value, meta('sla_primeira_ligacao_h').value], ['3', '10', '80', '60', '24'], 'metas padrão nos campos');
+  meta('min_tentativas').value = '12';
+  window.__escritas.length = 0;
+  document.getElementById('btnMlMetasSalvar').click();
+  await espera(60);
+  assert(window.__escritas.length === 0, 'mínimo maior que o teto: recusa sem gravar');
+  meta('min_tentativas').value = '4'; meta('max_tentativas').value = '12';
+  document.getElementById('btnMlMetasSalvar').click();
+  await espera(60);
+  const upM = window.__escritas.find(e => e.tabela === 'config' && e.op === 'upsert');
+  assert(upM && upM.opts.onConflict === 'chave' && upM.rows.chave === 'monitor_leads_metas', 'grava em config.monitor_leads_metas');
+  const gravadas = JSON.parse(upM.rows.valor);
+  assert(gravadas.min_tentativas === 4 && gravadas.max_tentativas === 12 && gravadas.meta_ligacoes_dia === 80, 'metas gravadas como JSON completo');
+  meta('meta_ligacoes_dia').value = 'abc';
+  window.__escritas.length = 0;
+  document.getElementById('btnMlMetasSalvar').click();
+  await espera(60);
+  assert(window.__escritas.length === 0, 'valor que não é número não grava');
+
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
   process.exit(fail > 0 ? 1 : 0);
 }catch(err){

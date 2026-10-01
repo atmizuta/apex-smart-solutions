@@ -8509,9 +8509,14 @@ async function mlCarregar(){
   mlEstado.resumo = (res && Array.isArray(res.data) && res.data[0]) || null;
   mlEstado.leads = (lds && lds.data) || [];
   await mlCarregarPorUsuario();
+  if(currentUser.role === 'admin'){
+    const pf = await ppSeguro(() => sb.from('profiles').select('id,nome,username,role').order('nome'));
+    mlEstado.perfis = (pf && pf.data) || [];
+  }
   // ==== mais cargas entram aqui ====
   if(geracao !== mlEstado.geracao) return;
   mlRenderTudo();
+  mlRenderEquipeEditor();   // fora do mlRenderTudo de propósito: filtrar por card não pode apagar o que o admin está digitando
 }
 
 function mlRenderCabecalho(){
@@ -8769,6 +8774,84 @@ document.getElementById('digitalSubMonitor').addEventListener('click', function(
     await mlCarregarPorUsuario();
     mlRenderTudo();
   });
+});
+
+/* ---- Monitoramento Leads: editor da equipe de leads e das metas (só admin) ---- */
+const ML_META_ROTULOS = { min_tentativas: 'Mínimo de tentativas por lead', max_tentativas: 'Teto de tentativas', meta_ligacoes_dia: 'Meta de ligações por dia',
+  conversa_boa_seg: 'Conversa boa (segundos falados)', sla_primeira_ligacao_h: 'SLA da 1ª ligação (horas)' };
+
+function mlLinhaEquipeHtml(e){
+  const perfis = mlEstado.perfis || [];
+  const opcoes = '<option value="">(sem perfil)</option>' + perfis.map(p => `<option value="${escapeHtml(p.id)}"${p.id === e.profile_id ? ' selected' : ''}>${escapeHtml(p.nome)} (${escapeHtml(p.username)})</option>`).join('');
+  return `<tr data-ml-eq-id="${e.id == null ? '' : escapeHtml(String(e.id))}">
+    <td><input type="text" class="mlEqNome" value="${escapeHtml(e.nome_planilha || '')}"></td>
+    <td><input type="text" class="mlEqUsuario" value="${escapeHtml(e.usuario_telefonia || '')}"></td>
+    <td><select class="mlEqPerfil">${opcoes}</select></td>
+    <td><input type="checkbox" class="mlEqMonitorar"${e.monitorar ? ' checked' : ''}></td>
+    <td><button type="button" class="btn btn-sm btn-outline" data-ml-eq-del="${e.id == null ? '' : escapeHtml(String(e.id))}" style="width:auto">Remover</button></td></tr>`;
+}
+function mlRenderEquipeEditor(){
+  const card = document.getElementById('mlEquipeCard');
+  const adm = !!currentUser && currentUser.role === 'admin';
+  card.style.display = adm ? '' : 'none';
+  if(!adm) return;
+  document.getElementById('mlEquipeTbody').innerHTML = mlEstado.equipe.map(mlLinhaEquipeHtml).join('');
+  document.getElementById('mlMetasCampos').innerHTML = Object.keys(ML_META_ROTULOS).map(k =>
+    `<div class="field" style="margin:0;width:200px"><label>${ML_META_ROTULOS[k]}</label><input type="number" min="0" data-ml-meta="${k}" value="${mlEstado.metas[k]}"></div>`).join('');
+}
+
+async function mlSalvarEquipe(){
+  const linhas = [...document.querySelectorAll('#mlEquipeTbody tr[data-ml-eq-id]')].map(tr => ({
+    id: tr.dataset.mlEqId ? Number(tr.dataset.mlEqId) : null,
+    nome_planilha: tr.querySelector('.mlEqNome').value.trim(),
+    usuario_telefonia: tr.querySelector('.mlEqUsuario').value.trim() || null,
+    profile_id: tr.querySelector('.mlEqPerfil').value || null,
+    monitorar: tr.querySelector('.mlEqMonitorar').checked,
+  })).filter(l => l.nome_planilha);
+  const perfis = linhas.map(l => l.profile_id).filter(Boolean);
+  if(new Set(perfis).size !== perfis.length){ mostrarAviso('O mesmo perfil do painel não pode estar em duas pessoas.', 'erro'); return; }
+  const agora = new Date().toISOString();
+  const existentes = linhas.filter(l => l.id !== null).map(l => Object.assign({}, l, { atualizado_em: agora }));
+  const novas = linhas.filter(l => l.id === null).map(l => ({ nome_planilha: l.nome_planilha, usuario_telefonia: l.usuario_telefonia, profile_id: l.profile_id, monitorar: l.monitorar }));
+  if(existentes.length){
+    const { error } = await sb.from('leads_equipe').upsert(existentes, { onConflict: 'id' });
+    if(error){ mostrarAviso('Não foi possível salvar a equipe: ' + error.message, 'erro'); return; }
+  }
+  if(novas.length){
+    const { error } = await sb.from('leads_equipe').insert(novas);
+    if(error){ mostrarAviso('Não foi possível adicionar a pessoa nova: ' + error.message, 'erro'); return; }
+  }
+  mostrarAviso('Equipe de leads salva.', 'ok');
+  await mlCarregar();
+}
+async function mlSalvarMetas(){
+  const m = {};
+  for(const k of Object.keys(ML_META_ROTULOS)){
+    const v = document.querySelector('#mlMetasCampos [data-ml-meta="' + k + '"]').value;
+    const n = Number(v);
+    if(v === '' || !Number.isFinite(n) || n < 0){ mostrarAviso('Confira as metas: "' + ML_META_ROTULOS[k] + '" precisa ser um número.', 'erro'); return; }
+    m[k] = n;
+  }
+  if(m.min_tentativas > m.max_tentativas){ mostrarAviso('O mínimo de tentativas não pode ser maior que o teto.', 'erro'); return; }
+  const { error } = await sb.from('config').upsert({ chave: 'monitor_leads_metas', valor: JSON.stringify(m), atualizado_em: new Date().toISOString() }, { onConflict: 'chave' });
+  if(error){ mostrarAviso('Não foi possível salvar as metas: ' + error.message, 'erro'); return; }
+  mostrarAviso('Metas salvas.', 'ok');
+  await mlCarregar();
+}
+
+document.getElementById('btnMlEquipeAdd').addEventListener('click', function(){
+  document.getElementById('mlEquipeTbody').insertAdjacentHTML('beforeend', mlLinhaEquipeHtml({ id: null, nome_planilha: '', usuario_telefonia: '', profile_id: null, monitorar: true }));
+});
+document.getElementById('btnMlEquipeSalvar').addEventListener('click', mlSalvarEquipe);
+document.getElementById('btnMlMetasSalvar').addEventListener('click', mlSalvarMetas);
+document.getElementById('mlEquipeTbody').addEventListener('click', async function(ev){
+  const b = ev.target.closest('[data-ml-eq-del]');
+  if(!b) return;
+  if(!b.dataset.mlEqDel){ b.closest('tr').remove(); return; }   // linha ainda não gravada: só tira da tela
+  if(!confirm('Remover esta pessoa da equipe de leads? Os leads dela na planilha não mudam.')) return;
+  const { error } = await sb.from('leads_equipe').delete().eq('id', Number(b.dataset.mlEqDel));
+  if(error){ mostrarAviso('Não foi possível remover: ' + error.message, 'erro'); return; }
+  await mlCarregar();
 });
 
 /* ==== FIM MONITORAMENTO LEADS ==== */
