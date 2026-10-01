@@ -60,9 +60,15 @@ const SHEET_ID = "1nu3yNLedr3ier2f7S6dI95XX6gxyJpsg4dtpi66AP5w";
 // o seletor da aba Digital — assim Setembro, Agosto e Repique NUNCA se misturam (antes tudo ia pra
 // mesma tabela sem saber a origem, e o mesmo id em duas abas era sobrescrito pela última). Quando o
 // time criar a aba de OUTUBRO: adicionar `{ aba: "OUTUBRO", label: "...", gid: "..." }` aqui.
+// 01/10/2026: o time RENOMEOU a aba de Setembro (gid 1292366194) para "LEADS CLARO B2B APEX - OUTUBRO" e
+// copiou Setembro para uma aba nova "LEADS CLARO B2B APEX - SETEMBRO 26" (gid 1519521435). Como o gid não
+// muda ao renomear, a sync passou a gravar leads de outubro como SETEMBRO (31 leads às 13:40). Corrigido:
+// o gid 1292366194 agora é OUTUBRO e SETEMBRO aponta para o gid novo. Lição: o gid é da ABA, não do nome —
+// conferir o nome de cada gid (htmlview da planilha) sempre que o time mexer nas abas. REGRAS seção 60.
 const SHEET_TABS = [
   { aba: "AGOSTO", label: "FORM- LEADS CLARO B2B APEX - AGOSTO", gid: "0" },
-  { aba: "SETEMBRO", label: "LEADS CLARO B2B APEX - SETEMBRO", gid: "1292366194" },
+  { aba: "SETEMBRO", label: "LEADS CLARO B2B APEX - SETEMBRO 26", gid: "1519521435" },
+  { aba: "OUTUBRO", label: "LEADS CLARO B2B APEX - OUTUBRO", gid: "1292366194" },
   { aba: "REPIQUE", label: "REPIQUE", gid: "532368128" },
 ];
 function sheetTabCsvUrl(gid: string): string {

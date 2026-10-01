@@ -1092,6 +1092,7 @@
             <thead><tr><th>Lead</th><th>Telefone</th><th>Consultor</th><th>Status na planilha</th><th>Entrou há</th></tr></thead>
             <tbody id="mlFilaTbody"></tbody>
           </table></div>
+          <button class="btn btn-sm btn-ghost" type="button" id="btnMlFilaMais" style="width:auto;margin-top:10px;display:none"></button>
           <button class="btn btn-sm btn-outline" type="button" id="btnMlExportFila" style="width:auto;margin-top:10px">Exportar Excel</button>
         </div>
 
@@ -1214,7 +1215,7 @@
     </section>
     <!-- PEDIDOS PARADOS (consultor) — ver seção 53 do REGRAS_NEGOCIO.md -->
     <section class="panel" id="panel-pedidosparados">
-      <!-- 01/10/2026: leads do consultor para tratar (só quem está em leads_equipe) — seção 59 do REGRAS_NEGOCIO.md -->
+      <!-- 01/10/2026: leads do consultor para tratar (quem tem lead nas abas do mês; sem Repique) — seções 59 e 60 do REGRAS_NEGOCIO.md -->
       <div id="plWrap" style="display:none">
         <div class="card" id="plErro" style="display:none">
           <h3>Meus leads para tratar</h3>
@@ -1222,7 +1223,7 @@
         </div>
         <div class="card" id="plCard" style="display:none">
           <h3>Meus leads para tratar</h3>
-          <p class="desc">Seus leads que ainda estão em aberto, de todas as abas da planilha. O que precisa de ação primeiro aparece no topo.</p>
+          <p class="desc">Seus leads que ainda estão em aberto, dos meses da planilha (o Repique fica de fora). O que precisa de ação primeiro aparece no topo.</p>
           <div id="plResumo" style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 4px"></div>
           <div id="plLista"></div>
         </div>
@@ -8668,13 +8669,23 @@ function mlHaTexto(horas){
   return horas < 24 ? Math.max(1, Math.round(horas)) + ' h' : Math.floor(horas / 24) + ' d';
 }
 const mlLinhaVazia = (cols, msg) => `<tr><td colspan="${cols}" class="desc">${msg}</td></tr>`;
+const ML_FILA_CURTA = 10;
+document.getElementById('btnMlFilaMais').addEventListener('click', function(){
+  mlEstado.filaTodos = !mlEstado.filaTodos;
+  mlRenderTudo();
+});
 
 function mlRenderFila(cl){
   const m = mlEstado.metas, f = cl.semLigacao, atrasados = f.filter(x => x.atrasadoSla).length;
   document.getElementById('mlFilaInfo').textContent = f.length
     ? `${f.length} ${f.length === 1 ? 'lead' : 'leads'} em aberto sem nenhuma ligação manual, o mais antigo primeiro. ${atrasados} acima do SLA de ${m.sla_primeira_ligacao_h} h para a primeira ligação.`
     : 'Todo lead em aberto já recebeu pelo menos uma ligação.';
-  document.getElementById('mlFilaTbody').innerHTML = f.length ? f.map(x => `<tr>
+  // 01/10/2026: fila longa mostra só as primeiras ML_FILA_CURTA linhas, com "Mostrar todos" / "Mostrar menos".
+  const btnMais = document.getElementById('btnMlFilaMais');
+  btnMais.style.display = f.length > ML_FILA_CURTA ? '' : 'none';
+  btnMais.textContent = mlEstado.filaTodos ? 'Mostrar menos' : `Mostrar todos (${f.length})`;
+  const visiveis = mlEstado.filaTodos ? f : f.slice(0, ML_FILA_CURTA);
+  document.getElementById('mlFilaTbody').innerHTML = f.length ? visiveis.map(x => `<tr>
       <td>${escapeHtml(x.nome || '(sem nome)')}</td><td>${mlTelBotao(x.telefone)}</td><td>${escapeHtml(x.consultor || '')}</td>
       <td>${escapeHtml((x.status || '').trim() || 'sem status')}</td><td${x.atrasadoSla ? ' class="mlAtraso"' : ''}>${mlHaTexto(x.horasDesdeEntrada)}</td></tr>`).join('')
     : mlLinhaVazia(5, 'Nenhum lead sem ligação.');
@@ -8826,8 +8837,17 @@ async function mlSalvarEquipe(){
   const agora = new Date().toISOString();
   const existentes = linhas.filter(l => l.id !== null).map(l => Object.assign({}, l, { atualizado_em: agora }));
   const novas = linhas.filter(l => l.id === null).map(l => ({ nome_planilha: l.nome_planilha, usuario_telefonia: l.usuario_telefonia, profile_id: l.profile_id, monitorar: l.monitorar }));
-  if(existentes.length){
-    const { error } = await sb.from('leads_equipe').upsert(existentes, { onConflict: 'id' });
+  // 01/10/2026: leads_equipe.id é GENERATED ALWAYS — upsert mandando o id dá "cannot insert a non-DEFAULT
+  // value into column id". Quem já existe é salvo com update por id (o id nunca vai no corpo).
+  // Perfil é único (uq_leads_equipe_profile): quem troca de perfil é liberado antes, para trocas A<->B não colidirem.
+  const perfilAntes = new Map((mlEstado.equipe || []).map(e => [e.id, e.profile_id || null]));
+  for(const l of existentes.filter(l => perfilAntes.get(l.id) && perfilAntes.get(l.id) !== l.profile_id)){
+    const { error } = await sb.from('leads_equipe').update({ profile_id: null }).eq('id', l.id);
+    if(error){ mostrarAviso('Não foi possível salvar a equipe: ' + error.message, 'erro'); return; }
+  }
+  for(const l of existentes){
+    const { id, ...campos } = l;
+    const { error } = await sb.from('leads_equipe').update(campos).eq('id', id);
     if(error){ mostrarAviso('Não foi possível salvar a equipe: ' + error.message, 'erro'); return; }
   }
   if(novas.length){
@@ -8970,12 +8990,13 @@ async function plCarregar(){
   if(!canSeePedidosParados()) return;
   const geracao = ++plEstado.geracao;
   const [vinc, lds, fu] = await Promise.all([
-    ppSeguro(() => sb.from('leads_equipe').select('nome_planilha').eq('profile_id', currentUser.id).maybeSingle()),
+    // 01/10/2026: o banco decide quem tem leads (leads_equipe OU primeiro nome único igual ao da planilha; sem Repique)
+    ppSeguro(() => sb.rpc('meus_leads_vinculado')),
     ppSeguro(() => fetchAllRows(() => sb.rpc('meus_leads_para_tratar'))),
     ppSeguro(() => sb.from('leads_followups').select('id,lead_id,consultor_id,data_prevista,tipo,feito').eq('consultor_id', currentUser.id).eq('feito', false)),
   ]);
   if(geracao !== plEstado.geracao) return;   // trocou de usuário/recarregou no meio
-  plEstado.vinculado = !!(vinc && !vinc.error && vinc.data && vinc.data.nome_planilha);
+  plEstado.vinculado = !!(vinc && !vinc.error && vinc.data === true);
   plEstado.erro = !!((lds && lds.error) || (fu && fu.error));
   if(plEstado.erro) console.error((lds && lds.error) || (fu && fu.error));
   plEstado.leads = (lds && lds.data) || [];

@@ -126,9 +126,11 @@ assert(linhaSemStatus.consultor === null, 'lead sem consultor atribuído fica nu
 // nome) e ganhou um gid novo — o gid antigo (1483781302) passou a devolver HTTP 400, quebrando a
 // sincronização inteira. Gid atualizado pro correto (1292366194) e adicionada a aba "REPIQUE"
 // (mesma estrutura de colunas, lote de recontato), a pedido do usuário — ver REGRAS_NEGOCIO.md.
-assert(Array.isArray(sandbox.SHEET_TABS) && sandbox.SHEET_TABS.length === 3, 'SHEET_TABS tem as 3 abas conhecidas (Agosto + Setembro + REPIQUE)');
+// 01/10/2026: o gid 1292366194 foi RENOMEADO para Outubro na planilha; Setembro foi para o gid 1519521435 (REGRAS seção 60).
+assert(Array.isArray(sandbox.SHEET_TABS) && sandbox.SHEET_TABS.length === 4, 'SHEET_TABS tem as 4 abas conhecidas (Agosto + Setembro + Outubro + REPIQUE)');
 assert(sandbox.SHEET_TABS.some(t => t.label === 'FORM- LEADS CLARO B2B APEX - AGOSTO' && t.gid === '0'), 'SHEET_TABS inclui a aba de Agosto com o gid certo (0)');
-assert(sandbox.SHEET_TABS.some(t => t.label === 'LEADS CLARO B2B APEX - SETEMBRO' && t.gid === '1292366194'), 'SHEET_TABS inclui a aba de Setembro com o gid corrigido (1292366194)');
+assert(sandbox.SHEET_TABS.some(t => t.label === 'LEADS CLARO B2B APEX - SETEMBRO 26' && t.gid === '1519521435'), 'SHEET_TABS inclui a aba de Setembro no gid novo (1519521435)');
+assert(sandbox.SHEET_TABS.some(t => t.label === 'LEADS CLARO B2B APEX - OUTUBRO' && t.gid === '1292366194'), 'SHEET_TABS inclui a aba de Outubro (gid 1292366194, a antiga aba de Setembro renomeada)');
 assert(sandbox.SHEET_TABS.some(t => t.label === 'REPIQUE' && t.gid === '532368128'), 'SHEET_TABS inclui a aba REPIQUE com o gid certo (532368128)');
 assert(!sandbox.SHEET_TABS.some(t => t.gid === '1483781302'), 'SHEET_TABS não usa mais o gid antigo/quebrado da aba de Setembro (1483781302)');
 const urlSetembro = sandbox.sheetTabCsvUrl('1292366194');
@@ -166,8 +168,10 @@ assert(!!erroSemCabecalho && erroSemCabecalho.includes('OUTUBRO (teste)'), 'pars
 // =====================================================================================
 
 // --- cada aba tem a sua chave (vira leads.aba e o seletor da aba Digital) ---
-assert(sandbox.SHEET_TABS.map(t => t.aba).join(',') === 'AGOSTO,SETEMBRO,REPIQUE', 'SHEET_TABS tem as chaves de aba AGOSTO, SETEMBRO e REPIQUE');
-assert(sandbox.SHEET_TABS.find(t => t.gid === '1292366194').aba === 'SETEMBRO', 'o gid da aba de Setembro aponta pra chave SETEMBRO');
+assert(sandbox.SHEET_TABS.map(t => t.aba).join(',') === 'AGOSTO,SETEMBRO,OUTUBRO,REPIQUE', 'SHEET_TABS tem as chaves de aba AGOSTO, SETEMBRO, OUTUBRO e REPIQUE');
+assert(sandbox.SHEET_TABS.find(t => t.gid === '1519521435').aba === 'SETEMBRO', 'o gid novo de Setembro aponta pra chave SETEMBRO');
+assert(sandbox.SHEET_TABS.find(t => t.gid === '1292366194').aba === 'OUTUBRO', 'o gid 1292366194 (renomeado) aponta pra chave OUTUBRO, não mais SETEMBRO');
+assert(new Set(sandbox.SHEET_TABS.map(t => t.gid)).size === sandbox.SHEET_TABS.length, 'nenhum gid repetido entre as abas');
 assert(sandbox.SHEET_TABS.find(t => t.gid === '532368128').aba === 'REPIQUE', 'o gid da aba REPIQUE aponta pra chave REPIQUE');
 
 // --- mapearLinha carimba de qual aba o lead veio ---

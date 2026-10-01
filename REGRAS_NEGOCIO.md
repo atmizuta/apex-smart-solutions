@@ -2440,3 +2440,34 @@ Aditiva. Cria `chave_tel`, `norm_nome`, `ligacoes_manuais` (RLS admin/supervisor
 - **Painel:** o painel no ar (MD5 `703c65cc…`) era idêntico ao `oficial/main`, então não havia nada publicado por fora. Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`91e2c666aacc89b09ff6c5a3dd5d6b6f`**, igual no arquivo gerado, no servidor e no site público. A tela carrega sem erros no console e as funções novas existem. Backup no servidor: `~/deploy_backups/painel_clientes_apex_20261001_162921_antes_monitoramento_leads.html`.
 - **Reverter o painel:** copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. **Reverter o banco:** rodar `supabase/rollback/20261001000000_monitoramento_leads_rollback.sql` (só depois de reverter o painel; apaga as ligações importadas e a lista da equipe).
 - **Falta fazer (usuário):** em Digital → Monitoramento Leads → "Equipe de leads e metas", ligar cada pessoa ao perfil do painel; depois, enviar o primeiro relatório de ligações manuais.
+
+## 60. Leads: aba de Outubro, erro ao salvar a equipe, fila "mostrar menos" e "Meus leads" para todo consultor (01/10/2026)
+
+Pedido do usuário (01/10): (1) erro ao salvar a equipe de leads; (2) a planilha já tem a aba de outubro; (3) opção de mostrar menos em "Leads sem nenhuma ligação"; (4) mostrar os leads em Pedidos Parados para todo consultor que tiver pelo menos um lead, sem o Repique. **Status: preparado no worktree `.worktrees/leads-outubro` (branch `fix/leads-outubro`), ainda não publicado.**
+
+### 60.1 Erro "cannot insert a non-DEFAULT value into column id"
+- Causa: `leads_equipe.id` é `GENERATED ALWAYS AS IDENTITY`. O editor (seção 59.4, item 9) salvava as pessoas já gravadas com `upsert(..., { onConflict: 'id' })`, mandando o `id` — o Postgres recusa qualquer valor explícito numa identidade ALWAYS, mesmo que a linha já exista. Por isso nenhuma das 4 pessoas (Caio, Gabriel, Luria, Mariana) conseguiu ser ligada ao perfil do painel.
+- Correção (só no painel, sem DDL): quem já existe é salvo com `update(...).eq('id', id)`, sem o `id` no corpo. Como `profile_id` é único (`uq_leads_equipe_profile`), quem troca de perfil é liberado (`profile_id = null`) antes, para que trocas A↔B não colidam.
+
+### 60.2 Aba de Outubro (a sync estava misturando outubro em setembro)
+- O time **renomeou** a aba de Setembro (gid `1292366194`) para "LEADS CLARO B2B APEX - OUTUBRO" e copiou Setembro para uma aba nova "LEADS CLARO B2B APEX - SETEMBRO 26" (gid `1519521435`). O gid não muda ao renomear, então a `sync-leads` continuou lendo o gid antigo como SETEMBRO: às 13:40 de 01/10 já havia **31 leads criados em outubro gravados como SETEMBRO**, e a Setembro de verdade parou de atualizar.
+- Correção em `edge_function_sync_leads.ts` (`SHEET_TABS`): SETEMBRO → gid `1519521435`; OUTUBRO (novo) → gid `1292366194`. A estrutura das colunas é a mesma (consultor na coluna sem cabeçalho antes de STATUS — já tratado na seção 54). A pílula "Outubro" aparece sozinha (as pílulas vêm dos dados) e abre por padrão por ser o mês mais recente.
+- **Lição:** o gid é da aba, não do nome. Sempre que o time mexer nas abas, conferir nome × gid em `https://docs.google.com/spreadsheets/d/<id>/htmlview` antes de mexer no `SHEET_TABS`.
+
+### 60.3 Limpeza das cópias erradas (depois de reimplantar a sync)
+Script `supabase/tests/leads_outubro_corrige_aba.sql`: depois de reimplantar a `sync-leads` e clicar "Atualizar agora", apaga de SETEMBRO só os leads que já existem em OUTUBRO (mesmo `id`) — passo A mostra a lista, passo B apaga dentro de transação para conferir antes do `commit`. `leads_followups` liga por `lead_id`, então os retornos continuam valendo. Conferido em 01/10: nenhum id da aba Outubro está na aba Setembro 26 da planilha.
+
+### 60.4 "Leads sem nenhuma ligação": mostrar menos
+Com mais de 10 leads, a fila mostra só os 10 mais antigos e um botão "Mostrar todos (N)" / "Mostrar menos" (`ML_FILA_CURTA = 10`, `mlEstado.filaTodos`). O resumo e o Excel continuam com a fila inteira.
+
+### 60.5 "Meus leads para tratar" para todo consultor com lead (sem Repique)
+- Migration `supabase/migrations/20261001200000_meus_leads_por_nome.sql` (rollback em `supabase/rollback/`, verificação em `supabase/tests/meus_leads_por_nome_check.sql`, sempre com rollback). Aditiva: troca `meus_leads_para_tratar()` (mesma assinatura) e cria `meus_leads_nomes()` (interna) e `meus_leads_vinculado()` (boolean).
+- O consultor é reconhecido por: (1) `leads_equipe.profile_id` = login (prioridade); ou (2) **primeiro nome do perfil = nome da coluna CONSULTOR da planilha** (`norm_nome`), só se esse primeiro nome for único entre os perfis e nenhuma outra pessoa da equipe tiver esse nome ligado a outro login. Decisão do usuário: "nome + equipe".
+- Em 01/10 há dois perfis "Gabriel" (`gabriel` e `Gabriels`): nenhum casa por nome; o Gabriel dos leads (Gabriel Macedo) aparece depois que o admin ligar o perfil dele no editor da equipe (agora funcionando, 60.1). Manuela e Danilo aparecem na planilha mas não têm perfil.
+- Aba REPIQUE fica fora da lista e do vínculo. A seção aparece para quem tem pelo menos um lead (qualquer categoria) fora do Repique; a lista mostra os em aberto (`andamento`, `sem_contato`). O painel passou a perguntar ao banco (`meus_leads_vinculado`) em vez de ler `leads_equipe`.
+- Testes: `test_monitoramento_leads.js` (162 ok) e `test_edge_function_sync_leads.js` (92 ok). Falhas já existentes e não relacionadas: `test_conversao_vendas.js` (filtros "Hoje"/"7 dias" dependem do relógio) e `test_pedidos_alerta.js` (falta `exceljs` nesta máquina).
+
+### 60.6 Ordem para entrar no ar (cada passo só com ok do usuário)
+1. Banco: aplicar a migration `meus_leads_por_nome` e rodar `meus_leads_por_nome_check.sql` (rollback).
+2. Reimplantar a `sync-leads` (conector, `verify_jwt` true) → "Atualizar agora" → script 60.3.
+3. Painel: comparar com o no ar, backup, enviar, MD5, `vigia_painel.ps1 -Aceitar`, registrar aqui (60.7).

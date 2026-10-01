@@ -298,6 +298,22 @@ try{
   mlEstado.filtro = 'Luria'; mlRenderTudo();
   eq([...document.querySelectorAll('#mlFilaTbody tr')].map(tr => tr.children[0].textContent.trim()), ['Fila Novo'], 'filtro Luria: só a fila dela');
   mlEstado.filtro = '';
+  assert(document.getElementById('btnMlFilaMais').style.display === 'none', 'fila curta (até 10): sem botão de mostrar mais/menos');
+
+  // fila longa (01/10/2026): mostra só os 10 primeiros, com "Mostrar todos" / "Mostrar menos"
+  window.__rpcRespostas.monitor_leads_leads = { data: Array.from({ length: 15 }, (_, i) => L('g' + i, 'andamento', 0, { nome: 'Longa ' + String(i).padStart(2, '0'), consultor: 'Caio', criado_em_lead: new Date(Date.parse('2026-09-01T12:00:00Z') + i * 3600000).toISOString() })), error: null };
+  await mlCarregar();
+  const btnMais = document.getElementById('btnMlFilaMais');
+  eq(document.querySelectorAll('#mlFilaTbody tr').length, 10, 'fila longa: mostra só 10 linhas');
+  assert(btnMais.style.display !== 'none' && btnMais.textContent.includes('Mostrar todos (15)'), 'botão "Mostrar todos (15)"');
+  assert(document.getElementById('mlFilaInfo').textContent.includes('15 leads'), 'o resumo continua contando todos');
+  btnMais.click();
+  eq(document.querySelectorAll('#mlFilaTbody tr').length, 15, 'mostrar todos: 15 linhas');
+  assert(btnMais.textContent.includes('Mostrar menos'), 'depois vira "Mostrar menos"');
+  btnMais.click();
+  eq(document.querySelectorAll('#mlFilaTbody tr').length, 10, 'mostrar menos: volta para 10');
+  window.__rpcRespostas.monitor_leads_leads = { data: leadsFila, error: null };
+  await mlCarregar();
 
   // vazio: mensagens, sem NaN
   window.__rpcRespostas.monitor_leads_leads = { data: [], error: null };
@@ -394,10 +410,28 @@ try{
   window.__escritas.length = 0;
   document.getElementById('btnMlEquipeSalvar').click();
   await espera(60);
-  const upEq = window.__escritas.find(e => e.tabela === 'leads_equipe' && e.op === 'upsert');
-  assert(upEq && upEq.opts.onConflict === 'id' && upEq.rows.length === 3, 'salva as 3 linhas existentes por id');
-  assert(upEq.rows.find(r => r.id === 1).profile_id === 'p1' && upEq.rows.find(r => r.id === 2).profile_id === 'p2' && upEq.rows.find(r => r.id === 3).profile_id === null, 'perfis gravados (vazio = null)');
-  assert(upEq.rows.find(r => r.id === 1).monitorar === true && upEq.rows.find(r => r.id === 3).monitorar === false, 'monitorar gravado');
+  // 01/10/2026: a coluna id é GENERATED ALWAYS — upsert mandando o id dá "cannot insert a non-DEFAULT value into column id".
+  // Pessoas já gravadas são salvas com update por id (o id nunca vai no corpo).
+  assert(!window.__escritas.some(e => e.tabela === 'leads_equipe' && e.op === 'upsert'), 'não usa upsert (id é identidade ALWAYS)');
+  const upds = window.__escritas.filter(e => e.tabela === 'leads_equipe' && e.op === 'update');
+  eq(upds.map(u => u.filtro.id).sort(), [1, 2, 3], 'um update por pessoa existente, filtrado pelo id');
+  assert(upds.every(u => !('id' in u.patch)), 'o id não vai no corpo do update');
+  const updEq = id => upds.find(u => u.filtro.id === id).patch;
+  assert(updEq(1).profile_id === 'p1' && updEq(2).profile_id === 'p2' && updEq(3).profile_id === null, 'perfis gravados (vazio = null)');
+  assert(updEq(1).monitorar === true && updEq(3).monitorar === false && updEq(1).atualizado_em, 'monitorar e atualizado_em gravados');
+
+  // trocar perfis entre duas pessoas (A<->B): libera os dois perfis antes de gravar (índice único em profile_id)
+  window.__tabelas.leads_equipe = JSON.parse(JSON.stringify(equipeBanco)).map(e => Object.assign(e, { profile_id: e.id === 1 ? 'p1' : e.id === 2 ? 'p2' : null }));
+  await mlCarregar();
+  trs()[0].querySelector('.mlEqPerfil').value = 'p2';
+  trs()[1].querySelector('.mlEqPerfil').value = 'p1';
+  window.__escritas.length = 0;
+  document.getElementById('btnMlEquipeSalvar').click();
+  await espera(60);
+  const ordem = window.__escritas.filter(e => e.tabela === 'leads_equipe').map(e => e.filtro.id + ':' + (Object.keys(e.patch).length === 1 ? 'libera' : e.patch.profile_id));
+  eq(ordem.slice(0, 2), ['1:libera', '2:libera'], 'troca A<->B: primeiro libera os perfis');
+  assert(ordem.includes('1:p2') && ordem.includes('2:p1'), 'troca A<->B: depois grava os perfis trocados');
+  window.__tabelas.leads_equipe = JSON.parse(JSON.stringify(equipeBanco));
 
   // o mesmo perfil em duas pessoas: recusa sem gravar
   await mlCarregar();
@@ -508,7 +542,9 @@ try{
   // tela
   currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
   window.__lidas.length = 0; window.__rpcCalls.length = 0; window.__escritas.length = 0;
-  window.__tabelas.leads_equipe = [{ id: 1, nome_planilha: 'Caio', profile_id: 'c1', monitorar: true }];
+  // 01/10/2026: quem decide se o consultor vê a seção é o banco (meus_leads_vinculado: equipe OU nome único na planilha)
+  window.__tabelas.leads_equipe = [];
+  window.__rpcRespostas.meus_leads_vinculado = { data: true, error: null };
   window.__tabelas.leads_followups = [{ id: 'f1', lead_id: 'atr1', consultor_id: 'c1', data_prevista: ontemP, tipo: 'retorno', feito: false }];
   window.__rpcRespostas.meus_leads_para_tratar = { data: [lp('ok1', 2, { ultima_ligacao: diaIso(1) }), lp('atr1', 3, { ultima_ligacao: diaIso(1) }), lp('sem1', 0, { criado_em_lead: diaIso(5) })], error: null };
   await plCarregar();
@@ -565,11 +601,18 @@ try{
   assert(document.getElementById('plErro').style.display !== 'none' && document.getElementById('plCard').style.display === 'none', 'erro dos leads mostra o aviso');
   window.__rpcRespostas.meus_leads_para_tratar = { data: [lp('ok1', 2)], error: null };
 
-  // sem vínculo: a seção some, sem aviso e sem erro
-  window.__tabelas.leads_equipe = [{ id: 2, nome_planilha: 'Outro', profile_id: 'outro', monitorar: true }];
+  // sem nenhum lead (nem na equipe, nem pelo nome): a seção some, sem aviso e sem erro
+  window.__rpcRespostas.meus_leads_vinculado = { data: false, error: null };
   await plCarregar();
-  assert(document.getElementById('plWrap').style.display === 'none', 'consultor sem vínculo não vê a seção');
-  window.__tabelas.leads_equipe = [{ id: 1, nome_planilha: 'Caio', profile_id: 'c1', monitorar: true }];
+  assert(document.getElementById('plWrap').style.display === 'none', 'consultor sem lead não vê a seção');
+  // erro ao checar o vínculo: some também (não incomoda quem não recebe lead)
+  window.__rpcRespostas.meus_leads_vinculado = { data: null, error: { message: 'boom' } };
+  await plCarregar();
+  assert(document.getElementById('plWrap').style.display === 'none', 'erro na checagem do vínculo: seção escondida');
+  window.__rpcRespostas.meus_leads_vinculado = { data: true, error: null };
+  await plCarregar();
+  assert(document.getElementById('plCard').style.display !== 'none', 'vínculo pelo banco (sem linha em leads_equipe) mostra a seção');
+  assert(!document.getElementById('plCard').textContent.includes('todas as abas'), 'texto não diz mais "todas as abas" (Repique fica de fora)');
 
   // admin não vê a seção
   currentUser = { id: 'a1', nome: 'Admin Teste', username: 'adm', role: 'admin' };
