@@ -2,6 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { hrefCarteiraFiltrada } from "@/lib/leads-urls";
 import type { FiltroCamada } from "@/lib/leads";
 
 const OPCOES: { valor: FiltroCamada; rotulo: string }[] = [
@@ -24,43 +27,35 @@ export function FiltroBar({
   const [busca, setBusca] = useState(buscaAtual);
 
   function irPara(filtro: FiltroCamada, novaBusca: string) {
-    const params = new URLSearchParams();
-    params.set("camada", filtro);
-    if (novaBusca) params.set("busca", novaBusca);
-    router.push(`/leads?${params.toString()}`);
+    router.push(hrefCarteiraFiltrada(filtro, novaBusca));
   }
 
   return (
-    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+    <div className="mb-3 flex flex-wrap items-center gap-2">
       {OPCOES.map((o) => (
-        <button
+        <Button
           key={o.valor}
+          type="button"
+          size="sm"
+          variant={filtroAtual === o.valor ? "default" : "outline"}
+          className="rounded-full"
           onClick={() => irPara(o.valor, busca)}
-          style={{
-            padding: "6px 14px",
-            borderRadius: 20,
-            border: "1px solid #e2e2e4",
-            background: filtroAtual === o.valor ? "var(--sinal)" : "#fff",
-            color: filtroAtual === o.valor ? "#fff" : "inherit",
-            cursor: "pointer",
-            fontSize: 12.5,
-          }}
         >
           {o.rotulo}
-        </button>
+        </Button>
       ))}
-      <input
+      <Input
         value={busca}
         onChange={(e) => setBusca(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter") irPara(filtroAtual, busca);
         }}
         placeholder="Buscar por nome, cidade ou CNPJ"
-        style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #ddd", minWidth: 220 }}
+        className="max-w-xs"
       />
-      <button onClick={() => irPara(filtroAtual, busca)} style={{ padding: "6px 12px" }}>
+      <Button type="button" size="sm" variant="secondary" onClick={() => irPara(filtroAtual, busca)}>
         Buscar
-      </button>
+      </Button>
     </div>
   );
 }

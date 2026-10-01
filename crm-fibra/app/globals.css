@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   --sinal: #E30613;
   --carmim: #8E0B1B;
@@ -8,6 +12,33 @@
   --rosa: #FBE3E4;
   --font-head: "Barlow Condensed", system-ui, sans-serif;
   --font-body: "Barlow", system-ui, sans-serif;
+
+  /* shadcn theme tokens, as HSL triplets (not hex/var()) so Tailwind's
+     opacity-modifier utilities (bg-primary/10, hover:bg-secondary/80 etc.)
+     work — Tailwind can't apply an opacity to a value it can't parse as a
+     color function, and a bare var(--sinal) isn't one. Same convention
+     already used for --sidebar-* below; values are the Apex palette
+     above converted to HSL, not shadcn's defaults. */
+  --background: 0 0% 100%;
+  --foreground: 200 5% 12%; /* --grafite */
+  --card: 0 0% 100%;
+  --card-foreground: 200 5% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 200 5% 12%;
+  --primary: 356 95% 46%; /* --sinal */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 240 4% 95%; /* --papel */
+  --secondary-foreground: 200 5% 12%;
+  --muted: 240 4% 95%;
+  --muted-foreground: 0 0% 40%; /* --cinza */
+  --accent: 357 75% 94%; /* --rosa */
+  --accent-foreground: 4 84% 17%; /* --bordo */
+  --destructive: 356 95% 46%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 240 4% 89%;
+  --input: 240 4% 89%;
+  --ring: 356 95% 46%;
+  --radius: 0.5rem;
 }
 
 * {
@@ -28,8 +59,37 @@ h1, h2, h3 {
   margin: 0;
 }
 
+/* Tailwind's preflight reset (@tailwind base above) strips the browser's
+   default heading sizes and sets every <h1>/<h2>/<h3> to inherit the body
+   font-size — restoring them explicitly here, since several screens this
+   redesign didn't touch (login, consultores, lead detail) rely on headings
+   being visibly different sizes without their own classes. */
+h1 {
+  font-size: 2em;
+}
+
+h2 {
+  font-size: 1.5em;
+}
+
+h3 {
+  font-size: 1.17em;
+}
+
 button {
   font-family: inherit;
+}
+
+/* Same reason: preflight also strips the native border/background off
+   unclassed <input>/<select>/<textarea>, which the untouched screens'
+   plain HTML forms (e.g. "Novo consultor" in /consultores) depend on to
+   even be visible. Anything using a shadcn/Tailwind utility class (the
+   new Input component, etc.) is unaffected — a class selector always
+   outranks these element selectors. */
+input, select, textarea {
+  border: 1px solid #a9a9a9;
+  background: #fff;
+  padding: 2px 2px;
 }
 
 table {
@@ -40,4 +100,22 @@ th, td {
   padding: 8px 10px;
   border-bottom: 1px solid #e2e2e4;
   text-align: left;
+}
+
+@layer base {
+  :root {
+    /* Sidebar variables use the HSL-triplet convention the shadcn sidebar
+       registry component expects (wrapped in hsl() in tailwind.config.ts),
+       unlike the rest of this file's tokens — kept separate deliberately.
+       Values below are the Apex "Sinal de Ápice" palette converted to HSL,
+       not the shadcn defaults. */
+    --sidebar-background: 240 4% 95%; /* --papel */
+    --sidebar-foreground: 200 5% 12%; /* --grafite */
+    --sidebar-primary: 356 95% 46%; /* --sinal */
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 357 75% 94%; /* --rosa */
+    --sidebar-accent-foreground: 4 84% 17%; /* --bordo */
+    --sidebar-border: 240 4% 89%;
+    --sidebar-ring: 356 95% 46%; /* --sinal */
+  }
 }

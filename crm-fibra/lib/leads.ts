@@ -100,37 +100,74 @@ async function buscarTodasAsLinhas<T>(
   return todas;
 }
 
+export const TAMANHO_PAGINA_PADRAO = 25;
+
+export interface ResultadoPaginado {
+  leads: LeadSegmentado[];
+  total: number;
+}
+
+function consultaLeadsFiltrada(
+  client: SupabaseClient,
+  filtro: FiltroCamada,
+  buscaLimpa: string,
+  selectOptions: { count: "exact"; head?: boolean }
+) {
+  let query = client.schema("crm_fibra").from("leads_segmentados").select("*", selectOptions);
+
+  if (filtro === "fibra_candidato") {
+    query = query.eq("camada_fibra", "fibra_candidato");
+  } else if (filtro === "apto_agora" || filtro === "apto_1_mes" || filtro === "apto_2_meses") {
+    query = query.eq("camada_renovacao", filtro);
+  } else if (filtro === "sem_dono") {
+    query = query.is("dono_consultor_id", null);
+  }
+
+  if (buscaLimpa) {
+    query = query.or(
+      `razao_social.ilike.%${buscaLimpa}%,cidade.ilike.%${buscaLimpa}%,cnpj_digits.ilike.%${buscaLimpa}%`
+    );
+  }
+
+  return query;
+}
+
 export async function listarLeadsSegmentados(
   client: SupabaseClient,
   filtro: FiltroCamada,
-  busca?: string
-): Promise<LeadSegmentado[]> {
+  busca?: string,
+  pagina: number = 1,
+  tamanhoPagina: number = TAMANHO_PAGINA_PADRAO
+): Promise<ResultadoPaginado> {
   const buscaLimpa = busca ? sanitizarBusca(busca) : "";
+  const from = (pagina - 1) * tamanhoPagina;
+  const to = from + tamanhoPagina - 1;
 
-  const rows = await buscarTodasAsLinhas<LeadRow>((from, to) => {
-    let query = client.schema("crm_fibra").from("leads_segmentados").select();
+  const { data, error, count } = await consultaLeadsFiltrada(client, filtro, buscaLimpa, { count: "exact" })
+    .order("razao_social", { ascending: true })
+    .order("cnpj_digits", { ascending: true })
+    .range(from, to);
 
-    if (filtro === "fibra_candidato") {
-      query = query.eq("camada_fibra", "fibra_candidato");
-    } else if (filtro === "apto_agora" || filtro === "apto_1_mes" || filtro === "apto_2_meses") {
-      query = query.eq("camada_renovacao", filtro);
-    } else if (filtro === "sem_dono") {
-      query = query.is("dono_consultor_id", null);
+  if (error) {
+    // PostgREST retorna 416/PGRST103 quando o offset pedido está além do
+    // total de linhas que batem no filtro (ex.: página 5 de um filtro com
+    // só 2 resultados — comum quando "sem_dono" encolhe à medida que
+    // consultores atribuem leads, ou uma URL salva/antiga). Isso não é um
+    // erro de verdade pro usuário: a página só não tem nada pra mostrar.
+    if ((error as { code?: string }).code === "PGRST103") {
+      const { count: totalReal } = await consultaLeadsFiltrada(client, filtro, buscaLimpa, {
+        count: "exact",
+        head: true,
+      });
+      return { leads: [], total: totalReal ?? 0 };
     }
+    throw error;
+  }
 
-    if (buscaLimpa) {
-      query = query.or(
-        `razao_social.ilike.%${buscaLimpa}%,cidade.ilike.%${buscaLimpa}%,cnpj_digits.ilike.%${buscaLimpa}%`
-      );
-    }
-
-    return query
-      .order("razao_social", { ascending: true })
-      .order("cnpj_digits", { ascending: true })
-      .range(from, to);
-  });
-
-  return rows.map(toLead);
+  return {
+    leads: ((data as LeadRow[] | null) ?? []).map(toLead),
+    total: count ?? 0,
+  };
 }
 
 export interface ContagemCamadas {

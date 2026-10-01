@@ -3,18 +3,24 @@ import { cookies } from "next/headers";
 import { verifySessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { buscarConsultorPorId } from "@/lib/consultores";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-import { TopBar } from "./top-bar";
+import { AppSidebar } from "@/components/app-sidebar";
 
 export default async function ProtectedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   const session = token ? await verifySessionToken(token) : null;
   if (!session) {
     redirect("/login");
   }
+
+  // Lido de volta aqui pra manter o estado colapsado/expandido da sidebar
+  // entre navegações — o provedor do shadcn já grava esse cookie sozinho
+  // (ver components/ui/sidebar.tsx), só faltava alguém ler.
+  const sidebarAberta = cookieStore.get("sidebar_state")?.value !== "false";
 
   // Authoritative check: even a still-valid, correctly-signed JWT is
   // rejected if the consultor was deactivated since it was issued. This
@@ -26,9 +32,8 @@ export default async function ProtectedLayout({
   }
 
   return (
-    <div>
-      <TopBar nome={consultor.nome} papel={consultor.papel} />
-      <main style={{ padding: "24px" }}>{children}</main>
-    </div>
+    <AppSidebar nome={consultor.nome} papel={consultor.papel} defaultOpen={sidebarAberta}>
+      {children}
+    </AppSidebar>
   );
 }
