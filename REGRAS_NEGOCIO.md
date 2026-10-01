@@ -2443,7 +2443,7 @@ Aditiva. Cria `chave_tel`, `norm_nome`, `ligacoes_manuais` (RLS admin/supervisor
 
 ## 60. Leads: aba de Outubro, erro ao salvar a equipe, fila "mostrar menos" e "Meus leads" para todo consultor (01/10/2026)
 
-Pedido do usuário (01/10): (1) erro ao salvar a equipe de leads; (2) a planilha já tem a aba de outubro; (3) opção de mostrar menos em "Leads sem nenhuma ligação"; (4) mostrar os leads em Pedidos Parados para todo consultor que tiver pelo menos um lead, sem o Repique. **Status: preparado no worktree `.worktrees/leads-outubro` (branch `fix/leads-outubro`), ainda não publicado.**
+Pedido do usuário (01/10): (1) erro ao salvar a equipe de leads; (2) a planilha já tem a aba de outubro; (3) opção de mostrar menos em "Leads sem nenhuma ligação"; (4) mostrar os leads em Pedidos Parados para todo consultor que tiver pelo menos um lead, sem o Repique. **Status: publicado em 01/10/2026 (ver 60.7).**
 
 ### 60.1 Erro "cannot insert a non-DEFAULT value into column id"
 - Causa: `leads_equipe.id` é `GENERATED ALWAYS AS IDENTITY`. O editor (seção 59.4, item 9) salvava as pessoas já gravadas com `upsert(..., { onConflict: 'id' })`, mandando o `id` — o Postgres recusa qualquer valor explícito numa identidade ALWAYS, mesmo que a linha já exista. Por isso nenhuma das 4 pessoas (Caio, Gabriel, Luria, Mariana) conseguiu ser ligada ao perfil do painel.
@@ -2471,3 +2471,10 @@ Com mais de 10 leads, a fila mostra só os 10 mais antigos e um botão "Mostrar 
 1. Banco: aplicar a migration `meus_leads_por_nome` e rodar `meus_leads_por_nome_check.sql` (rollback).
 2. Reimplantar a `sync-leads` (conector, `verify_jwt` true) → "Atualizar agora" → script 60.3.
 3. Painel: comparar com o no ar, backup, enviar, MD5, `vigia_painel.ps1 -Aceitar`, registrar aqui (60.7).
+
+### 60.7 Publicado (01/10/2026, ~20:38)
+- **Banco:** migration `meus_leads_por_nome` aplicada no Supabase `apex`. Antes, conferido que só existia a `meus_leads_para_tratar` da seção 59. Depois, `meus_leads_por_nome_check.sql` rodou em produção dentro de transação com rollback, sem erro (nome único, nome repetido, só Repique, vínculo pela equipe, anon recusado, função interna sem EXECUTE para authenticated); conferido que `plpgsql.check_asserts` está ligado e que nenhum dado fictício ficou.
+- **sync-leads:** a versão no ar (v9) era a do `oficial/main`; reimplantada como **v10** (`verify_jwt` true) com o `SHEET_TABS` novo. Limpeza das cópias erradas (60.3): ver 60.8.
+- **Painel:** o painel no ar (MD5 `91e2c666…`) era idêntico ao `oficial/main` (nada publicado por fora). Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`e7a6de56cee3e7530684c742e1cd41a9`**, igual no arquivo gerado, no servidor e no site público. Vigia atualizado (`-Aceitar`). Backup no servidor: `~/deploy_backups/painel_clientes_apex_20261001_203829_antes_leads_outubro.html`.
+- **Reverter o painel:** copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. **Reverter o banco:** `supabase/rollback/20261001200000_meus_leads_por_nome_rollback.sql` (depois de reverter o painel). **Reverter a sync:** reimplantar a versão do `oficial/main` anterior a esta seção (mas ela volta a gravar outubro como SETEMBRO).
+- **Falta fazer (usuário):** ligar o Gabriel Macedo (e quem mais quiser) ao perfil em Digital → Monitoramento Leads → "Equipe de leads e metas" — o editor agora salva.
