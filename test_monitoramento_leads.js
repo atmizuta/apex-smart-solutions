@@ -209,6 +209,63 @@ try{
   await mlCarregar();
   assert(document.getElementById('mlErro').style.display !== 'none', 'erro mostra o aviso de que não foi possível carregar');
 
+  // ==== TASK 4: upload ====
+  // o mock "guarda" os ids enviados por upsert; o RPC de resumo devolve o total guardado (base 5 + ids únicos enviados)
+  const idsGuardados = () => new Set(window.__escritas.filter(e => e.tabela === 'ligacoes_manuais' && e.op === 'upsert').flatMap(e => e.rows.map(r => r.id)));
+  window.__rpcRespostas.monitor_ligacoes_resumo = () => ({ data: [{ total: 5 + idsGuardados().size, primeira: '2026-10-01T12:00:00Z', ultima: '2026-10-03T12:00:00Z' }], error: null });
+  window.__rpcRespostas.monitor_leads_leads = { data: leadsOut, error: null };
+  window.__tabelas.leads_equipe = equipeBanco;
+  window.__escritas.length = 0;
+  currentUser = { id: 'a1', nome: 'Admin Teste', username: 'adm', role: 'admin' };
+  digitalSubAtivar('monitor');
+  await espera(60);
+
+  // arquivo de verdade (SheetJS): cabeçalho na 1ª linha, 1ª planilha
+  const wbT = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wbT, XLSX.utils.aoa_to_sheet([
+    ['ID', 'Usuario', 'Telefone', 'Status', 'DataHora_Geracao', 'Tempo_Chamada', 'Última Tabulação'],
+    [9001, 'apex.caiocosta', 19900000001, 'ANSWERED', '02/10/2026 10:00:00', '00:02:00', 'RETORNO'],
+    [9002, 'apex.caiocosta', 19900000002, 'FAILED', '02/10/2026 10:05:00', null, '-'],
+  ]), 'Plan1');
+  const linhasWb = mlLinhasDoWorkbook(wbT);
+  eq(linhasWb.length, 2, 'workbook: 2 linhas de dados');
+  eq(mlParseRelatorio(linhasWb).linhas.map(l => l.id), [9001, 9002], 'workbook -> relatório -> 2 ligações');
+
+  // arquivo errado: recusa e não grava
+  let r = await mlImportarLinhas([{ Nome: 'x', Valor: 1 }]);
+  assert(r === null && window.__escritas.length === 0, 'arquivo errado não grava nada');
+  assert(document.getElementById('mlUploadStatus').textContent.includes('recusado'), 'mostra que recusou');
+
+  // arquivo bom: grava, conta novas
+  r = await mlImportarLinhas(linhasWb);
+  const up = window.__escritas.filter(e => e.tabela === 'ligacoes_manuais' && e.op === 'upsert');
+  assert(up.length === 1 && up[0].rows.length === 2 && up[0].opts.onConflict === 'id', 'um lote, 2 linhas, upsert por id');
+  assert(up[0].rows.every(l => l.importado_por === 'a1'), 'registra quem importou');
+  assert(r.lidas === 2 && r.novas === 2 && r.existentes === 0 && r.invalidas === 0, 'resumo: 2 lidas, 2 novas');
+  assert(document.getElementById('mlUploadResumo').textContent.includes('2'), 'resumo aparece na tela');
+  assert(window.__rpcCalls.filter(c => c.nome === 'monitor_leads_leads').length >= 2, 'depois de importar, recarrega o monitoramento');
+
+  // reenviar o mesmo arquivo: 0 novas
+  r = await mlImportarLinhas(linhasWb);
+  assert(r.novas === 0 && r.existentes === 2, 'mesmo arquivo de novo: 0 novas, 2 já existiam');
+
+  // lotes de 500
+  window.__escritas.length = 0;
+  const grande = []; for(let i = 0; i < 1203; i++) grande.push({ ID: 20000 + i, Usuario: 'apex.x', Telefone: 19900000000 + i, Status: 'FAILED', DataHora_Geracao: '03/10/2026 09:00:00' });
+  grande.push({ ID: 'ruim', Usuario: 'apex.x', Telefone: 1, Status: 'FAILED', DataHora_Geracao: '03/10/2026 09:00:00' });
+  r = await mlImportarLinhas(grande);
+  eq(window.__escritas.filter(e => e.tabela === 'ligacoes_manuais').map(e => e.rows.length), [500, 500, 203], 'três lotes: 500, 500, 203');
+  assert(r.lidas === 1203 && r.invalidas === 1, 'linha inválida contada, não enviada');
+
+  // equipe sem ligação no arquivo é avisada
+  assert(document.getElementById('mlUploadStatus').textContent.includes('Caio') && document.getElementById('mlUploadStatus').textContent.includes('Luria'), 'avisa quem da equipe não aparece no arquivo');
+
+  // erro de gravação: avisa e não derruba
+  window.__erroEscrita = { message: 'permission denied' };
+  r = await mlImportarLinhas(linhasWb);
+  assert(r === null && document.getElementById('mlUploadStatus').textContent.includes('Não foi possível'), 'erro de gravação mostra mensagem');
+  window.__erroEscrita = null;
+
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
   process.exit(fail > 0 ? 1 : 0);
 }catch(err){

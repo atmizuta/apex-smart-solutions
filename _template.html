@@ -8560,6 +8560,77 @@ document.getElementById('digitalSubMonitor').addEventListener('click', function(
   if(cd){ mlEstado.filtro = mlEstado.filtro === cd.dataset.mlCard ? '' : cd.dataset.mlCard; mlRenderTudo(); }
 });
 
+/* ---- Monitoramento Leads: upload do relatório de ligações ---- */
+function mlLinhasDoWorkbook(wb){
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  return XLSX.utils.sheet_to_json(ws, { raw: true, defval: null });
+}
+function mlLerArquivo(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = evt => {
+      try{ resolve(mlLinhasDoWorkbook(XLSX.read(new Uint8Array(evt.target.result), { type: 'array' }))); }
+      catch(e){ reject(e); }
+    };
+    reader.onerror = () => reject(reader.error || new Error('Falha ao ler o arquivo'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+async function mlTotalGuardado(){
+  const r = await ppSeguro(() => sb.rpc('monitor_ligacoes_resumo'));
+  return Number(r && r.data && r.data[0] && r.data[0].total) || 0;
+}
+function mlDiaBR(iso){ const d = leadDateSP(iso); return d ? d.split('-').reverse().join('/') : '—'; }
+
+async function mlImportarLinhas(rows){
+  const st = document.getElementById('mlUploadStatus'), box = document.getElementById('mlUploadResumo');
+  box.innerHTML = '';
+  const p = mlParseRelatorio(rows);
+  if(p.faltando.length){
+    st.textContent = 'Arquivo recusado: faltam as colunas ' + p.faltando.join(', ') + '.';
+    mostrarAviso('Esse arquivo não parece o relatório de ligações manuais da telefonia.', 'erro');
+    return null;
+  }
+  if(!p.linhas.length){
+    st.textContent = 'Arquivo recusado: nenhuma ligação válida encontrada.';
+    mostrarAviso('Nenhuma ligação válida encontrada no arquivo.', 'erro');
+    return null;
+  }
+  const antes = await mlTotalGuardado();
+  for(let i = 0; i < p.linhas.length; i += 500){
+    const lote = p.linhas.slice(i, i + 500).map(l => Object.assign({}, l, { importado_por: currentUser.id }));
+    const { error } = await sb.from('ligacoes_manuais').upsert(lote, { onConflict: 'id' });
+    if(error){
+      st.textContent = 'Não foi possível gravar as ligações: ' + error.message;
+      mostrarAviso('Não foi possível gravar as ligações. Nada foi apagado; tente de novo.', 'erro');
+      return null;
+    }
+    st.textContent = `Enviando... ${Math.min(i + 500, p.linhas.length)} de ${p.linhas.length}`;
+  }
+  const depois = await mlTotalGuardado();
+  const novas = Math.max(0, depois - antes);
+  const dias = p.linhas.map(l => l.gerada_em).sort();
+  const res = { lidas: p.linhas.length, novas, existentes: p.linhas.length - novas, invalidas: p.invalidas, de: dias[0], ate: dias[dias.length - 1] };
+  const usuarios = new Set(p.linhas.map(l => l.usuario.toLowerCase()));
+  const ausentes = mlEstado.equipe.filter(e => e.monitorar && e.usuario_telefonia && !usuarios.has(String(e.usuario_telefonia).toLowerCase())).map(e => e.nome_planilha);
+  const kpi = (rotulo, valor) => `<div class="kpiCard"><div class="kpiLabel">${rotulo}</div><div class="kpiValue">${valor.toLocaleString('pt-BR')}</div></div>`;
+  box.innerHTML = kpi('Ligações lidas', res.lidas) + kpi('Novas', res.novas) + kpi('Já existiam', res.existentes) + kpi('Linhas inválidas', res.invalidas);
+  st.textContent = `Período do arquivo: ${mlDiaBR(res.de)} a ${mlDiaBR(res.ate)}.` + (ausentes.length ? ' Sem ligações no arquivo: ' + ausentes.join(', ') + '.' : '');
+  mostrarAviso(`Relatório enviado: ${res.novas} ligações novas.`, 'ok');
+  await mlCarregar();
+  return res;
+}
+
+document.getElementById('btnMlArquivo').addEventListener('click', () => document.getElementById('mlArquivo').click());
+document.getElementById('mlArquivo').addEventListener('change', async function(ev){
+  const file = ev.target.files[0];
+  if(!file) return;
+  document.getElementById('mlUploadStatus').textContent = 'Lendo o arquivo...';
+  try{ await mlImportarLinhas(await mlLerArquivo(file)); }
+  catch(e){ console.error(e); document.getElementById('mlUploadStatus').textContent = 'Não foi possível ler o arquivo.'; mostrarAviso('Não foi possível ler o arquivo. Confira se é o Excel da telefonia.', 'erro'); }
+  ev.target.value = '';
+});
+
 /* ==== FIM MONITORAMENTO LEADS ==== */
 
 // Pílulas de aba da planilha (Setembro/Agosto/Repique): só trocam a aba e re-renderizam, sem refetch.
