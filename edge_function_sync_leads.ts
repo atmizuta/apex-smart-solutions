@@ -75,6 +75,53 @@ function sheetTabCsvUrl(gid: string): string {
   return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
 }
 
+// 01/10/2026 — TRAVA DE MÊS (REGRAS seção 62). Com a sincronização automática (pg_cron a cada 30 min),
+// uma aba renomeada na planilha (o que aconteceu em 01/10: o gid de Setembro virou Outubro) misturaria
+// os meses sozinha por dias. Se uma aba de MÊS trouxer mais de TRAVA_LIMITE leads criados num mês
+// POSTERIOR ao dela (no horário de São Paulo), a sincronização para inteira, sem gravar nada, e o erro
+// fica em config.leads_sync_erro (o painel mostra para admin/supervisor). Mês anterior não trava (lead
+// antigo colado numa aba nova é normal); Repique não é mês; lead sem data não conta.
+const MESES_ABA = ["JANEIRO", "FEVEREIRO", "MARCO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
+const TRAVA_LIMITE = 10;   // 01/10: a aba SETEMBRO já tinha 4 leads de outubro lançados nela; a aba renomeada trouxe 22
+type LeadAba = { aba: string; criado_em_lead: string | null };
+
+// Mês (1-12) da data no horário de São Paulo (UTC-3, sem horário de verão); 0 se vazia/inválida.
+export function mesSP(iso: string): number {
+  const t = Date.parse(iso || "");
+  if (isNaN(t)) return 0;
+  return new Date(t - 3 * 3600000).getUTCMonth() + 1;
+}
+
+// "" = pode gravar; senão, a mensagem de erro (identificando a aba e o mês que apareceu).
+export function verificarTrava(registros: LeadAba[]): string {
+  const porAba: Record<string, Record<string, number>> = {};
+  for (const r of registros) {
+    const mesAba = MESES_ABA.indexOf(String(r.aba || "").toUpperCase()) + 1;
+    const mesLead = mesSP(r.criado_em_lead || "");
+    if (!mesAba || !mesLead) continue;
+    const dif = (mesLead - mesAba + 12) % 12;   // 1..5 = meses depois do da aba (6+ = antes, inclusive virada de ano)
+    if (dif < 1 || dif > 5) continue;
+    porAba[r.aba] = porAba[r.aba] || {};
+    porAba[r.aba][mesLead] = (porAba[r.aba][mesLead] || 0) + 1;
+  }
+  for (const aba of Object.keys(porAba)) {
+    const total = Object.values(porAba[aba]).reduce((a, b) => a + b, 0);
+    if (total <= TRAVA_LIMITE) continue;
+    const meses = Object.keys(porAba[aba]).map((m) => MESES_ABA[Number(m) - 1].toLowerCase()).join(", ");
+    return `Sincronização parada pela trava de segurança: a aba ${aba} trouxe ${total} leads criados em ${meses}. ` +
+      `Parece que uma aba da planilha foi renomeada ou trocada — nada foi gravado. Confira o gid de cada aba em SHEET_TABS (REGRAS_NEGOCIO.md seções 60.2 e 62).`;
+  }
+  return "";
+}
+
+// Comparação do segredo do cron em tempo constante (mesma da sync-producao).
+export function iguais(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return d === 0;
+}
+
 // Comparação de texto do STATUS: sem acento, sem diferença de maiúsculas/minúsculas e com espaços
 // repetidos colapsados — a planilha tem "TELEFONE ERRADO ou  SEM WHATSAPP" (2 espaços) e
 // "TELEFONE ERRADO ou Sem Whatsapp", que são o mesmo status digitado de formas diferentes.
@@ -246,28 +293,42 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return json({ error: "Não autenticado." }, 401, corsHeaders);
-
-    const callerClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: userData, error: userErr } = await callerClient.auth.getUser();
-    if (userErr || !userData?.user) return json({ error: "Sessão inválida." }, 401, corsHeaders);
-
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-    const { data: callerProfile, error: profileErr } = await admin
-      .from("profiles")
-      .select("role")
-      .eq("id", userData.user.id)
-      .single();
-    if (profileErr || !callerProfile) {
-      return json({ error: "Perfil do solicitante não encontrado." }, 403, corsHeaders);
+    // 01/10/2026 (REGRAS seção 62): o pg_cron chama a cada 30 min com o header x-cron-secret (o mesmo
+    // SYNC_CRON_SECRET da sync-producao; no banco ele fica no Vault). Sem o segredo, só admin/supervisor
+    // logado — o botão "Atualizar agora" continua igual. Segredo vazio/ausente nunca libera.
+    const cronSecret = Deno.env.get("SYNC_CRON_SECRET") ?? "";
+    const viaCron = cronSecret !== "" && iguais(req.headers.get("x-cron-secret") ?? "", cronSecret);
+    if (!viaCron) {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) return json({ error: "Não autenticado." }, 401, corsHeaders);
+
+      const callerClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: userData, error: userErr } = await callerClient.auth.getUser();
+      if (userErr || !userData?.user) return json({ error: "Sessão inválida." }, 401, corsHeaders);
+
+      const { data: callerProfile, error: profileErr } = await admin
+        .from("profiles")
+        .select("role")
+        .eq("id", userData.user.id)
+        .single();
+      if (profileErr || !callerProfile) {
+        return json({ error: "Perfil do solicitante não encontrado." }, 403, corsHeaders);
+      }
+      if (callerProfile.role !== "admin" && callerProfile.role !== "supervisor") {
+        return json({ error: "Você não tem permissão para sincronizar os leads." }, 403, corsHeaders);
+      }
     }
-    if (callerProfile.role !== "admin" && callerProfile.role !== "supervisor") {
-      return json({ error: "Você não tem permissão para sincronizar os leads." }, 403, corsHeaders);
-    }
+
+    // Erro de sincronização fica em config.leads_sync_erro (vazio = última rodada ok): com o cron ninguém
+    // vê a resposta da função, então o painel mostra esse aviso para admin/supervisor na Digital.
+    const registrarErro = async (msg: string) => {
+      const quando = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+      await admin.from("config").upsert({ chave: "leads_sync_erro", valor: `${quando} — ${msg}` }, { onConflict: "chave" });
+    };
 
     // 09/09/2026: busca cada aba (um mês cada) separadamente pelo GID e consolida tudo — ver
     // comentário junto de SHEET_TABS acima (e por que é por gid, não por nome). Se uma aba
@@ -283,23 +344,28 @@ Deno.serve(async (req) => {
     for (const tab of SHEET_TABS) {
       const resp = await fetch(sheetTabCsvUrl(tab.gid));
       if (!resp.ok) {
-        return json(
-          {
-            error: `Não foi possível acessar a aba "${tab.label}" da planilha (HTTP ${resp.status}). Verifique se ela continua compartilhada como "qualquer pessoa com o link pode ver" e se o gid (${tab.gid}) ainda é válido.`,
-          },
-          502,
-          corsHeaders,
-        );
+        const msg = `Não foi possível acessar a aba "${tab.label}" da planilha (HTTP ${resp.status}). Verifique se ela continua compartilhada como "qualquer pessoa com o link pode ver" e se o gid (${tab.gid}) ainda é válido.`;
+        await registrarErro(msg);
+        return json({ error: msg }, 502, corsHeaders);
       }
       const csvText = await resp.text();
       try {
         registros = registros.concat(parseSheetCsv(csvText, tab.label, tab.aba));
       } catch (e) {
+        await registrarErro((e as Error).message);
         return json({ error: (e as Error).message }, 502, corsHeaders);
       }
     }
     if (registros.length === 0) {
-      return json({ error: "A planilha não retornou nenhuma linha válida (sem coluna 'id') em nenhuma das abas." }, 502, corsHeaders);
+      const msg = "A planilha não retornou nenhuma linha válida (sem coluna 'id') em nenhuma das abas.";
+      await registrarErro(msg);
+      return json({ error: msg }, 502, corsHeaders);
+    }
+    // trava de mês (seção 62): para ANTES de gravar qualquer lead
+    const erroTrava = verificarTrava(registros);
+    if (erroTrava) {
+      await registrarErro(erroTrava);
+      return json({ error: erroTrava }, 409, corsHeaders);
     }
 
     // de-duplica por (aba, id) antes de gravar — um upsert com a mesma chave repetida no mesmo lote quebra
@@ -316,14 +382,18 @@ Deno.serve(async (req) => {
       const { error: upsertErr } = await admin.from("leads").upsert(lote, { onConflict: "aba,id" });
       if (upsertErr) {
         console.error("Erro ao gravar leads:", upsertErr);
+        await registrarErro("Erro ao gravar leads: " + upsertErr.message);
         return json({ error: "Erro ao gravar leads: " + upsertErr.message }, 500, corsHeaders);
       }
     }
 
     const agora = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
-    await admin.from("config").upsert({ chave: "leads_atualizado_em", valor: agora }, { onConflict: "chave" });
+    await admin.from("config").upsert(
+      [{ chave: "leads_atualizado_em", valor: agora }, { chave: "leads_sync_erro", valor: "" }],
+      { onConflict: "chave" },
+    );
 
-    return json({ ok: true, total: registrosUnicos.length, por_aba: porAba, atualizado_em: agora }, 200, corsHeaders);
+    return json({ ok: true, total: registrosUnicos.length, por_aba: porAba, atualizado_em: agora, origem: viaCron ? "cron" : "manual" }, 200, corsHeaders);
   } catch (e) {
     console.error("Erro inesperado em sync-leads:", e);
     return json({ error: "Erro inesperado: " + (e as Error).message }, 500, corsHeaders);

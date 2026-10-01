@@ -25,6 +25,9 @@ src = src
   // remover a versão COM `[]` antes da versão sem, senão sobra um `[]` solto que quebra a sintaxe
   // (ex.: "const rows[] = ..." não é JS válido).
   .replace(/: \{ aba: string; id: string \}\[\]/g, '') // deduplicarLeads(registros: { aba: string; id: string }[])
+  .replace(/^type .*$/gm, '')        // 01/10/2026: type LeadAba = {...} (trava de mês)
+  .replace(/: LeadAba\[\]/g, '')
+  .replace(/: Record<string, Record<string, number>>/g, '')
   .replace(/: Record<string, string>\[\]/g, '')
   .replace(/: Record<string, string>/g, '')
   .replace(/: ReturnType<typeof mapearLinha>\[\]/g, '')
@@ -53,6 +56,10 @@ new Function('sandbox', trechoPuro + `
   sandbox.deduplicarLeads = deduplicarLeads;
   sandbox.SHEET_TABS = SHEET_TABS;
   sandbox.sheetTabCsvUrl = sheetTabCsvUrl;
+  sandbox.mesSP = mesSP;
+  sandbox.verificarTrava = verificarTrava;
+  sandbox.iguais = iguais;
+  sandbox.TRAVA_LIMITE = TRAVA_LIMITE;
 `)(sandbox);
 
 let ok = 0, fail = 0;
@@ -227,6 +234,43 @@ assert(juntos.find(r => r.aba === 'REPIQUE' && r.id === 'l:dup').consultor === '
 // repetido dentro da MESMA aba: mantém a última (evita o erro do upsert do Postgres)
 const repetido = sandbox.deduplicarLeads([{ aba: 'REPIQUE', id: 'l:r', status: 'antigo' }, { aba: 'REPIQUE', id: 'l:r', status: 'novo' }]);
 assert(repetido.length === 1 && repetido[0].status === 'novo', 'id repetido dentro da mesma aba mantém a última ocorrência');
+
+// =====================================================================================
+// 01/10/2026 — sincronização automática (pg_cron a cada 30 min) e trava de mês (REGRAS seção 62).
+// =====================================================================================
+// mesSP: mês (1-12) no horário de São Paulo (UTC-3), não em UTC
+assert(sandbox.mesSP('2026-10-01T02:31:49Z') === 9, 'mesSP: 01/10 02:31 UTC ainda é 30/09 em SP');
+assert(sandbox.mesSP('2026-10-01T10:00:00-03:00') === 10, 'mesSP: data com fuso -03:00');
+assert(sandbox.mesSP('') === 0 && sandbox.mesSP(null) === 0 && sandbox.mesSP('lixo') === 0, 'mesSP: vazio/inválido = 0');
+
+const L = (aba, iso) => ({ aba, id: 'l:' + Math.random(), criado_em_lead: iso });
+const setembroOk = Array.from({ length: 50 }, () => L('SETEMBRO', '2026-09-15T12:00:00-03:00'));
+assert(sandbox.verificarTrava(setembroOk) === '', 'trava: aba com leads do próprio mês passa');
+// o caso de 01/10: aba "SETEMBRO" lendo a aba que foi renomeada para Outubro
+const misturado = setembroOk.concat(Array.from({ length: 22 }, () => L('SETEMBRO', '2026-10-01T10:00:00-03:00')));
+const erroMist = sandbox.verificarTrava(misturado);
+assert(erroMist.includes('SETEMBRO') && erroMist.includes('22') && erroMist.includes('outubro'), 'trava: 22 leads de outubro na aba SETEMBRO param a sincronização (' + erroMist + ')');
+// tolerância: até TRAVA_LIMITE leads de mês posterior passam (virada do mês, digitação atrasada)
+const poucos = setembroOk.concat(Array.from({ length: sandbox.TRAVA_LIMITE }, () => L('SETEMBRO', '2026-10-01T08:00:00-03:00')));
+assert(sandbox.verificarTrava(poucos) === '', 'trava: até ' + sandbox.TRAVA_LIMITE + ' leads do mês seguinte passam');
+// mês ANTERIOR não trava (lead antigo colado na aba nova) e virada de ano conta como anterior
+assert(sandbox.verificarTrava(Array.from({ length: 30 }, () => L('OUTUBRO', '2026-09-20T12:00:00-03:00'))) === '', 'trava: leads de mês anterior não travam');
+assert(sandbox.verificarTrava(Array.from({ length: 30 }, () => L('JANEIRO', '2026-12-20T12:00:00-03:00'))) === '', 'trava: dezembro numa aba de JANEIRO é mês anterior (virada de ano)');
+assert(sandbox.verificarTrava(Array.from({ length: 30 }, () => L('DEZEMBRO', '2027-01-05T12:00:00-03:00'))) !== '', 'trava: janeiro numa aba de DEZEMBRO é mês posterior');
+// REPIQUE (não é mês) e lead sem data nunca travam
+assert(sandbox.verificarTrava(Array.from({ length: 30 }, () => L('REPIQUE', '2026-10-01T12:00:00-03:00'))) === '', 'trava: Repique não é aba de mês');
+assert(sandbox.verificarTrava(Array.from({ length: 30 }, () => L('AGOSTO', null))) === '', 'trava: lead sem data não conta');
+assert(sandbox.verificarTrava([]) === '', 'trava: lista vazia');
+
+// iguais(): comparação do segredo do cron (tempo constante)
+assert(sandbox.iguais('abc', 'abc') === true && sandbox.iguais('abc', 'abd') === false && sandbox.iguais('abc', 'abcd') === false, 'iguais compara o segredo');
+
+// o handler aceita o cron só com segredo configurado e igual; segredo vazio nunca libera
+const handler = src.slice(src.indexOf('Deno.serve'));
+assert(/SYNC_CRON_SECRET/.test(handler) && /x-cron-secret/.test(handler), 'handler lê o segredo do cron (x-cron-secret / SYNC_CRON_SECRET)');
+assert(/cronSecret !== ""/.test(handler), 'segredo do cron vazio nunca libera a chamada');
+assert(handler.indexOf('verificarTrava(') > 0 && handler.indexOf('verificarTrava(') < handler.indexOf('.upsert(lote'), 'a trava roda ANTES de gravar os leads');
+assert(/leads_sync_erro/.test(handler), 'erro da sincronização fica registrado em config.leads_sync_erro');
 
 console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
 if(fail > 0) process.exitCode = 1;

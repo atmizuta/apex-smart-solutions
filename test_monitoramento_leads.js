@@ -664,6 +664,23 @@ try{
   plResetar();
   assert(document.getElementById('plWrap').style.display === 'none' && document.getElementById('plLista').innerHTML === '' && document.getElementById('plAbaPills').innerHTML === '', 'reset limpa a tela (troca de login)');
 
+  // 01/10/2026 (seção 62): aviso da sincronização automática parada — só admin/supervisor
+  window.__tabelas.leads = [];
+  window.__tabelas.leads_followups = [];
+  window.__tabelas.config = [{ chave: 'leads_atualizado_em', valor: '01/10/2026, 22:52:00' }, { chave: 'leads_sync_erro', valor: '01/10/2026, 23:22:00 — Sincronização parada pela trava de segurança' }];
+  currentUser = { id: 'a1', nome: 'Admin Teste', username: 'adm', role: 'admin' };
+  await loadConversaoVendas();
+  const aviso = document.getElementById('conversaoSyncErro');
+  assert(aviso.style.display !== 'none' && aviso.textContent.includes('trava de segurança'), 'admin vê o aviso da sincronização parada');
+  assert(document.getElementById('conversaoSyncStatus').textContent.includes('automática a cada 30 min'), 'status diz que a sincronização é automática');
+  window.__tabelas.config = [{ chave: 'leads_atualizado_em', valor: '01/10/2026, 22:52:00' }, { chave: 'leads_sync_erro', valor: '' }];
+  await loadConversaoVendas();
+  assert(aviso.style.display === 'none', 'sem erro: sem aviso');
+  window.__tabelas.config = [{ chave: 'leads_atualizado_em', valor: '01/10/2026, 22:52:00' }, { chave: 'leads_sync_erro', valor: 'x — erro' }];
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  await loadConversaoVendas();
+  assert(aviso.style.display === 'none', 'consultor não vê o aviso');
+
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
   process.exit(fail > 0 ? 1 : 0);
 }catch(err){

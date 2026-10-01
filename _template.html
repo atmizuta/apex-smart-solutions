@@ -941,6 +941,8 @@
           <button class="btn btn-sm" id="btnConversaoSync" style="width:auto">Atualizar agora</button>
           <span id="conversaoSyncStatus" style="font-size:12px;color:var(--muted)"></span>
         </div>
+        <!-- 01/10/2026 (seção 62): motivo da última falha da sincronização automática (só admin/supervisor) -->
+        <p class="desc" id="conversaoSyncErro" style="display:none;color:var(--c-sinal);margin-top:8px"></p>
       </div>
 
       <div class="card" id="conversaoEmptyCard" style="display:none">
@@ -7391,6 +7393,9 @@ async function loadConversaoVendas(){
   // numero_pedido/cliente/cadastro adicionados em 10/09/2026 pro drilldown (analítico) do card
   // "Conversão confirmada no NeoCRM" — antes só buscava cnpj/etapa/atualizacao pros KPIs.
   if(adminMode) queries.push(fetchAllRows(() => sb.from('producao_pedidos').select('numero_pedido,cliente,cnpj,cadastro,atualizacao,etapa')));
+  // 01/10/2026 (seção 62): a sincronização roda sozinha a cada 30 min; se ela parar (trava de mês, planilha
+  // fora do ar...), o motivo fica em config.leads_sync_erro e aparece aqui para admin/supervisor.
+  if(adminMode) queries.push(sb.from('config').select('valor').eq('chave', 'leads_sync_erro').maybeSingle());
   const results = await Promise.all(queries);
   const { data: leads, error } = results[0];
   const { data: cfg } = results[1];
@@ -7398,7 +7403,11 @@ async function loadConversaoVendas(){
   leadsFollowupsCache = results[2].data || [];
   producaoPedidosCacheDigital = adminMode ? (results[3].data || []) : [];
 
-  statusEl.textContent = (cfg && cfg.valor) ? `Última sincronização: ${cfg.valor}` : 'Nunca sincronizado ainda.';
+  statusEl.textContent = (cfg && cfg.valor) ? `Última sincronização: ${cfg.valor} (automática a cada 30 min)` : 'Nunca sincronizado ainda.';
+  const erroSync = adminMode && results[4] && results[4].data ? String(results[4].data.valor || '').trim() : '';
+  const avisoSync = document.getElementById('conversaoSyncErro');
+  avisoSync.style.display = erroSync ? '' : 'none';
+  avisoSync.textContent = erroSync ? 'Atenção — a última sincronização falhou: ' + erroSync : '';
   conversaoLeadsCache = leads || [];
   renderConversaoFiltrado();
 
