@@ -1964,3 +1964,46 @@ Antes desta mudança, o comportamento em telas ≤768px era documentado como "me
 **Testado:** `test_redesign_shell.js` (39 asserts, 0 falhas, depois do ajuste acima), `test_sidebar_nav.js` (11 asserts, 0 falhas), `test_reorganizacao_abas.js` (33 asserts, 0 falhas), `test_email_lote.js` (43 asserts, 0 falhas), `test_visao_diaria.js` (159 asserts, 0 falhas). `test_dashboard_producao.js` pulado (fixture real fora desta máquina, como sempre).
 
 Rebuild (`python3 build_painel.py`) confirmado sem placeholders pendentes (747436 bytes).
+
+## 48. "Meus leads e retornos" + "Falha comercial por consultor" na aba Digital (29/09/2026)
+
+Pedido do usuário: *"no digital ha a analise da planilha, os consultores estão se perdendo no controle da planilha nos retornos, follow ups, agendamentos e etc, preciso que isso fique otimizado para cada vendedor e que eu possa identificar a falha comercial deles, o que pode me sugerir?"*.
+
+Investigação: a aba Digital já lia a planilha de leads (Facebook/Instagram) em modo somente-leitura, via a tabela `leads` (espelho sincronizado pela Edge Function `sync-leads`, RLS bloqueia escrita direta do cliente). Não existia nenhum mecanismo, dentro do painel, para o consultor registrar que fez um retorno/contato ou agendar o próximo — esse controle vivia só na planilha, fora do painel, e cada consultor mantinha (ou perdia) esse controle por conta própria. Essa foi a lacuna resolvida.
+
+Escopo confirmado com o usuário via três perguntas: (1) o retorno é digitado **direto no painel** (não faz sentido continuar exigindo a planilha em paralelo); (2) conta como "falha comercial": **lead sem nenhum contato registrado, retorno atrasado, lead esfriando (parado há muitos dias) e baixa conversão**; (3) o aviso de falha é visível **só para o admin** — o painel não notifica o consultor automaticamente (evita fricção/reação negativa; o admin decide como e quando conversar com cada um).
+
+**Nova tabela `leads_followups`** (Supabase, escrita pelo próprio consultor): registra cada toque dado num lead — data prevista, tipo (retorno/WhatsApp/ligação/reunião/proposta/outro), observação e se já foi feito. RLS espelha exatamente o padrão já usado em `propostas`: o consultor só vê/edita os próprios registros (`auth.uid() = consultor_id`), admin e supervisor veem/editam tudo. Índices em `lead_id`, `consultor_id` e `data_prevista`.
+
+### 48.1 "Meus leads e retornos" (todo consultor, dentro da aba Digital)
+
+Novo card no topo da aba Digital, visível pra qualquer perfil (não só admin), listando os leads da planilha atribuídos àquele consultor (o nome do consultor na planilha é comparado ao nome do usuário logado com a mesma normalização já usada em outros pontos do painel — maiúsculas, sem acento, sem espaço nas pontas — pra tolerar pequenas diferenças de digitação entre a planilha e o cadastro do usuário).
+
+- **Resumo em chips**: quantos leads estão atrasados, com retorno hoje, sem nenhum agendamento ainda, e agendados pra depois de hoje.
+- **Lista de leads**, ordenada por urgência (atrasado → hoje → sem agendamento → futuro), cada linha mostrando o lead, o último toque registrado (ou "nenhum contato ainda") e dois botões: **Agendar retorno** (abre um mini-formulário inline: data, tipo de contato, observação) e **Marcar como feito** (quando já existe um retorno pendente).
+- Tudo grava/lê da tabela `leads_followups`; a lista se atualiza sozinha depois de qualquer ação, sem precisar recarregar a aba.
+
+### 48.2 "Falha comercial por consultor" (só admin/supervisor)
+
+Tabela nova, abaixo de "Conversão por consultor", com uma linha por consultor e quatro colunas, cada uma medindo um dos quatro critérios combinados na pergunta de escopo:
+
+- **Sem contato**: leads ainda **em aberto** (categoria `andamento` ou `sem_contato` — não conta lead já `convertido` ou `perdido`, que naturalmente não tem follow-up registrado por ser anterior a este recurso ou já resolvido) sem nenhum registro em `leads_followups`.
+- **Retornos atrasados**: follow-ups agendados (`data_prevista`) que já passaram e ainda não foram marcados como feitos.
+- **Esfriando**: leads em andamento sem nenhum toque registrado há mais de `LEAD_ESFRIANDO_DIAS = 5` dias (contados a partir do toque mais recente, ou da entrada do lead quando não há nenhum toque) — 5 dias foi escolhido como o limite a partir do qual um lead "em andamento" real normalmente já teve algum contato num ciclo comercial ativo de vendas por telefone/WhatsApp.
+- **Taxa de conversão**: reaproveitada da lógica que já existia em "Conversão por consultor", lado a lado pra dar o contexto de resultado, não só de atividade.
+
+Card e tabela ficam com `display:none` por padrão e só aparecem para quem passa em `producaoAdminMode()` (admin ou supervisor) — mesmo helper já usado no resto do Dashboard de Produção/Digital pra essa distinção.
+
+**Arquivos afetados:** `supabase_schema.sql` (tabela `leads_followups` + RLS), `_template.html` (CSS dos chips/linhas/badges de retorno, HTML dos dois novos cards dentro de `#panel-conversao`, funções `normalizarNomeConsultor`, `meusLeadsAtivos`, `followupsDoLead`, `proximoFollowupPendente`, `diasDesdeUltimoToque`, `renderMeusLeadsRetornos`, `recarregarFollowupsDigital`, `renderFalhaComercialConsultor`, listener delegado de agendar/marcar-feito) → `painel_clientes_apex.html` (regenerado via `build_painel.py`).
+
+### 48.3 Testado
+
+Novo `test_leads_followups.js` (24 asserts, 0 falhas): tolerância a acento/maiúscula/espaço em `normalizarNomeConsultor`; filtro de `meusLeadsAtivos` (incluindo o caso de nome com grafia diferente); fluxo completo de "Meus leads e retornos" (visibilidade do card, contagem dos chips, ordem das linhas, agendar retorno gravando em `leads_followups`, marcar retorno como feito); "Falha comercial por consultor" restrito a admin, e o recorte "em aberto" do critério "sem contato" (lead antigo `andamento` sem toque conta como sem-contato/esfriando; lead já `convertido` sem follow-up não conta; lead `andamento` com follow-up registrado não conta como sem-contato).
+
+Regressão: `test_conversao_vendas.js` (70 asserts, 0 falhas) — cobre `loadConversaoVendas()`/`renderConversaoFiltrado()`, que ganharam a chamada às novas funções sem quebrar nada do que já existia.
+
+**Nota técnica de teste (jsdom)**: qualquer teste novo que rode o script do painel via jsdom precisa usar `window.eval(jsCode + testScript)` numa **única chamada** de `eval`, nunca duas chamadas separadas de `dom.window.eval()`. Duas chamadas separadas criam ambientes de escopo distintos pra `let`/`const` de topo nível (como `currentUser`) — uma reatribuição feita na segunda chamada fica invisível pras funções definidas na primeira, mesmo declarando a variável sem `let`/`const` da segunda vez. Esse comportamento foi confirmado na prática (não é bug do painel, é uma peculiaridade do `vm`/jsdom do Node) e já é o padrão seguido por todos os outros `test_*.js` deste projeto.
+
+### 48.4 Publicação pendente
+
+A tabela `leads_followups` precisa ser criada manualmente no Supabase (SQL Editor) antes do deploy do painel — o trecho correspondente está em `supabase_schema.sql`, seção "RETORNOS DE LEAD (leads_followups, 29/09/2026)". Depois de rodar o SQL, o `painel_clientes_apex.html` regenerado pode ser publicado normalmente via `deploy_biometria_v2.py`.

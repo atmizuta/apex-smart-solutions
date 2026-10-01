@@ -383,6 +383,29 @@
   .digitalFunilLegend .legendItem{display:flex;align-items:center;gap:var(--space-2);}
   .digitalFunilLegend .legendDot{width:10px;height:10px;border-radius:var(--radius-sm);flex:none;}
   .digitalFunilLegend .legendVal{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums;}
+
+  /* Meus leads e retornos + falha comercial por consultor (29/09/2026, ver REGRAS_NEGOCIO.md §48) */
+  .retornoResumoChip{display:inline-flex;align-items:center;padding:5px 12px;border-radius:20px;font-size:var(--fs-sm);font-weight:600;background:var(--c-cinza-claro);color:var(--text);}
+  .retornoResumoChip.atrasado{background:#FDE8E8;color:#8E0B1B;}
+  .retornoResumoChip.hoje{background:#FFF3CD;color:#7A5B00;}
+  .retornoResumoChip.semAgenda{background:var(--c-rosa);color:var(--c-carmim);}
+  .retornoResumoChip.futuro{background:#E6F4EA;color:#166534;}
+  .retornoLeadRow{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);flex-wrap:wrap;padding:var(--space-3) 0;border-bottom:1px solid var(--c-linha);}
+  .retornoLeadRow:last-child{border-bottom:0;}
+  .retornoLeadInfo{display:flex;flex-direction:column;gap:2px;min-width:180px;}
+  .retornoLeadSub{font-size:var(--fs-sm);color:var(--muted);}
+  .retornoLeadAcoes{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;}
+  .retornoBadge{font-size:var(--fs-xs);font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:4px 10px;border-radius:var(--radius);background:var(--c-cinza-claro);color:var(--text);}
+  .retornoBadge.atrasado{background:#FDE8E8;color:#8E0B1B;}
+  .retornoBadge.hoje{background:#FFF3CD;color:#7A5B00;}
+  .retornoBadge.futuro{background:#E6F4EA;color:#166534;}
+  .retornoBadge.semAgenda{background:var(--c-rosa);color:var(--c-carmim);}
+  .retornoAgendarForm{display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;width:100%;margin-top:var(--space-2);padding-top:var(--space-2);border-top:1px dashed var(--c-linha);}
+  .retornoAgendarForm input[type=date]{padding:7px 9px;border:1px solid var(--c-linha-forte);border-radius:var(--radius);font-size:var(--fs-sm);}
+  .retornoAgendarForm select{padding:7px 9px;border:1px solid var(--c-linha-forte);border-radius:var(--radius);font-size:var(--fs-sm);}
+  .retornoAgendarForm input[type=text]{flex:1;min-width:140px;padding:7px 9px;border:1px solid var(--c-linha-forte);border-radius:var(--radius);font-size:var(--fs-sm);}
+  .falhaBadge{display:inline-flex;align-items:center;justify-content:center;min-width:22px;padding:2px 8px;border-radius:20px;background:#FDE8E8;color:#8E0B1B;font-weight:700;font-size:var(--fs-sm);}
+
   /* ---------- 7. MOVIMENTO (nível "Marcante", 25/09/2026) ---------- */
   @keyframes apexPulse{0%,100%{transform:scale(.88);opacity:.7}50%{transform:scale(1);opacity:1}}
   @keyframes apexSignal{to{background-position:-200% 0}}
@@ -818,6 +841,17 @@
       </div>
 
       <div id="conversaoWrap" style="display:none">
+        <!-- 29/09/2026 (pedido do usuário: "os consultores estão se perdendo no controle da
+             planilha nos retornos, follow ups, agendamentos... preciso que isso fique otimizado
+             para cada vendedor") — ver REGRAS_NEGOCIO.md §48. Cada consultor agenda/resolve os
+             próprios retornos aqui dentro, em vez de anotar na planilha do Google. -->
+        <div class="card" id="meusRetornosCard" style="display:none">
+          <h3>Meus leads e retornos</h3>
+          <p class="desc">Seus leads (pelo nome de consultor da planilha) com o controle de retorno direto aqui — sem precisar mais anotar em outro lugar. Atrasados aparecem em vermelho; leads sem nenhum retorno agendado aparecem em rosa.</p>
+          <div id="meusRetornosResumo" style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 4px"></div>
+          <div id="meusRetornosLista"></div>
+        </div>
+
         <div class="card">
           <h3>Período</h3>
           <p class="desc">Os números abaixo consideram só os leads criados no período selecionado. Use "De"/"Até" com a mesma data pra ver um único dia.</p>
@@ -852,6 +886,18 @@
           <table class="tbl">
             <thead><tr><th>Consultor</th><th>Leads</th><th>Convertidos</th><th>Taxa de conversão</th><th>Receita</th></tr></thead>
             <tbody id="conversaoConsultorTbody"></tbody>
+          </table>
+        </div>
+
+        <!-- 29/09/2026 (pedido do usuário: "que eu possa identificar a falha comercial deles") —
+             só admin/supervisor, cruza leads com leads_followups pra apontar quem está deixando
+             lead esfriar sem contato. Ver REGRAS_NEGOCIO.md §48. -->
+        <div class="card" id="falhaComercialCard" style="display:none">
+          <h3>Falha comercial por consultor</h3>
+          <p class="desc">Cruza os leads de cada consultor com os retornos que ele mesmo registrou em "Meus leads e retornos". "Sem contato" conta leads ainda em aberto (não convertidos nem perdidos) que nunca tiveram nenhum retorno registrado; "Atrasados" conta retornos agendados que passaram da data; "Esfriando" conta leads em andamento sem nenhum contato há mais de 5 dias.</p>
+          <table class="tbl">
+            <thead><tr><th>Consultor</th><th>Sem contato</th><th>Retornos atrasados</th><th>Esfriando</th><th>Taxa de conversão</th></tr></thead>
+            <tbody id="falhaComercialTbody"></tbody>
           </table>
         </div>
 
@@ -6949,6 +6995,10 @@ let conversaoPeriodoAte = null;
 // de CNPJ), reaproveitado sem refetch a cada troca do filtro Período. Ver "Conversão confirmada no
 // NeoCRM" mais abaixo.
 let producaoPedidosCacheDigital = [];
+// retornos/follow-ups registrados pelos consultores (29/09/2026, §48) — buscado junto com leads em
+// loadConversaoVendas, reaproveitado sem refetch a cada troca de período; ver recarregarFollowupsDigital()
+// mais abaixo pra quando só ele precisa ser atualizado (depois de agendar/marcar um retorno).
+let leadsFollowupsCache = [];
 // formata em 'YYYY-MM-DD' já no fuso de SP (locale en-CA usa esse formato por padrão) — mesmo
 // espírito do SP_PARTS_FMT usado no Dashboard de Produção (ver REGRAS_NEGOCIO.md, fix de fuso
 // horário de 04/09/2026), só que aqui só precisamos do dia, não da hora.
@@ -6990,6 +7040,9 @@ async function loadConversaoVendas(){
   const queries = [
     fetchAllRows(() => sb.from('leads').select(leadsCols)),
     sb.from('config').select('valor').eq('chave', 'leads_atualizado_em').maybeSingle(),
+    // 29/09/2026 (§48): retornos agendados/registrados por consultor — RLS já devolve só os
+    // próprios pro consultor e todos pra admin/supervisor, sem precisar filtrar aqui.
+    fetchAllRows(() => sb.from('leads_followups').select('id,lead_id,consultor_id,data_prevista,tipo,observacao,feito,feito_em,criado_em')),
   ];
   // numero_pedido/cliente/cadastro adicionados em 10/09/2026 pro drilldown (analítico) do card
   // "Conversão confirmada no NeoCRM" — antes só buscava cnpj/etapa/atualizacao pros KPIs.
@@ -6998,7 +7051,8 @@ async function loadConversaoVendas(){
   const { data: leads, error } = results[0];
   const { data: cfg } = results[1];
   if(error){ console.error(error); ApexMotion.limparSkeleton(document.getElementById('conversaoResumoCards')); return; }
-  producaoPedidosCacheDigital = adminMode ? (results[2].data || []) : [];
+  leadsFollowupsCache = results[2].data || [];
+  producaoPedidosCacheDigital = adminMode ? (results[3].data || []) : [];
 
   statusEl.textContent = (cfg && cfg.valor) ? `Última sincronização: ${cfg.valor}` : 'Nunca sincronizado ainda.';
   conversaoLeadsCache = leads || [];
@@ -7102,6 +7156,226 @@ function renderConversaoFiltrado(){
       </tr>`).join('');
 
   renderReconciliacaoNeoCRM(leads);
+  renderMeusLeadsRetornos(leads);
+  renderFalhaComercialConsultor(leads);
+}
+
+/* ============ RETORNOS DE LEAD, POR CONSULTOR (29/09/2026) ============
+   Pedido do usuário: "os consultores estão se perdendo no controle da planilha nos retornos, follow
+   ups, agendamentos... preciso que isso fique otimizado para cada vendedor e que eu possa
+   identificar a falha comercial deles". Ver REGRAS_NEGOCIO.md §48. */
+// leads "esfriando": em andamento (categoria) e sem nenhum retorno registrado há mais desse tanto
+// de dias — limiar arbitrário mas razoável pra lead de campanha digital (esfria rápido); deixado
+// como constante isolada pra ser fácil de ajustar se o usuário pedir outro valor depois.
+const LEAD_ESFRIANDO_DIAS = 5;
+const FOLLOWUP_TIPO_LABEL = { retorno: 'Retorno', whatsapp: 'WhatsApp', ligacao: 'Ligação', reuniao: 'Reunião/Agendamento', proposta: 'Envio de proposta', outro: 'Outro' };
+
+// mesmo espírito de normalizarHeaderProducao() (maiúsc/acento tolerante) — usado pra casar o nome
+// livre da coluna "CONSULTOR" da planilha com profiles.nome de quem está logado, já que não existe
+// (e não dá pra confiar em) nenhuma chave direta entre as duas.
+function normalizarNomeConsultor(s){
+  return String(s || '').trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+// Leads cujo texto da coluna CONSULTOR bate com o nome de quem está logado — base da seção "Meus
+// leads e retornos": cada um só vê os próprios aqui, diferente das tabelas agregadas (time inteiro).
+function meusLeadsAtivos(leads){
+  const meuNome = normalizarNomeConsultor(currentUser && currentUser.nome);
+  if(!meuNome) return [];
+  return (leads || []).filter(l => normalizarNomeConsultor(l.consultor) === meuNome);
+}
+
+function followupsDoLead(leadId){
+  return leadsFollowupsCache.filter(f => f.lead_id === leadId);
+}
+
+// Retorno pendente (não feito) mais próximo de um lead — null se não tem nenhum agendado.
+function proximoFollowupPendente(leadId){
+  const pendentes = followupsDoLead(leadId).filter(f => !f.feito).sort((a, b) => a.data_prevista < b.data_prevista ? -1 : (a.data_prevista > b.data_prevista ? 1 : 0));
+  return pendentes[0] || null;
+}
+
+// Dias desde algum registro de retorno nesse lead (feito ou não — qualquer registro conta como
+// contato) — null se nunca teve nenhum. Usado pra apontar leads "esfriando".
+function diasDesdeUltimoToque(leadId){
+  const todos = followupsDoLead(leadId);
+  if(todos.length === 0) return null;
+  const maisRecente = todos.reduce((max, f) => (f.criado_em > max ? f.criado_em : max), todos[0].criado_em);
+  const dt = new Date(maisRecente);
+  if(isNaN(dt.getTime())) return null;
+  return Math.floor((Date.now() - dt.getTime()) / 86400000);
+}
+
+function diasDesdeData(iso){
+  if(!iso) return null;
+  const dt = new Date(iso);
+  if(isNaN(dt.getTime())) return null;
+  return Math.floor((Date.now() - dt.getTime()) / 86400000);
+}
+
+// Monta a seção "Meus leads e retornos" — todo mundo (inclusive admin/supervisor, se também tiver
+// leads no próprio nome) só vê os próprios aqui. Atrasado > Hoje > Sem agenda > Futuro, nessa ordem,
+// pra chamar atenção pro que precisa de ação primeiro.
+function renderMeusLeadsRetornos(leads){
+  const card = document.getElementById('meusRetornosCard');
+  if(!card) return;
+  const meus = meusLeadsAtivos(leads);
+  if(meus.length === 0){ card.style.display = 'none'; return; }
+  card.style.display = 'block';
+
+  const hoje = hojeSP();
+  const linhas = meus.map(l => {
+    const pendente = proximoFollowupPendente(l.id);
+    let situacao = 'semAgenda';
+    if(pendente) situacao = pendente.data_prevista < hoje ? 'atrasado' : (pendente.data_prevista === hoje ? 'hoje' : 'futuro');
+    return { lead: l, pendente, situacao };
+  });
+  const ordemSituacao = { atrasado: 0, hoje: 1, semAgenda: 2, futuro: 3 };
+  linhas.sort((a, b) => (ordemSituacao[a.situacao] - ordemSituacao[b.situacao]) || (a.pendente && b.pendente ? (a.pendente.data_prevista < b.pendente.data_prevista ? -1 : 1) : 0));
+
+  const resumo = { atrasado: 0, hoje: 0, semAgenda: 0, futuro: 0 };
+  linhas.forEach(x => resumo[x.situacao]++);
+  const resumoEl = document.getElementById('meusRetornosResumo');
+  if(resumoEl){
+    resumoEl.innerHTML = `
+      <span class="retornoResumoChip atrasado">${resumo.atrasado} atrasado${resumo.atrasado === 1 ? '' : 's'}</span>
+      <span class="retornoResumoChip hoje">${resumo.hoje} pra hoje</span>
+      <span class="retornoResumoChip semAgenda">${resumo.semAgenda} sem retorno agendado</span>
+      <span class="retornoResumoChip futuro">${resumo.futuro} agendado${resumo.futuro === 1 ? '' : 's'}</span>
+    `;
+  }
+
+  const listaEl = document.getElementById('meusRetornosLista');
+  if(!listaEl) return;
+  listaEl.innerHTML = linhas.map(x => {
+    const l = x.lead;
+    const nome = escapeHtml(l.full_name || '(sem nome)');
+    const statusTxt = escapeHtml((l.status || '').trim() || 'sem status');
+    const leadIdAttr = escapeHtml(l.id);
+    let situacaoHtml;
+    if(x.pendente){
+      const dataFmt = x.pendente.data_prevista.split('-').reverse().join('/');
+      situacaoHtml = `<span class="retornoBadge ${x.situacao}">${x.situacao === 'atrasado' ? 'Atrasado desde' : 'Retorno em'} ${dataFmt} · ${escapeHtml(FOLLOWUP_TIPO_LABEL[x.pendente.tipo] || x.pendente.tipo)}</span>
+        <button type="button" class="btn btn-sm btn-outline btnRetornoFeito" data-followup-id="${escapeHtml(x.pendente.id)}">Marcar feito</button>`;
+    } else {
+      situacaoHtml = `<span class="retornoBadge semAgenda">Sem retorno agendado</span>`;
+    }
+    return `<div class="retornoLeadRow" data-lead-id="${leadIdAttr}">
+      <div class="retornoLeadInfo">
+        <strong>${nome}</strong>
+        <span class="retornoLeadSub">${statusTxt}${l.phone_number ? ' · ' + escapeHtml(l.phone_number) : ''}</span>
+      </div>
+      <div class="retornoLeadAcoes">
+        ${situacaoHtml}
+        <button type="button" class="btn btn-sm btn-ghost btnAgendarRetorno" data-lead-id="${leadIdAttr}">Agendar retorno</button>
+      </div>
+      <div class="retornoAgendarForm" id="retornoForm_${leadIdAttr}" style="display:none">
+        <input type="date" class="retornoFormData" value="${hoje}">
+        <select class="retornoFormTipo">${Object.keys(FOLLOWUP_TIPO_LABEL).map(t => `<option value="${t}">${FOLLOWUP_TIPO_LABEL[t]}</option>`).join('')}</select>
+        <input type="text" class="retornoFormObs" placeholder="Observação (opcional)">
+        <button type="button" class="btn btn-sm btnSalvarRetorno" data-lead-id="${leadIdAttr}">Salvar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Recarrega só os retornos (mais leve que loadConversaoVendas inteiro) e reaplica os dois renders
+// que dependem deles — chamado depois de agendar/marcar um retorno como feito.
+async function recarregarFollowupsDigital(){
+  const { data, error } = await sb.from('leads_followups').select('id,lead_id,consultor_id,data_prevista,tipo,observacao,feito,feito_em,criado_em');
+  if(!error) leadsFollowupsCache = data || [];
+  const leads = conversaoLeadsFiltrados();
+  renderMeusLeadsRetornos(leads);
+  renderFalhaComercialConsultor(leads);
+}
+
+const meusRetornosListaEl = document.getElementById('meusRetornosLista');
+if(meusRetornosListaEl){
+  meusRetornosListaEl.addEventListener('click', async function(e){
+    const btnAgendar = e.target.closest('.btnAgendarRetorno');
+    if(btnAgendar){
+      const form = document.getElementById('retornoForm_' + btnAgendar.dataset.leadId);
+      if(form) form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+      return;
+    }
+    const btnSalvar = e.target.closest('.btnSalvarRetorno');
+    if(btnSalvar){
+      const leadId = btnSalvar.dataset.leadId;
+      const form = document.getElementById('retornoForm_' + leadId);
+      const data = form.querySelector('.retornoFormData').value;
+      const tipo = form.querySelector('.retornoFormTipo').value;
+      const obs = form.querySelector('.retornoFormObs').value.trim();
+      if(!data){ mostrarAviso('Escolha uma data pro retorno.', 'erro'); return; }
+      btnSalvar.disabled = true;
+      const { error } = await sb.from('leads_followups').insert({ lead_id: leadId, consultor_id: currentUser.id, data_prevista: data, tipo, observacao: obs || null });
+      btnSalvar.disabled = false;
+      if(error){ mostrarAviso('Não deu pra salvar o retorno: ' + error.message, 'erro'); return; }
+      mostrarAviso('Retorno agendado.', 'sucesso');
+      await recarregarFollowupsDigital();
+      return;
+    }
+    const btnFeito = e.target.closest('.btnRetornoFeito');
+    if(btnFeito){
+      const id = btnFeito.dataset.followupId;
+      btnFeito.disabled = true;
+      const { error } = await sb.from('leads_followups').update({ feito: true, feito_em: new Date().toISOString() }).eq('id', id);
+      btnFeito.disabled = false;
+      if(error){ mostrarAviso('Não deu pra marcar como feito: ' + error.message, 'erro'); return; }
+      await recarregarFollowupsDigital();
+    }
+  });
+}
+
+// Painel admin/supervisor: cruza leads x leads_followups por consultor pra apontar quem está
+// deixando lead sem contato, com retorno atrasado, ou esfriando em andamento.
+function renderFalhaComercialConsultor(leads){
+  const card = document.getElementById('falhaComercialCard');
+  if(!card) return;
+  if(!producaoAdminMode()){ card.style.display = 'none'; return; }
+  card.style.display = 'block';
+
+  const porConsultor = agruparLeadsPorConsultor(leads);
+  const totalLeads = leads.length;
+  const totalConvertidos = leads.filter(l => l.converteu).length;
+  const taxaMedia = totalLeads > 0 ? totalConvertidos / totalLeads : 0;
+  const hoje = hojeSP();
+
+  const leadsPorNome = {};
+  leads.forEach(l => {
+    const nome = (l.consultor || '').trim() || '(Sem consultor)';
+    (leadsPorNome[nome] = leadsPorNome[nome] || []).push(l);
+  });
+
+  const linhas = porConsultor.map(c => {
+    const leadsDoConsultor = leadsPorNome[c.consultor] || [];
+    let semContato = 0, atrasados = 0, esfriando = 0;
+    leadsDoConsultor.forEach(l => {
+      const fups = followupsDoLead(l.id);
+      // só conta "sem contato" pra lead ainda EM ABERTO (andamento/sem_contato) — um lead já
+      // convertido ou perdido antes de essa agenda existir não é negligência de ninguém.
+      const emAberto = l.categoria === 'andamento' || l.categoria === 'sem_contato';
+      if(emAberto && fups.length === 0) semContato++;
+      if(fups.some(f => !f.feito && f.data_prevista < hoje)) atrasados++;
+      if(l.categoria === 'andamento'){
+        const diasToque = diasDesdeUltimoToque(l.id);
+        const diasSemToque = diasToque === null ? diasDesdeData(l.criado_em_lead) : diasToque;
+        if(diasSemToque !== null && diasSemToque > LEAD_ESFRIANDO_DIAS) esfriando++;
+      }
+    });
+    return Object.assign({}, c, { semContato, atrasados, esfriando, abaixoMedia: c.leads > 0 && c.taxa < taxaMedia });
+  });
+
+  const tbody = document.getElementById('falhaComercialTbody');
+  if(!tbody) return;
+  tbody.innerHTML = linhas.length === 0
+    ? '<tr><td colspan="5" style="text-align:center;color:var(--muted)">Sem dados</td></tr>'
+    : linhas.map(c => `<tr>
+        <td>${escapeHtml(c.consultor)}</td>
+        <td>${c.semContato > 0 ? '<span class="falhaBadge">' + c.semContato + '</span>' : '0'}</td>
+        <td>${c.atrasados > 0 ? '<span class="falhaBadge">' + c.atrasados + '</span>' : '0'}</td>
+        <td>${c.esfriando > 0 ? '<span class="falhaBadge">' + c.esfriando + '</span>' : '0'}</td>
+        <td>${fmtPctConversao(c.taxa)}${c.abaixoMedia ? ' <span class="falhaBadge">abaixo da média</span>' : ''}</td>
+      </tr>`).join('');
 }
 
 // Gráfico doughnut com a proporção Convertido/Perdido/Andamento/Sem contato — dá uma leitura

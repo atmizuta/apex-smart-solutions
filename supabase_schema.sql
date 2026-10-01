@@ -452,6 +452,56 @@ create policy "leads_write" on public.leads for all
   with check ( false );
 
 -- ============================================================
+-- RETORNOS DE LEAD (leads_followups, 29/09/2026)
+-- ============================================================
+-- Pedido do usuário: "os consultores estão se perdendo no controle da planilha nos retornos, follow
+-- ups, agendamentos... preciso que isso fique otimizado para cada vendedor e que eu possa identificar
+-- a falha comercial deles". Diferente de "leads" (espelho read-only da planilha do Google, só a
+-- Edge Function sync-leads escreve nela), esta tabela é nativa do painel: o próprio consultor cria e
+-- resolve os registros de retorno aqui dentro, substituindo o controle manual que hoje só existe na
+-- planilha (texto livre na coluna STATUS). Ver REGRAS_NEGOCIO.md seção 48.
+-- lead_id é texto solto (sem FK pra leads): a PK real de "leads" é composta (aba, id) — foi
+-- alterada numa sessão anterior pra distinguir as abas Agosto/Setembro da planilha —, então não
+-- existe uma constraint única só em "id" pra referenciar. Como "leads" é um espelho (upsert
+-- recorrente pela Edge Function sync-leads), FK rígida aqui não traria benefício real.
+create table if not exists public.leads_followups (
+  id uuid primary key default gen_random_uuid(),
+  lead_id text not null,
+  consultor_id uuid not null references auth.users(id) on delete cascade,
+  data_prevista date not null,
+  tipo text not null default 'retorno' check (tipo in ('retorno','whatsapp','ligacao','reuniao','proposta','outro')),
+  observacao text,
+  feito boolean not null default false,
+  feito_em timestamptz,
+  criado_em timestamptz not null default now(),
+  atualizado_em timestamptz not null default now()
+);
+create index if not exists idx_leads_followups_lead on public.leads_followups(lead_id);
+create index if not exists idx_leads_followups_consultor on public.leads_followups(consultor_id);
+create index if not exists idx_leads_followups_data on public.leads_followups(data_prevista);
+
+alter table public.leads_followups enable row level security;
+
+-- consultor só vê/mexe nos próprios retornos; admin/supervisor veem e mexem em todos (pra
+-- reatribuir ou registrar em nome de alguém, se precisar) — mesmo modelo de "propostas".
+drop policy if exists "leads_followups_select" on public.leads_followups;
+create policy "leads_followups_select" on public.leads_followups for select
+  using ( auth.uid() = consultor_id or public.get_my_role() in ('admin','supervisor') );
+
+drop policy if exists "leads_followups_insert" on public.leads_followups;
+create policy "leads_followups_insert" on public.leads_followups for insert
+  with check ( auth.uid() = consultor_id or public.get_my_role() in ('admin','supervisor') );
+
+drop policy if exists "leads_followups_update" on public.leads_followups;
+create policy "leads_followups_update" on public.leads_followups for update
+  using ( auth.uid() = consultor_id or public.get_my_role() in ('admin','supervisor') )
+  with check ( auth.uid() = consultor_id or public.get_my_role() in ('admin','supervisor') );
+
+drop policy if exists "leads_followups_delete" on public.leads_followups;
+create policy "leads_followups_delete" on public.leads_followups for delete
+  using ( auth.uid() = consultor_id or public.get_my_role() in ('admin','supervisor') );
+
+-- ============================================================
 -- RECONCILIAÇÃO NEOCRM (RPC pro consultor, 10/09/2026)
 -- ============================================================
 -- Function usada pelo card "Conversão confirmada no NeoCRM" (aba Digital, REGRAS_NEGOCIO.md seção
