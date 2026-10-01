@@ -8463,7 +8463,7 @@ function mlCardsEquipe(equipe, leads){
 
 /* ---- Monitoramento Leads: estado, carga e telas (admin/supervisor) ---- */
 const mlEstado = { geracao: 0, aba: null, sub: 'leads', equipe: [], metas: Object.assign({}, ML_METAS_PADRAO), leads: [], resumo: null,
-  porUsuario: [], tabela: 'equipe', de: null, ate: null, filtro: '', erro: false };
+  porUsuario: [], tabela: 'equipe', de: undefined, ate: undefined, filtro: '', erro: false };
 function canSeeMonitoramentoLeads(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
 function mlFmtDiaHora(iso){
   const d = new Date(iso);
@@ -8508,6 +8508,7 @@ async function mlCarregar(){
   mlEstado.metas = mlMetas(cfg && cfg.data && cfg.data.valor);
   mlEstado.resumo = (res && Array.isArray(res.data) && res.data[0]) || null;
   mlEstado.leads = (lds && lds.data) || [];
+  await mlCarregarPorUsuario();
   // ==== mais cargas entram aqui ====
   if(geracao !== mlEstado.geracao) return;
   mlRenderTudo();
@@ -8551,6 +8552,9 @@ function mlRenderTudo(){
   mlRenderFila(cl);
   mlRenderCadencia(cl);
   mlRenderInconsistencias(cl);
+  mlRenderPlacar();
+  mlRenderQualidade();
+  mlRenderTabela();
   // ==== mais renders entram aqui ====
 }
 
@@ -8686,6 +8690,85 @@ document.getElementById('digitalSubMonitor').addEventListener('click', function(
   if(!cp) return;
   const txt = cp.dataset.mlCopiar;
   try{ navigator.clipboard.writeText(txt); mostrarAviso('Copiado: ' + txt, 'ok'); }catch(err){ mostrarAviso(txt, 'info'); }
+});
+
+/* ---- Monitoramento Leads: ligações por consultor (placar do dia, qualidade, tabela) ---- */
+const mlNum = v => Number(v) || 0;
+const mlMesmoUsuario = (a, b) => !!a && !!b && String(a).toLowerCase() === String(b).toLowerCase();
+function mlLinhaDoUsuario(porUsuario, usuario){ return (porUsuario || []).find(r => mlMesmoUsuario(r.usuario, usuario)) || {}; }
+
+function mlPlacarLinhas(porUsuario, equipe, metas){
+  const meta = mlNum(metas && metas.meta_ligacoes_dia);
+  return (equipe || []).filter(e => e.monitorar).map(e => {
+    const r = mlLinhaDoUsuario(porUsuario, e.usuario_telefonia);
+    const lig = mlNum(r.h_hoje);
+    return { nome: e.nome_planilha, usuario: e.usuario_telefonia, ligHoje: lig, atendidasHoje: mlNum(r.hoje_atend), leadsHoje: mlNum(r.hoje_leads),
+      minHoje: Math.round(mlNum(r.hoje_seg) / 60), pctMeta: meta ? lig / meta : null, ultima: r.hoje_ultima || null };
+  });
+}
+function mlQualidadeLinhas(porUsuario, equipe){
+  return (equipe || []).filter(e => e.monitorar).map(e => {
+    const r = mlLinhaDoUsuario(porUsuario, e.usuario_telefonia);
+    const lig = mlNum(r.lig_leads), at = mlNum(r.atend_leads);
+    return { nome: e.nome_planilha, ligLeads: lig, taxaAtend: lig ? at / lig : 0, mediaSeg: at ? Math.round(mlNum(r.seg_leads) / at) : 0,
+      boas: mlNum(r.boas_leads), atendSemContato: mlNum(r.atend_sem_contato) };
+  });
+}
+function mlTabelaLinhas(porUsuario, equipe, modo){
+  const linha = (usuario, nome) => {
+    const r = mlLinhaDoUsuario(porUsuario, usuario), lig = mlNum(r.lig_leads), tot = mlNum(r.total), dist = mlNum(r.leads_distintos);
+    return { usuario, nome, total: tot, ligLeads: lig, pctTotal: tot ? lig / tot : 0, atendidas: mlNum(r.atend_leads), leadsDistintos: dist,
+      tentativasPorLead: dist ? lig / dist : 0, hoje: mlNum(r.h_hoje), ontem: mlNum(r.h_ontem), d7: mlNum(r.h_7), d30: mlNum(r.h_30) };
+  };
+  if(modo === 'equipe') return (equipe || []).filter(e => e.monitorar).map(e => linha(e.usuario_telefonia, e.nome_planilha));
+  return (porUsuario || []).map(r => {
+    const e = (equipe || []).find(x => mlMesmoUsuario(x.usuario_telefonia, r.usuario));
+    return linha(r.usuario, e ? e.nome_planilha : r.usuario);
+  }).sort((a, b) => b.ligLeads - a.ligLeads);
+}
+
+async function mlCarregarPorUsuario(){
+  if(mlEstado.de === undefined && mlEstado.ate === undefined){ const h = hojeSP(); mlEstado.de = h.slice(0, 8) + '01'; mlEstado.ate = h; }
+  const r = await ppSeguro(() => sb.rpc('monitor_ligacoes_por_usuario', { p_ref: hojeSP(), p_de: mlEstado.de || null, p_ate: mlEstado.ate || null }));
+  if(r && r.error){ console.error(r.error); mlEstado.erro = true; }
+  mlEstado.porUsuario = (r && Array.isArray(r.data)) ? r.data : [];
+}
+
+const mlFmtMin = seg => seg ? (seg < 60 ? seg + ' s' : Math.floor(seg / 60) + ' min ' + String(seg % 60).padStart(2, '0') + ' s') : '—';
+function mlRenderPlacar(){
+  const l = mlPlacarLinhas(mlEstado.porUsuario, mlEstado.equipe, mlEstado.metas);
+  document.getElementById('mlPlacarTbody').innerHTML = l.length ? l.map(x => `<tr><td>${escapeHtml(x.nome)}</td><td>${x.ligHoje}</td>
+      <td>${x.pctMeta === null ? '—' : miniBarHtml(x.pctMeta)}</td><td>${x.atendidasHoje}</td><td>${x.leadsHoje}</td><td>${x.minHoje}</td>
+      <td>${x.ultima ? escapeHtml(mlFmtDiaHora(x.ultima)) : 'nenhuma hoje'}</td></tr>`).join('') : mlLinhaVazia(7, 'Nenhum consultor de leads cadastrado.');
+}
+function mlRenderQualidade(){
+  const l = mlQualidadeLinhas(mlEstado.porUsuario, mlEstado.equipe);
+  document.getElementById('mlQualidadeTbody').innerHTML = l.length ? l.map(x => `<tr><td>${escapeHtml(x.nome)}</td><td>${x.ligLeads}</td>
+      <td>${fmtPctConversao(x.taxaAtend)}</td><td>${mlFmtMin(x.mediaSeg)}</td><td>${x.boas}</td><td>${x.atendSemContato}</td></tr>`).join('') : mlLinhaVazia(6, 'Nenhum consultor de leads cadastrado.');
+}
+function mlRenderTabela(){
+  document.querySelectorAll('#mlTabelaPills [data-ml-tabela]').forEach(b => b.classList.toggle('active', b.dataset.mlTabela === mlEstado.tabela));
+  document.getElementById('mlPeriodoDe').value = mlEstado.de || '';
+  document.getElementById('mlPeriodoAte').value = mlEstado.ate || '';
+  const l = mlTabelaLinhas(mlEstado.porUsuario, mlEstado.equipe, mlEstado.tabela);
+  document.getElementById('mlTabelaTbody').innerHTML = l.length ? l.map(x => `<tr><td>${escapeHtml(x.nome)}</td><td>${x.total}</td><td>${x.ligLeads}</td>
+      <td>${fmtPctConversao(x.pctTotal)}</td><td>${x.atendidas}</td><td>${x.leadsDistintos}</td><td>${x.tentativasPorLead.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>
+      <td>${x.hoje}</td><td>${x.ontem}</td><td>${x.d7}</td><td>${x.d30}</td></tr>`).join('') : mlLinhaVazia(11, 'Nenhuma ligação guardada neste período.');
+}
+
+document.getElementById('digitalSubMonitor').addEventListener('click', function(ev){
+  const t = ev.target.closest('[data-ml-tabela]');
+  if(!t) return;
+  mlEstado.tabela = t.dataset.mlTabela;
+  mlRenderTabela();
+});
+['mlPeriodoDe', 'mlPeriodoAte'].forEach(function(id){
+  document.getElementById(id).addEventListener('change', async function(){
+    mlEstado.de = document.getElementById('mlPeriodoDe').value || null;
+    mlEstado.ate = document.getElementById('mlPeriodoAte').value || null;
+    await mlCarregarPorUsuario();
+    mlRenderTudo();
+  });
 });
 
 /* ==== FIM MONITORAMENTO LEADS ==== */

@@ -308,6 +308,65 @@ try{
   await mlCarregar();
   assert(document.getElementById('mlInconsLista').textContent.includes('e mais 4'), 'inconsistência com 14 leads mostra 10 e "e mais 4"');
 
+  // ==== TASK 6: ligações por consultor ====
+  const U = (usuario, extra) => Object.assign({ usuario, total: 0, lig_leads: 0, atend_leads: 0, leads_distintos: 0, seg_leads: 0, boas_leads: 0, atend_sem_contato: 0,
+    h_hoje: 0, h_ontem: 0, h_7: 0, h_30: 0, hoje_atend: 0, hoje_leads: 0, hoje_seg: 0, hoje_ultima: null }, extra || {});
+  const porUsu = [
+    U('apex.caiocosta', { total: 100, lig_leads: 40, atend_leads: 20, leads_distintos: 10, seg_leads: 1800, boas_leads: 5, atend_sem_contato: 3, h_hoje: 30, h_ontem: 25, h_7: 150, h_30: 300, hoje_atend: 12, hoje_leads: 9, hoje_seg: 600, hoje_ultima: '2026-10-03T15:00:00Z' }),
+    U('apex.outro', { total: 50 }),
+  ];
+  const eqP = [{ nome_planilha: 'Caio', usuario_telefonia: 'apex.caiocosta', monitorar: true }, { nome_planilha: 'Luria', usuario_telefonia: 'Apex.luria', monitorar: true }, { nome_planilha: 'Zé', usuario_telefonia: 'apex.ze', monitorar: false }];
+  const pl = mlPlacarLinhas(porUsu, eqP, ML_METAS_PADRAO);
+  eq(pl.map(x => x.nome), ['Caio', 'Luria'], 'placar: só os monitorados');
+  eq(pl[0], { nome: 'Caio', usuario: 'apex.caiocosta', ligHoje: 30, atendidasHoje: 12, leadsHoje: 9, minHoje: 10, pctMeta: 0.375, ultima: '2026-10-03T15:00:00Z' }, 'placar do Caio (30 de 80 = 37,5%)');
+  eq(pl[1], { nome: 'Luria', usuario: 'Apex.luria', ligHoje: 0, atendidasHoje: 0, leadsHoje: 0, minHoje: 0, pctMeta: 0, ultima: null }, 'quem não aparece no relatório fica zerado');
+  assert(mlPlacarLinhas(porUsu, eqP, { meta_ligacoes_dia: 0 })[0].pctMeta === null, 'meta 0 não divide por zero');
+  const ql = mlQualidadeLinhas(porUsu, eqP);
+  eq(ql[0], { nome: 'Caio', ligLeads: 40, taxaAtend: 0.5, mediaSeg: 90, boas: 5, atendSemContato: 3 }, 'qualidade do Caio: 50% atendidas, 90 s médios');
+  eq(ql[1], { nome: 'Luria', ligLeads: 0, taxaAtend: 0, mediaSeg: 0, boas: 0, atendSemContato: 0 }, 'qualidade sem ligações: zeros, sem NaN');
+  const tq = mlTabelaLinhas(porUsu, eqP, 'equipe');
+  eq(tq.map(x => x.nome), ['Caio', 'Luria'], 'tabela "os 4": só os monitorados');
+  eq(tq[0], { usuario: 'apex.caiocosta', nome: 'Caio', total: 100, ligLeads: 40, pctTotal: 0.4, atendidas: 20, leadsDistintos: 10, tentativasPorLead: 4, hoje: 30, ontem: 25, d7: 150, d30: 300 }, 'linha do Caio (40% do total, 4 tentativas por lead)');
+  const tt = mlTabelaLinhas(porUsu, eqP, 'todos');
+  eq(tt.map(x => x.nome), ['Caio', 'apex.outro'], 'tabela "todos": todo usuário do relatório, ordem por ligações para lead; sem perfil mostra o login');
+  assert(tt[1].pctTotal === 0 && tt[1].tentativasPorLead === 0, 'usuário sem ligação para lead: 0% e 0 tentativas, sem NaN');
+
+  // tela: carga, período padrão, abas, placar, qualidade
+  window.__tabelas.leads_equipe = equipeBanco;
+  window.__rpcRespostas.monitor_leads_leads = { data: leadsOut, error: null };
+  window.__rpcRespostas.monitor_ligacoes_resumo = { data: [], error: null };
+  window.__rpcRespostas.monitor_ligacoes_por_usuario = { data: porUsu, error: null };
+  mlEstado.de = undefined; mlEstado.ate = undefined; mlEstado.tabela = 'equipe'; mlEstado.filtro = '';
+  window.__rpcCalls.length = 0;
+  await mlCarregar();
+  const cu = window.__rpcCalls.filter(c => c.nome === 'monitor_ligacoes_por_usuario').pop();
+  const hojeT = hojeSP();
+  assert(cu && cu.args.p_ref === hojeT && cu.args.p_de === hojeT.slice(0, 8) + '01' && cu.args.p_ate === hojeT, 'padrão: 1º dia do mês até hoje, ref = hoje');
+  assert(document.getElementById('mlPeriodoDe').value === hojeT.slice(0, 8) + '01', 'campos de data refletem o período');
+  assert(document.querySelector('#mlPlacarTbody tr td').textContent.trim() === 'Caio' && document.getElementById('mlPlacarTbody').textContent.includes('37,5%'), 'placar na tela (37,5%)');
+  assert(document.getElementById('mlQualidadeTbody').textContent.includes('1 min 30 s'), 'qualidade na tela (90 s médios = 1 min 30 s)');
+  eq([...document.querySelectorAll('#mlTabelaTbody tr')].map(tr => tr.children[0].textContent.trim()), ['Caio', 'Luria'], 'tabela: os consultores de leads');
+  document.querySelector('#mlTabelaPills [data-ml-tabela="todos"]').click();
+  eq([...document.querySelectorAll('#mlTabelaTbody tr')].map(tr => tr.children[0].textContent.trim()), ['Caio', 'apex.outro'], 'tabela: todos os consultores');
+  assert(document.querySelector('#mlTabelaPills [data-ml-tabela="todos"]').classList.contains('active'), 'pílula ativa');
+
+  // mudar o período refaz a consulta
+  const campoDe = document.getElementById('mlPeriodoDe'); campoDe.value = '2026-10-02';
+  campoDe.dispatchEvent(new window.Event('change'));
+  await espera(60);
+  assert(window.__rpcCalls.filter(c => c.nome === 'monitor_ligacoes_por_usuario').pop().args.p_de === '2026-10-02', 'mudar "De" consulta de novo com a data nova');
+  // limpar os dois campos = sem limite (null)
+  campoDe.value = ''; document.getElementById('mlPeriodoAte').value = '';
+  campoDe.dispatchEvent(new window.Event('change'));
+  await espera(60);
+  const semLimite = window.__rpcCalls.filter(c => c.nome === 'monitor_ligacoes_por_usuario').pop().args;
+  assert(semLimite.p_de === null && semLimite.p_ate === null, 'campos vazios = sem limite de datas');
+
+  // sem relatório: tudo zerado, sem NaN
+  window.__rpcRespostas.monitor_ligacoes_por_usuario = { data: [], error: null };
+  await mlCarregar();
+  assert(!/NaN|undefined/.test(document.getElementById('digitalSubMonitor').textContent), 'sem ligações guardadas: sem NaN/undefined');
+
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
   process.exit(fail > 0 ? 1 : 0);
 }catch(err){
