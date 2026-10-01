@@ -2552,3 +2552,25 @@ Pedido do usuário (01/10): os leads da planilha passarem para o painel sozinhos
 - Sem lacuna: a janela da consulta vem do cursor (última execução ok) com 15 min de sobreposição; a 1ª rodada no minuto 59 cobre ~67 min, abaixo do limite diurno de 85 min da API (seção 50).
 - Agenda dos jobs depois da mudança: `sync-producao-horario` 59 · `sync-leads-auto` 22 e 52 (seção 62) · `alerta-sync-producao` a cada 15 min · `sync-producao-reconciliar` 02:37 UTC (23:37 SP).
 - Limite: o que o consultor cadastrar no NeoCRM entre 16:59 e 17:00 entra só na rodada das 17:59.
+
+## 64. "Meus leads para tratar": leads para resgatar, WhatsApp com mensagem pronta, retorno em 1 clique e placar de ligações (01/10/2026)
+
+Pedido do usuário (01/10): (1) confirmar que a lista mostra só leads que não viraram venda nem venda perdida — e incluir "não obtive contato"; (2) botão de WhatsApp com mensagem pronta para "ressuscitar" o lead, dizendo "da Claro Empresas"; (3) o consultor ver quantas ligações fez hoje para os leads, comparado com a média, com orientação (ligar mais / insistir mais / ligar menos para o mesmo lead), sem ver os números do Monitoramento; (4) "algo que facilite o consultor a retornar para os leads". **Status: preparado no worktree `.worktrees/leads-outubro` (branch `feat/meus-leads-whatsapp-placar`), ainda não publicado.**
+
+### 64.1 Quais leads aparecem
+- Continua: em andamento (EM NEGOCIAÇÃO, AGUARDANDO DOCUMENTAÇÃO, AGENDADO RETORNO, AGUARDANDO CLIENTE DECIDIR, PEDIDO EM ANÁLISE e qualquer status novo) e sem status. Fora: venda e os perdidos.
+- Não existe status "não obtive contato" na planilha; o equivalente é **"CLIENTE NÃO RESPONDE"** (decisão do usuário: entra). Aparece com a etiqueta **"para resgatar"** e um chip no resumo; nos números da Digital/Dashboard continua perdido.
+
+### 64.2 WhatsApp com mensagem pronta
+Botão "WhatsApp" em cada lead com telefone (`https://wa.me/55DDD...?text=`, mesmo `ppEscolherTelefone` de Pedidos Parados), com o primeiro nome do lead e do consultor e "da Claro Empresas". Sem preço (não fica desatualizada). Texto por situação (`plTipoMensagem`): **resgatar** (não responde / sem status), **negociação** (em negociação, aguardando decidir, status desconhecido), **documentação**, **retorno** (agendado retorno, pedido em análise).
+
+### 64.3 Retorno em 1 clique
+Botões "Amanhã" e "Em 3 dias" em cada lead gravam o retorno direto em `leads_followups` (tipo retorno), sem abrir o formulário — o consultor manda o WhatsApp e já deixa o próximo contato marcado.
+
+### 64.4 Placar do consultor
+- Cartão no topo da sub-aba (`#plPlacar`): "Você fez X ligações para os seus leads hoje; a média da equipe é Y" + "Ligue mais hoje" (abaixo de 80% da média) ou "Acima da média — continue assim!"; "Insista mais" (leads em aberto com 1 a min−1 tentativas); "Ligue menos para o mesmo lead" (mais que o teto). Metas de `config.monitor_leads_metas` (padrão 3 / 10).
+- RPC `meu_placar_ligacoes(p_ref)`: só as ligações do login (pelo `leads_equipe.usuario_telefonia`) e a média agregada da equipe; nunca números de outra pessoa; o consultor continua sem ler `ligacoes_manuais`.
+- Só aparece com usuário da telefonia preenchido e algum relatório de ligações importado (em 01/10 nenhum relatório foi enviado e só Caio, Gabriel, Luria e Mariana têm usuário da telefonia).
+
+### 64.5 Banco e testes
+Migration `supabase/migrations/20261001600000_meus_leads_resgatar_placar.sql` (rollback em `supabase/rollback/`). `test_monitoramento_leads.js` 213 ok. Falhas antigas e não relacionadas: `test_conversao_vendas.js` (relógio) e `test_pedidos_alerta.js` (falta `exceljs`).

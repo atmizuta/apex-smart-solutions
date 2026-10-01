@@ -621,6 +621,76 @@ try{
   assert(document.getElementById('digitalSubMonitor').style.display === 'none', 'consultor não consegue abrir o Monitoramento');
   digitalSubAtivar('leads');
 
+  // ==== 01/10/2026 (seção 64): "para resgatar", WhatsApp com mensagem pronta, retorno em 1 clique e placar ====
+  window.__rpcRespostas.meus_leads_para_tratar = { data: [
+    lp('res1', 2, { status: 'CLIENTE NÃO RESPONDE', categoria: 'perdido', nome: 'Joao Silva Teste', telefone: 'p:+5519988887777' }),
+    lp('neg1', 4, { status: 'EM NEGOCIAÇÂO', nome: 'Maria Teste', ultima_ligacao: diaIso(1) }),
+    lp('doc1', 1, { status: 'AGUARDANDO DOCUMENTAÇÃO', ultima_ligacao: diaIso(1) }),
+    lp('ret1', 12, { status: 'AGENDADO RETORNO', ultima_ligacao: diaIso(1) }),
+    lp('semtel', 3, { telefone: null, ultima_ligacao: diaIso(1) }),
+  ], error: null };
+  window.__rpcRespostas.meu_placar_ligacoes = { data: [{ lig_hoje: 5, media_equipe: 20, tem_telefonia: true, tem_dados: true, min_tentativas: 3, max_tentativas: 10, meta_ligacoes_dia: 80 }], error: null };
+  window.__tabelas.leads_followups = [];
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  window.__rpcCalls.length = 0;
+  await plCarregar();
+  const rowL = id => document.querySelector('#plLista [data-lead-id="' + id + '"]');
+  // "para resgatar"
+  assert(rowL('res1') && rowL('res1').querySelector('.plResgatar'), 'CLIENTE NÃO RESPONDE aparece com a etiqueta "para resgatar"');
+  assert(!rowL('neg1').querySelector('.plResgatar'), 'lead em negociação não tem a etiqueta');
+  assert(document.getElementById('plResumo').textContent.includes('1 para resgatar'), 'resumo conta os leads para resgatar');
+  // WhatsApp com mensagem pronta (número do lead, primeiro nome do lead e do consultor, "da Claro Empresas")
+  const whats = id => rowL(id).querySelector('a.plWhats');
+  const textoWhats = id => decodeURIComponent(whats(id).getAttribute('href').split('?text=')[1]);
+  assert(whats('res1').getAttribute('href').startsWith('https://wa.me/5519988887777?text='), 'WhatsApp abre no número do lead (55 + DDD + número)');
+  assert(whats('res1').getAttribute('target') === '_blank', 'WhatsApp abre em outra aba');
+  const tRes = textoWhats('res1');
+  assert(tRes.includes('Olá, Joao!') && tRes.includes('Consultor, da Claro Empresas') && tRes.includes('conversa ficou em aberto'), 'mensagem de resgate com os nomes (' + tRes + ')');
+  assert(!/apex/i.test(tRes), 'mensagem diz "da Claro Empresas", não Apex');
+  assert(textoWhats('neg1').includes('proposta') && textoWhats('neg1').includes('Maria'), 'mensagem de negociação');
+  assert(textoWhats('doc1').includes('documentação'), 'mensagem de documentação');
+  assert(textoWhats('ret1').includes('conforme combinamos'), 'mensagem de retorno agendado');
+  assert(!whats('semtel'), 'lead sem telefone: sem botão de WhatsApp');
+  // placar do próprio consultor
+  const placar = document.getElementById('plPlacar');
+  assert(placar.style.display !== 'none', 'placar aparece com telefonia ligada e dados importados');
+  const tP = placar.textContent;
+  assert(tP.includes('5 ligações') && tP.includes('média da equipe é 20') && tP.includes('Ligue mais hoje'), 'abaixo da média: "Ligue mais hoje" (' + tP + ')');
+  assert(tP.includes('Insista mais') && tP.includes('2 leads com menos de 3 tentativas'), 'insista mais: leads com 1 a 2 tentativas');
+  assert(tP.includes('Ligue menos para o mesmo lead') && tP.includes('1 lead com mais de 10 tentativas'), 'ligue menos: lead acima do teto');
+  assert(window.__rpcCalls.some(c => c.nome === 'meu_placar_ligacoes' && c.args && c.args.p_ref === hojeP), 'placar pede os números de hoje (SP)');
+  assert(!window.__lidas.includes('ligacoes_manuais'), 'consultor continua sem ler ligacoes_manuais');
+  window.__rpcRespostas.meu_placar_ligacoes = { data: [{ lig_hoje: 25, media_equipe: 20, tem_telefonia: true, tem_dados: true, min_tentativas: 3, max_tentativas: 10, meta_ligacoes_dia: 80 }], error: null };
+  await plCarregar();
+  assert(placar.textContent.includes('Acima da média') && !placar.textContent.includes('Ligue mais hoje'), 'na média ou acima: "Acima da média"');
+  window.__rpcRespostas.meu_placar_ligacoes = { data: [{ lig_hoje: 7, media_equipe: null, tem_telefonia: true, tem_dados: true, min_tentativas: 3, max_tentativas: 10, meta_ligacoes_dia: 80 }], error: null };
+  await plCarregar();
+  assert(placar.textContent.includes('7 ligações') && !/NaN|null|undefined/.test(placar.textContent), 'sem média da equipe hoje: mostra só as dele, sem NaN');
+  window.__rpcRespostas.meu_placar_ligacoes = { data: [{ lig_hoje: 0, media_equipe: null, tem_telefonia: false, tem_dados: true, min_tentativas: 3, max_tentativas: 10, meta_ligacoes_dia: 80 }], error: null };
+  await plCarregar();
+  assert(placar.style.display === 'none', 'sem usuário da telefonia: placar escondido');
+  window.__rpcRespostas.meu_placar_ligacoes = { data: [{ lig_hoje: 0, media_equipe: null, tem_telefonia: true, tem_dados: false, min_tentativas: 3, max_tentativas: 10, meta_ligacoes_dia: 80 }], error: null };
+  await plCarregar();
+  assert(placar.style.display === 'none', 'nenhum relatório de ligações importado: placar escondido');
+  window.__rpcRespostas.meu_placar_ligacoes = { data: null, error: { message: 'boom' } };
+  await plCarregar();
+  assert(placar.style.display === 'none' && document.getElementById('plCard').style.display !== 'none', 'erro no placar não derruba a lista');
+  // retorno em 1 clique
+  window.__escritas.length = 0;
+  rowL('neg1').querySelector('.btnPlRapido[data-dias="1"]').click();
+  await espera(60);
+  const insR = window.__escritas.find(e => e.tabela === 'leads_followups' && e.op === 'insert');
+  assert(insR && insR.rows.lead_id === 'neg1' && insR.rows.consultor_id === 'c1' && insR.rows.data_prevista === somaDiasStr(hojeP, 1) && insR.rows.tipo === 'retorno', 'botão "Amanhã" agenda o retorno para amanhã');
+  window.__escritas.length = 0;
+  rowL('doc1').querySelector('.btnPlRapido[data-dias="3"]').click();
+  await espera(60);
+  const insR3 = window.__escritas.find(e => e.tabela === 'leads_followups' && e.op === 'insert');
+  assert(insR3 && insR3.rows.lead_id === 'doc1' && insR3.rows.data_prevista === somaDiasStr(hojeP, 3), 'botão "Em 3 dias" agenda para daqui a 3 dias');
+  // funções puras da mensagem
+  assert(plTipoMensagem({ status: '', categoria: 'sem_contato' }) === 'resgatar' && plTipoMensagem({ status: 'CLIENTE NAO RESPONDE', categoria: 'perdido' }) === 'resgatar', 'sem status e não responde = resgatar');
+  assert(plTipoMensagem({ status: 'PEDIDO EM ANÁLISE', categoria: 'andamento' }) === 'retorno' && plTipoMensagem({ status: 'STATUS NOVO', categoria: 'andamento' }) === 'negociacao', 'pedido em análise = retorno; status desconhecido = negociação');
+  assert(plMensagemWhats({ nome: '', status: '' , categoria: 'sem_contato' }, '').startsWith('Olá! Aqui é a equipe da Claro Empresas'), 'sem nome do lead nem do consultor: mensagem continua fazendo sentido');
+
   // lista vazia
   window.__rpcRespostas.meus_leads_para_tratar = { data: [], error: null };
   await plCarregar();

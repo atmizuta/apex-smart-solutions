@@ -1181,6 +1181,8 @@
         <div class="card" id="plCard" style="display:none">
           <h3>Meus leads para tratar</h3>
           <p class="desc">Seus leads que ainda estão em aberto, separados pelo mês da planilha (o Repique fica de fora). O que precisa de ação primeiro aparece no topo; o status e a OBS são os que estão na planilha.</p>
+          <!-- 01/10/2026 (seção 64): ligações do próprio consultor hoje x média da equipe, com orientação -->
+          <div id="plPlacar" style="display:none;margin:10px 0 4px"></div>
           <div class="filterPills" id="plAbaPills" style="margin:10px 0 4px"></div>
           <div id="plResumo" style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 4px"></div>
           <div id="plLista"></div>
@@ -8956,8 +8958,50 @@ document.getElementById('btnMlExportTabela').addEventListener('click', function(
 });
 
 /* ---- Digital → "Meus leads para tratar" (consultor) — 01/10/2026, REGRAS_NEGOCIO.md seções 59 a 61 ---- */
-const plEstado = { geracao: 0, vinculado: false, erro: false, leads: [], followups: [], aba: null };
+const plEstado = { geracao: 0, vinculado: false, erro: false, leads: [], followups: [], aba: null, placar: null };
 const PL_ORDEM = { semLigacao: 0, atrasado: 1, esfriando: 2, hoje: 3, ok: 4 };
+
+// 01/10/2026 (seção 64): "CLIENTE NÃO RESPONDE" entra na lista como lead para resgatar (continua perdido nos números).
+function plNormStatus(s){ return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim().toLowerCase(); }
+function plParaResgatar(l){ return plNormStatus(l.status) === 'cliente nao responde'; }
+// Mensagem pronta do WhatsApp conforme a situação do lead (sem preço, para não ficar desatualizada).
+function plTipoMensagem(l){
+  const s = plNormStatus(l.status);
+  if(!s || s === 'cliente nao responde') return 'resgatar';
+  if(s.startsWith('aguardando documentacao')) return 'documentacao';
+  if(s === 'agendado retorno' || s === 'pedido em analise') return 'retorno';
+  return 'negociacao';
+}
+function plMensagemWhats(l, consultor){
+  const nome = String(l.nome || '').trim().split(/\s+/)[0] || '';
+  const eu = consultor ? `Aqui é ${consultor}, da Claro Empresas.` : 'Aqui é a equipe da Claro Empresas.';
+  const oi = nome ? `Oi, ${nome}, tudo bem?` : 'Oi, tudo bem?';
+  const tipo = plTipoMensagem(l);
+  if(tipo === 'resgatar') return `${nome ? `Olá, ${nome}!` : 'Olá!'} ${eu} Vi que nossa conversa ficou em aberto e não queria que você perdesse a condição especial que separamos para o seu CNPJ. Ainda faz sentido pra você? Posso te mandar os valores atualizados em 1 minuto. 😊`;
+  if(tipo === 'documentacao') return `${nome ? `Oi, ${nome}!` : 'Oi!'} ${eu} Falta só a documentação pra gente seguir com o seu pedido. Quer que eu te mande a lista do que precisa por aqui?`;
+  if(tipo === 'retorno') return `${oi} ${eu.replace(/\.$/, ', conforme combinamos.')} Podemos continuar nossa conversa sobre o seu plano?`;
+  return `${oi} ${eu} Passando pra saber se ficou alguma dúvida sobre a proposta. A condição que conversamos ainda está valendo — posso te ajudar a fechar hoje?`;
+}
+// Placar do próprio consultor: só os números dele + a média da equipe (nunca os de outra pessoa).
+function plRenderPlacar(){
+  const el = document.getElementById('plPlacar');
+  const p = plEstado.placar;
+  if(!p || !p.tem_telefonia || !p.tem_dados){ el.style.display = 'none'; el.innerHTML = ''; return; }
+  const n = Number(p.lig_hoje) || 0, media = Number(p.media_equipe) || 0;
+  const min = Number(p.min_tentativas) || ML_METAS_PADRAO.min_tentativas, max = Number(p.max_tentativas) || ML_METAS_PADRAO.max_tentativas;
+  const fmt = v => (Math.round(v * 10) / 10).toLocaleString('pt-BR');
+  const pl = (k, um, varios) => `${k} ${k === 1 ? um : varios}`;
+  const linhas = [];
+  let txt = `Você fez <b>${pl(n, 'ligação', 'ligações')}</b> para os seus leads hoje` + (media > 0 ? `; a média da equipe é ${fmt(media)}.` : '.');
+  if(media > 0) txt += n < media * 0.8 ? ' <span class="retornoResumoChip atrasado">Ligue mais hoje</span>' : ' <span class="retornoResumoChip futuro">Acima da média — continue assim!</span>';
+  linhas.push(txt);
+  const abaixo = plEstado.leads.filter(l => { const t = Number(l.tentativas) || 0; return t >= 1 && t < min; }).length;
+  const acima = plEstado.leads.filter(l => (Number(l.tentativas) || 0) > max).length;
+  if(abaixo) linhas.push(`<b>Insista mais:</b> ${pl(abaixo, 'lead', 'leads')} com menos de ${min} tentativas. Não desista antes da ${min}ª ligação.`);
+  if(acima) linhas.push(`<b>Ligue menos para o mesmo lead:</b> ${pl(acima, 'lead', 'leads')} com mais de ${max} tentativas — decida se continua ou encerra e use o tempo nos leads novos.`);
+  el.innerHTML = linhas.map(t => `<p class="desc" style="margin:4px 0">${t}</p>`).join('');
+  el.style.display = '';
+}
 
 function plClassificar(leads, followups, hoje, agoraMs){
   const pend = {};   // próximo retorno pendente de cada lead
@@ -8990,8 +9034,12 @@ function plRender(){
   const doMes = plEstado.aba ? plEstado.leads.filter(l => l.aba === plEstado.aba) : plEstado.leads;
   const linhas = plClassificar(doMes, plEstado.followups, hoje, Date.now());
   const n = s => linhas.filter(x => x.situacao === s).length;
+  const nResgatar = doMes.filter(plParaResgatar).length;
   document.getElementById('plResumo').innerHTML = [['atrasado', n('semLigacao') + ' sem ligação'], ['atrasado', n('atrasado') + ' retorno atrasado'],
-    ['hoje', n('esfriando') + ' esfriando'], ['hoje', n('hoje') + ' para hoje']].map(c => `<span class="retornoResumoChip ${c[0]}">${c[1]}</span>`).join('');
+    ['hoje', n('esfriando') + ' esfriando'], ['hoje', n('hoje') + ' para hoje']].concat(nResgatar ? [['semAgenda', nResgatar + ' para resgatar']] : [])
+    .map(c => `<span class="retornoResumoChip ${c[0]}">${c[1]}</span>`).join('');
+  plRenderPlacar();
+  const consultor = ppPrimeiroNome();
   const classeBadge = { semLigacao: 'atrasado', atrasado: 'atrasado', esfriando: 'hoje', hoje: 'hoje', ok: 'futuro' };
   const rotulo = x => {
     if(x.situacao === 'semLigacao') return 'Nenhuma ligação ainda' + (x.diasParado !== null ? ' · entrou há ' + x.diasParado + ' d' : '');
@@ -9002,14 +9050,18 @@ function plRender(){
   };
   document.getElementById('plLista').innerHTML = linhas.length ? linhas.map(x => {
     const l = x.lead, id = escapeHtml(l.lead_id), tel = String(l.telefone || '').replace(/^p:/, '');
+    const wa = ppEscolherTelefone([l.telefone]);
     return `<div class="retornoLeadRow" data-lead-id="${id}">
-      <div class="retornoLeadInfo"><strong>${escapeHtml(l.nome || '(sem nome)')}</strong> <span class="badge plStatus">${escapeHtml((l.status || '').trim() || 'sem status')}</span>
+      <div class="retornoLeadInfo"><strong>${escapeHtml(l.nome || '(sem nome)')}</strong> <span class="badge plStatus">${escapeHtml((l.status || '').trim() || 'sem status')}</span>${plParaResgatar(l) ? ' <span class="retornoBadge semAgenda plResgatar">para resgatar</span>' : ''}
         <span class="retornoLeadSub">${x.tentativas} ${x.tentativas === 1 ? 'tentativa' : 'tentativas'}${l.ultima_ligacao ? ' · última ligação ' + escapeHtml(mlFmtDiaHora(l.ultima_ligacao)) : ''}</span>
         ${(l.obs || '').trim() ? `<span class="retornoLeadSub plObs">OBS na planilha: ${escapeHtml(l.obs.trim())}</span>` : ''}</div>
       <div class="retornoLeadAcoes">
         <span class="retornoBadge ${classeBadge[x.situacao]}">${escapeHtml(rotulo(x))}</span>
         ${x.pendente ? `<button type="button" class="btn btn-sm btn-outline btnPlFeito" data-followup-id="${escapeHtml(x.pendente.id)}">Marcar feito</button>` : ''}
+        ${wa ? `<a class="btn btn-sm plWhats" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${encodeURIComponent(plMensagemWhats(l, consultor))}" style="width:auto">WhatsApp</a>` : ''}
         ${tel ? `<button type="button" class="btn btn-sm btn-outline" data-copiar="${escapeHtml(tel)}" style="width:auto">${escapeHtml(tel)}</button>` : ''}
+        <button type="button" class="btn btn-sm btn-ghost btnPlRapido" data-lead-id="${id}" data-dias="1" title="Agenda um retorno para amanhã">Amanhã</button>
+        <button type="button" class="btn btn-sm btn-ghost btnPlRapido" data-lead-id="${id}" data-dias="3" title="Agenda um retorno para daqui a 3 dias">Em 3 dias</button>
         <button type="button" class="btn btn-sm btn-ghost btnPlAgendar" data-lead-id="${id}">Agendar retorno</button>
       </div>
       <div class="retornoAgendarForm" id="plForm_${id}" style="display:none">
@@ -9024,13 +9076,16 @@ function plRender(){
 async function plCarregar(){
   if(!canSeePedidosParados()) return;
   const geracao = ++plEstado.geracao;
-  const [vinc, lds, fu] = await Promise.all([
+  const [vinc, lds, fu, plc] = await Promise.all([
     // 01/10/2026: o banco decide quem tem leads (leads_equipe OU primeiro nome único igual ao da planilha; sem Repique)
     ppSeguro(() => sb.rpc('meus_leads_vinculado')),
     ppSeguro(() => fetchAllRows(() => sb.rpc('meus_leads_para_tratar'))),
     ppSeguro(() => sb.from('leads_followups').select('id,lead_id,consultor_id,data_prevista,tipo,feito').eq('consultor_id', currentUser.id).eq('feito', false)),
+    // 01/10/2026 (seção 64): ligações do próprio consultor hoje + média da equipe (erro aqui só esconde o placar)
+    ppSeguro(() => sb.rpc('meu_placar_ligacoes', { p_ref: hojeSP() })),
   ]);
   if(geracao !== plEstado.geracao) return;   // trocou de usuário/recarregou no meio
+  plEstado.placar = plc && !plc.error && Array.isArray(plc.data) ? (plc.data[0] || null) : null;
   plEstado.vinculado = !!(vinc && !vinc.error && vinc.data === true);
   plEstado.erro = !!((lds && lds.error) || (fu && fu.error));
   if(plEstado.erro) console.error((lds && lds.error) || (fu && fu.error));
@@ -9040,8 +9095,9 @@ async function plCarregar(){
 }
 function plResetar(){
   plEstado.geracao++;
-  Object.assign(plEstado, { vinculado: false, erro: false, leads: [], followups: [], aba: null });
-  ['plResumo', 'plLista', 'plAbaPills'].forEach(id => { document.getElementById(id).innerHTML = ''; });
+  Object.assign(plEstado, { vinculado: false, erro: false, leads: [], followups: [], aba: null, placar: null });
+  ['plResumo', 'plLista', 'plAbaPills', 'plPlacar'].forEach(id => { document.getElementById(id).innerHTML = ''; });
+  document.getElementById('plPlacar').style.display = 'none';
   ['plWrap', 'plCard', 'plErro'].forEach(id => { document.getElementById(id).style.display = 'none'; });
   document.querySelector('#digitalSubTabs [data-digital-sub="meus"]').style.display = 'none';
 }
@@ -9054,6 +9110,18 @@ document.getElementById('plAbaPills').addEventListener('click', function(ev){
 });
 
 document.getElementById('plLista').addEventListener('click', async function(ev){
+  // 01/10/2026 (seção 64): retorno em 1 clique (amanhã / em 3 dias), sem abrir o formulário
+  const rp = ev.target.closest('.btnPlRapido');
+  if(rp){
+    rp.disabled = true;
+    const data = somaDiasStr(hojeSP(), Number(rp.dataset.dias) || 1);
+    const { error } = await sb.from('leads_followups').insert({ lead_id: rp.dataset.leadId, consultor_id: currentUser.id, data_prevista: data, tipo: 'retorno', observacao: null });
+    rp.disabled = false;
+    if(error){ mostrarAviso('Não foi possível agendar o retorno: ' + error.message, 'erro'); return; }
+    mostrarAviso('Retorno agendado para ' + ppFmtDia(data) + '.', 'ok');
+    await plCarregar();
+    return;
+  }
   const ag = ev.target.closest('.btnPlAgendar');
   if(ag){ const f = document.getElementById('plForm_' + ag.dataset.leadId); if(f) f.style.display = f.style.display === 'none' ? 'flex' : 'none'; return; }
   const sv = ev.target.closest('.btnPlSalvar');
