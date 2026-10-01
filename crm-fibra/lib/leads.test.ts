@@ -14,7 +14,7 @@ import {
 // one per call to a terminal method (.range()/.limit()/.single()). If
 // there's only one entry, every terminal call gets that same response
 // (covers the common single-page case without repeating it per test).
-function makeQueryFake(paginas: Array<{ data?: unknown; error?: unknown }>) {
+function makeQueryFake(paginas: Array<{ data?: unknown; error?: unknown; count?: unknown }>) {
   const calls: { method: string; args: unknown[] }[] = [];
   let chamada = 0;
 
@@ -87,9 +87,10 @@ const leadEsperado = {
 
 describe("listarLeadsSegmentados", () => {
   it("mapeia as linhas para o formato da aplicação", async () => {
-    const client = makeQueryFake([{ data: [rowBase], error: null }]);
+    const client = makeQueryFake([{ data: [rowBase], error: null, count: 1 }]);
     const result = await listarLeadsSegmentados(client as unknown as SupabaseClient, "todos");
-    expect(result).toEqual([leadEsperado]);
+    expect(result.leads).toEqual([leadEsperado]);
+    expect(result.total).toBe(1);
   });
 
   it("filtra por camada_fibra quando filtro = fibra_candidato", async () => {
@@ -123,25 +124,30 @@ describe("listarLeadsSegmentados", () => {
     expect(client.calls.find((c: { method: string }) => c.method === "or")).toBeUndefined();
   });
 
-  it("busca todas as páginas quando a base tem mais de 1000 linhas (limite do PostgREST)", async () => {
-    const paginaCheia = Array.from({ length: 1000 }, (_, i) => ({
-      ...rowBase,
-      cnpj_digits: String(i).padStart(14, "0"),
-    }));
-    const paginaFinal = [{ ...rowBase, cnpj_digits: "99999999999999" }];
-    const client = makeQueryFake([
-      { data: paginaCheia, error: null },
-      { data: paginaFinal, error: null },
-    ]);
+  it("usa a página 1 e tamanho de página 25 por padrão", async () => {
+    const client = makeQueryFake([{ data: [], error: null, count: 0 }]);
+    await listarLeadsSegmentados(client as unknown as SupabaseClient, "todos");
+    expect(client.calls).toContainEqual({ method: "range", args: [0, 24] });
+  });
 
+  it("usa a página e o tamanho de página pedidos no range", async () => {
+    const client = makeQueryFake([{ data: [], error: null, count: 0 }]);
+    await listarLeadsSegmentados(client as unknown as SupabaseClient, "todos", undefined, 3, 25);
+    expect(client.calls).toContainEqual({ method: "range", args: [50, 74] });
+  });
+
+  it("retorna o total vindo do count da consulta, não da quantidade de linhas da página", async () => {
+    const client = makeQueryFake([{ data: [rowBase], error: null, count: 437 }]);
     const result = await listarLeadsSegmentados(client as unknown as SupabaseClient, "todos");
+    expect(result.leads).toHaveLength(1);
+    expect(result.total).toBe(437);
+  });
 
-    expect(result).toHaveLength(1001);
-    const rangeCalls = client.calls.filter((c: { method: string }) => c.method === "range");
-    expect(rangeCalls).toEqual([
-      { method: "range", args: [0, 999] },
-      { method: "range", args: [1000, 1999] },
-    ]);
+  it("retorna lista vazia nessa página mas mantém o total quando a página pedida está além do que existe", async () => {
+    const client = makeQueryFake([{ data: [], error: null, count: 2 }]);
+    const result = await listarLeadsSegmentados(client as unknown as SupabaseClient, "todos", undefined, 5, 25);
+    expect(result.leads).toEqual([]);
+    expect(result.total).toBe(2);
   });
 });
 

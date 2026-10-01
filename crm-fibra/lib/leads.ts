@@ -100,37 +100,52 @@ async function buscarTodasAsLinhas<T>(
   return todas;
 }
 
+export const TAMANHO_PAGINA_PADRAO = 25;
+
+export interface ResultadoPaginado {
+  leads: LeadSegmentado[];
+  total: number;
+}
+
 export async function listarLeadsSegmentados(
   client: SupabaseClient,
   filtro: FiltroCamada,
-  busca?: string
-): Promise<LeadSegmentado[]> {
+  busca?: string,
+  pagina: number = 1,
+  tamanhoPagina: number = TAMANHO_PAGINA_PADRAO
+): Promise<ResultadoPaginado> {
   const buscaLimpa = busca ? sanitizarBusca(busca) : "";
 
-  const rows = await buscarTodasAsLinhas<LeadRow>((from, to) => {
-    let query = client.schema("crm_fibra").from("leads_segmentados").select();
+  let query = client.schema("crm_fibra").from("leads_segmentados").select("*", { count: "exact" });
 
-    if (filtro === "fibra_candidato") {
-      query = query.eq("camada_fibra", "fibra_candidato");
-    } else if (filtro === "apto_agora" || filtro === "apto_1_mes" || filtro === "apto_2_meses") {
-      query = query.eq("camada_renovacao", filtro);
-    } else if (filtro === "sem_dono") {
-      query = query.is("dono_consultor_id", null);
-    }
+  if (filtro === "fibra_candidato") {
+    query = query.eq("camada_fibra", "fibra_candidato");
+  } else if (filtro === "apto_agora" || filtro === "apto_1_mes" || filtro === "apto_2_meses") {
+    query = query.eq("camada_renovacao", filtro);
+  } else if (filtro === "sem_dono") {
+    query = query.is("dono_consultor_id", null);
+  }
 
-    if (buscaLimpa) {
-      query = query.or(
-        `razao_social.ilike.%${buscaLimpa}%,cidade.ilike.%${buscaLimpa}%,cnpj_digits.ilike.%${buscaLimpa}%`
-      );
-    }
+  if (buscaLimpa) {
+    query = query.or(
+      `razao_social.ilike.%${buscaLimpa}%,cidade.ilike.%${buscaLimpa}%,cnpj_digits.ilike.%${buscaLimpa}%`
+    );
+  }
 
-    return query
-      .order("razao_social", { ascending: true })
-      .order("cnpj_digits", { ascending: true })
-      .range(from, to);
-  });
+  const from = (pagina - 1) * tamanhoPagina;
+  const to = from + tamanhoPagina - 1;
 
-  return rows.map(toLead);
+  const { data, error, count } = await query
+    .order("razao_social", { ascending: true })
+    .order("cnpj_digits", { ascending: true })
+    .range(from, to);
+
+  if (error) throw error;
+
+  return {
+    leads: ((data as LeadRow[] | null) ?? []).map(toLead),
+    total: count ?? 0,
+  };
 }
 
 export interface ContagemCamadas {
