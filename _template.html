@@ -606,6 +606,10 @@
       <p id="pageSub">Vendas, contratos e ranking do time</p>
     </header>
     <main id="appMain">
+    <!-- Aviso de sincronização das ligações parada (admin/supervisor) — ver verificarSyncLigacoes() -->
+    <div id="syncLigacoesBanner" class="card" role="alert" style="display:none;border-left:4px solid var(--st-perdido);background:var(--st-perdido-bg);margin-bottom:14px">
+      <b>Sincronização das ligações parada.</b> <span id="syncLigacoesTexto"></span>
+    </div>
     <!-- Aviso de sincronização da produção parada (admin/supervisor) — ver verificarAlertaSyncProducao() -->
     <div id="syncAlertaBanner" class="card" role="alert" style="display:none;border-left:4px solid var(--st-perdido);background:var(--st-perdido-bg);margin-bottom:14px">
       <b>Sincronização da produção parada.</b> <span id="syncAlertaTexto"></span>
@@ -7227,7 +7231,53 @@ async function carregarStatusSyncProducao(){
 // A Edge Function alerta-sync-producao (pg_cron, de 15 em 15 min) abre uma linha em producao_sync_alerta
 // quando passa de 3 h sem sincronização bem-sucedida e a resolve quando volta (REGRAS_NEGOCIO.md seção 52).
 // Aqui só se mostra o aviso a quem pode ler a tabela (admin/supervisor); consultor nem consulta.
+/* ============ Faixa de aviso: sincronização das ligações (robô ProContact) parada — admin/supervisor ============ */
+// O robô (repositório privado apex-robo-procontact) grava uma linha em ligacoes_sync_log a cada execução.
+// Aqui só se avisa se a última com sucesso ficou para trás por mais de 3 h ÚTEIS (seg-sáb, 07-22h, São Paulo).
+// Sem nenhuma linha (robô ainda não ligado) não se mostra nada.
+const LIG_SYNC_LIMITE_MIN = 180;
+function ligMinutosUteisSemSync(ultimoOkMs, agoraMs){
+  if(!Number.isFinite(ultimoOkMs) || !Number.isFinite(agoraMs) || agoraMs <= ultimoOkMs) return 0;
+  const PASSO = 5 * 60000;
+  let min = 0;
+  for(let t = ultimoOkMs, i = 0; t < agoraMs; t += PASSO, i++){
+    if(i >= 12 * 24 * 14) return Infinity;      // parado há mais de 14 dias
+    const sp = new Date(t - 3 * 3600000);        // São Paulo = UTC-3 fixo
+    const h = sp.getUTCHours(), d = sp.getUTCDay();
+    if(d !== 0 && h >= 7 && h < 22) min += Math.min(5, (agoraMs - t) / 60000);
+  }
+  return min;
+}
+async function verificarSyncLigacoes(){
+  const el = document.getElementById('syncLigacoesBanner');
+  if(!el) return;
+  const podeVer = currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor');
+  if(!podeVer){ el.style.display = 'none'; return; }
+  let ultimo = null;
+  try{
+    const { data, error } = await sb.from('ligacoes_sync_log').select('terminou_em')
+      .eq('ok', true).order('terminou_em', { ascending: false }).limit(1).maybeSingle();
+    if(error) throw error;
+    ultimo = data;
+  }catch(err){
+    // sem como confirmar: não mostra um aviso que pode ser falso, e não quebra a tela
+    console.error('verificarSyncLigacoes:', err);
+    el.style.display = 'none';
+    return;
+  }
+  if(!ultimo || !ultimo.terminou_em){ el.style.display = 'none'; return; }
+  const ms = new Date(ultimo.terminou_em).getTime();
+  if(!(ligMinutosUteisSemSync(ms, Date.now()) > LIG_SYNC_LIMITE_MIN)){ el.style.display = 'none'; return; }
+  const quando = Number.isFinite(ms)
+    ? new Date(ms).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    : 'data desconhecida';
+  document.getElementById('syncLigacoesTexto').textContent = 'A última sincronização automática das ligações foi em ' + quando
+    + '. O Monitoramento Leads pode estar desatualizado; enquanto isso, envie o relatório à mão em Digital → Monitoramento Leads e avise o responsável técnico.';
+  el.style.display = 'block';
+}
+
 async function verificarAlertaSyncProducao(){
+  verificarSyncLigacoes(); // faixa das ligações (robô ProContact): mesmos pontos de disparo, sem timer próprio
   const el = document.getElementById('syncAlertaBanner');
   if(!el) return;
   const podeVer = currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor');
