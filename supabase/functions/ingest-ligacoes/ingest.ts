@@ -80,3 +80,78 @@ export function validarLote(lote: unknown): LoteValidado {
   }
   return out;
 }
+
+export type LogExecucao = {
+  execucao_id: string;
+  iniciou_em: string;
+  ok: boolean;
+  lidas: number;
+  enviadas: number;
+  invalidas: number;
+  ignoradas_eagle: number;
+  periodo_de: string | null;
+  periodo_ate: string | null;
+  erro: string | null;
+};
+export type DepsIngest = {
+  gravarLigacoes(linhas: LinhaDb[]): Promise<void>;
+  gravarLog(l: LogExecucao): Promise<void>;
+  contarPeriodo(de: string, ate: string): Promise<number>;
+};
+export type Resposta = { status: number; corpo: Record<string, unknown> };
+
+const RE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ruim = (msg: string): Resposta => ({ status: 400, corpo: { error: msg } });
+const inteiro = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 10_000_000;
+const isoUtcOuSP = (v: unknown): v is string =>
+  typeof v === "string" && (dataValida(v) || (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(v) && Number.isFinite(Date.parse(v))));
+
+function validarFinal(c: Record<string, unknown>): LogExecucao | null {
+  if (typeof c.execucao_id !== "string" || !RE_UUID.test(c.execucao_id)) return null;
+  if (!isoUtcOuSP(c.iniciou_em) || typeof c.ok !== "boolean") return null;
+  if (![c.lidas, c.enviadas, c.invalidas, c.ignoradas_eagle].every(inteiro)) return null;
+  for (const k of ["periodo_de", "periodo_ate"] as const) {
+    if (c[k] != null && !isoUtcOuSP(c[k])) return null;
+  }
+  const erro = c.erro == null ? null : typeof c.erro === "string" ? c.erro.slice(0, 300) : undefined;
+  if (erro === undefined) return null;
+  return {
+    execucao_id: c.execucao_id, iniciou_em: c.iniciou_em, ok: c.ok,
+    lidas: c.lidas as number, enviadas: c.enviadas as number, invalidas: c.invalidas as number,
+    ignoradas_eagle: c.ignoradas_eagle as number,
+    periodo_de: (c.periodo_de as string | null | undefined) ?? null,
+    periodo_ate: (c.periodo_ate as string | null | undefined) ?? null,
+    erro,
+  };
+}
+
+export async function processar(corpo: unknown, deps: DepsIngest): Promise<Resposta> {
+  if (corpo === null || typeof corpo !== "object" || Array.isArray(corpo)) return ruim("corpo inválido");
+  const c = corpo as Record<string, unknown>;
+  try {
+    if (c.acao === "lote") {
+      let v: LoteValidado;
+      try { v = validarLote(c.lote); } catch (e) { return ruim((e as Error).message); }
+      if (v.linhas.length) await deps.gravarLigacoes(v.linhas);
+      return {
+        status: 200,
+        corpo: { recebidas: (c.lote as unknown[]).length, gravadas: v.linhas.length, invalidas: v.invalidas, ignoradasEagle: v.ignoradasEagle },
+      };
+    }
+    if (c.acao === "final") {
+      const log = validarFinal(c);
+      if (!log) return ruim("resumo inválido");
+      await deps.gravarLog(log);
+      return { status: 200, corpo: { ok: true } };
+    }
+    if (c.acao === "contar") {
+      if (!dataValida(c.de) || !dataValida(c.ate)) return ruim("período inválido");
+      return { status: 200, corpo: { total: await deps.contarPeriodo(c.de, c.ate) } };
+    }
+    return ruim("ação desconhecida");
+  } catch (e) {
+    // o detalhe vai para o log do servidor (index.ts); a resposta nunca ecoa dados recebidos
+    console.error("ingest-ligacoes:", (e as Error).message.slice(0, 200));
+    return { status: 500, corpo: { error: "erro interno" } };
+  }
+}
