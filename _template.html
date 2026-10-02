@@ -7450,7 +7450,7 @@ async function loadConversaoVendas(){
   // numero_pedido/cliente/cadastro adicionados em 10/09/2026 pro drilldown (analítico) do card
   // "Conversão confirmada no NeoCRM" — antes só buscava cnpj/etapa/atualizacao pros KPIs.
   if(adminMode) queries.push(fetchAllRows(() => sb.from('producao_pedidos').select('numero_pedido,cliente,cnpj,cadastro,atualizacao,etapa')));
-  // 01/10/2026 (seção 62): a sincronização roda sozinha a cada 30 min; se ela parar (trava de mês, planilha
+  // 01/10/2026 (seção 62): a sincronização roda sozinha a cada 10 min (seção 68; antes 30 min, seção 62); se ela parar (trava de mês, planilha
   // fora do ar...), o motivo fica em config.leads_sync_erro e aparece aqui para admin/supervisor.
   if(adminMode) queries.push(sb.from('config').select('valor').eq('chave', 'leads_sync_erro').maybeSingle());
   const results = await Promise.all(queries);
@@ -7460,7 +7460,7 @@ async function loadConversaoVendas(){
   leadsFollowupsCache = results[2].data || [];
   producaoPedidosCacheDigital = adminMode ? (results[3].data || []) : [];
 
-  statusEl.textContent = (cfg && cfg.valor) ? `Última sincronização: ${cfg.valor} (automática a cada 30 min)` : 'Nunca sincronizado ainda.';
+  statusEl.textContent = (cfg && cfg.valor) ? `Última sincronização: ${cfg.valor} (automática a cada 10 min)` : 'Nunca sincronizado ainda.';
   const erroSync = adminMode && results[4] && results[4].data ? String(results[4].data.valor || '').trim() : '';
   const avisoSync = document.getElementById('conversaoSyncErro');
   avisoSync.style.display = erroSync ? '' : 'none';
@@ -9170,6 +9170,75 @@ document.getElementById('plAbaPills').addEventListener('click', function(ev){
   plEstado.aba = b.dataset.plAba;
   plRender();
 });
+
+/* ---- Velocidade do lead ("Atender agora") — 02/10/2026, REGRAS_NEGOCIO.md §68 ----
+   Relógio em MINUTOS ÚTEIS desde a entrada do lead até o 1º contato (clique no painel ou ligação manual).
+   O status da planilha não conta como contato: os leads já chegam com status (verificado em 02/10). */
+const VL_CFG_PADRAO = { seg_sex: ['08:00', '18:00'], sabado: ['08:00', '12:00'], verde_min: 5, amarelo_min: 15, janela_dias: 7 };
+function vlCfg(valor){
+  let o = null;
+  try{ o = typeof valor === 'string' ? JSON.parse(valor) : valor; }catch(e){ o = null; }
+  return Object.assign({}, VL_CFG_PADRAO, (o && typeof o === 'object') ? o : {});
+}
+function vlHoraMin(hhmm){ const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || '')); return m ? Number(m[1]) * 60 + Number(m[2]) : null; }
+// Dia e minuto do dia em São Paulo (UTC-3 fixo — FUSO_SAO_PAULO; sem horário de verão desde 2019).
+function vlPartesSP(ms){
+  const d = new Date(ms - 3 * 3600000);
+  return { dia: d.toISOString().slice(0, 10), min: d.getUTCHours() * 60 + d.getUTCMinutes() + d.getUTCSeconds() / 60 };
+}
+// Expediente do dia em minutos [início, fim]; null em domingo, feriado nacional (ppFeriados) ou config inválida.
+function vlExpediente(dia, cfg){
+  const wd = new Date(dia + 'T00:00:00Z').getUTCDay();
+  if(wd === 0 || ppFeriados(Number(dia.slice(0, 4))).has(dia)) return null;
+  const par = wd === 6 ? cfg.sabado : cfg.seg_sex;
+  if(!Array.isArray(par)) return null;
+  const a = vlHoraMin(par[0]), b = vlHoraMin(par[1]);
+  return (a === null || b === null || b <= a) ? null : [a, b];
+}
+// Minutos de expediente entre dois instantes (ms). Fora do expediente não conta.
+function vlMinutosUteis(iniMs, fimMs, cfg){
+  if(!(fimMs > iniMs)) return 0;
+  const a = vlPartesSP(iniMs), b = vlPartesSP(fimMs);
+  let total = 0, dia = a.dia;
+  for(let guard = 0; guard < 400 && dia <= b.dia; guard++){
+    const j = vlExpediente(dia, cfg);
+    if(j){
+      const de = Math.max(j[0], dia === a.dia ? a.min : 0), ate = Math.min(j[1], dia === b.dia ? b.min : 1440);
+      if(ate > de) total += ate - de;
+    }
+    dia = somaDiasStr(dia, 1);
+  }
+  return Math.round(total * 100) / 100;
+}
+function vlDentroExpediente(ms, cfg){ const p = vlPartesSP(ms), j = vlExpediente(p.dia, cfg); return !!j && p.min >= j[0] && p.min < j[1]; }
+function vlCor(min, cfg){ return min <= cfg.verde_min ? 'verde' : (min <= cfg.amarelo_min ? 'amarelo' : 'vermelho'); }
+function vlFmtMin(min){
+  const m = Math.floor(min);
+  if(m < 1) return '< 1 min';
+  if(m < 60) return m + ' min';
+  return Math.floor(m / 60) + 'h ' + String(m % 60).padStart(2, '0') + 'min';
+}
+function vlMs(v){ const t = v ? new Date(v).getTime() : NaN; return isNaN(t) ? null : t; }
+function vlPrimeiroContatoMs(l){ const a = vlMs(l.primeiro_clique), b = vlMs(l.primeira_ligacao); return a === null ? b : (b === null ? a : Math.min(a, b)); }
+// "Esperando" = sem contato registrado e ainda em aberto na planilha.
+function vlEsperando(l){ return vlPrimeiroContatoMs(l) === null && (l.categoria === 'sem_contato' || l.categoria === 'andamento'); }
+const VL_ORDEM_COR = { vermelho: 0, amarelo: 1, verde: 2, aguardando: 3 };
+function vlPendentes(leads, agoraMs, cfg){
+  return (leads || []).filter(vlEsperando).map(l => {
+    const ini = vlMs(l.criado_em_lead);
+    const min = ini === null ? 0 : vlMinutosUteis(ini, agoraMs, cfg);
+    const aguardando = min === 0 && !vlDentroExpediente(agoraMs, cfg);
+    return { lead: l, min, cor: aguardando ? 'aguardando' : vlCor(min, cfg) };
+  }).sort((x, y) => (VL_ORDEM_COR[x.cor] - VL_ORDEM_COR[y.cor]) || (y.min - x.min) || String(x.lead.criado_em_lead).localeCompare(String(y.lead.criado_em_lead)));
+}
+// Faixas de tempo até o 1º contato (Mesa → Velocidade × conversão).
+const VL_FAIXAS = [['ate5', 'até 5 min', 5], ['5a15', '5 a 15 min', 15], ['15a60', '15 a 60 min', 60], ['1a4h', '1 a 4 h', 240], ['mais4h', 'mais de 4 h', Infinity]];
+function vlFaixa(l, cfg){
+  const c = vlPrimeiroContatoMs(l), i = vlMs(l.criado_em_lead);
+  if(c === null || i === null) return 'sem';
+  const m = vlMinutosUteis(i, c, cfg);
+  return VL_FAIXAS.find(f => m <= f[2])[0];
+}
 
 document.getElementById('plLista').addEventListener('click', async function(ev){
   // 01/10/2026 (seção 64): retorno em 1 clique (amanhã / em 3 dias), sem abrir o formulário

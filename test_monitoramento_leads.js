@@ -762,7 +762,7 @@ try{
   await loadConversaoVendas();
   const aviso = document.getElementById('conversaoSyncErro');
   assert(aviso.style.display !== 'none' && aviso.textContent.includes('trava de segurança'), 'admin vê o aviso da sincronização parada');
-  assert(document.getElementById('conversaoSyncStatus').textContent.includes('automática a cada 30 min'), 'status diz que a sincronização é automática');
+  assert(document.getElementById('conversaoSyncStatus').textContent.includes('automática a cada 10 min'), 'status diz que a sincronização é automática');
   window.__tabelas.config = [{ chave: 'leads_atualizado_em', valor: '01/10/2026, 22:52:00' }, { chave: 'leads_sync_erro', valor: '' }];
   await loadConversaoVendas();
   assert(aviso.style.display === 'none', 'sem erro: sem aviso');
