@@ -2589,6 +2589,17 @@ Migration `supabase/migrations/20261001600000_meus_leads_resgatar_placar.sql` (r
 - Testes: `test_monitoramento_leads.js` 219 ok. Falhas antigas e não relacionadas: `test_conversao_vendas.js` (relógio) e `test_pedidos_alerta.js` (falta `exceljs`).
 - **Publicado (01/10/2026, ~20:47, horário de SP):** banco antes do painel (gatilho + exclusão). Painel no ar (MD5 `69278d1c…`) era idêntico ao `oficial/main`; publicado **`0b538da41c13320f503fc2f3fcdf496f`** (gerado = servidor = site), vigia atualizado. Backup: `~/deploy_backups/painel_clientes_apex_20261001_204735_antes_ignora_eagle.html`. Reverter: copiar o backup de volta; rollback do gatilho em `supabase/rollback/` (as ligações da Eagle só voltam reenviando o Excel).
 
+## 66. Cadastro Diário: a matriz "Vendas Diárias por Vendedor" mostra todos os consultores da Apex (01/10/2026)
+
+- Pedido do usuário: na aba Cadastro Diário (Dashboard de Produção) não apareciam consultores como Manuella, Vitoria Brito, Victoria, Giovanna — "todos os consultores da Apex precisam estar nesse painel".
+- Causa: `renderVendorDailyMatrix()` montava as linhas só com quem tinha pedido cadastrado no mês selecionado (com os filtros aplicados); quem zerou no mês não ganhava linha.
+- Correção:
+  - Banco (migration `supabase/migrations/20261001800000_equipe_vendedores.sql`, rollback em `supabase/rollback/`): RPC `equipe_vendedores()` devolve o nome (NeoCRM, maiúsculo — o mesmo de `producao_pedidos.usuario`) de cada consultor de `consultor_neo` (18 em 01/10, inclusive admins que vendem: Isabelly, Rafael). `security definer` porque o consultor só vê a própria linha de `consultor_neo`; devolve só nomes, que já aparecem no dashboard.
+  - Painel: `loadProducaoDashboard` busca a lista e preenche o placeholder `__EQUIPE__` do template (adicionado a `RUNTIME_PLACEHOLDERS` no `build_painel.py`). Sem a lista (erro/versão antiga), a matriz funciona como antes.
+  - Dashboard (`_dashboard_producao.html`): a matriz acrescenta quem é da equipe e não vendeu no mês (linha zerada, em vermelho nos dias úteis), em ordem alfabética depois de quem vendeu. Com filtro de vendedor ativo, só os marcados. Quem vendeu e não está na lista continua aparecendo.
+- Testes: `test_cadastro_diario_equipe.js` (13 ok). Falhas antigas e não relacionadas: `test_conversao_vendas.js` (relógio) e `test_pedidos_alerta.js` (falta `exceljs`).
+- **Publicado (02/10/2026, ~13:44, horário de SP):** banco antes do painel — `equipe_vendedores()` aplicada; conferido como consultora (simulado em transação com rollback) que devolve os 18 nomes e que anon não executa. Painel no ar (MD5 `0b538da4…`) era idêntico ao `oficial/main`; publicado **`96aba0c172aaa7a5396239a32c559fb7`** (gerado = servidor = site), vigia atualizado. Backup: `~/deploy_backups/painel_clientes_apex_20261002_134409_antes_cadastro_diario_equipe.html`. Reverter: copiar o backup de volta; depois (opcional) o rollback da função.
+
 ## 67. Sincronização automática das chamadas manuais (robô ProContact) (02/10/2026)
 
 - **O quê:** o relatório de Chamadas Manuais do ProContact (telefonia, sem API) passa a chegar sozinho em `ligacoes_manuais`, de hora em hora, das 07h às 22h, de segunda a sábado (horário de São Paulo). O upload manual de **Digital → Monitoramento Leads** continua existindo como contingência.
