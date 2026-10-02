@@ -196,6 +196,53 @@ try{
   mesaAplicarPermissao();
   Date.now = nowReal;
 
+  // ==== TASK 8: semáforo, expandir, cobrar, Excel, velocidade × conversão ====
+  Date.now = () => AGORA;
+  window.__abertos = [];
+  window.open = (u) => { window.__abertos.push(u); return null; };
+  window.__copiados = [];
+  Object.defineProperty(window.navigator, 'clipboard', { value: { writeText: (t) => { window.__copiados.push(t); return Promise.resolve(); } }, configurable: true });
+  window.__xlsx = [];
+  window.XLSX.writeFile = (wb, nome) => window.__xlsx.push({ wb, nome });
+  await loadMesa(true);
+  const trs = [...document.querySelectorAll('#mesaSemaforoTbody tr[data-mesa-linha]')];
+  eq(trs.map(t => t.querySelector('.mesaNome').textContent.trim()), ['Caio Teste', 'Zeca Teste', 'Luria Teste'], 'linhas na ordem do semáforo');
+  assert(trs[0].textContent.includes('2') && trs[0].textContent.includes('30 min'), 'Caio: 2 esperando e o pior relógio (30 min)');
+  assert(trs[0].textContent.includes('30') && trs[0].textContent.includes('média 20'), 'Caio: ligações hoje x média');
+  assert(trs[0].textContent.includes('R$') && trs[0].textContent.includes('30,0%'), 'Caio: vendas x meta (900/3000 = 30%)');
+  assert(trs[2].textContent.includes('sem meta'), 'Luria: sem meta');
+  assert(document.querySelector('#mesaSemaforoTbody tr[data-mesa-linha] .retornoBadge.atrasado'), 'linha vermelha com selo atrasado');
+
+  // expandir
+  trs[1].click();
+  await espera(20);
+  const det = document.querySelector('#mesaSemaforoTbody tr.mesaDetalhe');
+  assert(det && det.textContent.includes('Cliente Teste') && det.textContent.includes('MÁXIMO'), 'expandir mostra o pedido e o nível');
+  // a tabela é redesenhada a cada clique: buscar a linha de novo (a referência antiga ficou fora do DOM)
+  document.querySelector('#mesaSemaforoTbody tr[data-mesa-linha="p:p-zeca"]').click();
+  await espera(20);
+  assert(!document.querySelector('#mesaSemaforoTbody tr.mesaDetalhe'), 'clicar de novo recolhe');
+
+  // cobrar
+  document.querySelector('#mesaSemaforoTbody [data-mesa-cobrar="p:p-caio"]').click();
+  await espera(20);
+  assert(window.__copiados[0] && window.__copiados[0].startsWith('Oi, Caio!'), 'cobrar copia o texto');
+  assert(window.__abertos[0] && window.__abertos[0].startsWith('https://wa.me/?text=Oi%2C%20Caio'), 'cobrar abre wa.me sem número');
+  assert(!document.querySelector('#mesaSemaforoTbody [data-mesa-cobrar]:not([data-mesa-cobrar^="p:"])'), 'só linhas com chave válida têm Cobrar');
+
+  // Excel
+  document.getElementById('btnMesaExportar').click();
+  await espera(20);
+  const x = window.__xlsx.pop();
+  assert(x && x.nome === 'MesaSupervisor_' + HOJE + '.xlsx', 'nome do Excel');
+  eq(x.wb.SheetNames, ['Semáforo', 'Itens'], 'abas do Excel');
+
+  // velocidade × conversão: pílulas por mês e tabela
+  const pills = [...document.querySelectorAll('#mesaVelPills [data-mesa-aba]')].map(b => b.dataset.mesaAba);
+  assert(pills.length >= 1 && pills[0] === 'OUTUBRO', 'pílulas por mês (mais recente primeiro)');
+  assert(document.getElementById('mesaVelTabela').textContent.includes('até 5 min') && document.getElementById('mesaVelTabela').textContent.includes('sem contato registrado'), 'tabela com as faixas');
+  Date.now = nowReal;
+
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');

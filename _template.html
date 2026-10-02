@@ -10897,13 +10897,81 @@ function mesaRender(){
   mesaRenderSemaforo();
   mesaRenderVelocidade();
 }
-// Semáforo e Velocidade × conversão: implementados no Task 8; aqui só o mínimo para a carga.
+function mesaLinhasAtuais(){ return mesaEstado.dados ? mesaSemaforo(mesaEstado.dados, mesaEstado.agora, mesaEstado.cfg, mesaEstado.hoje) : []; }
+const MESA_SELO = { vermelho: ['retornoBadge atrasado', 'Agir agora'], amarelo: ['retornoBadge hoje', 'Atenção'], verde: ['retornoBadge futuro', 'Em dia'] };
 function mesaRenderSemaforo(){
   const tb = document.getElementById('mesaSemaforoTbody');
   if(mesaEstado.erros.pend){ tb.innerHTML = '<tr><td colspan="11">Não foi possível carregar as pendências agora.</td></tr>'; return; }
-  tb.innerHTML = '';
+  const linhas = mesaLinhasAtuais();
+  if(!linhas.length){ tb.innerHTML = '<tr><td colspan="11">Nenhum consultor encontrado.</td></tr>'; return; }
+  const n = v => v ? String(v) : '0';
+  tb.innerHTML = linhas.map(r => {
+    const pior = r.esperando.length ? ' · ' + vlFmtMin(Math.max(...r.esperando.map(x => x.min))) : '';
+    const ped = r.pedidos.length ? ['maximo', 'medio', 'minimo'].map(nv => { const q = r.pedidos.filter(p => p.nivel === nv).length; return q ? q + ' ' + PP_NIVEL_ROTULO[nv] : ''; }).filter(Boolean).join(' · ') : '0';
+    const lig = r.lig ? n(r.lig.lig_lead) + (r.mediaLig ? ' (média ' + Math.round(r.mediaLig) + ')' : '') : '—';
+    const vend = r.vendas ? fmtBRL(Number(r.vendas.receita) || 0) + (r.meta ? ' / ' + fmtBRL(r.meta) + ' · ' + fmtPctConversao((Number(r.vendas.receita) || 0) / r.meta) : ' · sem meta') : (r.meta ? 'R$ 0 / ' + fmtBRL(r.meta) : 'sem meta');
+    const selo = MESA_SELO[r.cor];
+    const linhaHtml = `<tr data-mesa-linha="${escapeHtml(r.chave)}" style="cursor:pointer">
+      <td><span class="${selo[0]}">${selo[1]}</span></td>
+      <td><span class="mesaNome">${escapeHtml(r.nome)}</span>${r.semLogin ? ' <span class="badge">sem login</span>' : ''}</td>
+      <td>${n(r.esperando.length)}${escapeHtml(pior)}</td><td>${mesaFmtPct(r.noPrazo7)}</td>
+      <td>${n(r.retornos.length)}</td><td>${n(r.esfriando.length)}</td><td>${n(r.propostas.length)}</td><td>${escapeHtml(ped)}</td>
+      <td>${escapeHtml(lig)}</td><td>${escapeHtml(vend)}</td>
+      <td>${r.nPend && r.profileId ? `<button type="button" class="btn btn-sm btn-outline" data-mesa-cobrar="${escapeHtml(r.chave)}" style="width:auto">Cobrar</button>` : ''}</td></tr>`;
+    return linhaHtml + (mesaEstado.aberto === r.chave ? mesaDetalheHtml(r) : '');
+  }).join('');
 }
-function mesaRenderVelocidade(){ document.getElementById('mesaVelTabela').innerHTML = ''; }
+function mesaDetalheHtml(r){
+  const itens = []
+    .concat(r.esperando.map(x => ['Lead esperando', x.lead.aba ? conversaoAbaRotulo(x.lead.aba) : '', vlFmtMin(x.min)]))
+    .concat(r.retornos.map(x => ['Retorno atrasado', x.titulo, 'desde ' + ppFmtDia(mesaDiaSP(x.desde))]))
+    .concat(r.esfriando.map(x => ['Lead esfriando', x.titulo, 'último contato ' + ppFmtDia(mesaDiaSP(x.desde))]))
+    .concat(r.propostas.map(x => ['Proposta parada', x.titulo, 'desde ' + ppFmtDia(mesaDiaSP(x.desde))]))
+    .concat(r.pedidos.map(x => ['Pedido ' + PP_NIVEL_ROTULO[x.nivel], x.titulo + (x.extra && x.extra.etapa ? ' · ' + x.extra.etapa : ''), 'na etapa desde ' + ppFmtDia(mesaDiaSP(x.desde))]));
+  const corpo = itens.length ? itens.map(i => `<div class="retornoLeadSub"><b>${escapeHtml(i[0])}</b> — ${escapeHtml(i[1])} · ${escapeHtml(i[2])}</div>`).join('') : '<div class="retornoLeadSub">Nenhuma pendência.</div>';
+  return `<tr class="mesaDetalhe"><td></td><td colspan="10">${corpo}</td></tr>`;
+}
+function mesaRenderVelocidade(){
+  const d = mesaEstado.dados, el = document.getElementById('mesaVelTabela'), pills = document.getElementById('mesaVelPills');
+  if(mesaEstado.erros.leads){ el.innerHTML = '<p class="desc">Não foi possível carregar agora.</p>'; pills.innerHTML = ''; return; }
+  const abas = conversaoAbasDisponiveis(d.leads);
+  if(!abas.some(a => a.aba === mesaEstado.aba)) mesaEstado.aba = abas.length ? abas[0].aba : null;
+  pills.innerHTML = abas.map(a => `<button type="button" class="filterPill${a.aba === mesaEstado.aba ? ' active' : ''}" data-mesa-aba="${escapeHtml(a.aba)}">${escapeHtml(conversaoAbaRotulo(a.aba))} (${a.n})</button>`).join('');
+  const linhas = mesaVelocidadeConversao(d.leads, mesaEstado.aba, mesaEstado.cfg);
+  el.innerHTML = `<div class="mlTabelaWrap"><table class="tbl"><thead><tr><th>Tempo até o 1º contato</th><th>Leads</th><th>Vendas</th><th>Conversão</th></tr></thead><tbody>${
+    linhas.map(r => `<tr><td>${escapeHtml(r.rotulo)}</td><td>${r.leads}</td><td>${r.vendas}</td><td>${mesaFmtPct(r.conversao)}</td></tr>`).join('')}</tbody></table></div>`;
+}
+document.getElementById('panel-mesa').addEventListener('click', function(ev){
+  const cob = ev.target.closest('[data-mesa-cobrar]');
+  if(cob){
+    ev.stopPropagation();
+    const r = mesaLinhasAtuais().find(x => x.chave === cob.dataset.mesaCobrar);
+    const txt = r ? mesaTextoCobranca(r) : '';
+    if(!txt) return;
+    try{ navigator.clipboard.writeText(txt); }catch(e){ /* sem área de transferência: o WhatsApp abre com o texto mesmo assim */ }
+    window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank', 'noopener');
+    mostrarAviso('Mensagem copiada', 'ok');
+    return;
+  }
+  const pill = ev.target.closest('[data-mesa-aba]');
+  if(pill){ mesaEstado.aba = pill.dataset.mesaAba; mesaRenderVelocidade(); return; }
+  const tr = ev.target.closest('tr[data-mesa-linha]');
+  if(tr){ mesaEstado.aberto = mesaEstado.aberto === tr.dataset.mesaLinha ? null : tr.dataset.mesaLinha; mesaRenderSemaforo(); }
+});
+document.getElementById('btnMesaExportar').addEventListener('click', function(){
+  const linhas = mesaLinhasAtuais();
+  const sem = linhas.map(r => ({ Situação: MESA_SELO[r.cor][1], Consultor: r.nome, 'Esperando agora': r.esperando.length, 'No prazo 7 d': r.noPrazo7 === null ? '' : Math.round(r.noPrazo7 * 1000) / 10,
+    'Retornos atrasados': r.retornos.length, 'Leads esfriando': r.esfriando.length, 'Propostas paradas': r.propostas.length, 'Pedidos em risco': r.pedidos.length,
+    'Ligações hoje': r.lig ? Number(r.lig.lig_lead) || 0 : '', 'Vendas no mês (R$)': r.vendas ? Number(r.vendas.receita) || 0 : 0, 'Meta (R$)': r.meta || '' }));
+  const itens = [];
+  linhas.forEach(r => {
+    r.retornos.forEach(x => itens.push({ Consultor: r.nome, Tipo: 'Retorno atrasado', Item: x.titulo, Desde: mesaDiaSP(x.desde) || '' }));
+    r.esfriando.forEach(x => itens.push({ Consultor: r.nome, Tipo: 'Lead esfriando', Item: x.titulo, Desde: mesaDiaSP(x.desde) || '' }));
+    r.propostas.forEach(x => itens.push({ Consultor: r.nome, Tipo: 'Proposta parada', Item: x.titulo, Desde: mesaDiaSP(x.desde) || '' }));
+    r.pedidos.forEach(x => itens.push({ Consultor: r.nome, Tipo: 'Pedido ' + PP_NIVEL_ROTULO[x.nivel], Item: x.titulo, Desde: mesaDiaSP(x.desde) || '' }));
+  });
+  mlBaixarXlsx('MesaSupervisor_' + mesaEstado.hoje + '.xlsx', [{ nome: 'Semáforo', linhas: sem }, { nome: 'Itens', linhas: itens }]);
+});
 document.getElementById('btnMesaAtualizar').addEventListener('click', () => loadMesa(true).catch(err => console.error(err)));
 </script>
 </body>
