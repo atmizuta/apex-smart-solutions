@@ -139,7 +139,7 @@ Nada do que o painel usa hoje muda de assinatura.
 
 - **Lista:** leads do consultor ainda **não contatados**, criados nos últimos `janela_dias`. Ordem: vermelho → amarelo → verde → cinza "aguardando abertura", e o mais antigo primeiro.
 - **Por lead:** nome, cidade, nº de linhas, relógio (`< 1 min`, `X min` até 60, depois `Xh Ymin`), selo de cor, e os botões:
-  - **WhatsApp:** mesma mensagem de `plMensagemWhats`, tipo "resgatar". Registra `whatsapp` antes de abrir o link.
+  - **WhatsApp:** mensagem de 1º contato (`vlMensagemPrimeiroContato`: "Recebi agora o seu pedido de informações…"), não a de `plMensagemWhats` tipo "resgatar" (essa fala em "nossa conversa ficou em aberto", errado para um lead nunca contatado). Registra `whatsapp` antes de abrir o link.
   - **Ligar:** link `tel:`. Registra `ligar`.
   - **Já falei com ele:** registra `manual`, para o contato feito por fora.
 - **Ao registrar**, o lead sai da lista na hora (otimista). Se a RPC falhar, ele volta e aparece `mostrarAviso('Não foi possível registrar o contato — tente de novo', 'erro')`.

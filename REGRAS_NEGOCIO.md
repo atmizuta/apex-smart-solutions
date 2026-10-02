@@ -2615,3 +2615,60 @@ Migration `supabase/migrations/20261001600000_meus_leads_resgatar_placar.sql` (r
 - **Entrada em operação (02/10/2026):** duas execuções reais manuais gravaram em `ligacoes_manuais` (8.885 -> 8.981 ligações, 0 duplicados, 0 `eagle*`, 0 sem `chave_tel`; repetir não altera os dados) e o agendamento foi ligado (`ROBO_ATIVO=true`, minuto :17, 07:17-22:17 de São Paulo, seg-sáb).
 - **Conta do ProContact:** o robô usa hoje uma conta pessoal do gestor no ProContact (provisório; o nome de usuário não é registrado aqui porque o repositório é público). Trocar por uma conta exclusiva do robô, só de relatórios, e trocar a senha que ficou exposta nas conversas de implantação.
 - **Publicado (02/10/2026, ~17:06, horário de SP):** faixa "Sincronização das ligações parada" no painel. O painel no ar (MD5 `96aba0c1…`) era idêntico ao `oficial/main` f9a2826; publicado **`0bb51c832a5f999561cac3a4ad709560`** (gerado = servidor = site; diff de +50/-0 linhas, só a faixa). Vigia atualizado. Backup: `~/deploy_backups/painel_clientes_apex_20261002_170602_antes_faixa_ligacoes.html`. Reverter: copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`; a tabela `ligacoes_sync_log` e a função `ingest-ligacoes` continuam (rollback da tabela em `supabase/rollback/20261002000000_ligacoes_sync_log_rollback.sql`). Para desligar a sincronização: `gh variable set ROBO_ATIVO --body false`.
+
+## 68. Velocidade do lead ("Atender agora") e Mesa do Supervisor (02/10/2026)
+
+Pedido do usuário (02/10): aumentar a conversão dos consultores e dar praticidade aos supervisores (ideias 1 e 5 do brainstorming). Spec: `docs/superpowers/specs/2026-10-02-velocidade-lead-mesa-supervisor-design.md`; plano: `docs/superpowers/plans/2026-10-02-velocidade-lead-mesa-supervisor.md`. **Status: implementado no branch `feat/velocidade-lead-mesa-supervisor`; banco aplicado; painel aguardando publicação.**
+
+### 68.1 Por quê
+- Set+Out/2026: lead com 1ª ligação em menos de 15 min converteu 31,7%, contra 13–15% nos mais lentos. Em horário comercial: 36% (n=25) contra 12,8% (n=39). É um indício e não uma prova (amostra pequena). A Mesa mede de novo a cada mês (68.4).
+- ~40% dos leads chegam fora do horário (pico às 21h) → o relógio conta **minutos úteis**.
+- Muitos leads são atendidos pelo WhatsApp (sem ligação no ProContact) → o clique no painel registra o contato.
+
+### 68.2 Regra do relógio
+- Expediente em `config.velocidade_lead`: padrão seg–sex 08–18, sáb 08–12, sem domingo e sem feriados nacionais (os do `ppFeriados`). Cores: verde até 5 min, amarelo até 15, vermelho acima disso, "aguardando abertura" fora do expediente.
+- **Contato:** é o primeiro clique em WhatsApp / Ligar / "Já falei com ele" (tabela `leads_contatos`) ou a primeira ligação manual a partir de 1 h antes da entrada do lead.
+- **O status da planilha não conta**, porque os leads já chegam com status (verificado em 02/10).
+- **"Esperando":** sem contato registrado e categoria `sem_contato`/`andamento`, dentro dos últimos 7 dias (`janela_dias`).
+- Funções `vl*` no `_template.html`; o banco só devolve timestamps.
+
+### 68.3 Consultor
+Card **"Atender agora"** no topo de Digital → "Meus leads para tratar":
+- botões WhatsApp (mensagem de 1º contato), Ligar (`tel:`) e "Já falei com ele";
+- o lead sai na hora; se o banco recusar, volta e avisa.
+
+Além disso:
+- o WhatsApp da lista de baixo também registra contato;
+- a recarga roda a cada 2 min desde o login, e o lead novo gera um aviso na tela (e notificação do navegador, se permitida).
+
+### 68.4 Mesa do Supervisor (admin/supervisor)
+Aba nova em "Visão geral". Mostra:
+- KPIs: novos hoje, % no prazo, mediana até o 1º contato, esperando, sem dono, retornos atrasados e pedidos 🔴;
+- a fila da equipe (sem telefone);
+- o semáforo por consultor: esperando, no prazo, retornos, leads esfriando 5+ dias, propostas paradas 7+ dias, pedidos com o nível do Pedidos Parados, ligações hoje x média, vendas x meta (cadastro no mês, sem perdidos e devolvidos);
+- o detalhe ao clicar, "Cobrar" (copia o texto e abre o WhatsApp sem número) e o Excel;
+- a tabela Velocidade × conversão por mês;
+- o atraso da planilha (mediana de `primeira_sync_em − criado_em_lead`).
+
+Para o consultor o botão some e o painel fica vazio. A proteção é feita pelas RPCs.
+
+### 68.5 Banco
+- Migration `20261002100000_velocidade_lead_mesa.sql`:
+  - `leads_contatos` (RLS sem policy: só via RPC);
+  - `leads.primeira_sync_em` (nula nas linhas antigas);
+  - `config.velocidade_lead`;
+  - RPCs `registrar_contato_lead`, `meus_leads_relogio`, `mesa_leads_relogio`, `mesa_pendencias`, `mesa_ligacoes_hoje`, `mesa_vendas_mes`.
+- Migration `20261002100100_sync_leads_10min.sql`: `sync-leads-auto` passa a `2-59/10 * * * *`.
+- Os rollbacks estão em `supabase/rollback/`. A verificação de papéis está em `supabase/tests/velocidade_lead_mesa_check.sql`.
+- **Aplicado em 02/10/2026 ~19:20 (SP), com ok do Rafael:** migration `velocidade_lead_mesa` (script de verificação rodado numa transação com rollback) e migration `sync_leads_10min` (cron `2-59/10 * * * *` ativo). Teste com dados reais, como supervisor, respondeu em menos de 60 ms.
+
+### 68.6 Pendências
+- Rafael: quem põe o lead na planilha, e se ele já entra com consultor e status.
+- Fase 2: alerta por Telegram/Slack quando um lead passa de 15 min (depende do token do bot).
+
+### 68.7 Sincronização de leads tolerante a linha inválida (02/10/2026)
+- **Problema:** em 02/10, a partir de 18:22 (SP), a sincronização dos leads falhou em todos os ciclos com `invalid input syntax for type timestamp with time zone: "TESTE"` — alguém criou uma linha de teste na aba OUTUBRO (linha 49, todas as colunas "TESTE"); o upsert é em lote, então uma linha ruim derrubava tudo e nenhum lead novo entrava no painel.
+- **Correção** na Edge Function `sync-leads` (versão 15, implantada em 02/10/2026 ~19:38 SP, com ok do Rafael): linha com `created_time` que não é data é pulada e anotada (aba, nº da linha na planilha, valor); os demais leads são gravados; o aviso vai para `config.leads_sync_erro` como "Aviso: N linha(s) da planilha ignorada(s)…" (o painel já mostra esse campo na Digital para admin/supervisor) e some quando a linha é corrigida. A resposta da função traz `ignorados`.
+- **Código:** `edge_function_sync_leads.ts` + teste `test_edge_function_sync_leads.js` (117 ok), commit `b6ddc93` no branch `fix/sync-leads-tolerante` (base oficial/main 466fd5b), a ser juntado na publicação.
+- **Validação antes do deploy:** as 1.486 datas reais das 4 abas estavam no mesmo formato ISO; só o "TESTE" foi descartado. Primeira execução: 1.479 leads gravados, 1 linha ignorada (OUTUBRO linha 49).
+- **Reverter:** reimplantar a versão anterior do arquivo (`git show 466fd5b:edge_function_sync_leads.ts`).
