@@ -46,7 +46,7 @@ Segredos: no GitHub `PROCONTACT_USUARIO`, `PROCONTACT_SENHA`, `INGEST_TOKEN`, `I
 1. Workflow dispara (cron) ou à mão (`workflow_dispatch`, com opção `dry_run`).
 2. Robô abre o ProContact, entra com o usuário do robô.
 3. Navega: Relatório → Call Center → Chamadas Manuais.
-4. Período = **dia 1 do mês corrente 00:00 até agora**. Se hoje for dia 1 até as 06:00, usa também o mês anterior inteiro (cobre a virada de mês). Empresa mantém o padrão da conta.
+4. Período = **dia 1 do mês corrente 00:00 até hoje 23:59** (horário de São Paulo, como o filtro da tela). Nos **dias 1 e 2 do mês** começa no dia 1 do mês anterior (cobre a virada de mês e ligações registradas com atraso). Empresa mantém o padrão da conta.
 5. Clica **Buscar**, espera o resultado (total na tela > 0 ou mensagem de vazio), clica **Exportar**.
 6. Espera o arquivo (download imediato ou geração em fila, até 5 min; ver risco 8.2).
 7. Lê o `.xlsx` com SheetJS, normaliza os cabeçalhos como o upload manual, converte datas (`dd/mm/aaaa hh:mm:ss` → ISO com `-03:00`), descarta antes de enviar as linhas `eagle*` e as inválidas (ID vazio, data fora do formato).
@@ -61,7 +61,7 @@ Em `dry_run`: faz os passos 2 a 7 e compara a contagem lida com `count(*)` do pe
 - `POST` JSON `{ lote: [ {id, usuario, telefone, gerada_em, atendida, seg_falados, tabulacao, transferido, gravacao} , … ], execucao_id, final: bool, resumo? }`.
 - Autorização: token comparado em tempo constante; sem token válido, `401`, sem corpo.
 - Limites: no máximo 500 linhas por requisição e 1 MB; cabeçalhos CORS fechados (não é chamada de navegador).
-- Mapeamento idêntico ao de REGRAS 59.3: `atendida` = `Status == "ANSWERED"`, `seg_falados` = `Tempo_Chamada` em segundos, `tabulacao` = `Última Tabulação` (`-` vira nulo), `transferido` = `Transferido`, `gravacao` = `Gravacao`, `importado_em` = agora. `usuario` mantém o texto original; o gatilho do banco continua descartando `eagle*` como segunda barreira.
+- Mapeamento idêntico ao de REGRAS 59.3: `atendida` = `Status == "ANSWERED"`, `seg_falados` = `Tempo_Chamada` em segundos, `tabulacao` = `Última Tabulação` (texto como vem, inclusive `-`: o upload manual não troca por nulo e os dois caminhos precisam gravar o mesmo), `transferido` = `Transferido`, `gravacao` = `Gravacao`, `importado_em` = agora. `usuario` mantém o texto original; o gatilho do banco continua descartando `eagle*` como segunda barreira.
 - Resposta: contagens e, no máximo, os `id` rejeitados, nunca telefone.
 - Quem lê o log: RLS só admin/supervisor.
 
@@ -77,7 +77,7 @@ Em `dry_run`: faz os passos 2 a 7 e compara a contagem lida com `count(*)` do pe
 
 1. **IP de datacenter:** o ProContact pode bloquear ou exigir liberação dos IPs do GitHub. Só um teste real confirma. Plano B: rodar o mesmo robô num servidor ou PC com IP conhecido.
 2. **Exportar em fila:** ainda não se sabe se o arquivo vem na hora. O robô trata os dois casos (espera de download direto; ou volta a uma lista de exportações) com tempo-limite de 5 min.
-3. **Mudança de layout:** o robô usa seletores por texto/papel e falha de forma explícita, com captura de tela **sem dados** (somente a tela de filtros) como evidência opcional.
+3. **Mudança de layout:** o robô usa seletores por texto/papel e falha de forma explícita, com mensagem curta e **sem captura de tela nem *trace*** (a tela de resultado mostra telefones).
 4. **Agendamento impreciso:** o cron do GitHub pode atrasar 5 a 30 min; aceitável. Fuso: `10-01 UTC` = 07–22 h de Brasília (segunda a sábado). Repositórios inativos por 60 dias podem ter agendamento pausado: o próprio robô gera atividade e o alerta de 3 h acusa.
 5. **Limite do ProContact para consultas seguidas:** desconhecido; 1 execução/hora, sem repetição automática em sequência.
 6. **Conta do robô:** precisa existir antes do primeiro teste.
