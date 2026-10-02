@@ -8,6 +8,8 @@
 
 **Tech Stack:** Node 24 (ESM), Playwright (Chromium), `xlsx` 0.18.5 (SheetJS, o mesmo do painel), `node:test`, GitHub Actions.
 
+> **Estado (02/10/2026):** as Tarefas 1–6 já foram executadas no repositório local `C:Usersacer1Downloadsapex-robo-procontact` (commits até `af18263`, 45 testes). A revisão final mudou `src/parse.js` (lê com `raw:true`, como o painel; confere colunas mesmo sem linhas) e `src/main.js` (`limparErro` tira o "Call log" do Playwright e mascara segredos; falha se há linhas mas nenhuma válida). **O repositório é a fonte da verdade: não recopie o código deste plano por cima dele.** Falta só a Tarefa 7 (repositório privado no GitHub, secrets, ensaio `dry`, execução real, `ROBO_ATIVO`) e o reconhecimento da tela (Tarefa 6, passos 3–4).
+
 **Spec:** `docs/superpowers/specs/2026-10-01-robo-procontact-ligacoes-design.md` (seções 4, 5, 7, 8, 9, 10). **Depende do Plano A** (função publicada e token cadastrado) para os ensaios reais (Task 7), não para os testes das Tasks 1–5.
 
 ## Global Constraints
