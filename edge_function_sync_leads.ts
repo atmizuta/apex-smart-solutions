@@ -84,6 +84,8 @@ function sheetTabCsvUrl(gid: string): string {
 const MESES_ABA = ["JANEIRO", "FEVEREIRO", "MARCO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
 const TRAVA_LIMITE = 10;   // 01/10: a aba SETEMBRO já tinha 4 leads de outubro lançados nela; a aba renomeada trouxe 22
 type LeadAba = { aba: string; criado_em_lead: string | null };
+// 02/10/2026 (REGRAS seção 68.7): linha da planilha ignorada por data inválida em created_time.
+type IgnoradoData = { aba: string; linha: number; valor: string };
 
 // Mês (1-12) da data no horário de São Paulo (UTC-3, sem horário de verão); 0 se vazia/inválida.
 export function mesSP(iso: string): number {
@@ -205,8 +207,13 @@ function get(row: Record<string, string>, key: string): string {
 // cabeçalho tolerante a linha extra na frente, usada desde o fix de 04/09/2026 — ver comentário
 // mais abaixo, ao lado de onde essa função é chamada). Lança erro (com mensagem amigável,
 // identificando a aba) se não achar a linha de cabeçalho.
-export function parseSheetCsv(csvText: string, tabLabel: string, aba = ""): ReturnType<typeof mapearLinha>[] {
-  const parsedRaw = Papa.parse(csvText, { skipEmptyLines: true });
+// 02/10/2026 (REGRAS seção 68.7): uma linha com created_time que não é data (ex.: uma linha de "TESTE"
+// digitada na planilha) derrubava o upsert INTEIRO ("invalid input syntax for type timestamp") e nenhum lead
+// entrava por horas. Agora a linha é pulada e anotada em `ignorados` (aba, nº da linha na planilha, valor);
+// os demais leads são gravados e o aviso vai para config.leads_sync_erro. Por isso o parse não pula linhas
+// vazias: o índice tem que bater com o número da linha na planilha (as vazias são descartadas logo abaixo).
+export function parseSheetCsv(csvText: string, tabLabel: string, aba = "", ignorados: IgnoradoData[] = []): ReturnType<typeof mapearLinha>[] {
+  const parsedRaw = Papa.parse(csvText, { skipEmptyLines: false });
   if (parsedRaw.errors && parsedRaw.errors.length > 0) {
     console.error(`Erros ao parsear CSV da aba "${tabLabel}":`, parsedRaw.errors.slice(0, 5));
   }
@@ -236,17 +243,30 @@ export function parseSheetCsv(csvText: string, tabLabel: string, aba = ""): Retu
   if (!headers.some((h) => h.trim() === "CONSULTOR") && idxStatus > 0 && headers[idxStatus - 1].startsWith("__col")) {
     headers[idxStatus - 1] = "CONSULTOR";
   }
-  const rows: Record<string, string>[] = allRows
-    .slice(headerIdx + 1)
-    .filter((r) => r.some((c) => (c || "").trim() !== ""))
-    .map((r) => {
-      const obj: Record<string, string> = {};
-      headers.forEach((h, i) => { obj[h] = (r[i] ?? "").toString(); });
-      return obj;
-    })
-    .filter((r) => get(r, "id"));
+  const saida: ReturnType<typeof mapearLinha>[] = [];
+  allRows.slice(headerIdx + 1).forEach((r, i) => {
+    if (!r.some((c) => (c || "").trim() !== "")) return;
+    const obj: Record<string, string> = {};
+    headers.forEach((h, j) => { obj[h] = (r[j] ?? "").toString(); });
+    if (!get(obj, "id")) return;
+    const reg = mapearLinha(obj, aba);
+    if (!reg.id) return;
+    if (reg.criado_em_lead && isNaN(Date.parse(reg.criado_em_lead))) {
+      ignorados.push({ aba: aba || tabLabel, linha: headerIdx + 2 + i, valor: reg.criado_em_lead.slice(0, 30) });
+      return;
+    }
+    saida.push(reg);
+  });
+  return saida;
+}
 
-  return rows.map((r) => mapearLinha(r, aba)).filter((r) => r.id);
+// Texto do aviso para config.leads_sync_erro quando houve linha ignorada ("" se nenhuma).
+export function avisoIgnorados(ignorados: IgnoradoData[]): string {
+  if (!ignorados.length) return "";
+  const lista = ignorados.slice(0, 5).map((x) => `${x.aba} linha ${x.linha} ("${x.valor}")`).join("; ");
+  const mais = ignorados.length > 5 ? ` e mais ${ignorados.length - 5}` : "";
+  return `Aviso: ${ignorados.length} linha(s) da planilha ignorada(s) por data inválida em created_time — ${lista}${mais}. ` +
+    `Os demais leads foram gravados normalmente; corrija ou apague essa(s) linha(s) na planilha.`;
 }
 
 export function mapearLinha(row: Record<string, string>, aba = "") {
@@ -341,6 +361,7 @@ Deno.serve(async (req) => {
     // seção 16.1 / seção do dashboard Digital), que também protege contra o "id" da 1ª coluna sem
     // rótulo e/ou duplicado numa coluna vazia no fim.
     let registros: ReturnType<typeof mapearLinha>[] = [];
+    const ignorados: IgnoradoData[] = [];   // linhas com created_time inválido (seção 68.7)
     for (const tab of SHEET_TABS) {
       const resp = await fetch(sheetTabCsvUrl(tab.gid));
       if (!resp.ok) {
@@ -350,7 +371,7 @@ Deno.serve(async (req) => {
       }
       const csvText = await resp.text();
       try {
-        registros = registros.concat(parseSheetCsv(csvText, tab.label, tab.aba));
+        registros = registros.concat(parseSheetCsv(csvText, tab.label, tab.aba, ignorados));
       } catch (e) {
         await registrarErro((e as Error).message);
         return json({ error: (e as Error).message }, 502, corsHeaders);
@@ -388,12 +409,15 @@ Deno.serve(async (req) => {
     }
 
     const agora = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+    // 02/10/2026 (seção 68.7): linha ignorada não é falha — os leads foram gravados — mas o aviso precisa
+    // aparecer para alguém corrigir a planilha (o painel mostra leads_sync_erro na Digital).
+    const aviso = avisoIgnorados(ignorados);
     await admin.from("config").upsert(
-      [{ chave: "leads_atualizado_em", valor: agora }, { chave: "leads_sync_erro", valor: "" }],
+      [{ chave: "leads_atualizado_em", valor: agora }, { chave: "leads_sync_erro", valor: aviso ? `${agora} — ${aviso}` : "" }],
       { onConflict: "chave" },
     );
 
-    return json({ ok: true, total: registrosUnicos.length, por_aba: porAba, atualizado_em: agora, origem: viaCron ? "cron" : "manual" }, 200, corsHeaders);
+    return json({ ok: true, total: registrosUnicos.length, por_aba: porAba, atualizado_em: agora, origem: viaCron ? "cron" : "manual", ignorados }, 200, corsHeaders);
   } catch (e) {
     console.error("Erro inesperado em sync-leads:", e);
     return json({ error: "Erro inesperado: " + (e as Error).message }, 500, corsHeaders);
