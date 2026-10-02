@@ -114,6 +114,76 @@ try{
   eq(vlFaixa(L('k', { primeiro_clique: new Date(sp('2026-10-05T15:00:00')).toISOString() }), cfg), 'mais4h', 'faixa > 4 h');
   eq(vlFaixa(L('l'), cfg), 'sem', 'sem contato registrado');
 
+  // ==== TASK 4: card "Atender agora" ====
+  const nowReal = Date.now;
+  Date.now = () => sp('2026-10-05T10:00:00');
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  window.__tabelas.config = [{ chave: 'velocidade_lead', valor: '{"amarelo_min":15}' }];
+  window.__rpcRespostas.meus_leads_vinculado = { data: true, error: null };
+  window.__rpcRespostas.meus_leads_para_tratar = { data: [], error: null };
+  window.__rpcRespostas.meu_placar_ligacoes = { data: [], error: null };
+  window.__tabelas.leads_followups = [];
+  const iso = (s) => new Date(sp(s)).toISOString();
+  window.__rpcRespostas.meus_leads_relogio = { data: [
+    L('verde', { criado_em_lead: iso('2026-10-05T09:58:00'), cidade: 'Cidade Teste', qtd_linhas: '3' }),
+    L('verm', { criado_em_lead: iso('2026-10-05T09:00:00') }),
+    L('feito', { primeiro_clique: iso('2026-10-05T09:01:00') }),
+  ], error: null };
+  await plCarregar();
+  await vlCarregar(false);
+  const card = document.getElementById('vlCard');
+  assert(card && card.style.display !== 'none', 'consultor vinculado vê o card');
+  eq([...document.querySelectorAll('#vlLista .vlRow')].map(r => r.dataset.leadId), ['verm', 'verde'], 'só quem espera, vermelho primeiro');
+  assert(document.querySelector('#vlLista [data-lead-id="verm"] .vlRelogio').textContent.trim() === '1h 00min', 'relógio do vermelho');
+  assert(document.querySelector('#vlLista [data-lead-id="verm"] .vlRelogio').classList.contains('atrasado'), 'vermelho usa a classe atrasado');
+  assert(document.querySelector('#vlLista [data-lead-id="verde"]').textContent.includes('Cidade Teste'), 'mostra a cidade');
+  const wa = document.querySelector('#vlLista [data-lead-id="verde"] a[data-vl-canal="whatsapp"]');
+  assert(wa && wa.href.startsWith('https://wa.me/55'), 'botão WhatsApp com número');
+  const txtWa = decodeURIComponent(wa.href.split('text=')[1]);
+  assert(txtWa.includes('Claro Empresas') && !txtWa.includes('ficou em aberto'), 'mensagem de 1º contato (não a de resgatar)');
+  assert(document.querySelector('#vlLista [data-lead-id="verde"] a[data-vl-canal="ligar"]').getAttribute('href').startsWith('tel:'), 'botão Ligar com tel:');
+
+  // "Já falei com ele": registra 'manual' e o lead sai na hora
+  window.__rpcCalls.length = 0;
+  document.querySelector('#vlLista [data-lead-id="verde"] [data-vl-canal="manual"]').click();
+  await espera(30);
+  const reg = window.__rpcCalls.find(c => c.nome === 'registrar_contato_lead');
+  eq(reg && reg.args, { p_aba: 'OUTUBRO', p_lead_id: 'verde', p_canal: 'manual' }, 'registra o contato manual');
+  assert(!document.querySelector('#vlLista [data-lead-id="verde"]'), 'lead contatado sai da lista na hora');
+
+  // erro ao registrar: o lead volta e aparece aviso de erro
+  window.__rpcRespostas.registrar_contato_lead = { data: null, error: { message: 'falhou' } };
+  window.__alertas.length = 0;
+  document.querySelector('#vlLista [data-lead-id="verm"] [data-vl-canal="whatsapp"]').click();
+  await espera(30);
+  assert(document.querySelector('#vlLista [data-lead-id="verm"]'), 'erro: o lead volta para a lista');
+  const avisosTxt = window.__alertas.join(' ') + ' ' + (document.getElementById('apexToasts') ? document.getElementById('apexToasts').textContent : '');
+  assert(avisosTxt.includes('Não foi possível registrar o contato'), 'erro: aviso para tentar de novo');
+  window.__rpcRespostas.registrar_contato_lead = { data: null, error: null };
+
+  // vazio e erro de carga
+  window.__rpcRespostas.meus_leads_relogio = { data: [L('x', { categoria: 'convertido' })], error: null };
+  await vlCarregar(false);
+  assert(document.getElementById('vlLista').textContent.includes('Nenhum lead esperando'), 'vazio: mensagem positiva');
+  window.__rpcRespostas.meus_leads_relogio = { data: null, error: { message: 'x' } };
+  await vlCarregar(false);
+  assert(document.getElementById('vlLista').textContent.includes('Não foi possível carregar'), 'erro de carga no card');
+  assert(!/NaN|undefined/.test(document.getElementById('vlCard').textContent), 'nada de NaN/undefined');
+
+  // privacidade e troca de login
+  assert(!window.__lidas.includes('ligacoes_manuais') && !window.__lidas.includes('leads_contatos'), 'consultor nunca lê ligacoes_manuais/leads_contatos');
+  assert(!window.__rpcCalls.some(c => /^mesa_/.test(c.nome)), 'consultor nunca chama RPC da Mesa');
+  vlIniciar();
+  assert(vlEstado.timerPoll !== null, 'vlIniciar liga a recarga');
+  vlResetar();
+  assert(vlEstado.timerPoll === null && vlEstado.timerRender === null, 'vlResetar desliga os timers');
+  assert(document.getElementById('vlCard').style.display === 'none' && document.getElementById('vlLista').innerHTML === '', 'vlResetar esconde e limpa o card');
+  currentUser = { id: 'a1', nome: 'Admin Teste', username: 'adm', role: 'admin' };
+  window.__rpcCalls.length = 0;
+  await vlCarregar(false);
+  assert(!window.__rpcCalls.some(c => c.nome === 'meus_leads_relogio'), 'admin não carrega o card do consultor');
+  Date.now = nowReal;
+
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');

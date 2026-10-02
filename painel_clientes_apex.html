@@ -1178,6 +1178,15 @@
       <!-- 01/10/2026: leads do consultor para tratar, um mês por vez (sem Repique) — seções 59, 60 e 61 do REGRAS_NEGOCIO.md -->
       <div id="digitalSubMeus" style="display:none">
       <div id="plWrap" style="display:none">
+        <!-- 02/10/2026 (seção 68): leads novos esperando o 1º contato, com relógio em minutos úteis -->
+        <div class="card" id="vlCard" style="display:none">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+            <h3 style="margin:0">Atender agora</h3>
+            <button type="button" class="btn btn-sm btn-outline" id="btnVlNotificar" style="width:auto;display:none">Avisar no navegador</button>
+          </div>
+          <p class="desc">Leads novos que ainda não receberam o 1º contato. O relógio conta só o horário de trabalho: até 5 min é o ideal; depois de 15 min a chance de venda cai. Use os botões abaixo — é assim que o contato fica registrado.</p>
+          <div id="vlLista"></div>
+        </div>
         <div class="card" id="plErro" style="display:none">
           <h3>Meus leads para tratar</h3>
           <p class="desc">Não foi possível carregar os seus leads agora. Tente de novo em instantes.</p>
@@ -9154,8 +9163,10 @@ async function plCarregar(){
   plEstado.leads = (lds && lds.data) || [];
   plEstado.followups = (fu && fu.data) || [];
   plRender();
+  vlRender();
 }
 function plResetar(){
+  vlResetar();
   plEstado.geracao++;
   Object.assign(plEstado, { vinculado: false, erro: false, leads: [], followups: [], aba: null, placar: null });
   ['plResumo', 'plLista', 'plAbaPills', 'plPlacar'].forEach(id => { document.getElementById(id).innerHTML = ''; });
@@ -9238,6 +9249,105 @@ function vlFaixa(l, cfg){
   if(c === null || i === null) return 'sem';
   const m = vlMinutosUteis(i, c, cfg);
   return VL_FAIXAS.find(f => m <= f[2])[0];
+}
+
+const vlEstado = { geracao: 0, leads: [], erro: false, cfg: vlCfg(null), vistos: null, registrados: new Set(), timerRender: null, timerPoll: null };
+function vlChave(l){ return l.aba + '|' + l.lead_id; }
+// 1º contato: o lead acabou de pedir informação (não usar a mensagem de "resgatar" do plMensagemWhats).
+function vlMensagemPrimeiroContato(l, consultor){
+  const nome = String(l.nome || '').trim().split(/\s+/)[0] || '';
+  const eu = consultor ? `Aqui é ${consultor}, da Claro Empresas.` : 'Aqui é a equipe da Claro Empresas.';
+  return `${nome ? `Olá, ${nome}!` : 'Olá!'} ${eu} Recebi agora o seu pedido de informações sobre os planos para empresas. Posso te ajudar por aqui ou prefere que eu te ligue?`;
+}
+async function vlCarregar(avisar){
+  if(!canSeePedidosParados()) return;
+  const geracao = vlEstado.geracao;
+  const [lds, cfg] = await Promise.all([
+    ppSeguro(() => sb.rpc('meus_leads_relogio')),
+    ppSeguro(() => sb.from('config').select('chave,valor').eq('chave', 'velocidade_lead').maybeSingle()),
+  ]);
+  if(geracao !== vlEstado.geracao) return;   // trocou de usuário no meio
+  vlEstado.cfg = vlCfg(cfg && !cfg.error && cfg.data ? cfg.data.valor : null);
+  vlEstado.erro = !!(lds && lds.error);
+  if(vlEstado.erro){ console.error(lds.error); vlRender(); return; }
+  vlEstado.leads = (lds && lds.data) || [];
+  if(avisar && vlEstado.vistos) vlEstado.leads.filter(l => vlEsperando(l) && !vlEstado.vistos.has(vlChave(l))).forEach(vlAvisarNovo);
+  vlEstado.vistos = new Set(vlEstado.leads.map(vlChave));
+  vlRender();
+}
+function vlAvisarNovo(l){
+  const nome = String(l.nome || '').trim().split(/\s+/)[0] || 'sem nome';
+  mostrarAviso('Lead novo: ' + nome + ' — atenda agora', 'info');
+  try{
+    if('Notification' in window && Notification.permission === 'granted') new Notification('Lead novo: ' + nome, { body: 'Atenda agora — o relógio já está correndo.' });
+  }catch(e){ /* navegador sem suporte: o aviso na tela basta */ }
+}
+function vlRender(){
+  const card = document.getElementById('vlCard'), lista = document.getElementById('vlLista');
+  if(!canSeePedidosParados() || !plEstado.vinculado){ card.style.display = 'none'; return; }
+  card.style.display = '';
+  document.getElementById('btnVlNotificar').style.display = ('Notification' in window && Notification.permission === 'default') ? '' : 'none';
+  if(vlEstado.erro){ lista.innerHTML = '<p class="desc">Não foi possível carregar agora. Tente de novo em instantes.</p>'; return; }
+  const pend = vlPendentes(vlEstado.leads.filter(l => !vlEstado.registrados.has(vlChave(l))), Date.now(), vlEstado.cfg);
+  if(!pend.length){ lista.innerHTML = '<p class="desc">Nenhum lead esperando. Bom trabalho.</p>'; return; }
+  const consultor = ppPrimeiroNome();
+  const classe = { vermelho: 'retornoBadge atrasado', amarelo: 'retornoBadge hoje', verde: 'retornoBadge futuro', aguardando: 'badge' };
+  lista.innerHTML = pend.map(x => {
+    const l = x.lead, wa = ppEscolherTelefone([l.telefone]), tel = String(l.telefone || '').replace(/^p:/, '').replace(/[^\d+]/g, '');
+    const attrs = `data-aba="${escapeHtml(l.aba)}" data-lead-id="${escapeHtml(l.lead_id)}"`;
+    const sub = [l.cidade, l.qtd_linhas ? 'Linhas: ' + l.qtd_linhas : ''].filter(Boolean).join(' · ');
+    const rel = x.cor === 'aguardando' ? 'aguardando abertura' : vlFmtMin(x.min);
+    return `<div class="retornoLeadRow vlRow" ${attrs} data-vl-cor="${x.cor}">
+      <div class="retornoLeadInfo"><strong>${escapeHtml(l.nome || '(sem nome)')}</strong>${sub ? `<span class="retornoLeadSub">${escapeHtml(sub)}</span>` : ''}</div>
+      <div class="retornoLeadAcoes">
+        <span class="${classe[x.cor]} vlRelogio">${escapeHtml(rel)}</span>
+        ${wa ? `<a class="btn btn-sm" target="_blank" rel="noopener" data-vl-canal="whatsapp" ${attrs} href="https://wa.me/${wa}?text=${encodeURIComponent(vlMensagemPrimeiroContato(l, consultor))}" style="width:auto">WhatsApp</a>` : ''}
+        ${tel ? `<a class="btn btn-sm btn-outline" data-vl-canal="ligar" ${attrs} href="tel:${escapeHtml(tel)}" style="width:auto">Ligar</a>` : ''}
+        <button type="button" class="btn btn-sm btn-ghost" data-vl-canal="manual" ${attrs}>Já falei com ele</button>
+      </div></div>`;
+  }).join('');
+}
+// Registra o contato (otimista: some da lista na hora; se o banco recusar, volta e avisa).
+async function vlRegistrar(aba, leadId, canal){
+  const k = aba + '|' + leadId;
+  vlEstado.registrados.add(k);
+  vlRender();
+  const res = await ppSeguro(() => sb.rpc('registrar_contato_lead', { p_aba: aba, p_lead_id: leadId, p_canal: canal }));
+  if(res && res.error){
+    console.error(res.error);
+    vlEstado.registrados.delete(k);
+    vlRender();
+    mostrarAviso('Não foi possível registrar o contato — tente de novo', 'erro');
+    return false;
+  }
+  return true;
+}
+document.getElementById('vlLista').addEventListener('click', function(ev){
+  const el = ev.target.closest('[data-vl-canal]');
+  if(el) vlRegistrar(el.dataset.aba, el.dataset.leadId, el.dataset.vlCanal);   // não bloqueia: o link (WhatsApp/tel:) abre normalmente
+});
+document.getElementById('btnVlNotificar').addEventListener('click', function(){
+  if(!('Notification' in window)) return;
+  Promise.resolve(Notification.requestPermission()).then(vlRender).catch(() => {});
+});
+function vlPararTimers(){
+  clearInterval(vlEstado.timerRender); clearInterval(vlEstado.timerPoll);
+  vlEstado.timerRender = null; vlEstado.timerPoll = null;
+}
+// Liga o card e a recarga (2 min, só com a aba do navegador visível) — roda mesmo fora da Digital, para o aviso de lead novo.
+function vlIniciar(){
+  vlPararTimers();
+  if(!canSeePedidosParados() || !plEstado.vinculado) return;
+  vlCarregar(false).catch(err => console.error(err));
+  vlEstado.timerRender = setInterval(() => { if(document.getElementById('vlCard').style.display !== 'none') vlRender(); }, 30000);
+  vlEstado.timerPoll = setInterval(() => { if(document.visibilityState === 'visible') vlCarregar(true).catch(err => console.error(err)); }, 120000);
+}
+function vlResetar(){
+  vlEstado.geracao++;
+  vlPararTimers();
+  Object.assign(vlEstado, { leads: [], erro: false, cfg: vlCfg(null), vistos: null, registrados: new Set() });
+  document.getElementById('vlLista').innerHTML = '';
+  document.getElementById('vlCard').style.display = 'none';
 }
 
 document.getElementById('plLista').addEventListener('click', async function(ev){
@@ -10398,6 +10508,8 @@ async function ppIniciar(){
   if(!vis){ document.getElementById('meuDiaCard').style.display = 'none'; return; }
   await ppCarregarDados(true);
   ppRenderMeuDia();
+  // 02/10/2026 (seção 68): relógio do lead novo + aviso, desde o login (não só quando abre a Digital)
+  plCarregar().then(() => { digitalSubBarra(); vlIniciar(); }).catch(err => console.error(err));
 }
 
 document.getElementById('panel-pedidosparados').addEventListener('click', function(ev){
