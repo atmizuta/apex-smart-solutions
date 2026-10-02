@@ -141,6 +141,61 @@ try{
   eq(mesaAtrasoPlanilhaMin(leads, AGORA), 6, 'atraso da planilha: mediana de primeira_sync_em - criado_em_lead');
   eq(mesaAtrasoPlanilhaMin([LD('z', { primeira_sync_em: null })], AGORA), null, 'sem primeira_sync_em: null');
 
+  // ==== TASK 7: aba, carga, KPIs, fila, permissões ====
+  const nowReal = Date.now;
+  Date.now = () => AGORA;
+  window.__rpcRespostas.mesa_leads_relogio = { data: leads, error: null };
+  window.__rpcRespostas.mesa_pendencias = { data: pend, error: null };
+  window.__rpcRespostas.mesa_ligacoes_hoje = { data: lig, error: null };
+  window.__rpcRespostas.mesa_vendas_mes = { data: vendas, error: null };
+  window.__tabelas.metas_consultor = [{ profile_id: 'p-caio', mes: '2026-10-01', meta_receita: 3000 }];
+  window.__tabelas.config = [];
+
+  // consultor: sem botão, painel vazio, nenhuma RPC da Mesa
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  mesaAplicarPermissao();
+  assert(document.getElementById('tabBtnMesa').style.display === 'none', 'consultor não vê o botão da Mesa');
+  window.__rpcCalls.length = 0;
+  await loadMesa(true);
+  assert(!window.__rpcCalls.some(c => /^mesa_/.test(c.nome)), 'consultor não dispara RPC da Mesa');
+  assert(document.getElementById('mesaSemaforoTbody').innerHTML === '', 'painel vazio para o consultor');
+
+  // supervisor (troca de login sem recarregar): botão aparece e a carga funciona
+  currentUser = { id: 's1', nome: 'Supervisor Teste', username: 'sup', role: 'supervisor' };
+  mesaAplicarPermissao();
+  assert(document.getElementById('tabBtnMesa').style.display !== 'none', 'supervisor vê o botão da Mesa');
+  document.querySelector('#tabsNav button[data-tab="mesa"]').click();
+  await espera(60);
+  assert(document.getElementById('panel-mesa').classList.contains('active'), 'clique abre o painel da Mesa');
+  const cDesde = window.__rpcCalls.find(c => c.nome === 'mesa_leads_relogio');
+  eq(cDesde && cDesde.args.p_desde, '2026-09-01T00:00:00-03:00', 'busca desde o 1º dia do mês anterior (SP)');
+  eq((window.__rpcCalls.find(c => c.nome === 'mesa_pendencias') || {}).args, { p_ref: HOJE }, 'pendências de hoje (SP)');
+  eq((window.__rpcCalls.find(c => c.nome === 'mesa_vendas_mes') || {}).args, { p_mes: '2026-10-01' }, 'vendas do mês');
+  const kTxt = document.getElementById('mesaKpis').textContent;
+  assert(kTxt.includes('Leads novos hoje') && kTxt.includes('5'), 'KPI de leads novos');
+  assert(kTxt.includes('33,3%'), 'KPI no prazo 7 d');
+  assert(kTxt.includes('22 min'), 'KPI mediana');
+  eq([...document.querySelectorAll('#mesaFila .vlRow')].map(r => r.dataset.leadId), ['esperandoVerm', 'semDono', 'esperandoVerde'], 'fila da equipe: vermelho, amarelo, verde');
+  assert(document.querySelector('#mesaFila [data-lead-id="semDono"]').textContent.includes('sem dono'), 'sem dono sinalizado');
+  assert(!document.getElementById('mesaFila').innerHTML.includes('5519900'), 'Mesa não mostra telefone');
+  assert(document.getElementById('mesaAtraso').textContent.includes('6 min'), 'atraso da planilha');
+  assert(!/NaN|undefined/.test(document.getElementById('panel-mesa').textContent), 'nada de NaN/undefined');
+
+  // um bloco que falha não derruba os outros
+  window.__rpcRespostas.mesa_pendencias = { data: null, error: { message: 'x' } };
+  await loadMesa(true);
+  assert(document.getElementById('mesaSemaforoTbody').textContent.includes('Não foi possível carregar'), 'semáforo avisa a falha');
+  assert(document.querySelectorAll('#mesaFila .vlRow').length === 3, 'fila continua aparecendo');
+  window.__rpcRespostas.mesa_pendencias = { data: pend, error: null };
+
+  // reset ao trocar para consultor
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  mesaAplicarPermissao();
+  assert(document.getElementById('mesaFila').innerHTML === '' && document.getElementById('mesaKpis').innerHTML === '', 'troca para consultor limpa a Mesa');
+  currentUser = { id: 's1', nome: 'Supervisor Teste', username: 'sup', role: 'supervisor' };
+  mesaAplicarPermissao();
+  Date.now = nowReal;
+
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');

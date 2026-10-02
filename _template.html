@@ -573,6 +573,7 @@
       <span class="sbIndicator" id="sbIndicator" aria-hidden="true"></span>
       <div class="navGroupLabel">Visão geral</div>
       <button data-tab="producao" id="tabBtnProducao" class="active" data-sub="Vendas, contratos e ranking do time"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg><span class="sbLabel">Dashboard</span></button>
+      <button data-tab="mesa" id="tabBtnMesa" style="display:none" data-sub="Pendências da equipe e cobrança em 1 clique"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10"/><path d="M7 13h6"/><circle cx="17" cy="15" r="2"/></svg><span class="sbLabel">Mesa do Supervisor</span></button>
       <button data-tab="conversao" id="tabBtnConversao" style="display:none" data-sub="Leads das campanhas e conversão em vendas"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg><span class="sbLabel">Digital</span></button>
       <div class="navGroupLabel">Vendas</div>
       <button data-tab="busca" data-sub="Base de clientes por razão social, CNPJ ou telefone"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span class="sbLabel">Buscar Clientes</span></button>
@@ -908,6 +909,45 @@
           <thead><tr><th>Tipo</th><th>CNPJ</th><th>Razão Social</th><th>Cidade</th><th>Detalhe</th></tr></thead>
           <tbody id="movDetalheTbody"></tbody>
         </table>
+      </div>
+    </section>
+
+    <!-- MESA DO SUPERVISOR (02/10/2026, seção 68) — admin/supervisor: pendências da equipe e cobrança em 1 clique.
+         Para o consultor o botão some e o painel fica vazio (mesaResetar); a proteção real são as RPCs. -->
+    <section class="panel" id="panel-mesa">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <h3 style="margin:0">Mesa do Supervisor</h3>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <span id="mesaStatus" style="font-size:12px;color:var(--muted)"></span>
+            <button type="button" class="btn btn-sm btn-outline" id="btnMesaAtualizar" style="width:auto">Atualizar</button>
+          </div>
+        </div>
+        <p class="desc" id="mesaAtraso"></p>
+        <div class="kpiGrid" id="mesaKpis"></div>
+      </div>
+      <div class="card">
+        <h3>Atender agora — equipe</h3>
+        <p class="desc">Leads que ainda não receberam o 1º contato (relógio em minutos úteis). Lead sem dono precisa ser atribuído na planilha.</p>
+        <div id="mesaFila"></div>
+      </div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <h3 style="margin:0">Semáforo por consultor</h3>
+          <button type="button" class="btn btn-sm btn-outline" id="btnMesaExportar" style="width:auto">Exportar Excel</button>
+        </div>
+        <p class="desc">Clique numa linha para ver os itens. "Cobrar" copia a mensagem e abre o WhatsApp para você escolher o contato.</p>
+        <div class="mlTabelaWrap"><table class="tbl">
+          <thead><tr><th></th><th>Consultor</th><th>Esperando agora</th><th>No prazo 7 d</th><th>Retornos atrasados</th><th>Leads esfriando</th><th>Propostas paradas</th><th>Pedidos em risco</th><th>Ligações hoje</th><th>Vendas no mês / meta</th><th></th></tr></thead>
+          <tbody id="mesaSemaforoTbody"></tbody>
+        </table></div>
+      </div>
+      <div class="card">
+        <h3>Velocidade × conversão</h3>
+        <p class="desc">Conversão dos leads do mês pelo tempo até o 1º contato registrado (clique no painel ou ligação).</p>
+        <div class="filterPills" id="mesaVelPills" style="margin:10px 0"></div>
+        <div id="mesaVelTabela"></div>
+        <p class="desc">Amostra pequena: só leia diferenças com 30+ leads por faixa.</p>
       </div>
     </section>
 
@@ -1954,6 +1994,8 @@ function enterApp(){
     // Fechamento (18/09/2026): só admin — é o relatório de comissionamento, dado sensível de
     // pagamento do consultor (ver REGRAS_NEGOCIO.md seção 16.14).
     document.getElementById('tabBtnFechamento').style.display = canSeeFechamento() ? 'inline-block' : 'none';
+    // 02/10/2026 (seção 68): Mesa do Supervisor — só admin/supervisor
+    mesaAplicarPermissao();
     document.getElementById('btnConversaoSync').style.display = canSyncConversao() ? 'inline-block' : 'none';
 
     document.getElementById('newRole').innerHTML = '<option value="consultor">Consultor</option>'
@@ -2194,6 +2236,7 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
   if(btn.dataset.tab === 'conversao') loadConversaoVendas();
   if(btn.dataset.tab === 'fechamento') loadFechamento();
   if(btn.dataset.tab === 'config') carregarEmailConfigStatus();
+  if(btn.dataset.tab === 'mesa') loadMesa(true);
 });
 
 // 28/09/2026: o menu lateral do chefe (27/09, com gaveta/hambúrguer no celular) foi substituído pelo
@@ -10772,6 +10815,96 @@ function mesaAtrasoPlanilhaMin(leads, agoraMs){
   const v = mesaDesde(leads, agoraMs, 7).map(l => { const a = vlMs(l.primeira_sync_em), b = vlMs(l.criado_em_lead); return a !== null && b !== null && a >= b ? (a - b) / 60000 : null; }).filter(x => x !== null);
   return mesaMediana(v);
 }
+const mesaEstado = { geracao: 0, cfg: vlCfg(null), dados: null, erros: {}, aba: null, aberto: null, timer: null, agora: 0, hoje: '' };
+function mesaAgora(){ return Date.now(); }
+function mesaResetar(){
+  mesaEstado.geracao++;
+  clearInterval(mesaEstado.timer); mesaEstado.timer = null;
+  Object.assign(mesaEstado, { dados: null, erros: {}, aba: null, aberto: null });
+  ['mesaKpis', 'mesaFila', 'mesaSemaforoTbody', 'mesaVelPills', 'mesaVelTabela', 'mesaAtraso', 'mesaStatus'].forEach(id => { document.getElementById(id).innerHTML = ''; });
+}
+function mesaAplicarPermissao(){
+  const vis = canSeeMesa();
+  document.getElementById('tabBtnMesa').style.display = vis ? 'inline-block' : 'none';
+  if(!vis) mesaResetar();
+}
+async function loadMesa(forcar){
+  if(!canSeeMesa()) return;
+  const geracao = ++mesaEstado.geracao;
+  const agora = mesaAgora(), hoje = vlPartesSP(agora).dia, ym = hoje.slice(0, 7);
+  const [y, m] = ym.split('-').map(Number);
+  const mesAnterior = (m === 1 ? (y - 1) + '-12' : y + '-' + String(m - 1).padStart(2, '0')) + '-01';
+  document.getElementById('mesaStatus').textContent = 'Carregando…';
+  const [lds, pend, lig, ven, met, cfg] = await Promise.all([
+    ppSeguro(() => fetchAllRows(() => sb.rpc('mesa_leads_relogio', { p_desde: mesAnterior + 'T00:00:00-03:00' }))),
+    ppSeguro(() => fetchAllRows(() => sb.rpc('mesa_pendencias', { p_ref: hoje }))),
+    ppSeguro(() => sb.rpc('mesa_ligacoes_hoje', { p_ref: hoje })),
+    ppSeguro(() => sb.rpc('mesa_vendas_mes', { p_mes: ym + '-01' })),
+    ppSeguro(() => sb.from('metas_consultor').select('profile_id,mes,meta_receita').eq('mes', ym + '-01')),
+    ppSeguro(() => sb.from('config').select('chave,valor').eq('chave', 'velocidade_lead').maybeSingle()),
+  ]);
+  if(geracao !== mesaEstado.geracao || !canSeeMesa()) return;
+  const ok = r => r && !r.error;
+  mesaEstado.cfg = vlCfg(ok(cfg) && cfg.data ? cfg.data.valor : null);
+  mesaEstado.erros = { leads: !ok(lds), pend: !ok(pend), lig: !ok(lig), vendas: !ok(ven), metas: !ok(met) };
+  Object.keys(mesaEstado.erros).forEach(k => { if(mesaEstado.erros[k]) console.error('Mesa: falha em ' + k); });
+  mesaEstado.dados = {
+    leads: ok(lds) ? (lds.data || []) : [], pend: ok(pend) ? (pend.data || []) : [],
+    lig: ok(lig) ? (lig.data || []) : [], vendas: ok(ven) ? (ven.data || []) : [], metas: ok(met) ? (met.data || []) : [],
+  };
+  mesaEstado.agora = agora; mesaEstado.hoje = hoje;
+  document.getElementById('mesaStatus').textContent = 'Atualizado às ' + new Date(agora - 3 * 3600000).toISOString().slice(11, 16);
+  mesaRender();
+  clearInterval(mesaEstado.timer);
+  mesaEstado.timer = setInterval(() => {
+    const ativo = document.getElementById('panel-mesa').classList.contains('active');
+    if(ativo && document.visibilityState === 'visible') loadMesa(false).catch(err => console.error(err));
+  }, 120000);
+}
+function mesaFmtPct(v){ return v === null || v === undefined ? '—' : fmtPctConversao(v); }
+function mesaKpiHtml(rotulo, valor, sub){
+  return `<div class="kpiCard"><div class="kpiLabel">${escapeHtml(rotulo)}</div><div class="kpiValue">${escapeHtml(String(valor))}</div>${sub ? `<div class="kpiSub">${escapeHtml(sub)}</div>` : ''}</div>`;
+}
+function mesaRender(){
+  const d = mesaEstado.dados;
+  if(!d) return;
+  const cfg = mesaEstado.cfg, agora = mesaEstado.agora, hoje = mesaEstado.hoje;
+  // atraso da planilha
+  const atraso = mesaAtrasoPlanilhaMin(d.leads, agora);
+  const elA = document.getElementById('mesaAtraso');
+  elA.textContent = atraso === null ? '' : 'Leads chegam ao painel em ~' + vlFmtMin(atraso) + ' depois de entrar (mediana de 7 dias).' + (atraso > 15 ? ' O atraso está antes do consultor (planilha/integração).' : '');
+  elA.style.color = atraso !== null && atraso > 15 ? 'var(--c-sinal)' : '';
+  // KPIs
+  const k = mesaKpis(d.leads, d.pend, agora, cfg, hoje);
+  document.getElementById('mesaKpis').innerHTML = mesaEstado.erros.leads ? '<p class="desc">Não foi possível carregar os leads agora.</p>' : [
+    mesaKpiHtml('Leads novos hoje', k.novosHoje),
+    mesaKpiHtml('No prazo (até ' + cfg.amarelo_min + ' min)', mesaFmtPct(k.noPrazo7), 'hoje: ' + mesaFmtPct(k.noPrazoHoje) + ' · 7 dias acima'),
+    mesaKpiHtml('Mediana até o 1º contato', k.medianaMin === null ? '—' : vlFmtMin(k.medianaMin), '7 dias, minutos úteis'),
+    mesaKpiHtml('Esperando agora', k.esperando, k.semDono ? k.semDono + ' sem dono' : ''),
+    mesaKpiHtml('Retornos atrasados', mesaEstado.erros.pend ? '—' : k.retornosAtrasados),
+    mesaKpiHtml('Pedidos em risco 🔴', mesaEstado.erros.pend ? '—' : k.pedidosVermelhos),
+  ].join('');
+  // fila da equipe (sem telefone)
+  const fila = vlPendentes(mesaDesde(d.leads, agora, cfg.janela_dias), agora, cfg).filter(x => x.cor !== 'aguardando');
+  const classe = { vermelho: 'retornoBadge atrasado', amarelo: 'retornoBadge hoje', verde: 'retornoBadge futuro' };
+  document.getElementById('mesaFila').innerHTML = mesaEstado.erros.leads ? '<p class="desc">Não foi possível carregar agora.</p>'
+    : (fila.length ? fila.map(x => `<div class="retornoLeadRow vlRow" data-lead-id="${escapeHtml(x.lead.lead_id)}">
+        <div class="retornoLeadInfo"><strong>${escapeHtml(x.lead.consultor || 'Sem dono')}</strong>
+          <span class="retornoLeadSub">${escapeHtml(conversaoAbaRotulo(x.lead.aba))} · entrou ${escapeHtml(mlFmtDiaHora(x.lead.criado_em_lead))}</span></div>
+        <div class="retornoLeadAcoes">${x.lead.consultor ? '' : '<span class="badge">sem dono — atribua na planilha</span>'}
+          <span class="${classe[x.cor]} vlRelogio">${escapeHtml(vlFmtMin(x.min))}</span></div></div>`).join('')
+      : '<p class="desc">Nenhum lead esperando agora.</p>');
+  mesaRenderSemaforo();
+  mesaRenderVelocidade();
+}
+// Semáforo e Velocidade × conversão: implementados no Task 8; aqui só o mínimo para a carga.
+function mesaRenderSemaforo(){
+  const tb = document.getElementById('mesaSemaforoTbody');
+  if(mesaEstado.erros.pend){ tb.innerHTML = '<tr><td colspan="11">Não foi possível carregar as pendências agora.</td></tr>'; return; }
+  tb.innerHTML = '';
+}
+function mesaRenderVelocidade(){ document.getElementById('mesaVelTabela').innerHTML = ''; }
+document.getElementById('btnMesaAtualizar').addEventListener('click', () => loadMesa(true).catch(err => console.error(err)));
 </script>
 </body>
 </html>
