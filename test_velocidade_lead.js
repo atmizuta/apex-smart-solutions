@@ -184,6 +184,37 @@ try{
   assert(!window.__rpcCalls.some(c => c.nome === 'meus_leads_relogio'), 'admin não carrega o card do consultor');
   Date.now = nowReal;
 
+  // ==== TASK 5: WhatsApp da lista de baixo registra contato; aviso de lead novo ====
+  Date.now = () => sp('2026-10-05T10:00:00');
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  window.__rpcRespostas.meus_leads_para_tratar = { data: [{ aba: 'OUTUBRO', lead_id: 'pl1', nome: 'Lead Teste PL', telefone: 'p:+5519900000011', status: 'EM NEGOCIACAO', categoria: 'andamento', criado_em_lead: '2026-10-04T12:00:00Z', tentativas: 0, atendidas: 0, ultima_ligacao: null, obs: '' }], error: null };
+  window.__rpcRespostas.meus_leads_relogio = { data: [], error: null };
+  await plCarregar();
+  const plw = document.querySelector('#plLista .plWhats');
+  assert(plw && plw.dataset.aba === 'OUTUBRO' && plw.dataset.leadId === 'pl1', 'plWhats leva aba e id');
+  window.__rpcCalls.length = 0;
+  plw.click();
+  await espera(30);
+  eq((window.__rpcCalls.find(c => c.nome === 'registrar_contato_lead') || {}).args, { p_aba: 'OUTUBRO', p_lead_id: 'pl1', p_canal: 'whatsapp' }, 'WhatsApp da lista registra contato');
+
+  // aviso de lead novo: a 1ª carga só memoriza; a recarga com lead novo avisa
+  window.__rpcRespostas.meus_leads_relogio = { data: [L('n1', { criado_em_lead: iso('2026-10-05T09:55:00') })], error: null };
+  vlResetar();
+  await vlCarregar(true);
+  window.__alertas.length = 0;
+  const toasts = () => [window.__alertas.join(' '), (document.getElementById('apexToasts') ? document.getElementById('apexToasts').textContent : '')].filter(Boolean).join(' ');
+  const antes = toasts();
+  window.__rpcRespostas.meus_leads_relogio = { data: [L('n1', { criado_em_lead: iso('2026-10-05T09:55:00') }), L('n2', { nome: 'Fulano Teste', criado_em_lead: iso('2026-10-05T09:59:00') })], error: null };
+  await vlCarregar(true);
+  const depois = toasts().replace(antes, '');
+  assert(depois.includes('Lead novo: Fulano'), 'recarga avisa o lead novo');
+  assert(!depois.includes('Lead Teste n1'.split(' ')[0] + ' — '), 'não avisa de novo o que já tinha visto');
+  window.__alertas.length = 0;
+  const antes2 = toasts();
+  await vlCarregar(true);
+  assert(!toasts().replace(antes2, '').includes('Lead novo'), 'sem lead novo, sem aviso');
+  Date.now = nowReal;
+
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');

@@ -9129,7 +9129,7 @@ function plRender(){
       <div class="retornoLeadAcoes">
         <span class="retornoBadge ${classeBadge[x.situacao]}">${escapeHtml(rotulo(x))}</span>
         ${x.pendente ? `<button type="button" class="btn btn-sm btn-outline btnPlFeito" data-followup-id="${escapeHtml(x.pendente.id)}">Marcar feito</button>` : ''}
-        ${wa ? `<a class="btn btn-sm plWhats" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${encodeURIComponent(plMensagemWhats(l, consultor))}" style="width:auto">WhatsApp</a>` : ''}
+        ${wa ? `<a class="btn btn-sm plWhats" target="_blank" rel="noopener" data-aba="${escapeHtml(l.aba)}" data-lead-id="${id}" href="https://wa.me/${wa}?text=${encodeURIComponent(plMensagemWhats(l, consultor))}" style="width:auto">WhatsApp</a>` : ''}
         ${tel ? `<button type="button" class="btn btn-sm btn-outline" data-copiar="${escapeHtml(tel)}" style="width:auto">${escapeHtml(tel)}</button>` : ''}
         <button type="button" class="btn btn-sm btn-ghost btnPlRapido" data-lead-id="${id}" data-dias="1" title="Agenda um retorno para amanhã">Amanhã</button>
         <button type="button" class="btn btn-sm btn-ghost btnPlRapido" data-lead-id="${id}" data-dias="3" title="Agenda um retorno para daqui a 3 dias">Em 3 dias</button>
@@ -9351,6 +9351,9 @@ function vlResetar(){
 }
 
 document.getElementById('plLista').addEventListener('click', async function(ev){
+  // 02/10/2026 (seção 68): todo WhatsApp enviado daqui também conta como contato (o 1º contato é o mais antigo)
+  const pw = ev.target.closest('.plWhats');
+  if(pw){ vlRegistrar(pw.dataset.aba, pw.dataset.leadId, 'whatsapp'); return; }
   // 01/10/2026 (seção 64): retorno em 1 clique (amanhã / em 3 dias), sem abrir o formulário
   const rp = ev.target.closest('.btnPlRapido');
   if(rp){
