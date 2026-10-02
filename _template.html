@@ -10669,6 +10669,109 @@ document.getElementById('ppMetasMes').addEventListener('change', ppAdminCarregar
     await loadProfileAndEnter(session.user);
   }
 })();
+
+/* ============ MESA DO SUPERVISOR — 02/10/2026, REGRAS_NEGOCIO.md §68 ============
+   Admin/supervisor: pendências da equipe numa tela só (leads esperando, retornos, propostas, pedidos,
+   ligações e vendas) e cobrança em 1 clique. Regras de tempo: funções vl* (minutos úteis). */
+function canSeeMesa(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
+function mesaDiaSP(v){ const ms = vlMs(v); return ms === null ? null : vlPartesSP(ms).dia; }
+function mesaMediana(nums){
+  if(!nums || !nums.length) return null;
+  const s = nums.slice().sort((a, b) => a - b), m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+// "No prazo" = atendidos em até amarelo_min minutos úteis. Base: quem já teve contato + quem ainda espera e já estourou.
+function mesaNoPrazo(leads, agoraMs, cfg){
+  let dentro = 0, base = 0;
+  (leads || []).forEach(l => {
+    const ini = vlMs(l.criado_em_lead);
+    if(ini === null) return;
+    const c = vlPrimeiroContatoMs(l);
+    if(c !== null){ base++; if(vlMinutosUteis(ini, c, cfg) <= cfg.amarelo_min) dentro++; return; }
+    if(vlEsperando(l) && vlMinutosUteis(ini, agoraMs, cfg) > cfg.amarelo_min) base++;
+  });
+  return base ? dentro / base : null;
+}
+// Nível do pedido igual ao Pedidos Parados (dias úteis desde a entrada na etapa; < 3 = fora).
+function mesaNivelPedido(item, hoje){ const d = mesaDiaSP(item.desde); return d ? ppNivel(ppDiasUteisDesde(d, hoje)) : null; }
+function mesaDesde(leads, agoraMs, dias){ return (leads || []).filter(l => (vlMs(l.criado_em_lead) || 0) >= agoraMs - dias * 86400000); }
+function mesaKpis(leads, pend, agoraMs, cfg, hoje){
+  const de7 = mesaDesde(leads, agoraMs, 7);
+  const deHoje = (leads || []).filter(l => mesaDiaSP(l.criado_em_lead) === hoje);
+  const tempos = de7.map(l => { const i = vlMs(l.criado_em_lead), c = vlPrimeiroContatoMs(l); return i !== null && c !== null ? vlMinutosUteis(i, c, cfg) : null; }).filter(v => v !== null);
+  const esperando = vlPendentes(mesaDesde(leads, agoraMs, cfg.janela_dias), agoraMs, cfg).filter(x => x.cor !== 'aguardando');
+  const p = pend || [];
+  return {
+    novosHoje: deHoje.length,
+    noPrazoHoje: mesaNoPrazo(deHoje, agoraMs, cfg),
+    noPrazo7: mesaNoPrazo(de7, agoraMs, cfg),
+    medianaMin: mesaMediana(tempos),
+    esperando: esperando.length,
+    semDono: esperando.filter(x => !x.lead.consultor).length,
+    retornosAtrasados: p.filter(x => x.tipo === 'retorno_atrasado').length,
+    pedidosVermelhos: p.filter(x => x.tipo === 'pedido_risco' && mesaNivelPedido(x, hoje) === 'maximo').length,
+  };
+}
+const MESA_ORDEM_COR = { vermelho: 0, amarelo: 1, verde: 2 };
+function mesaSemaforo(dados, agoraMs, cfg, hoje){
+  const linhas = new Map();
+  const linha = (profileId, nome) => {
+    const k = profileId ? 'p:' + profileId : 'n:' + plNormStatus(nome);
+    if(!linhas.has(k)) linhas.set(k, { chave: k, profileId: profileId || null, nome: nome || '(sem nome)', semLogin: !profileId,
+      leads: [], esperando: [], retornos: [], esfriando: [], propostas: [], pedidos: [], lig: null, mediaLig: null, vendas: null, meta: null });
+    return linhas.get(k);
+  };
+  (dados.pend || []).forEach(x => {
+    const r = linha(x.profile_id, x.nome);
+    if(x.tipo === 'retorno_atrasado') r.retornos.push(x);
+    else if(x.tipo === 'lead_esfriando') r.esfriando.push(x);
+    else if(x.tipo === 'proposta_parada') r.propostas.push(x);
+    else if(x.tipo === 'pedido_risco'){ const nivel = mesaNivelPedido(x, hoje); if(nivel) r.pedidos.push(Object.assign({}, x, { nivel })); }
+  });
+  (dados.leads || []).forEach(l => { if(l.consultor) linha(l.profile_id, l.consultor).leads.push(l); });   // sem dono fica só na fila da equipe
+  const ligPor = new Map((dados.lig || []).map(x => [x.profile_id, x]));
+  const comLig = (dados.lig || []).filter(x => Number(x.lig_lead) > 0);
+  const mediaLig = comLig.length ? comLig.reduce((s, x) => s + Number(x.lig_lead), 0) / comLig.length : null;
+  const vendasPor = new Map((dados.vendas || []).map(x => [x.profile_id, x]));
+  const metaPor = new Map((dados.metas || []).map(x => [x.profile_id, Number(x.meta_receita) || 0]));
+  const diaMs = (d) => Date.parse(d + 'T00:00:00Z');
+  return [...linhas.values()].map(r => {
+    r.esperando = vlPendentes(mesaDesde(r.leads, agoraMs, cfg.janela_dias), agoraMs, cfg).filter(x => x.cor !== 'aguardando');
+    const de7 = mesaDesde(r.leads, agoraMs, 7);
+    r.noPrazo7 = de7.length >= 5 ? mesaNoPrazo(de7, agoraMs, cfg) : null;
+    if(r.profileId){ r.lig = ligPor.get(r.profileId) || null; r.vendas = vendasPor.get(r.profileId) || null; r.meta = metaPor.has(r.profileId) ? metaPor.get(r.profileId) : null; }
+    r.mediaLig = mediaLig;
+    r.nPend = r.esperando.length + r.retornos.length + r.esfriando.length + r.propostas.length + r.pedidos.length;
+    const retornoVelho = r.retornos.some(x => { const d = mesaDiaSP(x.desde); return d && (diaMs(hoje) - diaMs(d)) / 86400000 >= 2; });
+    r.cor = (r.esperando.some(x => x.cor === 'vermelho') || r.pedidos.some(p => p.nivel === 'maximo') || retornoVelho) ? 'vermelho' : (r.nPend ? 'amarelo' : 'verde');
+    return r;
+  }).sort((a, b) => (MESA_ORDEM_COR[a.cor] - MESA_ORDEM_COR[b.cor]) || (b.nPend - a.nPend) || a.nome.localeCompare(b.nome, 'pt-BR'));
+}
+function mesaTextoCobranca(r){
+  const pl = (n, um, varios) => n + ' ' + (n === 1 ? um : varios);
+  const partes = [];
+  if(r.esperando.length) partes.push(pl(r.esperando.length, 'lead esperando', 'leads esperando') + ' (o mais antigo há ' + vlFmtMin(Math.max(...r.esperando.map(x => x.min))) + ')');
+  if(r.retornos.length) partes.push(pl(r.retornos.length, 'retorno atrasado', 'retornos atrasados'));
+  if(r.esfriando.length) partes.push(pl(r.esfriando.length, 'lead esfriando', 'leads esfriando') + ' (5+ dias sem contato)');
+  if(r.propostas.length) partes.push(pl(r.propostas.length, 'proposta sem retorno', 'propostas sem retorno') + ' há mais de 7 dias');
+  if(r.pedidos.length) partes.push(pl(r.pedidos.length, 'pedido parado', 'pedidos parados'));
+  if(!partes.length) return '';
+  const nome = String(r.nome || '').trim().split(/\s+/)[0] || '';
+  return `Oi${nome ? ', ' + nome : ''}! Pendências de hoje: ${partes.join(', ')}. Bora zerar?`;
+}
+function mesaVelocidadeConversao(leads, aba, cfg){
+  const linhas = VL_FAIXAS.map(f => ({ faixa: f[0], rotulo: f[1], leads: 0, vendas: 0 })).concat([{ faixa: 'sem', rotulo: 'sem contato registrado', leads: 0, vendas: 0 }]);
+  (leads || []).filter(l => !aba || l.aba === aba).forEach(l => {
+    const r = linhas.find(x => x.faixa === vlFaixa(l, cfg));
+    r.leads++;
+    if(l.categoria === 'convertido') r.vendas++;
+  });
+  return linhas.map(r => Object.assign(r, { conversao: r.leads ? r.vendas / r.leads : null }));
+}
+function mesaAtrasoPlanilhaMin(leads, agoraMs){
+  const v = mesaDesde(leads, agoraMs, 7).map(l => { const a = vlMs(l.primeira_sync_em), b = vlMs(l.criado_em_lead); return a !== null && b !== null && a >= b ? (a - b) / 60000 : null; }).filter(x => x !== null);
+  return mesaMediana(v);
+}
 </script>
 </body>
 </html>
