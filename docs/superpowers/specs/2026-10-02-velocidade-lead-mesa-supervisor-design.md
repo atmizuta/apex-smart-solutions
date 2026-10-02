@@ -78,10 +78,14 @@ Nada do que o painel usa hoje muda de assinatura.
 - Configuração em `config.velocidade_lead` (JSON), com padrão:
   `{"seg_sex":["08:00","18:00"], "sabado":["08:00","12:00"], "verde_min":5, "amarelo_min":15, "janela_dias":7}`.
 - **Início do relógio** = `criado_em_lead`. Se o lead chegou fora do expediente, o relógio começa na **próxima abertura**. Domingo e feriados nacionais (os mesmos de `ppFeriados`) não contam.
-- **Fim do relógio** = 1º contato. Contato é o primeiro de três sinais:
+- **Fim do relógio** = 1º contato. Contato é o primeiro de dois sinais:
   - o primeiro clique em `leads_contatos`;
-  - a primeira ligação manual para o `chave_tel` do lead com `gerada_em >= criado_em_lead - 1 h`;
-  - mudança de `categoria` para algo diferente de `sem_contato`, vista no sync. Não tem horário confiável, então só **encerra** o relógio, sem gerar tempo.
+  - a primeira ligação manual para o `chave_tel` do lead com `gerada_em >= criado_em_lead - 1 h`.
+- **O status da planilha NÃO conta como contato.** Em 02/10, os 64 leads dos últimos 2 dias já estavam no banco com status preenchido (nenhum "sem status", nenhum sem dono). Ou seja, o status não marca o momento do contato.
+- **Quem fica na lista "esperando":** lead sem contato registrado, com `categoria` em `sem_contato`/`andamento`, criado nos últimos `janela_dias`.
+  - Lead já `convertido`/`perdido` sem contato registrado sai da lista e entra nas estatísticas como "sem contato registrado".
+  - Lead em andamento que foi contatado por fora sai com o botão "Já falei com ele".
+- **Pergunta em aberto para o Rafael:** quem põe o lead na planilha, e se ele já entra com consultor e status. Até a resposta vale a regra acima. Nos primeiros dias vão aparecer leads "em andamento" esperando, porque foram contatados antes de o botão existir.
 - **Cores:**
   - verde: até `verde_min`;
   - amarelo: até `amarelo_min`;
@@ -97,7 +101,8 @@ Nada do que o painel usa hoje muda de assinatura.
 - Linhas antigas ficam nulas. A métrica vale só de 02/10 em diante.
 
 ### 4.4 Sync de leads mais frequente
-- O cron `sync-leads-auto` passa de `22,52 * * * *` para `*/10 * * * *` (a cada 10 min, o dia todo).
+- O cron `sync-leads-auto` passa de `22,52 * * * *` para `2-59/10 * * * *` (minutos 2, 12, 22, 32, 42 e 52, o dia todo). Fica fora dos múltiplos de 15 do alerta e do minuto 59 da produção.
+- O texto da Digital "(automática a cada 30 min)" passa a dizer "(automática a cada 10 min)".
 - A trava de mês (seção 62) e o resto da função continuam iguais.
 - O custo é baixo: lê o `htmlview` da planilha, sem limite conhecido.
 - Rollback: voltar para `22,52 * * * *`.
@@ -106,9 +111,9 @@ Nada do que o painel usa hoje muda de assinatura.
 1. **`registrar_contato_lead(p_aba text, p_lead_id text, p_canal text) returns void`**
    - O consultor só registra lead dele: `norm_nome(leads.consultor) in (select meus_leads_nomes())`. Admin e supervisor registram qualquer lead.
    - Outros casos dão erro `42501`. Canal inválido dá `22023`.
-2. **`meus_leads_relogio() returns table(aba, lead_id, nome, telefone, status, criado_em_lead, primeiro_clique, primeira_ligacao, contatado boolean)`**
-   - Leads do consultor logado (mesmo filtro de `meus_leads_para_tratar`, sem o Repique) com `criado_em_lead` nos últimos `janela_dias` dias.
-   - `contatado` = tem clique, tem ligação ou `categoria <> 'sem_contato'`.
+2. **`meus_leads_relogio() returns table(aba, lead_id, nome, telefone, cidade, qtd_linhas, status, categoria, criado_em_lead, primeiro_clique, primeira_ligacao)`**
+   - Leads do consultor logado (`meus_leads_nomes()`, sem o Repique), de qualquer categoria, com `criado_em_lead` nos últimos `janela_dias` dias (lido de `config.velocidade_lead`, padrão 7).
+   - O navegador decide quem está "esperando" pela regra da seção 4.2.
    - O consultor continua sem ler `ligacoes_manuais`. Só recebe o timestamp da 1ª ligação para os próprios leads.
 3. **`mesa_leads_relogio(p_desde timestamptz) returns table(aba, lead_id, consultor, profile_id, criado_em_lead, primeira_sync_em, categoria, converteu, primeiro_clique, canal_clique, primeira_ligacao)`**
    - Só admin/supervisor (`get_my_role()`). `profile_id` vem de `leads_equipe` pelo nome.
@@ -133,12 +138,12 @@ Nada do que o painel usa hoje muda de assinatura.
 **Onde:** card no **topo** da sub-aba Digital → "Meus leads para tratar", acima do `plPlacar`. Fica visível só para o consultor com vínculo (mesma regra da seção 61).
 
 - **Lista:** leads do consultor ainda **não contatados**, criados nos últimos `janela_dias`. Ordem: vermelho → amarelo → verde → cinza "aguardando abertura", e o mais antigo primeiro.
-- **Por lead:** nome, cidade, nº de linhas, relógio (`mm:ss` até 60 min, depois `Xh Ymin`), selo de cor, e os botões:
+- **Por lead:** nome, cidade, nº de linhas, relógio (`< 1 min`, `X min` até 60, depois `Xh Ymin`), selo de cor, e os botões:
   - **WhatsApp:** mesma mensagem de `plMensagemWhats`, tipo "resgatar". Registra `whatsapp` antes de abrir o link.
   - **Ligar:** link `tel:`. Registra `ligar`.
   - **Já falei com ele:** registra `manual`, para o contato feito por fora.
 - **Ao registrar**, o lead sai da lista na hora (otimista). Se a RPC falhar, ele volta e aparece `mostrarAviso('Não foi possível registrar o contato — tente de novo', 'erro')`.
-- **Registro também na lista de baixo:** o botão WhatsApp que já existe em "Meus leads para tratar" (`plWhats`) passa a registrar `whatsapp` quando o lead ainda não tem contato. Isso fecha o buraco "atendido no WhatsApp e nunca medido".
+- **Registro também na lista de baixo:** o botão WhatsApp que já existe em "Meus leads para tratar" (`plWhats`) passa a registrar `whatsapp` em todo clique. O 1º contato é sempre o mais antigo, e o banco ignora a repetição em menos de 2 min. Isso fecha o buraco "atendido no WhatsApp e nunca medido".
 - **Relógio vivo:** o card recalcula a cada 30 s (só a renderização) e recarrega a RPC a cada 2 min enquanto a aba do navegador está visível (`document.visibilityState`).
 - **Aviso de lead novo:** se, na recarga, aparecer um lead que não estava antes:
   - `mostrarAviso('Lead novo: <primeiro nome> — atenda agora', 'info')`;
@@ -153,10 +158,12 @@ Nada do que o painel usa hoje muda de assinatura.
 **Navegação:**
 - Botão novo `<button data-tab="mesa" id="tabBtnMesa" style="display:none" data-sub="Pendências da equipe e cobrança em 1 clique">`, no grupo **Visão geral**, logo depois de Dashboard, com o mesmo formato SVG + `.sbLabel` ("Mesa do Supervisor").
 - Visível se `producaoAdminMode()`.
-- Para o consultor, a `section#panel-mesa` é **removida do DOM**, no mesmo padrão da seção 48.1.
+- Para o consultor, o botão fica escondido, a `section#panel-mesa` fica vazia (`mesaResetar()`) e `loadMesa()` não faz nada.
+  - Não é removida do DOM porque a troca de login no mesmo navegador (consultor → admin) não recarrega a página.
+  - A proteção real são as RPCs, que dão erro para o consultor.
 
 **Carga:**
-- Ao abrir a aba, chama em paralelo `mesa_leads_relogio(now() - janela)`, `mesa_pendencias(hoje SP)`, `mesa_ligacoes_hoje(hoje SP)` e `mesa_vendas_mes`, mais `metas_consultor`.
+- Ao abrir a aba, chama em paralelo `mesa_leads_relogio(1º dia do mês anterior, 00:00 SP)` (cobre os 7 dias e a tabela por mês), `mesa_pendencias(hoje SP)`, `mesa_ligacoes_hoje(hoje SP)` e `mesa_vendas_mes`, mais `metas_consultor`.
 - Recarrega a cada 2 min com a aba visível e no botão "Atualizar".
 - Cada bloco falha sozinho: o bloco mostra "não foi possível carregar" e os outros aparecem.
 
@@ -198,7 +205,7 @@ Nada do que o painel usa hoje muda de assinatura.
   - Copia o texto para a área de transferência e abre `https://wa.me/?text=…` (sem número, o supervisor escolhe o contato).
   - Avisa `mostrarAviso('Mensagem copiada', 'ok')`.
   - Linha verde não tem botão.
-- **Exportar Excel** (ExcelJS sob demanda, padrão da seção 48.4): uma aba com o semáforo e uma aba com os itens.
+- **Exportar Excel:** com `mlBaixarXlsx`, o mesmo SheetJS do Monitoramento Leads, sem cores. Uma aba com o semáforo e uma aba com os itens. Não usa ExcelJS (YAGNI).
 
 ### 6.4 Atraso da planilha
 - Linha discreta no topo: "Leads chegam ao painel em ~X min (mediana de `primeira_sync_em - criado_em_lead`, 7 dias)".
@@ -216,7 +223,7 @@ Nada do que o painel usa hoje muda de assinatura.
 - **Consultor:**
   - vê só os próprios leads e o próprio relógio;
   - registra contato só nos próprios leads;
-  - não vê a Mesa, que é removida do DOM, e as RPCs da Mesa dão erro `42501` para ele;
+  - não vê a Mesa (botão escondido, painel vazio), e as RPCs da Mesa dão erro `42501` para ele;
   - continua sem ler `ligacoes_manuais`.
 - **Admin e supervisor:** veem tudo da Mesa.
 - **Telefones:**
