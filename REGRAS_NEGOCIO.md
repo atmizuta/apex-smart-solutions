@@ -2588,3 +2588,13 @@ Migration `supabase/migrations/20261001600000_meus_leads_resgatar_placar.sql` (r
 - **Painel:** o upload ignora as linhas eagle.* (`mlEhEagle`), não as envia e mostra o cartão "Ignoradas (Eagle)"; arquivo só da Eagle é recusado com mensagem explicando. "apex.eagleton" (não COMEÇA com eagle) entra normalmente.
 - Testes: `test_monitoramento_leads.js` 219 ok. Falhas antigas e não relacionadas: `test_conversao_vendas.js` (relógio) e `test_pedidos_alerta.js` (falta `exceljs`).
 - **Publicado (01/10/2026, ~20:47, horário de SP):** banco antes do painel (gatilho + exclusão). Painel no ar (MD5 `69278d1c…`) era idêntico ao `oficial/main`; publicado **`0b538da41c13320f503fc2f3fcdf496f`** (gerado = servidor = site), vigia atualizado. Backup: `~/deploy_backups/painel_clientes_apex_20261001_204735_antes_ignora_eagle.html`. Reverter: copiar o backup de volta; rollback do gatilho em `supabase/rollback/` (as ligações da Eagle só voltam reenviando o Excel).
+
+## 66. Cadastro Diário: a matriz "Vendas Diárias por Vendedor" mostra todos os consultores da Apex (01/10/2026)
+
+- Pedido do usuário: na aba Cadastro Diário (Dashboard de Produção) não apareciam consultores como Manuella, Vitoria Brito, Victoria, Giovanna — "todos os consultores da Apex precisam estar nesse painel".
+- Causa: `renderVendorDailyMatrix()` montava as linhas só com quem tinha pedido cadastrado no mês selecionado (com os filtros aplicados); quem zerou no mês não ganhava linha.
+- Correção:
+  - Banco (migration `supabase/migrations/20261001800000_equipe_vendedores.sql`, rollback em `supabase/rollback/`): RPC `equipe_vendedores()` devolve o nome (NeoCRM, maiúsculo — o mesmo de `producao_pedidos.usuario`) de cada consultor de `consultor_neo` (18 em 01/10, inclusive admins que vendem: Isabelly, Rafael). `security definer` porque o consultor só vê a própria linha de `consultor_neo`; devolve só nomes, que já aparecem no dashboard.
+  - Painel: `loadProducaoDashboard` busca a lista e preenche o placeholder `__EQUIPE__` do template (adicionado a `RUNTIME_PLACEHOLDERS` no `build_painel.py`). Sem a lista (erro/versão antiga), a matriz funciona como antes.
+  - Dashboard (`_dashboard_producao.html`): a matriz acrescenta quem é da equipe e não vendeu no mês (linha zerada, em vermelho nos dias úteis), em ordem alfabética depois de quem vendeu. Com filtro de vendedor ativo, só os marcados. Quem vendeu e não está na lista continua aparecendo.
+- Testes: `test_cadastro_diario_equipe.js` (13 ok). Falhas antigas e não relacionadas: `test_conversao_vendas.js` (relógio) e `test_pedidos_alerta.js` (falta `exceljs`).
