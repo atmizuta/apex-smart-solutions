@@ -10907,7 +10907,7 @@ function mesaRenderSemaforo(){
   const n = v => v ? String(v) : '0';
   tb.innerHTML = linhas.map(r => {
     const pior = r.esperando.length ? ' · ' + vlFmtMin(Math.max(...r.esperando.map(x => x.min))) : '';
-    const ped = r.pedidos.length ? ['maximo', 'medio', 'minimo'].map(nv => { const q = r.pedidos.filter(p => p.nivel === nv).length; return q ? q + ' ' + PP_NIVEL_ROTULO[nv] : ''; }).filter(Boolean).join(' · ') : '0';
+    const ped = r.pedidos.length ? ['maximo', 'medio', 'minimo'].map(nv => { const q = r.pedidos.filter(p => p.nivel === nv).length; return q ? `<span class="ppNivel ${nv}">${escapeHtml(q + ' ' + PP_NIVEL_ROTULO[nv])}</span>` : ''; }).filter(Boolean).join(' · ') : '0';
     const lig = r.lig ? n(r.lig.lig_lead) + (r.mediaLig ? ' (média ' + Math.round(r.mediaLig) + ')' : '') : '—';
     const vend = r.vendas ? fmtBRL(Number(r.vendas.receita) || 0) + (r.meta ? ' / ' + fmtBRL(r.meta) + ' · ' + fmtPctConversao((Number(r.vendas.receita) || 0) / r.meta) : ' · sem meta') : (r.meta ? 'R$ 0 / ' + fmtBRL(r.meta) : 'sem meta');
     const selo = MESA_SELO[r.cor];
@@ -10915,7 +10915,7 @@ function mesaRenderSemaforo(){
       <td><span class="${selo[0]}">${selo[1]}</span></td>
       <td><span class="mesaNome">${escapeHtml(r.nome)}</span>${r.semLogin ? ' <span class="badge">sem login</span>' : ''}</td>
       <td>${n(r.esperando.length)}${escapeHtml(pior)}</td><td>${mesaFmtPct(r.noPrazo7)}</td>
-      <td>${n(r.retornos.length)}</td><td>${n(r.esfriando.length)}</td><td>${n(r.propostas.length)}</td><td>${escapeHtml(ped)}</td>
+      <td>${n(r.retornos.length)}</td><td>${n(r.esfriando.length)}</td><td>${n(r.propostas.length)}</td><td>${ped}</td>
       <td>${escapeHtml(lig)}</td><td>${escapeHtml(vend)}</td>
       <td>${r.nPend && r.profileId ? `<button type="button" class="btn btn-sm btn-outline" data-mesa-cobrar="${escapeHtml(r.chave)}" style="width:auto">Cobrar</button>` : ''}</td></tr>`;
     return linhaHtml + (mesaEstado.aberto === r.chave ? mesaDetalheHtml(r) : '');

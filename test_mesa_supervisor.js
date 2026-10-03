@@ -212,6 +212,8 @@ try{
   assert(trs[0].textContent.includes('R$') && trs[0].textContent.includes('30,0%'), 'Caio: vendas x meta (900/3000 = 30%)');
   assert(trs[2].textContent.includes('sem meta'), 'Luria: sem meta');
   assert(document.querySelector('#mesaSemaforoTbody tr[data-mesa-linha] .retornoBadge.atrasado'), 'linha vermelha com selo atrasado');
+  const zecaPedidoNivel = trs[1].querySelector('.ppNivel.maximo');
+  assert(zecaPedidoNivel && zecaPedidoNivel.textContent.includes('MÁXIMO'), 'Zeca: pedido em risco com a cor do nível (ppNivel.maximo)');
 
   // expandir
   trs[1].click();
