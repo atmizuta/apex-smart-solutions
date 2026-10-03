@@ -27,6 +27,7 @@ src = src
   .replace(/: \{ aba: string; id: string \}\[\]/g, '') // deduplicarLeads(registros: { aba: string; id: string }[])
   .replace(/^type .*$/gm, '')        // 01/10/2026: type LeadAba = {...} (trava de mês)
   .replace(/: LeadAba\[\]/g, '')
+  .replace(/: IgnoradoData\[\]/g, '')   // 02/10/2026: linhas ignoradas por data inválida (seção 68.7)
   .replace(/: Record<string, Record<string, number>>/g, '')
   .replace(/: Record<string, string>\[\]/g, '')
   .replace(/: Record<string, string>/g, '')
@@ -53,6 +54,7 @@ new Function('sandbox', trechoPuro + `
   sandbox.get = get;
   sandbox.mapearLinha = mapearLinha;
   sandbox.parseSheetCsv = parseSheetCsv;
+  sandbox.avisoIgnorados = avisoIgnorados;
   sandbox.deduplicarLeads = deduplicarLeads;
   sandbox.SHEET_TABS = SHEET_TABS;
   sandbox.sheetTabCsvUrl = sheetTabCsvUrl;
@@ -271,6 +273,27 @@ assert(/SYNC_CRON_SECRET/.test(handler) && /x-cron-secret/.test(handler), 'handl
 assert(/cronSecret !== ""/.test(handler), 'segredo do cron vazio nunca libera a chamada');
 assert(handler.indexOf('verificarTrava(') > 0 && handler.indexOf('verificarTrava(') < handler.indexOf('.upsert(lote'), 'a trava roda ANTES de gravar os leads');
 assert(/leads_sync_erro/.test(handler), 'erro da sincronização fica registrado em config.leads_sync_erro');
+
+// --- 02/10/2026 (seção 68.7): linha com created_time inválido é pulada, anotada com o nº da linha na
+// planilha, e NÃO derruba as outras (antes o upsert inteiro falhava com "invalid input syntax for type timestamp") ---
+const csvComTeste = [HEADER_CSV,
+  'l:201,2026-10-01T10:00:00-03:00,ag:1,A,as:1,C,c:1,Camp,f:1,F,false,fb,mei,1_linha,,a@b.com,Lead Teste Um,Cidade,SP,p:+5519900000001,CREATED,Caio,EM NEGOCIAÇÂO,,,',
+  ',,,,,,,,,,,,,,,,,,,,,,,,,',
+  'TESTE ,TESTE,TESTE ,TESTE ,TESTE ,TESTE ,TESTE ,TESTE ,TESTE ,TESTE ,TESTE ,TESTE ,TESTE ,TESTE ,TESTE ,TESTE ,TESTE ,TESTE ,TESTE ,TESTE ,TESTE ,,,,,',
+  'l:202,2026-10-01T11:00:00-03:00,ag:1,A,as:1,C,c:1,Camp,f:1,F,false,fb,mei,1_linha,,c@d.com,Lead Teste Dois,Cidade,SP,p:+5519900000002,CREATED,Caio,,,,',
+].join(String.fromCharCode(10)) + String.fromCharCode(10);
+const ign = [];
+const regsTeste = sandbox.parseSheetCsv(csvComTeste, 'LEADS - OUTUBRO', 'OUTUBRO', ign);
+assert(regsTeste.map(r => r.id).join(',') === 'l:201,l:202', 'linha com data inválida fica de fora e as outras entram (veio ' + regsTeste.map(r => r.id).join(',') + ')');
+assert(ign.length === 1 && ign[0].aba === 'OUTUBRO' && ign[0].linha === 4 && ign[0].valor === 'TESTE', 'anota aba, nº da linha na planilha (contando a vazia) e o valor (veio ' + JSON.stringify(ign) + ')');
+assert(sandbox.parseSheetCsv(csvComTeste, 'x', 'OUTUBRO').length === 2, 'sem a lista de ignorados (chamada antiga) continua funcionando');
+assert(regsNormal.length === 1 && sandbox.parseSheetCsv(csvNormal, 'AGOSTO (teste)', 'AGOSTO', []).length === 1, 'aba sem problema: nada ignorado');
+const av = sandbox.avisoIgnorados(ign);
+assert(av.includes('1 linha(s)') && av.includes('OUTUBRO linha 4 ("TESTE")') && av.includes('demais leads foram gravados'), 'texto do aviso: ' + av);
+assert(sandbox.avisoIgnorados([]) === '', 'sem linha ignorada: aviso vazio');
+const muitos = Array.from({ length: 7 }, (_, i) => ({ aba: 'OUTUBRO', linha: 10 + i, valor: 'x' }));
+assert(sandbox.avisoIgnorados(muitos).includes('e mais 2'), 'lista até 5 linhas e resume o resto');
+assert(/leads_sync_erro", valor: aviso/.test(handler), 'handler grava o aviso em leads_sync_erro quando houve linha ignorada');
 
 console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
 if(fail > 0) process.exitCode = 1;
