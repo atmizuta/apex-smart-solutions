@@ -2618,7 +2618,7 @@ Migration `supabase/migrations/20261001600000_meus_leads_resgatar_placar.sql` (r
 
 ## 68. Velocidade do lead ("Atender agora") e Mesa do Supervisor (02/10/2026)
 
-Pedido do usuário (02/10): aumentar a conversão dos consultores e dar praticidade aos supervisores (ideias 1 e 5 do brainstorming). Spec: `docs/superpowers/specs/2026-10-02-velocidade-lead-mesa-supervisor-design.md`; plano: `docs/superpowers/plans/2026-10-02-velocidade-lead-mesa-supervisor.md`. **Status: implementado no branch `feat/velocidade-lead-mesa-supervisor`; banco aplicado; painel aguardando publicação.**
+Pedido do usuário (02/10): aumentar a conversão dos consultores e dar praticidade aos supervisores (ideias 1 e 5 do brainstorming). Spec: `docs/superpowers/specs/2026-10-02-velocidade-lead-mesa-supervisor-design.md`; plano: `docs/superpowers/plans/2026-10-02-velocidade-lead-mesa-supervisor.md`. **Status: publicado em 03/10/2026 (ver 68.8).**
 
 ### 68.1 Por quê
 - Set+Out/2026: lead com 1ª ligação em menos de 15 min converteu 31,7%, contra 13–15% nos mais lentos. Em horário comercial: 36% (n=25) contra 12,8% (n=39). É um indício e não uma prova (amostra pequena). A Mesa mede de novo a cada mês (68.4).
@@ -2672,3 +2672,20 @@ Para o consultor o botão some e o painel fica vazio. A proteção é feita pela
 - **Código:** `edge_function_sync_leads.ts` + teste `test_edge_function_sync_leads.js` (117 ok), commit `b6ddc93` no branch `fix/sync-leads-tolerante` (base oficial/main 466fd5b), a ser juntado na publicação.
 - **Validação antes do deploy:** as 1.486 datas reais das 4 abas estavam no mesmo formato ISO; só o "TESTE" foi descartado. Primeira execução: 1.479 leads gravados, 1 linha ignorada (OUTUBRO linha 49).
 - **Reverter:** reimplantar a versão anterior do arquivo (`git show 466fd5b:edge_function_sync_leads.ts`).
+
+### 68.8 Publicado (03/10/2026, ~00:54, horário de SP)
+- **Banco:** já aplicado em 02/10 (68.5). Edge Function `sync-leads` v15 já no ar desde 02/10 ~19:38 (68.7).
+- **Painel:** o painel no ar (MD5 `0bb51c83…`) era idêntico ao `oficial/main` 466fd5b, sem nada publicado por fora. Publicado **`67c6b211e537bba6a3fafa01f87fd2e7`**: gerado, servidor e site conferem. O diff do painel é +491/−3 linhas. No site, conferido que existem `tabBtnMesa`, `vlCard`, `loadMesa`, `vlMinutosUteis`, "automática a cada 10 min" e o design (sidebar + Barlow).
+- **Testes:** `run_tests.sh` 49 ok; só as 2 falhas antigas conhecidas (`test_conversao_vendas.js`, `test_pedidos_alerta.js`).
+- **Revisão:**
+  - cada uma das 9 tarefas foi revisada isoladamente;
+  - houve uma revisão final do branch inteiro, sem nada crítico ou importante;
+  - pontos menores que ficaram para depois:
+    - ordenação estável na paginação de `mesa_pendencias`/`mesa_leads_relogio` (fazer antes do fim de outubro, quando passa de 1.000 linhas);
+    - lead de 5–7 dias contado como "esperando" e "esfriando" ao mesmo tempo;
+    - falha da RPC de leads escondendo todos os KPIs;
+    - aviso "Mensagem copiada" sem conferir a área de transferência;
+    - logout sem limpar os timers;
+    - leads com nome de admin/supervisor na planilha (aparecem "sem login" na Mesa; decisão do Rafael).
+- **Backup:** `~/deploy_backups/painel_clientes_apex_20261003_005415_antes_velocidade_mesa.html`.
+- **Reverter:** copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. O banco pode ficar: sem o painel novo, as tabelas e RPCs só ficam sem uso. Rollbacks em `supabase/rollback/20261002100000_velocidade_lead_mesa_rollback.sql` e `20261002100100_sync_leads_10min_rollback.sql`.
