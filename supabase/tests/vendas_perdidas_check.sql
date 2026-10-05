@@ -18,6 +18,9 @@ values (990000001, 990000001, 'ZZP1', 'ZZ CONSULTOR', 'VENDA PERDIDA (NEOCRM)', 
 insert into public.producao_atividades (numero_pedido, categoria, tags, etapa, usuario, valor, itens)
 values ('ZZP1', 'Não responde', '{#SEMINTERESSE}', 'VENDA PERDIDA (NEOCRM)', 'ZZ CONSULTOR', 150, 2);
 
+-- o gatilho trg_producao_neo_etapa grava o histórico com em = now() no insert; o P3 fictício precisa da data antiga
+update public.producao_etapa_historico set em = now() - interval '400 days' where numero_pedido = 'ZZP3';
+
 do $$
 declare n int; v numeric; c text;
 begin
