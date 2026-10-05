@@ -100,6 +100,8 @@ try{
   eq(vpFiltrar(linhas, 'CONSULTOR B', '').length, 3, 'filtro consultor');
   eq(vpFiltrar(linhas, '', 'Sem categoria').map(l => l.numero_pedido), ['4', '5'], 'filtro Sem categoria');
   eq(vpFiltrar(linhas, 'CONSULTOR B', 'Desconfiança').map(l => l.numero_pedido), ['6'], 'filtros combinados');
+  const linhasSemConsultor = linhas.concat([V('7', { usuario: null })]);
+  eq(vpFiltrar(linhasSemConsultor, '(sem consultor)', '').map(l => l.numero_pedido), ['7'], 'filtro "(sem consultor)" pega usuario null');
 
   const agoraT = Date.parse('2026-10-05T15:00:00Z');
   assert(vpSyncAtrasada(null, agoraT), 'nunca sincronizou = atrasada');

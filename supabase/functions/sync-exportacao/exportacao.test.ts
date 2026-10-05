@@ -69,3 +69,11 @@ test("ocultarToken: remove o token de qualquer mensagem", () => {
   assert.equal(ocultarToken("sem token aqui", "abc123secret"), "sem token aqui");
   assert.equal(ocultarToken("qualquer", ""), "qualquer");
 });
+
+test("ocultarToken: mascara também a forma URL-encoded do token", () => {
+  const token = "ab+c/d=";
+  const msg = "falhou https://api/x/ab%2Bc%2Fd%3D/y e também ab+c/d= no corpo";
+  const saida = ocultarToken(msg, token);
+  assert.ok(!saida.includes("ab%2Bc%2Fd%3D"));
+  assert.ok(!saida.includes("ab+c/d="));
+});

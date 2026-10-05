@@ -112,7 +112,12 @@ export function mensagemErro(status: number, corpo: string, retryAfter: string |
   return msg.slice(0, 500);
 }
 
-// O token vai na URL da API: nenhuma mensagem que sai da função pode contê-lo.
+// O token vai na URL da API (às vezes percent-encoded): nenhuma mensagem que sai da função pode contê-lo,
+// em nenhuma das duas formas.
 export function ocultarToken(msg: string, token: string): string {
-  return token ? String(msg).split(token).join("***") : String(msg);
+  if (!token) return String(msg);
+  let out = String(msg).split(token).join("***");
+  const codificado = encodeURIComponent(token);
+  if (codificado !== token) out = out.split(codificado).join("***");
+  return out;
 }

@@ -56,8 +56,15 @@ Deno.serve(async (req) => {
       await fechar({ ok: false, http: resp.status, erro });
       return json({ ok: false, erro }, 502);
     }
-    const j = JSON.parse(texto) as { dados?: Record<string, unknown>[] };
-    const linhas = Array.isArray(j.dados) ? j.dados : [];
+    let j: { dados?: unknown };
+    try {
+      j = JSON.parse(texto) as { dados?: unknown };
+    } catch {
+      throw new Error("Resposta da API não é JSON: " + texto.slice(0, 200));
+    }
+    if (!Array.isArray(j.dados)) throw new Error(mensagemErro(resp.status, texto, null));
+    const linhas = j.dados as Record<string, unknown>[];
+    if (linhas.length === 0) throw new Error("A API devolveu 0 linhas para o painel 15455 — nada foi gravado.");
     const pedidos = agruparPorPedido(linhas);
     if (teste) return json({ ok: true, teste: true, linhas: linhas.length, pedidos: pedidos.length, comCategoria: pedidos.filter((p) => p.categoria).length }, 200);
     let gravados = 0;

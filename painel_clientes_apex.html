@@ -11050,7 +11050,7 @@ function vpPeriodo(tipo, hoje, de, ate){
 }
 function vpCategoria(l){ const c = String((l && l.categoria) || '').trim(); return c || VP_SEM_CATEGORIA; }
 function vpFiltrar(linhas, fConsultor, fCategoria){
-  return (linhas || []).filter(l => (!fConsultor || (l.usuario || '') === fConsultor) && (!fCategoria || vpCategoria(l) === fCategoria));
+  return (linhas || []).filter(l => (!fConsultor || (l.usuario || '(sem consultor)') === fConsultor) && (!fCategoria || vpCategoria(l) === fCategoria));
 }
 function vpMotivos(linhas){
   const m = new Map();
@@ -11158,7 +11158,7 @@ function vpRender(){
   ].join('');
   const porConsultor = vpFiltrar(todos, vpEstado.fConsultor, '');
   const motivos = vpMotivos(porConsultor);
-  document.getElementById('vpMotivosTbody').innerHTML = motivos.length ? motivos.map(m => `<tr data-vp-motivo="${escapeHtml(m.motivo)}" style="cursor:pointer"${m.motivo === vpEstado.fCategoria ? ' class="active"' : ''}>
+  document.getElementById('vpMotivosTbody').innerHTML = motivos.length ? motivos.map(m => `<tr data-vp-motivo="${escapeHtml(m.motivo)}" style="cursor:pointer">
       <td>${m.motivo === VP_SEM_CATEGORIA ? `<span class="badge">${escapeHtml(m.motivo)}</span>` : escapeHtml(m.motivo)}</td><td>${m.pedidos}</td><td>${fmtPctConversao(m.pct)}</td><td>${fmtBRL(m.valor)}</td></tr>`).join('')
     : '<tr><td colspan="4">Nenhuma venda perdida no período.</td></tr>';
   const cons = vpConsultores(todos);   // "quem não está preenchendo": sempre todos do período, sem os filtros
@@ -11193,10 +11193,11 @@ document.getElementById('vpFiltroCategoria').addEventListener('change', function
 ['vpDe', 'vpAte'].forEach(id => document.getElementById(id).addEventListener('change', () => { if(vpEstado.periodo === 'custom') loadVendasPerdidas().catch(err => console.error(err)); }));
 document.getElementById('btnVpAtualizar').addEventListener('click', () => loadVendasPerdidas().catch(err => console.error(err)));
 document.getElementById('btnVpExportar').addEventListener('click', function(){
-  const filtradas = vpFiltrar(vpEstado.linhas, vpEstado.fConsultor, vpEstado.fCategoria);
+  const linhas = vpEstado.linhas, fConsultor = vpEstado.fConsultor, fCategoria = vpEstado.fCategoria;
+  const filtradas = vpFiltrar(linhas, fConsultor, fCategoria);
   mlBaixarXlsx(`VendasPerdidas_${vpEstado.de}_${vpEstado.ate}.xlsx`, [
-    { nome: 'Motivos', linhas: vpMotivos(filtradas).map(m => ({ Motivo: m.motivo, Pedidos: m.pedidos, '% das perdas': Math.round(m.pct * 1000) / 10, 'Valor (R$)': m.valor })) },
-    { nome: 'Preenchimento', linhas: vpConsultores(vpFiltrar(vpEstado.linhas, vpEstado.fConsultor, '')).map(c => ({ Consultor: c.usuario, Perdas: c.perdas, 'Com categoria': c.comCategoria, '% preenchido': Math.round(c.pct * 1000) / 10, 'Maior motivo': c.maiorMotivo || '' })) },
+    { nome: 'Motivos', linhas: vpMotivos(vpFiltrar(linhas, fConsultor, '')).map(m => ({ Motivo: m.motivo, Pedidos: m.pedidos, '% das perdas': Math.round(m.pct * 1000) / 10, 'Valor (R$)': m.valor })) },
+    { nome: 'Preenchimento', linhas: vpConsultores(vpEstado.linhas).map(c => ({ Consultor: c.usuario, Perdas: c.perdas, 'Com categoria': c.comCategoria, '% preenchido': Math.round(c.pct * 1000) / 10, 'Maior motivo': c.maiorMotivo || '' })) },
     { nome: 'Pedidos', linhas: filtradas.map(l => ({ Pedido: l.numero_pedido, 'Perdido em': mlFmtDiaHora(l.perdido_em), Consultor: l.usuario || '', Cliente: l.cliente || '', Produtos: l.produtos || '', 'Valor (R$)': Number(l.valor) || 0, Categoria: vpCategoria(l), Tags: (l.tags || []).join(' ') })) },
   ]);
 });
