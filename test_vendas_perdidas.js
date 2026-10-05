@@ -27,7 +27,7 @@ const HORA = 3600000;
 assert(jsOriginal.includes('__PERDIDAS__') && jsOriginal.includes('__PERDIDAS_SYNC__'), 'o template recebe __PERDIDAS__ e __PERDIDAS_SYNC__');
 assert(jsOriginal.includes('function perdAgora(){ return Date.now(); }'), 'perdAgora() existe para fixar o relógio no teste');
 
-function montar({ adminMode = true, perdidas = [], sync = new Date(AGORA_PADRAO - HORA).toISOString(), agora = AGORA_PADRAO, semPlaceholder = false } = {}){
+function montar({ adminMode = true, perdidas = [], sync = new Date(AGORA_PADRAO - HORA).toISOString(), agora = AGORA_PADRAO, semPlaceholder = false, quebrar = false } = {}){
   const html = htmlNoScript.replace('__ADMIN_BADGE__', '').replace('__APEX_B64__', '').replace('__CLARO_B64__', '').replace('__UPDATED_AT__', '05/10/2026, 14:59:00');
   const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'http://localhost/', pretendToBeVisual: true });
   const w = dom.window;
@@ -39,10 +39,15 @@ function montar({ adminMode = true, perdidas = [], sync = new Date(AGORA_PADRAO 
     .replace('let DATA = __DATA__;', 'let DATA = [];')
     .replace('__ADMIN_MODE__', adminMode ? 'true' : 'false')
     .replace('function perdAgora(){ return Date.now(); }', 'function perdAgora(){ return window.__agora; }');
+  if(quebrar){
+    // simula um erro inesperado na sub-aba: o resto do Dashboard tem de continuar funcionando
+    js = js.replace('function renderVendasPerdidas(){', 'function renderVendasPerdidas(){ throw new Error("falha simulada"); ');
+  }
   if(!semPlaceholder){
     js = js.replace('__PERDIDAS_SYNC__', () => JSON.stringify(sync)).replace('__PERDIDAS__', () => JSON.stringify(perdidas));
   }
   w.__agora = agora;
+  w.console.error = () => {};
   w.eval(js);
   return w;
 }
@@ -274,7 +279,11 @@ const FIXTURE = [
   const prLinhas = $$(w, '#perdPreenchimento tr');
   assert(prLinhas[0].children[0].textContent === 'MARIA TESTE' && prLinhas[0].querySelector('.perd-selo-medio') && prLinhas[0].children[3].textContent === '50%', 'preenchimento: MARIA primeiro, 50%, selo amarelo');
   assert(prLinhas[1].querySelector('.perd-selo-ok'), 'CAIO com selo verde');
-  prLinhas[0].click();
+  $$(w, '#perdMotivos [data-perd-motivo]')[1].click(); // filtro de motivo "Não responde"
+  const prComMotivo = $$(w, '#perdPreenchimento tr').find(tr => tr.children[0].textContent === 'MARIA TESTE');
+  assert(prComMotivo && prComMotivo.children[3].textContent === '50%' && $$(w, '#perdPreenchimento tr').length === 3, 'preenchimento ignora o filtro de motivo (MARIA continua 50%, todos os consultores aparecem)');
+  w.limparFiltrosPerdidas();
+  $$(w, '#perdPreenchimento tr')[0].click();
   assert(w.eval('PERD_FILTRO.consultor') === 'MARIA TESTE' && pedidosTabela(w).length === 2, 'clique no consultor filtra');
   w.limparFiltrosPerdidas();
   assert(txt(w, '#perdCidades .comp-row .comp-name') === 'CIDADE ALFA', 'top cidades: ALFA primeiro');
@@ -308,15 +317,16 @@ const FIXTURE = [
   w.exportarPerdidasExcel();
   assert(w.__arquivos.length === 1 && w.__arquivos[0].nome === 'VendasPerdidas_2026-10-01_2026-10-05.xlsx', 'Excel gerado com o período no nome — ' + (w.__arquivos[0] || {}).nome);
   const wb = w.__arquivos[0].wb;
-  assert(JSON.stringify(wb.SheetNames) === JSON.stringify(['Resumo por motivo', 'Motivo x Tipo', 'Motivo x Consultor', 'Pedidos']), 'abas do Excel — ' + JSON.stringify(wb.SheetNames));
+  assert(JSON.stringify(wb.SheetNames) === JSON.stringify(['Resumo por motivo', 'Motivo x Tipo', 'Consultor x Motivo', 'Pedidos']), 'abas do Excel — ' + JSON.stringify(wb.SheetNames));
   const ped = XLSX.utils.sheet_to_json(wb.Sheets['Pedidos'], { header: 1 });
   assert(ped.length === 6 && ped[0][0] === 'Pedido' && ped[1][0] === 'P4', 'aba Pedidos: cabeçalho + 5 pedidos na ordem da tela');
   const res = XLSX.utils.sheet_to_json(wb.Sheets['Resumo por motivo'], { header: 1 });
   assert(res.some(r => r[0] === 'Restrição de Crédito' && r[1] === 2 && r[3] === 150), 'aba Resumo: Restrição com 2 pedidos e R$ 150');
   const mt = XLSX.utils.sheet_to_json(wb.Sheets['Motivo x Tipo'], { header: 1 });
   assert(mt[0][0] === 'Motivo' && mt[0].includes('VOZ - Novo') && mt[mt.length - 1][0] === 'TOTAL', 'aba Motivo x Tipo com cabeçalho e total');
-  const mc = XLSX.utils.sheet_to_json(wb.Sheets['Motivo x Consultor'], { header: 1 });
-  assert(mc[0].includes(MALICIOSO) && mc[0].includes('MARIA TESTE'), 'aba Motivo x Consultor: consultores nas colunas');
+  const mc = XLSX.utils.sheet_to_json(wb.Sheets['Consultor x Motivo'], { header: 1 });
+  assert(mc[0][0] === 'Consultor' && mc[0].includes('Não responde') && mc.some(r => r[0] === MALICIOSO) && mc.some(r => r[0] === 'MARIA TESTE'), 'aba Consultor x Motivo: consultores nas linhas, motivos nas colunas, como na tela');
+  assert(txt(w, '#perdSecConsultor > summary') === 'Consultor × Motivo', 'seção na tela chama-se "Consultor × Motivo" — ' + txt(w, '#perdSecConsultor > summary'));
   // Excel respeita os filtros
   $(w, '#perdFiltroConsultor').value = 'CAIO TESTE';
   w.onFiltroPerdidas();
@@ -359,6 +369,14 @@ const FIXTURE = [
   w0.exportarPerdidasExcel();
   assert(w0.__arquivos.length === 0, 'Excel não gera arquivo vazio');
 
+  // erro inesperado na sub-aba não derruba o Dashboard
+  const wq = montar({ perdidas: FIXTURE, quebrar: true });
+  assert(typeof wq.atualizarDadosDashboard === 'function', 'mesmo com erro na sub-aba, atualizarDadosDashboard continua definida');
+  assert($(wq, '#alertaSub').textContent !== '', 'Pedidos em Alerta continua renderizado');
+  let lancou = false;
+  try{ wq.atualizarVendasPerdidas(FIXTURE, null); }catch(e){ lancou = true; }
+  assert(!lancou, 'atualizarVendasPerdidas não propaga o erro');
+
   const ws = montar({ semPlaceholder: true });
   assert($(ws, '#tabPerdidas') && pedidosTabela(ws).length === 0 && !txt(ws, '#perdAviso').includes('Não foi possível'), 'placeholder não preenchido (painel antigo): lista vazia, sem erro');
 
@@ -396,7 +414,7 @@ function rodarPainel(role, opcoes){
     from: (tabela) => ({
       select: () => {
         const b = {
-          eq: () => b, order: () => b, limit: () => b,
+          eq: () => b, order: () => b, limit: () => b, not: (c, op, v) => { w.__not = [c, op, v]; return b; },
           maybeSingle: async () => tabela === 'exportacao_sync_log' ? { data: { terminou_em: '2026-10-05T17:41:00+00:00' }, error: null } : { data: { valor: '05/10/2026, 14:59:00' }, error: null },
           range: () => ({ then: (ok) => ok({ data: tabela === 'producao_pedidos' ? [{ numero_pedido: 'X1', grupo: 'VOZ - Novo', usuario: 'CAIO TESTE', etapa: 'ENTREGA (NEOCRM)', cadastro: '2026-10-01T10:00:00-03:00', atualizacao: '2026-10-01T10:00:00-03:00', valor: 1, quantidade: 1, produto: 'X', tag: null }] : [], error: null }) }),
           then: (ok) => ok({ data: [], error: null }),
@@ -424,6 +442,7 @@ function rodarPainel(role, opcoes){
     assert(chamada && chamada.args.p_ate === hojeTeste && chamada.args.p_de === deTeste, 'supervisor: painel busca vendas_perdidas(hoje−180, hoje) — ' + JSON.stringify(chamada && chamada.args));
     assert(srcA.includes('PERDIDAS = [{') && srcA.includes('"numero_pedido":"Z1"'), 'supervisor: __PERDIDAS__ recebe as linhas da RPC');
     assert(srcA.includes('PERDIDAS_SYNC = "2026-10-05T17:41:00+00:00"'), 'supervisor: __PERDIDAS_SYNC__ recebe a última sync ok');
+    assert(JSON.stringify(wa.__not) === JSON.stringify(['terminou_em', 'is', null]), 'última sync ok ignora linhas sem terminou_em');
     assert(!srcA.includes('</script><script>window.__fura') && srcA.includes('\\u003c/script>'), 'texto com </script> é escapado (\\u003c) ao entrar no srcdoc');
     assert(!srcA.includes('__PERDIDAS__') && !srcA.includes('__PERDIDAS_SYNC__') && !srcA.includes('__DATA__'), 'nenhum placeholder sobra no srcdoc');
 
