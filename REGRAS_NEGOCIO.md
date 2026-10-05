@@ -2729,7 +2729,7 @@ Migration `20261005100100_sync_exportacao_cron.sql`: cron `sync-exportacao-horar
 Verificação em `supabase/tests/vendas_perdidas_check.sql` (transação com rollback). Lição durante a verificação: o gatilho `trg_producao_neo_etapa` grava o histórico com a hora do insert, então o script precisa recuar a data do pedido fictício antigo para simular uma perda passada; `producao_pedidos_neo.id` é identity.
 
 ### 70.3 Edge Function `sync-exportacao`
-Pasta `supabase/functions/sync-exportacao/`: `index.ts` (HTTP/auth) + `exportacao.ts` (lógica pura) + `exportacao.test.ts` (`node --test`, 7 testes). Uma chamada por hora; agrupa os itens por pedido (categoria = a mais frequente entre os itens, empate pelo item mais recente); `upsert` por `numero_pedido`; grava um log por execução. Erro da API grava só o log, sem tocar na tabela de atividades. O token nunca aparece em log nem em resposta (`ocultarToken`). `{"modo":"teste"}` no corpo só conta, não grava.
+Pasta `supabase/functions/sync-exportacao/`: `index.ts` (HTTP/auth) + `exportacao.ts` (lógica pura) + `exportacao.test.ts` (`node --test`, 8 testes). Uma chamada por hora; agrupa os itens por pedido (categoria = a mais frequente entre os itens, empate pelo item mais recente); `upsert` por `numero_pedido`; grava um log por execução. Erro da API grava só o log, sem tocar na tabela de atividades. O token nunca aparece em log nem em resposta (`ocultarToken`). `{"modo":"teste"}` no corpo só conta, não grava.
 
 ### 70.4 Aba "Vendas Perdidas" (admin/supervisor) — substituída pela sub-aba do Dashboard (70.7), nunca chegou a ser publicada
 Grupo **Vendas**, logo depois de **Funil**. Períodos: Este mês, Mês passado, Últimos 90 dias, Personalizado. Filtros: Consultor e Categoria. KPIs: pedidos perdidos, valor perdido, % com categoria, maior motivo. Tabela de motivos ("Sem categoria" sempre por último; clique filtra a lista de pedidos). Preenchimento por consultor (pior primeiro; selo ≥90% verde, 50–89% amarelo, <50% vermelho; clique filtra). Lista de pedidos. Aviso se a sincronização passar de 3 h sem execução ok. Exportar Excel (abas Motivos, Preenchimento, Pedidos). Testes: `test_vendas_perdidas.js` (53 ok).
@@ -2742,7 +2742,7 @@ Grupo **Vendas**, logo depois de **Funil**. Períodos: Este mês, Mês passado, 
 - Primeiro retrato (01/09 a 05/10): 152 vendas perdidas, 54 sem categoria; maiores motivos Restrição de Crédito (20), Não responde (19), Desistência Demora (15, maior valor, ~R$ 3,2 mil).
 
 ### 70.6 Status e como reverter
-Banco e função já no ar; **o painel (aba) ainda está aguardando publicação.**
+Banco e função no ar desde 05/10; **o painel foi publicado em 05/10/2026 às 20:47 (ver 70.8).**
 
 Reverter: rollbacks em `supabase/rollback/20261005100000_vendas_perdidas_categorias_rollback.sql` e `supabase/rollback/20261005100100_sync_exportacao_cron_rollback.sql`. A Edge Function pode ser apagada direto no Supabase.
 
@@ -2753,3 +2753,30 @@ Pedido do Rafael ao aprovar: aba só de supervisor/admin, ao lado de Pedidos em 
 - O painel (`loadProducaoDashboard`), só para admin/supervisor, busca `vendas_perdidas(hoje−180, hoje)` e a última sync ok, e injeta em `__PERDIDAS__`/`__PERDIDAS_SYNC__` (consultor recebe `[]`/`null`; erro na busca = `null`, a sub-aba avisa "não foi possível carregar"; `<` vira `\u003c` para nenhum texto do banco fechar o `<script>`). Na atualização de 1 h chama `atualizarVendasPerdidas`.
 - Sub-aba (logo depois de Pedidos em Alerta; o consultor nem recebe o painel): filtros próprios (Este mês, Mês passado, Últimos 90 e 180 dias; consultor; motivo; tipo de venda), aviso de sincronização (> 3 h ou nunca), KPIs (perdidas, valor, ticket médio, % com motivo, maior motivo, tempo médio até perder), barras por motivo, matrizes Motivo × Tipo de venda e Consultor × Motivo (6 maiores colunas + "Outros"), evolução semanal (5 maiores motivos + outros + sem motivo), tempo até perder por faixa (0–1, 2–7, 8–15, 16–30, 30+ dias; sem cadastro fica fora), preenchimento por consultor com selos, 10 cidades com mais perdas, tabela de pedidos e Excel (Resumo por motivo, Motivo x Tipo, Consultor x Motivo, Pedidos). Cliques em barras/células/linhas filtram tudo; cada gráfico ignora o filtro do próprio eixo e destaca o escolhido.
 - Testes: `test_vendas_perdidas.js` reescrito para a sub-aba (jsdom, dados fictícios, inclui nome malicioso).
+
+### 70.8 Publicado (05/10/2026, ~20:47, horário de SP)
+- **Banco:** RPC `vendas_perdidas` v3 aplicada antes do painel. Conferida com os dados reais simulando um supervisor: 392 vendas perdidas em 180 dias, todas com tipo de venda, solicitação e cadastro; resposta em ~0,2 s. A Edge Function `sync-exportacao` está na v4 (recusa resposta "200" sem dados e mascara o token também na forma codificada). O cron do minuto 41 já rodou sozinho com sucesso.
+- **Painel:** o painel no ar (MD5 `67c6b211…`) era idêntico ao `oficial/main` 94ab11b, sem nada publicado por fora. Publicado **`9df8e09145299a39a8237f4dd0445da6`** (gerado, servidor e site conferem).
+- **Conferido no site:**
+  - a sub-aba "Vendas Perdidas" existe no Dashboard de Produção, logo depois de Pedidos em Alerta, só para admin e supervisor;
+  - a seção "Consultor × Motivo" está presente;
+  - o painel injeta `__PERDIDAS__`;
+  - a aba antiga do menu lateral não existe mais;
+  - o design (sidebar) está intacto.
+
+  Antes de publicar, a tela foi vista renderizada no navegador com dados fictícios: sem erro no console, sem rolagem horizontal, e o clique na matriz filtra a tabela.
+- **Testes:** `run_tests.sh` 50 ok; só as 2 falhas antigas conhecidas. `test_vendas_perdidas.js` 158 ok; `exportacao.test.ts` 8 ok.
+- **Revisões:**
+  - cada parte foi revisada;
+  - uma revisão final do branch inteiro aprovou a publicação;
+  - outra revisão, da sub-aba, também aprovou;
+  - as correções pedidas (proteções contra erro, layout das barras, cores sem `color-mix`, preenchimento sem filtro de motivo, nome da matriz, consulta da última sincronização) foram re-revisadas.
+- **Pendências menores (sem bloquear):**
+  - no "Personalizado", as datas abrem vazias;
+  - um pedido que já chega perdido na primeira sincronização fica com a data da perda igual à hora dessa sincronização;
+  - a consulta da RPC agrega todo o histórico antes de filtrar o período. Hoje responde em ~0,2 s; otimizar quando crescer.
+- **Backup:** `~/deploy_backups/painel_clientes_apex_20261005_204733_antes_vendas_perdidas.html`.
+- **Reverter:**
+  1. copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`;
+  2. o banco pode ficar como está;
+  3. se quiser, aplicar os rollbacks em `supabase/rollback/` (v3 → v2 → tabelas) e desligar o cron `sync-exportacao-horario`.
