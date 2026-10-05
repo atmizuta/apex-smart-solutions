@@ -9,12 +9,12 @@ insert into public.profiles (id, nome, username, role) values
   ('00000000-0000-0000-0000-00000000cc02', 'Zzvpcons Teste', 'zz.vpcons', 'consultor')
 on conflict (id) do update set nome = excluded.nome, username = excluded.username, role = excluded.role;
 -- pedidos fictícios: P1 perdido hoje com categoria; P2 perdido hoje sem atividade; P3 perdido há 400 dias; P4 concluído
-insert into public.producao_pedidos_neo (id, item_id, numero_pedido, usuario, etapa, cadastro, atualizacao, valor, quantidade, produto, cliente)
-values (990000001, 990000001, 'ZZP1', 'ZZ CONSULTOR', 'VENDA PERDIDA (NEOCRM)', now() - interval '3 days', now(), 100, 1, 'Produto Teste', 'Cliente Teste 1'),
-       (990000002, 990000002, 'ZZP1', 'ZZ CONSULTOR', 'VENDA PERDIDA (NEOCRM)', now() - interval '3 days', now(), 50, 1, 'Produto Teste 2', 'Cliente Teste 1'),
-       (990000003, 990000003, 'ZZP2', 'ZZ CONSULTOR', 'VENDA PERDIDA (NEOCRM)', now() - interval '3 days', now(), 70, 1, 'Produto Teste', 'Cliente Teste 2'),
-       (990000004, 990000004, 'ZZP3', 'ZZ CONSULTOR', 'VENDA PERDIDA (NEOCRM)', now() - interval '500 days', now() - interval '400 days', 10, 1, 'Produto Teste', 'Cliente Teste 3'),
-       (990000005, 990000005, 'ZZP4', 'ZZ CONSULTOR', 'CONCLUIDO (NEOCRM)', now() - interval '3 days', now(), 99, 1, 'Produto Teste', 'Cliente Teste 4');
+insert into public.producao_pedidos_neo (item_id, numero_pedido, usuario, etapa, cadastro, atualizacao, valor, quantidade, produto, cliente)
+values (990000001, 'ZZP1', 'ZZ CONSULTOR', 'VENDA PERDIDA (NEOCRM)', now() - interval '3 days', now(), 100, 1, 'Produto Teste', 'Cliente Teste 1'),
+       (990000002, 'ZZP1', 'ZZ CONSULTOR', 'VENDA PERDIDA (NEOCRM)', now() - interval '3 days', now(), 50, 1, 'Produto Teste 2', 'Cliente Teste 1'),
+       (990000003, 'ZZP2', 'ZZ CONSULTOR', 'VENDA PERDIDA (NEOCRM)', now() - interval '3 days', now(), 70, 1, 'Produto Teste', 'Cliente Teste 2'),
+       (990000004, 'ZZP3', 'ZZ CONSULTOR', 'VENDA PERDIDA (NEOCRM)', now() - interval '500 days', now() - interval '400 days', 10, 1, 'Produto Teste', 'Cliente Teste 3'),
+       (990000005, 'ZZP4', 'ZZ CONSULTOR', 'CONCLUIDO (NEOCRM)', now() - interval '3 days', now(), 99, 1, 'Produto Teste', 'Cliente Teste 4');
 insert into public.producao_atividades (numero_pedido, categoria, tags, etapa, usuario, valor, itens)
 values ('ZZP1', 'Não responde', '{#SEMINTERESSE}', 'VENDA PERDIDA (NEOCRM)', 'ZZ CONSULTOR', 150, 2);
 
