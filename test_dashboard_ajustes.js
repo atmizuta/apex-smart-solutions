@@ -41,7 +41,8 @@ const BASE = [
 // ---------------------------------------------------------------- 1) seções recolhíveis
 let w = montarDashboard({ data: BASE });
 let d = w.document;
-const secoes = [...d.querySelectorAll('details.collapse-sec')];
+// 05/10/2026 (seção 70): a sub-aba Vendas Perdidas tem as próprias seções recolhíveis (abertas, é tela de análise) — aqui só as da Visão Geral
+const secoes = [...d.querySelectorAll('#tabOverview details.collapse-sec')];
 assert(secoes.length === 3, 'são 3 seções recolhíveis (total geral, motivos de perda, diagnóstico) — achou ' + secoes.length);
 assert(secoes.every(s => !s.hasAttribute('open')), 'todas as seções abrem FECHADAS');
 const titulos = secoes.map(s => s.querySelector('summary').textContent.trim());

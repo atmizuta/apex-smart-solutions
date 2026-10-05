@@ -77,7 +77,8 @@ def main():
     # Dashboard de Produção, que são de propósito preenchidos em tempo real no navegador (ver
     # loadProducaoDashboard() em _template.html), não neste build. Eles aparecem como texto literal
     # dentro das chamadas .replace(...) do JS, não dentro do template embutido (que está em base64).
-    RUNTIME_PLACEHOLDERS = {"__DATA__", "__ADMIN_MODE__", "__ADMIN_BADGE__", "__UPDATED_AT__", "__EQUIPE__"}  # __EQUIPE__: 01/10/2026, seção 66
+    RUNTIME_PLACEHOLDERS = {"__DATA__", "__ADMIN_MODE__", "__ADMIN_BADGE__", "__UPDATED_AT__", "__EQUIPE__",  # __EQUIPE__: 01/10/2026, seção 66
+                            "__PERDIDAS__", "__PERDIDAS_SYNC__"}  # Vendas Perdidas no Dashboard: 05/10/2026, seção 70
     leftover = sorted(set(re.findall(r"__[A-Z_]+__", out)) - RUNTIME_PLACEHOLDERS)
     if leftover:
         print(f"ERRO: sobraram placeholders não substituídos: {leftover}", file=sys.stderr)

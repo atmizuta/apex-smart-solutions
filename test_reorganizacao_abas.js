@@ -90,8 +90,7 @@ try{
   // e-mail Hostinger e notificar clientes em lote por e-mail) — fica no grupo Ferramentas, logo
   // depois de "biometria".
   // NOTA (02/10/2026): incluída "mesa" (Mesa do Supervisor, só admin/supervisor), no grupo Visão geral logo depois de "producao" (seção 68).
-  // NOTA (05/10/2026): incluída "vendasperdidas" (Vendas Perdidas, só admin/supervisor), no grupo Vendas logo depois de "funil" (seção 70).
-  const ordemEsperada = ['producao','mesa','conversao','busca','proposta','funil','vendasperdidas','pedidosparados','biometria','config','basedados','movimentacao','consultores','fechamento'];
+  const ordemEsperada = ['producao','mesa','conversao','busca','proposta','funil','pedidosparados','biometria','config','basedados','movimentacao','consultores','fechamento'];
   assert(botoes.map(b => b.dataset.tab).join(',') === ordemEsperada.join(','), 'ordem das abas no menu segue: ' + ordemEsperada.join(', ') + ' (atual: ' + botoes.map(b => b.dataset.tab).join(',') + ')');
   const rotulos = { producao: 'Dashboard', conversao: 'Digital', busca: 'Buscar Clientes', proposta: 'Gerar Proposta', funil: 'Funil', basedados: 'Upload Base', movimentacao: 'Upload Dash', consultores: 'Usuários' };
   Object.entries(rotulos).forEach(([tab, rotulo]) => {
