@@ -2731,7 +2731,7 @@ Verificação em `supabase/tests/vendas_perdidas_check.sql` (transação com rol
 ### 70.3 Edge Function `sync-exportacao`
 Pasta `supabase/functions/sync-exportacao/`: `index.ts` (HTTP/auth) + `exportacao.ts` (lógica pura) + `exportacao.test.ts` (`node --test`, 7 testes). Uma chamada por hora; agrupa os itens por pedido (categoria = a mais frequente entre os itens, empate pelo item mais recente); `upsert` por `numero_pedido`; grava um log por execução. Erro da API grava só o log, sem tocar na tabela de atividades. O token nunca aparece em log nem em resposta (`ocultarToken`). `{"modo":"teste"}` no corpo só conta, não grava.
 
-### 70.4 Aba "Vendas Perdidas" (admin/supervisor)
+### 70.4 Aba "Vendas Perdidas" (admin/supervisor) — substituída pela sub-aba do Dashboard (70.7), nunca chegou a ser publicada
 Grupo **Vendas**, logo depois de **Funil**. Períodos: Este mês, Mês passado, Últimos 90 dias, Personalizado. Filtros: Consultor e Categoria. KPIs: pedidos perdidos, valor perdido, % com categoria, maior motivo. Tabela de motivos ("Sem categoria" sempre por último; clique filtra a lista de pedidos). Preenchimento por consultor (pior primeiro; selo ≥90% verde, 50–89% amarelo, <50% vermelho; clique filtra). Lista de pedidos. Aviso se a sincronização passar de 3 h sem execução ok. Exportar Excel (abas Motivos, Preenchimento, Pedidos). Testes: `test_vendas_perdidas.js` (53 ok).
 
 ### 70.5 Aplicado em produção (05/10/2026, com ok do Rafael)
@@ -2745,3 +2745,11 @@ Grupo **Vendas**, logo depois de **Funil**. Períodos: Este mês, Mês passado, 
 Banco e função já no ar; **o painel (aba) ainda está aguardando publicação.**
 
 Reverter: rollbacks em `supabase/rollback/20261005100000_vendas_perdidas_categorias_rollback.sql` e `supabase/rollback/20261005100100_sync_exportacao_cron_rollback.sql`. A Edge Function pode ser apagada direto no Supabase.
+
+### 70.7 Adendo (05/10/2026, noite): sub-aba "Vendas Perdidas" no Dashboard de Produção, com análise
+Pedido do Rafael ao aprovar: aba só de supervisor/admin, ao lado de Pedidos em Alerta, com mais informação e gráficos para entender por que cada venda é perdida. Spec: `docs/superpowers/specs/2026-10-05-vendas-perdidas-adendo-dashboard.md`.
+- A aba do menu lateral (70.4) saiu do `_template.html`; `test_reorganizacao_abas.js` voltou à lista sem ela.
+- RPC **v3** (`20261005100300_vendas_perdidas_v3.sql`, rollback volta à v2): + `grupo` (tipo de venda), `solicitacao` e `cidade` (de `producao_neo_raw`, máximo por pedido) e `cadastro` (menor do pedido).
+- O painel (`loadProducaoDashboard`), só para admin/supervisor, busca `vendas_perdidas(hoje−180, hoje)` e a última sync ok, e injeta em `__PERDIDAS__`/`__PERDIDAS_SYNC__` (consultor recebe `[]`/`null`; erro na busca = `null`, a sub-aba avisa "não foi possível carregar"; `<` vira `\u003c` para nenhum texto do banco fechar o `<script>`). Na atualização de 1 h chama `atualizarVendasPerdidas`.
+- Sub-aba (logo depois de Pedidos em Alerta; o consultor nem recebe o painel): filtros próprios (Este mês, Mês passado, Últimos 90 e 180 dias; consultor; motivo; tipo de venda), aviso de sincronização (> 3 h ou nunca), KPIs (perdidas, valor, ticket médio, % com motivo, maior motivo, tempo médio até perder), barras por motivo, matrizes Motivo × Tipo de venda e Consultor × Motivo (6 maiores colunas + "Outros"), evolução semanal (5 maiores motivos + outros + sem motivo), tempo até perder por faixa (0–1, 2–7, 8–15, 16–30, 30+ dias; sem cadastro fica fora), preenchimento por consultor com selos, 10 cidades com mais perdas, tabela de pedidos e Excel (Resumo por motivo, Motivo x Tipo, Motivo x Consultor, Pedidos). Cliques em barras/células/linhas filtram tudo; cada gráfico ignora o filtro do próprio eixo e destaca o escolhido.
+- Testes: `test_vendas_perdidas.js` reescrito para a sub-aba (jsdom, dados fictícios, inclui nome malicioso).
