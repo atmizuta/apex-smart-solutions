@@ -2689,3 +2689,18 @@ Para o consultor o botão some e o painel fica vazio. A proteção é feita pela
     - leads com nome de admin/supervisor na planilha (aparecem "sem login" na Mesa; decisão do Rafael).
 - **Backup:** `~/deploy_backups/painel_clientes_apex_20261003_005415_antes_velocidade_mesa.html`.
 - **Reverter:** copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. O banco pode ficar: sem o painel novo, as tabelas e RPCs só ficam sem uso. Rollbacks em `supabase/rollback/20261002100000_velocidade_lead_mesa_rollback.sql` e `20261002100100_sync_leads_10min_rollback.sql`.
+
+## 69. O robô das chamadas manuais passa a ser disparado pelo pg_cron do Supabase (05/10/2026)
+
+- **Problema:** o agendamento do próprio GitHub Actions (seção 67) não é confiável. Em 02/10 e 03/10 disparou 2 a 4 vezes por dia, sempre com 40+ min de atraso e pulando horários. Na segunda 05/10 não disparou nenhuma vez até as 14h. Com isso, as ligações do dia só entravam no painel quando alguém disparava o robô na mão.
+- **Solução:**
+  - O job `robo-procontact-disparo` no pg_cron do Supabase `apex` (migration `supabase/migrations/20261005000000_robo_procontact_disparo_pgcron.sql`, rollback em `supabase/rollback/`) chama a API do GitHub (`workflow_dispatch` do `sincronizar.yml`, modo `real`) no **minuto 17, das 07:17 às 22:17 de São Paulo** (`17 10-23,0-1 * * *` em UTC).
+  - O próprio robô continua recusando domingo e o horário fora de 07–22h.
+  - O agendamento do GitHub fica como reserva: execução a mais não duplica (upsert por `id`) e o workflow não roda duas vezes ao mesmo tempo (`concurrency`).
+- **Token:**
+  - Token *fine-grained* do GitHub, só para o repositório `apex-robo-procontact`, com permissão **Actions: read/write**, validade de 1 ano.
+  - Fica no Vault do Supabase com o nome `github_robo_token`, gravado pelo Rafael direto no SQL Editor. Nunca entra no repositório nem nas conversas.
+  - **Renovar antes de vencer** (outubro/2027): gerar um novo e rodar `select vault.update_secret((select id from vault.secrets where name = 'github_robo_token'), 'NOVO_TOKEN');`.
+  - Se vencer, a faixa "Sincronização das ligações parada" (seção 67) aparece no painel depois de 3 h úteis sem sincronizar.
+- **Teste (05/10/2026, ~15:43 SP):** o disparo pelo Supabase recebeu HTTP 204 do GitHub, o workflow rodou com sucesso e gravou as ligações até as 15:43 (`ligacoes_sync_log` ok, 818 linhas lidas).
+- **Desligar:** `select cron.unschedule(jobid) from cron.job where jobname = 'robo-procontact-disparo';` (é o rollback). O agendamento do GitHub continua controlado pela variável `ROBO_ATIVO`.
