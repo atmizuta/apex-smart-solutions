@@ -2704,3 +2704,44 @@ Para o consultor o botão some e o painel fica vazio. A proteção é feita pela
   - Se vencer, a faixa "Sincronização das ligações parada" (seção 67) aparece no painel depois de 3 h úteis sem sincronizar.
 - **Teste (05/10/2026, ~15:43 SP):** o disparo pelo Supabase recebeu HTTP 204 do GitHub, o workflow rodou com sucesso e gravou as ligações até as 15:43 (`ligacoes_sync_log` ok, 818 linhas lidas).
 - **Desligar:** `select cron.unschedule(jobid) from cron.job where jobname = 'robo-procontact-disparo';` (é o rollback). O agendamento do GitHub continua controlado pela variável `ROBO_ATIVO`.
+
+## 70. Vendas Perdidas por categoria (API de Exportação Xeotech) (05/10/2026)
+
+Pedido do usuário (05/10): os consultores passaram a escolher uma categoria ao marcar a venda perdida no NEO; filtrar os motivos das vendas perdidas por essa categoria — primeiro integrar a API, depois criar uma aba. Spec: `docs/superpowers/specs/2026-10-05-vendas-perdidas-categorias-design.md`.
+
+### 70.1 A API
+"API do Relatório de Exportação" da Xeotech: `POST https://api.xeotech.com.br/api/v1/producao/exportacao/{token}`, `painelId 15455`. O token é o **token de integração do usuário Proprietário** (Menu → Meu perfil → Meus dados), salvo pelo Rafael como secret de Edge Function `NEO_EXPORT_TOKEN` — nunca no repositório.
+
+Teste: HTTP 200 em ~2,4 s, **1.574 linhas (itens), 613 pedidos, ~2,5 MB**. **O período enviado é ignorado** — a API devolve o painel inteiro, qualquer que seja a janela pedida. `subCategoriaAtividade` vem sempre vazia hoje. Limites: mínimo 120 s entre execuções, 3 execuções/10 min por estrutura, 1 simultânea.
+
+Categorias em uso: Não responde, Restrição de Crédito, Desistência Demora, Desconfiança, Troca de Território, Erro de Cadastro, CNPJ Inapto, Duplicidade, Fibra - Inviabilidade Técnica, Desistência Biometria, Retenção (Concorrência), Portabilidade em Andamento, Multa Concorrência.
+
+A categoria **não vem** na API de Carga da Produção v2 (que o painel já usa) — só as tags `#...` do pedido.
+
+### 70.2 Banco
+Migration `20261005100000_vendas_perdidas_categorias.sql`:
+- `producao_atividades` — uma linha por pedido (categoria, subcategoria, tags, etapa, usuário, cliente, produtos, valor, datas), **sem CPF/CNPJ**; RLS leitura só admin/supervisor, escrita só pela função (service role).
+- `exportacao_sync_log` — uma linha por execução da sincronização (ok/erro, contagens).
+- RPC `vendas_perdidas(p_de, p_ate)` (admin/supervisor): etapa, valor e consultor vêm de `producao_pedidos_neo`; categoria vem de `producao_atividades`; a **data da perda** é a entrada em `VENDA PERDIDA (NEOCRM)` no `producao_etapa_historico`, e, se não houver, a última atualização do pedido.
+
+Migration `20261005100100_sync_exportacao_cron.sql`: cron `sync-exportacao-horario` no minuto 41 de cada hora.
+
+Verificação em `supabase/tests/vendas_perdidas_check.sql` (transação com rollback). Lição durante a verificação: o gatilho `trg_producao_neo_etapa` grava o histórico com a hora do insert, então o script precisa recuar a data do pedido fictício antigo para simular uma perda passada; `producao_pedidos_neo.id` é identity.
+
+### 70.3 Edge Function `sync-exportacao`
+Pasta `supabase/functions/sync-exportacao/`: `index.ts` (HTTP/auth) + `exportacao.ts` (lógica pura) + `exportacao.test.ts` (`node --test`, 7 testes). Uma chamada por hora; agrupa os itens por pedido (categoria = a mais frequente entre os itens, empate pelo item mais recente); `upsert` por `numero_pedido`; grava um log por execução. Erro da API grava só o log, sem tocar na tabela de atividades. O token nunca aparece em log nem em resposta (`ocultarToken`). `{"modo":"teste"}` no corpo só conta, não grava.
+
+### 70.4 Aba "Vendas Perdidas" (admin/supervisor)
+Grupo **Vendas**, logo depois de **Funil**. Períodos: Este mês, Mês passado, Últimos 90 dias, Personalizado. Filtros: Consultor e Categoria. KPIs: pedidos perdidos, valor perdido, % com categoria, maior motivo. Tabela de motivos ("Sem categoria" sempre por último; clique filtra a lista de pedidos). Preenchimento por consultor (pior primeiro; selo ≥90% verde, 50–89% amarelo, <50% vermelho; clique filtra). Lista de pedidos. Aviso se a sincronização passar de 3 h sem execução ok. Exportar Excel (abas Motivos, Preenchimento, Pedidos). Testes: `test_vendas_perdidas.js` (53 ok).
+
+### 70.5 Aplicado em produção (05/10/2026, com ok do Rafael)
+- Migration `vendas_perdidas_categorias` + verificação em transação com rollback limpo.
+- Edge Function `sync-exportacao` v3 implantada.
+- 1ª sincronização real: 613 pedidos, 129 com categoria.
+- Cron `sync-exportacao-horario` ativo (minuto 41).
+- Primeiro retrato (01/09 a 05/10): 152 vendas perdidas, 54 sem categoria; maiores motivos Restrição de Crédito (20), Não responde (19), Desistência Demora (15, maior valor, ~R$ 3,2 mil).
+
+### 70.6 Status e como reverter
+Banco e função já no ar; **o painel (aba) ainda está aguardando publicação.**
+
+Reverter: rollbacks em `supabase/rollback/20261005100000_vendas_perdidas_categorias_rollback.sql` e `supabase/rollback/20261005100100_sync_exportacao_cron_rollback.sql`. A Edge Function pode ser apagada direto no Supabase.
