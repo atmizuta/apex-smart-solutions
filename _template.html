@@ -10973,6 +10973,66 @@ document.getElementById('btnMesaExportar').addEventListener('click', function(){
   mlBaixarXlsx('MesaSupervisor_' + mesaEstado.hoje + '.xlsx', [{ nome: 'Semáforo', linhas: sem }, { nome: 'Itens', linhas: itens }]);
 });
 document.getElementById('btnMesaAtualizar').addEventListener('click', () => loadMesa(true).catch(err => console.error(err)));
+
+/* ============ VENDAS PERDIDAS POR CATEGORIA — 05/10/2026, REGRAS_NEGOCIO.md §70 ============
+   Categoria que o consultor escolhe no NEO ao perder a venda (API de Exportação Xeotech → producao_atividades),
+   juntada às vendas perdidas de producao_pedidos_neo pela RPC vendas_perdidas. Só admin/supervisor. */
+const VP_SEM_CATEGORIA = 'Sem categoria';
+function canSeeVendasPerdidas(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
+function vpPeriodo(tipo, hoje, de, ate){
+  const [y, m] = hoje.split('-').map(Number);
+  const pad = n => String(n).padStart(2, '0');
+  if(tipo === 'mespassado'){
+    const yy = m === 1 ? y - 1 : y, mm = m === 1 ? 12 : m - 1;
+    const ultimo = new Date(Date.UTC(yy, mm, 0)).getUTCDate();
+    return { de: `${yy}-${pad(mm)}-01`, ate: `${yy}-${pad(mm)}-${pad(ultimo)}` };
+  }
+  if(tipo === '90d') return { de: somaDiasStr(hoje, -89), ate: hoje };
+  if(tipo === 'custom') return { de: de || hoje, ate: ate || hoje };
+  return { de: `${y}-${pad(m)}-01`, ate: hoje };
+}
+function vpCategoria(l){ const c = String((l && l.categoria) || '').trim(); return c || VP_SEM_CATEGORIA; }
+function vpFiltrar(linhas, fConsultor, fCategoria){
+  return (linhas || []).filter(l => (!fConsultor || (l.usuario || '') === fConsultor) && (!fCategoria || vpCategoria(l) === fCategoria));
+}
+function vpMotivos(linhas){
+  const m = new Map();
+  (linhas || []).forEach(l => {
+    const k = vpCategoria(l);
+    const x = m.get(k) || { motivo: k, pedidos: 0, valor: 0 };
+    x.pedidos++; x.valor += Number(l.valor) || 0;
+    m.set(k, x);
+  });
+  const total = (linhas || []).length;
+  return [...m.values()].map(x => Object.assign(x, { valor: Math.round(x.valor * 100) / 100, pct: total ? x.pedidos / total : 0 }))
+    .sort((a, b) => (Number(a.motivo === VP_SEM_CATEGORIA) - Number(b.motivo === VP_SEM_CATEGORIA)) || (b.pedidos - a.pedidos) || a.motivo.localeCompare(b.motivo, 'pt-BR'));
+}
+function vpKpis(linhas){
+  const ls = linhas || [];
+  const total = ls.length, valor = Math.round(ls.reduce((s, l) => s + (Number(l.valor) || 0), 0) * 100) / 100;
+  const com = ls.filter(l => vpCategoria(l) !== VP_SEM_CATEGORIA);
+  const top = vpMotivos(com)[0] || null;
+  return { total, valor, pctComCategoria: total ? com.length / total : null, maiorMotivo: top ? top.motivo : null, maiorMotivoPct: top ? top.pedidos / com.length : null };
+}
+function vpConsultores(linhas){
+  const m = new Map();
+  (linhas || []).forEach(l => {
+    const k = l.usuario || '(sem consultor)';
+    const x = m.get(k) || { usuario: k, perdas: 0, comCategoria: 0, itens: [] };
+    x.perdas++; if(vpCategoria(l) !== VP_SEM_CATEGORIA) x.comCategoria++;
+    x.itens.push(l); m.set(k, x);
+  });
+  return [...m.values()].map(x => {
+    const top = vpMotivos(x.itens.filter(l => vpCategoria(l) !== VP_SEM_CATEGORIA))[0];
+    return { usuario: x.usuario, perdas: x.perdas, comCategoria: x.comCategoria, pct: x.comCategoria / x.perdas, maiorMotivo: top ? top.motivo : null };
+  }).sort((a, b) => (a.pct - b.pct) || (b.perdas - a.perdas) || a.usuario.localeCompare(b.usuario, 'pt-BR'));
+}
+function vpNivelPreenchimento(pct){ return pct >= 0.9 ? 'ok' : (pct >= 0.5 ? 'medio' : 'maximo'); }
+function vpSyncAtrasada(sync, agoraMs){
+  if(!sync || !sync.ok_em) return true;
+  const t = new Date(sync.ok_em).getTime();
+  return isNaN(t) || agoraMs - t > 3 * 3600000;
+}
 </script>
 </body>
 </html>
