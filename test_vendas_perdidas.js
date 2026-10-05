@@ -106,6 +106,88 @@ try{
   assert(!vpSyncAtrasada({ ok_em: '2026-10-05T13:00:00Z' }, agoraT), '2 h atrás = em dia');
   assert(vpSyncAtrasada({ ok_em: '2026-10-05T11:30:00Z' }, agoraT), '3h30 atrás = atrasada');
 
+  // ==== TASK 5: aba ====
+  const nowReal = Date.now;
+  Date.now = () => Date.parse('2026-10-05T15:00:00Z');
+  window.__rpcRespostas.vendas_perdidas = { data: linhas, error: null };
+  window.__tabelas.exportacao_sync_log = [{ ok: true, terminou_em: '2026-10-05T14:41:30Z' }];
+  window.__xlsx = [];
+  window.XLSX.writeFile = (wb, nome) => window.__xlsx.push({ wb, nome });
+
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  vpAplicarPermissao();
+  assert(document.getElementById('tabBtnVendasPerdidas').style.display === 'none', 'consultor não vê o botão');
+  window.__rpcCalls.length = 0;
+  await loadVendasPerdidas();
+  assert(!window.__rpcCalls.some(c => c.nome === 'vendas_perdidas'), 'consultor não chama a RPC');
+
+  currentUser = { id: 's1', nome: 'Supervisor Teste', username: 'sup', role: 'supervisor' };
+  vpAplicarPermissao();
+  assert(document.getElementById('tabBtnVendasPerdidas').style.display !== 'none', 'supervisor vê o botão');
+  document.querySelector('#tabsNav button[data-tab="vendasperdidas"]').click();
+  await espera(60);
+  assert(document.getElementById('panel-vendasperdidas').classList.contains('active'), 'clique abre a aba');
+  eq((window.__rpcCalls.filter(c => c.nome === 'vendas_perdidas').pop() || {}).args, { p_de: '2026-10-01', p_ate: '2026-10-05' }, 'período padrão: este mês (SP)');
+  const kt = document.getElementById('vpKpis').textContent;
+  assert(kt.includes('6') && kt.includes('R$') && kt.includes('66,7%') && kt.includes('Não responde'), 'KPIs na tela: ' + kt);
+  eq([...document.querySelectorAll('#vpMotivosTbody tr[data-vp-motivo]')].map(t => t.dataset.vpMotivo), ['Não responde', 'Desconfiança', 'Restrição de Crédito', 'Sem categoria'], 'tabela de motivos na ordem');
+  eq([...document.querySelectorAll('#vpConsultoresTbody tr[data-vp-consultor]')].map(t => t.dataset.vpConsultor), ['CONSULTOR B', 'CONSULTOR A'], 'preenchimento: pior primeiro');
+  assert(document.querySelector('#vpConsultoresTbody tr[data-vp-consultor="CONSULTOR B"] .ppNivel.maximo'), 'selo vermelho para 33%');
+  assert(document.querySelector('#vpConsultoresTbody tr[data-vp-consultor="CONSULTOR A"] .ppNivel.ok'), 'selo verde para 100%');
+  eq(document.querySelectorAll('#vpPedidosTbody tr').length, 6, '6 pedidos na lista');
+  assert(document.getElementById('vpAvisoSync').style.display === 'none', 'sync em dia: sem aviso');
+  assert(!/NaN|undefined/.test(document.getElementById('panel-vendasperdidas').textContent), 'nada de NaN/undefined');
+
+  // clique no motivo filtra a lista; clicar de novo limpa
+  document.querySelector('#vpMotivosTbody tr[data-vp-motivo="Sem categoria"]').click();
+  await espera(20);
+  eq(document.querySelectorAll('#vpPedidosTbody tr').length, 2, 'filtro por motivo (Sem categoria)');
+  assert(document.getElementById('vpFiltroCategoria').value === 'Sem categoria', 'select acompanha o clique');
+  document.querySelector('#vpMotivosTbody tr[data-vp-motivo="Sem categoria"]').click();
+  await espera(20);
+  eq(document.querySelectorAll('#vpPedidosTbody tr').length, 6, 'clicar de novo limpa');
+  // clique no consultor filtra
+  document.querySelector('#vpConsultoresTbody tr[data-vp-consultor="CONSULTOR B"]').click();
+  await espera(20);
+  eq(document.querySelectorAll('#vpPedidosTbody tr').length, 3, 'filtro por consultor');
+  assert(document.getElementById('vpKpis').textContent.includes('3'), 'KPIs acompanham o filtro');
+  document.getElementById('vpFiltroConsultor').value = '';
+  document.getElementById('vpFiltroConsultor').dispatchEvent(new window.Event('change'));
+  await espera(20);
+  eq(document.querySelectorAll('#vpPedidosTbody tr').length, 6, 'select limpa o filtro');
+
+  // período mês passado recarrega com as datas certas
+  document.querySelector('#vpPeriodoPills [data-vp-periodo="mespassado"]').click();
+  await espera(40);
+  eq(window.__rpcCalls.filter(c => c.nome === 'vendas_perdidas').pop().args, { p_de: '2026-09-01', p_ate: '2026-09-30' }, 'mês passado');
+  document.querySelector('#vpPeriodoPills [data-vp-periodo="mes"]').click();
+  await espera(40);
+
+  // Excel
+  document.getElementById('btnVpExportar').click();
+  await espera(20);
+  const x = window.__xlsx.pop();
+  assert(x && x.nome === 'VendasPerdidas_2026-10-01_2026-10-05.xlsx', 'nome do Excel');
+  eq(x.wb.SheetNames, ['Motivos', 'Preenchimento', 'Pedidos'], 'abas do Excel');
+
+  // aviso de sync atrasada e erro de carga
+  window.__tabelas.exportacao_sync_log = [{ ok: true, terminou_em: '2026-10-05T10:00:00Z' }];
+  await loadVendasPerdidas();
+  assert(document.getElementById('vpAvisoSync').style.display !== 'none' && document.getElementById('vpAvisoSync').textContent.includes('05/10'), 'aviso de sync atrasada com a data');
+  window.__tabelas.exportacao_sync_log = [];
+  await loadVendasPerdidas();
+  assert(document.getElementById('vpAvisoSync').textContent.includes('ainda não sincronizaram'), 'aviso de nunca sincronizou');
+  window.__rpcRespostas.vendas_perdidas = { data: null, error: { message: 'x' } };
+  await loadVendasPerdidas();
+  assert(document.getElementById('vpMotivosTbody').textContent.includes('Não foi possível carregar'), 'erro de carga');
+  window.__rpcRespostas.vendas_perdidas = { data: linhas, error: null };
+
+  // troca para consultor limpa
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  vpAplicarPermissao();
+  assert(document.getElementById('vpPedidosTbody').innerHTML === '' && document.getElementById('vpKpis').innerHTML === '', 'troca para consultor limpa a aba');
+  Date.now = nowReal;
+
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
