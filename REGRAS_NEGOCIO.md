@@ -643,6 +643,18 @@ Testado em `test_visao_diaria.js` (bloco novo "7.6", dia fictício 07/10/2026 co
 
 - **06/10/2026** — Visão Diária deixou de contar pedidos em `AGUARDANDO INTERACAO (NEOCRM)` ou `PROPOSTA (NEOCRM)` — etapas bem no início do funil do NeoCRM. Afeta KPIs, hora a hora, cards "Por tipo de venda" e rankings; as demais abas do Dashboard de Produção não mudaram. Ver seção 16.16.
 
+### 16.17 "Gerar relatório 17h" divergia da Visão Diária — faltava a mesma exclusão de etapas (06/10/2026)
+
+**Sintoma reportado pelo usuário** (com print + texto do relatório): os números da Visão Diária e os do botão "Gerar relatório 17h" não batiam no mesmo dia — ex.: "Linha nova" mostrava 6 no painel e 10 no relatório, "Claro Monitor" 4 vs 5, valor total R$ 1.149,75 vs R$ 1.364,71.
+
+**Causa raiz**: `dadosRelatorioDia(dateStr, corteHora)` (função própria do relatório, seção 56) filtra `DATA` direto por data + hora de corte, **sem reaproveitar** o filtro de `rows` do `renderVisaoDiaria()` — então nunca recebeu a exclusão de `AGUARDANDO INTERACAO (NEOCRM)`/`PROPOSTA (NEOCRM)` adicionada na seção 16.16 (a exclusão foi aplicada só no filtro da Visão Diária, sem verificar se havia outro ponto de leitura de `DATA` pra manter consistente).
+
+**Correção**: `dadosRelatorioDia` passou a aplicar a mesma condição, reaproveitando a constante `VISAO_DIARIA_ETAPAS_EXCLUIDAS` (seção 16.16) — `&& VISAO_DIARIA_ETAPAS_EXCLUIDAS.indexOf(r.etapa) < 0` no filtro. Testado em `test_relatorio_17h.js` (bloco novo "2.1", dia fictício 28/09/2026 com 3 pedidos — mesmo padrão do teste da seção 16.16): só o pedido `CONCLUIDO` conta, os outros dois (`AGUARDANDO INTERACAO`/`PROPOSTA`) ficam de fora tanto na contagem quanto no valor.
+
+**Lição**: quando dois pontos diferentes do código leem a mesma fonte de dados (`DATA`) pra mostrar números que o usuário espera que batam entre si, uma mudança de regra de negócio num ponto precisa ser conferida em todos os outros — não só no que motivou o pedido original.
+
+- **06/10/2026** — Corrigida divergência entre a Visão Diária e o relatório "Gerar relatório 17h": o relatório não aplicava a exclusão de pedidos em `AGUARDANDO INTERACAO`/`PROPOSTA` (seção 16.16) — agora usa o mesmo filtro, os números voltam a bater. Ver seção 16.17.
+
 ## 17. Digital (leads de campanhas Facebook/Instagram)
 
 Aba **"Digital"** (nome interno/técnico `conversao` — vem da época em que a aba se chamava "Conversão de Vendas", mantido nos IDs/funções do código pra não gerar retrabalho num rename só de rótulo visível). Até 01/09/2026 era visível só para admin e supervisor; a partir dessa data, **qualquer perfil vê a aba**, incluindo o consultor (ver seção 2.1) — mesma visibilidade do Dashboard de Produção (porta de entrada de qualquer perfil, seção 16.6). O botão **"Atualizar agora"**, porém, continua restrito a admin/supervisor (ver seção 17.1) — ver dados é uma permissão, disparar a sincronização com o Google Sheets é outra.

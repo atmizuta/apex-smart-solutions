@@ -51,6 +51,11 @@ const DADOS = [
   // outro dia
   ped({ numero_pedido: 'D1', grupo: 'VOZ - Portabilidade', valor: 999, cadastro: '2026-09-29T10:00:00-03:00' }),
   ped({ numero_pedido: 'D2', grupo: 'VOZ - Novo', valor: 999, cadastro: '2026-10-01T10:00:00-03:00' }),
+  // 06/10/2026 (pedido do usuário): o relatório divergia da Visão Diária porque não excluía pedidos
+  // em "AGUARDANDO INTERACAO (NEOCRM)"/"PROPOSTA (NEOCRM)" (seção 16.16) — dia isolado pra testar.
+  ped({ numero_pedido: 'EXCL-1', grupo: 'VOZ - Novo', etapa: 'AGUARDANDO INTERACAO (NEOCRM)', valor: 900, cadastro: '2026-09-28T09:00:00-03:00' }),
+  ped({ numero_pedido: 'EXCL-2', grupo: 'VOZ - Novo', etapa: 'PROPOSTA (NEOCRM)',             valor: 900, cadastro: '2026-09-28T09:10:00-03:00' }),
+  ped({ numero_pedido: 'EXCL-3', grupo: 'VOZ - Novo', etapa: 'CONCLUIDO (NEOCRM)',            valor: 80,  cadastro: '2026-09-28T09:20:00-03:00' }),
 ];
 
 let w = montarDashboard({ data: DADOS });
@@ -72,6 +77,12 @@ assert(por['BANDA LARGA - Novo'] === 2 && por['APARELHO'] === 1 && por['SVA FIXA
 assert(dados.linhas === 7, 'Linhas do dia = soma das quantidades dos grupos VOZ - * (1+2+1+1+1+1 = 7) — achou ' + dados.linhas);
 assert(dados.valor === 50 + 60 + 70 + 80 + 90 + 40 + 120 + 130 + 3000 + 10 + 5 + 5, 'valor total soma todos os pedidos do dia até as 17h — achou ' + dados.valor);
 assert(w.dadosRelatorioDia(DIA, null).rows.length === 15, 'sem corte, o dia tem 15 pedidos (confere com a Visão Diária)');
+
+// --- 2.1) 06/10/2026: pedidos em "AGUARDANDO INTERACAO"/"PROPOSTA" não contam no relatório (mesma
+// regra da Visão Diária, seção 16.16) — só o EXCL-3 (CONCLUIDO) deve aparecer ---
+const dadosExcluidos = w.dadosRelatorioDia('2026-09-28', null);
+assert(dadosExcluidos.rows.length === 1, 'dia com pedidos em aguardando interação/proposta: só 1 pedido conta (o concluído) — achou ' + dadosExcluidos.rows.length);
+assert(dadosExcluidos.valor === 80, 'dia com pedidos em aguardando interação/proposta: valor soma só R$ 80 (EXCL-1 e EXCL-2 ficam de fora) — achou ' + dadosExcluidos.valor);
 
 // ---------------------------------------------------------------- 3) texto
 const agoraDepois = { date: DIA, hora: '17:05' };
