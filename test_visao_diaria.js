@@ -109,6 +109,13 @@ const FIXTURE = [
   // "Linhas"). MON-2 é uma linha VOZ normal no mesmo dia, pra provar que ela continua contando.
   lead({ numero_pedido: 'MON-1', usuario: 'Caio', grupo: 'SVA MÓVEL', cadastro: '2026-09-22T10:00:00-03:00', valor: 5,   quantidade: 1, produto: 'CLARO MONITOR' }),
   lead({ numero_pedido: 'MON-2', usuario: 'Caio', grupo: 'VOZ - Novo', cadastro: '2026-09-22T10:05:00-03:00', valor: 100, quantidade: 1 }),
+  // 06/10/2026 (pedido do usuário): pedidos ainda em "AGUARDANDO INTERACAO (NEOCRM)" ou
+  // "PROPOSTA (NEOCRM)" não podem ser contados na Visão Diária (nem KPIs, nem distribuição por
+  // hora, nem rankings) — são etapas bem no início do funil do NeoCRM, ainda sem negociação real.
+  // EXCL-3 é um pedido normal (CONCLUIDO) no mesmo dia, pra provar que só os 2 excluídos somem.
+  lead({ numero_pedido: 'EXCL-1', usuario: 'Caio', grupo: 'VOZ - Novo', etapa: 'AGUARDANDO INTERACAO (NEOCRM)', cadastro: '2026-10-07T09:00:00-03:00', valor: 900, quantidade: 1 }),
+  lead({ numero_pedido: 'EXCL-2', usuario: 'Caio', grupo: 'VOZ - Novo', etapa: 'PROPOSTA (NEOCRM)',             cadastro: '2026-10-07T09:10:00-03:00', valor: 900, quantidade: 1 }),
+  lead({ numero_pedido: 'EXCL-3', usuario: 'Caio', grupo: 'VOZ - Novo', etapa: 'CONCLUIDO (NEOCRM)',            cadastro: '2026-10-07T09:20:00-03:00', valor: 80,  quantidade: 1 }),
 ];
 
 const htmlNoScript = tplRaw.replace(/<script>[\s\S]*?<\/script>/g, '');
@@ -368,6 +375,16 @@ try{
   assert(kpiHtmlMonitor.includes('>1<'), 'dia do Claro Monitor: KPI Linhas mostra 1 (só a linha VOZ - Novo do MON-2, sem contar o Claro Monitor) — ' + kpiHtmlMonitor);
   const cardClaroMonitorDia = Array.from(document.getElementById('diariaTipoVenda').querySelectorAll('.card[data-grupo]')).find(c => c.dataset.grupo === 'SVA MÓVEL');
   assert(cardClaroMonitorDia && cardClaroMonitorDia.querySelector('.value').textContent === '1', 'card Claro Monitor mostra 1 (pedido MON-1) — obtido ' + (cardClaroMonitorDia && cardClaroMonitorDia.querySelector('.value').textContent));
+
+  // --- 7.6) 06/10/2026 (pedido do usuário): pedidos em "AGUARDANDO INTERACAO (NEOCRM)" ou
+  // "PROPOSTA (NEOCRM)" não contam na Visão Diária — só EXCL-3 (CONCLUIDO) deve aparecer ---
+  document.getElementById('diariaDate').value = '2026-10-07';
+  renderVisaoDiaria();
+  const kpiHtmlExcluidos = document.getElementById('diariaKpis').innerHTML;
+  assert(kpiHtmlExcluidos.includes('>1<'), 'dia com pedidos em aguardando interação/proposta: KPI Contratos mostra 1 (só o EXCL-3, concluído) — ' + kpiHtmlExcluidos);
+  assert(kpiHtmlExcluidos.includes('80,00') && !kpiHtmlExcluidos.includes('1.880,00'), 'dia com pedidos em aguardando interação/proposta: KPI Valor Total soma só R$ 80,00 (EXCL-1 e EXCL-2 ficam de fora) — ' + kpiHtmlExcluidos);
+  const consultoresExcluidos = document.getElementById('diariaConsultores').innerHTML;
+  assert(consultoresExcluidos.includes('80,00') && !consultoresExcluidos.includes('1.880,00'), 'ranking por consultor também não soma os pedidos em aguardando interação/proposta — ' + consultoresExcluidos);
 
   // --- 8) dia sem nenhum pedido mostra "Sem dados", sem quebrar, inclusive nos cards por tipo de venda ---
   document.getElementById('diariaDate').value = '2099-01-01';

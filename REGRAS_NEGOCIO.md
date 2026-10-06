@@ -631,6 +631,18 @@ Testado em `test_visao_diaria.js` (bloco novo "7.4", dia fictício 21/09/2026 co
 
 - **21/09/2026** — Corrigido "Contratos" da Visão Diária voltando a igualar "Produtos" em dias com venda de convergência (fibra + móvel): o NeoCRM grava banda larga e voz da mesma venda com `numero_pedido` diferente; agora CNPJs com banda larga + outro tipo de produto no mesmo dia fundem em 1 contrato só (CNPJs sem esse padrão exato continuam contando por `numero_pedido`, sem mudança). Ver seção 16.15.
 
+### 16.16 Pedidos em "Aguardando Interação" ou "Proposta" não contam na Visão Diária (06/10/2026)
+
+**Pedido do usuário**: na Visão Diária, pedidos que ainda estão nas etapas `AGUARDANDO INTERACAO (NEOCRM)` ou `PROPOSTA (NEOCRM)` do NeoCRM não podem ser contados — são etapas bem no início do funil (o cliente muitas vezes nem respondeu/negociou de verdade ainda), e contá-las inflava os números do dia com pedidos que ainda não evoluíram.
+
+**Implementação**: `renderVisaoDiaria()` já calcula um único `rows` (filtrado pela data selecionada) que alimenta todo o resto da aba — KPIs, distribuição por hora, cards "Por tipo de venda" e os rankings por consultor/produto. Adicionada uma segunda condição a esse mesmo filtro: `VISAO_DIARIA_ETAPAS_EXCLUIDAS.indexOf(r.etapa) < 0`, com `VISAO_DIARIA_ETAPAS_EXCLUIDAS = ['AGUARDANDO INTERACAO (NEOCRM)', 'PROPOSTA (NEOCRM)']` — como é um único ponto de filtro, a exclusão se propaga automaticamente pra tudo que a aba mostra, sem precisar tocar nos outros pontos (igual ao padrão já usado em `ARQUIVADO (NEOCRM)`, seção 16.2). As strings exatas (sem cedilha em "INTERACAO", com o sufixo `(NEOCRM)`) foram conferidas direto na tabela `producao_pedidos` do Supabase (`select etapa, count(*) from producao_pedidos group by etapa`), não digitadas de memória.
+
+**Escopo**: só afeta a Visão Diária. As demais abas do Dashboard de Produção (Visão Geral, Cadastro Diário, Fechamento, Pedidos em Alerta) continuam mostrando essas etapas normalmente — ficam dentro de "Andamento" (seção 16.2), que é o comportamento já esperado lá.
+
+Testado em `test_visao_diaria.js` (bloco novo "7.6", dia fictício 07/10/2026 com 3 pedidos — 1 em `AGUARDANDO INTERACAO`, 1 em `PROPOSTA`, 1 `CONCLUIDO`): KPI de Contratos e Valor Total e o ranking por consultor mostram só o pedido concluído, os outros dois ficam de fora.
+
+- **06/10/2026** — Visão Diária deixou de contar pedidos em `AGUARDANDO INTERACAO (NEOCRM)` ou `PROPOSTA (NEOCRM)` — etapas bem no início do funil do NeoCRM. Afeta KPIs, hora a hora, cards "Por tipo de venda" e rankings; as demais abas do Dashboard de Produção não mudaram. Ver seção 16.16.
+
 ## 17. Digital (leads de campanhas Facebook/Instagram)
 
 Aba **"Digital"** (nome interno/técnico `conversao` — vem da época em que a aba se chamava "Conversão de Vendas", mantido nos IDs/funções do código pra não gerar retrabalho num rename só de rótulo visível). Até 01/09/2026 era visível só para admin e supervisor; a partir dessa data, **qualquer perfil vê a aba**, incluindo o consultor (ver seção 2.1) — mesma visibilidade do Dashboard de Produção (porta de entrada de qualquer perfil, seção 16.6). O botão **"Atualizar agora"**, porém, continua restrito a admin/supervisor (ver seção 17.1) — ver dados é uma permissão, disparar a sincronização com o Google Sheets é outra.
