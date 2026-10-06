@@ -728,23 +728,13 @@
     <section class="panel" id="panel-biometria">
       <div class="card">
         <h3>Biometria facial</h3>
-        <p class="desc">Envie em duas mensagens pelo WhatsApp: 1) a imagem abaixo, como FOTO (baixe e anexe manualmente — enviada assim, ela aparece grande na tela do cliente, sem ser reduzida pelo WhatsApp); 2) logo em seguida, este texto com o link real de biometria (o que você recebe do sistema da Claro para aquele cliente específico).</p>
-        <div class="row4" style="grid-template-columns:1fr 1fr">
-          <div class="field" style="margin:0"><label>Nome do cliente</label><input type="text" id="bioNome" placeholder="Ex: João da Silva"></div>
-          <div class="field" style="margin:0"><label>Link de biometria (da Claro)</label><input type="text" id="bioLink" placeholder="https://..."></div>
+        <p class="desc">Digite o nome do cliente: a imagem abaixo é personalizada na hora. Depois, baixe a imagem e envie pelo WhatsApp como FOTO (anexada manualmente — assim ela aparece grande na tela do cliente) e, logo em seguida, mande o link de biometria que você recebeu do sistema da Claro para aquele cliente.</p>
+        <div class="field" style="max-width:440px"><label for="bioNome">Nome do cliente</label><input type="text" id="bioNome" placeholder="Ex: João da Silva" maxlength="60" autocomplete="off"></div>
+        <div class="field" style="margin:0 0 12px"><label>Preview da imagem</label>
+          <canvas id="bioCanvas" width="1080" height="1080" style="display:block;width:100%;max-width:440px;height:auto;border:1px solid var(--border);border-radius:var(--radius-lg)" aria-label="Preview da imagem de biometria"></canvas>
         </div>
-        <button class="btn" id="btnGerarBiometria" style="width:auto;margin-top:6px">Gerar link</button>
-        <div class="loginError" id="bioErr" style="display:none;margin-top:10px"></div>
-        <div id="bioResultado" style="display:none;margin-top:18px">
-          <div class="field" style="margin:0 0 10px"><label>Link para enviar no WhatsApp</label><input type="text" id="bioLinkGerado" readonly></div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <a class="btn" id="btnBaixarImagemBiometria" style="width:auto;text-decoration:none;text-align:center;display:inline-block" href="https://apexsmart.com.br/biometria_preview.png" download="biometria-claro-empresas.png" target="_blank" rel="noopener">Baixar imagem</a>
-            <button class="btn" type="button" id="btnCopiarBiometria" style="width:auto">Copiar link</button>
-            <a class="btn" id="btnWhatsappBiometria" style="width:auto;text-decoration:none;text-align:center;display:inline-block" target="_blank" rel="noopener">Enviar no WhatsApp</a>
-          </div>
-          <div class="loginOk" id="bioCopiadoMsg" style="display:none;margin-top:8px">Link copiado.</div>
-          <p class="desc" style="margin-top:12px;font-size:12.5px">Passo a passo: 1) baixe a imagem; 2) abra a conversa no WhatsApp e envie a imagem como foto; 3) em seguida, envie este texto (com o link) como uma nova mensagem.</p>
-        </div>
+        <button class="btn" type="button" id="btnBaixarImagemBiometria" style="width:auto">Baixar imagem</button>
+        <p class="desc" style="margin-top:12px;font-size:12.5px">Passo a passo: 1) preencha o nome e confira o preview; 2) clique em "Baixar imagem"; 3) no WhatsApp, envie a imagem como foto; 4) em seguida, envie o link de biometria da Claro como uma nova mensagem.</p>
       </div>
     </section>
 
@@ -2244,81 +2234,159 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
 // (Visão geral / Vendas / Ferramentas / Administração) foram mantidos. Ver REGRAS_NEGOCIO.md seção 37.
 
 /* ============ BIOMETRIA ============
-   10/09/2026 (v4, decisão final): o preview de link do WhatsApp sempre reduz a imagem a uma
-   miniatura pequena (limitação da própria plataforma, nenhum redesenho de imagem resolve isso
-   enquanto ela for usada como og:image). Por isso a página-ponte foi abandonada de novo: agora a
-   imagem é enviada como FOTO de verdade (grande, sem redução) pelo botão "Baixar imagem", e o
-   link vai numa mensagem separada logo depois — o link é o REAL da Claro, direto (não a
-   página-ponte), por decisão explícita do usuário. Ver REGRAS_NEGOCIO.md, seção 19.9. */
-function validarLinkBiometria(link){
-  try {
-    const u = new URL((link || '').trim());
-    return u.protocol === 'http:' || u.protocol === 'https:';
-  } catch(e){
-    return false;
-  }
+   06/10/2026 (pedido do usuário): a imagem de biometria deixou de ser um PNG fixo publicado no site
+   e passou a ser desenhada aqui, num <canvas> 1080x1080, com o nome do cliente — o consultor digita o
+   nome, vê o preview na hora e baixa o PNG personalizado. O campo "Link de biometria (da Claro)" e
+   tudo que dependia dele (link gerado, copiar link, mensagem do WhatsApp) saíram da aba: o link da
+   Claro o consultor envia por conta própria, em mensagem separada, logo depois da foto. O desenho
+   segue a arte "Confirme sua identidade" fornecida pelo usuário (cores/medidas medidas dela); o
+   nome do cliente ocupa o espaço livre entre o subtítulo e o botão. Ver REGRAS_NEGOCIO.md, seção 19.11.
+   As cores abaixo são da ARTE da Claro Empresas (imagem exportada), não da interface do painel. */
+const BIO_FONTE = '"Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif';
+const BIO_COR = {
+  fundoDe: '#6d0f06', fundoAte: '#3a0702', circulo: 'rgba(255,255,255,.045)',
+  caixaLogo: 'rgba(0,0,0,.2)', selo: 'rgba(255,255,255,.17)', branco: '#ffffff',
+  subtitulo: 'rgba(255,255,255,.92)', apoio: 'rgba(255,255,255,.72)', botaoTexto: '#450800', ok: '#93deae'
+};
+// Logo "Claro empresas" (branco com fundo transparente), recortado da arte de referência.
+const BIO_LOGO_B64 = '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';
+let bioLogoImg = null;
+function bioCarregarLogo(){
+  if(bioLogoImg || typeof Image === 'undefined') return;
+  bioLogoImg = new Image();
+  bioLogoImg.onload = function(){ bioRedesenhar(); };
+  bioLogoImg.src = 'data:image/png;base64,' + BIO_LOGO_B64;
 }
 
-function montarLinkBiometria(nome, link){
-  // Link real da Claro, direto — sem página-ponte (ver comentário acima e REGRAS_NEGOCIO.md 19.9).
-  return new URL((link || '').trim()).toString();
+function bioNormalizarNome(nome){
+  return String(nome || '').replace(/\s+/g, ' ').trim();
 }
 
-function montarMensagemWhatsapp(nome, linkGerado, consultorNome){
-  // 10/09/2026: mensagem reforçada com boas práticas de mercado contra desconfiança/phishing —
-  // o consultor se identifica pelo nome (evita parecer disparo automático/anônimo) e o texto deixa
-  // explícito que o link é o canal oficial gerado pelo sistema da Claro. Ver REGRAS_NEGOCIO.md,
-  // seção 19.10.
-  const nomeTrim = (nome || '').trim();
-  const consultorTrim = (consultorNome || '').trim();
-  const saudacao = nomeTrim ? `Olá, ${nomeTrim}! ` : 'Olá! ';
-  const apresentacao = consultorTrim
-    ? `Aqui é ${consultorTrim}, consultor(a) da Claro Empresas (Apex Smart Solutions). `
-    : 'Aqui é seu(sua) consultor(a) da Claro Empresas (Apex Smart Solutions). ';
-  const texto = saudacao + apresentacao
-    + 'Para concluir sua ativação, confirme sua identidade com a biometria facial oficial da Claro — é rápido e seguro:\n'
-    + linkGerado
-    + '\n\nEsse é o link oficial gerado pelo sistema da Claro. Qualquer dúvida, me chama por aqui mesmo.';
-  return 'https://wa.me/?text=' + encodeURIComponent(texto);
+function bioNomeArquivo(nome){
+  const slug = bioNormalizarNome(nome).normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+  return 'biometria-' + (slug || 'cliente') + '.png';
 }
 
-document.getElementById('btnGerarBiometria').addEventListener('click', function(){
-  const nome = document.getElementById('bioNome').value;
-  const link = document.getElementById('bioLink').value;
-  const errEl = document.getElementById('bioErr');
-  const resEl = document.getElementById('bioResultado');
-  errEl.style.display = 'none';
-  resEl.style.display = 'none';
-  document.getElementById('bioCopiadoMsg').style.display = 'none';
-  if(!nome.trim()){
-    errEl.textContent = 'Informe o nome do cliente.';
-    errEl.style.display = 'block';
+function bioRoundRect(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// larguraMax (opcional): se a fonte do computador for mais larga que a Segoe UI da arte, o texto é
+// comprimido pra não passar da margem direita.
+function bioTexto(ctx, texto, x, y, peso, tam, cor, alinhamento, espaco, larguraMax){
+  ctx.font = peso + ' ' + tam + 'px ' + BIO_FONTE;
+  ctx.fillStyle = cor;
+  ctx.textAlign = alinhamento || 'left';
+  ctx.textBaseline = 'alphabetic';
+  if('letterSpacing' in ctx) ctx.letterSpacing = (espaco || 0) + 'px';
+  if(larguraMax) ctx.fillText(texto, x, y, larguraMax); else ctx.fillText(texto, x, y);
+  if('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+}
+
+// Reduz a fonte (até um mínimo) e, se ainda assim não couber, corta com "…".
+function bioAjustarTexto(ctx, texto, larguraMax, peso, tamMax, tamMin){
+  let tam = tamMax;
+  const medir = function(t){ ctx.font = peso + ' ' + tam + 'px ' + BIO_FONTE; return ctx.measureText(t).width; };
+  while(tam > tamMin && medir(texto) > larguraMax) tam -= 2;
+  if(medir(texto) <= larguraMax) return { texto: texto, tam: tam };
+  let t = texto;
+  while(t.length > 1 && medir(t.replace(/\s+$/, '') + '…') > larguraMax) t = t.slice(0, -1);
+  return { texto: t.replace(/\s+$/, '') + '…', tam: tam };
+}
+
+function desenharImagemBiometria(canvas, nome){
+  const ctx = canvas && canvas.getContext && canvas.getContext('2d');
+  if(!ctx) return false;
+  const W = 1080, H = 1080;
+  const nomeLimpo = bioNormalizarNome(nome);
+
+  const fundo = ctx.createLinearGradient(0, 0, W, H);
+  fundo.addColorStop(0, BIO_COR.fundoDe);
+  fundo.addColorStop(1, BIO_COR.fundoAte);
+  ctx.fillStyle = fundo;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = BIO_COR.circulo;
+  ctx.beginPath();
+  ctx.arc(1010, 120, 300, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = BIO_COR.caixaLogo;
+  ctx.fillRect(80, 70, 164, 150);
+  if(bioLogoImg && bioLogoImg.complete && bioLogoImg.naturalWidth) ctx.drawImage(bioLogoImg, 94, 106, 142, 84);
+
+  bioRoundRect(ctx, 720, 96, 280, 58, 29);
+  ctx.fillStyle = BIO_COR.selo;
+  ctx.fill();
+  bioTexto(ctx, '\u{1F512}', 750, 136, 400, 24, BIO_COR.branco, 'left');
+  bioTexto(ctx, 'Ambiente seguro', 787, 135, 700, 25, BIO_COR.branco, 'left');
+
+  bioTexto(ctx, 'Confirme sua identidade e', 80, 340, 900, 68, BIO_COR.branco, 'left', 0, 920);
+  bioTexto(ctx, 'finalize seu pedido', 80, 418, 900, 68, BIO_COR.branco, 'left', 0, 920);
+  bioTexto(ctx, 'Sua contratação Claro empresas está quase pronta.', 80, 487, 400, 38, BIO_COR.subtitulo, 'left', 0, 920);
+  bioTexto(ctx, 'Falta só a validação biométrica.', 80, 539, 400, 38, BIO_COR.subtitulo, 'left', 0, 920);
+
+  // Nome do cliente (parte personalizada) — vazio, mostra um texto-guia apagado só no preview.
+  ctx.fillStyle = BIO_COR.apoio;
+  ctx.fillRect(80, 622, 6, 112);
+  bioTexto(ctx, 'PEDIDO EM NOME DE', 112, 656, 700, 24, BIO_COR.apoio, 'left', 3);
+  const ajuste = bioAjustarTexto(ctx, nomeLimpo || 'Nome do cliente', 880, 800, 60, 32);
+  ctx.globalAlpha = nomeLimpo ? 1 : 0.4;
+  bioTexto(ctx, ajuste.texto, 112, 724, 800, ajuste.tam, BIO_COR.branco, 'left');
+  ctx.globalAlpha = 1;
+
+  bioRoundRect(ctx, 80, 800, 920, 126, 63);
+  ctx.fillStyle = BIO_COR.branco;
+  ctx.fill();
+  bioTexto(ctx, 'Fazer minha validação biométrica', 540, 877, 800, 40, BIO_COR.botaoTexto, 'center', 0, 860);
+
+  bioTexto(ctx, '\u2713', 80, 998, 700, 30, BIO_COR.ok, 'left');
+  bioTexto(ctx, 'Validação por Serasa Experian, em nome da Claro', 118, 998, 700, 26, BIO_COR.branco, 'left', 0, 882);
+  bioTexto(ctx, 'Enviado por Apex Smart Solutions \u2014 Agente Autorizado Claro', 80, 1041, 400, 25, BIO_COR.apoio, 'left', 0, 920);
+  return true;
+}
+
+function bioRedesenhar(){
+  const canvas = document.getElementById('bioCanvas');
+  if(canvas) desenharImagemBiometria(canvas, document.getElementById('bioNome').value);
+}
+
+document.getElementById('bioNome').addEventListener('input', bioRedesenhar);
+
+document.getElementById('btnBaixarImagemBiometria').addEventListener('click', function(){
+  const nome = bioNormalizarNome(document.getElementById('bioNome').value);
+  if(!nome){
+    mostrarAviso('Informe o nome do cliente para gerar a imagem.', 'erro');
+    document.getElementById('bioNome').focus();
     return;
   }
-  if(!validarLinkBiometria(link)){
-    errEl.textContent = 'Informe um link de biometria válido (começando com http:// ou https://).';
-    errEl.style.display = 'block';
+  const canvas = document.getElementById('bioCanvas');
+  if(!desenharImagemBiometria(canvas, nome) || !canvas.toBlob){
+    mostrarAviso('Não foi possível gerar a imagem neste navegador.', 'erro');
     return;
   }
-  const linkGerado = montarLinkBiometria(nome, link);
-  document.getElementById('bioLinkGerado').value = linkGerado;
-  document.getElementById('btnWhatsappBiometria').href = montarMensagemWhatsapp(nome, linkGerado, currentUser ? currentUser.nome : '');
-  resEl.style.display = 'block';
+  canvas.toBlob(function(blob){
+    if(!blob){ mostrarAviso('Não foi possível gerar a imagem.', 'erro'); return; }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = bioNomeArquivo(nome);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+  }, 'image/png');
 });
 
-document.getElementById('btnCopiarBiometria').addEventListener('click', function(){
-  const input = document.getElementById('bioLinkGerado');
-  input.select();
-  input.setSelectionRange(0, 99999);
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(input.value).catch(function(){});
-  } else if(document.execCommand){
-    document.execCommand('copy');
-  }
-  const msg = document.getElementById('bioCopiadoMsg');
-  msg.style.display = 'block';
-  setTimeout(function(){ msg.style.display = 'none'; }, 2500);
-});
+bioCarregarLogo();
+bioRedesenhar();
 
 /* ============ BUSCA ============ */
 const searchInput = document.getElementById('searchInput');

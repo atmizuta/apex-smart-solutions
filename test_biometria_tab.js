@@ -1,8 +1,7 @@
-// Testa a aba "Biometria": validação de link, montagem do link a enviar (10/09/2026 v4, decisão
-// final: link real da Claro direto, sem página-ponte — a imagem vai separada, como foto, ver
-// REGRAS_NEGOCIO.md seção 19.9), montagem da mensagem do WhatsApp, e o fluxo de UI (clicar em
-// "Gerar link" preenche o campo de resultado; erros de validação aparecem/desaparecem
-// corretamente).
+// Testa a aba "Biometria" (06/10/2026, ver REGRAS_NEGOCIO.md seção 19.11): o consultor digita só o
+// nome do cliente, a imagem é desenhada num <canvas> (preview ao vivo) e baixada como PNG
+// personalizado. O campo de link da Claro e o fluxo do link/WhatsApp foram removidos da aba.
+// jsdom não tem canvas: o teste injeta um contexto 2D falso que registra o que foi desenhado.
 const fs = require('fs');
 const { JSDOM } = require('jsdom');
 
@@ -30,76 +29,94 @@ try{
   let ok = 0, fail = 0;
   function assert(cond, msg){ if(cond){ ok++; } else { fail++; console.log('FALHOU:', msg); } }
 
-  // --- validarLinkBiometria (pura) ---
-  assert(validarLinkBiometria('https://claro.com.br/bio/abc123') === true, 'link https válido é aceito');
-  assert(validarLinkBiometria('http://claro.com.br/bio/abc123') === true, 'link http válido é aceito');
-  assert(validarLinkBiometria('  https://claro.com.br/bio/abc  ') === true, 'link com espaço nas pontas é aceito (trim)');
-  assert(validarLinkBiometria('claro.com.br/bio/abc') === false, 'link sem esquema (http/https) é rejeitado');
-  assert(validarLinkBiometria('javascript:alert(1)') === false, 'esquema javascript: é rejeitado');
-  assert(validarLinkBiometria('') === false, 'string vazia é rejeitada');
-  assert(validarLinkBiometria('   ') === false, 'string só com espaços é rejeitada');
+  // --- helpers puros ---
+  assert(bioNormalizarNome('  João   da  Silva ') === 'João da Silva', 'normaliza espaços do nome');
+  assert(bioNormalizarNome(null) === '', 'nome nulo vira string vazia');
+  assert(bioNomeArquivo('João da Silva') === 'biometria-joao-da-silva.png', 'nome do arquivo sem acento e com hífens');
+  assert(bioNomeArquivo('  ') === 'biometria-cliente.png', 'nome do arquivo cai pra "cliente" quando vazio');
+  assert(bioNomeArquivo('Açaí & Cia/Ltda.').startsWith('biometria-acai-cia-ltda'), 'nome do arquivo remove símbolos');
 
-  // --- montarLinkBiometria (pura) ---
-  // 10/09/2026 (v4, decisão final): sem página-ponte, o link gerado é o próprio link real da
-  // Claro (só normalizado) — ver REGRAS_NEGOCIO.md seção 19.9.
-  const linkGerado = montarLinkBiometria('João da Silva', 'https://claro.com.br/bio/abc123');
-  assert(linkGerado === 'https://claro.com.br/bio/abc123', 'link gerado é o próprio link real da Claro, direto (sem página-ponte)');
-  const linkComEspaco = montarLinkBiometria('Cliente', '  https://claro.com.br/bio/xyz  ');
-  assert(linkComEspaco === 'https://claro.com.br/bio/xyz', 'link gerado remove espaços nas pontas do link informado');
-
-  // --- montarMensagemWhatsapp (pura) ---
-  // 10/09/2026: reforçada com boas práticas de mercado (identificação do consultor + reforço de
-  // que o link é oficial), ver REGRAS_NEGOCIO.md seção 19.10.
-  const msgComNome = montarMensagemWhatsapp('Maria', 'https://exemplo.com/x', 'Anderson');
-  assert(msgComNome.startsWith('https://wa.me/?text='), 'mensagem do WhatsApp usa wa.me com texto pré-preenchido');
-  assert(decodeURIComponent(msgComNome).includes('Olá, Maria!'), 'mensagem personaliza a saudação com o nome do cliente');
-  assert(decodeURIComponent(msgComNome).includes('https://exemplo.com/x'), 'mensagem inclui o link gerado');
-  assert(decodeURIComponent(msgComNome).includes('Aqui é Anderson, consultor(a) da Claro Empresas'), 'mensagem se apresenta com o nome do consultor logado (evita parecer disparo anônimo)');
-  assert(decodeURIComponent(msgComNome).includes('link oficial gerado pelo sistema da Claro'), 'mensagem reforça que o link é oficial (boa prática contra desconfiança/phishing)');
-  const msgSemNome = montarMensagemWhatsapp('', 'https://exemplo.com/y', 'Anderson');
-  assert(decodeURIComponent(msgSemNome).includes('Olá! '), 'mensagem cai pra saudação genérica quando não há nome do cliente');
-  const msgSemConsultor = montarMensagemWhatsapp('Maria', 'https://exemplo.com/z', '');
-  assert(decodeURIComponent(msgSemConsultor).includes('Aqui é seu(sua) consultor(a) da Claro Empresas'), 'mensagem cai pra apresentação genérica quando não há nome do consultor (ex: não logado)');
-
-  // --- fluxo de UI: aba sempre visível (todos os perfis) ---
+  // --- aba visível a todos os perfis ---
   assert(document.getElementById('tabBtnBiometria') !== null, 'botão da aba Biometria existe no menu');
-  assert(document.getElementById('tabBtnBiometria').style.display !== 'none', 'botão da aba Biometria não fica escondido por padrão (visível a todos os perfis)');
+  assert(document.getElementById('tabBtnBiometria').style.display !== 'none', 'aba Biometria visível a todos os perfis');
 
-  // --- fluxo de UI: erro quando falta nome ---
-  document.getElementById('bioNome').value = '';
-  document.getElementById('bioLink').value = 'https://claro.com.br/bio/abc';
-  document.getElementById('btnGerarBiometria').click();
-  assert(document.getElementById('bioErr').style.display === 'block', 'mostra erro quando falta o nome do cliente');
-  assert(document.getElementById('bioResultado').style.display !== 'block', 'não mostra o resultado quando há erro de validação');
+  // --- o campo de link e o fluxo do link saíram da aba ---
+  ['bioLink','btnGerarBiometria','bioLinkGerado','btnCopiarBiometria','btnWhatsappBiometria','bioResultado'].forEach(function(id){
+    assert(document.getElementById(id) === null, 'elemento removido da aba: ' + id);
+  });
+  assert(document.getElementById('bioNome') !== null, 'campo Nome do cliente continua na aba');
+  const canvas = document.getElementById('bioCanvas');
+  assert(canvas !== null && canvas.width === 1080 && canvas.height === 1080, 'preview é um canvas 1080x1080');
 
-  // --- fluxo de UI: erro quando link é inválido ---
-  document.getElementById('bioNome').value = 'Cliente Teste';
-  document.getElementById('bioLink').value = 'não é um link';
-  document.getElementById('btnGerarBiometria').click();
-  assert(document.getElementById('bioErr').style.display === 'block', 'mostra erro quando o link é inválido');
-  assert(document.getElementById('bioErr').textContent.includes('válido'), 'mensagem de erro explica que o link precisa ser válido');
+  // --- desenho: contexto 2D falso grava os textos desenhados ---
+  function ctxFalso(){
+    const c = { textos: [], retangulos: 0, imagens: 0, alphas: [] , globalAlpha: 1, font: '' };
+    ['beginPath','moveTo','arcTo','closePath','fill','arc','fillRect'].forEach(function(m){ c[m] = function(){ if(m === 'fillRect') c.retangulos++; }; });
+    c.createLinearGradient = function(){ return { addColorStop(){} }; };
+    c.measureText = function(t){ const tam = parseInt(c.font.match(/(\\d+)px/)[1], 10); return { width: t.length * tam * 0.55 }; };
+    c.fillText = function(t, x, y){ c.textos.push({ t, x, y, font: c.font, alpha: c.globalAlpha }); };
+    c.drawImage = function(){ c.imagens++; };
+    return c;
+  }
+  let ctxAtual = null;
+  canvas.getContext = function(){ return ctxAtual; };
 
-  // --- fluxo de UI: geração com sucesso ---
-  document.getElementById('bioNome').value = 'Cliente Teste';
-  document.getElementById('bioLink').value = 'https://claro.com.br/bio/real-123';
-  document.getElementById('btnGerarBiometria').click();
-  assert(document.getElementById('bioErr').style.display === 'none', 'erro some quando a geração dá certo');
-  assert(document.getElementById('bioResultado').style.display === 'block', 'mostra o resultado quando a geração dá certo');
-  const campoGerado = document.getElementById('bioLinkGerado').value;
-  assert(campoGerado === 'https://claro.com.br/bio/real-123', 'campo de resultado mostra o próprio link real do cliente, direto (sem página-ponte)');
-  const hrefWhats = document.getElementById('btnWhatsappBiometria').getAttribute('href');
-  assert(hrefWhats.startsWith('https://wa.me/?text='), 'botão do WhatsApp fica com o link wa.me pronto');
+  ctxAtual = ctxFalso();
+  assert(desenharImagemBiometria(canvas, 'Maria Souza') === true, 'desenha com contexto disponível');
+  const dito = ctxAtual.textos.map(function(x){ return x.t; });
+  ['Confirme sua identidade e','finalize seu pedido','Sua contratação Claro empresas está quase pronta.','Falta só a validação biométrica.',
+   'Fazer minha validação biométrica','Validação por Serasa Experian, em nome da Claro','Ambiente seguro',
+   'Enviado por Apex Smart Solutions \u2014 Agente Autorizado Claro'].forEach(function(t){
+    assert(dito.includes(t), 'imagem contém o texto fixo: ' + t);
+  });
+  const txtNome = ctxAtual.textos.find(function(x){ return x.t === 'Maria Souza'; });
+  assert(!!txtNome, 'imagem contém o nome do cliente');
+  assert(txtNome && txtNome.alpha === 1, 'nome preenchido é desenhado opaco');
+  assert(!dito.includes('Nome do cliente'), 'com nome preenchido, não aparece o texto-guia');
 
-  // --- botão "Baixar imagem" (10/09/2026 v4, decisão final: imagem enviada como foto separada,
-  // já que o preview de link do WhatsApp sempre reduz a imagem a uma miniatura pequena) ---
-  const btnBaixar = document.getElementById('btnBaixarImagemBiometria');
-  assert(btnBaixar !== null, 'botão "Baixar imagem" existe');
-  assert(btnBaixar.getAttribute('href') === 'https://apexsmart.com.br/biometria_preview.png', 'botão "Baixar imagem" aponta pra imagem publicada em apexsmart.com.br');
-  assert(btnBaixar.hasAttribute('download'), 'botão "Baixar imagem" usa atributo download');
+  ctxAtual = ctxFalso();
+  desenharImagemBiometria(canvas, '   ');
+  const guia = ctxAtual.textos.find(function(x){ return x.t === 'Nome do cliente'; });
+  assert(!!guia && guia.alpha < 1, 'sem nome, o preview mostra um texto-guia apagado');
 
-  // --- fluxo de UI: copiar não quebra (clipboard mockado) ---
-  document.getElementById('btnCopiarBiometria').click();
-  assert(document.getElementById('bioCopiadoMsg').style.display === 'block', 'mostra confirmação "Link copiado." ao clicar em copiar');
+  ctxAtual = ctxFalso();
+  const nomeGigante = 'Empresa de Telecomunicações e Serviços Digitais Integrados do Brasil Sociedade Limitada ME';
+  desenharImagemBiometria(canvas, nomeGigante);
+  const longo = ctxAtual.textos.find(function(x){ return x.t.startsWith('Empresa de'); });
+  assert(!!longo && longo.t.endsWith('…') && longo.t.length < nomeGigante.length, 'nome muito longo é cortado com reticências');
+  assert(longo && parseInt(longo.font.match(/(\\d+)px/)[1], 10) >= 32, 'nome longo não encolhe abaixo do tamanho mínimo');
+
+  canvas.getContext = function(){ return null; };
+  assert(desenharImagemBiometria(canvas, 'X') === false, 'sem suporte a canvas, retorna false sem quebrar');
+
+  // --- preview ao vivo: digitar redesenha ---
+  ctxAtual = ctxFalso();
+  canvas.getContext = function(){ return ctxAtual; };
+  const inp = document.getElementById('bioNome');
+  inp.value = 'Carlos Lima';
+  inp.dispatchEvent(new window.Event('input'));
+  assert(ctxAtual.textos.some(function(x){ return x.t === 'Carlos Lima'; }), 'digitar o nome redesenha o preview na hora');
+
+  // --- botão Baixar imagem ---
+  const btn = document.getElementById('btnBaixarImagemBiometria');
+  assert(btn !== null && btn.tagName === 'BUTTON', 'botão "Baixar imagem" existe');
+  let baixado = null;
+  canvas.toBlob = function(cb){ cb(new window.Blob(['png'], { type: 'image/png' })); };
+  window.URL.createObjectURL = function(){ return 'blob:teste'; };
+  window.URL.revokeObjectURL = function(){};
+  window.HTMLAnchorElement.prototype.click = function(){ baixado = { href: this.href, download: this.download }; };
+
+  const avisos = [];
+  window.alert = function(m){ avisos.push(m); };
+  inp.value = '';
+  btn.click();
+  assert(baixado === null, 'sem nome, não baixa a imagem');
+  assert(avisos.some(function(m){ return m.includes('Informe o nome do cliente'); }) || document.querySelector('#apexToasts .apxToast.erro'), 'sem nome, avisa o consultor');
+
+  inp.value = 'João da Silva';
+  btn.click();
+  assert(baixado && baixado.download === 'biometria-joao-da-silva.png', 'com nome, baixa PNG personalizado com o nome do cliente no arquivo');
+  assert(baixado && baixado.href === 'blob:teste', 'download usa o blob gerado no próprio navegador (nada é enviado pra fora)');
 
   console.log(\`\\n--- RESULTADO: \${ok} passaram, \${fail} falharam ---\`);
   window.__testResult = fail > 0 ? 'FAIL' : 'OK';
