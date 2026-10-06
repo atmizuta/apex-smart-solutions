@@ -733,6 +733,11 @@
           <div class="field" style="margin:0"><label>Nome do cliente</label><input type="text" id="bioNome" placeholder="Ex: João da Silva"></div>
           <div class="field" style="margin:0"><label>Link de biometria (da Claro)</label><input type="text" id="bioLink" placeholder="https://..."></div>
         </div>
+        <div class="field" style="margin:14px 0 0;max-width:260px">
+          <label>Preview da imagem personalizada</label>
+          <img id="bioImgPreview" src="https://apexsmart.com.br/biometria_preview.png" alt="Preview da imagem de biometria com o nome do cliente" style="width:100%;border-radius:12px;border:1px solid rgba(255,255,255,.12);display:block">
+          <div class="desc" style="font-size:11.5px;margin-top:6px">O nome digitado acima substitui a caixa "Toque no link..." na imagem — assim fica fácil ver como o cliente vai receber.</div>
+        </div>
         <button class="btn" id="btnGerarBiometria" style="width:auto;margin-top:6px">Gerar link</button>
         <div class="loginError" id="bioErr" style="display:none;margin-top:10px"></div>
         <div id="bioResultado" style="display:none;margin-top:18px">
@@ -2304,7 +2309,110 @@ document.getElementById('btnGerarBiometria').addEventListener('click', function(
   document.getElementById('bioLinkGerado').value = linkGerado;
   document.getElementById('btnWhatsappBiometria').href = montarMensagemWhatsapp(nome, linkGerado, currentUser ? currentUser.nome : '');
   resEl.style.display = 'block';
+  gerarImagemBiometriaPersonalizada(nome);
 });
+
+/* ============ BIOMETRIA: imagem personalizada com o nome do cliente (06/10/2026) ============
+   Pedido do usuário: em vez da imagem genérica (igual pra todo cliente), gerar no navegador uma
+   versão com o nome do cliente no lugar da caixa branca "Toque no link enviado logo em seguida"
+   (que só fazia sentido no fluxo de página-ponte, já abandonado — ver seção 19.9), com preview ao
+   vivo enquanto o consultor digita. A imagem base (biometria_preview.png) é carregada num <canvas>;
+   a área da caixa antiga é coberta com um degradê igual ao fundo original (medido pixel a pixel:
+   caixa+seta ocupam x 326–754, y 1040–1214 numa imagem de 1080×1350) e o nome entra no lugar. Se o
+   canvas não estiver disponível por algum motivo, a preview e o botão "Baixar imagem" continuam
+   apontando pra imagem estática genérica (comportamento anterior, sem quebrar nada). Ver
+   REGRAS_NEGOCIO.md seção 19.11. */
+const BIO_IMG_URL = 'https://apexsmart.com.br/biometria_preview.png';
+let bioImgBase = null;
+let bioImgTimer = null;
+
+function carregarImagemBaseBiometria(){
+  return new Promise(function(resolve, reject){
+    if(bioImgBase){ resolve(bioImgBase); return; }
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function(){ bioImgBase = img; resolve(img); };
+    img.onerror = reject;
+    img.src = BIO_IMG_URL;
+  });
+}
+
+function quebrarLinhaCanvas(ctx, texto, x, y, maxWidth, lineHeight){
+  const palavras = texto.split(' ');
+  const linhas = [];
+  let linhaAtual = '';
+  for(let i = 0; i < palavras.length; i++){
+    const tentativa = linhaAtual ? (linhaAtual + ' ' + palavras[i]) : palavras[i];
+    if(ctx.measureText(tentativa).width > maxWidth && linhaAtual){
+      linhas.push(linhaAtual);
+      linhaAtual = palavras[i];
+    } else {
+      linhaAtual = tentativa;
+    }
+  }
+  if(linhaAtual) linhas.push(linhaAtual);
+  const offsetInicial = -((linhas.length - 1) * lineHeight) / 2;
+  linhas.forEach(function(linha, i){
+    ctx.fillText(linha, x, y + offsetInicial + i * lineHeight);
+  });
+}
+
+function gerarImagemBiometriaPersonalizada(nome){
+  const preview = document.getElementById('bioImgPreview');
+  const btnBaixar = document.getElementById('btnBaixarImagemBiometria');
+  if(!preview) return;
+  const testCanvas = document.createElement('canvas');
+  if(!testCanvas.getContext) return;
+  carregarImagemBaseBiometria().then(function(img){
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth || 1080;
+    canvas.height = img.naturalHeight || 1350;
+    const ctx = canvas.getContext('2d');
+    if(!ctx) return;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    // Área da caixa branca original ("Toque no link enviado logo em seguida" + seta), em proporção
+    // da imagem (medida em pixels numa base de 1080×1350), pra funcionar em qualquer tamanho.
+    const areaX = canvas.width * (300 / 1080);
+    const areaY = canvas.height * (1025 / 1350);
+    const areaW = canvas.width * (480 / 1080);
+    const areaH = canvas.height * (225 / 1350);
+
+    // Cobre a área com um degradê igual ao fundo original (medido: ~rgb(33,9,6) no topo até
+    // ~rgb(19,9,8) na base), pra não deixar resquício da caixa/seta antiga.
+    const grad = ctx.createLinearGradient(0, areaY, 0, areaY + areaH);
+    grad.addColorStop(0, 'rgb(33,9,6)');
+    grad.addColorStop(1, 'rgb(19,9,8)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, areaY, canvas.width, areaH);
+
+    const nomeSeguro = (nome || '').trim().slice(0, 60);
+    const texto = nomeSeguro ? ('Olá, ' + nomeSeguro + '!') : 'Olá!';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 ' + Math.round(canvas.width * 0.056) + 'px Arial, Helvetica, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    quebrarLinhaCanvas(ctx, texto, areaX + areaW / 2, areaY + areaH / 2, areaW - 20, canvas.width * 0.062);
+
+    const dataUrl = canvas.toDataURL('image/png');
+    preview.src = dataUrl;
+    if(btnBaixar){
+      btnBaixar.href = dataUrl;
+      const nomeArquivo = nomeSeguro ? '-' + nomeSeguro.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') : '';
+      btnBaixar.download = 'biometria-claro-empresas' + nomeArquivo + '.png';
+    }
+  }).catch(function(){
+    // Sem canvas/imagem disponível: preview e download continuam na imagem estática genérica.
+  });
+}
+
+document.getElementById('bioNome').addEventListener('input', function(){
+  clearTimeout(bioImgTimer);
+  const nome = this.value;
+  bioImgTimer = setTimeout(function(){ gerarImagemBiometriaPersonalizada(nome); }, 300);
+});
+
+gerarImagemBiometriaPersonalizada('');
 
 document.getElementById('btnCopiarBiometria').addEventListener('click', function(){
   const input = document.getElementById('bioLinkGerado');
