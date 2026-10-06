@@ -42,14 +42,16 @@ const BASE = [
 let w = montarDashboard({ data: BASE });
 let d = w.document;
 // 05/10/2026 (seção 70): a sub-aba Vendas Perdidas tem as próprias seções recolhíveis (abertas, é tela de análise) — aqui só as da Visão Geral
+// 06/10/2026 (seção 71): "Motivos de Perda" e "Diagnóstico e Plano de Ação" foram removidas da Visão
+// Geral a pedido do usuário — sobra só a seção "Valor por Etapa (Total Geral)".
 const secoes = [...d.querySelectorAll('#tabOverview details.collapse-sec')];
-assert(secoes.length === 3, 'são 3 seções recolhíveis (total geral, motivos de perda, diagnóstico) — achou ' + secoes.length);
+assert(secoes.length === 1, 'sobra 1 seção recolhível (total geral) depois da remoção de motivos de perda/diagnóstico — achou ' + secoes.length);
 assert(secoes.every(s => !s.hasAttribute('open')), 'todas as seções abrem FECHADAS');
 const titulos = secoes.map(s => s.querySelector('summary').textContent.trim());
-assert(titulos[0].startsWith('Valor por Etapa (Total Geral)') && titulos[1].startsWith('Motivos de Perda') && titulos[2].startsWith('Diagnóstico e Plano de Ação'), 'títulos certos, na ordem: ' + JSON.stringify(titulos));
-assert(d.querySelector('#secEtapaTotal #etapaTotalBody') && d.querySelector('#secMotivosPerda #lossReasonBody') && d.querySelector('#secDiagnostico #diagCardsWrap'), 'cada tabela/cartões está dentro da sua seção');
+assert(titulos[0].startsWith('Valor por Etapa (Total Geral)'), 'título certo: ' + JSON.stringify(titulos));
+assert(d.querySelector('#secEtapaTotal #etapaTotalBody'), 'a tabela está dentro da seção');
+assert(d.getElementById('secMotivosPerda') === null && d.getElementById('secDiagnostico') === null, '"Motivos de Perda" e "Diagnóstico e Plano de Ação" não existem mais na Visão Geral');
 assert(d.getElementById('etapaTotalBody').querySelectorAll('tr').length > 0, 'o conteúdo é preenchido mesmo com a seção fechada (abrir só mostra)');
-assert(d.getElementById('lossReasonBody').textContent.length > 0 && d.getElementById('diagCardsWrap').children.length > 0, 'motivos de perda e diagnóstico também são preenchidos fechados');
 // as seções que NÃO devem recolher continuam como estavam
 assert(!d.querySelector('details #userCardsWrap') && !d.querySelector('details #grupoTable'), 'valor por etapa por vendedor e valor por grupo continuam sempre visíveis');
 const resumo = d.querySelector('#secEtapaTotal > summary');
@@ -126,7 +128,7 @@ assert(/\.comp-row\{grid-template-columns:minmax\(120px,190px\) minmax\(0,1fr\) 
 assert(tplRaw.includes('family=Nunito:wght@600;700;800'), 'a fonte Nunito (arredondada) é carregada');
 assert(/:root\{--font-num:'Nunito'/.test(finalCss), 'variável --font-num com a fonte arredondada');
 assert(/\.card \.value,\.uc-total,\.uc-value/.test(finalCss) && /font-family:var\(--font-num\)/.test(finalCss), 'valores dos cartões, totais e barras usam a fonte arredondada');
-assert(/#etapaTotalTable td:not\(:first-child\)/.test(finalCss) && /#lossReasonTable td:not\(:first-child\)/.test(finalCss), 'colunas numéricas das tabelas usam a fonte arredondada');
+assert(/#etapaTotalTable td:not\(:first-child\)/.test(finalCss), 'colunas numéricas das tabelas usam a fonte arredondada');
 assert(/#tabOverview \.user-cards\{grid-template-columns:repeat\(auto-fit,minmax\(310px,390px\)\);justify-content:center;\}/.test(finalCss), 'cartões por vendedor centralizados');
 assert(/#tabOverview \.cards\{grid-template-columns:repeat\(4,minmax\(0,1fr\)\);\}/.test(finalCss), 'os 4 cartões de resumo ficam SEMPRE numa linha (4 colunas iguais)');
 assert(/#tabOverview \.cards \.value\{font-size:clamp\(15px,2vw,24px\);\}/.test(finalCss), 'a fonte dos cartões de resumo diminui em tela estreita para caberem os 4 numa linha');
@@ -134,7 +136,7 @@ assert(/@media \(max-width:560px\)\{ #tabOverview \.cards\{grid-template-columns
 assert(/\.layout\{grid-template-columns:1fr;\}/.test(finalCss), 'a página tem coluna única (some a coluna vazia da esquerda)');
 assert(/\.layout > \.panel\{display:flex;flex-wrap:wrap;/.test(finalCss) && /\.layout > \.panel \.filter-group\{margin:0;flex:1 1 150px;/.test(finalCss), 'os filtros viram uma faixa horizontal no topo');
 assert(/body:not\(\.tab-diaria\):not\(\.tab-alertas\):not\(\.tv-mode\) \.layout\{max-width:1240px;margin-left:auto;margin-right:auto;\}/.test(finalCss), 'o conteúdo (filtros e cartões) fica num bloco central; Visão Diária, Alertas e Modo TV não mudam');
-assert(/#tabOverview \.diag-cards\{[^}]*justify-content:center;/.test(finalCss) && /#tabOverview \.insights\{[^}]*margin-left:auto;margin-right:auto;/.test(finalCss), 'diagnóstico e insights centralizados');
+assert(/#tabOverview \.insights\{[^}]*margin-left:auto;margin-right:auto;/.test(finalCss), 'insights centralizados');
 assert(/#tabOverview\{max-width:1240px;margin-left:auto;margin-right:auto;\}/.test(finalCss), 'o conteúdo da Visão Geral fica num bloco central com margens iguais');
 assert(!/body\.tab-diaria/.test(finalCss), 'os ajustes de centralização não mexem na Visão Diária (só #tabOverview)');
 
