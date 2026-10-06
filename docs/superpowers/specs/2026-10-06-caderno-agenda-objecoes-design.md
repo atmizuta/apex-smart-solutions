@@ -201,7 +201,7 @@ Ele oferece "Preencher campo" para cada dado que o campo ainda não tem. Nunca s
   O prompt traz a biblioteca como base e as franquias permitidas.
 - **Falha ou demora** (mais de 6 s, erro 503/429 do Gemini ou sem rede): a área da IA mostra "IA indisponível agora, use a resposta acima". Sem `alert` e sem bloquear nada.
 - **Cache:** mesma objeção + mesmo contexto dentro de 10 min devolve a resposta guardada no navegador, sem nova chamada.
-- **Treinar:** um link "Treinar essa objeção no Apex Mind" abre o Apex Mind por SSO, na lista de cenários. Se a categoria tiver cenário próprio (ex.: `objecao_preco`), abre direto nele, se o Apex Mind tiver rota por cenário. Isso será conferido no plano.
+- **Treinar:** um link "Treinar no Apex Mind" abre o Apex Mind por SSO, no mesmo fluxo da bolinha `#apexMindBubble`. O SSO sempre cai na lista de cenários (`/cenarios`), porque o Apex Mind não tem rota por cenário (conferido em 06/10 na `feature/pratica-vendas-ia`).
 
 ### 6.4 Registro de uso
 - O botão **Usei** e o 👍/👎 da resposta da IA gravam em `objecoes_uso`: consultor, objeção, fonte (biblioteca ou IA), útil sim/não, `nota_id`.
@@ -255,11 +255,15 @@ Bloco novo **"Retornos e objeções"**, só admin/supervisor:
 
 ### `objecoes_respostas`
 - `chave text pk`, `rotulo text`, `fala text`, `pergunta text`, `alternativa text`;
-- `categoria_mind text null` (para o link do Apex Mind), `ordem int`, `ativo bool`, `atualizado_em`.
+- `ordem int`, `ativo bool`, `atualizado_em`.
 - Semeada pela migration com as 9 objeções da seção 6.2 (texto de rascunho, sem dado de cliente).
 
 ### `objecoes_uso`
 - `id bigint identity`, `consultor_id` (default `auth.uid()`), `objecao text`, `fonte text` (`biblioteca`|`ia`), `util bool null`, `nota_id uuid null`, `criado_em`.
+
+### `caderno_ia_chamadas`
+- `id bigint identity`, `consultor_id`, `objecao text`, `status text`, `ms int`, `criado_em`.
+- Escrita só pela Edge Function (service role). Serve ao limite de chamadas e ao log, sem guardar texto do cliente.
 
 ### Regras de acesso (RLS)
 - **`caderno_notas`, `agenda_retornos` e `objecoes_uso`:**
@@ -282,7 +286,7 @@ Bloco novo **"Retornos e objeções"**, só admin/supervisor:
 - **Prompt:** papel de consultor Claro Empresas B2B, a resposta da biblioteca daquela objeção como base, as franquias permitidas e a proibição de inventar preço, promoção ou condição. Saída em JSON `{ fala, pergunta }`, com no máximo 3 frases no total.
 - **Autenticação e limites:**
   - `verify_jwt` true (só usuário logado);
-  - limite de 20 chamadas por consultor a cada 10 min (contador em tabela ou memória da função), para proteger a cota gratuita;
+  - limite de 20 chamadas por consultor a cada 10 min (contadas em `caderno_ia_chamadas`), para proteger a cota gratuita;
   - acima do limite, devolve 429 e o painel mostra "IA indisponível agora".
 - **Robustez:** tempo máximo de 6 s no Gemini, 1 nova tentativa só em 503, e o JSON é lido mesmo quando vem dentro de ```json```, como no `lib/ia/cliente.ts` do Apex Mind.
 - **Log:** só chave da objeção, tempo e status. Nunca o texto.
@@ -291,7 +295,7 @@ Bloco novo **"Retornos e objeções"**, só admin/supervisor:
 
 - **Sem internet:** o Caderno continua (localStorage). Agenda e objeções da biblioteca funcionam com o que já foi carregado. Criar retorno sem rede fica na fila local e é enviado quando a rede volta, com o aviso "retorno guardado, será enviado".
 - **Migration ainda não aplicada:** as telas novas mostram "não foi possível carregar" e o resto do painel não quebra. O padrão é o mesmo das seções 59 e 68.
-- **Duas abas abertas com o Caderno:** quem salva por último vence, por `atualizado_em`. O indicador mostra "atualizado em outra janela" quando a anotação mudou fora.
+- **Duas abas abertas com o Caderno:** quem salva por último vence (cada aba tem a sua anotação aberta; a mesma anotação editada em duas abas ao mesmo tempo é caso raro e fica sem aviso nesta entrega).
 - **Retorno no passado:** pode ser criado (para registro), mas ganha o aviso "esse horário já passou".
 - **Fuso:** as horas são sempre de São Paulo (`America/Sao_Paulo`). O banco guarda `timestamptz`.
 
@@ -344,6 +348,5 @@ Bloco novo **"Retornos e objeções"**, só admin/supervisor:
 
 ## 15. Pontos para conferir no plano
 
-- Se o Apex Mind tem rota que abre um cenário específico (link da seção 6.3). Se não tiver, o link abre a lista de cenários.
 - Se a função `ppAgenda` pode ser reaproveitada como está para a camada de pedidos (seção 4.4), ou se precisa de um ajuste pequeno.
 - O tamanho do `_template.html`. Se a entrega crescer demais, avaliar um bloco de script separado dentro do mesmo arquivo, sem mudar a forma de build.
