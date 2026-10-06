@@ -728,28 +728,14 @@
     <section class="panel" id="panel-biometria">
       <div class="card">
         <h3>Biometria facial</h3>
-        <p class="desc">Envie em duas mensagens pelo WhatsApp: 1) a imagem abaixo, como FOTO (baixe e anexe manualmente — enviada assim, ela aparece grande na tela do cliente, sem ser reduzida pelo WhatsApp); 2) logo em seguida, este texto com o link real de biometria (o que você recebe do sistema da Claro para aquele cliente específico).</p>
-        <div class="row4" style="grid-template-columns:1fr 1fr">
-          <div class="field" style="margin:0"><label>Nome do cliente</label><input type="text" id="bioNome" placeholder="Ex: João da Silva"></div>
-          <div class="field" style="margin:0"><label>Link de biometria (da Claro)</label><input type="text" id="bioLink" placeholder="https://..."></div>
-        </div>
-        <div class="field" style="margin:14px 0 0;max-width:260px">
-          <label>Preview da imagem personalizada</label>
+        <p class="desc">Baixe a imagem personalizada e envie pelo WhatsApp como FOTO (baixe e anexe manualmente — enviada assim, ela aparece grande na tela do cliente, sem ser reduzida pelo WhatsApp).</p>
+        <div class="field" style="margin:0;max-width:320px"><label>Nome do cliente</label><input type="text" id="bioNome" placeholder="Ex: João da Silva"></div>
+        <div class="field" style="margin:14px 0 0;max-width:320px">
+          <label>Preview da imagem</label>
           <img id="bioImgPreview" src="https://apexsmart.com.br/biometria_preview.png" alt="Preview da imagem de biometria com o nome do cliente" style="width:100%;border-radius:12px;border:1px solid rgba(255,255,255,.12);display:block">
-          <div class="desc" style="font-size:11.5px;margin-top:6px">O nome digitado acima substitui a caixa "Toque no link..." na imagem — assim fica fácil ver como o cliente vai receber.</div>
         </div>
-        <button class="btn" id="btnGerarBiometria" style="width:auto;margin-top:6px">Gerar link</button>
         <div class="loginError" id="bioErr" style="display:none;margin-top:10px"></div>
-        <div id="bioResultado" style="display:none;margin-top:18px">
-          <div class="field" style="margin:0 0 10px"><label>Link para enviar no WhatsApp</label><input type="text" id="bioLinkGerado" readonly></div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <a class="btn" id="btnBaixarImagemBiometria" style="width:auto;text-decoration:none;text-align:center;display:inline-block" href="https://apexsmart.com.br/biometria_preview.png" download="biometria-claro-empresas.png" target="_blank" rel="noopener">Baixar imagem</a>
-            <button class="btn" type="button" id="btnCopiarBiometria" style="width:auto">Copiar link</button>
-            <a class="btn" id="btnWhatsappBiometria" style="width:auto;text-decoration:none;text-align:center;display:inline-block" target="_blank" rel="noopener">Enviar no WhatsApp</a>
-          </div>
-          <div class="loginOk" id="bioCopiadoMsg" style="display:none;margin-top:8px">Link copiado.</div>
-          <p class="desc" style="margin-top:12px;font-size:12.5px">Passo a passo: 1) baixe a imagem; 2) abra a conversa no WhatsApp e envie a imagem como foto; 3) em seguida, envie este texto (com o link) como uma nova mensagem.</p>
-        </div>
+        <a class="btn" id="btnBaixarImagemBiometria" style="width:auto;margin-top:14px;text-decoration:none;text-align:center;display:inline-block" href="https://apexsmart.com.br/biometria_preview.png" download="biometria-claro-empresas.png" target="_blank" rel="noopener">Baixar imagem</a>
       </div>
     </section>
 
@@ -2249,79 +2235,14 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
 // (Visão geral / Vendas / Ferramentas / Administração) foram mantidos. Ver REGRAS_NEGOCIO.md seção 37.
 
 /* ============ BIOMETRIA ============
-   10/09/2026 (v4, decisão final): o preview de link do WhatsApp sempre reduz a imagem a uma
-   miniatura pequena (limitação da própria plataforma, nenhum redesenho de imagem resolve isso
-   enquanto ela for usada como og:image). Por isso a página-ponte foi abandonada de novo: agora a
-   imagem é enviada como FOTO de verdade (grande, sem redução) pelo botão "Baixar imagem", e o
-   link vai numa mensagem separada logo depois — o link é o REAL da Claro, direto (não a
-   página-ponte), por decisão explícita do usuário. Ver REGRAS_NEGOCIO.md, seção 19.9. */
-function validarLinkBiometria(link){
-  try {
-    const u = new URL((link || '').trim());
-    return u.protocol === 'http:' || u.protocol === 'https:';
-  } catch(e){
-    return false;
-  }
-}
-
-function montarLinkBiometria(nome, link){
-  // Link real da Claro, direto — sem página-ponte (ver comentário acima e REGRAS_NEGOCIO.md 19.9).
-  return new URL((link || '').trim()).toString();
-}
-
-function montarMensagemWhatsapp(nome, linkGerado, consultorNome){
-  // 10/09/2026: mensagem reforçada com boas práticas de mercado contra desconfiança/phishing —
-  // o consultor se identifica pelo nome (evita parecer disparo automático/anônimo) e o texto deixa
-  // explícito que o link é o canal oficial gerado pelo sistema da Claro. Ver REGRAS_NEGOCIO.md,
-  // seção 19.10.
-  const nomeTrim = (nome || '').trim();
-  const consultorTrim = (consultorNome || '').trim();
-  const saudacao = nomeTrim ? `Olá, ${nomeTrim}! ` : 'Olá! ';
-  const apresentacao = consultorTrim
-    ? `Aqui é ${consultorTrim}, consultor(a) da Claro Empresas (Apex Smart Solutions). `
-    : 'Aqui é seu(sua) consultor(a) da Claro Empresas (Apex Smart Solutions). ';
-  const texto = saudacao + apresentacao
-    + 'Para concluir sua ativação, confirme sua identidade com a biometria facial oficial da Claro — é rápido e seguro:\n'
-    + linkGerado
-    + '\n\nEsse é o link oficial gerado pelo sistema da Claro. Qualquer dúvida, me chama por aqui mesmo.';
-  return 'https://wa.me/?text=' + encodeURIComponent(texto);
-}
-
-document.getElementById('btnGerarBiometria').addEventListener('click', function(){
-  const nome = document.getElementById('bioNome').value;
-  const link = document.getElementById('bioLink').value;
-  const errEl = document.getElementById('bioErr');
-  const resEl = document.getElementById('bioResultado');
-  errEl.style.display = 'none';
-  resEl.style.display = 'none';
-  document.getElementById('bioCopiadoMsg').style.display = 'none';
-  if(!nome.trim()){
-    errEl.textContent = 'Informe o nome do cliente.';
-    errEl.style.display = 'block';
-    return;
-  }
-  if(!validarLinkBiometria(link)){
-    errEl.textContent = 'Informe um link de biometria válido (começando com http:// ou https://).';
-    errEl.style.display = 'block';
-    return;
-  }
-  const linkGerado = montarLinkBiometria(nome, link);
-  document.getElementById('bioLinkGerado').value = linkGerado;
-  document.getElementById('btnWhatsappBiometria').href = montarMensagemWhatsapp(nome, linkGerado, currentUser ? currentUser.nome : '');
-  resEl.style.display = 'block';
-  gerarImagemBiometriaPersonalizada(nome);
-});
-
-/* ============ BIOMETRIA: imagem personalizada com o nome do cliente (06/10/2026) ============
-   Pedido do usuário: em vez da imagem genérica (igual pra todo cliente), gerar no navegador uma
-   versão com o nome do cliente no lugar da caixa branca "Toque no link enviado logo em seguida"
-   (que só fazia sentido no fluxo de página-ponte, já abandonado — ver seção 19.9), com preview ao
-   vivo enquanto o consultor digita. A imagem base (biometria_preview.png) é carregada num <canvas>;
-   a área da caixa antiga é coberta com um degradê igual ao fundo original (medido pixel a pixel:
-   caixa+seta ocupam x 326–754, y 1040–1214 numa imagem de 1080×1350) e o nome entra no lugar. Se o
-   canvas não estiver disponível por algum motivo, a preview e o botão "Baixar imagem" continuam
-   apontando pra imagem estática genérica (comportamento anterior, sem quebrar nada). Ver
-   REGRAS_NEGOCIO.md seção 19.11. */
+   06/10/2026 (redesign a pedido do usuário): a aba virou só "nome do cliente -> baixar imagem
+   personalizada". O fluxo antigo (link de biometria da Claro + "Enviar no WhatsApp"/"Copiar link")
+   foi removido — o consultor manda o link por fora. A imagem base (biometria_preview.png) é o novo
+   design "Confirme sua identidade para finalizar" (arquivo fornecido pelo usuário), com o nome do
+   cliente entrando como saudação ("Olá, {nome}!") acima do título, gerada no navegador num
+   <canvas>: a área da saudação é coberta com um degradê igual ao fundo ali (medido pixel a pixel)
+   e o nome é escrito por cima, com a fonte encolhendo automaticamente se o nome for muito longo
+   pra não estourar a largura do card. Ver REGRAS_NEGOCIO.md seção 19.12. */
 const BIO_IMG_URL = 'https://apexsmart.com.br/biometria_preview.png';
 let bioImgBase = null;
 let bioImgTimer = null;
@@ -2337,24 +2258,14 @@ function carregarImagemBaseBiometria(){
   });
 }
 
-function quebrarLinhaCanvas(ctx, texto, x, y, maxWidth, lineHeight){
-  const palavras = texto.split(' ');
-  const linhas = [];
-  let linhaAtual = '';
-  for(let i = 0; i < palavras.length; i++){
-    const tentativa = linhaAtual ? (linhaAtual + ' ' + palavras[i]) : palavras[i];
-    if(ctx.measureText(tentativa).width > maxWidth && linhaAtual){
-      linhas.push(linhaAtual);
-      linhaAtual = palavras[i];
-    } else {
-      linhaAtual = tentativa;
-    }
+function ajustarFonteParaCaber(ctx, texto, pesoFonte, familiaFonte, maxWidth, tamanhoInicial, tamanhoMinimo){
+  let tamanho = tamanhoInicial;
+  ctx.font = pesoFonte + ' ' + tamanho + 'px ' + familiaFonte;
+  while(ctx.measureText(texto).width > maxWidth && tamanho > tamanhoMinimo){
+    tamanho -= 2;
+    ctx.font = pesoFonte + ' ' + tamanho + 'px ' + familiaFonte;
   }
-  if(linhaAtual) linhas.push(linhaAtual);
-  const offsetInicial = -((linhas.length - 1) * lineHeight) / 2;
-  linhas.forEach(function(linha, i){
-    ctx.fillText(linha, x, y + offsetInicial + i * lineHeight);
-  });
+  return tamanho;
 }
 
 function gerarImagemBiometriaPersonalizada(nome){
@@ -2366,33 +2277,38 @@ function gerarImagemBiometriaPersonalizada(nome){
   carregarImagemBaseBiometria().then(function(img){
     const canvas = document.createElement('canvas');
     canvas.width = img.naturalWidth || 1080;
-    canvas.height = img.naturalHeight || 1350;
+    canvas.height = img.naturalHeight || 1080;
     const ctx = canvas.getContext('2d');
     if(!ctx) return;
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-    // Área da caixa branca original ("Toque no link enviado logo em seguida" + seta), em proporção
-    // da imagem (medida em pixels numa base de 1080×1350), pra funcionar em qualquer tamanho.
-    const areaX = canvas.width * (300 / 1080);
-    const areaY = canvas.height * (1025 / 1350);
-    const areaW = canvas.width * (480 / 1080);
-    const areaH = canvas.height * (225 / 1350);
+    // Área da saudação "Olá, {nome}!" original, em proporção da imagem (medida em pixels numa base
+    // de 1080×1080: x 30–1050, y 265–365), pra funcionar em qualquer tamanho.
+    const areaX = canvas.width * (30 / 1080);
+    const areaY = canvas.height * (265 / 1080);
+    const areaW = canvas.width * (1020 / 1080);
+    const areaH = canvas.height * (100 / 1080);
 
-    // Cobre a área com um degradê igual ao fundo original (medido: ~rgb(33,9,6) no topo até
-    // ~rgb(19,9,8) na base), pra não deixar resquício da caixa/seta antiga.
-    const grad = ctx.createLinearGradient(0, areaY, 0, areaY + areaH);
-    grad.addColorStop(0, 'rgb(33,9,6)');
-    grad.addColorStop(1, 'rgb(19,9,8)');
+    // Cobre a área com um degradê horizontal igual ao fundo original ali (medido pixel a pixel —
+    // fica um pouco mais claro perto do brilho decorativo no canto superior direito do card).
+    const grad = ctx.createLinearGradient(areaX, 0, areaX + areaW, 0);
+    grad.addColorStop(0, 'rgb(99,14,6)');
+    grad.addColorStop(0.65, 'rgb(85,11,5)');
+    grad.addColorStop(0.75, 'rgb(88,20,14)');
+    grad.addColorStop(1, 'rgb(83,20,14)');
     ctx.fillStyle = grad;
-    ctx.fillRect(0, areaY, canvas.width, areaH);
+    ctx.fillRect(areaX, areaY, areaW, areaH);
 
     const nomeSeguro = (nome || '').trim().slice(0, 60);
     const texto = nomeSeguro ? ('Olá, ' + nomeSeguro + '!') : 'Olá!';
+    const textoX = canvas.width * (80 / 1080);
+    const maxTextWidth = canvas.width * (900 / 1080);
     ctx.fillStyle = '#ffffff';
-    ctx.font = '700 ' + Math.round(canvas.width * 0.056) + 'px Arial, Helvetica, sans-serif';
-    ctx.textAlign = 'center';
+    ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    quebrarLinhaCanvas(ctx, texto, areaX + areaW / 2, areaY + areaH / 2, areaW - 20, canvas.width * 0.062);
+    const tamanhoFonte = ajustarFonteParaCaber(ctx, texto, '800', 'Arial, Helvetica, sans-serif', maxTextWidth, Math.round(canvas.width * 0.054), Math.round(canvas.width * 0.024));
+    ctx.font = '800 ' + tamanhoFonte + 'px Arial, Helvetica, sans-serif';
+    ctx.fillText(texto, textoX, areaY + areaH / 2);
 
     const dataUrl = canvas.toDataURL('image/png');
     preview.src = dataUrl;
@@ -2412,21 +2328,19 @@ document.getElementById('bioNome').addEventListener('input', function(){
   bioImgTimer = setTimeout(function(){ gerarImagemBiometriaPersonalizada(nome); }, 300);
 });
 
-gerarImagemBiometriaPersonalizada('');
-
-document.getElementById('btnCopiarBiometria').addEventListener('click', function(){
-  const input = document.getElementById('bioLinkGerado');
-  input.select();
-  input.setSelectionRange(0, 99999);
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(input.value).catch(function(){});
-  } else if(document.execCommand){
-    document.execCommand('copy');
+document.getElementById('btnBaixarImagemBiometria').addEventListener('click', function(e){
+  const nome = document.getElementById('bioNome').value;
+  const errEl = document.getElementById('bioErr');
+  if(!nome.trim()){
+    e.preventDefault();
+    errEl.textContent = 'Informe o nome do cliente.';
+    errEl.style.display = 'block';
+    return;
   }
-  const msg = document.getElementById('bioCopiadoMsg');
-  msg.style.display = 'block';
-  setTimeout(function(){ msg.style.display = 'none'; }, 2500);
+  errEl.style.display = 'none';
 });
+
+gerarImagemBiometriaPersonalizada('');
 
 /* ============ BUSCA ============ */
 const searchInput = document.getElementById('searchInput');

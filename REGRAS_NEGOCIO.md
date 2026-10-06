@@ -982,6 +982,25 @@ O preview atualiza sozinho (debounce de 300ms) conforme o consultor digita o nom
 - **10/09/2026** — Mensagem do WhatsApp reforçada com boas práticas de mercado contra desconfiança/phishing: passou a se apresentar com o nome do consultor logado e a reforçar que o link é oficial da Claro. Ver seção 19.10.
 - **06/10/2026** — Imagem do botão "Baixar imagem" passou a ser gerada no navegador com o nome do cliente no lugar da caixa "Toque no link enviado logo em seguida", com preview ao vivo na aba enquanto o consultor digita. Ver seção 19.11.
 
+### 19.12 Redesign completo: nova imagem-base + aba simplificada pra só nome + baixar (06/10/2026)
+
+**Pedido do usuário (correção da seção 19.11)**: depois de ver a seção 19.11 publicada, o usuário apontou que não era isso que queria. Pedido revisado, esclarecido por perguntas antes de implementar (dado o erro anterior):
+
+1. A imagem-base não é mais a antiga (`v4`, "Bem-vindo(a) à Claro Empresas" com a caixa "Toque no link..."). É um **design novo fornecido pelo próprio usuário** — card "Confirme sua identidade para finalizar", com badge "Claro-empresas" e selo "🔒 Ambiente seguro" no topo, botão branco "Fazer minha validação biométrica", selo "✓ Validação por Serasa Experian, em nome da Claro" e rodapé "Enviado por Apex Smart Solutions — Agente Autorizado Claro". Esse design **não existia em nenhum arquivo do repositório** — foi conferido com grep antes de assumir que já existia.
+2. O nome do cliente entra como saudação **"Olá, {nome}!"** acima do título (confirmado com o usuário, que mandou um exemplo já personalizado com "Mário" pra servir de referência exata).
+3. O campo "Link de biometria (da Claro)" e todo o fluxo que dependia dele ("Gerar link", "Enviar no WhatsApp", "Copiar link", o campo de link gerado) **saem da aba** — o consultor passa a mandar o link por fora. A aba vira só: campo "Nome do cliente", preview da imagem e um único botão, renomeado de "Gerar link" para **"Baixar imagem"**.
+
+**Implementação**:
+- `biometria_preview.png` foi **substituída pelo arquivo que o usuário enviou** (1080×1080, convertido de `.webp` pra `.png`) — não foi recriada do zero por aproximação visual.
+- HTML da aba reduzido a: `#bioNome` (nome do cliente), `#bioImgPreview` (preview), `#bioErr` (erro) e `#btnBaixarImagemBiometria` (link `<a>` com `download`, texto "Baixar imagem"). Removidos: `#bioLink`, `#bioLinkGerado`, `#bioResultado`, `#btnWhatsappBiometria`, `#btnCopiarBiometria`, `#bioCopiadoMsg`, e as funções `validarLinkBiometria`, `montarLinkBiometria`, `montarMensagemWhatsapp` (sem uso depois da remoção do fluxo de link — removidas, não deixadas como código morto, já que não há mais nenhum outro lugar na aba que precise delas).
+- `gerarImagemBiometriaPersonalizada(nome)` (mesma técnica da seção 19.11, adaptada pro novo design): carrega a nova `biometria_preview.png` num `<canvas>` 1080×1080, cobre a área da saudação original (medida pixel a pixel: x 30–1050, y 265–365) com um degradê horizontal que reproduz o fundo ali (fica um pouco mais claro perto do brilho decorativo no canto superior direito do card — por isso o degradê tem 4 paradas de cor, não só 2) e escreve "Olá, {nome}!" em branco, alinhado à esquerda (mesma margem das linhas de título abaixo), com `ajustarFonteParaCaber()`: o tamanho da fonte vai encolhendo (de ~58px até um piso de ~26px) até o texto caber na largura disponível, em vez de quebrar linha — evita que um nome longo invada a linha do título "Confirme sua identidade para finalizar" logo abaixo. Cai pra "Olá!" quando o campo está vazio.
+- O botão "Baixar imagem" ganhou um `click` que bloqueia o download (`preventDefault`) e mostra erro "Informe o nome do cliente." se o campo estiver vazio — like antes, só que agora é a única ação da aba (não existe mais um passo separado de "gerar" antes de baixar).
+- Verificado visualmente num harness isolado (nome curto, nome longo com encolhimento de fonte, e vazio) antes de publicar — print conferido pixel a pixel contra o exemplo que o usuário mandou.
+
+**Lição**: da próxima vez que o usuário mandar uma imagem de referência num pedido de design, perguntar explicitamente se é a peça final a ser usada (ou só um exemplo do estilo) **antes** de implementar, em vez de assumir que uma imagem já existente no projeto era a referência.
+
+- **06/10/2026** — Corrigida a seção 19.11 a pedido do usuário: imagem-base trocada pelo design novo que ele forneceu ("Confirme sua identidade para finalizar"), nome do cliente entra como "Olá, {nome}!" acima do título, e a aba Biometria foi simplificada — saiu o campo de link e todo o fluxo de WhatsApp/copiar link, ficando só nome + preview + botão "Baixar imagem". Ver seção 19.12.
+
 ## 20. Analisar Fatura — estrutura inicial dentro da aba "Gerar Proposta" (18/09/2026)
 
 ### 20.1 O que foi pedido
