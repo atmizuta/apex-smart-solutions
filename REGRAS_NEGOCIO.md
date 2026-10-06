@@ -2398,7 +2398,390 @@ Correspondência com os grupos do NeoCRM (`RELATORIO_ROTULOS`, deriva de `DIARIA
 - Antes de publicar, o painel no ar (MD5 `e7d1133b…`) era idêntico ao `oficial/main` (d94d454): nada por fora. Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`d4ef7baa38473ec5bbff93a67da6ebcf`**, igual no arquivo gerado, no servidor e no site público. Backup no servidor: `~/deploy_backups/painel_clientes_apex_20260930_202344_antes_layout_centralizado.html`. Vigia atualizado.
 - **Reverter:** copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. Não há mudança de banco nem de função.
 
-## 59. Sincronização extra da produção das 20:30 às 21:30, de 10 em 10 minutos (05/10/2026)
+## 59. Monitoramento Leads — ligações manuais x leads (01/10/2026)
+
+Pedido do usuário: a partir de outubro/2026 os leads ficam com 4 pessoas (Caio, Gabriel Macedo, Luria, Mariana) e é preciso acompanhar de perto se elas ligam, tratam e vendem. A telefonia não tem API; o relatório de chamadas manuais chega em Excel. Spec: `docs/superpowers/specs/2026-10-01-monitoramento-leads-design.md`; plano: `docs/superpowers/plans/2026-10-01-monitoramento-leads.md`. **Status: publicado em 01/10/2026 (ver 59.7).**
+
+### 59.1 Onde fica e quem vê
+- **Digital → "Monitoramento Leads"** (sub-aba ao lado de "Leads"): só **admin e supervisor**. O consultor não vê a barra de sub-abas. A sub-aba só é escondida na tela; a proteção real é do banco (as RPCs recusam quem não é admin/supervisor e a tabela `ligacoes_manuais` tem RLS).
+- **Pedidos Parados → "Meus leads para tratar"**: só o **consultor** que tem linha em `leads_equipe` com `profile_id` = login dele. Vê apenas os próprios leads em aberto (de todas as abas), com tentativas e última ligação. Nunca lê `ligacoes_manuais`. Consultor sem vínculo não vê a seção (nem aviso nem erro: quase todos os consultores não recebem lead).
+- Mês do monitoramento = a aba da planilha escolhida (mesmas pílulas da Digital, seção 54).
+
+### 59.2 Telefone e "número de lead"
+`chave_tel` = DDD + 8 últimos dígitos (tira o `55` quando há 12+ dígitos; ignora o 9º dígito), igual em SQL (`public.chave_tel`) e em JS (`chaveTel`). "Número de lead" = telefone presente em qualquer aba de `leads`. Telefone com menos de 10 dígitos não casa com ninguém.
+
+### 59.3 Upload do relatório
+Botão "Escolher arquivo" (Excel/CSV da telefonia). Colunas obrigatórias: `ID`, `Usuario`, `Telefone`, `Status`, `DataHora_Geracao` (o resto é opcional; o nome da coluna ignora acento, caixa e espaços). Grava em `ligacoes_manuais` por `upsert` no `id`, em lotes de 500: reenviar o mês inteiro não duplica. Mostra lidas / novas / já existiam / inválidas e quem da equipe não aparece no arquivo. Horário do relatório = São Paulo (`-03:00`). Linha com ID vazio ou data fora do formato é contada como inválida e não é enviada.
+
+### 59.4 O que a página mostra (nesta ordem)
+1. Cards dos consultores monitorados (leads, vendas, conversão, perdidos, em andamento, sem contato, receita, sem ligação). Clicar filtra os blocos abaixo.
+2. Upload.
+3. **Fila de leads sem ligação** (em aberto, mais antigo primeiro; vermelho acima do SLA de 24 h).
+4. **Cadência**: abaixo do mínimo (1 a 2 tentativas) e acima do teto (mais de 10) — padrões 3 e 10.
+5. **Placar do dia**: ligações para lead hoje contra a meta (padrão 80), atendidas, leads tocados, minutos, hora da última.
+6. **Qualidade**: taxa de atendimento, duração média falada, conversas boas (≥ 60 s) e atendidas tabuladas "SEM CONTATO".
+7. **Inconsistências**: "sem contato" com 3+ ligações; "cliente não responde" com menos de 3 tentativas; venda sem nenhuma ligação.
+8. **Tabela por consultor**, com "Os consultores de leads" e "Todos os consultores": ligações manuais, para leads, % do total, atendidas, leads diferentes, tentativas por lead e as janelas hoje/ontem/7 dias/30 dias (sempre relativas a hoje); o período De/Até (padrão = mês corrente) vale para os totais.
+9. **Equipe de leads e metas** (só admin): nome na planilha, usuário na telefonia, perfil do painel, monitorar; metas `min_tentativas`, `max_tentativas`, `meta_ligacoes_dia`, `conversa_boa_seg`, `sla_primeira_ligacao_h` (guardadas em `config.monitor_leads_metas`).
+- Excel (SheetJS, **sem cores**; a ExcelJS colorida só existe no Dashboard de Produção): fila + cadência + inconsistências, e a tabela por consultor.
+
+### 59.5 Banco (migration `supabase/migrations/20261001000000_monitoramento_leads.sql`, rollback em `supabase/rollback/`)
+Aditiva. Cria `chave_tel`, `norm_nome`, `ligacoes_manuais` (RLS admin/supervisor), `leads_equipe` (leitura: o próprio perfil e admin/supervisor; escrita: admin), as RPCs `monitor_leads_leads`, `monitor_ligacoes_por_usuario`, `monitor_ligacoes_resumo` (admin/supervisor) e `meus_leads_para_tratar` (consultor vinculado), e semeia `leads_equipe` com Caio / Gabriel / Luria / Mariana (`profile_id` vazio: o admin liga cada um no editor). Verificação: `supabase/tests/monitoramento_leads_check.sql` (transação com rollback). **Ordem de entrada no ar:** migration primeiro, depois o painel (sem a migration as telas novas mostram "não foi possível carregar" e o resto não quebra).
+
+### 59.6 Decisões e limites
+- "Gabriel" na planilha de leads é o Gabriel Macedo (`apex.gabrielM`); o outro Gabriel (`apex.gabriels`) não recebe lead.
+- A hora da última ligação aparece no placar do dia; o alerta "parado há X h" e o link para a gravação ficaram para depois (o campo `gravacao` já é guardado).
+- Fora do escopo: API da telefonia, aviso por Slack/WhatsApp, o consultor ver o próprio placar de ligações, ajustar "Meus leads e retornos" da Digital para usar `leads_equipe`.
+- `test_conversao_vendas.js` tem 3 falhas que já existem no `oficial/main` (filtros "Hoje" / "Últimos 7 dias" dependem do horário da máquina); não são desta feature.
+- Testes: `test_monitoramento_leads.js` (dados fictícios).
+
+### 59.7 Publicado (01/10/2026, ~16:30)
+- **Banco (antes do painel):** migration `monitoramento_leads` aplicada no Supabase `apex` (projeto `mdgfboijyqfkggcrhptn`). Antes, conferido que as tabelas e funções não existiam e que `leads` tem as colunas usadas (1.454 leads). O script `supabase/tests/monitoramento_leads_check.sql` rodou em produção dentro de transação com rollback, sem nenhum erro (chave de telefone, permissões de admin, consultor vinculado e anônimo). Depois: nenhum dado fictício ficou, `ligacoes_manuais` vazia e `leads_equipe` com Caio, Gabriel, Luria e Mariana (sem perfil ligado ainda).
+- **Painel:** o painel no ar (MD5 `703c65cc…`) era idêntico ao `oficial/main`, então não havia nada publicado por fora. Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`91e2c666aacc89b09ff6c5a3dd5d6b6f`**, igual no arquivo gerado, no servidor e no site público. A tela carrega sem erros no console e as funções novas existem. Backup no servidor: `~/deploy_backups/painel_clientes_apex_20261001_162921_antes_monitoramento_leads.html`.
+- **Reverter o painel:** copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. **Reverter o banco:** rodar `supabase/rollback/20261001000000_monitoramento_leads_rollback.sql` (só depois de reverter o painel; apaga as ligações importadas e a lista da equipe).
+- **Falta fazer (usuário):** em Digital → Monitoramento Leads → "Equipe de leads e metas", ligar cada pessoa ao perfil do painel; depois, enviar o primeiro relatório de ligações manuais.
+
+## 60. Leads: aba de Outubro, erro ao salvar a equipe, fila "mostrar menos" e "Meus leads" para todo consultor (01/10/2026)
+
+Pedido do usuário (01/10): (1) erro ao salvar a equipe de leads; (2) a planilha já tem a aba de outubro; (3) opção de mostrar menos em "Leads sem nenhuma ligação"; (4) mostrar os leads em Pedidos Parados para todo consultor que tiver pelo menos um lead, sem o Repique. **Status: publicado em 01/10/2026 (ver 60.7).**
+
+### 60.1 Erro "cannot insert a non-DEFAULT value into column id"
+- Causa: `leads_equipe.id` é `GENERATED ALWAYS AS IDENTITY`. O editor (seção 59.4, item 9) salvava as pessoas já gravadas com `upsert(..., { onConflict: 'id' })`, mandando o `id` — o Postgres recusa qualquer valor explícito numa identidade ALWAYS, mesmo que a linha já exista. Por isso nenhuma das 4 pessoas (Caio, Gabriel, Luria, Mariana) conseguiu ser ligada ao perfil do painel.
+- Correção (só no painel, sem DDL): quem já existe é salvo com `update(...).eq('id', id)`, sem o `id` no corpo. Como `profile_id` é único (`uq_leads_equipe_profile`), quem troca de perfil é liberado (`profile_id = null`) antes, para que trocas A↔B não colidam.
+
+### 60.2 Aba de Outubro (a sync estava misturando outubro em setembro)
+- O time **renomeou** a aba de Setembro (gid `1292366194`) para "LEADS CLARO B2B APEX - OUTUBRO" e copiou Setembro para uma aba nova "LEADS CLARO B2B APEX - SETEMBRO 26" (gid `1519521435`). O gid não muda ao renomear, então a `sync-leads` continuou lendo o gid antigo como SETEMBRO: às 13:40 de 01/10 já havia **31 leads criados em outubro gravados como SETEMBRO**, e a Setembro de verdade parou de atualizar.
+- Correção em `edge_function_sync_leads.ts` (`SHEET_TABS`): SETEMBRO → gid `1519521435`; OUTUBRO (novo) → gid `1292366194`. A estrutura das colunas é a mesma (consultor na coluna sem cabeçalho antes de STATUS — já tratado na seção 54). A pílula "Outubro" aparece sozinha (as pílulas vêm dos dados) e abre por padrão por ser o mês mais recente.
+- **Lição:** o gid é da aba, não do nome. Sempre que o time mexer nas abas, conferir nome × gid em `https://docs.google.com/spreadsheets/d/<id>/htmlview` antes de mexer no `SHEET_TABS`.
+
+### 60.3 Limpeza das cópias erradas (depois de reimplantar a sync)
+Script `supabase/tests/leads_outubro_corrige_aba.sql`: depois de reimplantar a `sync-leads` e clicar "Atualizar agora", apaga de SETEMBRO só os leads que já existem em OUTUBRO (mesmo `id`) — passo A mostra a lista, passo B apaga dentro de transação para conferir antes do `commit`. `leads_followups` liga por `lead_id`, então os retornos continuam valendo. Conferido em 01/10: nenhum id da aba Outubro está na aba Setembro 26 da planilha.
+
+### 60.4 "Leads sem nenhuma ligação": mostrar menos
+Com mais de 10 leads, a fila mostra só os 10 mais antigos e um botão "Mostrar todos (N)" / "Mostrar menos" (`ML_FILA_CURTA = 10`, `mlEstado.filaTodos`). O resumo e o Excel continuam com a fila inteira.
+
+### 60.5 "Meus leads para tratar" para todo consultor com lead (sem Repique)
+- Migration `supabase/migrations/20261001200000_meus_leads_por_nome.sql` (rollback em `supabase/rollback/`, verificação em `supabase/tests/meus_leads_por_nome_check.sql`, sempre com rollback). Aditiva: troca `meus_leads_para_tratar()` (mesma assinatura) e cria `meus_leads_nomes()` (interna) e `meus_leads_vinculado()` (boolean).
+- O consultor é reconhecido por: (1) `leads_equipe.profile_id` = login (prioridade); ou (2) **primeiro nome do perfil = nome da coluna CONSULTOR da planilha** (`norm_nome`), só se esse primeiro nome for único entre os perfis e nenhuma outra pessoa da equipe tiver esse nome ligado a outro login. Decisão do usuário: "nome + equipe".
+- Em 01/10 há dois perfis "Gabriel" (`gabriel` e `Gabriels`): nenhum casa por nome; o Gabriel dos leads (Gabriel Macedo) aparece depois que o admin ligar o perfil dele no editor da equipe (agora funcionando, 60.1). Manuela e Danilo aparecem na planilha mas não têm perfil.
+- Aba REPIQUE fica fora da lista e do vínculo. A seção aparece para quem tem pelo menos um lead (qualquer categoria) fora do Repique; a lista mostra os em aberto (`andamento`, `sem_contato`). O painel passou a perguntar ao banco (`meus_leads_vinculado`) em vez de ler `leads_equipe`.
+- Testes: `test_monitoramento_leads.js` (162 ok) e `test_edge_function_sync_leads.js` (92 ok). Falhas já existentes e não relacionadas: `test_conversao_vendas.js` (filtros "Hoje"/"7 dias" dependem do relógio) e `test_pedidos_alerta.js` (falta `exceljs` nesta máquina).
+
+### 60.6 Ordem para entrar no ar (cada passo só com ok do usuário)
+1. Banco: aplicar a migration `meus_leads_por_nome` e rodar `meus_leads_por_nome_check.sql` (rollback).
+2. Reimplantar a `sync-leads` (conector, `verify_jwt` true) → "Atualizar agora" → script 60.3.
+3. Painel: comparar com o no ar, backup, enviar, MD5, `vigia_painel.ps1 -Aceitar`, registrar aqui (60.7).
+
+### 60.7 Publicado (01/10/2026, ~17:38, horário de SP)
+- **Banco:** migration `meus_leads_por_nome` aplicada no Supabase `apex`. Antes, conferido que só existia a `meus_leads_para_tratar` da seção 59. Depois, `meus_leads_por_nome_check.sql` rodou em produção dentro de transação com rollback, sem erro (nome único, nome repetido, só Repique, vínculo pela equipe, anon recusado, função interna sem EXECUTE para authenticated); conferido que `plpgsql.check_asserts` está ligado e que nenhum dado fictício ficou.
+- **sync-leads:** a versão no ar (v9) era a do `oficial/main`; reimplantada como **v10** (`verify_jwt` true) com o `SHEET_TABS` novo. Limpeza das cópias erradas (60.3): ver 60.8.
+- **Painel:** o painel no ar (MD5 `91e2c666…`) era idêntico ao `oficial/main` (nada publicado por fora). Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`e7a6de56cee3e7530684c742e1cd41a9`**, igual no arquivo gerado, no servidor e no site público. Vigia atualizado (`-Aceitar`). Backup no servidor: `~/deploy_backups/painel_clientes_apex_20261001_203829_antes_leads_outubro.html`.
+- **Reverter o painel:** copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. **Reverter o banco:** `supabase/rollback/20261001200000_meus_leads_por_nome_rollback.sql` (depois de reverter o painel). **Reverter a sync:** reimplantar a versão do `oficial/main` anterior a esta seção (mas ela volta a gravar outubro como SETEMBRO).
+- **Falta fazer (usuário):** ligar o Gabriel Macedo (e quem mais quiser) ao perfil em Digital → Monitoramento Leads → "Equipe de leads e metas" — o editor agora salva.
+
+### 60.8 Limpeza feita (01/10/2026, ~17:45)
+- O usuário clicou "Atualizar agora" às 17:41 (sync-leads v10): OUTUBRO passou a ter **27** leads (igual à aba da planilha).
+- Cópias erradas em SETEMBRO (mesmo `id` que em OUTUBRO): **22** (18 ainda sem consultor + 4 do Gabriel), todas criadas em 01/10. Apagadas com ok do usuário, numa transação que só gravava se as contagens batessem. Resultado: **SETEMBRO 851** (= aba "SETEMBRO 26" da planilha), **OUTUBRO 27**, AGOSTO 154, REPIQUE 427.
+- Os "31 leads de outubro" de 60.2 eram contados em UTC: 9 deles entraram entre 21h e 0h de 30/09 (horário de SP) e são de setembro de verdade — ficaram onde estavam.
+
+### 60.9 Equipe de leads completada (01/10/2026, noite)
+- Pedido do usuário: ligar à equipe todos os consultores com pelo menos um lead na planilha. O próprio usuário já tinha ligado Caio, Gabriel (Macedo), Luria e Mariana pelo editor (monitorar = sim).
+- Gravados com ok do usuário (`monitorar = false`, para não entrarem nos cards do Monitoramento; dá para marcar no editor): Giovanna → Giovanna Firmina, Henrique → Henrique Pavin, Lucas → Lucas Izidoro, Victoria → Victoria Horni e **Manuela → Manuella Bento** (o login tem dois "L" e a planilha um — por isso a regra do primeiro nome não pegava).
+- Ficaram de fora: Danilo (sem login; saiu da empresa — os leads em aberto dele precisam de novo dono na planilha), Rafael (admin; Pedidos Parados é só de consultor) e quem só tem lead no Repique (Yasmin, Bianca).
+
+## 61. "Meus leads para tratar" vira sub-aba da Digital, separada por mês, com status e OBS da planilha (01/10/2026)
+
+Pedido do usuário (01/10): (1) separar os leads do consultor por mês (Agosto, Setembro, Outubro) em abinhas; (2) mostrar o status que está na planilha e a última movimentação; (3) tirar a seção de Pedidos Parados e criar uma sub-aba própria na Digital, como a "Monitoramento Leads", que só o consultor vê. A seção "Meus leads e retornos" (Digital → Leads) continua como está. **Status: publicado em 01/10/2026 (ver 61.6).**
+
+### 61.1 Onde fica e quem vê
+- Digital ganha a sub-aba **"Meus leads para tratar"** (`data-digital-sub="meus"`, bloco `#digitalSubMeus`). Aparece só para o **consultor** que tem pelo menos um lead fora do Repique (`meus_leads_vinculado()`, seção 60.5). A barra de sub-abas passa a aparecer para esse consultor (Leads | Meus leads para tratar); admin/supervisor continuam com Leads | Monitoramento Leads e nunca veem a do consultor. Consultor sem lead: Digital como antes, sem barra.
+- Pedidos Parados volta a ter só os pedidos (não chama mais `meus_leads_para_tratar`).
+- O vínculo é verificado ao abrir a Digital (`digitalSubPreparar` → `plCarregar` → `digitalSubBarra`); abrir a sub-aba recarrega os leads.
+
+### 61.2 Dentro da sub-aba
+- Pílulas por mês (`#plAbaPills`, mesma ordem da Digital: o mês mais recente primeiro e aberto por padrão), cada uma com a quantidade de leads em aberto. Mês novo na planilha (seção 60.2) aparece sozinho. Resumo (sem ligação, retorno atrasado, esfriando, para hoje) e lista valem para o mês escolhido.
+- Cada lead mostra o **status da planilha** em etiqueta (`.badge.plStatus`; vazio = "sem status") e a **OBS da planilha** (`.plObs`, só quando preenchida), além de tentativas, última ligação e agendar retorno / marcar feito.
+- "Última movimentação": a planilha não guarda data de edição por linha; o que existe é o STATUS e a OBS que o consultor anotou — é o que aparece.
+
+### 61.3 Banco
+Migration `supabase/migrations/20261001300000_meus_leads_obs.sql` (rollback em `supabase/rollback/`): recria `meus_leads_para_tratar()` com a coluna `obs` no fim (mudar o retorno exige drop + create). Regras de vínculo e de Repique iguais à seção 60. O painel antigo funciona com a função nova.
+
+### 61.4 Atualização dos dados
+Os leads só mudam quando alguém (admin/supervisor) clica "Atualizar agora" na Digital: a `sync-leads` não tem agendamento (o cron existe só para a produção NeoSales). O consultor vê a mudança ao abrir/recarregar a sub-aba depois da sincronização.
+
+### 61.5 Testes
+`test_monitoramento_leads.js` (182 ok): pílulas por mês e contagem, troca de mês, status e OBS, seção fora de Pedidos Parados, sub-aba só do consultor com lead, admin não vê nem abre, reset limpa as pílulas. Falhas antigas e não relacionadas: `test_conversao_vendas.js` (relógio) e `test_pedidos_alerta.js` (falta `exceljs`).
+
+### 61.6 Publicado (01/10/2026, ~19:22, horário de SP)
+- **Banco:** migration `meus_leads_obs` aplicada no Supabase `apex` (antes: a função era a da seção 60 e nada dependia dela). Conferido com um consultor real simulado em transação com rollback (Giovanna: Agosto 8 em aberto, 6 com OBS; Setembro 20, 13 com OBS; nenhum do Repique) e que anon continua sem EXECUTE.
+- **Painel:** o painel no ar (MD5 `e7a6de56…`) era idêntico ao `oficial/main` (nada publicado por fora). Enviado por SSH para arquivo temporário e trocado só depois de o MD5 bater: **`8b66271b27275bfc0a9bc9d1278e6af5`**, igual no arquivo gerado, no servidor e no site público. Vigia atualizado (`-Aceitar`). Backup no servidor: `~/deploy_backups/painel_clientes_apex_20261001_222218_antes_meus_leads_digital.html`.
+- **Reverter:** copiar esse backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`; depois (opcional) `supabase/rollback/20261001300000_meus_leads_obs_rollback.sql`.
+
+## 62. Sincronização automática dos leads a cada 30 minutos, com trava de mês (01/10/2026)
+
+Pedido do usuário (01/10): os leads da planilha passarem para o painel sozinhos, sem precisar clicar "Atualizar agora". Pedido junto: a trava de segurança contra aba renomeada (o incidente da seção 60.2). **Status: publicado em 01/10/2026 (ver 62.5).**
+
+### 62.1 Como funciona
+- Job `sync-leads-auto` no pg_cron (migration `supabase/migrations/20261001400000_sync_leads_cron.sql`, rollback em `supabase/rollback/`): nos minutos **22 e 52** de cada hora chama a `sync-leads` com o header `x-cron-secret`, lido do Vault (`sync_producao_cron_secret`, o mesmo da sync-producao). Longe da sync-producao (minuto 7) e dos múltiplos de 15 do alerta.
+- A `sync-leads` confere o header contra o secret `SYNC_CRON_SECRET` em tempo constante; secret vazio nunca libera. Sem o header certo, continua exigindo admin/supervisor logado (botão "Atualizar agora" igual). Implantada com `verify_jwt = false` porque o cron não manda JWT — a função faz a autenticação ela mesma (mesmo padrão da sync-producao). Conferido no ar: sem nada → 401 "Não autenticado."; segredo errado → 401; token falso → 401 "Sessão inválida."; chamada como o cron → 200 com `origem: "cron"`.
+- A resposta traz `origem` ("cron" ou "manual"). O status da Digital diz "(automática a cada 30 min)".
+
+### 62.2 Trava de mês
+- Antes de gravar qualquer lead, `verificarTrava()`: se uma aba de MÊS (AGOSTO, SETEMBRO, OUTUBRO...) trouxer **mais de 10** leads criados num mês **posterior** ao dela (1 a 5 meses depois, no horário de São Paulo), a sincronização inteira para sem gravar nada. Mês anterior não trava (lead antigo colado numa aba nova; dezembro numa aba de janeiro conta como anterior). Repique não é mês; lead sem data não conta.
+- Limite 10 (e não 5): em 01/10 a aba Setembro da planilha já tinha 4 leads de outubro lançados nela; a aba renomeada da seção 60.2 trouxe 22.
+- Vale também para o botão manual (resposta 409 com a mensagem).
+
+### 62.3 Aviso de falha
+- Qualquer falha (trava, aba fora do ar/sem cabeçalho, planilha vazia, erro ao gravar) é gravada em `config.leads_sync_erro` ("data — motivo"); rodada com sucesso limpa (vazio).
+- Digital mostra o aviso em vermelho embaixo do botão (`#conversaoSyncErro`), só para admin/supervisor. O consultor não vê.
+- O que fazer se aparecer a trava: abrir `https://docs.google.com/spreadsheets/d/<id>/htmlview`, conferir nome × gid de cada aba e corrigir `SHEET_TABS` (seção 60.2); nada foi gravado enquanto a trava estava ativa.
+
+### 62.4 Testes
+`test_edge_function_sync_leads.js` (109 ok: mês em SP, trava com o caso de 01/10, tolerância, mês anterior, virada de ano, Repique, sem data, comparação do segredo, a trava antes do upsert) e `test_monitoramento_leads.js` (186 ok: aviso para admin, some sem erro, consultor não vê). Falhas antigas e não relacionadas: `test_conversao_vendas.js` (relógio) e `test_pedidos_alerta.js` (falta `exceljs`).
+
+### 62.5 Publicado (01/10/2026, ~19:40, horário de SP)
+- **sync-leads v11** (`verify_jwt` false) — testes de acesso da 62.1 feitos no ar; chamada de teste como o cron às 19:38 gravou 1.464 leads (Agosto 154, Setembro 851, Outubro 32, Repique 427) e deixou `leads_sync_erro` vazio.
+- **Cron** `sync-leads-auto` (`22,52 * * * *`) ativo; primeira rodada automática às 19:52.
+- **Painel:** o no ar (MD5 `8b66271b…`) era idêntico ao `oficial/main`. Publicado **`5a326f658a98990a138d578e19e531a6`** (gerado = servidor = site). Vigia atualizado. Backup: `~/deploy_backups/painel_clientes_apex_20261001_193954_antes_sync_leads_auto.html`.
+- **Desligar só a automação:** `supabase/rollback/20261001400000_sync_leads_cron_rollback.sql` (o botão continua). **Reverter o painel:** copiar o backup de volta. **Reverter a função:** reimplantar a versão do `oficial/main` anterior a esta seção com `verify_jwt` true.
+
+## 63. Sincronização horária da produção (NeoSales) passa para o minuto 59 (01/10/2026)
+
+- Pedido do usuário: o relatório das 17h (seção 56) corta em 16:59 e tem que sair até 17:00. Com o job no minuto 7, os dados mais novos disponíveis às 17:00 eram os das 16:07.
+- Job `sync-producao-horario`: `7 * * * *` → **`59 * * * *`** (migration `supabase/migrations/20261001500000_sync_producao_minuto_59.sql`, rollback em `supabase/rollback/`). Aplicado em 01/10 ~19:45 (SP). Só muda o horário; o comando é o mesmo da seção 50.
+- Sem lacuna: a janela da consulta vem do cursor (última execução ok) com 15 min de sobreposição; a 1ª rodada no minuto 59 cobre ~67 min, abaixo do limite diurno de 85 min da API (seção 50).
+- Agenda dos jobs depois da mudança: `sync-producao-horario` 59 · `sync-leads-auto` 22 e 52 (seção 62) · `alerta-sync-producao` a cada 15 min · `sync-producao-reconciliar` 02:37 UTC (23:37 SP).
+- Limite: o que o consultor cadastrar no NeoCRM entre 16:59 e 17:00 entra só na rodada das 17:59.
+
+## 64. "Meus leads para tratar": leads para resgatar, WhatsApp com mensagem pronta, retorno em 1 clique e placar de ligações (01/10/2026)
+
+Pedido do usuário (01/10): (1) confirmar que a lista mostra só leads que não viraram venda nem venda perdida — e incluir "não obtive contato"; (2) botão de WhatsApp com mensagem pronta para "ressuscitar" o lead, dizendo "da Claro Empresas"; (3) o consultor ver quantas ligações fez hoje para os leads, comparado com a média, com orientação (ligar mais / insistir mais / ligar menos para o mesmo lead), sem ver os números do Monitoramento; (4) "algo que facilite o consultor a retornar para os leads". **Status: publicado em 01/10/2026 (ver 64.6).**
+
+### 64.1 Quais leads aparecem
+- Continua: em andamento (EM NEGOCIAÇÃO, AGUARDANDO DOCUMENTAÇÃO, AGENDADO RETORNO, AGUARDANDO CLIENTE DECIDIR, PEDIDO EM ANÁLISE e qualquer status novo) e sem status. Fora: venda e os perdidos.
+- Não existe status "não obtive contato" na planilha; o equivalente é **"CLIENTE NÃO RESPONDE"** (decisão do usuário: entra). Aparece com a etiqueta **"para resgatar"** e um chip no resumo; nos números da Digital/Dashboard continua perdido.
+
+### 64.2 WhatsApp com mensagem pronta
+Botão "WhatsApp" em cada lead com telefone (`https://wa.me/55DDD...?text=`, mesmo `ppEscolherTelefone` de Pedidos Parados), com o primeiro nome do lead e do consultor e "da Claro Empresas". Sem preço (não fica desatualizada). Texto por situação (`plTipoMensagem`): **resgatar** (não responde / sem status), **negociação** (em negociação, aguardando decidir, status desconhecido), **documentação**, **retorno** (agendado retorno, pedido em análise).
+
+### 64.3 Retorno em 1 clique
+Botões "Amanhã" e "Em 3 dias" em cada lead gravam o retorno direto em `leads_followups` (tipo retorno), sem abrir o formulário — o consultor manda o WhatsApp e já deixa o próximo contato marcado.
+
+### 64.4 Placar do consultor
+- Cartão no topo da sub-aba (`#plPlacar`): "Você fez X ligações para os seus leads hoje; a média da equipe é Y" + "Ligue mais hoje" (abaixo de 80% da média) ou "Acima da média — continue assim!"; "Insista mais" (leads em aberto com 1 a min−1 tentativas); "Ligue menos para o mesmo lead" (mais que o teto). Metas de `config.monitor_leads_metas` (padrão 3 / 10).
+- RPC `meu_placar_ligacoes(p_ref)`: só as ligações do login (pelo `leads_equipe.usuario_telefonia`) e a média agregada da equipe; nunca números de outra pessoa; o consultor continua sem ler `ligacoes_manuais`.
+- Só aparece com usuário da telefonia preenchido e algum relatório de ligações importado (em 01/10 à noite `ligacoes_manuais` já tinha 17.497 ligações de 01/09 a 01/10; só Caio, Gabriel, Luria e Mariana tinham usuário da telefonia).
+
+### 64.5 Banco e testes
+Migration `supabase/migrations/20261001600000_meus_leads_resgatar_placar.sql` (rollback em `supabase/rollback/`). `test_monitoramento_leads.js` 213 ok. Falhas antigas e não relacionadas: `test_conversao_vendas.js` (relógio) e `test_pedidos_alerta.js` (falta `exceljs`).
+
+### 64.6 Publicado (01/10/2026, ~20:22, horário de SP)
+- **Banco:** migration `meus_leads_resgatar_placar` aplicada (antes: lista da seção 61, placar inexistente). Conferido simulando o Caio em transação com rollback, com ligações fictícias de hoje (3 dele para lead + 1 para número que não é lead + 7 de outra pessoa): a lista passou a ter 96 leads, 21 deles para resgatar; o placar somou só as ligações para lead e a média da equipe; anon sem EXECUTE; nada fictício ficou.
+- **Painel:** o no ar (MD5 `5a326f65…`) era idêntico ao `oficial/main`. Publicado **`69278d1c26ac43d442d89e58512c6339`** (gerado = servidor = site). Vigia atualizado. Backup: `~/deploy_backups/painel_clientes_apex_20261001_202145_antes_meus_leads_whatsapp.html`.
+- **Reverter:** copiar o backup de volta; depois (opcional) `supabase/rollback/20261001600000_meus_leads_resgatar_placar_rollback.sql`.
+
+## 65. Ligações de usuários da Eagle (eagle.*) ficam fora do monitoramento (01/10/2026)
+
+- Pedido do usuário: desconsiderar todos os usuários da telefonia que começam com "eagle" (não fazem parte da operação da Apex).
+- Antes: 8.682 das 17.497 ligações importadas eram da Eagle (19 usuários); 150 delas foram para números de lead da Apex e inflavam as **tentativas** dos leads (Meus leads para tratar e Monitoramento) e a tabela "Todos os consultores". A média do placar do consultor (seção 64) já não contava a Eagle.
+- **Banco** (migration `supabase/migrations/20261001700000_ligacoes_ignora_eagle.sql`, rollback em `supabase/rollback/`): gatilho `ligacoes_manuais_ignora_eagle` (BEFORE INSERT OR UPDATE) descarta qualquer ligação com usuário começando por "eagle" (sem diferença de maiúsculas/espaços) — mesmo padrão do `producao_pedidos_ignora_gross`, vale até para abas com o painel antigo. As 8.682 ligações da Eagle foram apagadas com ok do usuário (os Excel originais continuam com ele). Conferido: ficaram 8.815 ligações, 0 da Eagle; teste em transação com rollback: eagle.* descartada, apex.* gravada.
+- **Painel:** o upload ignora as linhas eagle.* (`mlEhEagle`), não as envia e mostra o cartão "Ignoradas (Eagle)"; arquivo só da Eagle é recusado com mensagem explicando. "apex.eagleton" (não COMEÇA com eagle) entra normalmente.
+- Testes: `test_monitoramento_leads.js` 219 ok. Falhas antigas e não relacionadas: `test_conversao_vendas.js` (relógio) e `test_pedidos_alerta.js` (falta `exceljs`).
+- **Publicado (01/10/2026, ~20:47, horário de SP):** banco antes do painel (gatilho + exclusão). Painel no ar (MD5 `69278d1c…`) era idêntico ao `oficial/main`; publicado **`0b538da41c13320f503fc2f3fcdf496f`** (gerado = servidor = site), vigia atualizado. Backup: `~/deploy_backups/painel_clientes_apex_20261001_204735_antes_ignora_eagle.html`. Reverter: copiar o backup de volta; rollback do gatilho em `supabase/rollback/` (as ligações da Eagle só voltam reenviando o Excel).
+
+## 66. Cadastro Diário: a matriz "Vendas Diárias por Vendedor" mostra todos os consultores da Apex (01/10/2026)
+
+- Pedido do usuário: na aba Cadastro Diário (Dashboard de Produção) não apareciam consultores como Manuella, Vitoria Brito, Victoria, Giovanna — "todos os consultores da Apex precisam estar nesse painel".
+- Causa: `renderVendorDailyMatrix()` montava as linhas só com quem tinha pedido cadastrado no mês selecionado (com os filtros aplicados); quem zerou no mês não ganhava linha.
+- Correção:
+  - Banco (migration `supabase/migrations/20261001800000_equipe_vendedores.sql`, rollback em `supabase/rollback/`): RPC `equipe_vendedores()` devolve o nome (NeoCRM, maiúsculo — o mesmo de `producao_pedidos.usuario`) de cada consultor de `consultor_neo` (18 em 01/10, inclusive admins que vendem: Isabelly, Rafael). `security definer` porque o consultor só vê a própria linha de `consultor_neo`; devolve só nomes, que já aparecem no dashboard.
+  - Painel: `loadProducaoDashboard` busca a lista e preenche o placeholder `__EQUIPE__` do template (adicionado a `RUNTIME_PLACEHOLDERS` no `build_painel.py`). Sem a lista (erro/versão antiga), a matriz funciona como antes.
+  - Dashboard (`_dashboard_producao.html`): a matriz acrescenta quem é da equipe e não vendeu no mês (linha zerada, em vermelho nos dias úteis), em ordem alfabética depois de quem vendeu. Com filtro de vendedor ativo, só os marcados. Quem vendeu e não está na lista continua aparecendo.
+- Testes: `test_cadastro_diario_equipe.js` (13 ok). Falhas antigas e não relacionadas: `test_conversao_vendas.js` (relógio) e `test_pedidos_alerta.js` (falta `exceljs`).
+- **Publicado (02/10/2026, ~13:44, horário de SP):** banco antes do painel — `equipe_vendedores()` aplicada; conferido como consultora (simulado em transação com rollback) que devolve os 18 nomes e que anon não executa. Painel no ar (MD5 `0b538da4…`) era idêntico ao `oficial/main`; publicado **`96aba0c172aaa7a5396239a32c559fb7`** (gerado = servidor = site), vigia atualizado. Backup: `~/deploy_backups/painel_clientes_apex_20261002_134409_antes_cadastro_diario_equipe.html`. Reverter: copiar o backup de volta; depois (opcional) o rollback da função.
+
+## 67. Sincronização automática das chamadas manuais (robô ProContact) (02/10/2026)
+
+- **O quê:** o relatório de Chamadas Manuais do ProContact (telefonia, sem API) passa a chegar sozinho em `ligacoes_manuais`, de hora em hora, das 07h às 22h, de segunda a sábado (horário de São Paulo). O upload manual de **Digital → Monitoramento Leads** continua existindo como contingência.
+- **Como:** um robô (Playwright) num repositório **privado** `apex-robo-procontact` (GitHub Actions) entra no ProContact, exporta *Relatório → Call Center → Chamadas Manuais* (do dia 1 do mês até hoje; nos dias 1 e 2, desde o dia 1 do mês anterior) e envia as linhas em lotes de 500 à Edge Function `ingest-ligacoes` (Supabase `apex`), que valida e faz `upsert` por `id` — reenviar o período inteiro não duplica. As regras do relatório são as da seção 59.3 e 65 (colunas obrigatórias, `chave_tel`, usuários `eagle*` fora, tabulação como vem).
+- **Segurança:** o robô nunca recebe a chave do banco; só um token próprio (`x-robo-token`, secret `INGEST_LIGACOES_TOKEN` na função e `INGEST_TOKEN` no GitHub). Senha do ProContact só nos *secrets* do GitHub, numa conta exclusiva do robô com permissão só de relatórios. Nenhum telefone em log; sem screenshots nem *traces*. Repositório público nunca recebe segredo nem dado de cliente.
+- **Banco:** migration `supabase/migrations/20261002000000_ligacoes_sync_log.sql` (rollback em `supabase/rollback/`), tabela `ligacoes_sync_log` (uma linha por execução: `ok`, `lidas`, `enviadas`, `invalidas`, `ignoradas_eagle`, período, erro curto); leitura só admin/supervisor, escrita só pela função.
+- **Aviso no painel:** faixa "Sincronização das ligações parada" para admin/supervisor quando a última execução com sucesso passou de **3 h úteis** (seg–sáb, 07–22h); sem nenhuma linha no log (robô ainda não ligado) não aparece. Função `verificarSyncLigacoes()` no `_template.html`, disparada pelos mesmos pontos da faixa da seção 52.
+- **Liga/desliga:** variável de repositório `ROBO_ATIVO` (`true` liga o agendamento; qualquer outro valor desliga). Execução manual: Actions → *Run workflow* → `dry` (só confere, não grava) ou `real`. Revogar acesso: trocar o token nos dois lados.
+- **Spec e planos:** `docs/superpowers/specs/2026-10-01-robo-procontact-ligacoes-design.md`; planos A (banco e função), B (robô) e C (painel) em `docs/superpowers/plans/2026-10-02-robo-procontact-*.md`.
+- **Riscos conhecidos:** o ProContact pode bloquear IPs do GitHub; mudança de layout quebra o robô (a falha vira linha `ok=false` no log e e-mail do GitHub); termos de uso do ProContact precisam permitir acesso automatizado (decisão do Rafael).
+- **Filtro de equipe:** o robô marca no ProContact a equipe **AQUISIÇÃO - CLARO** (campo "Equipes"; as outras são TIM, GANHO e PERDIDO), como o Rafael sempre fez no export manual. Por isso as ligações da Eagle já nem chegam; o filtro `eagle*` do banco continua como segunda barreira. Configurável pela variável `EQUIPE` do robô.
+- **Desempenho (descoberto em 02/10):** do GitHub o ProContact entrega ~70 KB/s e o `app.js` tem 12,9 MB sem compressão (o site manda `Cache-Control: no-store`). O robô guarda uma cópia dos arquivos estáticos (revalida por ETag, chave sem a query `?v=`) no `actions/cache`. 1ª execução ~4,5 min; as seguintes ~1,5 min (≈600 min/mês, dentro dos 2.000 gratuitos do repositório privado).
+- **Entrada em operação (02/10/2026):** duas execuções reais manuais gravaram em `ligacoes_manuais` (8.885 -> 8.981 ligações, 0 duplicados, 0 `eagle*`, 0 sem `chave_tel`; repetir não altera os dados) e o agendamento foi ligado (`ROBO_ATIVO=true`, minuto :17, 07:17-22:17 de São Paulo, seg-sáb).
+- **Conta do ProContact:** o robô usa hoje uma conta pessoal do gestor no ProContact (provisório; o nome de usuário não é registrado aqui porque o repositório é público). Trocar por uma conta exclusiva do robô, só de relatórios, e trocar a senha que ficou exposta nas conversas de implantação.
+- **Publicado (02/10/2026, ~17:06, horário de SP):** faixa "Sincronização das ligações parada" no painel. O painel no ar (MD5 `96aba0c1…`) era idêntico ao `oficial/main` f9a2826; publicado **`0bb51c832a5f999561cac3a4ad709560`** (gerado = servidor = site; diff de +50/-0 linhas, só a faixa). Vigia atualizado. Backup: `~/deploy_backups/painel_clientes_apex_20261002_170602_antes_faixa_ligacoes.html`. Reverter: copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`; a tabela `ligacoes_sync_log` e a função `ingest-ligacoes` continuam (rollback da tabela em `supabase/rollback/20261002000000_ligacoes_sync_log_rollback.sql`). Para desligar a sincronização: `gh variable set ROBO_ATIVO --body false`.
+
+## 68. Velocidade do lead ("Atender agora") e Mesa do Supervisor (02/10/2026)
+
+Pedido do usuário (02/10): aumentar a conversão dos consultores e dar praticidade aos supervisores (ideias 1 e 5 do brainstorming). Spec: `docs/superpowers/specs/2026-10-02-velocidade-lead-mesa-supervisor-design.md`; plano: `docs/superpowers/plans/2026-10-02-velocidade-lead-mesa-supervisor.md`. **Status: publicado em 03/10/2026 (ver 68.8).**
+
+### 68.1 Por quê
+- Set+Out/2026: lead com 1ª ligação em menos de 15 min converteu 31,7%, contra 13–15% nos mais lentos. Em horário comercial: 36% (n=25) contra 12,8% (n=39). É um indício e não uma prova (amostra pequena). A Mesa mede de novo a cada mês (68.4).
+- ~40% dos leads chegam fora do horário (pico às 21h) → o relógio conta **minutos úteis**.
+- Muitos leads são atendidos pelo WhatsApp (sem ligação no ProContact) → o clique no painel registra o contato.
+
+### 68.2 Regra do relógio
+- Expediente em `config.velocidade_lead`: padrão seg–sex 08–18, sáb 08–12, sem domingo e sem feriados nacionais (os do `ppFeriados`). Cores: verde até 5 min, amarelo até 15, vermelho acima disso, "aguardando abertura" fora do expediente.
+- **Contato:** é o primeiro clique em WhatsApp / Ligar / "Já falei com ele" (tabela `leads_contatos`) ou a primeira ligação manual a partir de 1 h antes da entrada do lead.
+- **O status da planilha não conta**, porque os leads já chegam com status (verificado em 02/10).
+- **"Esperando":** sem contato registrado e categoria `sem_contato`/`andamento`, dentro dos últimos 7 dias (`janela_dias`).
+- Funções `vl*` no `_template.html`; o banco só devolve timestamps.
+
+### 68.3 Consultor
+Card **"Atender agora"** no topo de Digital → "Meus leads para tratar":
+- botões WhatsApp (mensagem de 1º contato), Ligar (`tel:`) e "Já falei com ele";
+- o lead sai na hora; se o banco recusar, volta e avisa.
+
+Além disso:
+- o WhatsApp da lista de baixo também registra contato;
+- a recarga roda a cada 2 min desde o login, e o lead novo gera um aviso na tela (e notificação do navegador, se permitida).
+
+### 68.4 Mesa do Supervisor (admin/supervisor)
+Aba nova em "Visão geral". Mostra:
+- KPIs: novos hoje, % no prazo, mediana até o 1º contato, esperando, sem dono, retornos atrasados e pedidos 🔴;
+- a fila da equipe (sem telefone);
+- o semáforo por consultor: esperando, no prazo, retornos, leads esfriando 5+ dias, propostas paradas 7+ dias, pedidos com o nível do Pedidos Parados, ligações hoje x média, vendas x meta (cadastro no mês, sem perdidos e devolvidos);
+- o detalhe ao clicar, "Cobrar" (copia o texto e abre o WhatsApp sem número) e o Excel;
+- a tabela Velocidade × conversão por mês;
+- o atraso da planilha (mediana de `primeira_sync_em − criado_em_lead`).
+
+Para o consultor o botão some e o painel fica vazio. A proteção é feita pelas RPCs.
+
+### 68.5 Banco
+- Migration `20261002100000_velocidade_lead_mesa.sql`:
+  - `leads_contatos` (RLS sem policy: só via RPC);
+  - `leads.primeira_sync_em` (nula nas linhas antigas);
+  - `config.velocidade_lead`;
+  - RPCs `registrar_contato_lead`, `meus_leads_relogio`, `mesa_leads_relogio`, `mesa_pendencias`, `mesa_ligacoes_hoje`, `mesa_vendas_mes`.
+- Migration `20261002100100_sync_leads_10min.sql`: `sync-leads-auto` passa a `2-59/10 * * * *`.
+- Os rollbacks estão em `supabase/rollback/`. A verificação de papéis está em `supabase/tests/velocidade_lead_mesa_check.sql`.
+- **Aplicado em 02/10/2026 ~19:20 (SP), com ok do Rafael:** migration `velocidade_lead_mesa` (script de verificação rodado numa transação com rollback) e migration `sync_leads_10min` (cron `2-59/10 * * * *` ativo). Teste com dados reais, como supervisor, respondeu em menos de 60 ms.
+
+### 68.6 Pendências
+- Rafael: quem põe o lead na planilha, e se ele já entra com consultor e status.
+- Fase 2: alerta por Telegram/Slack quando um lead passa de 15 min (depende do token do bot).
+
+### 68.7 Sincronização de leads tolerante a linha inválida (02/10/2026)
+- **Problema:** em 02/10, a partir de 18:22 (SP), a sincronização dos leads falhou em todos os ciclos com `invalid input syntax for type timestamp with time zone: "TESTE"` — alguém criou uma linha de teste na aba OUTUBRO (linha 49, todas as colunas "TESTE"); o upsert é em lote, então uma linha ruim derrubava tudo e nenhum lead novo entrava no painel.
+- **Correção** na Edge Function `sync-leads` (versão 15, implantada em 02/10/2026 ~19:38 SP, com ok do Rafael): linha com `created_time` que não é data é pulada e anotada (aba, nº da linha na planilha, valor); os demais leads são gravados; o aviso vai para `config.leads_sync_erro` como "Aviso: N linha(s) da planilha ignorada(s)…" (o painel já mostra esse campo na Digital para admin/supervisor) e some quando a linha é corrigida. A resposta da função traz `ignorados`.
+- **Código:** `edge_function_sync_leads.ts` + teste `test_edge_function_sync_leads.js` (117 ok), commit `b6ddc93` no branch `fix/sync-leads-tolerante` (base oficial/main 466fd5b), a ser juntado na publicação.
+- **Validação antes do deploy:** as 1.486 datas reais das 4 abas estavam no mesmo formato ISO; só o "TESTE" foi descartado. Primeira execução: 1.479 leads gravados, 1 linha ignorada (OUTUBRO linha 49).
+- **Reverter:** reimplantar a versão anterior do arquivo (`git show 466fd5b:edge_function_sync_leads.ts`).
+
+### 68.8 Publicado (03/10/2026, ~00:54, horário de SP)
+- **Banco:** já aplicado em 02/10 (68.5). Edge Function `sync-leads` v15 já no ar desde 02/10 ~19:38 (68.7).
+- **Painel:** o painel no ar (MD5 `0bb51c83…`) era idêntico ao `oficial/main` 466fd5b, sem nada publicado por fora. Publicado **`67c6b211e537bba6a3fafa01f87fd2e7`**: gerado, servidor e site conferem. O diff do painel é +491/−3 linhas. No site, conferido que existem `tabBtnMesa`, `vlCard`, `loadMesa`, `vlMinutosUteis`, "automática a cada 10 min" e o design (sidebar + Barlow).
+- **Testes:** `run_tests.sh` 49 ok; só as 2 falhas antigas conhecidas (`test_conversao_vendas.js`, `test_pedidos_alerta.js`).
+- **Revisão:**
+  - cada uma das 9 tarefas foi revisada isoladamente;
+  - houve uma revisão final do branch inteiro, sem nada crítico ou importante;
+  - pontos menores que ficaram para depois:
+    - ordenação estável na paginação de `mesa_pendencias`/`mesa_leads_relogio` (fazer antes do fim de outubro, quando passa de 1.000 linhas);
+    - lead de 5–7 dias contado como "esperando" e "esfriando" ao mesmo tempo;
+    - falha da RPC de leads escondendo todos os KPIs;
+    - aviso "Mensagem copiada" sem conferir a área de transferência;
+    - logout sem limpar os timers;
+    - leads com nome de admin/supervisor na planilha (aparecem "sem login" na Mesa; decisão do Rafael).
+- **Backup:** `~/deploy_backups/painel_clientes_apex_20261003_005415_antes_velocidade_mesa.html`.
+- **Reverter:** copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. O banco pode ficar: sem o painel novo, as tabelas e RPCs só ficam sem uso. Rollbacks em `supabase/rollback/20261002100000_velocidade_lead_mesa_rollback.sql` e `20261002100100_sync_leads_10min_rollback.sql`.
+
+## 69. O robô das chamadas manuais passa a ser disparado pelo pg_cron do Supabase (05/10/2026)
+
+- **Problema:** o agendamento do próprio GitHub Actions (seção 67) não é confiável. Em 02/10 e 03/10 disparou 2 a 4 vezes por dia, sempre com 40+ min de atraso e pulando horários. Na segunda 05/10 não disparou nenhuma vez até as 14h. Com isso, as ligações do dia só entravam no painel quando alguém disparava o robô na mão.
+- **Solução:**
+  - O job `robo-procontact-disparo` no pg_cron do Supabase `apex` (migration `supabase/migrations/20261005000000_robo_procontact_disparo_pgcron.sql`, rollback em `supabase/rollback/`) chama a API do GitHub (`workflow_dispatch` do `sincronizar.yml`, modo `real`) no **minuto 17, das 07:17 às 22:17 de São Paulo** (`17 10-23,0-1 * * *` em UTC).
+  - O próprio robô continua recusando domingo e o horário fora de 07–22h.
+  - O agendamento do GitHub fica como reserva: execução a mais não duplica (upsert por `id`) e o workflow não roda duas vezes ao mesmo tempo (`concurrency`).
+- **Token:**
+  - Token *fine-grained* do GitHub, só para o repositório `apex-robo-procontact`, com permissão **Actions: read/write**, validade de 1 ano.
+  - Fica no Vault do Supabase com o nome `github_robo_token`, gravado pelo Rafael direto no SQL Editor. Nunca entra no repositório nem nas conversas.
+  - **Renovar antes de vencer** (outubro/2027): gerar um novo e rodar `select vault.update_secret((select id from vault.secrets where name = 'github_robo_token'), 'NOVO_TOKEN');`.
+  - Se vencer, a faixa "Sincronização das ligações parada" (seção 67) aparece no painel depois de 3 h úteis sem sincronizar.
+- **Teste (05/10/2026, ~15:43 SP):** o disparo pelo Supabase recebeu HTTP 204 do GitHub, o workflow rodou com sucesso e gravou as ligações até as 15:43 (`ligacoes_sync_log` ok, 818 linhas lidas).
+- **Desligar:** `select cron.unschedule(jobid) from cron.job where jobname = 'robo-procontact-disparo';` (é o rollback). O agendamento do GitHub continua controlado pela variável `ROBO_ATIVO`.
+
+## 70. Vendas Perdidas por categoria (API de Exportação Xeotech) (05/10/2026)
+
+Pedido do usuário (05/10): os consultores passaram a escolher uma categoria ao marcar a venda perdida no NEO; filtrar os motivos das vendas perdidas por essa categoria — primeiro integrar a API, depois criar uma aba. Spec: `docs/superpowers/specs/2026-10-05-vendas-perdidas-categorias-design.md`.
+
+### 70.1 A API
+"API do Relatório de Exportação" da Xeotech: `POST https://api.xeotech.com.br/api/v1/producao/exportacao/{token}`, `painelId 15455`. O token é o **token de integração do usuário Proprietário** (Menu → Meu perfil → Meus dados), salvo pelo Rafael como secret de Edge Function `NEO_EXPORT_TOKEN` — nunca no repositório.
+
+Teste: HTTP 200 em ~2,4 s, **1.574 linhas (itens), 613 pedidos, ~2,5 MB**. **O período enviado é ignorado** — a API devolve o painel inteiro, qualquer que seja a janela pedida. `subCategoriaAtividade` vem sempre vazia hoje. Limites: mínimo 120 s entre execuções, 3 execuções/10 min por estrutura, 1 simultânea.
+
+Categorias em uso: Não responde, Restrição de Crédito, Desistência Demora, Desconfiança, Troca de Território, Erro de Cadastro, CNPJ Inapto, Duplicidade, Fibra - Inviabilidade Técnica, Desistência Biometria, Retenção (Concorrência), Portabilidade em Andamento, Multa Concorrência.
+
+A categoria **não vem** na API de Carga da Produção v2 (que o painel já usa) — só as tags `#...` do pedido.
+
+### 70.2 Banco
+Migration `20261005100000_vendas_perdidas_categorias.sql`:
+- `producao_atividades` — uma linha por pedido (categoria, subcategoria, tags, etapa, usuário, cliente, produtos, valor, datas), **sem CPF/CNPJ**; RLS leitura só admin/supervisor, escrita só pela função (service role).
+- `exportacao_sync_log` — uma linha por execução da sincronização (ok/erro, contagens).
+- RPC `vendas_perdidas(p_de, p_ate)` (admin/supervisor): etapa, valor e consultor vêm de `producao_pedidos_neo`; categoria vem de `producao_atividades`; a **data da perda** é a entrada em `VENDA PERDIDA (NEOCRM)` no `producao_etapa_historico`, e, se não houver, a última atualização do pedido.
+
+Migration `20261005100100_sync_exportacao_cron.sql`: cron `sync-exportacao-horario` no minuto 41 de cada hora.
+
+Verificação em `supabase/tests/vendas_perdidas_check.sql` (transação com rollback). Lição durante a verificação: o gatilho `trg_producao_neo_etapa` grava o histórico com a hora do insert, então o script precisa recuar a data do pedido fictício antigo para simular uma perda passada; `producao_pedidos_neo.id` é identity.
+
+### 70.3 Edge Function `sync-exportacao`
+Pasta `supabase/functions/sync-exportacao/`: `index.ts` (HTTP/auth) + `exportacao.ts` (lógica pura) + `exportacao.test.ts` (`node --test`, 8 testes). Uma chamada por hora; agrupa os itens por pedido (categoria = a mais frequente entre os itens, empate pelo item mais recente); `upsert` por `numero_pedido`; grava um log por execução. Erro da API grava só o log, sem tocar na tabela de atividades. O token nunca aparece em log nem em resposta (`ocultarToken`). `{"modo":"teste"}` no corpo só conta, não grava.
+
+### 70.4 Aba "Vendas Perdidas" (admin/supervisor) — substituída pela sub-aba do Dashboard (70.7), nunca chegou a ser publicada
+Grupo **Vendas**, logo depois de **Funil**. Períodos: Este mês, Mês passado, Últimos 90 dias, Personalizado. Filtros: Consultor e Categoria. KPIs: pedidos perdidos, valor perdido, % com categoria, maior motivo. Tabela de motivos ("Sem categoria" sempre por último; clique filtra a lista de pedidos). Preenchimento por consultor (pior primeiro; selo ≥90% verde, 50–89% amarelo, <50% vermelho; clique filtra). Lista de pedidos. Aviso se a sincronização passar de 3 h sem execução ok. Exportar Excel (abas Motivos, Preenchimento, Pedidos). Testes: `test_vendas_perdidas.js` (53 ok).
+
+### 70.5 Aplicado em produção (05/10/2026, com ok do Rafael)
+- Migration `vendas_perdidas_categorias` + verificação em transação com rollback limpo.
+- Edge Function `sync-exportacao` v3 implantada.
+- 1ª sincronização real: 613 pedidos, 129 com categoria.
+- Cron `sync-exportacao-horario` ativo (minuto 41).
+- Primeiro retrato (01/09 a 05/10): 152 vendas perdidas, 54 sem categoria; maiores motivos Restrição de Crédito (20), Não responde (19), Desistência Demora (15, maior valor, ~R$ 3,2 mil).
+
+### 70.6 Status e como reverter
+Banco e função no ar desde 05/10; **o painel foi publicado em 05/10/2026 às 20:47 (ver 70.8).**
+
+Reverter: rollbacks em `supabase/rollback/20261005100000_vendas_perdidas_categorias_rollback.sql` e `supabase/rollback/20261005100100_sync_exportacao_cron_rollback.sql`. A Edge Function pode ser apagada direto no Supabase.
+
+### 70.7 Adendo (05/10/2026, noite): sub-aba "Vendas Perdidas" no Dashboard de Produção, com análise
+Pedido do Rafael ao aprovar: aba só de supervisor/admin, ao lado de Pedidos em Alerta, com mais informação e gráficos para entender por que cada venda é perdida. Spec: `docs/superpowers/specs/2026-10-05-vendas-perdidas-adendo-dashboard.md`.
+- A aba do menu lateral (70.4) saiu do `_template.html`; `test_reorganizacao_abas.js` voltou à lista sem ela.
+- RPC **v3** (`20261005100300_vendas_perdidas_v3.sql`, rollback volta à v2): + `grupo` (tipo de venda), `solicitacao` e `cidade` (de `producao_neo_raw`, máximo por pedido) e `cadastro` (menor do pedido).
+- O painel (`loadProducaoDashboard`), só para admin/supervisor, busca `vendas_perdidas(hoje−180, hoje)` e a última sync ok, e injeta em `__PERDIDAS__`/`__PERDIDAS_SYNC__` (consultor recebe `[]`/`null`; erro na busca = `null`, a sub-aba avisa "não foi possível carregar"; `<` vira `\u003c` para nenhum texto do banco fechar o `<script>`). Na atualização de 1 h chama `atualizarVendasPerdidas`.
+- Sub-aba (logo depois de Pedidos em Alerta; o consultor nem recebe o painel): filtros próprios (Este mês, Mês passado, Últimos 90 e 180 dias; consultor; motivo; tipo de venda), aviso de sincronização (> 3 h ou nunca), KPIs (perdidas, valor, ticket médio, % com motivo, maior motivo, tempo médio até perder), barras por motivo, matrizes Motivo × Tipo de venda e Consultor × Motivo (6 maiores colunas + "Outros"), evolução semanal (5 maiores motivos + outros + sem motivo), tempo até perder por faixa (0–1, 2–7, 8–15, 16–30, 30+ dias; sem cadastro fica fora), preenchimento por consultor com selos, 10 cidades com mais perdas, tabela de pedidos e Excel (Resumo por motivo, Motivo x Tipo, Consultor x Motivo, Pedidos). Cliques em barras/células/linhas filtram tudo; cada gráfico ignora o filtro do próprio eixo e destaca o escolhido.
+- Testes: `test_vendas_perdidas.js` reescrito para a sub-aba (jsdom, dados fictícios, inclui nome malicioso).
+
+### 70.8 Publicado (05/10/2026, ~20:47, horário de SP)
+- **Banco:** RPC `vendas_perdidas` v3 aplicada antes do painel. Conferida com os dados reais simulando um supervisor: 392 vendas perdidas em 180 dias, todas com tipo de venda, solicitação e cadastro; resposta em ~0,2 s. A Edge Function `sync-exportacao` está na v4 (recusa resposta "200" sem dados e mascara o token também na forma codificada). O cron do minuto 41 já rodou sozinho com sucesso.
+- **Painel:** o painel no ar (MD5 `67c6b211…`) era idêntico ao `oficial/main` 94ab11b, sem nada publicado por fora. Publicado **`9df8e09145299a39a8237f4dd0445da6`** (gerado, servidor e site conferem).
+- **Conferido no site:**
+  - a sub-aba "Vendas Perdidas" existe no Dashboard de Produção, logo depois de Pedidos em Alerta, só para admin e supervisor;
+  - a seção "Consultor × Motivo" está presente;
+  - o painel injeta `__PERDIDAS__`;
+  - a aba antiga do menu lateral não existe mais;
+  - o design (sidebar) está intacto.
+
+  Antes de publicar, a tela foi vista renderizada no navegador com dados fictícios: sem erro no console, sem rolagem horizontal, e o clique na matriz filtra a tabela.
+- **Testes:** `run_tests.sh` 50 ok; só as 2 falhas antigas conhecidas. `test_vendas_perdidas.js` 158 ok; `exportacao.test.ts` 8 ok.
+- **Revisões:**
+  - cada parte foi revisada;
+  - uma revisão final do branch inteiro aprovou a publicação;
+  - outra revisão, da sub-aba, também aprovou;
+  - as correções pedidas (proteções contra erro, layout das barras, cores sem `color-mix`, preenchimento sem filtro de motivo, nome da matriz, consulta da última sincronização) foram re-revisadas.
+- **Pendências menores (sem bloquear):**
+  - no "Personalizado", as datas abrem vazias;
+  - um pedido que já chega perdido na primeira sincronização fica com a data da perda igual à hora dessa sincronização;
+  - a consulta da RPC agrega todo o histórico antes de filtrar o período. Hoje responde em ~0,2 s; otimizar quando crescer.
+- **Backup:** `~/deploy_backups/painel_clientes_apex_20261005_204733_antes_vendas_perdidas.html`.
+- **Reverter:**
+  1. copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`;
+  2. o banco pode ficar como está;
+  3. se quiser, aplicar os rollbacks em `supabase/rollback/` (v3 → v2 → tabelas) e desligar o cron `sync-exportacao-horario`.
+
+## 71. Sincronização extra da produção das 20:30 às 21:30, de 10 em 10 minutos (05/10/2026)
 
 - **Pedido:** além da sincronização de hora em hora (seção 50.4), atualizar o dashboard pela API do NeoSales **de 10 em 10 minutos, das 20:30 às 21:30** (horário de São Paulo), para a virada do dia refletir logo as vendas fechadas no fim do expediente.
 - **Agenda (pg_cron, em UTC):** `sync-producao-janela-noite-a` = `30,40,50 23 * * *` (20:30, 20:40, 20:50) e `sync-producao-janela-noite-b` = `0,10,20,30 0 * * *` (21:00, 21:10, 21:20, 21:30). Mesmo corpo e mesmo secret do job horário (`{"modo":"horario"}`); cada execução continua fazendo **uma única consulta** à API.
