@@ -7146,7 +7146,7 @@ function buscarVendasPerdidasDashboard(adminMode){
 }
 function vendasPerdidasLinhas(res){ return res && !res.error && Array.isArray(res.data) ? res.data : null; }
 function vendasPerdidasSyncOk(res){ return res && !res.error && res.data && res.data.terminou_em ? String(res.data.terminou_em) : null; }
-// JSON dentro do <script> do srcdoc: "<" vira \u003c para um texto vindo do banco (ex.: "</script>") não fechar o script.
+// JSON dentro do <script> do srcdoc: "<" vira \u003c para um texto vindo do banco (ex.: o texto de fechamento de script) não fechar o script.
 function jsonParaScript(v){ return JSON.stringify(v).replace(/</g, '\\u003c'); }
 
 let producaoAutoRefreshTimer = null; // recarrega os dados (sem recriar o iframe) a cada 1h — ver Visão Diária
