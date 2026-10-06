@@ -48,13 +48,13 @@ try{
   assert(document.getElementById('bioNome') !== null, 'campo "Nome do cliente" existe');
   const preview = document.getElementById('bioImgPreview');
   assert(preview !== null, 'imagem de preview existe');
-  assert(preview.getAttribute('src') === 'https://apexsmart.com.br/biometria_preview.png', 'preview começa apontando pra imagem publicada em apexsmart.com.br');
+  assert(preview.getAttribute('src') === 'https://apexsmart.com.br/biometria_preview.png?v=2', 'preview começa apontando pra imagem publicada em apexsmart.com.br');
 
   // --- botão "Baixar imagem" (renomeado de "Gerar link", 06/10/2026) ---
   const btnBaixar = document.getElementById('btnBaixarImagemBiometria');
   assert(btnBaixar !== null, 'botão "Baixar imagem" existe');
   assert(btnBaixar.textContent.trim() === 'Baixar imagem', 'botão mostra o texto "Baixar imagem" (não mais "Gerar link")');
-  assert(btnBaixar.getAttribute('href') === 'https://apexsmart.com.br/biometria_preview.png', 'botão "Baixar imagem" começa apontando pra imagem publicada em apexsmart.com.br (até o canvas gerar a versão personalizada)');
+  assert(btnBaixar.getAttribute('href') === 'https://apexsmart.com.br/biometria_preview.png?v=2', 'botão "Baixar imagem" começa apontando pra imagem publicada em apexsmart.com.br (até o canvas gerar a versão personalizada)');
   assert(btnBaixar.hasAttribute('download'), 'botão "Baixar imagem" usa atributo download');
   assert(document.getElementById('btnGerarBiometria') === null, 'botão "Gerar link" não existe mais');
 

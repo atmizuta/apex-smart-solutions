@@ -1001,6 +1001,18 @@ O preview atualiza sozinho (debounce de 300ms) conforme o consultor digita o nom
 
 - **06/10/2026** — Corrigida a seção 19.11 a pedido do usuário: imagem-base trocada pelo design novo que ele forneceu ("Confirme sua identidade para finalizar"), nome do cliente entra como "Olá, {nome}!" acima do título, e a aba Biometria foi simplificada — saiu o campo de link e todo o fluxo de WhatsApp/copiar link, ficando só nome + preview + botão "Baixar imagem". Ver seção 19.12.
 
+### 19.13 Cache de 7 dias do `biometria_preview.png` causava preview quebrado após publicar (06/10/2026)
+
+**Sintoma reportado pelo usuário** (com print): depois de publicada a seção 19.12, o usuário testou com o nome "Daniel" e o resultado veio quebrado — a saudação "Olá, Daniel!" aparecia numa caixa escura retangular, visivelmente separada do resto do card, com cores diferentes do fundo ao redor.
+
+**Causa raiz**: `biometria_preview.png` é servido pela Hostinger (CDN "hcdn") com `Cache-Control: public, max-age=604800` (7 dias) — confirmado com `curl -I`. O arquivo mudou de conteúdo na publicação da seção 19.12 (imagem antiga → design novo), **mas manteve o mesmo nome**. Navegadores/CDN que já tinham a imagem antiga em cache local continuaram servindo os bytes antigos por até 7 dias, sem revalidar com o servidor. O JS novo, porém, já estava calibrado pra área/cores do design novo (seção 19.12) — ao desenhar por cima da imagem *antiga* ainda em cache, o retângulo do degradê (cores do design novo) e a posição do texto caíam num lugar que não corresponde a nada visualmente coerente na imagem antiga, produzindo a caixa destacada do print.
+
+**Correção**: adicionado um parâmetro de versão na URL da imagem (`biometria_preview.png?v=2`), nos três lugares que a referenciam (`src` inicial do preview, `href` inicial do botão "Baixar imagem" e a constante `BIO_IMG_URL` usada pelo `<canvas>`). Query string diferente = URL diferente = cache novo, ignorando qualquer cópia antiga guardada. **Da próxima vez que o conteúdo de `biometria_preview.png` mudar, incrementar esse número** (`?v=3`, `?v=4`, ...) é obrigatório — sem isso, o mesmo bug se repete pra quem já tinha a imagem anterior em cache.
+
+**Verificação antes de publicar**: a pedido do usuário ("antes de adicionar a imagem no painel, me mostra aqui pra eu aprovar"), gerada a imagem com o nome "Daniel" (mesmo caso do print quebrado) num harness isolado fora do painel, screenshot conferido e aprovado pelo usuário antes do deploy.
+
+- **06/10/2026** — Corrigido bug de cache: `biometria_preview.png` tem `Cache-Control` de 7 dias (Hostinger), então trocar o conteúdo do arquivo sem mudar a URL deixava visitantes com cache antigo vendo o nome do cliente desenhado por cima da imagem errada. Adicionado parâmetro de versão (`?v=2`) na URL — precisa ser incrementado toda vez que a imagem mudar de novo. Ver seção 19.13.
+
 ## 20. Analisar Fatura — estrutura inicial dentro da aba "Gerar Proposta" (18/09/2026)
 
 ### 20.1 O que foi pedido

@@ -732,10 +732,10 @@
         <div class="field" style="margin:0;max-width:320px"><label>Nome do cliente</label><input type="text" id="bioNome" placeholder="Ex: João da Silva"></div>
         <div class="field" style="margin:14px 0 0;max-width:320px">
           <label>Preview da imagem</label>
-          <img id="bioImgPreview" src="https://apexsmart.com.br/biometria_preview.png" alt="Preview da imagem de biometria com o nome do cliente" style="width:100%;border-radius:12px;border:1px solid rgba(255,255,255,.12);display:block">
+          <img id="bioImgPreview" src="https://apexsmart.com.br/biometria_preview.png?v=2" alt="Preview da imagem de biometria com o nome do cliente" style="width:100%;border-radius:12px;border:1px solid rgba(255,255,255,.12);display:block">
         </div>
         <div class="loginError" id="bioErr" style="display:none;margin-top:10px"></div>
-        <a class="btn" id="btnBaixarImagemBiometria" style="width:auto;margin-top:14px;text-decoration:none;text-align:center;display:inline-block" href="https://apexsmart.com.br/biometria_preview.png" download="biometria-claro-empresas.png" target="_blank" rel="noopener">Baixar imagem</a>
+        <a class="btn" id="btnBaixarImagemBiometria" style="width:auto;margin-top:14px;text-decoration:none;text-align:center;display:inline-block" href="https://apexsmart.com.br/biometria_preview.png?v=2" download="biometria-claro-empresas.png" target="_blank" rel="noopener">Baixar imagem</a>
       </div>
     </section>
 
@@ -2242,8 +2242,17 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
    cliente entrando como saudação ("Olá, {nome}!") acima do título, gerada no navegador num
    <canvas>: a área da saudação é coberta com um degradê igual ao fundo ali (medido pixel a pixel)
    e o nome é escrito por cima, com a fonte encolhendo automaticamente se o nome for muito longo
-   pra não estourar a largura do card. Ver REGRAS_NEGOCIO.md seção 19.12. */
-const BIO_IMG_URL = 'https://apexsmart.com.br/biometria_preview.png';
+   pra não estourar a largura do card. Ver REGRAS_NEGOCIO.md seção 19.12.
+
+   06/10/2026 (correção): o arquivo biometria_preview.png é servido com Cache-Control de 7 dias
+   (max-age=604800, CDN da Hostinger) — sem isso, quando a imagem muda de conteúdo mas mantém o
+   mesmo nome de arquivo, navegadores/CDN que já tinham a versão antiga em cache continuam servindo
+   os bytes antigos, mesmo depois de publicada a nova. Isso causou um bug visível: o JS novo (área/
+   cores calibradas pro design novo) desenhando por cima da imagem *antiga* ainda em cache, deixando
+   o nome do cliente numa caixa escura destacada, fora do lugar. Corrigido com um parâmetro de versão
+   (`?v=2`) na URL — toda vez que o conteúdo da imagem mudar de novo, incrementar esse número força
+   todo mundo a buscar a versão nova, sem esperar o cache vencer. Ver REGRAS_NEGOCIO.md seção 19.13. */
+const BIO_IMG_URL = 'https://apexsmart.com.br/biometria_preview.png?v=2';
 let bioImgBase = null;
 let bioImgTimer = null;
 
