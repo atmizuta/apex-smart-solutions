@@ -1063,6 +1063,11 @@
         <div id="mesaVelTabela"></div>
         <p class="desc">Amostra pequena: só leia diferenças com 30+ leads por faixa.</p>
       </div>
+      <div class="card">
+        <h3>Retornos e objeções</h3>
+        <p class="desc">Retornos da Agenda por consultor (seção 72) e as objeções que mais apareceram nos últimos 7 dias.</p>
+        <div id="mesaRetObj"></div>
+      </div>
     </section>
 
     <!-- DASHBOARD DE PRODUÇÃO (Apex/Claro) — página inicial pós-login, visível a qualquer perfil
@@ -11087,6 +11092,7 @@ function mesaResetar(){
   clearInterval(mesaEstado.timer); mesaEstado.timer = null;
   Object.assign(mesaEstado, { dados: null, erros: {}, aba: null, aberto: null });
   ['mesaKpis', 'mesaFila', 'mesaSemaforoTbody', 'mesaVelPills', 'mesaVelTabela', 'mesaAtraso', 'mesaStatus'].forEach(id => { document.getElementById(id).innerHTML = ''; });
+  document.getElementById('mesaRetObj').innerHTML = '';
 }
 function mesaAplicarPermissao(){
   const vis = canSeeMesa();
@@ -11120,6 +11126,7 @@ async function loadMesa(forcar){
   mesaEstado.agora = agora; mesaEstado.hoje = hoje;
   document.getElementById('mesaStatus').textContent = 'Atualizado às ' + new Date(agora - 3 * 3600000).toISOString().slice(11, 16);
   mesaRender();
+  mesaCarregarRetObj(hoje); // §72 — não bloqueia o resto
   clearInterval(mesaEstado.timer);
   mesaEstado.timer = setInterval(() => {
     const ativo = document.getElementById('panel-mesa').classList.contains('active');
@@ -11161,6 +11168,25 @@ function mesaRender(){
       : '<p class="desc">Nenhum lead esperando agora.</p>');
   mesaRenderSemaforo();
   mesaRenderVelocidade();
+}
+// §72: bloco "Retornos e objeções" (RPC mesa_retornos_objecoes). Falha isolada: não derruba o resto da Mesa.
+function mesaRetObjHtml(d){
+  const cons = (d && d.consultores) || [], obj = (d && d.objecoes) || [];
+  const pct = c => (c.total7 ? fmtPctConversao(c.feitos7 / c.total7) : '—');
+  const tabela = `<div class="mlTabelaWrap"><table class="tbl"><thead><tr><th>Consultor</th><th>Hoje</th><th>Atrasados</th><th>Feitos no dia (7 d)</th></tr></thead><tbody>`
+    + cons.map(c => `<tr><td>${escapeHtml(c.nome)}</td><td>${c.hoje}</td><td>${c.atrasados ? `<span class="retornoBadge atrasado">${c.atrasados}</span>` : '0'}</td><td>${pct(c)}</td></tr>`).join('')
+    + '</tbody></table></div>';
+  const nome = o => (o === 'livre' ? 'Pergunta livre' : o);
+  const top = obj.length ? '<h4>Top objeções (7 dias)</h4><ul>' + obj.map(o => `<li><b>${escapeHtml(nome(o.objecao))}</b>: ${o.usos} vez(es) · ${o.uteis} útil(eis)</li>`).join('') + '</ul>' : '<p class="ppVazio">Nenhuma objeção registrada nos últimos 7 dias.</p>';
+  return { tabela, top };
+}
+async function mesaCarregarRetObj(hoje){
+  const el = document.getElementById('mesaRetObj');
+  const r = await ppSeguro(() => sb.rpc('mesa_retornos_objecoes', { p_ref: hoje }));
+  if(!canSeeMesa()) return;
+  if(!r || r.error){ el.innerHTML = '<p class="ppVazio">Não foi possível carregar os retornos agora.</p>'; return; }
+  const h = mesaRetObjHtml(r.data);
+  el.innerHTML = h.tabela + h.top;
 }
 function mesaLinhasAtuais(){ return mesaEstado.dados ? mesaSemaforo(mesaEstado.dados, mesaEstado.agora, mesaEstado.cfg, mesaEstado.hoje) : []; }
 const MESA_SELO = { vermelho: ['retornoBadge atrasado', 'Agir agora'], amarelo: ['retornoBadge hoje', 'Atenção'], verde: ['retornoBadge futuro', 'Em dia'] };

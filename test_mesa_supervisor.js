@@ -245,6 +245,24 @@ try{
   assert(document.getElementById('mesaVelTabela').textContent.includes('até 5 min') && document.getElementById('mesaVelTabela').textContent.includes('sem contato registrado'), 'tabela com as faixas');
   Date.now = nowReal;
 
+  // ==== §72: Retornos e objeções ====
+  const ro = { consultores: [{ profile_id: 'p-caio', nome: 'Caio Teste', hoje: 3, atrasados: 2, feitos7: 4, total7: 5 }, { profile_id: 'p-zeca', nome: 'Zeca Teste', hoje: 0, atrasados: 0, feitos7: 0, total7: 0 }],
+               objecoes: [{ objecao: 'caro', usos: 7, uteis: 5 }, { objecao: 'livre', usos: 2, uteis: 0 }] };
+  const h = mesaRetObjHtml(ro);
+  assert(h.tabela.includes('Caio Teste') && h.tabela.includes('80,0%') && h.tabela.includes('retornoBadge atrasado'), 'tabela: % no dia e atrasados em destaque');
+  assert(h.tabela.includes('—'), 'sem retornos na semana: traço');
+  assert(h.top.includes('caro') && h.top.includes('7') && h.top.includes('5 útil') && h.top.includes('Pergunta livre'), 'top objeções');
+  Date.now = () => AGORA;
+  window.__rpcRespostas.mesa_retornos_objecoes = { data: ro, error: null };
+  await loadMesa(true); await espera(40);
+  eq((window.__rpcCalls.find(c => c.nome === 'mesa_retornos_objecoes') || {}).args, { p_ref: HOJE }, 'RPC com a data de hoje');
+  assert(document.getElementById('mesaRetObj').textContent.includes('Caio Teste'), 'bloco renderizado');
+  window.__rpcRespostas.mesa_retornos_objecoes = { data: null, error: { message: 'x' } };
+  await loadMesa(true); await espera(40);
+  assert(document.getElementById('mesaRetObj').textContent.includes('Não foi possível carregar'), 'falha isolada');
+  assert(document.querySelectorAll('#mesaFila .vlRow').length === 3, 'resto da Mesa continua');
+  Date.now = nowReal;
+
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
