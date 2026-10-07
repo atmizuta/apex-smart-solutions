@@ -2866,23 +2866,29 @@ Pedido do Rafael ao aprovar: aba só de supervisor/admin, ao lado de Pedidos em 
 - **Caderno** (botão fixo "Caderno" em todas as abas, `Alt+N`; `Alt+Shift+N` = novo atendimento):
   - campos telefone, nome, CPF, CNPJ, CEP, linhas e valor do plano (digitado em formato BR: "1.234,56", "899,90", "1.200"); "Mais dados" com e-mail, operadora, decisor, vencimento da fidelidade e interesse; anotação livre; resultado em 1 clique;
   - salva a cada pausa de digitação no navegador (`caderno_rascunho_<usuário>`) e no banco (`caderno_notas`, upsert pelo `id` gerado no navegador, sem duplicar); os salvamentos da mesma nota são enfileirados e numerados (`rev`), então uma confirmação que chega atrasada nunca sobrescreve uma edição mais nova;
-  - quando o salvamento não chega a confirmar (sem internet, ou aba fechada no meio), a nota entra também numa fila por consultor (`caderno_pendentes_<usuário>`) e é reenviada a cada 15 s, quando a rede volta e ao entrar no painel; trocar de atendimento (Novo, abrir por um retorno, pelo histórico) nunca descarta uma nota ainda não confirmada — ela só sai da fila quando aquela versão é salva com sucesso;
+  - ao entrar no painel, só volta para a tela o rascunho que não chegou ao banco; a nota já salva não reabre (o consultor começa em branco, sem risco de digitar o cliente novo por cima da anterior);
+  - quando o salvamento não chega a confirmar (sem internet, ou aba fechada no meio), a nota entra também numa fila por consultor (`caderno_pendentes_<usuário>`) e é reenviada a cada 15 s, quando a rede volta e ao entrar no painel; trocar de atendimento (Novo, abrir por um retorno, pelo histórico) nunca descarta uma nota ainda não confirmada — ela só sai da fila quando aquela versão é salva com sucesso; `Alt+Shift+N` troca na hora, sem esperar o servidor (a nota que sai já entrou na fila e salva em segundo plano);
   - reconhece CPF, CNPJ, telefone, CEP e e-mail colados na anotação e oferece "Preencher", sem IA. Celular de 11 dígitos com 9 na 3ª posição é telefone, não CPF;
-  - mostra as anotações anteriores do mesmo telefone ou CNPJ (só do próprio consultor) e o retorno pendente;
-  - "Flutuar" usa a Document Picture-in-Picture do Chrome, ou `window.open` como reserva, para ficar sobre o ProContact (`cdAbrirFlutuante`); sair do painel com a janela flutuante aberta recolhe a gaveta de volta para a página e fecha a janela, para não deixar dado do consultor anterior numa tela compartilhada.
+  - mostra as anotações anteriores do mesmo telefone ou CNPJ (só do próprio consultor) e o retorno pendente; enquanto se digita, só a resposta da consulta mais nova vale;
+  - sair do painel limpa tudo o que a gaveta mostra (campos, histórico, retorno marcado, resposta de objeção/IA e status): o próximo consultor no mesmo computador não vê nada do anterior;
+  - "Flutuar" usa a Document Picture-in-Picture do Chrome, ou `window.open` como reserva, para ficar sobre o ProContact (`cdAbrirFlutuante`); sair do painel com a janela flutuante aberta recolhe a gaveta de volta para a página e fecha a janela, para não deixar dado do consultor anterior numa tela compartilhada; o X (ou `Alt+N`) na janela flutuante faz o mesmo; os avisos do Caderno aparecem também na linha de status da janela flutuante (o aviso da página principal fica atrás do ProContact).
 - **Agenda** (aba nova, todos os perfis):
+  - mostra só os retornos do próprio usuário — inclusive para admin/supervisor, que pela RLS poderiam ler os de todos (a visão da equipe é a Mesa do Supervisor);
+  - Feito / Remarcar / Cancelar / arrastar que o banco não aplicou (erro ou nenhuma linha alterada, ex.: sem permissão) mostra erro e não muda nada na tela;
   - calendário do mês (domingo a sábado), até 3 retornos por dia + "+N", hoje destacado, dia com atrasado em vermelho; os retornos de cada dia aparecem em ordem de horário;
   - clicar no dia abre o painel do dia (Feito / Remarcar / Cancelar / Abrir no Caderno) e o formulário "Novo retorno" (nome, telefone, dia, hora, tipo, linhas, valor, observação); trocar de mês rapidamente nunca mistura retornos de outro mês na tela;
   - arrastar um retorno para outro dia mantém a hora;
-  - no celular a grade vira lista;
+  - no celular a grade vira lista (atrasados no topo); tocar numa linha abre o dia dela;
   - as datas de portabilidade e instalação dos pedidos do consultor (as mesmas da Agenda de Pedidos Parados) aparecem só para leitura;
   - tabela `agenda_retornos` (data e hora, `timestamptz`). Retorno não se apaga, se cancela.
 - **Retorno pelo Caderno:**
   - atalhos Em 2h / Amanhã 9h / Amanhã 14h / Seg 9h e escolha livre;
   - "Não atendeu" oferece "Tentar de novo em 2h";
-  - vencimento da fidelidade oferece o retorno 45 dias antes, às 9h (nunca cria sozinho).
+  - vencimento da fidelidade oferece o retorno 45 dias antes, às 9h (nunca cria sozinho);
+  - sem internet, o retorno fica numa fila local (`agenda_fila_<usuário>`); quando a rede volta (ou ao entrar), primeiro sobem as notas pendentes do Caderno (o retorno aponta para a nota) e depois os retornos; enquanto sobrar retorno na fila, tenta de novo a cada 30 s (para ao sair do painel).
 - **Alertas:**
-  - começam ao entrar no painel (login) e param ao sair;
+  - começam ao entrar no painel (login) e param ao sair; só dos retornos do próprio usuário (inclusive admin/supervisor);
+  - clicar numa notificação de outro usuário (que ficou na tela depois de trocar o login) não abre nada;
   - 5 min antes: notificação do Windows (permissão pedida na aba Agenda), som curto, aviso na tela e contador no título;
   - cada retorno alerta uma vez (`localStorage` + `BroadcastChannel` entre abas — com duas abas do painel abertas, o alerta toca uma vez só);
   - ao entrar, aviso "Hoje: N retornos · M atrasados";
@@ -2895,13 +2901,13 @@ Pedido do Rafael ao aprovar: aba só de supervisor/admin, ao lado de Pedidos em 
   - "Usei" e 👍/👎 gravam em `objecoes_uso`; "Treinar no Apex Mind" abre o Apex Mind por SSO;
   - admin/supervisor editam a biblioteca pelo botão "Objeções" da aba Agenda; a chave de uma objeção nova é gerada a partir do rótulo e sempre bate com a regra do banco (`^[a-z0-9_]{2,40}$`), e os chips recarregam assim que a objeção é criada.
 - **Dado pessoal e IA:**
-  - o painel nunca envia nome, CPF, CNPJ, CEP, telefone ou e-mail;
+  - o painel nunca envia nome, CPF, CNPJ, CEP, telefone ou e-mail; operadora e interesse também passam pela máscara abaixo (no navegador e na função), por serem texto livre;
   - o texto livre é mascarado no navegador (`cdMascarar`) e de novo na função (`mascarar`), pela mesma regra: primeiro o e-mail; depois, qualquer sequência numérica com separadores é classificada pela quantidade de dígitos — data `dd/mm/aaaa` fica como está, sequência com menos de 8 dígitos fica como está (não é documento), prefixo `55` (DDI) ou `0` de tronco é removido antes de classificar, 14 dígitos → `[CNPJ]`, 11 dígitos com o 3º dígito 9 → `[TELEFONE]`, 11 dígitos → `[CPF]`, 10 ou 12/13 dígitos → `[TELEFONE]`, 8 dígitos → `[CEP]`, qualquer outra sequência de 8+ dígitos → `[NUMERO]`;
   - a função não loga texto, e o limite é de 20 chamadas por consultor a cada 10 min (`caderno_ia_chamadas`);
-  - secret `GEMINI_API_KEY` no projeto `apex`.
+  - secret `GEMINI_API_KEY` no projeto `apex`; a função valida o usuário pelo token do header `Authorization: Bearer …` (`auth.getUser(jwt)`).
 - **Mesa do Supervisor:** bloco "Retornos e objeções", com a RPC `mesa_retornos_objecoes(p_ref)`: hoje, atrasados, % feitos no dia marcado (7 dias) e top 5 objeções.
 - **Banco:** migration `supabase/migrations/20261006100000_caderno_agenda_objecoes.sql`, rollback em `supabase/rollback/`, verificação `supabase/tests/caderno_agenda_check.sql` (transação com rollback). RLS: o consultor lê e escreve só o que é dele; admin/supervisor leem tudo; ninguém apaga.
-- **Testes:** `run_tests.sh` 53 ok (inclui `test_agenda.js`, `test_caderno.js`, `test_objecoes.js` e `test_mesa_supervisor.js`); só as 2 falhas antigas conhecidas (`test_conversao_vendas.js`, `test_pedidos_alerta.js`). `ia.test.ts` (lógica pura da Edge Function `caderno-ia`, roda com `node --test`, sem Deno) 8 ok. Como os alertas agora começam sozinhos ao entrar no painel (um timer que não para por conta própria), `test_funil.js`, `test_leads_followups.js`, `test_redesign_shell.js`, `test_reorganizacao_abas.js` e `test_conversao_vendas.js` ganharam um `process.exit()` explícito no fim, para o teste continuar fechando sozinho.
+- **Testes:** `run_tests.sh` 53 ok (inclui `test_agenda.js`, `test_caderno.js`, `test_objecoes.js` e `test_mesa_supervisor.js`); só as 2 falhas antigas conhecidas (`test_conversao_vendas.js`, `test_pedidos_alerta.js`). `ia.test.ts` (lógica pura da Edge Function `caderno-ia`, roda com `node --test`, sem Deno) 9 ok. Revisão final (07/10/2026): testes novos para a troca de consultor no mesmo computador, nota salva que não reabre, fila de retornos depois das notas (FK) com nova tentativa, Agenda/alertas só do próprio usuário, escrita sem linha alterada, janela flutuante, contexto fora de ordem, lista do celular e notificação de outro usuário; o mock do Supabase (`painel_teste_base.js`) passou a devolver as linhas do `update().select()` e a preencher `consultor_id` como o `default auth.uid()`. Como os alertas agora começam sozinhos ao entrar no painel (um timer que não para por conta própria), `test_funil.js`, `test_leads_followups.js`, `test_redesign_shell.js`, `test_reorganizacao_abas.js` e `test_conversao_vendas.js` ganharam um `process.exit()` explícito no fim, para o teste continuar fechando sozinho.
 - **Spec e plano:** `docs/superpowers/specs/2026-10-06-caderno-agenda-objecoes-design.md`, `docs/superpowers/plans/2026-10-06-caderno-agenda-objecoes.md`.
 - **Fases seguintes** (fora desta entrega):
   - ligar ao relatório do ProContact (retorno cumprido sozinho, "já ligaram para esse número?");
