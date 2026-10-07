@@ -2961,3 +2961,19 @@ Pedido do Rafael ao aprovar: aba só de supervisor/admin, ao lado de Pedidos em 
   - consulta de CNPJ e cobertura pelo CEP;
   - ficha para colar no pedido e calculadora;
   - IA que organiza a anotação inteira.
+
+## 73. Minhas anotações (aba Anotações) (07/10/2026)
+
+- **Para quem:** todos os perfis logados. Aba nova (`data-tab="anotacoes"`) logo abaixo de "Agenda" no menu, sempre visível — mostra tudo o que o próprio usuário já anotou no Caderno (seção 72), inclusive admin/supervisor (a visão da equipe continua sendo a Mesa do Supervisor).
+- **Filtro de dono:** sempre `.eq('consultor_id', <usuário logado>)` na consulta a `caderno_notas` — igual à Agenda (revisão I-2 da seção 72), mesmo o RLS deixando admin/supervisor lerem as de todos.
+- **Busca:** uma caixa só, pesquisando nome, telefone, CNPJ e o texto da anotação ao mesmo tempo (`ilike` em nome/texto; dígitos da busca contra `chave_tel`/`cnpj`, funciona com ou sem pontuação); roda no banco, com *debounce* de ~300 ms.
+- **Filtros (pílulas, rodam no banco):**
+  - período por `atualizado_em` em horário de SP (mesmos helpers de fuso da seção 72): Hoje · 7 dias · 30 dias (padrão) · Tudo;
+  - resultado: Todos · Atendeu · Não atendeu · Caixa postal · Sem interesse · Fechou.
+- **Contador** "N anotações": usa `count: 'exact'` da consulta (total que bate no filtro, não só a página carregada).
+- **Lista:** cartões mais recentes primeiro (`atualizado_em desc`), cada um com data/hora (SP), cliente (nome, senão o telefone), badge do resultado, linhas e valor do plano quando preenchidos, chips das objeções (rótulo da biblioteca `objecoes_respostas` quando já carregada, senão a própria chave) e as 2 primeiras linhas da anotação — tudo escapado (`escapeHtml`), inclusive o que o cliente "colou" na nota.
+- **Clique no cartão** abre a nota no Caderno pelo mesmo fluxo da Agenda/Mesa (`cdAbrirDoRetorno({ nota_id })`), salvando no mesmo registro.
+- **Paginação:** 50 por página (`.range`), botão "Carregar mais" acrescenta a próxima página sem recarregar a anterior. Um contador de geração descarta resposta de busca/filtro/página que chegou atrasada (digitar rápido ou trocar de pílula não embaralha a lista).
+- **Falha ao carregar:** aviso "Não foi possível carregar suas anotações agora." sem quebrar o resto do painel. Logout (`cadernoResetar`) limpa a lista, a busca e volta os filtros para o padrão (30 dias / Todos).
+- **Sem migração:** reaproveita `caderno_notas` e o RLS da seção 72 (consultor só o que é dele; admin/supervisor leem tudo — por isso o filtro explícito no código).
+- **Teste:** `test_anotacoes.js` (TDD) — só as próprias notas mesmo como supervisor, busca por nome/telefone (dígitos, com e sem pontuação)/CNPJ/texto, *debounce*, pílulas de período e de resultado, contador, paginação com "Carregar mais", clique abrindo a nota certa no Caderno, texto com `<img onerror>` escapado (sem criar `<img>` de verdade), respostas atrasadas não sobrescrevendo a mais nova (filtro ou página), falha de carregamento e limpeza no logout. O mock do Supabase (`painel_teste_base.js`) ganhou `.range()` que pagina de verdade, `select(cols, { count: 'exact' })` e `.or()` reconhecendo `ilike` (substring, sem diferenciar maiúsculas) além do `eq` de sempre — sem mudar o comportamento dos testes que já usavam essas funções. `test_reorganizacao_abas.js` ganhou "anotacoes" na ordem esperada das abas.
