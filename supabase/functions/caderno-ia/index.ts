@@ -6,7 +6,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { responder } from "./ia.ts";
 import type { DepsIA, Objecao } from "./ia.ts";
 
-const MODELO = "gemini-3.1-flash-lite";
+// 07/10/2026: medido de dentro do Supabase — 3.5-flash-lite com raciocínio "minimal" e saída curta respondeu em
+// 1–2,5 s; o 3.1 levou 3–11 s e, com thinkingBudget 0, chegou a não responder em 25 s.
+const MODELO = "gemini-3.5-flash-lite";
 // 07/10/2026: o Gemini gratuito passou de 6 s no 1º uso real. Orçamento total de 12 s; a 2ª tentativa (só em 503)
 // acontece se ainda sobrarem 4 s. O painel espera até 15 s (objEstado.timeoutMs).
 const ORCAMENTO_MS = 12000;
@@ -38,10 +40,10 @@ async function gemini(prompt: string, chave: string): Promise<string> {
         headers: { "Content-Type": "application/json", "x-goog-api-key": chave },
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: prompt }] }],
-          // thinkingBudget 0: sem isso o Gemini 3.x "pensa" antes de responder, passa de 12 s e pode gastar o
-          // limite de tokens no raciocínio (07/10/2026: 1º uso real deu timeout). O Apex Mind já usa assim.
-          generationConfig: { responseMimeType: "application/json", temperature: 0.4, maxOutputTokens: 300,
-            thinkingConfig: { thinkingBudget: 0 } },
+          // Gemini 3.x: thinkingLevel "minimal" (o thinkingBudget 0 faz o 3.5 recusar com 400 e o 3.1 travar).
+          // 220 tokens: folga para 3 frases em JSON sem cortar o JSON no meio, e ainda curto o bastante para ser rápido.
+          generationConfig: { responseMimeType: "application/json", temperature: 0.4, maxOutputTokens: 220,
+            thinkingConfig: { thinkingLevel: "minimal" } },
         }),
       });
       // o gratuito devolve 503 "high demand" com frequência: tenta de novo só se ainda houver folga
