@@ -11445,8 +11445,9 @@ function cdMascarar(texto){
   });
 }
 function cdContextoIA(n){
-  return { qtd_linhas: cdNum(n.qtd_linhas), valor_plano: cdNum(n.valor_plano), operadora_atual: String(n.operadora_atual || '').trim(),
-    fidelidade_vence: n.fidelidade_vence || '', interesse: (n.interesse || []).slice(), texto: cdMascarar(n.texto).slice(0, 2000) };
+  // operadora e interesse também passam pela máscara (texto livre pode trazer telefone/e-mail — revisão final M-4)
+  return { qtd_linhas: cdNum(n.qtd_linhas), valor_plano: cdNum(n.valor_plano), operadora_atual: cdMascarar(String(n.operadora_atual || '').trim()),
+    fidelidade_vence: n.fidelidade_vence || '', interesse: (n.interesse || []).map(cdMascarar), texto: cdMascarar(n.texto).slice(0, 2000) };
 }
 function cdTemContexto(n){
   const c = cdContextoIA(n);
@@ -11454,16 +11455,18 @@ function cdTemContexto(n){
 }
 
 /* ============ AGENDA: tela (calendário do mês, painel do dia, criar/feito/remarcar/cancelar/arrastar) ============ */
-const agEstado = { ym: '', retornos: [], pedidos: [], carregando: false, erro: false, diaAberto: null, geracao: 0, arrastando: null };
+const agEstado = { ym: '', retornos: [], pedidos: [], carregando: false, erro: false, diaAberto: null, geracao: 0, arrastando: null,
+  filaTimer: null, filaRetryMs: 30000, enviandoFila: false }; // filaTimer: nova tentativa da fila de retornos guardados sem rede (revisão final I-4)
 function agUid(){ return currentUser ? currentUser.id : 'anon'; }
 function agAvisarMudou(){ document.dispatchEvent(new CustomEvent('agenda:mudou')); }
 function agResetar(){
   agEstado.geracao++;
+  clearTimeout(agEstado.filaTimer); agEstado.filaTimer = null;
   Object.assign(agEstado, { ym: '', retornos: [], pedidos: [], carregando: false, erro: false, diaAberto: null });
   ['agGrade', 'agLista', 'agDiaLista'].forEach(id => { document.getElementById(id).innerHTML = ''; });
 }
 const cdEstado = { nota: null, aberto: false, timer: null, retryTimer: null, debounceMs: 800, salvando: null, status: '', historico: [], retornoPendente: null, doc: document,
-  emVoo: new Map(), enviandoPendentes: false, reenviarPendentes: false }; // emVoo: id -> promessa em andamento, para nunca ter 2 upserts da mesma nota ao mesmo tempo
+  emVoo: new Map(), enviandoPendentes: null, reenviarPendentes: false, ctxSeq: 0 }; // emVoo: id -> promessa em andamento, para nunca ter 2 upserts da mesma nota ao mesmo tempo
 function cdTocar(n){ n.rev = (n.rev || 0) + 1; } // toda edição da nota chama isto (campo, texto, resultado, interesse, objeção)
 function cdEl(id){ return cdEstado.doc.getElementById(id) || document.getElementById(id); }
 function cdLsChave(){ return 'caderno_rascunho_' + agUid(); }
@@ -11482,6 +11485,12 @@ function cdStatus(txt, offline){
   const el = cdEl('cdStatus');
   el.textContent = txt;
   el.classList.toggle('offline', !!offline);
+}
+// Avisos do Caderno/objeções: mostrarAviso (página principal) e, com a gaveta na janela flutuante, também
+// no #cdStatus da própria janela — o toast da página principal não aparece lá (revisão final M-1).
+function cdAvisar(msg, tipo){
+  mostrarAviso(msg, tipo);
+  if(cdEstado.doc !== document) cdStatus(msg, tipo === 'erro');
 }
 function cdFmtCampo(c, v){
   const d = cdDigitos(v);
@@ -11536,7 +11545,8 @@ async function cdSalvarUmaVez(n){
     const atual = () => cdEstado.nota === n;
     const revAlvo = n.rev || 0;
     const payload = cdPayload(n);
-    clearTimeout(cdEstado.timer);
+    // o debounce (cdEstado.timer) é da nota da tela: salvar outra nota da fila não pode cancelá-lo (revisão final M-2)
+    if(atual()) clearTimeout(cdEstado.timer);
     clearTimeout(cdEstado.retryTimer);
     cdPendenteGuardar(n); // sempre guarda a referência mais nova (os campos já mudaram, mesmo que rev ainda não tenha sido comparada)
     if(atual()) cdLsGravar(true);
@@ -11573,24 +11583,32 @@ function cdSalvarAgora(n){
 // Reenvia toda a fila de pendentes (notas que trocaram de atendimento ou ficaram sem rede sem
 // terminar de salvar). Chamada pelo timer de retry, pelo evento "online" e ao entrar/restaurar.
 // Com trava de execução: se chamada de novo enquanto já está rodando, só marca para rodar mais uma
-// vez ao final — nunca duas passadas em paralelo brigando pela mesma nota.
-async function cdEnviarPendentes(){
-  if(cdEstado.enviandoPendentes){ cdEstado.reenviarPendentes = true; return; }
-  cdEstado.enviandoPendentes = true;
-  try{
-    do{
-      cdEstado.reenviarPendentes = false;
-      const fila = cdFilaLer();
-      for(const id of Object.keys(fila)){
-        const n = (cdEstado.nota && cdEstado.nota.id === id) ? cdEstado.nota : fila[id];
-        await cdSalvarAgora(n);
-      }
-    } while(cdEstado.reenviarPendentes);
-  } finally {
-    cdEstado.enviandoPendentes = false;
-  }
+// vez ao final — nunca duas passadas em paralelo brigando pela mesma nota. Devolve sempre a promessa
+// da passada em andamento, para quem precisa das notas no banco antes (agFilaEnviar: FK nota_id dos
+// retornos guardados sem rede — revisão final I-4) poder esperar por ela.
+function cdEnviarPendentes(){
+  if(cdEstado.enviandoPendentes){ cdEstado.reenviarPendentes = true; return cdEstado.enviandoPendentes; }
+  // começa num microtask, depois de guardar a promessa (senão uma fila vazia terminaria antes da atribuição)
+  const passada = Promise.resolve().then(async () => {
+    try{
+      do{
+        cdEstado.reenviarPendentes = false;
+        const fila = cdFilaLer();
+        for(const id of Object.keys(fila)){
+          const n = (cdEstado.nota && cdEstado.nota.id === id) ? cdEstado.nota : fila[id];
+          await cdSalvarAgora(n);
+        }
+      } while(cdEstado.reenviarPendentes);
+    } finally {
+      cdEstado.enviandoPendentes = null;
+    }
+  });
+  cdEstado.enviandoPendentes = passada;
+  return passada;
 }
+// Roda a cada tecla no telefone/CNPJ: só a resposta do pedido mais novo vale (revisão final M-7).
 async function cdCarregarContexto(){
+  const seq = ++cdEstado.ctxSeq;
   const n = cdEstado.nota, k = chaveTel(n.telefone), cnpj = cdDigitos(n.cnpj);
   if(!k && cnpj.length !== 14){ cdEstado.historico = []; cdEstado.retornoPendente = null; cdRenderContexto(); return; }
   const filtro = [k ? 'chave_tel.eq.' + k : null, cnpj.length === 14 ? 'cnpj.eq.' + cnpj : null].filter(Boolean).join(',');
@@ -11598,7 +11616,7 @@ async function cdCarregarContexto(){
     ppSeguro(() => sb.from('caderno_notas').select('id,nome,texto,resultado,atualizado_em').eq('consultor_id', currentUser.id).or(filtro).neq('id', n.id).order('atualizado_em', { ascending: false }).limit(5)),
     k ? ppSeguro(() => sb.from('agenda_retornos').select('id,quando,nome,status').eq('consultor_id', currentUser.id).eq('chave_tel', k).eq('status', 'pendente').order('quando', { ascending: true }).limit(1)) : Promise.resolve({ data: [] }),
   ]);
-  if(cdEstado.nota !== n) return;
+  if(cdEstado.nota !== n || seq !== cdEstado.ctxSeq) return;
   cdEstado.historico = h && !h.error ? (h.data || []) : [];
   cdEstado.retornoPendente = rp && !rp.error && rp.data && rp.data[0] ? rp.data[0] : null;
   cdRenderContexto();
@@ -11621,17 +11639,41 @@ function cdAbrir(){
   cdEstado.aberto = true;
   cdEl('cdGaveta').classList.add('aberta');
   cdPreencherTela();
+  cdRenderContexto(); // histórico/retorno marcado da nota atual — nunca o que ficou de outra (revisão final I-1)
   cdEl('cdF_telefone').focus();
 }
+// Na janela flutuante, o X (e Alt+N) recolhe a gaveta e fecha a janela — lá a gaveta é sempre visível
+// (.flutuante), então só tirar "aberta" não fazia nada (revisão final M-1).
 function cdFechar(){
   cdEstado.aberto = false;
+  if(cdEstado.doc !== document){
+    const janela = cdEstado.janela; // cdRecolher zera cdEstado.janela
+    cdRecolher();
+    if(janela) try{ janela.close(); }catch(_e){ /* já pode estar fechada pelo usuário */ }
+  }
   cdEl('cdGaveta').classList.remove('aberta');
+}
+// Limpa tudo o que a gaveta mostra do atendimento (campos, histórico, retorno marcado, objeção/IA,
+// status). Usada ao sair do painel: o próximo consultor no mesmo computador não vê nada do cliente
+// do anterior (revisão final I-1).
+function cdLimparTela(){
+  CD_CAMPOS.forEach(c => { const el = cdEl('cdF_' + c); if(el) el.value = ''; });
+  ['cdTexto', 'cdRetDia', 'cdRetHora'].forEach(id => { const el = cdEl(id); if(el) el.value = ''; });
+  ['cdSugestoes', 'cdSugestaoRetorno'].forEach(id => { const el = cdEl(id); if(el) el.innerHTML = ''; });
+  const gaveta = cdEl('cdGaveta');
+  if(gaveta) gaveta.querySelectorAll('.active, .cdAviso').forEach(x => x.classList.remove('active', 'cdAviso'));
+  cdRenderContexto();
+  cdStatus('');
+  if(typeof objAoTrocarNota === 'function') objAoTrocarNota();
 }
 async function cdNovo(){
   const saindo = cdEstado.nota;
   // Salva (ou deixa na fila de pendentes, se falhar) a nota que está saindo — nunca se perde, mesmo
-  // sem rede. Limpar o rascunho atual abaixo é seguro porque a nota que saiu já está na fila.
-  if(saindo && !cdNotaVazia(saindo)) await cdSalvarAgora(saindo);
+  // sem rede. Entra na fila de pendentes já, antes de trocar, e o envio segue em segundo plano: trocar
+  // de atendimento não espera o servidor (revisão final M-3). Limpar o rascunho atual abaixo é seguro
+  // porque a nota que saiu já está na fila.
+  clearTimeout(cdEstado.timer);
+  if(saindo && !cdNotaVazia(saindo)){ cdPendenteGuardar(saindo); cdSalvarAgora(saindo); }
   cdEstado.nota = cdNovaNota();
   cdEstado.historico = []; cdEstado.retornoPendente = null;
   try{ localStorage.removeItem(cdLsChave()); }catch(_e){ /* idem */ }
@@ -11654,27 +11696,30 @@ async function cdAbrirDoRetorno(r){
   }
   cdEstado.nota = nota || Object.assign(cdNovaNota(), { nome: r.nome || '', telefone: r.telefone || '' });
   CD_CAMPOS.forEach(c => { if(cdEstado.nota[c] == null) cdEstado.nota[c] = ''; });
+  cdEstado.historico = []; cdEstado.retornoPendente = null;
   cdStatus(nota ? 'Salvo ✓' : '');
   if(typeof objAoTrocarNota === 'function') objAoTrocarNota();
   cdAbrir();
   cdCarregarContexto();
 }
+// Só o rascunho que não chegou ao banco (pendente) volta para a tela; nota já salva não reabre no
+// próximo login — senão o consultor digitaria o cliente novo por cima dela (revisão final I-3).
 async function cdRestaurar(){
   const ls = cdLsLer();
-  if(ls && ls.nota && ls.nota.id){
+  if(ls && ls.nota && ls.nota.id && ls.pendente){
     cdEstado.nota = Object.assign(cdNovaNota(), ls.nota);
     cdPreencherTela();
-    if(ls.pendente){ cdStatus('Salvando…'); await cdSalvarAgora(cdEstado.nota); }
-    else cdStatus('Salvo ✓');
-  }
+    cdCarregarContexto();
+    cdStatus('Salvando…'); await cdSalvarAgora(cdEstado.nota);
+  } else if(ls){ try{ localStorage.removeItem(cdLsChave()); }catch(_e){ /* sem localStorage: nada a limpar */ } }
   await cdEnviarPendentes(); // outras notas que ficaram pendentes (trocadas sem rede) de uma sessão anterior
 }
 async function cdAgendarRetorno(dia, hora, origem){
   const n = cdEstado.nota;
-  if(!chaveTel(n.telefone)){ mostrarAviso('Preencha o telefone do cliente para agendar o retorno.', 'erro'); cdEl('cdF_telefone').focus(); return false; }
+  if(!chaveTel(n.telefone)){ cdAvisar('Preencha o telefone do cliente para agendar o retorno.', 'erro'); cdEl('cdF_telefone').focus(); return false; }
   await cdSalvarAgora();
   const ok = await agCriarRetorno(cdRetornoDaNota(n, agIsoSP(dia, hora), origem));
-  if(ok){ mostrarAviso('Retorno agendado para ' + ppFmtDia(dia) + ' às ' + hora + '.', 'ok'); cdCarregarContexto(); }
+  if(ok){ cdAvisar('Retorno agendado para ' + ppFmtDia(dia) + ' às ' + hora + '.', 'ok'); cdCarregarContexto(); }
   return ok;
 }
 function cadernoAoEntrar(){
@@ -11688,15 +11733,11 @@ function cadernoAoEntrar(){
 function cadernoResetar(){
   clearTimeout(cdEstado.timer); clearTimeout(cdEstado.retryTimer);
   // Sair com a janela flutuante aberta não pode deixar os dados do consultor anterior visíveis numa
-  // tela compartilhada: traz a gaveta de volta (cdRecolher) e fecha a janela. Guarda a referência da
-  // janela antes de cdRecolher, porque cdRecolher zera cdEstado.janela (achado da revisão, fix round 1).
-  if(cdEstado.doc !== document){
-    const janela = cdEstado.janela;
-    cdRecolher();
-    if(janela) try{ janela.close(); }catch(_e){ /* já pode estar fechada pelo usuário */ }
-  }
+  // tela compartilhada: cdFechar traz a gaveta de volta (cdRecolher) e fecha a janela (fix round 1).
   cdFechar();
-  Object.assign(cdEstado, { nota: null, historico: [], retornoPendente: null, status: '', gaveta: null });
+  Object.assign(cdEstado, { nota: null, historico: [], retornoPendente: null, status: '', gaveta: null, remarcando: null });
+  cdEstado.ctxSeq++; // descarta resposta de contexto ainda no ar
+  cdLimparTela();
   document.getElementById('cdBotao').style.display = 'none';
   agResetar();
   if(typeof alParar === 'function') alParar();
@@ -11739,7 +11780,7 @@ function cdLigarEventos(gaveta){
       const dia = cdEl('cdRetDia').value, hora = cdEl('cdRetHora').value;
       if(cdEstado.remarcando){ const id = cdEstado.remarcando; cdEstado.remarcando = null; agRemarcar(id, dia, hora).then(() => cdCarregarContexto()); }
       else if(/^\d{4}-\d{2}-\d{2}$/.test(dia) && /^\d{2}:\d{2}$/.test(hora)) cdAgendarRetorno(dia, hora, 'manual');
-      else mostrarAviso('Escolha dia e hora.', 'erro');
+      else cdAvisar('Escolha dia e hora.', 'erro');
       return;
     }
     if(t.id === 'cdNovo') cdNovo();
@@ -11810,6 +11851,7 @@ function objCacheChave(chave, ctx){ return chave + '|' + JSON.stringify(ctx); }
 // objeção + contexto mascarado, sem identidade) pode continuar valendo entre atendimentos.
 function objAoTrocarNota(){
   objEstado.aberta = null;
+  objEstado.ultimaIA = null; // "Copiar" não pode copiar a resposta do cliente anterior (revisão final I-1)
   objEstado.pedido++;
   const livre = cdEl('objLivre'); if(livre) livre.value = '';
   const resp = cdEl('objResposta'); if(resp) resp.innerHTML = '';
@@ -11862,11 +11904,11 @@ function objPerguntarLivre(texto){
 async function objRegistrarUso(objecao, fonte, util){
   const r = await ppSeguro(() => sb.from('objecoes_uso').insert({ objecao, fonte, util: util === undefined ? null : util, nota_id: cdEstado.nota ? cdEstado.nota.id : null }));
   if(r && r.error) console.error('objecoes_uso: falha ao registrar');
-  else mostrarAviso(fonte === 'ia' ? 'Obrigado pelo retorno.' : 'Registrado.', 'ok');
+  else cdAvisar(fonte === 'ia' ? 'Obrigado pelo retorno.' : 'Registrado.', 'ok');
 }
 async function objAbrirApexMind(){
   const { data, error } = await sb.functions.invoke('sso-pratica-vendas');
-  if(error || !data || !data.url){ mostrarAviso(await mensagemErroFuncao(error, data), 'erro'); return; }
+  if(error || !data || !data.url){ cdAvisar(await mensagemErroFuncao(error, data), 'erro'); return; }
   window.open(data.url, '_blank');
 }
 function objLigarEventos(gaveta){
@@ -11875,8 +11917,8 @@ function objLigarEventos(gaveta){
     const chip = t.closest('[data-obj]');
     if(chip){ objMostrar(chip.dataset.obj); return; }
     const cp = t.closest('[data-obj-copiar]');
-    if(cp){ const o = objEstado.lista.find(x => x.chave === cp.dataset.objCopiar); if(o && navigator.clipboard) navigator.clipboard.writeText((o.fala + ' ' + (o.pergunta || '')).trim()); mostrarAviso('Copiado.', 'ok'); return; }
-    if(t.closest('[data-obj-copiar-ia]') && objEstado.ultimaIA){ if(navigator.clipboard) navigator.clipboard.writeText((objEstado.ultimaIA.fala + ' ' + objEstado.ultimaIA.pergunta).trim()); mostrarAviso('Copiado.', 'ok'); return; }
+    if(cp){ const o = objEstado.lista.find(x => x.chave === cp.dataset.objCopiar); if(o && navigator.clipboard) navigator.clipboard.writeText((o.fala + ' ' + (o.pergunta || '')).trim()); cdAvisar('Copiado.', 'ok'); return; }
+    if(t.closest('[data-obj-copiar-ia]') && objEstado.ultimaIA){ if(navigator.clipboard) navigator.clipboard.writeText((objEstado.ultimaIA.fala + ' ' + objEstado.ultimaIA.pergunta).trim()); cdAvisar('Copiado.', 'ok'); return; }
     const us = t.closest('[data-obj-usei]');
     if(us){ objRegistrarUso(us.dataset.objUsei, 'biblioteca'); return; }
     const ut = t.closest('[data-obj-util]');
@@ -11889,7 +11931,7 @@ function objLigarEventos(gaveta){
 }
 objLigarEventos(document.getElementById('cdGaveta'));
 
-const alEstado = { proximos: [], timer: null, recarga: null, canal: null, alertados: new Set(), tituloBase: '' };
+const alEstado = { proximos: [], timer: null, recarga: null, canal: null, alertados: new Set(), tituloBase: '', geracao: 0 };
 const AL_ANTES_MS = 5 * 60000, AL_VALIDADE_MS = 60 * 60000;
 function alChave(){ return 'agenda_alertados_' + agUid(); }
 function alCarregarAlertados(){ try{ alEstado.alertados = new Set(JSON.parse(localStorage.getItem(alChave()) || '[]')); }catch(_e){ alEstado.alertados = new Set(); } }
@@ -11902,11 +11944,15 @@ function alDevemAlertar(retornos, agora, ja){
     return t - AL_ANTES_MS <= agora && agora < t + AL_VALIDADE_MS;
   });
 }
+// Só os retornos do próprio usuário (I-2). A resposta só vale se, quando chegar, ainda for o mesmo
+// usuário e a mesma sessão de alertas (alParar incrementa a geração) — revisão final M-6.
 async function alCarregarProximos(){
   if(!currentUser) return;
+  const uid = currentUser.id, geracao = alEstado.geracao;
   const hoje = agPartesSP(agAgora()).dia;
-  const r = await ppSeguro(() => sb.from('agenda_retornos').select('id,nota_id,nome,telefone,quando,status')
+  const r = await ppSeguro(() => sb.from('agenda_retornos').select('id,nota_id,nome,telefone,quando,status').eq('consultor_id', uid)
     .gte('quando', agIsoSP(somaDiasStr(hoje, -1), '00:00')).lte('quando', agIsoSP(somaDiasStr(hoje, 1), '23:59')).neq('status', 'cancelado').order('quando', { ascending: true }));
+  if(!currentUser || currentUser.id !== uid || geracao !== alEstado.geracao) return;
   if(r && !r.error) alEstado.proximos = r.data || [];
 }
 function alBip(){
@@ -11915,6 +11961,7 @@ function alBip(){
     if(!C) return;
     const ctx = new C(), o = ctx.createOscillator(), g = ctx.createGain();
     o.frequency.value = 880; g.gain.value = 0.08; o.connect(g); g.connect(ctx.destination);
+    o.onended = () => { try{ ctx.close(); }catch(_e){ /* já fechado */ } }; // um AudioContext por alerta: fecha ao terminar (revisão final M-5)
     o.start(); o.stop(ctx.currentTime + 0.25);
   }catch(_e){ /* sem áudio: segue com a notificação */ }
 }
@@ -11926,7 +11973,8 @@ function alNotificar(r){
   const p = agPartesSP(r.quando);
   const titulo = 'Retorno às ' + p.hora + ' — ' + r.nome;
   if('Notification' in window && Notification.permission === 'granted'){
-    try{ const n = new Notification(titulo, { body: (r.telefone ? r.telefone + ' · ' : '') + 'Clique para abrir o Caderno', tag: 'retorno-' + r.id }); n.onclick = () => alAoClicar(r); }catch(_e){ /* alguns navegadores só aceitam via service worker */ }
+    const uid = currentUser ? currentUser.id : null; // notificação do Windows sobrevive à troca de usuário (revisão final M-6)
+    try{ const n = new Notification(titulo, { body: (r.telefone ? r.telefone + ' · ' : '') + 'Clique para abrir o Caderno', tag: 'retorno-' + r.id }); n.onclick = () => { if(currentUser && currentUser.id === uid) alAoClicar(r); }; }catch(_e){ /* alguns navegadores só aceitam via service worker */ }
   }
   mostrarAviso(titulo, 'info');
   alBip();
@@ -11974,6 +12022,7 @@ function alIniciar(){
   alEstado.recarga = setInterval(() => { alCarregarProximos().then(alVerificar); }, 300000);
 }
 function alParar(){
+  alEstado.geracao++;
   clearInterval(alEstado.timer); clearInterval(alEstado.recarga);
   if(alEstado.canal) try{ alEstado.canal.close(); }catch(_e){ /* ok */ }
   alEstado.canal = null; alEstado.proximos = [];
@@ -12094,6 +12143,7 @@ async function agCarregarMes(){
   document.getElementById('agStatus').textContent = 'Carregando…';
   const r = await ppSeguro(() => sb.from('agenda_retornos')
     .select('id,nota_id,nome,telefone,chave_tel,quando,tipo,qtd_linhas,valor_plano,observacao,origem,status,feito_em')
+    .eq('consultor_id', agUid()) // "Seus retornos": o RLS deixa admin/supervisor lerem os de todos (revisão final I-2)
     .gte('quando', de).lte('quando', ate).neq('status', 'cancelado').order('quando', { ascending: true }));
   if(geracao !== agEstado.geracao) return false;
   agEstado.carregando = false;
@@ -12132,7 +12182,7 @@ function agRenderMes(){
   const pend = agEstado.retornos.filter(r => r.status === 'pendente');
   const atrasados = pend.filter(r => agSituacao(r, agora) === 'atrasado');
   const dias = [...porDia.keys()].filter(d => d >= hoje && d.slice(0, 7) === agEstado.ym).sort();
-  const linha = r => `<div class="agLinha ${agSituacao(r, agora)}" data-id="${escapeHtml(r.id)}"><span class="agLinhaTxt"><span class="agLinhaHora">${agPartesSP(r.quando).hora}</span>${escapeHtml(r.nome)}</span></div>`;
+  const linha = r => `<div class="agLinha ${agSituacao(r, agora)}" data-id="${escapeHtml(r.id)}" data-dia="${agPartesSP(r.quando).dia}"><span class="agLinhaTxt"><span class="agLinhaHora">${agPartesSP(r.quando).hora}</span>${escapeHtml(r.nome)}</span></div>`;
   document.getElementById('agLista').innerHTML = (atrasados.length ? `<div class="agListaDia"><h4>Atrasados (${atrasados.length})</h4>${atrasados.map(linha).join('')}</div>` : '')
     + dias.map(d => { const rs = porDia.get(d).retornos.filter(r => agSituacao(r, agora) !== 'atrasado'); return rs.length ? `<div class="agListaDia" data-dia="${d}"><h4>${agFmtDiaLongo(d)}</h4>${rs.map(linha).join('')}</div>` : ''; }).join('')
     || '<p class="ppVazio">Nenhum retorno neste mês. Toque em "+ Novo retorno" para agendar.</p>';
@@ -12163,8 +12213,8 @@ function agRenderDia(){
 async function agCriarRetorno(linha){
   const r = await ppSeguro(() => sb.from('agenda_retornos').insert(linha));
   if(r && r.error){
-    if(agErroDeRede(r.error)){ agFilaGuardar(linha); mostrarAviso('Sem internet: retorno guardado neste computador, será enviado quando a rede voltar.', 'info'); }
-    else { mostrarAviso('Não foi possível salvar o retorno: ' + r.error.message, 'erro'); return false; }
+    if(agErroDeRede(r.error)){ agFilaGuardar(linha); cdAvisar('Sem internet: retorno guardado neste computador, será enviado quando a rede voltar.', 'info'); }
+    else { cdAvisar('Não foi possível salvar o retorno: ' + r.error.message, 'erro'); return false; }
   }
   agEstado.retornos.push(Object.assign({ status: 'pendente' }, linha));
   agRenderMes(); agAvisarMudou();
@@ -12174,16 +12224,35 @@ function agErroDeRede(error){ return navigator.onLine === false || /fetch|networ
 function agFilaChave(){ return 'agenda_fila_' + agUid(); }
 function agFilaLer(){ try{ return JSON.parse(localStorage.getItem(agFilaChave()) || '[]'); }catch(_e){ return []; } }
 function agFilaGuardar(linha){ try{ const f = agFilaLer(); f.push(linha); localStorage.setItem(agFilaChave(), JSON.stringify(f)); }catch(_e){ /* sem localStorage: segue sem fila */ } }
+// Envia os retornos guardados sem rede. Antes, espera as notas pendentes do Caderno subirem: o retorno
+// aponta para a nota (FK nota_id) e, enviado antes dela, falharia (23503) e ficaria parado. Enquanto
+// sobrar algo na fila, tenta de novo a cada agEstado.filaRetryMs (timer desligado ao sair do painel) —
+// revisão final I-4. Com trava: nunca duas passadas ao mesmo tempo.
 async function agFilaEnviar(){
-  const fila = agFilaLer();
-  if(!fila.length) return;
-  const resto = [];
-  for(const linha of fila){
-    const r = await ppSeguro(() => sb.from('agenda_retornos').upsert(linha, { onConflict: 'id' }));
-    if(r && r.error) resto.push(linha);
+  if(agEstado.enviandoFila || !currentUser) return;
+  clearTimeout(agEstado.filaTimer); agEstado.filaTimer = null;
+  if(!agFilaLer().length) return;
+  agEstado.enviandoFila = true;
+  const uid = agUid(), chave = agFilaChave();
+  let enviados = 0, resto = [];
+  try{
+    if(typeof cdEnviarPendentes === 'function') await cdEnviarPendentes();
+    if(agUid() !== uid) return;
+    const fila = agFilaLer();
+    for(const linha of fila){
+      const r = await ppSeguro(() => sb.from('agenda_retornos').upsert(linha, { onConflict: 'id' }));
+      if(r && r.error) resto.push(linha); else enviados++;
+    }
+    // o que entrou na fila enquanto esta passada enviava continua guardado
+    let atual = [];
+    try{ atual = JSON.parse(localStorage.getItem(chave) || '[]'); }catch(_e){ atual = []; }
+    resto = resto.concat(atual.filter(l => !fila.some(f => f.id === l.id)));
+    try{ localStorage.setItem(chave, JSON.stringify(resto)); }catch(_e){ /* idem */ }
+  } finally {
+    agEstado.enviandoFila = false;
   }
-  try{ localStorage.setItem(agFilaChave(), JSON.stringify(resto)); }catch(_e){ /* idem */ }
-  if(resto.length < fila.length){ mostrarAviso('Retornos guardados sem internet foram enviados.', 'ok'); agAvisarMudou(); }
+  if(enviados){ mostrarAviso('Retornos guardados sem internet foram enviados.', 'ok'); agAvisarMudou(); }
+  if(resto.length && currentUser && agUid() === uid) agEstado.filaTimer = setTimeout(() => { agEstado.filaTimer = null; if(currentUser) agFilaEnviar(); }, agEstado.filaRetryMs);
 }
 async function agSalvarNovo(f){
   const v = agValidarRetorno(f, agAgora());
@@ -12196,20 +12265,24 @@ async function agSalvarNovo(f){
   if(ok) mostrarAviso(v.aviso ? 'Retorno salvo. Atenção: ' + v.aviso : 'Retorno agendado para ' + ppFmtDia(f.dia) + ' às ' + f.hora + '.', v.aviso ? 'info' : 'ok');
   return ok;
 }
+// .select('id') devolve as linhas que o UPDATE alterou: sem permissão (RLS — ex.: supervisor num retorno
+// de outro consultor) o banco não dá erro, só não altera nada; 0 linhas também é falha (revisão final I-2).
 async function agAtualizar(id, patch, msgOk){
-  const r = await ppSeguro(() => sb.from('agenda_retornos').update(patch).eq('id', id));
-  if(r && r.error){ mostrarAviso('Não foi possível atualizar o retorno: ' + r.error.message, 'erro'); return false; }
+  const r = await ppSeguro(() => sb.from('agenda_retornos').update(patch).eq('id', id).select('id'));
+  const erro = !r ? 'sem resposta do servidor' : r.error ? r.error.message
+    : (!Array.isArray(r.data) || !r.data.length) ? 'retorno não encontrado ou sem permissão para alterá-lo' : null;
+  if(erro){ cdAvisar('Não foi possível atualizar o retorno: ' + erro, 'erro'); return false; }
   const item = agEstado.retornos.find(x => x.id === id);
   if(item) Object.assign(item, patch);
   if(patch.status === 'cancelado') agEstado.retornos = agEstado.retornos.filter(x => x.id !== id);
   agRenderMes(); agAvisarMudou();
-  if(msgOk) mostrarAviso(msgOk, 'ok');
+  if(msgOk) cdAvisar(msgOk, 'ok');
   return true;
 }
 function agMarcarFeito(id){ return agAtualizar(id, { status: 'feito' }, 'Retorno marcado como feito.'); }
 function agCancelar(id){ return agAtualizar(id, { status: 'cancelado' }, 'Retorno cancelado.'); }
 function agRemarcar(id, dia, hora){
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(dia || '') || !/^\d{2}:\d{2}$/.test(hora || '')){ mostrarAviso('Escolha dia e hora.', 'erro'); return Promise.resolve(false); }
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(dia || '') || !/^\d{2}:\d{2}$/.test(hora || '')){ cdAvisar('Escolha dia e hora.', 'erro'); return Promise.resolve(false); }
   return agAtualizar(id, { quando: agIsoSP(dia, hora), status: 'pendente' }, 'Retorno remarcado para ' + ppFmtDia(dia) + ' às ' + hora + '.');
 }
 function agSoltarEm(id, dia){
@@ -12224,7 +12297,8 @@ document.getElementById('agMesProx').addEventListener('click', async () => { agE
 document.getElementById('agHoje').addEventListener('click', async () => { agEstado.ym = agPartesSP(agAgora()).dia.slice(0, 7); if(await agCarregarMes()) agRenderMes(); });
 document.getElementById('agNovo').addEventListener('click', () => agAbrirDia(agPartesSP(agAgora()).dia));
 document.getElementById('agGrade').addEventListener('click', (ev) => { const d = ev.target.closest('.agDia'); if(d) agAbrirDia(d.dataset.dia); });
-document.getElementById('agLista').addEventListener('click', (ev) => { const l = ev.target.closest('.agListaDia[data-dia]'); if(l) agAbrirDia(l.dataset.dia); });
+// a linha tem o próprio data-dia (inclusive no grupo "Atrasados", que não tem dia) — revisão final M-9
+document.getElementById('agLista').addEventListener('click', (ev) => { const l = ev.target.closest('[data-dia]'); if(l) agAbrirDia(l.dataset.dia); });
 document.getElementById('agGrade').addEventListener('dragstart', (ev) => { const it = ev.target.closest('.agItem[data-id]'); if(it){ agEstado.arrastando = it.dataset.id; if(ev.dataTransfer) ev.dataTransfer.setData('text/plain', it.dataset.id); } });
 document.getElementById('agGrade').addEventListener('dragover', (ev) => { const d = ev.target.closest('.agDia'); if(d && agEstado.arrastando){ ev.preventDefault(); d.classList.add('soltar'); } });
 document.getElementById('agGrade').addEventListener('dragleave', (ev) => { const d = ev.target.closest('.agDia'); if(d) d.classList.remove('soltar'); });

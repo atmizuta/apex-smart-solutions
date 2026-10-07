@@ -174,7 +174,8 @@ rodar(`
 
   // falha ao carregar não quebra
   const sbFromOriginal = sb.from;
-  sb.from = (t) => t === 'agenda_retornos' ? { select: () => ({ gte: () => ({ lte: () => ({ neq: () => ({ order: () => Promise.resolve({ data: null, error: { message: 'x' } }) }) }) }) }) } : sbFromOriginal(t);
+  // (revisão final I-2: a consulta ganhou .eq('consultor_id', …) logo depois do select)
+  sb.from = (t) => t === 'agenda_retornos' ? { select: () => ({ eq: () => ({ gte: () => ({ lte: () => ({ neq: () => ({ order: () => Promise.resolve({ data: null, error: { message: 'x' } }) }) }) }) }) }) } : sbFromOriginal(t);
   await agCarregarMes(); agRenderMes();
   assert(document.getElementById('agStatus').textContent.includes('Não foi possível carregar'), 'aviso de falha');
   sb.from = sbFromOriginal;
@@ -225,6 +226,88 @@ rodar(`
   window.Notification.permission = 'granted';
   alAtualizarAvisoPermissao();
   assert(document.getElementById('agAlertasAviso').style.display === 'none', 'some depois de ativar');
+  alParar();
+  Date.now = nowReal;
+
+  // ==== REVISÃO FINAL I-2: supervisor/admin só vê e alerta os PRÓPRIOS retornos; escrita que o RLS
+  // ignora (0 linhas) é erro, não sucesso ====
+  Date.now = () => AGORA;
+  currentUser = { id: 's1', nome: 'Supervisor Teste', username: 'sup', role: 'supervisor' };
+  window.__tabelas.agenda_retornos = [
+    { id: 'sv1', consultor_id: 'c1', nome: 'Do Consultor Teste', telefone: '19990000001', tipo: 'ligacao', status: 'pendente', quando: '2026-10-06T10:03:00-03:00' },
+    { id: 'sv2', consultor_id: 's1', nome: 'Do Supervisor Teste', telefone: '19990000002', tipo: 'ligacao', status: 'pendente', quando: '2026-10-06T10:04:00-03:00' },
+  ];
+  agEstado.ym = '2026-10';
+  await agCarregarMes();
+  eq(agEstado.retornos.map(r => r.id), ['sv2'], 'I-2: a Agenda do supervisor traz só os retornos dele');
+  await alCarregarProximos();
+  eq(alEstado.proximos.map(r => r.id), ['sv2'], 'I-2: alertas do supervisor só dos retornos dele');
+  const notifAntesI2 = window.__notificacoes.length;
+  try{ localStorage.removeItem('agenda_alertados_s1'); }catch(_e){}
+  alVerificar();
+  assert(window.__notificacoes.slice(notifAntesI2).every(n => !n.titulo.includes('Do Consultor Teste')), 'I-2: nenhuma notificação do retorno de outro consultor');
+  alParar();
+  // retorno que o RLS não deixa alterar (0 linhas): aviso de erro, nada muda na tela
+  agEstado.retornos.push({ id: 'alheio', consultor_id: 'c1', nome: 'Alheio Teste', status: 'pendente', quando: '2026-10-06T15:00:00-03:00' });
+  window.__alertas.length = 0;
+  const okFeitoI2 = await agMarcarFeito('alheio');
+  assert(okFeitoI2 === false && agEstado.retornos.find(x => x.id === 'alheio').status === 'pendente', 'I-2: Feito que não atualizou nenhuma linha não muda o estado local');
+  assert(avisos().includes('Não foi possível atualizar o retorno') && !avisos().includes('Retorno marcado como feito'), 'I-2: avisa erro em vez de sucesso');
+  const okCancI2 = await agCancelar('alheio');
+  assert(okCancI2 === false && agEstado.retornos.some(x => x.id === 'alheio'), 'I-2: Cancelar sem linha atualizada não some da tela');
+  const okRemI2 = await agRemarcar('alheio', '2026-10-09', '10:00');
+  assert(okRemI2 === false && agEstado.retornos.find(x => x.id === 'alheio').quando === '2026-10-06T15:00:00-03:00', 'I-2: Remarcar sem linha atualizada não move o retorno');
+  const updI2 = window.__escritas.filter(e => e.tabela === 'agenda_retornos' && e.op === 'update').pop();
+  eq(updI2.filtro, { id: 'alheio' }, 'I-2: update continua filtrando pelo id');
+  // o próprio retorno atualiza normalmente
+  assert(await agMarcarFeito('sv2'), 'I-2: o supervisor marca o próprio retorno como feito');
+  eq(agEstado.retornos.find(x => x.id === 'sv2').status, 'feito', 'I-2: estado local atualizado com sucesso');
+
+  // ==== REVISÃO FINAL M-9: na lista do celular, cada linha abre o próprio dia (inclusive "Atrasados") ====
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  window.__tabelas.agenda_retornos = [{ id: 'm9', consultor_id: 'c1', nome: 'Atrasado Teste', telefone: '19990000001', tipo: 'ligacao', status: 'pendente', quando: '2026-10-02T09:00:00-03:00' }];
+  agEstado.ym = '2026-10';
+  await agCarregarMes(); agRenderMes();
+  const linhaM9 = document.querySelector('#agLista .agLinha[data-id="m9"]');
+  assert(linhaM9 && document.getElementById('agLista').textContent.includes('Atrasados'), 'M-9 pré: atrasado na lista do celular');
+  linhaM9.click(); await espera(10);
+  eq(agEstado.diaAberto, '2026-10-02', 'M-9: tocar na linha atrasada abre o dia dela');
+  assert(document.getElementById('agDiaOverlay').classList.contains('active'), 'M-9: painel do dia aberto');
+  agEstado.diaAberto = null; fecharOverlay(document.getElementById('agDiaOverlay'));
+
+  // ==== REVISÃO FINAL M-6: resposta atrasada do usuário anterior e clique em notificação antiga ====
+  // (a) resposta de alCarregarProximos que chega depois de trocar de usuário é descartada
+  const fromM6 = sb.from;
+  sb.from = (t) => {
+    const b = fromM6(t);
+    if(t === 'agenda_retornos'){ const th = b.then; b.then = (ok, ko) => new Promise(r => setTimeout(r, 50)).then(() => th(ok, ko)); }
+    return b;
+  };
+  window.__tabelas.agenda_retornos = [{ id: 'm6', consultor_id: 'c1', nome: 'Velho Usuario Teste', status: 'pendente', quando: '2026-10-06T10:02:00-03:00' }];
+  const pM6 = alCarregarProximos();
+  alParar();
+  currentUser = { id: 'c2', nome: 'Outro Consultor', username: 'cons2', role: 'consultor' };
+  await pM6; await espera(10);
+  sb.from = fromM6;
+  eq(alEstado.proximos.map(r => r.id), [], 'M-6: resposta atrasada do usuário anterior não entra na lista do novo');
+  // (b) clicar numa notificação do usuário anterior não abre o cliente dele
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  try{ localStorage.removeItem('agenda_alertados_c1'); }catch(_e){}
+  alCarregarAlertados();
+  alEstado.proximos = [{ id: 'm6b', status: 'pendente', quando: '2026-10-06T10:02:00-03:00', nome: 'Cliente Do C1 Teste', telefone: '19990000001' }];
+  alVerificar();
+  const notM6 = window.__notificacoes.filter(n => n.titulo.includes('Cliente Do C1 Teste')).pop();
+  assert(notM6 && typeof notM6.inst.onclick === 'function', 'M-6 pré: notificação criada');
+  let abertoM6 = null;
+  const cdAbrirOrigM6 = cdAbrirDoRetorno;
+  cdAbrirDoRetorno = (r) => { abertoM6 = r.id; };
+  currentUser = { id: 'c2', nome: 'Outro Consultor', username: 'cons2', role: 'consultor' };
+  notM6.inst.onclick();
+  eq(abertoM6, null, 'M-6: notificação do usuário anterior não abre o cliente dele');
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  notM6.inst.onclick();
+  eq(abertoM6, 'm6b', 'M-6: a do próprio usuário continua abrindo');
+  cdAbrirDoRetorno = cdAbrirOrigM6;
   alParar();
   Date.now = nowReal;
 

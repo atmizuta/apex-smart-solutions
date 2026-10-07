@@ -300,6 +300,148 @@ rodar(`
   await espera(30);
   assert(window.__escritas.some(e => e.tabela === 'caderno_notas' && e.rows.telefone === '19990000013'), 'depois do logout com a janela flutuante, o Caderno da página principal volta a salvar normalmente');
 
+  // ==== REVISÃO FINAL I-1: sair do painel limpa histórico, retorno marcado, objeção/IA e status —
+  // o próximo consultor no mesmo computador não vê nada do cliente do anterior ====
+  cadernoResetar(); currentUser = null;
+  try{ localStorage.clear(); }catch(_e){}
+  window.__falharEscrita = null;
+  window.__tabelas.objecoes_respostas = [{ chave: 'caro', rotulo: 'Tá caro', fala: 'Fala caro.', pergunta: 'Pergunta caro?', alternativa: '', ordem: 1, ativo: true }];
+  window.__tabelas.caderno_notas = [{ id: 'antigaI1', consultor_id: 'c1', chave_tel: '1990000021', nome: 'Cliente A Teste', texto: 'SEGREDO DO A', resultado: 'nao_atendeu', atualizado_em: '2026-10-05T15:00:00Z' }];
+  window.__tabelas.agenda_retornos = [{ id: 'rpI1', consultor_id: 'c1', chave_tel: '1990000021', status: 'pendente', quando: '2026-10-08T14:30:00-03:00', nome: 'Cliente A Teste' }];
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  cadernoAoEntrar(); await espera(20); cdAbrir();
+  digita('cdF_telefone', '(19) 99000-0021');
+  await espera(40);
+  assert(document.getElementById('cdHistorico').textContent.includes('SEGREDO DO A') && document.getElementById('cdRetornoPendente').textContent.includes('Retorno marcado'), 'I-1 pré: o consultor A vê o histórico e o retorno do cliente');
+  window.__invokeResposta = { data: { fala: 'IA PARA O A', pergunta: 'p?' }, error: null };
+  digita('cdF_qtd_linhas', '12');
+  objMostrar('caro'); await espera(40);
+  assert(document.getElementById('objIA').textContent.includes('IA PARA O A') && document.getElementById('objResposta').textContent.includes('Fala caro.'), 'I-1 pré: A vê a resposta da IA');
+  await espera(20);
+  cadernoResetar(); currentUser = null;
+  currentUser = { id: 'c2', nome: 'Outro Consultor', username: 'cons2', role: 'consultor' };
+  cadernoAoEntrar(); await espera(20); cdAbrir();
+  eq(document.getElementById('cdHistorico').textContent, '', 'I-1: o consultor B não vê o histórico do cliente de A');
+  eq(document.getElementById('cdRetornoPendente').textContent, '', 'I-1: B não vê o retorno marcado do cliente de A');
+  eq([document.getElementById('objIA').textContent, document.getElementById('objResposta').textContent], ['', ''], 'I-1: B não vê a resposta da IA/biblioteca de A');
+  assert(!objEstado.ultimaIA, 'I-1: "Copiar" da IA não copia a resposta de A');
+  eq(document.getElementById('cdStatus').textContent, '', 'I-1: status de A não fica na tela de B');
+  eq(document.getElementById('cdF_telefone').value, '', 'I-1: campos em branco para B');
+
+  // ==== REVISÃO FINAL I-3: entrar de novo não reabre a nota já salva (só o rascunho não enviado) ====
+  cadernoResetar(); currentUser = null;
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  assert(JSON.parse(localStorage.getItem('caderno_rascunho_c1')).pendente === false, 'I-3 pré: a nota de A ficou salva (pendente = false)');
+  cadernoAoEntrar(); await espera(20); cdAbrir();
+  eq(document.getElementById('cdF_telefone').value, '', 'I-3: nota já salva não volta para a tela no próximo login');
+  assert(!document.getElementById('cdHistorico').textContent.includes('SEGREDO DO A'), 'I-3: nem o histórico daquele cliente');
+  eq(localStorage.getItem('caderno_rascunho_c1'), null, 'I-3: o rascunho já enviado é descartado');
+  // rascunho NÃO enviado continua voltando (e com o contexto do cliente carregado)
+  const rascI3 = Object.assign(cdNovaNota(), { telefone: '(19) 99000-0021', texto: 'rascunho não enviado' });
+  cadernoResetar(); currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  localStorage.setItem('caderno_rascunho_c1', JSON.stringify({ nota: rascI3, pendente: true }));
+  cadernoAoEntrar(); await espera(40); cdAbrir(); await espera(20);
+  eq([cdEstado.nota.id, document.getElementById('cdTexto').value], [rascI3.id, 'rascunho não enviado'], 'I-3: rascunho pendente é restaurado');
+  assert(document.getElementById('cdHistorico').textContent.includes('SEGREDO DO A'), 'I-1: nota restaurada carrega o histórico do próprio cliente');
+
+  // ==== REVISÃO FINAL I-4: retorno criado sem rede não perde a corrida para a sua nota quando a rede volta ====
+  const fkI4 = (t, op, extra) => {
+    if(t === 'agenda_retornos' && (op === 'insert' || op === 'upsert')){
+      const ids = (window.__tabelas.caderno_notas || []).map(n => n.id);
+      if([].concat(extra.rows).some(r => r.nota_id && !ids.includes(r.nota_id))) return { code: '23503', message: 'insert or update on table "agenda_retornos" violates foreign key constraint' };
+    }
+    return null;
+  };
+  await cdNovo(); await espera(10);
+  window.__falharEscrita = () => ({ message: 'Failed to fetch' });
+  digita('cdF_telefone', '19990000031');
+  digita('cdTexto', 'offline I-4');
+  await espera(40);
+  const idI4 = cdEstado.nota.id;
+  await cdAgendarRetorno('2026-10-20', '09:00', 'manual');
+  assert(agFilaLer().some(l => l.nota_id === idI4), 'I-4 pré: retorno guardado na fila local (sem rede)');
+  window.__falharEscrita = fkI4;
+  window.dispatchEvent(new window.Event('online'));
+  await espera(80);
+  assert((window.__tabelas.agenda_retornos || []).some(r => r.nota_id === idI4), 'I-4: rede volta → a nota sobe antes e o retorno chega ao banco');
+  eq(agFilaLer().length, 0, 'I-4: fila de retornos vazia depois do envio');
+  // o retorno que falha continua tentando sozinho (timer), sem precisar de outro "online"/login
+  agEstado.filaRetryMs = 30;
+  localStorage.setItem('agenda_fila_c1', JSON.stringify([{ id: 'retI4b', nota_id: 'notaI4b', nome: 'Retry Teste', telefone: '19990000032', quando: '2026-10-21T09:00:00-03:00', tipo: 'ligacao', origem: 'manual' }]));
+  await agFilaEnviar();
+  eq(agFilaLer().length, 1, 'I-4 pré: sem a nota no banco o retorno fica na fila');
+  window.__tabelas.caderno_notas.push({ id: 'notaI4b', consultor_id: 'c1' });
+  await espera(100);
+  assert(window.__tabelas.agenda_retornos.some(r => r.id === 'retI4b') && agFilaLer().length === 0, 'I-4: o timer reenvia a fila e o retorno chega');
+  // sair do painel desliga o timer
+  localStorage.setItem('agenda_fila_c1', JSON.stringify([{ id: 'retI4c', nota_id: 'notaI4c', nome: 'Retry Teste', telefone: '19990000033', quando: '2026-10-21T10:00:00-03:00', tipo: 'ligacao', origem: 'manual' }]));
+  await agFilaEnviar();
+  cadernoResetar();
+  window.__tabelas.caderno_notas.push({ id: 'notaI4c', consultor_id: 'c1' });
+  const contaI4c = () => window.__escritas.filter(e => e.tabela === 'agenda_retornos' && [].concat(e.rows || []).some(r => r.id === 'retI4c')).length;
+  const antesI4c = contaI4c();
+  await espera(100);
+  eq(contaI4c(), antesI4c, 'I-4: depois de sair, o timer da fila não roda mais');
+  window.__falharEscrita = null;
+  agEstado.filaRetryMs = 30000;
+  try{ localStorage.removeItem('agenda_fila_c1'); }catch(_e){}
+
+  // ==== REVISÃO FINAL M-4: operadora e interesse também vão mascarados para a IA ====
+  const ctxM4 = cdContextoIA(Object.assign(cdNovaNota(), { operadora_atual: 'Vivo 19 99000-0001', interesse: ['falar com x@teste.com'] }));
+  assert(!/99000|teste\\.com/.test(JSON.stringify(ctxM4)) && ctxM4.operadora_atual.includes('[TELEFONE]') && ctxM4.interesse[0].includes('[EMAIL]'), 'M-4: operadora e interesse mascarados no navegador');
+
+  // ==== REVISÃO FINAL M-7: resposta atrasada do contexto não sobrescreve a mais nova ====
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  cadernoAoEntrar(); await espera(20); cdAbrir();
+  await cdNovo(); await espera(10);
+  window.__tabelas.caderno_notas.push({ id: 'hLento', consultor_id: 'c1', chave_tel: '1990000041', texto: 'HIST LENTO', atualizado_em: '2026-10-05T15:00:00Z' },
+    { id: 'hRapido', consultor_id: 'c1', chave_tel: '1990000042', texto: 'HIST RAPIDO', atualizado_em: '2026-10-05T15:00:00Z' });
+  const fromM7 = sb.from.bind(sb);
+  let lentoM7 = false;
+  sb.from = (t) => {
+    const b = fromM7(t);
+    if(t !== 'caderno_notas') return b;
+    const orOrig = b.or;
+    b.or = (s) => {
+      if(!lentoM7 && String(s).includes('1990000041')){ lentoM7 = true; const th = b.then; b.then = (ok, ko) => new Promise(r => setTimeout(r, 60)).then(() => th(ok, ko)); }
+      return orOrig(s);
+    };
+    return b;
+  };
+  digita('cdF_telefone', '19990000041');
+  await espera(5);
+  digita('cdF_telefone', '19990000042');
+  await espera(120);
+  sb.from = fromM7;
+  assert(document.getElementById('cdHistorico').textContent.includes('HIST RAPIDO') && !document.getElementById('cdHistorico').textContent.includes('HIST LENTO'), 'M-7: o histórico mostrado é o do telefone digitado por último');
+
+  // ==== REVISÃO FINAL M-3: Alt+Shift+N troca na hora mesmo com o servidor lento (a nota que sai fica na fila) ====
+  const fromM3 = sb.from.bind(sb);
+  sb.from = (t) => { const b = fromM3(t); return t === 'caderno_notas' ? Object.assign({}, b, { upsert: () => new Promise(() => {}) }) : b; };
+  digita('cdTexto', 'nota lenta M-3');
+  const idM3 = cdEstado.nota.id;
+  document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'N', altKey: true, shiftKey: true }));
+  await espera(5);
+  assert(cdEstado.nota.id !== idM3 && document.getElementById('cdTexto').value === '', 'M-3: troca de atendimento sem esperar o servidor');
+  assert((JSON.parse(localStorage.getItem('caderno_pendentes_c1')) || {})[idM3], 'M-3: a nota que saiu fica na fila de pendentes');
+  sb.from = fromM3;
+  cdEstado.emVoo.clear();
+
+  // ==== REVISÃO FINAL M-1: na janela flutuante, o X recolhe e fecha a janela; avisos aparecem lá também ====
+  const pipM1 = new window.__JSDOM('<!doctype html><html><head></head><body></body></html>').window;
+  window.__pipM1Fechada = false;
+  pipM1.close = () => { window.__pipM1Fechada = true; };
+  window.documentPictureInPicture = { requestWindow: async () => pipM1 };
+  cdAbrir();
+  await cdAbrirFlutuante();
+  delete window.documentPictureInPicture;
+  if(typeof cdAvisar === 'function') cdAvisar('Retorno agendado (teste M-1).', 'ok');
+  assert(pipM1.document.getElementById('cdStatus').textContent.includes('Retorno agendado (teste M-1).'), 'M-1: aviso aparece também dentro da janela flutuante');
+  pipM1.document.getElementById('cdFechar').click();
+  assert(window.__pipM1Fechada && document.getElementById('cdGaveta') && cdEstado.doc === document, 'M-1: X na janela flutuante recolhe e fecha a janela');
+  assert(document.getElementById('cdGaveta') && !document.getElementById('cdGaveta').classList.contains('aberta') && !cdEstado.aberto, 'M-1: Caderno fica fechado depois do X');
+  if(cdEstado.doc !== document) cdRecolher();
+
   // ==== mais testes entram aqui ====
   fim();
 `);
