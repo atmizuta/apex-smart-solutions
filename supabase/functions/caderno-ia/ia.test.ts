@@ -13,6 +13,20 @@ test("mascarar: CPF, CNPJ, telefone, CEP e e-mail viram marcadores; texto comerc
   assert.equal(mascarar(""), "");
 });
 
+test("mascarar: cobre formatos livres de CPF/CEP/telefone sem vazar dado pessoal", () => {
+  assert.ok(!mascarar("13010000").includes("13010000") && mascarar("13010000").includes("[CEP]"));
+  assert.ok(mascarar("123 456 789-09").includes("[CPF]") && !mascarar("123 456 789-09").includes("456"));
+  assert.ok(mascarar("123.456.789 09").includes("[CPF]") && !mascarar("123.456.789 09").includes("456"));
+  assert.ok(mascarar("019 99000-0001").includes("[TELEFONE]") && !mascarar("019 99000-0001").includes("99000"));
+  assert.ok(mascarar("123456789-09").includes("[CPF]") && !mascarar("123456789-09").includes("456789"));
+  assert.equal(mascarar("(19) 3254-1000"), "[TELEFONE]");
+  assert.equal(mascarar("+55 19 99000-0001"), "[TELEFONE]");
+  assert.equal(mascarar("06/10/2026"), "06/10/2026");
+  assert.equal(mascarar("R$ 1.234,56"), "R$ 1.234,56");
+  const merge = mascarar("11987654321 12345678909");
+  assert.ok(!merge.includes("11987654321") && !merge.includes("12345678909"));
+});
+
 test("validarEntrada: exige chave OU texto livre; limita tamanhos; contexto só com campos permitidos", () => {
   assert.equal(validarEntrada(null).ok, false);
   assert.equal(validarEntrada({ contexto: {} }).ok, false);
@@ -28,6 +42,15 @@ test("validarEntrada: exige chave OU texto livre; limita tamanhos; contexto só 
   assert.ok(livre.ok && livre.dados.objecao_livre === "meu contador cuida disso");
 });
 
+test("validarEntrada: valor_plano numérico ou string não infla (num não trata '.' como milhar sem vírgula)", () => {
+  const a = validarEntrada({ objecao_chave: "caro", contexto: { valor_plano: 99.9 } });
+  assert.ok(a.ok && a.dados.contexto.valor_plano === 99.9);
+  const b = validarEntrada({ objecao_chave: "caro", contexto: { valor_plano: "99.90" } });
+  assert.ok(b.ok && b.dados.contexto.valor_plano === 99.9);
+  const c = validarEntrada({ objecao_chave: "caro", contexto: { valor_plano: "1.234,56" } });
+  assert.ok(c.ok && c.dados.contexto.valor_plano === 1234.56);
+});
+
 test("montarPrompt: traz a base, as franquias, proíbe preço e já vem mascarado", () => {
   const base = { chave: "caro", rotulo: "Tá caro", fala: "Fala base", pergunta: "Pergunta base", alternativa: "Alt base" };
   const r = validarEntrada({ objecao_chave: "caro", contexto: { qtd_linhas: 12, operadora_atual: "Vivo", texto: "tel 19990000001" } });
@@ -36,17 +59,23 @@ test("montarPrompt: traz a base, as franquias, proíbe preço e já vem mascarad
   const p = montarPrompt(r.dados, base, [base]);
   assert.ok(p.includes("Fala base") && p.includes("12GB, 40GB, 70GB, 100GB e 150GB"));
   assert.ok(/nunca cite preço em R\$/i.test(p));
+  assert.ok(/no máximo 3 frases no total \(fala \+ pergunta\)/i.test(p));
   assert.ok(p.includes("[TELEFONE]") && !p.includes("19990000001"));
   assert.ok(p.includes('{"fala"'));
 });
 
-test("lerRespostaIA: JSON puro, dentro de ```json```, inválido e corta em 3 frases", () => {
+test("lerRespostaIA: JSON puro, dentro de ```json```, inválido e corta em 3 frases no total (fala + pergunta)", () => {
   assert.deepEqual(lerRespostaIA('{"fala":"A.","pergunta":"B?"}'), { fala: "A.", pergunta: "B?" });
   assert.deepEqual(lerRespostaIA('```json\n{"fala":"A.","pergunta":""}\n```'), { fala: "A.", pergunta: "" });
   assert.equal(lerRespostaIA("não é json"), null);
   assert.equal(lerRespostaIA('{"pergunta":"só"}'), null);
   const longa = lerRespostaIA('{"fala":"Um. Dois. Três. Quatro. Cinco.","pergunta":"P?"}');
-  assert.equal(longa?.fala, "Um. Dois. Três.");
+  assert.equal(longa?.fala, "Um. Dois.");
+  assert.equal(longa?.pergunta, "P?");
+  const semPergunta = lerRespostaIA('{"fala":"Um. Dois. Três. Quatro.","pergunta":""}');
+  assert.equal(semPergunta?.fala, "Um. Dois. Três.");
+  const perguntaLonga = lerRespostaIA('{"fala":"Fala.","pergunta":"Uma? Duas?"}');
+  assert.equal(perguntaLonga?.pergunta, "Uma?");
 });
 
 function deps(extra: Partial<DepsIA> = {}): DepsIA & { log: unknown[]; prompts: string[] } {

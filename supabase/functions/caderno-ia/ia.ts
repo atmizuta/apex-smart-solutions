@@ -17,25 +17,35 @@ export const LIMITE_CHAMADAS = 20;
 export const JANELA_MIN = 10;
 
 // Segunda barreira: o painel já não manda esses campos, mas o texto livre pode conter qualquer coisa.
+// Em vez de uma regex por formato (que vaza CPF/CEP/telefone escritos de jeito "livre": sem pontuação,
+// com espaço em vez de ponto, com 0 de tronco etc.), classifica qualquer sequência numérica com
+// separadores pela quantidade de dígitos que ela contém.
 export function mascarar(texto: string): string {
-  return String(texto ?? "")
-    .replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, "[EMAIL]")
-    .replace(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/g, "[CNPJ]")
-    .replace(/\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g, "[CPF]")
-    .replace(/\(?\b\d{2}\)?\s?9?\d{4}[-\s]?\d{4}\b/g, (m) => {
-      const d = m.replace(/\D/g, "");
-      // 11 dígitos com 3º dígito diferente de 9 não é celular com DDD: trata como CPF
-      if (d.length === 11 && d[2] !== "9") return "[CPF]";
-      return "[TELEFONE]";
-    })
-    .replace(/\b\d{11}\b/g, "[CPF]")
-    .replace(/\b\d{5}-\d{3}\b/g, "[CEP]");
+  const semEmail = String(texto ?? "").replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, "[EMAIL]");
+  return semEmail.replace(/[+(]?\d[\d\s().\/-]*\d/g, (m) => {
+    // data dd/mm/aaaa ou dd/mm/aa: não é dado pessoal mascarável aqui, deixa como está.
+    if (/^\d{2}\/\d{2}\/(\d{4}|\d{2})$/.test(m)) return m;
+    let d = m.replace(/\D/g, "");
+    if (d.length < 8) return m; // "12 linhas", "899,90": não é um documento/telefone
+    if (d.length >= 12 && d.length <= 13 && d.startsWith("55")) d = d.slice(2); // DDI Brasil
+    else if (d.length >= 11 && d.length <= 12 && d.startsWith("0")) d = d.slice(1); // 0 de tronco
+    if (d.length === 14) return "[CNPJ]";
+    // 11 dígitos com 3º dígito 9 é celular com DDD; senão é CPF sem pontuação.
+    if (d.length === 11) return d[2] === "9" ? "[TELEFONE]" : "[CPF]";
+    if (d.length === 10) return "[TELEFONE]"; // fixo com DDD
+    if (d.length === 8) return "[CEP]";
+    if (d.length >= 12 && d.length <= 13) return "[TELEFONE]"; // +55 sem o DDI já tratado acima
+    return "[NUMERO]"; // qualquer outra sequência longa: mascara por segurança
+  });
 }
 
 const txt = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const num = (v: unknown) => {
   if (v === null || v === undefined || v === "") return null;
-  const n = Number(String(v).replace(/\./g, "").replace(",", "."));
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  // "." só é separador de milhar quando há vírgula decimal (formato BR: "1.234,56"); senão é ponto decimal ("99.90").
+  const s = String(v);
+  const n = s.includes(",") ? Number(s.replace(/\./g, "").replace(",", ".")) : Number(s);
   return Number.isFinite(n) ? n : null;
 };
 
@@ -66,7 +76,7 @@ export function montarPrompt(dados: Entrada, base: Objecao | null, todas: Objeca
   const linhas = [
     "Você é um consultor experiente da Claro Empresas (B2B, telefonia móvel e fibra para CNPJ), em uma ligação AGORA.",
     "Escreva o que o consultor deve FALAR ao cliente, em português do Brasil, tom direto e cordial, como fala ao telefone.",
-    "Regras: no máximo 3 frases na fala; nunca cite preço em R$, promoção, desconto, prazo ou condição que não esteja abaixo;",
+    "Regras: no máximo 3 frases no total (fala + pergunta); nunca cite preço em R$, promoção, desconto, prazo ou condição que não esteja abaixo;",
     "franquias que podem ser citadas: 12GB, 40GB, 70GB, 100GB e 150GB (ancoragem: começar em 100GB ou 70GB).",
     "Termine com UMA pergunta de contorno para entender o motivo real.",
     "",
@@ -88,9 +98,9 @@ export function montarPrompt(dados: Entrada, base: Objecao | null, todas: Objeca
   return linhas.join("\n");
 }
 
-function tresFrases(s: string): string {
+function cortarFrases(s: string, max: number): string {
   const partes = s.trim().match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? [];
-  return partes.slice(0, 3).map((p) => p.trim()).join(" ");
+  return partes.slice(0, max).map((p) => p.trim()).join(" ");
 }
 
 export function lerRespostaIA(bruto: string): { fala: string; pergunta: string } | null {
@@ -98,7 +108,11 @@ export function lerRespostaIA(bruto: string): { fala: string; pergunta: string }
   try {
     const j = JSON.parse(limpo);
     if (!j || typeof j.fala !== "string" || !j.fala.trim()) return null;
-    return { fala: tresFrases(j.fala), pergunta: typeof j.pergunta === "string" ? j.pergunta.trim() : "" };
+    // Especificação: no máximo 3 frases no TOTAL (fala + pergunta). A pergunta fica com 1 frase;
+    // a fala fica com 2 se houver pergunta, ou 3 se a pergunta vier vazia.
+    const pergunta = cortarFrases(typeof j.pergunta === "string" ? j.pergunta.trim() : "", 1);
+    const fala = cortarFrases(j.fala, pergunta ? 2 : 3);
+    return { fala, pergunta };
   } catch {
     return null;
   }
