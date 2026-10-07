@@ -11412,6 +11412,14 @@ function cdEl(id){ return cdEstado.doc.getElementById(id) || document.getElement
 function cdLsChave(){ return 'caderno_rascunho_' + agUid(); }
 function cdLsGravar(pendente){ try{ localStorage.setItem(cdLsChave(), JSON.stringify({ nota: cdEstado.nota, pendente })); }catch(_e){ /* sem localStorage: segue só com o banco */ } }
 function cdLsLer(){ try{ return JSON.parse(localStorage.getItem(cdLsChave()) || 'null'); }catch(_e){ return null; } }
+// Fila de notas ainda não confirmadas no banco (por id) — além do rascunho atual (o que está na tela),
+// toda nota que trocou de atendimento (cdNovo/cdAbrirDoRetorno) sem terminar de salvar fica aqui até
+// confirmar; nada é removido da fila a não ser por um upsert bem-sucedido daquele id (REGRAS_NEGOCIO §72).
+function cdFilaChave(){ return 'caderno_pendentes_' + agUid(); }
+function cdFilaLer(){ try{ return JSON.parse(localStorage.getItem(cdFilaChave()) || '{}'); }catch(_e){ return {}; } }
+function cdFilaGravar(obj){ try{ localStorage.setItem(cdFilaChave(), JSON.stringify(obj)); }catch(_e){ /* sem localStorage: segue só com o banco */ } }
+function cdPendenteGuardar(n){ const f = cdFilaLer(); f[n.id] = n; cdFilaGravar(f); }
+function cdPendenteRemover(id){ const f = cdFilaLer(); if(f[id]){ delete f[id]; cdFilaGravar(f); } }
 function cdStatus(txt, offline){
   cdEstado.status = txt;
   const el = cdEl('cdStatus');
@@ -11443,11 +11451,11 @@ function cdRenderSugestoes(){
   cdEl('cdSugestoes').innerHTML = cdSugestoesPreencher(cdEstado.nota).map(s => `<button type="button" class="filterPill" data-cd-preencher="${s.campo}" data-valor="${escapeHtml(s.valor)}">Preencher ${s.campo.toUpperCase()}: ${escapeHtml(cdFmtCampo(s.campo, s.valor))}</button>`).join('');
 }
 function cdRenderAtalhos(){
-  cdEl('cdAtalhos').innerHTML = agAtalhos(agAgora()).map(a => `<button type="button" class="filterPill" data-cd-dia="${a.dia}" data-cd-hora="${a.hora}" data-cd-origem="manual">${a.rotulo}</button>`).join('');
+  cdEl('cdAtalhos').innerHTML = agAtalhos(agAgora()).map(a => `<button type="button" class="filterPill" data-cd-dia="${escapeHtml(a.dia)}" data-cd-hora="${escapeHtml(a.hora)}" data-cd-origem="manual">${escapeHtml(a.rotulo)}</button>`).join('');
 }
 function cdRenderSugestaoRetorno(){
   const n = cdEstado.nota, partes = [];
-  if(n.resultado === 'nao_atendeu'){ const a = agAtalhos(agAgora())[0]; partes.push(`<button type="button" class="btn btn-sm btn-outline" data-cd-dia="${a.dia}" data-cd-hora="${a.hora}" data-cd-origem="nao_atendeu" style="width:auto">Tentar de novo em 2h (${a.hora})</button>`); }
+  if(n.resultado === 'nao_atendeu'){ const a = agAtalhos(agAgora())[0]; partes.push(`<button type="button" class="btn btn-sm btn-outline" data-cd-dia="${escapeHtml(a.dia)}" data-cd-hora="${escapeHtml(a.hora)}" data-cd-origem="nao_atendeu" style="width:auto">${escapeHtml('Tentar de novo em 2h (' + a.hora + ')')}</button>`); }
   const f = cdSugestaoFidelidade(n.fidelidade_vence, agPartesSP(agAgora()).dia);
   if(f) partes.push(`<button type="button" class="btn btn-sm btn-outline" data-cd-dia="${f.dia}" data-cd-hora="09:00" data-cd-origem="fidelidade" style="width:auto">${escapeHtml(f.rotulo)}</button>`);
   cdEl('cdSugestaoRetorno').innerHTML = partes.join('');
@@ -11459,24 +11467,39 @@ function cdAgendarSalvar(){
   cdStatus('Salvando…');
   cdEstado.timer = setTimeout(() => { cdSalvarAgora(); }, cdEstado.debounceMs);
 }
-async function cdSalvarAgora(){
-  const n = cdEstado.nota;
+// Recebe a nota a salvar (por padrão a da tela). Fecha sobre ela para que, se o atendimento trocar
+// (cdNovo/cdAbrirDoRetorno) enquanto este upsert está no ar, a nota que saiu continue seu próprio
+// fluxo — nunca a de quem entrou. Toda nota passa pela fila de pendentes antes do upsert e só sai
+// dali com sucesso confirmado: é assim que nada se perde (REGRAS_NEGOCIO §72, "nunca perde").
+async function cdSalvarAgora(n){
+  n = n || cdEstado.nota;
   if(!n || cdNotaVazia(n) || !currentUser) return false;
+  const atual = () => cdEstado.nota === n;
+  clearTimeout(cdEstado.timer);
   clearTimeout(cdEstado.retryTimer);
-  cdLsGravar(true);
+  cdPendenteGuardar(n);
+  if(atual()) cdLsGravar(true);
   const r = await ppSeguro(() => sb.from('caderno_notas').upsert(cdPayload(n), { onConflict: 'id' }));
-  if(cdEstado.nota !== n){ return !(r && r.error); } // trocou de nota no meio: a outra segue o próprio fluxo
   if(r && r.error){
     if(agErroDeRede(r.error)){
-      cdStatus('Sem internet: guardado neste computador', true);
-      cdEstado.retryTimer = setTimeout(() => { cdSalvarAgora(); }, 15000);
-    } else cdStatus('Não salvou no servidor: guardado neste computador', true);
+      if(atual()) cdStatus('Sem internet: guardado neste computador', true);
+      cdEstado.retryTimer = setTimeout(() => { cdEnviarPendentes(); }, 15000);
+    } else if(atual()) cdStatus('Não salvou no servidor: guardado neste computador', true);
     return false;
   }
   n.atualizado_em = new Date().toISOString();
-  cdLsGravar(false);
-  cdStatus('Salvo ✓');
+  cdPendenteRemover(n.id);
+  if(atual()){ cdLsGravar(false); cdStatus('Salvo ✓'); }
   return true;
+}
+// Reenvia toda a fila de pendentes (notas que trocaram de atendimento ou ficaram sem rede sem
+// terminar de salvar). Chamada pelo timer de retry, pelo evento "online" e ao entrar/restaurar.
+async function cdEnviarPendentes(){
+  const fila = cdFilaLer();
+  for(const id of Object.keys(fila)){
+    const n = (cdEstado.nota && cdEstado.nota.id === id) ? cdEstado.nota : fila[id];
+    await cdSalvarAgora(n);
+  }
 }
 async function cdCarregarContexto(){
   const n = cdEstado.nota, k = chaveTel(n.telefone), cnpj = cdDigitos(n.cnpj);
@@ -11516,7 +11539,10 @@ function cdFechar(){
   cdEl('cdGaveta').classList.remove('aberta');
 }
 async function cdNovo(){
-  if(cdEstado.nota && !cdNotaVazia(cdEstado.nota)) await cdSalvarAgora();
+  const saindo = cdEstado.nota;
+  // Salva (ou deixa na fila de pendentes, se falhar) a nota que está saindo — nunca se perde, mesmo
+  // sem rede. Limpar o rascunho atual abaixo é seguro porque a nota que saiu já está na fila.
+  if(saindo && !cdNotaVazia(saindo)) await cdSalvarAgora(saindo);
   cdEstado.nota = cdNovaNota();
   cdEstado.historico = []; cdEstado.retornoPendente = null;
   try{ localStorage.removeItem(cdLsChave()); }catch(_e){ /* idem */ }
@@ -11524,7 +11550,8 @@ async function cdNovo(){
   cdAbrir(); cdRenderContexto();
 }
 async function cdAbrirDoRetorno(r){
-  if(cdEstado.nota && !cdNotaVazia(cdEstado.nota)) await cdSalvarAgora();
+  const saindo = cdEstado.nota;
+  if(saindo && !cdNotaVazia(saindo)) await cdSalvarAgora(saindo);
   let nota = null;
   if(r.nota_id){
     const q = await ppSeguro(() => sb.from('caderno_notas').select('*').eq('id', r.nota_id).maybeSingle());
@@ -11543,11 +11570,13 @@ async function cdAbrirDoRetorno(r){
 }
 async function cdRestaurar(){
   const ls = cdLsLer();
-  if(!ls || !ls.nota || !ls.nota.id) return;
-  cdEstado.nota = Object.assign(cdNovaNota(), ls.nota);
-  cdPreencherTela();
-  if(ls.pendente){ cdStatus('Salvando…'); await cdSalvarAgora(); }
-  else cdStatus('Salvo ✓');
+  if(ls && ls.nota && ls.nota.id){
+    cdEstado.nota = Object.assign(cdNovaNota(), ls.nota);
+    cdPreencherTela();
+    if(ls.pendente){ cdStatus('Salvando…'); await cdSalvarAgora(cdEstado.nota); }
+    else cdStatus('Salvo ✓');
+  }
+  await cdEnviarPendentes(); // outras notas que ficaram pendentes (trocadas sem rede) de uma sessão anterior
 }
 async function cdAgendarRetorno(dia, hora, origem){
   const n = cdEstado.nota;
@@ -11627,7 +11656,7 @@ function cdTeclas(ev){
 cdLigarEventos(document.getElementById('cdGaveta'));
 document.addEventListener('keydown', cdTeclas);
 document.getElementById('cdBotao').addEventListener('click', () => { if(cdEstado.aberto) cdFechar(); else cdAbrir(); });
-window.addEventListener('online', () => { if(currentUser && cdLsLer() && cdLsLer().pendente) cdSalvarAgora(); });
+window.addEventListener('online', () => { if(currentUser) cdEnviarPendentes(); });
 function alAtualizarAvisoPermissao(){ /* Task 10 */ }
 function objAplicarPermissaoEditor(){ /* Task 9 */ }
 async function loadAgenda(){

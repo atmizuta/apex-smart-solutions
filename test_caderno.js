@@ -34,7 +34,6 @@ rodar(`
   assert(!/99000|teste\\.com/.test(ctx.texto) && ctx.texto.includes('[TELEFONE]'), 'texto mascarado no navegador');
   assert(!cdTemContexto(cdNovaNota()) && cdTemContexto(Object.assign(cdNovaNota(), { operadora_atual: 'Vivo' })), 'tem contexto');
 
-  // ==== mais testes entram aqui ====
   // cdMascarar: mesma regra do mascarar() da Edge Function caderno-ia (ia.ts) — classificador único por quantidade de dígitos.
   eq(cdMascarar('13010000'), '[CEP]', 'mascarar: 8 dígitos seguidos = CEP');
   eq(cdMascarar('123 456 789-09'), '[CPF]', 'mascarar: 11 dígitos com separadores livres, 3º dígito ≠ 9 = CPF');
@@ -141,6 +140,42 @@ rodar(`
   eq([cdEstado.nota.id, document.getElementById('cdF_nome').value], ['n-ret', 'Retorno Teste'], 'abre a nota de origem');
   await cdAbrirDoRetorno({ id: 'r10', nota_id: null, nome: 'Sem Nota Teste', telefone: '19990000004' }); await espera(20);
   eq([document.getElementById('cdF_nome').value, document.getElementById('cdF_telefone').value], ['Sem Nota Teste', '19990000004'], 'sem nota: Caderno novo já com nome e telefone');
+
+  // fila de pendentes: trocar de atendimento sem internet não perde a nota anterior (revisão §72)
+  await cdNovo(); await espera(10);
+  const idA = cdEstado.nota.id;
+  window.__falharEscrita = (t) => (t === 'caderno_notas' ? { message: 'Failed to fetch' } : null);
+  digita('cdF_telefone', '19990000005');
+  digita('cdTexto', 'nota A sem internet');
+  await espera(40);
+  let filaPend = JSON.parse(localStorage.getItem('caderno_pendentes_c1'));
+  assert(filaPend && filaPend[idA] && filaPend[idA].texto === 'nota A sem internet', 'nota A entra na fila de pendentes (sem internet)');
+  // troca de atendimento (Alt+Shift+N) continua sem internet: a nota A não pode sumir
+  document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'N', altKey: true, shiftKey: true }));
+  await espera(40);
+  const idB = cdEstado.nota.id;
+  assert(idB !== idA, 'trocou para a nota B');
+  digita('cdF_telefone', '19990000006');
+  digita('cdTexto', 'nota B sem internet');
+  await espera(40);
+  filaPend = JSON.parse(localStorage.getItem('caderno_pendentes_c1'));
+  assert(filaPend[idA] && filaPend[idA].texto === 'nota A sem internet', 'nota A continua na fila depois de trocar de atendimento');
+  assert(filaPend[idB] && filaPend[idB].texto === 'nota B sem internet', 'nota B também entra na fila (ainda sem internet)');
+  // cdAbrirDoRetorno com uma pendente no meio: a pendente continua guardada
+  await cdAbrirDoRetorno({ id: 'r11', nota_id: null, nome: 'Outro Retorno', telefone: '19990000008' });
+  await espera(30);
+  filaPend = JSON.parse(localStorage.getItem('caderno_pendentes_c1'));
+  assert(filaPend[idA] && filaPend[idB], 'abrir outro retorno sem internet não derruba as pendentes da fila');
+  // rede volta: o evento "online" reenvia a fila inteira, sem duplicar e sem perder nada
+  window.__falharEscrita = null;
+  window.dispatchEvent(new window.Event('online'));
+  await espera(80);
+  const upA = window.__escritas.filter(e => e.tabela === 'caderno_notas' && e.op === 'upsert' && e.rows.id === idA).pop();
+  const upB = window.__escritas.filter(e => e.tabela === 'caderno_notas' && e.op === 'upsert' && e.rows.id === idB).pop();
+  assert(upA && upA.rows.texto === 'nota A sem internet', 'nota A é reenviada quando a rede volta');
+  assert(upB && upB.rows.texto === 'nota B sem internet', 'nota B é reenviada quando a rede volta');
+  filaPend = JSON.parse(localStorage.getItem('caderno_pendentes_c1')) || {};
+  assert(!filaPend[idA] && !filaPend[idB], 'nenhuma das duas fica na fila depois de enviada');
 
   // logout limpa
   cadernoResetar();
