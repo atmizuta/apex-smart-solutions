@@ -16,13 +16,26 @@ function montarPainel(){
   Object.assign(window, { __tabelas: {}, __escritas: [], __rpcCalls: [], __rpcRespostas: {}, __invocacoes: [], __invokeResposta: null,
     __falharEscrita: null, __alertas: [], __notificacoes: [], __abertos: [], __copiados: [] });
 
+  // Compara valores de coluna para gte/lte/order: timestamptz do banco chega como ISO com offsets
+  // variados ("-03:00" vs "Z"), e comparação por texto dá resposta errada em silêncio. Se os dois
+  // parecem data/hora ISO e dão parse, compara por instante (epoch ms); números comparam numericamente;
+  // o resto cai na comparação de texto/locale de sempre.
+  function pareceIso(v){ return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v); }
+  function cmpValor(a, b){
+    if(pareceIso(a) && pareceIso(b)){
+      const ta = Date.parse(a), tb = Date.parse(b);
+      if(!isNaN(ta) && !isNaN(tb)) return ta - tb;
+    }
+    if(typeof a === 'number' && typeof b === 'number') return a - b;
+    return String(a).localeCompare(String(b));
+  }
   function builder(tabela){
     const f = { eq: {}, neq: {}, gte: [], lte: [], ou: null, ordem: null, lim: null };
     const linhas = () => {
       let ls = (window.__tabelas[tabela] || []).filter(l => Object.keys(f.eq).every(c => l[c] === f.eq[c]) && Object.keys(f.neq).every(c => l[c] !== f.neq[c]));
-      ls = ls.filter(l => f.gte.every(([c, v]) => String(l[c]) >= String(v)) && f.lte.every(([c, v]) => String(l[c]) <= String(v)));
+      ls = ls.filter(l => f.gte.every(([c, v]) => cmpValor(l[c], v) >= 0) && f.lte.every(([c, v]) => cmpValor(l[c], v) <= 0));
       if(f.ou) ls = ls.filter(l => f.ou.some(([c, v]) => String(l[c]) === v));
-      if(f.ordem) ls = ls.slice().sort((a, b) => String(a[f.ordem[0]]).localeCompare(String(b[f.ordem[0]])) * (f.ordem[1] ? 1 : -1));
+      if(f.ordem) ls = ls.slice().sort((a, b) => cmpValor(a[f.ordem[0]], b[f.ordem[0]]) * (f.ordem[1] ? 1 : -1));
       if(f.lim) ls = ls.slice(0, f.lim);
       return ls;
     };

@@ -49,6 +49,15 @@ rodar(`
   eq(agPedidosItens(calc), [{ dia: '2026-10-01', numero: 'N9', cliente: 'Cli Teste', tipoData: 'instalação' }], 'pedidos: sem data fica fora');
   eq(agPedidosItens(null), [], 'sem cálculo de pedidos');
 
+  // ==== FIX: mock compara timestamptz por instante, não por texto (offsets diferentes) ====
+  window.__tabelas.x = [{ id: 'xa', quando: '2026-10-06T13:30:00-03:00' }, { id: 'xb', quando: '2026-10-06T16:00:00Z' }];
+  const porInstante = await sb.from('x').select().gte('quando', '2026-10-06T16:10:00Z');
+  eq(porInstante.data.map(r => r.id), ['xa'], 'gte compara por instante: 13:30-03:00 (16:30 UTC) passa de 16:10Z, 16:00Z não');
+  const porInstanteLte = await sb.from('x').select().lte('quando', '2026-10-06T16:10:00Z');
+  eq(porInstanteLte.data.map(r => r.id), ['xb'], 'lte compara por instante: 16:00Z fica, 13:30-03:00 (16:30 UTC) não');
+  const ordenado = await sb.from('x').select().order('quando');
+  eq(ordenado.data.map(r => r.id), ['xb', 'xa'], 'order compara por instante: 16:00Z vem antes de 13:30-03:00 (16:30 UTC)');
+
   // ==== mais testes entram aqui ====
   fim();
 `);
