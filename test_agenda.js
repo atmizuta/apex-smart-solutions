@@ -27,7 +27,7 @@ rodar(`
     { id: 'r6', status: 'feito', quando: '2026-10-06T18:00:00-03:00', nome: 'E Teste' },
   ];
   const pd = agPorDia(rets, [{ dia: '2026-10-06', numero: 'N1', cliente: 'Cliente Teste', tipoData: 'portabilidade' }]);
-  eq(pd.get('2026-10-06').retornos.map(r => r.id), ['r2', 'r1', 'r5', 'r4', 'r6'], 'ordem por hora, cancelado fora, 22:30 SP no mesmo dia');
+  eq(pd.get('2026-10-06').retornos.map(r => r.id), ['r2', 'r1', 'r5', 'r6', 'r4'], 'ordem por hora (feito incluído), cancelado fora, 22:30 SP no mesmo dia');
   eq(pd.get('2026-10-06').pedidos.length, 1, 'pedido no dia');
   const res = agResumoDia(pd.get('2026-10-06'), AGORA);
   eq([res.visiveis.length, res.mais, res.atrasados], [3, 3, 1], 'até 3 visíveis, +3, 1 atrasado (09:00)');

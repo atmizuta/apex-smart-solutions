@@ -11078,8 +11078,7 @@ function agPorDia(retornos, pedidos){
   const slot = d => { if(!m.has(d)) m.set(d, { retornos: [], pedidos: [] }); return m.get(d); };
   (retornos || []).filter(r => r.status !== 'cancelado').forEach(r => slot(agPartesSP(r.quando).dia).retornos.push(r));
   (pedidos || []).forEach(p => { if(p.dia) slot(p.dia).pedidos.push(p); });
-  // feito vai para o fim da lista do dia (já resolvido, menos prioridade); dentro de cada grupo, por hora.
-  m.forEach(v => v.retornos.sort((a, b) => (a.status === 'feito' ? 1 : 0) - (b.status === 'feito' ? 1 : 0) || new Date(a.quando) - new Date(b.quando)));
+  m.forEach(v => v.retornos.sort((a, b) => new Date(a.quando) - new Date(b.quando)));
   return m;
 }
 function agResumoDia(entrada, agora){
