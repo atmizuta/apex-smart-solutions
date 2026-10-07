@@ -48,5 +48,105 @@ rodar(`
   eq(cdNum('12.500'), 12500, 'num: ponto como milhar (outro caso)');
   eq(cdNum('99.90'), 99.9, 'num: ponto decimal (não são 3 dígitos após o ponto, sem vírgula)');
   eq(cdNum(42), 42, 'num: número já pronto passa direto');
+
+  // ==== TASK 7: gaveta, salvamento, histórico, retorno ====
+  const nowReal = Date.now;
+  const AGORA = sp('2026-10-06T10:00:00');
+  Date.now = () => AGORA;
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  cdEstado.debounceMs = 0;
+  try{ localStorage.clear(); }catch(_e){}
+  cadernoAoEntrar();
+  assert(document.getElementById('cdBotao').style.display !== 'none', 'botão do Caderno aparece logado');
+  document.getElementById('cdBotao').click();
+  assert(document.getElementById('cdGaveta').classList.contains('aberta'), 'abre a gaveta');
+  assert(document.activeElement === document.getElementById('cdF_telefone'), 'cursor no telefone');
+  // Alt+N fecha e abre
+  document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'n', altKey: true }));
+  assert(!document.getElementById('cdGaveta').classList.contains('aberta'), 'Alt+N fecha');
+  document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'n', altKey: true }));
+  assert(document.getElementById('cdGaveta').classList.contains('aberta'), 'Alt+N abre');
+
+  // digitar salva (local + banco), sem duplicar
+  const idNota = cdEstado.nota.id;
+  window.__tabelas.caderno_notas = [{ id: 'antiga', consultor_id: 'c1', chave_tel: '1990000001', nome: 'Empresa Teste', texto: 'ligou ontem\\nqueria 70GB', resultado: 'nao_atendeu', atualizado_em: '2026-10-05T15:00:00Z' }];
+  window.__tabelas.agenda_retornos = [{ id: 'rp', consultor_id: 'c1', chave_tel: '1990000001', status: 'pendente', quando: '2026-10-08T14:30:00-03:00', nome: 'Empresa Teste' }];
+  const digita = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new window.Event('input', { bubbles: true })); };
+  digita('cdF_telefone', '(19) 99000-0001');
+  digita('cdF_nome', 'Empresa Teste');
+  digita('cdTexto', 'cnpj 11.222.333/0001-81, 12 linhas na Vivo');
+  await espera(40);
+  const ups = window.__escritas.filter(e => e.tabela === 'caderno_notas' && e.op === 'upsert');
+  assert(ups.length >= 1 && ups.every(u => u.rows.id === idNota && u.opts.onConflict === 'id'), 'upsert pelo mesmo id');
+  eq(document.getElementById('cdStatus').textContent, 'Salvo ✓', 'indicador salvo');
+  const ls = JSON.parse(localStorage.getItem('caderno_rascunho_c1'));
+  assert(ls && ls.nota.id === idNota && ls.pendente === false, 'rascunho local marcado como enviado');
+  // sugestão de preencher (CNPJ reconhecido)
+  const sug = document.querySelector('#cdSugestoes [data-cd-preencher="cnpj"]');
+  assert(sug, 'sugere preencher CNPJ');
+  sug.click(); await espera(10);
+  eq(document.getElementById('cdF_cnpj').value, '11.222.333/0001-81', 'preencheu formatado');
+  // histórico e retorno pendente do mesmo telefone
+  await espera(40);
+  assert(document.getElementById('cdHistorico').textContent.includes('ligou ontem') && document.getElementById('cdHistorico').textContent.includes('Não atendeu'), 'histórico do cliente');
+  assert(document.getElementById('cdRetornoPendente').textContent.includes('qui 08/10 14:30'), 'retorno pendente mostrado');
+  // CPF inválido: aviso discreto
+  digita('cdF_cpf', '123.456.789-00');
+  assert(document.getElementById('cdF_cpf').closest('.field').classList.contains('cdAviso'), 'aviso de CPF inválido');
+
+  // sem rede: guarda local, tenta de novo; nada se perde
+  window.__falharEscrita = (t, op) => (t === 'caderno_notas' ? { message: 'Failed to fetch' } : null);
+  digita('cdTexto', 'cnpj 11.222.333/0001-81, 12 linhas na Vivo. Volta amanhã');
+  await espera(40);
+  eq(document.getElementById('cdStatus').textContent, 'Sem internet: guardado neste computador', 'indicador offline');
+  assert(JSON.parse(localStorage.getItem('caderno_rascunho_c1')).pendente === true, 'rascunho pendente');
+  // recarregar a página (novo estado) restaura e reenvia
+  window.__falharEscrita = null;
+  cdEstado.nota = null;
+  await cdRestaurar(); await espera(30);
+  eq(cdEstado.nota.id, idNota, 'restaurou a mesma nota');
+  assert(document.getElementById('cdTexto').value.includes('Volta amanhã'), 'texto restaurado');
+  eq(document.getElementById('cdStatus').textContent, 'Salvo ✓', 'reenviado depois de restaurar');
+
+  // agendar retorno do próprio Caderno
+  const btnAmanha = [...document.querySelectorAll('#cdAtalhos [data-cd-dia]')].find(b => b.textContent === 'Amanhã 9h');
+  btnAmanha.click(); await espera(40);
+  const ret = window.__escritas.filter(e => e.tabela === 'agenda_retornos' && e.op === 'insert').pop();
+  eq([ret.rows.quando, ret.rows.nome, ret.rows.nota_id, ret.rows.origem], ['2026-10-07T09:00:00-03:00', 'Empresa Teste', idNota, 'manual'], 'retorno nasce do Caderno');
+  // "Não atendeu" oferece tentar em 2h
+  document.querySelector('#cdResultado [data-cd-res="nao_atendeu"]').click(); await espera(10);
+  const tentar = document.querySelector('#cdSugestaoRetorno [data-cd-dia]');
+  assert(tentar && tentar.textContent.includes('Tentar de novo em 2h'), 'sugestão após não atendeu');
+  tentar.click(); await espera(40);
+  eq(window.__escritas.filter(e => e.tabela === 'agenda_retornos' && e.op === 'insert').pop().rows.origem, 'nao_atendeu', 'origem nao_atendeu');
+  // fidelidade sugere 45 dias antes
+  digita('cdF_fidelidade_vence', '2027-03');
+  const fid = document.querySelector('#cdSugestaoRetorno [data-cd-origem="fidelidade"]');
+  assert(fid && fid.textContent.includes('15/01'), 'sugestão de fidelidade');
+  fid.click(); await espera(40);
+  eq(window.__escritas.filter(e => e.tabela === 'agenda_retornos' && e.op === 'insert').pop().rows.quando, '2027-01-15T09:00:00-03:00', 'retorno da fidelidade às 9h');
+
+  // novo atendimento: nova nota, a anterior já salva
+  document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'N', altKey: true, shiftKey: true }));
+  await espera(30); // cdNovo salva a nota atual antes de trocar
+  assert(cdEstado.nota.id !== idNota && document.getElementById('cdF_telefone').value === '', 'novo atendimento em branco');
+  // nota vazia não é gravada
+  const antes = window.__escritas.length;
+  cdAgendarSalvar(); await espera(20);
+  eq(window.__escritas.length, antes, 'nota vazia não grava');
+
+  // abrir a partir de um retorno da Agenda
+  window.__tabelas.caderno_notas.push({ id: 'n-ret', consultor_id: 'c1', telefone: '19990000003', nome: 'Retorno Teste', texto: 'detalhes', interesse: [], objecoes: [] });
+  await cdAbrirDoRetorno({ id: 'r9', nota_id: 'n-ret', nome: 'Retorno Teste', telefone: '19990000003' }); await espera(20);
+  eq([cdEstado.nota.id, document.getElementById('cdF_nome').value], ['n-ret', 'Retorno Teste'], 'abre a nota de origem');
+  await cdAbrirDoRetorno({ id: 'r10', nota_id: null, nome: 'Sem Nota Teste', telefone: '19990000004' }); await espera(20);
+  eq([document.getElementById('cdF_nome').value, document.getElementById('cdF_telefone').value], ['Sem Nota Teste', '19990000004'], 'sem nota: Caderno novo já com nome e telefone');
+
+  // logout limpa
+  cadernoResetar();
+  assert(document.getElementById('cdBotao').style.display === 'none' && !document.getElementById('cdGaveta').classList.contains('aberta'), 'logout esconde o Caderno');
+  Date.now = nowReal;
+
+  // ==== mais testes entram aqui ====
   fim();
 `);
