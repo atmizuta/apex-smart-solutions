@@ -103,6 +103,30 @@ rodar(`
   assert(document.querySelector('#cdObjecoes [data-obj="pensar"]').classList.contains('active'), 'novo chip clicado fica ativo');
   assert(document.querySelector('#cdObjecoes [data-obj="caro"]').classList.contains('active'), 'chip anterior (já registrado na nota) continua ativo');
 
+  // Fix round 2 (revisão Task 8, Crítico): trocar de atendimento (Alt+Shift+N) não pode deixar a
+  // resposta do cliente anterior visível para o novo — nem a que chega atrasada, depois da troca.
+  window.__invokeResposta = () => Promise.resolve({ data: { fala: 'Resposta cliente A.', pergunta: 'Pergunta A?' }, error: null });
+  objEstado.cache.clear();
+  document.querySelector('#cdObjecoes [data-obj="caro"]').click();
+  await espera(30);
+  assert(document.getElementById('objResposta').textContent.includes('Fala caro.'), 'biblioteca do cliente A na tela antes de trocar');
+  assert(document.getElementById('objIA').textContent.includes('Resposta cliente A.'), 'IA do cliente A na tela antes de trocar');
+  document.getElementById('objLivre').value = 'texto do cliente A';
+  const notaA = cdEstado.nota.id;
+  // resposta da IA do cliente A que só chega depois da troca de atendimento
+  window.__invokeResposta = () => new Promise((res) => setTimeout(() => res({ data: { fala: 'Resposta atrasada do cliente A.', pergunta: '' }, error: null }), 40));
+  document.querySelector('#cdObjecoes [data-obj="pensar"]').click(); // dispara um pedido de IA que só resolve depois da troca
+  document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'N', altKey: true, shiftKey: true })); // Alt+Shift+N: novo atendimento
+  await espera(30);
+  assert(cdEstado.nota.id !== notaA, 'trocou de atendimento');
+  eq(document.getElementById('objLivre').value, '', 'campo livre vazio após trocar de atendimento');
+  eq(document.getElementById('objResposta').innerHTML, '', 'biblioteca vazia após trocar de atendimento');
+  eq(document.getElementById('objIA').innerHTML, '', 'IA vazia após trocar de atendimento');
+  await espera(60); // dá tempo da resposta atrasada do cliente A chegar — não pode aparecer
+  assert(!document.getElementById('objIA').textContent.includes('Resposta atrasada do cliente A.'), 'resposta atrasada do cliente anterior não aparece no novo atendimento');
+  eq(document.getElementById('objResposta').innerHTML, '', 'biblioteca do cliente anterior não volta sozinha');
+  eq(document.getElementById('objLivre').value, '', 'campo livre continua vazio depois da resposta atrasada');
+
   // biblioteca que falha ao carregar: aviso no bloco, Caderno segue
   window.__tabelas.objecoes_respostas = null;
   const sbFrom = sb.from;

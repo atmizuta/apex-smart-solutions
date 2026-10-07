@@ -11594,6 +11594,7 @@ async function cdNovo(){
   cdEstado.historico = []; cdEstado.retornoPendente = null;
   try{ localStorage.removeItem(cdLsChave()); }catch(_e){ /* idem */ }
   cdStatus('');
+  if(typeof objAoTrocarNota === 'function') objAoTrocarNota();
   cdAbrir(); cdRenderContexto();
 }
 async function cdAbrirDoRetorno(r){
@@ -11612,6 +11613,7 @@ async function cdAbrirDoRetorno(r){
   cdEstado.nota = nota || Object.assign(cdNovaNota(), { nome: r.nome || '', telefone: r.telefone || '' });
   CD_CAMPOS.forEach(c => { if(cdEstado.nota[c] == null) cdEstado.nota[c] = ''; });
   cdStatus(nota ? 'Salvo ✓' : '');
+  if(typeof objAoTrocarNota === 'function') objAoTrocarNota();
   cdAbrir();
   cdCarregarContexto();
 }
@@ -11751,6 +11753,18 @@ function objRenderBiblioteca(chave){
     + `<div class="objAcoes"><button type="button" class="btn btn-sm btn-outline" data-obj-copiar="${escapeHtml(chave)}" style="width:auto">Copiar</button><button type="button" class="btn btn-sm btn-ghost" data-obj-usei="${escapeHtml(chave)}" style="width:auto">Usei</button><button type="button" class="btn btn-sm btn-ghost" data-obj-treinar="1" style="width:auto">Treinar no Apex Mind</button></div>`;
 }
 function objCacheChave(chave, ctx){ return chave + '|' + JSON.stringify(ctx); }
+// Chamada ao trocar de atendimento (Novo, abrir pelo retorno, histórico): a resposta de objeção do
+// cliente anterior nunca pode aparecer para o novo. Zera a tela (biblioteca, IA e o campo livre) e
+// invalida qualquer resposta da IA ainda no ar — quando ela chegar, objBuscarIA compara `pedido`
+// com `objEstado.pedido` e descarta por ser de um pedido antigo. O cache de 10 min (chave por
+// objeção + contexto mascarado, sem identidade) pode continuar valendo entre atendimentos.
+function objAoTrocarNota(){
+  objEstado.aberta = null;
+  objEstado.pedido++;
+  const livre = cdEl('objLivre'); if(livre) livre.value = '';
+  const resp = cdEl('objResposta'); if(resp) resp.innerHTML = '';
+  const ia = cdEl('objIA'); if(ia) ia.innerHTML = '';
+}
 function objMostrar(chave){
   if(!cdEstado.nota) return;
   objEstado.aberta = chave;
