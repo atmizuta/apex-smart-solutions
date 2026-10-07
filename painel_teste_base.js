@@ -5,6 +5,9 @@ const fs = require('fs');
 const { JSDOM } = require('jsdom');
 const { comRange } = require('./test_helper_mock.js');
 
+// Tabelas do §72 com "consultor_id uuid not null default auth.uid()" (migration 20261006100000).
+const TABELAS_UID = ['caderno_notas', 'agenda_retornos', 'objecoes_uso'];
+
 function montarPainel(){
   const html = fs.readFileSync('_template.html', 'utf8');
   const htmlNoScript = html.replace(/<script>[\s\S]*?<\/script>/g, '');
@@ -41,10 +44,16 @@ function montarPainel(){
     };
     const escrita = (op, extra) => {
       window.__escritas.push(Object.assign({ tabela, op }, extra));
-      const erro = window.__falharEscrita ? window.__falharEscrita(tabela, op) : null;
+      const erro = window.__falharEscrita ? window.__falharEscrita(tabela, op, extra) : null;
       if(!erro && (op === 'upsert' || op === 'insert')){
         const t = window.__tabelas[tabela] = window.__tabelas[tabela] || [];
-        [].concat(extra.rows).forEach(r => { const i = t.findIndex(x => r.id && x.id === r.id); if(i >= 0) t[i] = Object.assign({}, t[i], r); else t.push(Object.assign({}, r)); });
+        // linha nova sem consultor_id ganha o do usuário logado, como o "default auth.uid()" das tabelas do §72
+        const uidPadrao = () => (window.__uidAtual ? window.__uidAtual() : null);
+        [].concat(extra.rows).forEach(r => {
+          const i = t.findIndex(x => r.id && x.id === r.id);
+          if(i >= 0) t[i] = Object.assign({}, t[i], r);
+          else t.push(Object.assign(TABELAS_UID.includes(tabela) && !('consultor_id' in r) && uidPadrao() ? { consultor_id: uidPadrao() } : {}, r));
+        });
       }
       return Promise.resolve({ error: erro || null });
     };
@@ -56,12 +65,27 @@ function montarPainel(){
       order: (c, o) => { f.ordem = [c, !o || o.ascending !== false]; return b; }, limit: (n) => { f.lim = n; return b; },
       upsert: (rows, opts) => escrita('upsert', { rows, opts }),
       insert: (rows) => escrita('insert', { rows }),
-      update: (patch) => ({ eq: (c, v) => {
-        const erro = window.__falharEscrita ? window.__falharEscrita(tabela, 'update') : null;
-        window.__escritas.push({ tabela, op: 'update', patch, filtro: { [c]: v } });
-        if(!erro) (window.__tabelas[tabela] || []).forEach(l => { if(l[c] === v) Object.assign(l, patch); });
-        return Promise.resolve({ error: erro || null });
-      } }),
+      // update(patch).eq(c, v)[.eq(...)][.select(cols)] — grava na hora do await. Com .select(), devolve em
+      // data as linhas que casaram (como o PostgREST faz com return=representation): 0 linhas = o RLS
+      // (ou o filtro) não deixou atualizar nada. Sem .select(), devolve só { error } como antes.
+      update: (patch) => {
+        const filtro = {}; let comSelect = false, feito = null;
+        const executar = () => {
+          if(feito) return feito;
+          const erro = window.__falharEscrita ? window.__falharEscrita(tabela, 'update', { patch, filtro }) : null;
+          window.__escritas.push({ tabela, op: 'update', patch, filtro: Object.assign({}, filtro) });
+          const casaram = erro ? [] : (window.__tabelas[tabela] || []).filter(l => Object.keys(filtro).every(c => l[c] === filtro[c]));
+          casaram.forEach(l => Object.assign(l, patch));
+          feito = Promise.resolve(comSelect ? { data: erro ? null : casaram.map(l => Object.assign({}, l)), error: erro || null } : { error: erro || null });
+          return feito;
+        };
+        const u = {
+          eq: (c, v) => { filtro[c] = v; return u; },
+          select: () => { comSelect = true; return u; },
+          then: (ok, ko) => executar().then(ok, ko),
+        };
+        return u;
+      },
       maybeSingle: async () => ({ data: linhas()[0] || null, error: null }),
       then: (ok, ko) => Promise.resolve({ data: linhas(), error: null }).then(ok, ko),
     };
@@ -89,7 +113,7 @@ function montarPainel(){
   window.TextDecoder = TextDecoder;
   window.process = process;
   window.open = (u) => { window.__abertos.push(u); return null; };
-  window.Notification = function(titulo, opts){ window.__notificacoes.push({ titulo, opts }); this.close = () => {}; };
+  window.Notification = function(titulo, opts){ window.__notificacoes.push({ titulo, opts, inst: this }); this.close = () => {}; };
   window.Notification.permission = 'granted';
   window.Notification.requestPermission = async () => 'granted';
   if(!window.crypto || !window.crypto.randomUUID){
@@ -105,6 +129,8 @@ try{
   function assert(cond, msg){ if(cond){ ok++; } else { fail++; console.log('FALHOU:', msg); } }
   function eq(a, b, msg){ assert(JSON.stringify(a) === JSON.stringify(b), msg + ' — esperado ' + JSON.stringify(b) + ', veio ' + JSON.stringify(a)); }
   const espera = (ms) => new Promise(r => setTimeout(r, ms || 20));
+  // o mock do Supabase (fora deste eval) usa isto para o "default auth.uid()" de consultor_id
+  window.__uidAtual = () => (typeof currentUser !== 'undefined' && currentUser ? currentUser.id : null);
   const sp = (s) => Date.parse(s + '-03:00');
   function fim(){ console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---'); process.exit(fail > 0 ? 1 : 0); }
   // mostrarAviso cai em alert() sem animação e em #apexToasts com animação: o teste olha os dois
