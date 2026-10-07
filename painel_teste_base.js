@@ -104,6 +104,24 @@ function montarPainel(){
         };
         return u;
       },
+      // delete().eq(c, v)[.eq(...)] — tira as linhas que casarem assim que o await acontece (igual ao
+      // update sem .select()); grava em __escritas pra os testes conferirem (seção 74, excluir anotação).
+      delete: () => {
+        const filtro = {}; let feito = null;
+        const executar = () => {
+          if(feito) return feito;
+          const erro = window.__falharEscrita ? window.__falharEscrita(tabela, 'delete', { filtro }) : null;
+          window.__escritas.push({ tabela, op: 'delete', filtro: Object.assign({}, filtro) });
+          if(!erro) window.__tabelas[tabela] = (window.__tabelas[tabela] || []).filter(l => !Object.keys(filtro).every(c => l[c] === filtro[c]));
+          feito = Promise.resolve({ error: erro || null });
+          return feito;
+        };
+        const d = {
+          eq: (c, v) => { filtro[c] = v; return d; },
+          then: (ok, ko) => executar().then(ok, ko),
+        };
+        return d;
+      },
       maybeSingle: async () => ({ data: linhas()[0] || null, error: null }),
       then: (ok, ko) => {
         // select('*', { count: 'exact' }): count é o total que bate no filtro, sem o .range() da página

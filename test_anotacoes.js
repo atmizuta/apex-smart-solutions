@@ -239,6 +239,37 @@ rodar(`
   eq(document.querySelectorAll('#anLista .anCard').length, 50, 'corrida: resposta atrasada (Atendeu, vazia) não apaga a lista já carregada de "Todos"');
   sb.from = fromOriginalRace;
 
+  // ==== SEÇÃO 74 (07/10/2026): lixeira do cartão — confirmação em tela, exclui, some da lista sem
+  // abrir o Caderno, e avisa a Agenda/alertas (agenda:mudou) ====
+  window.__tabelas.caderno_notas.push(nota('nDel', 'c1', { nome: 'Nota Para Excluir Teste Unica', texto: 'apagar isso', atualizado_em: '2026-10-07T11:00:00-03:00' }));
+  // busca isola o cartão (nome único), sem depender da paginação/ordem da massa de dados dos testes anteriores
+  document.getElementById('anBusca').value = 'Excluir Teste Unica';
+  document.getElementById('anBusca').dispatchEvent(new window.Event('input', { bubbles: true }));
+  await espera(350);
+  eq(anEstado.notas.map(n => n.id), ['nDel'], 'busca isola o cartão a excluir');
+  let abriuCaderno = false;
+  const cdAbrirOriginalDel = cdAbrirDoRetorno;
+  cdAbrirDoRetorno = () => { abriuCaderno = true; };
+  let agendaMudouCount = 0;
+  document.addEventListener('agenda:mudou', () => { agendaMudouCount++; });
+  const cartaoDel = document.querySelector('#anLista .anCard[data-id="nDel"]');
+  assert(cartaoDel, 'cartão da nota a excluir aparece na lista');
+  const lixeira = cartaoDel.querySelector('[data-an-excluir="nDel"]');
+  assert(lixeira, 'cartão tem botão de lixeira (excluir)');
+  lixeira.click();
+  assert(!abriuCaderno, 'clicar na lixeira não abre o Caderno (não é o clique no cartão)');
+  assert(document.getElementById('cdExcluirOverlay').classList.contains('active'), 'lixeira pede confirmação em tela (sem window.confirm)');
+  document.getElementById('cdExcluirConfirmar').click();
+  await espera(30);
+  assert(window.__escritas.some(e => e.tabela === 'caderno_notas' && e.op === 'delete' && e.filtro.id === 'nDel'), 'confirmar a lixeira chama delete com o id certo');
+  assert(!document.querySelector('#anLista .anCard[data-id="nDel"]'), 'cartão some da lista depois de excluído');
+  assert(!abriuCaderno, 'excluir pela lixeira nunca abre o Caderno');
+  assert(agendaMudouCount > 0, 'agenda:mudou disparado depois de excluir (Agenda/alertas atualizam)');
+  cdAbrirDoRetorno = cdAbrirOriginalDel;
+  document.getElementById('anBusca').value = '';
+  document.getElementById('anBusca').dispatchEvent(new window.Event('input', { bubbles: true }));
+  await espera(350);
+
   // ==== falha ao carregar: aviso, sem quebrar o painel ====
   // volta pro período "30 dias" (com corte de data, chama .gte) pra bater com a cadeia simulada abaixo.
   document.querySelector('#anPeriodo [data-an-periodo="30d"]').click();

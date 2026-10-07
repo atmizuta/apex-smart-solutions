@@ -442,6 +442,92 @@ rodar(`
   assert(document.getElementById('cdGaveta') && !document.getElementById('cdGaveta').classList.contains('aberta') && !cdEstado.aberto, 'M-1: Caderno fica fechado depois do X');
   if(cdEstado.doc !== document) cdRecolher();
 
+  // ==== SEÇÃO 74 (07/10/2026): excluir anotação — botão vira ícone e a bolinha do Apex Mind some (fica no DOM) ====
+  assert(document.getElementById('apexMindBubble').style.display === 'none', 'Apex Mind escondida (display:none) mas continua no DOM');
+  assert(document.getElementById('apexMindBubble').querySelector('svg'), 'Apex Mind: SVG continua intacto');
+  assert(document.getElementById('cdBotao').querySelector('svg'), 'botão do Caderno agora é um ícone (SVG)');
+  eq(document.getElementById('cdBotao').getAttribute('aria-label'), 'Abrir Caderno de Ligação', 'botão do Caderno mantém o aria-label');
+  assert(!document.getElementById('cdBotao').textContent.includes('Caderno'), 'botão do Caderno não mostra mais o texto "Caderno"');
+
+  // ==== SEÇÃO 74: excluir anotação — confirmação em tela (sem window.confirm), nunca ressuscita ====
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  cadernoAoEntrar(); await espera(20);
+  window.__falharEscrita = null;
+  await cdNovo(); await espera(10);
+  assert(document.getElementById('cdExcluir').style.display === 'none', 'nota em branco: botão Excluir escondido');
+  digita('cdF_telefone', '19990000051');
+  digita('cdTexto', 'excluir teste 1');
+  await espera(40);
+  assert(document.getElementById('cdExcluir').style.display !== 'none', 'nota salva: botão Excluir aparece');
+  const idDel1 = cdEstado.nota.id;
+  document.getElementById('cdExcluir').click();
+  assert(document.getElementById('cdExcluirOverlay').classList.contains('active'), 'abre confirmação em tela, não window.confirm');
+  assert(document.getElementById('cdExcluirOverlay').textContent.includes('Não dá para desfazer'), 'texto de confirmação');
+  // cancelar: mantém tudo
+  document.getElementById('cdExcluirCancelar').click();
+  assert(!document.getElementById('cdExcluirOverlay').classList.contains('active'), 'cancelar fecha a confirmação');
+  eq(cdEstado.nota.id, idDel1, 'cancelar: continua a mesma nota aberta');
+  assert(!window.__escritas.some(e => e.tabela === 'caderno_notas' && e.op === 'delete'), 'cancelar: não chama delete');
+  // confirmar: exclui de verdade
+  document.getElementById('cdExcluir').click();
+  document.getElementById('cdExcluirConfirmar').click();
+  await espera(30);
+  const delChamada = window.__escritas.filter(e => e.tabela === 'caderno_notas' && e.op === 'delete').pop();
+  assert(delChamada && delChamada.filtro.id === idDel1, 'confirmar: delete chamado com o id da nota');
+  assert(cdEstado.nota && cdEstado.nota.id !== idDel1, 'Caderno abre em branco (nova nota) depois de excluir');
+  eq(document.getElementById('cdF_telefone').value, '', 'tela em branco depois de excluir');
+  let filaDel = JSON.parse(localStorage.getItem('caderno_pendentes_c1')) || {};
+  assert(!filaDel[idDel1], 'nota excluída sai da fila de pendentes');
+  let rascunhoDel = JSON.parse(localStorage.getItem('caderno_rascunho_c1'));
+  assert(!rascunhoDel || rascunhoDel.nota.id !== idDel1, 'rascunho da nota excluída não fica no localStorage');
+  // nunca ressuscita: mesmo forçando a nota de volta na fila de pendentes, cdEnviarPendentes não a upserta de novo
+  const upsertsAntesDel = window.__escritas.filter(e => e.tabela === 'caderno_notas' && e.op === 'upsert' && e.rows.id === idDel1).length;
+  const filaForjada = JSON.parse(localStorage.getItem('caderno_pendentes_c1')) || {};
+  filaForjada[idDel1] = Object.assign(cdNovaNota(), { id: idDel1, telefone: '19990000051', texto: 'tentando voltar' });
+  localStorage.setItem('caderno_pendentes_c1', JSON.stringify(filaForjada));
+  await cdEnviarPendentes(); await espera(20);
+  const upsertsDepoisDel = window.__escritas.filter(e => e.tabela === 'caderno_notas' && e.op === 'upsert' && e.rows.id === idDel1).length;
+  eq(upsertsDepoisDel, upsertsAntesDel, 'nota excluída nunca ressuscita, mesmo forçada de volta na fila de pendentes');
+  try{ localStorage.removeItem('caderno_pendentes_c1'); }catch(_e){}
+
+  // erro ao excluir: mostra aviso de erro e não tira nada da tela
+  await cdNovo(); await espera(10);
+  digita('cdF_telefone', '19990000052');
+  digita('cdTexto', 'excluir teste erro');
+  await espera(40);
+  const idErro = cdEstado.nota.id;
+  window.__falharEscrita = (t, op) => (t === 'caderno_notas' && op === 'delete' ? { message: 'sem permissão' } : null);
+  document.getElementById('cdExcluir').click();
+  document.getElementById('cdExcluirConfirmar').click();
+  await espera(30);
+  assert(avisos().includes('Não foi possível excluir'), 'erro ao excluir: aviso de erro');
+  eq(cdEstado.nota.id, idErro, 'erro ao excluir: continua a mesma nota aberta (nada some da tela)');
+  eq(document.getElementById('cdF_telefone').value, '19990000052', 'erro ao excluir: campos continuam preenchidos');
+  window.__falharEscrita = null;
+  // depois do erro, a nota não fica marcada como excluída para sempre — volta a salvar normalmente
+  digita('cdTexto', 'excluir teste erro editado');
+  await espera(40);
+  assert(window.__escritas.some(e => e.tabela === 'caderno_notas' && e.op === 'upsert' && e.rows.id === idErro && e.rows.texto === 'excluir teste erro editado'), 'depois de um erro ao excluir, a nota volta a salvar normalmente');
+
+  // nota nunca salva (só local, sem internet): excluir descarta sem chamar o banco
+  window.__falharEscrita = (t) => (t === 'caderno_notas' ? { message: 'Failed to fetch' } : null);
+  await cdNovo(); await espera(10);
+  const idLocal = cdEstado.nota.id;
+  digita('cdF_telefone', '19990000053');
+  digita('cdTexto', 'nunca salva');
+  await espera(40);
+  assert(!cdEstado.nota.atualizado_em, 'pré: nota nunca confirmou salvar (sem internet)');
+  const antesEscritasLocal = window.__escritas.length;
+  document.getElementById('cdExcluir').click();
+  document.getElementById('cdExcluirConfirmar').click();
+  await espera(30);
+  assert(!window.__escritas.slice(antesEscritasLocal).some(e => e.tabela === 'caderno_notas' && e.op === 'delete'), 'nota nunca salva: excluir não chama o banco');
+  assert(avisos().includes('Anotação descartada'), 'aviso de descarte local (nota só local)');
+  assert(cdEstado.nota && cdEstado.nota.id !== idLocal, 'tela em branco depois de descartar a nota local');
+  window.__falharEscrita = null;
+  let filaLocal = JSON.parse(localStorage.getItem('caderno_pendentes_c1')) || {};
+  assert(!filaLocal[idLocal], 'nota local descartada também sai da fila de pendentes');
+
   // ==== mais testes entram aqui ====
   fim();
 `);
