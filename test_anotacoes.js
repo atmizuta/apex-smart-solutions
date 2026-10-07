@@ -46,7 +46,9 @@ rodar(`
 
   // ==== busca por nome / telefone (dígitos, com ou sem pontuação) / CNPJ / texto ====
   window.__tabelas.caderno_notas.push(
-    nota('n4', 'c1', { nome: 'Outra Empresa Teste', telefone: '(11) 98888-7777', chave_tel: '1198887777', cnpj: '12345678000199', texto: 'sem relação', atualizado_em: '2026-10-07T07:00:00-03:00' })
+    // chave_tel '1188887777' é o que o gatilho do banco (chave_tel(), §72) de fato grava pra esse
+    // telefone: DDD (11) + os 8 últimos dígitos, sem o "9" do celular — REVISÃO §73, achado 1.
+    nota('n4', 'c1', { nome: 'Outra Empresa Teste', telefone: '(11) 98888-7777', chave_tel: '1188887777', cnpj: '12345678000199', texto: 'sem relação', atualizado_em: '2026-10-07T07:00:00-03:00' })
   );
   document.getElementById('anBusca').value = 'Testex';
   document.getElementById('anBusca').dispatchEvent(new window.Event('input', { bubbles: true }));
@@ -58,6 +60,24 @@ rodar(`
   await espera(350);
   eq(anEstado.notas.map(n => n.id), ['n1'], 'busca por telefone com pontuação casa pelos dígitos (chave_tel)');
 
+  // REVISÃO §73, achado 1 (CRÍTICO): celular de 9 dígitos — chaveTel() derruba o "9" (e o DDI 55),
+  // então bater os dígitos crus contra chave_tel (substring) falha; com >=10 dígitos o filtro tem que
+  // normalizar com chaveTel() e comparar IGUAL (chave_tel.eq.<chave>).
+  document.getElementById('anBusca').value = '(11) 98888-7777';
+  document.getElementById('anBusca').dispatchEvent(new window.Event('input', { bubbles: true }));
+  await espera(350);
+  eq(anEstado.notas.map(n => n.id), ['n4'], 'busca por celular de 9 dígitos formatado acha pela chave_tel normalizada (sem o "9" perdido)');
+
+  document.getElementById('anBusca').value = '11988887777';
+  document.getElementById('anBusca').dispatchEvent(new window.Event('input', { bubbles: true }));
+  await espera(350);
+  eq(anEstado.notas.map(n => n.id), ['n4'], 'busca por celular só com dígitos (sem pontuação)');
+
+  document.getElementById('anBusca').value = '+55 11 98888-7777';
+  document.getElementById('anBusca').dispatchEvent(new window.Event('input', { bubbles: true }));
+  await espera(350);
+  eq(anEstado.notas.map(n => n.id), ['n4'], 'busca por celular com DDI +55 na frente');
+
   document.getElementById('anBusca').value = '12.345.678/0001-99';
   document.getElementById('anBusca').dispatchEvent(new window.Event('input', { bubbles: true }));
   await espera(350);
@@ -67,6 +87,11 @@ rodar(`
   document.getElementById('anBusca').dispatchEvent(new window.Event('input', { bubbles: true }));
   await espera(350);
   eq(anEstado.notas.map(n => n.id), ['n1'], 'busca pelo texto da anotação (ilike)');
+
+  // REVISÃO §73, achado 2: * (curinga do ilike do PostgREST) e _ (curinga de 1 caractere do LIKE) não
+  // podem ir crus pro .or() — senão o próprio usuário digitando um "_" vira um curinga sem querer.
+  const filtroCuringas = anFiltroBusca('abc*def_ghi%jkl,(mno)');
+  assert(!filtroCuringas.includes('*') && !filtroCuringas.includes('_'), 'filtro de busca remove * e _ (curingas do ilike/like) do termo digitado, além de , ( ) %');
 
   // debounce: não dispara a cada tecla, só depois de ~300ms parado
   let chamadas = 0;
@@ -160,10 +185,36 @@ rodar(`
   eq(document.querySelectorAll('#anLista .anCard').length, 50, '1ª página: 50 cartões');
   eq(document.getElementById('anContador').textContent, '60 anotações', 'contador mostra o total (60), não só a página carregada');
   assert(document.getElementById('anCarregarMais').style.display !== 'none', '"Carregar mais" aparece quando há mais página');
+  assert(document.getElementById('anCarregarMais').disabled === false, '"Carregar mais" começa habilitado');
   document.getElementById('anCarregarMais').click();
   await espera(40);
   eq(document.querySelectorAll('#anLista .anCard').length, 60, 'depois de "Carregar mais": as 60 carregadas, sem duplicar as 50 primeiras');
   assert(document.getElementById('anCarregarMais').style.display === 'none', '"Carregar mais" some quando acabou');
+
+  // ==== REVISÃO §73, achado 3: dois cliques rápidos em "Carregar mais" não podem disparar 2 pedidos
+  // (e embaralhar a ordem das páginas se a 2ª resposta chegar antes da 1ª) — reentrância bloqueada
+  // enquanto uma página já está sendo carregada; o botão fica desabilitado nesse meio tempo. ====
+  window.__tabelas.caderno_notas = [];
+  for(let i = 0; i < 130; i++){
+    // minuto a minuto, sempre decrescente — q0 é sempre a mais recente, dá pra conferir a ordem.
+    const t = new Date(Date.parse('2026-10-07T12:00:00-03:00') - i * 60000).toISOString();
+    window.__tabelas.caderno_notas.push(nota('q' + i, 'c1', { nome: 'Nota Reentrância ' + i, atualizado_em: t }));
+  }
+  document.querySelector('#anPeriodo [data-an-periodo="tudo"]').click();
+  await espera(30);
+  eq(document.querySelectorAll('#anLista .anCard').length, 50, 'reentrância, pré: 1ª página (50 de 130)');
+  let chamadasReentr = 0;
+  const fromOriginalReentr = sb.from;
+  sb.from = (t) => { if(t === 'caderno_notas') chamadasReentr++; return fromOriginalReentr(t); };
+  document.getElementById('anCarregarMais').click();
+  assert(document.getElementById('anCarregarMais').disabled === true, '"Carregar mais" desabilita assim que clicado (pedido em voo)');
+  document.getElementById('anCarregarMais').click(); // 2º clique enquanto o 1º ainda está em voo: tem que ser ignorado
+  await espera(50);
+  eq(chamadasReentr, 1, 'dois cliques rápidos em "Carregar mais" disparam só 1 pedido ao banco');
+  eq(document.querySelectorAll('#anLista .anCard').length, 100, 'depois: 100 notas (50+50), sem duplicar nem faltar por causa da corrida');
+  eq([...document.querySelectorAll('#anLista .anCard')].slice(0, 3).map(c => c.dataset.id), ['q0', 'q1', 'q2'], 'ordem continua da mais recente pra mais antiga, sem embaralhar');
+  assert(document.getElementById('anCarregarMais').disabled === false, '"Carregar mais" reabilita depois de carregar (ainda há mais página: 100 de 130)');
+  sb.from = fromOriginalReentr;
 
   // ==== respostas atrasadas (digitar rápido / trocar filtro) não sobrescrevem a mais nova ====
   const fromOriginalRace = sb.from;

@@ -12419,16 +12419,23 @@ function anCorte(periodo){
   const dias = periodo === 'hoje' ? 0 : periodo === '7d' ? 6 : 29;
   return agIsoSP(somaDiasStr(hoje, -dias), '00:00');
 }
-// nome/texto por ilike (texto livre, sem vírgula/parênteses/% — quebrariam a sintaxe do .or());
-// telefone/CNPJ pelos dígitos (chave_tel/cnpj já ficam só com dígitos no banco), com ou sem pontuação.
+// nome/texto por ilike (texto livre, sem vírgula/parênteses/% — quebrariam a sintaxe do .or(); sem *
+// nem _, curingas do ilike/like do PostgREST — revisão §73, achado 2); telefone/CNPJ pelos dígitos.
 function anFiltroBusca(termo){
   const t = String(termo || '').trim();
   if(!t) return null;
-  const seguro = t.replace(/[,()%]/g, ' ').trim();
+  const seguro = t.replace(/[,()%*_]/g, ' ').trim();
   const digitos = cdDigitos(t);
   const partes = [];
   if(seguro) partes.push(`nome.ilike.%${seguro}%`, `texto.ilike.%${seguro}%`);
-  if(digitos) partes.push(`chave_tel.ilike.%${digitos}%`, `cnpj.ilike.%${digitos}%`);
+  if(digitos){
+    // celular/fixo com DDD completo (>=10 dígitos): chaveTel() tira o "9" do celular e o DDI 55, então
+    // bater os dígitos crus por substring falha pra celular (revisão §73, achado 1, CRÍTICO) — normaliza
+    // com chaveTel() e compara IGUAL. Dígitos a menos (número parcial digitado): mantém ilike por substring.
+    const chave = digitos.length >= 10 ? chaveTel(digitos) : null;
+    partes.push(chave ? `chave_tel.eq.${chave}` : `chave_tel.ilike.%${digitos}%`);
+    partes.push(`cnpj.ilike.%${digitos}%`);
+  }
   return partes.length ? partes.join(',') : null;
 }
 async function anCarregar(reiniciar){
@@ -12438,8 +12445,10 @@ async function anCarregar(reiniciar){
   anEstado.carregando = true; anEstado.erro = false;
   anRenderStatus();
   const de = anEstado.pagina * AN_PAGINA, ate = de + AN_PAGINA - 1;
+  // count: 'exact' só na 1ª página (reiniciar) — "Carregar mais" não precisa pedir de novo o total
+  // (revisão §73, achado 4).
   let q = sb.from('caderno_notas')
-    .select('id,nome,telefone,cnpj,texto,resultado,qtd_linhas,valor_plano,objecoes,atualizado_em', { count: 'exact' })
+    .select('id,nome,telefone,cnpj,texto,resultado,qtd_linhas,valor_plano,objecoes,atualizado_em', reiniciar ? { count: 'exact' } : undefined)
     .eq('consultor_id', anUid());
   const corte = anCorte(anEstado.periodo);
   if(corte) q = q.gte('atualizado_em', corte);
@@ -12454,11 +12463,20 @@ async function anCarregar(reiniciar){
   if(anEstado.erro){ anRenderStatus(); return; }
   const novas = r.data || [];
   anEstado.notas = reiniciar ? novas : anEstado.notas.concat(novas);
-  anEstado.total = typeof r.count === 'number' ? r.count : anEstado.notas.length;
-  anEstado.temMais = novas.length === AN_PAGINA;
+  // total só muda quando o count veio (1ª página); nas seguintes mantém o que já se sabe (achado 4).
+  if(typeof r.count === 'number') anEstado.total = r.count;
+  else if(reiniciar) anEstado.total = anEstado.notas.length;
+  anEstado.temMais = anEstado.total != null ? anEstado.notas.length < anEstado.total : novas.length === AN_PAGINA;
   anRenderLista();
 }
-function anCarregarMais(){ anEstado.pagina++; anCarregar(false); }
+// Reentrância: 2 cliques rápidos em "Carregar mais" não podem disparar 2 pedidos nem embaralhar a
+// ordem das páginas se a 2ª resposta chegar antes da 1ª — ignora enquanto já há um pedido em voo
+// (revisão §73, achado 3). O botão também fica desabilitado nesse meio tempo (ver anRenderStatus).
+function anCarregarMais(){
+  if(anEstado.carregando || !anEstado.temMais) return;
+  anEstado.pagina++;
+  anCarregar(false);
+}
 async function loadAnotacoes(){ if(currentUser) await anCarregar(true); }
 function anFmtCliente(n){ return String(n.nome || '').trim() || n.telefone || 'Cliente'; }
 // Rótulo da biblioteca de objeções quando já carregada (objEstado.lista, §72); senão, a própria chave.
@@ -12488,6 +12506,10 @@ function anRenderLista(){
 }
 function anRenderStatus(){
   document.getElementById('anStatus').textContent = anEstado.erro ? 'Não foi possível carregar suas anotações agora.' : '';
+  // desabilita "Carregar mais" enquanto um pedido está em voo (reentrância, achado 3) — além de
+  // escondido quando não há mais página (ver anRenderLista).
+  const mais = document.getElementById('anCarregarMais');
+  if(mais) mais.disabled = anEstado.carregando;
 }
 function anResetar(){
   anEstado.geracao++; // descarta qualquer resposta ainda no ar
@@ -12496,7 +12518,7 @@ function anResetar(){
   const lista = document.getElementById('anLista'); if(lista) lista.innerHTML = '';
   const contador = document.getElementById('anContador'); if(contador) contador.textContent = '';
   const status = document.getElementById('anStatus'); if(status) status.textContent = '';
-  const mais = document.getElementById('anCarregarMais'); if(mais) mais.style.display = 'none';
+  const mais = document.getElementById('anCarregarMais'); if(mais){ mais.style.display = 'none'; mais.disabled = false; }
   const busca = document.getElementById('anBusca'); if(busca) busca.value = '';
   document.querySelectorAll('#anPeriodo [data-an-periodo]').forEach(x => x.classList.toggle('active', x.dataset.anPeriodo === '30d'));
   document.querySelectorAll('#anResultado [data-an-resultado]').forEach(x => x.classList.toggle('active', x.dataset.anResultado === 'todos'));
