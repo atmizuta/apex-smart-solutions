@@ -110,6 +110,14 @@ const FIXTURE = [
   assert(w.perdFiltrar(FIXTURE, { periodo: '90d' }, '2026-10-05').length === 7, '90 dias: tudo menos o de junho');
   assert(w.perdFiltrar(FIXTURE, { periodo: '180d' }, '2026-10-05').length === 8, '180 dias: tudo');
 
+  // faixa personalizada (06/10/2026): calendário igual ao das outras abas
+  const cus = w.perdFiltrar(FIXTURE, { periodo: 'custom', de: '2026-10-02', ate: '2026-10-03' }, '2026-10-05').map(l => l.numero_pedido).sort();
+  assert(JSON.stringify(cus) === JSON.stringify(['P1', 'P2']), 'faixa 02–03/10 pega P1 e P2 — ' + JSON.stringify(cus));
+  const cus1 = w.perdFiltrar(FIXTURE, { periodo: 'custom', de: '2026-09-15', ate: '2026-09-15' }, '2026-10-05').map(l => l.numero_pedido);
+  assert(JSON.stringify(cus1) === JSON.stringify(['P6']), 'faixa de um dia só (15/09) pega P6');
+  assert(JSON.stringify(w.perdPeriodo('custom', '2026-10-05', { de: '2026-10-03', ate: '2026-10-01' })) === JSON.stringify(w.perdPeriodo('mes', '2026-10-05')), 'faixa invertida volta para este mês');
+  assert(JSON.stringify(w.perdPeriodo('custom', '2026-10-05', { de: '', ate: '' })) === JSON.stringify(w.perdPeriodo('mes', '2026-10-05')), 'faixa vazia volta para este mês');
+
   // KPIs de outubro
   const out5 = w.perdFiltrar(FIXTURE, { periodo: 'mes' }, '2026-10-05');
   const k = w.perdKpis(out5);

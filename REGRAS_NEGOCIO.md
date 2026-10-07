@@ -655,6 +655,44 @@ Testado em `test_visao_diaria.js` (bloco novo "7.6", dia fictício 07/10/2026 co
 
 - **06/10/2026** — Corrigida divergência entre a Visão Diária e o relatório "Gerar relatório 17h": o relatório não aplicava a exclusão de pedidos em `AGUARDANDO INTERACAO`/`PROPOSTA` (seção 16.16) — agora usa o mesmo filtro, os números voltam a bater. Ver seção 16.17.
 
+### 16.18 Pessoas que não trabalham na Apex removidas das telas do Dashboard de Produção (06/10/2026)
+
+**Pedido do usuário**: apareceram 4 pessoas no painel que não trabalham na Apex — `VITOR QUEIROZ CAVALCANTE`, `RANNIELE DA SILVA VIEIRA COTRIM`, `VITORIA PRISCILA DA SILVA SANTOS`, `DANILO MORAIS ARAUJO` — pedido para remover de todas as telas (dashboard, cadastro diário, visão diária etc.).
+
+**Investigação**: consultado `producao_pedidos` direto no Supabase (projeto `apex`) — as 4 pessoas têm registros reais (128 linhas ao todo, de junho a outubro/2026, ~R$ 6.947 somados), não é um erro pontual isolado. `VITOR QUEIROZ CAVALCANTE` também aparece na função `equipe_vendedores()` (usada pra mostrar "quem zerou" no Cadastro Diário) — essa função vem de `consultor_neo` ligado a `profiles`, ou seja, ele tem conta de usuário de verdade no painel. As outras 3 pessoas não estão em `equipe_vendedores()` — só aparecem via `producao_pedidos.usuario` (provável contaminação de dados vindos do NeoCRM, de outra filial/agência usando a mesma conta).
+
+**Decisão**: implementado como filtro **só de exibição** (as linhas continuam intactas em `producao_pedidos`; nada foi apagado do banco) — mais seguro e reversível do que deletar dados históricos de produção. Também **não foi mexido no acesso/conta do Vitor** (tabelas `profiles`/`consultor_neo`) — isso é uma ação diferente (gestão de usuário/acesso ao sistema), fora do que foi pedido; se o usuário quiser desativar o acesso dele também, é uma decisão à parte.
+
+**Implementação**: `PRODUCAO_USUARIOS_EXCLUIDOS` (`Set` com os 4 nomes, comparação sem diferenciar maiúsculas/minúsculas) + duas funções puras, `filtrarProducaoPedidos(rows)` (filtra por `r.usuario`) e `filtrarProducaoEquipe(nomes)` (filtra a lista de "quem zerou"). Aplicado em todos os pontos que buscam `producao_pedidos` com o campo `usuario` pra exibição:
+- Carga inicial do Dashboard de Produção (`loadProducaoDashboard`) — cobre Visão Geral, Cadastro Diário, Visão Diária e Pedidos em Alerta, que são abas dentro do mesmo iframe/`DATA`.
+- Atualização automática de hora em hora do mesmo dashboard.
+- Lista de equipe (`equipe_vendedores`) usada pro "quem zerou" no Cadastro Diário.
+- Aba "Fechamento" (relatório de comissionamento, seção 16.14).
+
+Não aplicado em `buscarVendasOrigemLead` nem na busca de `producao_pedidos` dentro do Digital (seção 17) — essas duas não selecionam o campo `usuario` (só cnpj/cliente/etapa pra casar pedido com lead), não mostram nome de consultor em lugar nenhum.
+
+Testado em `test_producao_filtro_pessoas.js` (novo): as 4 pessoas saem da lista de pedidos e da lista de equipe, incluindo variações de maiúsculas/minúsculas e espaços nas pontas; gente da Apex continua aparecendo normalmente.
+
+- **06/10/2026** — Removidas das telas do Dashboard de Produção 4 pessoas que não trabalham na Apex (filtro de exibição, dados preservados no banco). Ver seção 16.18.
+
+### 16.19 Seções "Motivos de Perda" e "Diagnóstico e Plano de Ação" removidas da Visão Geral (06/10/2026)
+
+**Pedido do usuário**: remover as seções recolhíveis "Motivos de Perda (Vendas Perdidas)" e "Diagnóstico e Plano de Ação (Especialista em Vendas)" da aba Visão Geral do Dashboard de Produção.
+
+**Implementação**: removidos o HTML das duas seções (`#secMotivosPerda`/`#lossReasonTable` e `#secDiagnostico`/`#diagCardsWrap`), as funções que as preenchiam (`renderLossReasons`, `renderLossDiagnosis`) e suas chamadas em `applyFilters()`, as constantes `LOSS_DIAGNOSIS`/`LOSS_DIAGNOSIS_ORDER` (sem uso fora dessas funções) e o CSS específico (`.diag-cards`, `.diag-card` e variantes, `tr.loss-reason-row`). A função `tagLabel()` foi **mantida** — ainda é usada pela coluna "Motivo" do analítico (drilldown) e pela exportação em Excel, que continuam existindo. Sobra 1 seção recolhível na Visão Geral ("Valor por Etapa — Total Geral").
+
+Testado: `test_dashboard_ajustes.js` atualizado (a seção 55 previa 3 seções recolhíveis, agora é 1) e `test_producao_filtro_pessoas.js`/demais testes do Dashboard de Produção, sem regressão.
+
+- **06/10/2026** — Removidas da Visão Geral as seções "Motivos de Perda" e "Diagnóstico e Plano de Ação" — a pedido do usuário. Ver seção 16.19.
+
+### 16.20 Mais uma pessoa fora da Apex removida das telas (06/10/2026)
+
+**Pedido do usuário**: remover também `GABRIEL MACEDO MARTINS` das telas do Dashboard de Produção, mesmo mecanismo da seção 16.18. Conferido direto no banco antes de aplicar: 122 pedidos reais em `producao_pedidos` (24/08 a 01/10/2026, ~R$ 10.397 somados) — como os outros casos, não é um erro pontual. Ele **também está em `equipe_vendedores()`** (tem conta real no painel, `consultor_neo`/`profiles`), igual ao Vitor Queiroz Cavalcante — mesma decisão: só filtro de exibição, acesso ao sistema não foi tocado.
+
+**Implementação**: nome adicionado ao `Set` `PRODUCAO_USUARIOS_EXCLUIDOS` (seção 16.18) — como todos os pontos de leitura já passam por `filtrarProducaoPedidos`/`filtrarProducaoEquipe`, nenhum outro código precisou mudar. Testado em `test_producao_filtro_pessoas.js` (fixture atualizado com um 7º pedido do Gabriel).
+
+- **06/10/2026** — Mais uma pessoa (`GABRIEL MACEDO MARTINS`) removida das telas do Dashboard de Produção — mesmo filtro de exibição da seção 16.18. Ver seção 16.20.
+
 ## 17. Digital (leads de campanhas Facebook/Instagram)
 
 Aba **"Digital"** (nome interno/técnico `conversao` — vem da época em que a aba se chamava "Conversão de Vendas", mantido nos IDs/funções do código pra não gerar retrabalho num rename só de rótulo visível). Até 01/09/2026 era visível só para admin e supervisor; a partir dessa data, **qualquer perfil vê a aba**, incluindo o consultor (ver seção 2.1) — mesma visibilidade do Dashboard de Produção (porta de entrada de qualquer perfil, seção 16.6). O botão **"Atualizar agora"**, porém, continua restrito a admin/supervisor (ver seção 17.1) — ver dados é uma permissão, disparar a sincronização com o Google Sheets é outra.
@@ -2859,6 +2897,12 @@ Pedido do Rafael ao aprovar: aba só de supervisor/admin, ao lado de Pedidos em 
 - **Dentro das regras da API:** é horário diurno (janela de no máximo 85 min), e a janela de cada execução (último sucesso menos 15 min de sobreposição) fica em ~25 min; folga de 10 min entre execuções.
 - **Reverter:** `select cron.unschedule('sync-producao-janela-noite-a'); select cron.unschedule('sync-producao-janela-noite-b'); select cron.alter_job(1, schedule := '59 * * * *');`
 - Aplicado direto no banco de produção em 05/10/2026 (jobs 13 e 14). Sem mudança de código nem de painel.
+
+## 71. Vendas Perdidas: faixa de datas por calendário (06/10/2026)
+- Na sub-aba **Vendas Perdidas** do Dashboard de Produção, o filtro **Período** ganhou a opção **Personalizado** e o campo **Faixa de datas** (calendário flatpickr em modo faixa, o mesmo das outras abas). Escolher as duas datas liga "Personalizado"; escolher um atalho (Este mês, Mês passado, 90 dias, 180 dias) reposiciona o calendário.
+- O calendário só aceita os últimos 180 dias (é o que o painel carrega via RPC `vendas_perdidas`). Faixa de um dia: clicar duas vezes na mesma data. Faixa vazia ou invertida volta para "Este mês".
+- Filtros de consultor/motivo/tipo, KPIs, gráficos, tabela e Excel usam a mesma faixa (`perdPeriodo(tipo, hoje, custom)`).
+- Teste: `test_vendas_perdidas.js` (4 asserts novos da faixa personalizada).
 
 ## 72. Caderno de Ligação, Agenda e Objeções com IA (06/10/2026)
 
