@@ -138,6 +138,40 @@ rodar(`
   agSoltarEm('r4', '2026-10-09'); await espera(30);
   assert(window.__escritas.some(e => e.op === 'update' && e.patch.quando === '2026-10-09T22:30:00-03:00' && e.filtro.id === 'r4'), 'arrastar mantém a hora');
 
+  // ==== FIX round 1 (revisão): troca de mês não deixa resposta atrasada sobrescrever a mais recente ====
+  const sbFromOriginalRace = sb.from;
+  let agChamadasRace = 0;
+  sb.from = (t) => {
+    const real = sbFromOriginalRace(t);
+    if(t !== 'agenda_retornos') return real;
+    agChamadasRace++;
+    if(agChamadasRace === 1){
+      const thenOriginal = real.then.bind(real);
+      real.then = (ok, ko) => new Promise(r => setTimeout(r, 60)).then(() => thenOriginal(ok, ko));
+    }
+    return real;
+  };
+  document.getElementById('agMesProx').click(); // 1ª chamada (novembro, vazio): fica lenta (60ms)
+  document.getElementById('agMesAnt').click(); // 2ª chamada (outubro, de volta): rápida, deve vencer
+  await espera(100); // espera as duas respostas, inclusive a lenta
+  eq(document.getElementById('agTituloMes').textContent, 'OUTUBRO 2026', 'corrida: título fica no mês pedido por último');
+  assert(document.getElementById('agGrade').textContent.includes('Nova Empresa Teste'), 'corrida: resposta atrasada do mês anterior (vazia) não apaga os retornos de outubro já carregados');
+  sb.from = sbFromOriginalRace;
+
+  // ==== FIX round 1 (revisão): soltar não deixa o destaque .soltar aceso ====
+  const diaR4 = document.querySelector('#agGrade .agDia[data-dia="2026-10-09"]');
+  diaR4.classList.add('soltar');
+  agEstado.arrastando = 'r4';
+  diaR4.dispatchEvent(new window.Event('drop', { bubbles: true, cancelable: true }));
+  await espera(20);
+  assert(!document.querySelector('#agGrade .agDia.soltar'), 'soltar no mesmo dia (sem mudar nada) não deixa o destaque .soltar aceso');
+
+  const diaQualquer = document.querySelector('#agGrade .agDia[data-dia="2026-10-10"]');
+  diaQualquer.classList.add('soltar');
+  agEstado.arrastando = 'r4';
+  diaQualquer.dispatchEvent(new window.Event('dragend', { bubbles: true, cancelable: true }));
+  assert(!document.querySelector('#agGrade .agDia.soltar') && agEstado.arrastando === null, 'dragend limpa o destaque .soltar e agEstado.arrastando');
+
   // falha ao carregar não quebra
   const sbFromOriginal = sb.from;
   sb.from = (t) => t === 'agenda_retornos' ? { select: () => ({ gte: () => ({ lte: () => ({ neq: () => ({ order: () => Promise.resolve({ data: null, error: { message: 'x' } }) }) }) }) }) } : sbFromOriginal(t);

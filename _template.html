@@ -11341,11 +11341,12 @@ async function loadAgenda(){
   if(!agEstado.ym) agEstado.ym = agPartesSP(agAgora()).dia.slice(0, 7);
   alAtualizarAvisoPermissao();
   objAplicarPermissaoEditor();
-  await agCarregarMes();
-  agRenderMes();
+  if(await agCarregarMes()) agRenderMes();
 }
+// Retorna true se a resposta ainda vale (nenhuma outra chamada começou depois desta) e os dados
+// foram atualizados; false se a chamada ficou obsoleta (nesse caso agEstado não é tocado).
 async function agCarregarMes(){
-  const geracao = agEstado.geracao;
+  const geracao = ++agEstado.geracao;
   const grade = agGradeMes(agEstado.ym);
   const de = agIsoSP(grade[0].dia, '00:00'), ate = agIsoSP(grade[grade.length - 1].dia, '23:59');
   agEstado.carregando = true;
@@ -11353,14 +11354,16 @@ async function agCarregarMes(){
   const r = await ppSeguro(() => sb.from('agenda_retornos')
     .select('id,nota_id,nome,telefone,chave_tel,quando,tipo,qtd_linhas,valor_plano,observacao,origem,status,feito_em')
     .gte('quando', de).lte('quando', ate).neq('status', 'cancelado').order('quando', { ascending: true }));
-  if(geracao !== agEstado.geracao) return;
+  if(geracao !== agEstado.geracao) return false;
   agEstado.carregando = false;
   agEstado.erro = !r || !!r.error;
   agEstado.retornos = agEstado.erro ? [] : (r.data || []);
   if(canSeePedidosParados()){
     if(!ppEstado.calc) await ppSeguro(() => ppCarregarDados(false));
+    if(geracao !== agEstado.geracao) return false;
     agEstado.pedidos = agPedidosItens(ppEstado.calc);
   } else agEstado.pedidos = [];
+  return true;
 }
 function agFmtDiaLongo(dia){
   const nomes = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -11475,16 +11478,27 @@ function agSoltarEm(id, dia){
   return agRemarcar(id, p.dia, p.hora);
 }
 
-document.getElementById('agMesAnt').addEventListener('click', async () => { agEstado.ym = agMesVizinho(agEstado.ym, -1); await agCarregarMes(); agRenderMes(); });
-document.getElementById('agMesProx').addEventListener('click', async () => { agEstado.ym = agMesVizinho(agEstado.ym, 1); await agCarregarMes(); agRenderMes(); });
-document.getElementById('agHoje').addEventListener('click', async () => { agEstado.ym = agPartesSP(agAgora()).dia.slice(0, 7); await agCarregarMes(); agRenderMes(); });
+document.getElementById('agMesAnt').addEventListener('click', async () => { agEstado.ym = agMesVizinho(agEstado.ym, -1); if(await agCarregarMes()) agRenderMes(); });
+document.getElementById('agMesProx').addEventListener('click', async () => { agEstado.ym = agMesVizinho(agEstado.ym, 1); if(await agCarregarMes()) agRenderMes(); });
+document.getElementById('agHoje').addEventListener('click', async () => { agEstado.ym = agPartesSP(agAgora()).dia.slice(0, 7); if(await agCarregarMes()) agRenderMes(); });
 document.getElementById('agNovo').addEventListener('click', () => agAbrirDia(agPartesSP(agAgora()).dia));
 document.getElementById('agGrade').addEventListener('click', (ev) => { const d = ev.target.closest('.agDia'); if(d) agAbrirDia(d.dataset.dia); });
 document.getElementById('agLista').addEventListener('click', (ev) => { const l = ev.target.closest('.agListaDia[data-dia]'); if(l) agAbrirDia(l.dataset.dia); });
 document.getElementById('agGrade').addEventListener('dragstart', (ev) => { const it = ev.target.closest('.agItem[data-id]'); if(it){ agEstado.arrastando = it.dataset.id; if(ev.dataTransfer) ev.dataTransfer.setData('text/plain', it.dataset.id); } });
 document.getElementById('agGrade').addEventListener('dragover', (ev) => { const d = ev.target.closest('.agDia'); if(d && agEstado.arrastando){ ev.preventDefault(); d.classList.add('soltar'); } });
 document.getElementById('agGrade').addEventListener('dragleave', (ev) => { const d = ev.target.closest('.agDia'); if(d) d.classList.remove('soltar'); });
-document.getElementById('agGrade').addEventListener('drop', (ev) => { const d = ev.target.closest('.agDia'); if(!d || !agEstado.arrastando) return; ev.preventDefault(); const id = agEstado.arrastando; agEstado.arrastando = null; agSoltarEm(id, d.dataset.dia); });
+document.getElementById('agGrade').addEventListener('drop', (ev) => {
+  const d = ev.target.closest('.agDia');
+  document.querySelectorAll('#agGrade .agDia.soltar').forEach(x => x.classList.remove('soltar'));
+  if(!d || !agEstado.arrastando) return;
+  ev.preventDefault();
+  const id = agEstado.arrastando; agEstado.arrastando = null;
+  agSoltarEm(id, d.dataset.dia);
+});
+document.getElementById('agGrade').addEventListener('dragend', () => {
+  agEstado.arrastando = null;
+  document.querySelectorAll('#agGrade .agDia.soltar').forEach(x => x.classList.remove('soltar'));
+});
 document.getElementById('agDiaFechar').addEventListener('click', () => { agEstado.diaAberto = null; fecharOverlay(document.getElementById('agDiaOverlay')); });
 document.getElementById('agFHoras').addEventListener('click', (ev) => { const b = ev.target.closest('[data-hora]'); if(b) document.getElementById('agFHora').value = b.dataset.hora; });
 document.getElementById('agForm').addEventListener('submit', async (ev) => {
