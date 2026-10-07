@@ -449,28 +449,31 @@ rodar(`
   eq(document.getElementById('cdBotao').getAttribute('aria-label'), 'Abrir Caderno de Ligação', 'botão do Caderno mantém o aria-label');
   assert(!document.getElementById('cdBotao').textContent.includes('Caderno'), 'botão do Caderno não mostra mais o texto "Caderno"');
 
-  // ==== SEÇÃO 74: excluir anotação — confirmação em tela (sem window.confirm), nunca ressuscita ====
+  // ==== SEÇÃO 74: excluir anotação — confirmação DENTRO da gaveta (#cdExcluirConfirm, sem window.confirm
+  // e sem overlay do documento principal — tem que funcionar também na janela flutuante), nunca ressuscita ====
   currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
   cadernoAoEntrar(); await espera(20);
   window.__falharEscrita = null;
   await cdNovo(); await espera(10);
   assert(document.getElementById('cdExcluir').style.display === 'none', 'nota em branco: botão Excluir escondido');
+  assert(document.getElementById('cdExcluirConfirm').style.display === 'none', 'nota em branco: confirmação escondida');
   digita('cdF_telefone', '19990000051');
   digita('cdTexto', 'excluir teste 1');
   await espera(40);
   assert(document.getElementById('cdExcluir').style.display !== 'none', 'nota salva: botão Excluir aparece');
   const idDel1 = cdEstado.nota.id;
   document.getElementById('cdExcluir').click();
-  assert(document.getElementById('cdExcluirOverlay').classList.contains('active'), 'abre confirmação em tela, não window.confirm');
-  assert(document.getElementById('cdExcluirOverlay').textContent.includes('Não dá para desfazer'), 'texto de confirmação');
+  assert(document.getElementById('cdExcluirConfirm').style.display !== 'none', 'abre confirmação DENTRO da gaveta, não window.confirm');
+  assert(document.getElementById('cdExcluirConfirm').textContent.includes('Não dá para desfazer'), 'texto de confirmação');
+  assert(!document.getElementById('cdExcluirOverlay').classList.contains('active'), 'excluir pela gaveta não usa o overlay do documento principal (teria que funcionar na janela flutuante)');
   // cancelar: mantém tudo
-  document.getElementById('cdExcluirCancelar').click();
-  assert(!document.getElementById('cdExcluirOverlay').classList.contains('active'), 'cancelar fecha a confirmação');
+  document.getElementById('cdExcluirNao').click();
+  assert(document.getElementById('cdExcluirConfirm').style.display === 'none', 'cancelar fecha a confirmação');
   eq(cdEstado.nota.id, idDel1, 'cancelar: continua a mesma nota aberta');
   assert(!window.__escritas.some(e => e.tabela === 'caderno_notas' && e.op === 'delete'), 'cancelar: não chama delete');
   // confirmar: exclui de verdade
   document.getElementById('cdExcluir').click();
-  document.getElementById('cdExcluirConfirmar').click();
+  document.getElementById('cdExcluirSim').click();
   await espera(30);
   const delChamada = window.__escritas.filter(e => e.tabela === 'caderno_notas' && e.op === 'delete').pop();
   assert(delChamada && delChamada.filtro.id === idDel1, 'confirmar: delete chamado com o id da nota');
@@ -498,7 +501,7 @@ rodar(`
   const idErro = cdEstado.nota.id;
   window.__falharEscrita = (t, op) => (t === 'caderno_notas' && op === 'delete' ? { message: 'sem permissão' } : null);
   document.getElementById('cdExcluir').click();
-  document.getElementById('cdExcluirConfirmar').click();
+  document.getElementById('cdExcluirSim').click();
   await espera(30);
   assert(avisos().includes('Não foi possível excluir'), 'erro ao excluir: aviso de erro');
   eq(cdEstado.nota.id, idErro, 'erro ao excluir: continua a mesma nota aberta (nada some da tela)');
@@ -519,7 +522,7 @@ rodar(`
   assert(!cdEstado.nota.atualizado_em, 'pré: nota nunca confirmou salvar (sem internet)');
   const antesEscritasLocal = window.__escritas.length;
   document.getElementById('cdExcluir').click();
-  document.getElementById('cdExcluirConfirmar').click();
+  document.getElementById('cdExcluirSim').click();
   await espera(30);
   assert(!window.__escritas.slice(antesEscritasLocal).some(e => e.tabela === 'caderno_notas' && e.op === 'delete'), 'nota nunca salva: excluir não chama o banco');
   assert(avisos().includes('Anotação descartada'), 'aviso de descarte local (nota só local)');
@@ -527,6 +530,31 @@ rodar(`
   window.__falharEscrita = null;
   let filaLocal = JSON.parse(localStorage.getItem('caderno_pendentes_c1')) || {};
   assert(!filaLocal[idLocal], 'nota local descartada também sai da fila de pendentes');
+
+  // ==== SEÇÃO 74 (fix): a confirmação de excluir funciona dentro da janela flutuante (PiP) — é
+  // exatamente onde o consultor usa o Caderno, sobre o ProContact; um overlay do documento principal
+  // não apareceria lá, por isso a confirmação vive dentro da própria gaveta (#cdExcluirConfirm) ====
+  await cdNovo(); await espera(10);
+  digita('cdF_telefone', '19990000054');
+  digita('cdTexto', 'excluir na flutuante');
+  await espera(40);
+  const idFlut = cdEstado.nota.id;
+  const pipDel = new window.__JSDOM('<!doctype html><html><head></head><body></body></html>').window;
+  window.documentPictureInPicture = { requestWindow: async () => pipDel };
+  await cdAbrirFlutuante();
+  assert(pipDel.document.getElementById('cdGaveta').classList.contains('flutuante'), 'gaveta foi para a janela flutuante');
+  assert(!document.getElementById('cdGaveta'), 'gaveta saiu da página principal');
+  pipDel.document.getElementById('cdExcluir').click();
+  assert(pipDel.document.getElementById('cdExcluirConfirm').style.display !== 'none', 'na janela flutuante: confirmação aparece dentro da própria gaveta (documento da PiP)');
+  assert(!document.getElementById('cdExcluirOverlay').classList.contains('active'), 'na janela flutuante: não abre o overlay do documento principal (não apareceria lá)');
+  pipDel.document.getElementById('cdExcluirSim').click();
+  await espera(30);
+  assert(window.__escritas.some(e => e.tabela === 'caderno_notas' && e.op === 'delete' && e.filtro.id === idFlut), 'excluir pela janela flutuante chama o delete com o id certo');
+  assert(cdEstado.nota && cdEstado.nota.id !== idFlut, 'depois de excluir na flutuante, o Caderno (ainda flutuando) abre em branco');
+  eq(pipDel.document.getElementById('cdF_telefone').value, '', 'tela em branco dentro da própria janela flutuante');
+  pipDel.dispatchEvent(new pipDel.Event('pagehide'));
+  assert(document.getElementById('cdGaveta') && !document.getElementById('cdGaveta').classList.contains('flutuante'), 'gaveta volta para a página principal depois de fechar a flutuante');
+  delete window.documentPictureInPicture;
 
   // ==== mais testes entram aqui ====
   fim();

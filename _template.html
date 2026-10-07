@@ -569,6 +569,8 @@
   .cdAgendar h4,.cdHistorico h4{margin:0 0 var(--space-2);font-size:var(--fs-sm);}
   .cdSugestaoRetorno{display:flex;flex-direction:column;gap:var(--space-2);margin-top:var(--space-2);}
   .cdRetornoPendente:not(:empty){background:var(--st-andamento-bg);color:var(--st-andamento);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);font-size:var(--fs-sm);display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;}
+  /* confirmação de excluir dentro da gaveta (seção 74) — some/aparece via style.display, não :not(:empty) */
+  .cdExcluirConfirm{background:var(--st-perdido-bg);color:var(--st-perdido);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);font-size:var(--fs-sm);gap:var(--space-2);align-items:center;flex-wrap:wrap;}
   .cdHistorico{margin-top:var(--space-4);}
   .cdHistItem{padding:var(--space-2) 0;border-bottom:1px solid var(--c-linha);font-size:var(--fs-sm);cursor:pointer;}
   .cdHistItem small{display:block;color:var(--muted);}
@@ -678,6 +680,14 @@
       </div>
     </div>
     <div class="cdCorpo">
+      <!-- 07/10/2026 (seção 74): confirmação de excluir DENTRO da gaveta (não num overlay do documento
+           principal) — assim funciona também na janela flutuante (Document Picture-in-Picture), que é
+           um documento à parte (ver cdAbrirFlutuante). -->
+      <div id="cdExcluirConfirm" class="cdExcluirConfirm" style="display:none">
+        <span>Excluir esta anotação? Não dá para desfazer.</span>
+        <button type="button" class="btn btn-sm" id="cdExcluirSim" style="width:auto">Excluir</button>
+        <button type="button" class="btn btn-sm btn-outline" id="cdExcluirNao" style="width:auto">Cancelar</button>
+      </div>
       <div id="cdRetornoPendente" class="cdRetornoPendente"></div>
       <div class="cdGrid">
         <div class="field"><label>Telefone</label><input type="tel" id="cdF_telefone" data-cd-campo="telefone" maxlength="20"></div>
@@ -11611,10 +11621,19 @@ function cdPreencherTela(){
   cdValidarDocs(); cdRenderSugestoes(); cdRenderAtalhos(); cdRenderSugestaoRetorno(); cdAtualizarBotaoExcluir();
   if(typeof objRenderChips === 'function') objRenderChips();
 }
-// Só mostra "Excluir" com algo de fato pra excluir — nota nova/em branco não mostra (seção 74).
+// Só mostra "Excluir" com algo de fato pra excluir — nota nova/em branco não mostra (seção 74). Troca
+// de nota (toque em Novo, outro resultado etc.) também esconde uma confirmação de excluir que tivesse
+// ficado aberta — não pode confirmar a exclusão de uma nota que já não é mais a da tela.
 function cdAtualizarBotaoExcluir(){
   const btn = cdEl('cdExcluir');
   if(btn) btn.style.display = (cdEstado.nota && !cdNotaVazia(cdEstado.nota)) ? 'inline-block' : 'none';
+  cdEsconderConfirmarExcluir();
+}
+// Confirmação de excluir DENTRO da gaveta (cdEl/cdEstado.doc) — funciona também na janela flutuante,
+// que é um documento à parte (diferente de um overlay do documento principal). Seção 74.
+function cdEsconderConfirmarExcluir(){
+  const el = cdEl('cdExcluirConfirm');
+  if(el) el.style.display = 'none';
 }
 function cdValidarDocs(){
   const marca = (c, valido) => { const el = cdEl('cdF_' + c); el.closest('.field').classList.toggle('cdAviso', !!cdDigitos(el.value) && !valido(el.value)); };
@@ -11719,17 +11738,25 @@ function cdEnviarPendentes(){
    lixeira do cartão da aba Anotações. Confirmação em tela (#cdExcluirOverlay, sem window.confirm).
    Nunca ressuscita: cdEstado.excluidas bloqueia qualquer salvamento (em voo, da fila ou futuro)
    daquele id; se a nota nunca chegou a ser salva, só descarta local, sem chamar o banco. ============ */
+// origem 'gaveta' (botão Excluir, nota aberta na tela): a confirmação aparece DENTRO da própria gaveta
+// (#cdExcluirConfirm, via cdEl()) — não num overlay do documento principal, porque a gaveta pode estar
+// na janela flutuante (Document Picture-in-Picture), que é um documento à parte (cdAbrirFlutuante); um
+// overlay do documento principal não apareceria lá. origem 'cartao' (lixeira da aba Anotações): essa
+// aba vive sempre no documento principal, então continua usando o overlay de sempre (#cdExcluirOverlay).
 function cdPedirExcluir(id, origem){
   if(!id) return;
   cdEstado.excluirAlvo = { id, origem };
-  document.getElementById('cdExcluirOverlay').classList.add('active');
+  if(origem === 'gaveta'){ const el = cdEl('cdExcluirConfirm'); if(el) el.style.display = 'flex'; }
+  else document.getElementById('cdExcluirOverlay').classList.add('active');
 }
 function cdCancelarExcluir(){
   cdEstado.excluirAlvo = null;
+  cdEsconderConfirmarExcluir();
   fecharOverlay(document.getElementById('cdExcluirOverlay'));
 }
 async function cdExcluirConfirmado(){
   const alvo = cdEstado.excluirAlvo;
+  cdEsconderConfirmarExcluir();
   fecharOverlay(document.getElementById('cdExcluirOverlay'));
   cdEstado.excluirAlvo = null;
   if(alvo) await cdExcluirNota(alvo.id, alvo.origem);
@@ -11954,6 +11981,10 @@ function cdLigarEventos(gaveta){
     else if(t.id === 'cdFechar') cdFechar();
     else if(t.id === 'cdDestacar' && typeof cdAbrirFlutuante === 'function') cdAbrirFlutuante();
     else if(t.id === 'cdExcluir'){ if(cdEstado.nota) cdPedirExcluir(cdEstado.nota.id, 'gaveta'); }
+    // #cdExcluirSim/#cdExcluirNao ficam dentro da gaveta (seção 74) — o listener precisa estar preso
+    // ao elemento da gaveta (como os demais aqui), não ao document, pra funcionar na janela flutuante.
+    else if(t.id === 'cdExcluirSim') cdExcluirConfirmado();
+    else if(t.id === 'cdExcluirNao') cdCancelarExcluir();
   });
 }
 function cdTeclas(ev){
