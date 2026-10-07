@@ -244,7 +244,7 @@ rodar(`
   cadernoAoEntrar(); cdAbrir();
   const pip = new window.__JSDOM('<!doctype html><html><head></head><body></body></html>').window;
   window.documentPictureInPicture = { requestWindow: async (o) => { window.__pipOpts = o; return pip; } };
-  await cdDestacar();
+  await cdAbrirFlutuante();
   eq(window.__pipOpts, { width: 420, height: 720 }, 'tamanho da janela');
   assert(pip.document.getElementById('cdGaveta') && pip.document.getElementById('cdGaveta').classList.contains('flutuante'), 'gaveta foi para a janela flutuante');
   assert(!document.getElementById('cdGaveta'), 'saiu da página principal');
@@ -265,14 +265,40 @@ rodar(`
   delete window.documentPictureInPicture;
   const pop = new window.__JSDOM('<!doctype html><html><head></head><body></body></html>').window;
   window.open = (u, nome, feat) => { window.__popup = { u, nome, feat }; return pop; };
-  await cdDestacar();
+  await cdAbrirFlutuante();
   eq([window.__popup.nome, window.__popup.feat], ['cadernoApex', 'width=420,height=720'], 'reserva com window.open');
   assert(pop.document.getElementById('cdGaveta'), 'gaveta na janela comum');
   pop.dispatchEvent(new pop.Event('pagehide'));
   // janela bloqueada: avisa e não perde a gaveta
   window.open = () => null;
-  const okFlutuar = await cdDestacar();
+  const okFlutuar = await cdAbrirFlutuante();
   assert(!okFlutuar && document.getElementById('cdGaveta') && avisos().includes('janela flutuante'), 'popup bloqueado: aviso');
+
+  // ==== TASK 11 fix round 1: logout com a janela flutuante aberta (achado crítico da revisão) —
+  // não pode deixar a janela aberta (dado do consultor anterior visível numa tela compartilhada) nem
+  // deixar cdEstado.doc preso no documento antigo (quebraria o Caderno do próximo login) ====
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  cadernoAoEntrar(); cdAbrir();
+  const pip2 = new window.__JSDOM('<!doctype html><html><head></head><body></body></html>').window;
+  window.__pip2Fechada = false;
+  pip2.close = () => { window.__pip2Fechada = true; };
+  window.documentPictureInPicture = { requestWindow: async () => pip2 };
+  await cdAbrirFlutuante();
+  assert(pip2.document.getElementById('cdGaveta').classList.contains('flutuante'), 'flutuando de novo antes do logout');
+  const telLogout = pip2.document.getElementById('cdF_telefone');
+  telLogout.value = '19990000012'; telLogout.dispatchEvent(new pip2.Event('input', { bubbles: true }));
+  await espera(30);
+  cadernoResetar();
+  delete window.documentPictureInPicture;
+  assert(cdEstado.doc === document, 'logout com a janela flutuante aberta: cdEstado.doc volta a apontar pro documento principal');
+  assert(document.getElementById('cdGaveta') && !document.getElementById('cdGaveta').classList.contains('flutuante'), 'gaveta de volta no app principal depois do logout');
+  assert(window.__pip2Fechada, 'logout fecha a janela flutuante (não deixa dado do consultor anterior visível numa tela compartilhada)');
+  // o próximo consultor loga e o Caderno da página principal funciona normalmente (nada ficou preso na janela antiga)
+  currentUser = { id: 'c2', nome: 'Outro Consultor', username: 'cons2', role: 'consultor' };
+  cadernoAoEntrar(); cdAbrir();
+  digita('cdF_telefone', '19990000013');
+  await espera(30);
+  assert(window.__escritas.some(e => e.tabela === 'caderno_notas' && e.rows.telefone === '19990000013'), 'depois do logout com a janela flutuante, o Caderno da página principal volta a salvar normalmente');
 
   // ==== mais testes entram aqui ====
   fim();

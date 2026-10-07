@@ -11661,8 +11661,16 @@ function cadernoAoEntrar(){
 }
 function cadernoResetar(){
   clearTimeout(cdEstado.timer); clearTimeout(cdEstado.retryTimer);
+  // Sair com a janela flutuante aberta não pode deixar os dados do consultor anterior visíveis numa
+  // tela compartilhada: traz a gaveta de volta (cdRecolher) e fecha a janela. Guarda a referência da
+  // janela antes de cdRecolher, porque cdRecolher zera cdEstado.janela (achado da revisão, fix round 1).
+  if(cdEstado.doc !== document){
+    const janela = cdEstado.janela;
+    cdRecolher();
+    if(janela) try{ janela.close(); }catch(_e){ /* já pode estar fechada pelo usuário */ }
+  }
   cdFechar();
-  Object.assign(cdEstado, { nota: null, historico: [], retornoPendente: null, status: '' });
+  Object.assign(cdEstado, { nota: null, historico: [], retornoPendente: null, status: '', gaveta: null });
   document.getElementById('cdBotao').style.display = 'none';
   agResetar();
   if(typeof alParar === 'function') alParar();
@@ -11710,7 +11718,7 @@ function cdLigarEventos(gaveta){
     }
     if(t.id === 'cdNovo') cdNovo();
     else if(t.id === 'cdFechar') cdFechar();
-    else if(t.id === 'cdDestacar' && typeof cdDestacar === 'function') cdDestacar();
+    else if(t.id === 'cdDestacar' && typeof cdAbrirFlutuante === 'function') cdAbrirFlutuante();
   });
 }
 function cdTeclas(ev){
@@ -11950,7 +11958,10 @@ document.getElementById('agAtivarAlertas').addEventListener('click', alPedirPerm
 
 // Janela flutuante (seção 72): a gaveta muda de documento — os listeners ficam no próprio elemento (cdLigarEventos /
 // objLigarEventos), então continuam valendo; cdEl() procura primeiro no documento onde a gaveta está.
-async function cdDestacar(){
+// Nome cdAbrirFlutuante (não cdDestacar) para não colidir com o id do botão #cdDestacar — um elemento
+// com id vira propriedade nomeada de window, e "cdDestacar" apontaria pro <button>, não pra função
+// (achado da revisão de código, fix round 1).
+async function cdAbrirFlutuante(){
   if(cdEstado.doc !== document) return true;
   let win = null;
   try{
@@ -11962,6 +11973,7 @@ async function cdDestacar(){
   d.title = 'Caderno — Apex';
   document.querySelectorAll('style, link[rel="stylesheet"]').forEach(s => d.head.appendChild(s.cloneNode(true)));
   const gaveta = document.getElementById('cdGaveta');
+  cdEstado.gaveta = gaveta; // referência própria (sobrevive mesmo se a janela flutuante for fechada por fora)
   gaveta.classList.add('flutuante', 'aberta');
   d.body.appendChild(d.adoptNode(gaveta));
   cdEstado.doc = d;
@@ -11970,9 +11982,14 @@ async function cdDestacar(){
   cdEstado.janela = win;
   return true;
 }
+// Traz a gaveta de volta para a página principal. Robusto a a janela flutuante já ter sido fechada
+// por fora (botão nativo de fechar, Alt+F4 etc.): usa cdEstado.gaveta (a referência do nó, guardada
+// ao destacar) em vez de só cdEstado.doc.getElementById, que pode falhar se o documento da janela já
+// não responde mais (revisão de código, fix round 1 — logout com a janela flutuante aberta).
 function cdRecolher(){
   if(cdEstado.doc === document) return;
-  const gaveta = cdEstado.doc.getElementById('cdGaveta');
+  let gaveta = cdEstado.gaveta || null;
+  if(!gaveta){ try{ gaveta = cdEstado.doc.getElementById('cdGaveta'); }catch(_e){ gaveta = null; } }
   cdEstado.doc = document;
   cdEstado.janela = null;
   if(gaveta){
