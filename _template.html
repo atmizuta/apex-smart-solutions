@@ -11105,6 +11105,124 @@ function agPedidosItens(calc){
   return ['atrasados', 'hoje', 'amanha', 'proximos7', 'depois'].flatMap(k => calc.agenda[k] || [])
     .filter(p => p.diaAlvo).map(p => ({ dia: p.diaAlvo, numero: p.numero, cliente: p.cliente || '', tipoData: p.tipoData }));
 }
+const CD_CAMPOS = ['telefone', 'nome', 'cpf', 'cnpj', 'cep', 'qtd_linhas', 'valor_plano', 'email', 'operadora_atual', 'decisor', 'fidelidade_vence'];
+const CD_RESULTADOS = { atendeu: 'Atendeu', nao_atendeu: 'Não atendeu', caixa_postal: 'Caixa postal', sem_interesse: 'Sem interesse', fechou: 'Fechou' };
+const CD_INTERESSES = { movel: 'Móvel', fibra: 'Fibra', portabilidade: 'Portabilidade' };
+function cdUuid(){
+  if(window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+}
+function cdNovaNota(){
+  const n = { id: cdUuid(), interesse: [], objecoes: [], texto: '', resultado: null, atualizado_em: null };
+  CD_CAMPOS.forEach(c => { n[c] = ''; });
+  return n;
+}
+function cdDigitos(s){ return String(s == null ? '' : s).replace(/\D/g, ''); }
+function cdCpfValido(s){
+  const d = cdDigitos(s);
+  if(d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+  const dv = (n) => { let soma = 0; for(let i = 0; i < n; i++) soma += Number(d[i]) * (n + 1 - i); const r = (soma * 10) % 11; return r === 10 ? 0 : r; };
+  return dv(9) === Number(d[9]) && dv(10) === Number(d[10]);
+}
+function cdCnpjValido(s){
+  const d = cdDigitos(s);
+  if(d.length !== 14 || /^(\d)\1{13}$/.test(d)) return false;
+  const dv = (n) => { const pesos = n === 12 ? [5,4,3,2,9,8,7,6,5,4,3,2] : [6,5,4,3,2,9,8,7,6,5,4,3,2]; let soma = 0; for(let i = 0; i < n; i++) soma += Number(d[i]) * pesos[i]; const r = soma % 11; return r < 2 ? 0 : 11 - r; };
+  return dv(12) === Number(d[12]) && dv(13) === Number(d[13]);
+}
+// Reconhece dados colados na anotação (sem IA). Ordem: e-mail, CNPJ, CPF formatado, telefones/11 dígitos, CEP.
+function cdReconhecer(texto){
+  let t = String(texto || '');
+  const r = {};
+  const tira = (re, fn) => { t = t.replace(re, m => { const v = fn(m); return v ? ' ' : m; }); };
+  tira(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, m => (r.email ? null : (r.email = m)));
+  tira(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/g, m => (!r.cnpj && cdCnpjValido(m) ? (r.cnpj = cdDigitos(m)) : null));
+  tira(/\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g, m => (!r.cpf && cdCpfValido(m) ? (r.cpf = cdDigitos(m)) : null));
+  tira(/\(?\b\d{2}\)?\s?\d{4,5}[-\s]?\d{4}\b/g, m => {
+    const d = cdDigitos(m);
+    if(d.length === 11 && d[2] !== '9'){ return !r.cpf && cdCpfValido(d) ? (r.cpf = d) : null; }
+    if((d.length === 10 || d.length === 11) && !r.telefone && chaveTel(d)) return (r.telefone = d);
+    return null;
+  });
+  tira(/\b\d{5}-\d{3}\b/g, m => (r.cep ? null : (r.cep = cdDigitos(m))));
+  return r;
+}
+function cdSugestoesPreencher(nota){
+  const achado = cdReconhecer(nota.texto);
+  return ['telefone', 'cpf', 'cnpj', 'cep', 'email'].filter(c => achado[c] && !String(nota[c] || '').trim()).map(c => ({ campo: c, valor: achado[c] }));
+}
+// Tipagem BR: "." só é separador de milhar quando são grupos de 3 dígitos e não há vírgula na string
+// ("1.200" → 1200); com vírgula, "." é separador de milhar e "," é decimal ("1.234,56" → 1234.56);
+// sem vírgula e sem o padrão de milhar, Number() direto ("99.90" → 99.9, ponto decimal).
+function cdNum(v){
+  if(typeof v === 'number') return Number.isFinite(v) ? v : null;
+  const s = String(v == null ? '' : v).trim();
+  if(!s) return null;
+  let n;
+  if(s.includes(',')) n = Number(s.replace(/\./g, '').replace(',', '.'));
+  else if(/^\d{1,3}(\.\d{3})+$/.test(s)) n = Number(s.replace(/\./g, ''));
+  else n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+function cdNotaVazia(n){
+  return !String(n.texto || '').trim() && !n.resultado && !(n.objecoes || []).length && !(n.interesse || []).length
+    && CD_CAMPOS.every(c => !String(n[c] || '').trim());
+}
+function cdPayload(n){
+  const txt = v => { const s = String(v == null ? '' : v).trim(); return s || null; };
+  const dig = v => cdDigitos(v) || null;
+  const q = cdNum(n.qtd_linhas);
+  return {
+    id: n.id, telefone: txt(n.telefone), nome: txt(n.nome), cpf: dig(n.cpf), cnpj: dig(n.cnpj), cep: dig(n.cep), email: txt(n.email),
+    operadora_atual: txt(n.operadora_atual), decisor: txt(n.decisor),
+    qtd_linhas: q === null ? null : Math.round(q), valor_plano: cdNum(n.valor_plano),
+    fidelidade_vence: /^\d{4}-\d{2}$/.test(n.fidelidade_vence || '') ? n.fidelidade_vence + '-01' : null,
+    interesse: (n.interesse || []).slice(), objecoes: (n.objecoes || []).slice(), texto: String(n.texto || ''), resultado: n.resultado || null,
+  };
+}
+function cdFmtCnpj(d){ return d.length === 14 ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : d; }
+function cdRetornoDaNota(n, quando, origem){
+  const p = cdPayload(n);
+  const primeira = String(n.texto || '').split('\n').map(s => s.trim()).find(Boolean) || '';
+  return {
+    id: cdUuid(), nota_id: n.id, nome: p.nome || (p.cnpj ? 'CNPJ ' + cdFmtCnpj(p.cnpj) : 'Cliente'), telefone: p.telefone || '',
+    quando, tipo: 'ligacao', qtd_linhas: p.qtd_linhas, valor_plano: p.valor_plano, observacao: primeira.slice(0, 140) || null, origem,
+  };
+}
+function cdSugestaoFidelidade(ym, hoje){
+  if(!/^\d{4}-\d{2}$/.test(ym || '')) return null;
+  let dia = somaDiasStr(ym + '-01', -45);
+  const amanha = somaDiasStr(hoje, 1);
+  if(dia < amanha) dia = amanha;
+  return { dia, rotulo: 'Agendar retorno 45 dias antes do vencimento (' + ppFmtDia(dia).slice(0, 5) + ')' };
+}
+// Mesma regra do mascarar() da Edge Function caderno-ia (supabase/functions/caderno-ia/ia.ts).
+function cdMascarar(texto){
+  const semEmail = String(texto == null ? '' : texto).replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, '[EMAIL]');
+  return semEmail.replace(/[+(]?\d[\d\s().\/-]*\d/g, m => {
+    // data dd/mm/aaaa ou dd/mm/aa: não é dado pessoal mascarável aqui, deixa como está.
+    if(/^\d{2}\/\d{2}\/(\d{4}|\d{2})$/.test(m)) return m;
+    let d = m.replace(/\D/g, '');
+    if(d.length < 8) return m; // "12 linhas", "899,90": não é um documento/telefone
+    if(d.length >= 12 && d.length <= 13 && d.startsWith('55')) d = d.slice(2); // DDI Brasil
+    else if(d.length >= 11 && d.length <= 12 && d.startsWith('0')) d = d.slice(1); // 0 de tronco
+    if(d.length === 14) return '[CNPJ]';
+    // 11 dígitos com 3º dígito 9 é celular com DDD; senão é CPF sem pontuação.
+    if(d.length === 11) return d[2] === '9' ? '[TELEFONE]' : '[CPF]';
+    if(d.length === 10) return '[TELEFONE]'; // fixo com DDD
+    if(d.length === 8) return '[CEP]';
+    if(d.length >= 12 && d.length <= 13) return '[TELEFONE]'; // +55 sem o DDI já tratado acima
+    return '[NUMERO]'; // qualquer outra sequência longa: mascara por segurança
+  });
+}
+function cdContextoIA(n){
+  return { qtd_linhas: cdNum(n.qtd_linhas), valor_plano: cdNum(n.valor_plano), operadora_atual: String(n.operadora_atual || '').trim(),
+    fidelidade_vence: n.fidelidade_vence || '', interesse: (n.interesse || []).slice(), texto: cdMascarar(n.texto).slice(0, 2000) };
+}
+function cdTemContexto(n){
+  const c = cdContextoIA(n);
+  return c.qtd_linhas !== null || c.valor_plano !== null || !!c.operadora_atual || !!c.fidelidade_vence || c.interesse.length > 0 || !!c.texto.trim();
+}
 </script>
 </body>
 </html>
