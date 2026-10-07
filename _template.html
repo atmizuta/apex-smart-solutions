@@ -11827,7 +11827,8 @@ window.addEventListener('online', () => { if(currentUser) cdEnviarPendentes(); }
 /* ============ OBJEÇÕES (06/10/2026, seção 72): chips com resposta instantânea da biblioteca +
    versão adaptada "para este cliente" pela IA (função caderno-ia), em segundo plano, com timeout
    e cache. Nunca manda nome/CPF/CNPJ/telefone/e-mail — só o contexto mascarado (cdContextoIA). */
-const objEstado = { lista: [], erro: false, cache: new Map(), aberta: null, timeoutMs: 6000, cacheMs: 600000, pedido: 0 };
+// timeoutMs: 15 s (07/10/2026) — o Gemini gratuito passou de 6 s no 1º uso real; a função caderno-ia usa até 12 s.
+const objEstado = { lista: [], erro: false, cache: new Map(), aberta: null, timeoutMs: 15000, cacheMs: 600000, pedido: 0 };
 async function objCarregar(){
   const r = await ppSeguro(() => sb.from('objecoes_respostas').select('chave,rotulo,fala,pergunta,alternativa,ordem,ativo').eq('ativo', true).order('ordem', { ascending: true }));
   objEstado.erro = !r || !!r.error;

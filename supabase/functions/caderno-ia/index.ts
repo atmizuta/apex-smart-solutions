@@ -7,7 +7,10 @@ import { responder } from "./ia.ts";
 import type { DepsIA, Objecao } from "./ia.ts";
 
 const MODELO = "gemini-3.1-flash-lite";
-const TIMEOUT_MS = 6000;
+// 07/10/2026: o Gemini gratuito passou de 6 s no 1º uso real. Orçamento total de 12 s; a 2ª tentativa (só em 503)
+// acontece se ainda sobrarem 4 s. O painel espera até 15 s (objEstado.timeoutMs).
+const ORCAMENTO_MS = 12000;
+const FOLGA_RETRY_MS = 4000;
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -23,9 +26,12 @@ function env(k: string): string {
 
 async function gemini(prompt: string, chave: string): Promise<string> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`;
+  const limite = Date.now() + ORCAMENTO_MS;
   for (let tentativa = 0; tentativa < 2; tentativa++) {
+    const resta = limite - Date.now();
+    if (resta <= 0) throw new Error("gemini timeout");
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+    const timer = setTimeout(() => ctrl.abort(), resta);
     try {
       const r = await fetch(url, {
         method: "POST", signal: ctrl.signal,
@@ -35,12 +41,16 @@ async function gemini(prompt: string, chave: string): Promise<string> {
           generationConfig: { responseMimeType: "application/json", temperature: 0.4, maxOutputTokens: 300 },
         }),
       });
-      if (r.status === 503 && tentativa === 0) continue; // o gratuito devolve 503 "high demand" com frequência
+      // o gratuito devolve 503 "high demand" com frequência: tenta de novo só se ainda houver folga
+      if (r.status === 503 && tentativa === 0 && limite - Date.now() > FOLGA_RETRY_MS) continue;
       if (!r.ok) throw new Error(`gemini http ${r.status}`);
       const j = await r.json();
       const texto = j?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ?? "";
       if (!texto) throw new Error("gemini sem texto");
       return texto;
+    } catch (e) {
+      if (e instanceof Error && e.name === "AbortError") throw new Error("gemini timeout");
+      throw e;
     } finally {
       clearTimeout(timer);
     }

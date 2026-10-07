@@ -117,10 +117,16 @@ test("responder: entrada inválida 400, objeção inexistente 404, limite 429, I
   const r429 = await responder({ objecao_chave: "caro", contexto: {} }, "u1", cheio);
   assert.equal(r429.status, 429);
   assert.equal(cheio.prompts.length, 0);
-  const quebrada = deps({ chamarGemini: async () => { throw new Error("503 high demand"); } });
+  const quebrada = deps({ chamarGemini: async () => { throw new Error("gemini http 503"); } });
   const r503 = await responder({ objecao_chave: "caro", contexto: {} }, "u1", quebrada);
   assert.equal(r503.status, 503);
-  assert.equal((quebrada.log[0] as { status: string }).status, "erro_ia");
+  assert.equal((quebrada.log[0] as { status: string }).status, "erro_ia:503");
+  const lenta = deps({ chamarGemini: async () => { throw new Error("gemini timeout"); } });
+  await responder({ objecao_chave: "caro", contexto: {} }, "u1", lenta);
+  assert.equal((lenta.log[0] as { status: string }).status, "erro_ia:timeout");
+  const estranha = deps({ chamarGemini: async () => { throw new Error("cpf 123.456.789-09 vazou?"); } });
+  await responder({ objecao_chave: "caro", contexto: {} }, "u1", estranha);
+  assert.equal((estranha.log[0] as { status: string }).status, "erro_ia:outro", "status nunca copia a mensagem do erro");
   const lixo = deps({ chamarGemini: async () => "sem json" });
   assert.equal((await responder({ objecao_chave: "caro", contexto: {} }, "u1", lixo)).status, 503);
 });

@@ -118,6 +118,15 @@ export function lerRespostaIA(bruto: string): { fala: string; pergunta: string }
   }
 }
 
+// Só um código curto vai para o log (status HTTP do Gemini, "timeout" ou "outro"): nunca a mensagem inteira.
+export function codigoErro(e: unknown): string {
+  const msg = e instanceof Error ? e.message : String(e ?? "");
+  const http = /gemini http (\d{3})/.exec(msg);
+  if (http) return http[1];
+  if (/timeout|abort/i.test(msg) || (e instanceof Error && e.name === "AbortError")) return "timeout";
+  return "outro";
+}
+
 export async function responder(corpo: unknown, uid: string, deps: DepsIA): Promise<{ status: number; body: Record<string, unknown> }> {
   const v = validarEntrada(corpo);
   if (!v.ok) return { status: 400, body: { error: v.erro } };
@@ -142,8 +151,8 @@ export async function responder(corpo: unknown, uid: string, deps: DepsIA): Prom
     }
     await deps.registrarChamada({ consultor_id: uid, objecao, status: "ok", ms: deps.agora() - inicio });
     return { status: 200, body: r };
-  } catch {
-    await deps.registrarChamada({ consultor_id: uid, objecao, status: "erro_ia", ms: deps.agora() - inicio });
+  } catch (e) {
+    await deps.registrarChamada({ consultor_id: uid, objecao, status: "erro_ia:" + codigoErro(e), ms: deps.agora() - inicio });
     return { status: 503, body: { error: "ia_indisponivel" } };
   }
 }

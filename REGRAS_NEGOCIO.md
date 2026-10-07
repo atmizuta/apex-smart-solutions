@@ -2939,7 +2939,7 @@ Pedido do Rafael ao aprovar: aba só de supervisor/admin, ao lado de Pedidos em 
   - só funciona com o painel aberto em alguma aba.
 - **Objeções:**
   - chips no Caderno (`Alt+1`…`Alt+9`); a resposta da biblioteca (`objecoes_respostas`: fala, pergunta, alternativa) aparece na hora, sem rede;
-  - se a anotação tem contexto, a Edge Function `caderno-ia` (Gemini `gemini-3.1-flash-lite`, nível gratuito) devolve a versão "Para este cliente" em até 6 s, com no máximo 3 frases no total (fala + pergunta). Se não devolver, "IA indisponível agora", e a biblioteca segue na tela;
+  - se a anotação tem contexto, a Edge Function `caderno-ia` (Gemini `gemini-3.1-flash-lite`, nível gratuito) devolve a versão "Para este cliente" (a função espera o Gemini até 12 s no total, com 2ª tentativa em 503 só se sobrar folga; o painel espera até 15 s), com no máximo 3 frases no total (fala + pergunta). Se não devolver, "IA indisponível agora", e a biblioteca segue na tela;
   - campo "O cliente disse…" para objeção fora dos chips;
   - atualizar a tela (marcar resultado, interesse etc.) nunca apaga a resposta da IA nem o que o consultor digitou em "O cliente disse…"; trocar de atendimento limpa a resposta do cliente anterior;
   - "Usei" e 👍/👎 gravam em `objecoes_uso`; "Treinar no Apex Mind" abre o Apex Mind por SSO;
@@ -2947,6 +2947,7 @@ Pedido do Rafael ao aprovar: aba só de supervisor/admin, ao lado de Pedidos em 
 - **Dado pessoal e IA:**
   - o painel nunca envia nome, CPF, CNPJ, CEP, telefone ou e-mail; operadora e interesse também passam pela máscara abaixo (no navegador e na função), por serem texto livre;
   - o texto livre é mascarado no navegador (`cdMascarar`) e de novo na função (`mascarar`), pela mesma regra: primeiro o e-mail; depois, qualquer sequência numérica com separadores é classificada pela quantidade de dígitos — data `dd/mm/aaaa` fica como está, sequência com menos de 8 dígitos fica como está (não é documento), prefixo `55` (DDI) ou `0` de tronco é removido antes de classificar, 14 dígitos → `[CNPJ]`, 11 dígitos com o 3º dígito 9 → `[TELEFONE]`, 11 dígitos → `[CPF]`, 10 ou 12/13 dígitos → `[TELEFONE]`, 8 dígitos → `[CEP]`, qualquer outra sequência de 8+ dígitos → `[NUMERO]`;
+  - erro da IA fica em `caderno_ia_chamadas.status` só como código curto: `erro_ia:<status HTTP do Gemini>`, `erro_ia:timeout` ou `erro_ia:outro` (07/10/2026: no 1º uso real o Gemini gratuito passou de 6 s, por isso o tempo foi ampliado);
   - a função não loga texto, e o limite é de 20 chamadas por consultor a cada 10 min (`caderno_ia_chamadas`);
   - secret `GEMINI_API_KEY` no projeto `apex`; a função valida o usuário pelo token do header `Authorization: Bearer …` (`auth.getUser(jwt)`).
 - **Mesa do Supervisor:** bloco "Retornos e objeções", com a RPC `mesa_retornos_objecoes(p_ref)`: hoje, atrasados, % feitos no dia marcado (7 dias) e top 5 objeções.
