@@ -38,7 +38,10 @@ async function gemini(prompt: string, chave: string): Promise<string> {
         headers: { "Content-Type": "application/json", "x-goog-api-key": chave },
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: "application/json", temperature: 0.4, maxOutputTokens: 300 },
+          // thinkingBudget 0: sem isso o Gemini 3.x "pensa" antes de responder, passa de 12 s e pode gastar o
+          // limite de tokens no raciocínio (07/10/2026: 1º uso real deu timeout). O Apex Mind já usa assim.
+          generationConfig: { responseMimeType: "application/json", temperature: 0.4, maxOutputTokens: 300,
+            thinkingConfig: { thinkingBudget: 0 } },
         }),
       });
       // o gratuito devolve 503 "high demand" com frequência: tenta de novo só se ainda houver folga
