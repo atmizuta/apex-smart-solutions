@@ -576,7 +576,18 @@
   .objIATitulo{font-size:var(--fs-xs);font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--c-bordo);margin-bottom:var(--space-1);}
   .objAcoes{display:flex;gap:4px;flex-wrap:wrap;margin-top:var(--space-2);}
   .objCarregando{font-size:var(--fs-sm);color:var(--muted);margin:0;}
-  @media (max-width:720px){ .agSemana,.agGrade{display:none;} .agLista{display:block;} }
+  /* Minhas anotações (07/10/2026, seção 73) */
+  .anLista{margin-top:var(--space-4);display:flex;flex-direction:column;gap:var(--space-3);}
+  .anCard{border:1px solid var(--c-linha);padding:var(--space-3) var(--space-4);cursor:pointer;background:var(--c-branco);}
+  .anCard:hover{border-color:var(--c-sinal);}
+  .anCardTopo{display:flex;justify-content:space-between;align-items:center;gap:var(--space-2);flex-wrap:wrap;}
+  .anCardData{font-size:var(--fs-xs);color:var(--muted);font-variant-numeric:tabular-nums;}
+  .anCardCliente{font-weight:600;margin-top:2px;}
+  .anCardSub{font-size:var(--fs-xs);color:var(--muted);margin-top:2px;}
+  .anCardChips{display:flex;gap:4px;flex-wrap:wrap;margin-top:var(--space-2);}
+  .anCardChips .filterPill{padding:2px 8px;font-size:var(--fs-xs);cursor:default;}
+  .anCardTexto{font-size:var(--fs-sm);margin-top:var(--space-2);color:var(--c-grafite);}
+  @media (max-width:720px){ .agSemana,.agGrade{display:none;} .agLista{display:block;} .anCardTopo{flex-direction:column;align-items:flex-start;} }
 </style>
 </head>
 <body>
@@ -704,6 +715,8 @@
       <!-- 30/09/2026: aba só do consultor (vê apenas os pedidos dele). Admin/supervisor seguem com "Pedidos em Alerta" no Dashboard. Ver seção 53 do REGRAS_NEGOCIO.md. -->
       <button data-tab="pedidosparados" id="tabBtnPedidosParados" style="display:none" data-sub="Seus pedidos parados, agenda e oportunidades"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="sbLabel">Pedidos Parados</span></button>
       <button data-tab="agenda" id="tabBtnAgenda" data-sub="Seus retornos do mês"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/></svg><span class="sbLabel">Agenda</span></button>
+      <!-- 07/10/2026, seção 73: "Minhas anotações" — tudo o que o consultor anotou no Caderno, busca e filtros. Todos os perfis veem só as próprias. -->
+      <button data-tab="anotacoes" id="tabBtnAnotacoes" data-sub="Tudo o que você anotou no Caderno"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/><path d="M9 9h1"/></svg><span class="sbLabel">Anotações</span></button>
       <div class="navGroupLabel">Ferramentas</div>
       <button data-tab="biometria" id="tabBtnBiometria" data-sub="Biometria facial do cliente"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h.01"/><path d="M15 12h.01"/><path d="M10 15.5c.6.4 1.3.6 2 .6s1.4-.2 2-.6"/><path d="M12 3a9 9 0 0 0-9 9v6.5A2.5 2.5 0 0 0 5.5 21h0A2.5 2.5 0 0 0 8 18.5v-1a4 4 0 0 1 8 0v1a2.5 2.5 0 0 0 2.5 2.5h0a2.5 2.5 0 0 0 2.5-2.5V12a9 9 0 0 0-9-9z"/></svg><span class="sbLabel">Biometria</span></button>
       <!-- 28/09/2026 (pedido do usuário: "deixe a opcao de cada usuário conectar o seu email do
@@ -1457,6 +1470,29 @@
         <div class="agGrade" id="agGrade"></div>
         <div class="agLista" id="agLista"></div>
       </div>
+    </section>
+
+    <!-- MINHAS ANOTAÇÕES (07/10/2026, seção 73): busca e filtra as próprias anotações do Caderno -->
+    <section class="panel" id="panel-anotacoes">
+      <div class="searchBox"><input type="text" id="anBusca" placeholder="Buscar por nome, telefone, CNPJ ou texto da anotação..."></div>
+      <div class="filterPills" id="anPeriodo">
+        <button type="button" class="filterPill" data-an-periodo="hoje">Hoje</button>
+        <button type="button" class="filterPill" data-an-periodo="7d">7 dias</button>
+        <button type="button" class="filterPill active" data-an-periodo="30d">30 dias</button>
+        <button type="button" class="filterPill" data-an-periodo="tudo">Tudo</button>
+      </div>
+      <div class="filterPills" id="anResultado">
+        <button type="button" class="filterPill active" data-an-resultado="todos">Todos</button>
+        <button type="button" class="filterPill" data-an-resultado="atendeu">Atendeu</button>
+        <button type="button" class="filterPill" data-an-resultado="nao_atendeu">Não atendeu</button>
+        <button type="button" class="filterPill" data-an-resultado="caixa_postal">Caixa postal</button>
+        <button type="button" class="filterPill" data-an-resultado="sem_interesse">Sem interesse</button>
+        <button type="button" class="filterPill" data-an-resultado="fechou">Fechou</button>
+      </div>
+      <p class="searchMeta" id="anContador"></p>
+      <p class="searchMeta" id="anStatus"></p>
+      <div id="anLista" class="anLista"></div>
+      <button type="button" class="btn btn-sm btn-outline" id="anCarregarMais" style="display:none;width:auto">Carregar mais</button>
     </section>
   </main>
   </div>
@@ -2434,6 +2470,7 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
   if(btn.dataset.tab === 'config') carregarEmailConfigStatus();
   if(btn.dataset.tab === 'mesa') loadMesa(true);
   if(btn.dataset.tab === 'agenda') loadAgenda();
+  if(btn.dataset.tab === 'anotacoes') loadAnotacoes();
 });
 
 // 28/09/2026: o menu lateral do chefe (27/09, com gaveta/hambúrguer no celular) foi substituído pelo
@@ -11764,6 +11801,7 @@ function cadernoResetar(){
   cdLimparTela();
   document.getElementById('cdBotao').style.display = 'none';
   agResetar();
+  anResetar();
   if(typeof alParar === 'function') alParar();
 }
 // Os listeners ficam presos ao elemento da gaveta (não ao document), para funcionarem também na janela flutuante.
@@ -12365,6 +12403,151 @@ document.getElementById('agDiaLista').addEventListener('click', (ev) => {
   }
 });
 window.addEventListener('online', () => { if(currentUser){ agFilaEnviar(); } });
+
+/* ============ MINHAS ANOTAÇÕES (07/10/2026, seção 73): busca/filtra as próprias anotações do
+   Caderno (caderno_notas). Sempre .eq('consultor_id', …) — igual à Agenda, admin/supervisor também
+   só veem as próprias (a visão da equipe é a Mesa do Supervisor). Busca e filtros rodam no banco;
+   geracao descarta resposta atrasada (digitar rápido ou trocar de pílula/página). ============ */
+const AN_PAGINA = 50;
+const anEstado = { termo: '', periodo: '30d', resultado: 'todos', notas: [], total: 0, pagina: 0,
+  temMais: false, carregando: false, erro: false, geracao: 0, buscaTimer: null };
+function anUid(){ return currentUser ? currentUser.id : 'anon'; }
+// Corte de data por atualizado_em em SP (UTC-3 fixo, mesmos helpers do §72): null = "Tudo", sem corte.
+function anCorte(periodo){
+  if(periodo === 'tudo') return null;
+  const hoje = agPartesSP(agAgora()).dia;
+  const dias = periodo === 'hoje' ? 0 : periodo === '7d' ? 6 : 29;
+  return agIsoSP(somaDiasStr(hoje, -dias), '00:00');
+}
+// nome/texto por ilike (texto livre, sem vírgula/parênteses/% — quebrariam a sintaxe do .or(); sem *
+// nem _, curingas do ilike/like do PostgREST — revisão §73, achado 2); telefone/CNPJ pelos dígitos.
+function anFiltroBusca(termo){
+  const t = String(termo || '').trim();
+  if(!t) return null;
+  const seguro = t.replace(/[,()%*_"\\]/g, ' ').trim(); // , ( ) " \ quebram o or(); * % _ são curingas
+  const digitos = cdDigitos(t);
+  const partes = [];
+  if(seguro) partes.push(`nome.ilike.%${seguro}%`, `texto.ilike.%${seguro}%`);
+  if(digitos){
+    // celular/fixo com DDD completo (>=10 dígitos): chaveTel() tira o "9" do celular e o DDI 55, então
+    // bater os dígitos crus por substring falha pra celular (revisão §73, achado 1, CRÍTICO) — normaliza
+    // com chaveTel() e compara IGUAL. Dígitos a menos (número parcial digitado): mantém ilike por substring.
+    const chave = digitos.length >= 10 ? chaveTel(digitos) : null;
+    partes.push(chave ? `chave_tel.eq.${chave}` : `chave_tel.ilike.%${digitos}%`);
+    partes.push(`cnpj.ilike.%${digitos}%`);
+  }
+  return partes.length ? partes.join(',') : null;
+}
+async function anCarregar(reiniciar){
+  if(!currentUser) return;
+  if(reiniciar) anEstado.pagina = 0;
+  const geracao = reiniciar ? ++anEstado.geracao : anEstado.geracao;
+  anEstado.carregando = true; anEstado.erro = false;
+  anRenderStatus();
+  const de = anEstado.pagina * AN_PAGINA, ate = de + AN_PAGINA - 1;
+  // count: 'exact' só na 1ª página (reiniciar) — "Carregar mais" não precisa pedir de novo o total
+  // (revisão §73, achado 4).
+  let q = sb.from('caderno_notas')
+    .select('id,nome,telefone,cnpj,texto,resultado,qtd_linhas,valor_plano,objecoes,atualizado_em', reiniciar ? { count: 'exact' } : undefined)
+    .eq('consultor_id', anUid());
+  const corte = anCorte(anEstado.periodo);
+  if(corte) q = q.gte('atualizado_em', corte);
+  if(anEstado.resultado !== 'todos') q = q.eq('resultado', anEstado.resultado);
+  const ou = anFiltroBusca(anEstado.termo);
+  if(ou) q = q.or(ou);
+  q = q.order('atualizado_em', { ascending: false }).range(de, ate);
+  const r = await ppSeguro(() => q);
+  if(geracao !== anEstado.geracao) return; // resposta de um pedido antigo (filtro/página trocados nesse meio tempo): descarta
+  anEstado.carregando = false;
+  anEstado.erro = !r || !!r.error;
+  if(anEstado.erro){ anRenderStatus(); return; }
+  const novas = r.data || [];
+  anEstado.notas = reiniciar ? novas : anEstado.notas.concat(novas);
+  // total só muda quando o count veio (1ª página); nas seguintes mantém o que já se sabe (achado 4).
+  if(typeof r.count === 'number') anEstado.total = r.count;
+  else if(reiniciar) anEstado.total = anEstado.notas.length;
+  anEstado.temMais = anEstado.total != null ? anEstado.notas.length < anEstado.total : novas.length === AN_PAGINA;
+  anRenderLista();
+}
+// Reentrância: 2 cliques rápidos em "Carregar mais" não podem disparar 2 pedidos nem embaralhar a
+// ordem das páginas se a 2ª resposta chegar antes da 1ª — ignora enquanto já há um pedido em voo
+// (revisão §73, achado 3). O botão também fica desabilitado nesse meio tempo (ver anRenderStatus).
+function anCarregarMais(){
+  if(anEstado.carregando || !anEstado.temMais) return;
+  anEstado.pagina++;
+  anCarregar(false);
+}
+async function loadAnotacoes(){ if(currentUser) await anCarregar(true); }
+function anFmtCliente(n){ return String(n.nome || '').trim() || n.telefone || 'Cliente'; }
+// Rótulo da biblioteca de objeções quando já carregada (objEstado.lista, §72); senão, a própria chave.
+function anObjChip(chave){ const o = (objEstado.lista || []).find(x => x.chave === chave); return o ? o.rotulo : chave; }
+function anCardHtml(n){
+  const p = agPartesSP(n.atualizado_em);
+  const resultadoLabel = n.resultado ? (CD_RESULTADOS[n.resultado] || n.resultado) : '';
+  const sub = [n.qtd_linhas != null ? n.qtd_linhas + ' linha(s)' : '', n.valor_plano != null ? fmtBRL(Number(n.valor_plano)) : '']
+    .filter(Boolean).map(escapeHtml).join(' · ');
+  const chips = (n.objecoes || []).map(c => `<span class="filterPill">${escapeHtml(anObjChip(c))}</span>`).join('');
+  const resumo = String(n.texto || '').split('\n').slice(0, 2).join(' · ');
+  return `<div class="card anCard" data-id="${escapeHtml(n.id)}">`
+    + `<div class="anCardTopo"><span class="anCardData">${escapeHtml(ppFmtDia(p.dia).slice(0, 5) + ' ' + p.hora)}</span>${resultadoLabel ? `<span class="badge">${escapeHtml(resultadoLabel)}</span>` : ''}</div>`
+    + `<div class="anCardCliente">${escapeHtml(anFmtCliente(n))}</div>`
+    + (sub ? `<div class="anCardSub">${sub}</div>` : '')
+    + (chips ? `<div class="anCardChips">${chips}</div>` : '')
+    + (resumo ? `<div class="anCardTexto">${escapeHtml(resumo)}</div>` : '')
+    + `</div>`;
+}
+function anRenderLista(){
+  document.getElementById('anLista').innerHTML = anEstado.notas.length
+    ? anEstado.notas.map(anCardHtml).join('')
+    : '<p class="ppVazio">Nenhuma anotação encontrada.</p>';
+  document.getElementById('anContador').textContent = anEstado.total + ' anotações';
+  document.getElementById('anCarregarMais').style.display = anEstado.temMais ? 'inline-block' : 'none';
+  anRenderStatus();
+}
+function anRenderStatus(){
+  document.getElementById('anStatus').textContent = anEstado.erro ? 'Não foi possível carregar suas anotações agora.' : '';
+  // desabilita "Carregar mais" enquanto um pedido está em voo (reentrância, achado 3) — além de
+  // escondido quando não há mais página (ver anRenderLista).
+  const mais = document.getElementById('anCarregarMais');
+  if(mais) mais.disabled = anEstado.carregando;
+}
+function anResetar(){
+  anEstado.geracao++; // descarta qualquer resposta ainda no ar
+  clearTimeout(anEstado.buscaTimer); anEstado.buscaTimer = null;
+  Object.assign(anEstado, { termo: '', periodo: '30d', resultado: 'todos', notas: [], total: 0, pagina: 0, temMais: false, carregando: false, erro: false });
+  const lista = document.getElementById('anLista'); if(lista) lista.innerHTML = '';
+  const contador = document.getElementById('anContador'); if(contador) contador.textContent = '';
+  const status = document.getElementById('anStatus'); if(status) status.textContent = '';
+  const mais = document.getElementById('anCarregarMais'); if(mais){ mais.style.display = 'none'; mais.disabled = false; }
+  const busca = document.getElementById('anBusca'); if(busca) busca.value = '';
+  document.querySelectorAll('#anPeriodo [data-an-periodo]').forEach(x => x.classList.toggle('active', x.dataset.anPeriodo === '30d'));
+  document.querySelectorAll('#anResultado [data-an-resultado]').forEach(x => x.classList.toggle('active', x.dataset.anResultado === 'todos'));
+}
+document.getElementById('anBusca').addEventListener('input', function(){
+  anEstado.termo = this.value;
+  clearTimeout(anEstado.buscaTimer);
+  anEstado.buscaTimer = setTimeout(() => anCarregar(true), 300);
+});
+document.getElementById('anPeriodo').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-an-periodo]');
+  if(!b) return;
+  anEstado.periodo = b.dataset.anPeriodo;
+  document.querySelectorAll('#anPeriodo [data-an-periodo]').forEach(x => x.classList.toggle('active', x === b));
+  anCarregar(true);
+});
+document.getElementById('anResultado').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-an-resultado]');
+  if(!b) return;
+  anEstado.resultado = b.dataset.anResultado;
+  document.querySelectorAll('#anResultado [data-an-resultado]').forEach(x => x.classList.toggle('active', x === b));
+  anCarregar(true);
+});
+document.getElementById('anCarregarMais').addEventListener('click', anCarregarMais);
+document.getElementById('anLista').addEventListener('click', (ev) => {
+  const c = ev.target.closest('.anCard');
+  if(!c) return;
+  cdAbrirDoRetorno({ nota_id: c.dataset.id });
+});
 </script>
 </body>
 </html>
