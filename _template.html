@@ -11859,7 +11859,8 @@ function alAtualizarAvisoPermissao(){ /* Task 10 */ }
 function objPodeEditar(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
 function objAplicarPermissaoEditor(){ document.getElementById('agEditarObj').style.display = objPodeEditar() ? 'inline-block' : 'none'; }
 function objNovaChave(rotulo, existentes){
-  const base = String(rotulo || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 36) || 'objecao';
+  let base = String(rotulo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 36);
+  if(base.length < 2) base = 'objecao';
   let c = base, i = 2;
   while(existentes.includes(c)) c = base + '_' + (i++);
   return c;
@@ -11875,7 +11876,7 @@ async function objAbrirEditor(){
 }
 function objRenderEditor(){
   const campo = (o, c, rot, area) => `<div class="field"><label>${rot}</label>${area ? `<textarea rows="2" data-campo="${c}">${escapeHtml(o[c] || '')}</textarea>` : `<input type="text" data-campo="${c}" value="${escapeHtml(o[c] == null ? '' : String(o[c]))}">`}</div>`;
-  document.getElementById('objEditorLista').innerHTML = objEditorLinhas.map(o => `<div class="card objEdLinha" data-obj-ed="${escapeHtml(o.chave)}">
+  document.getElementById('objEditorLista').innerHTML = objEditorLinhas.map(o => `<div class="card" data-obj-ed="${escapeHtml(o.chave)}">
       <div class="agFLinha">${campo(o, 'rotulo', 'Rótulo')}${campo(o, 'ordem', 'Ordem')}<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-campo="ativo"${o.ativo ? ' checked' : ''}> Ativa</label></div>
       ${campo(o, 'fala', 'Fala (o que dizer)', true)}${campo(o, 'pergunta', 'Pergunta de contorno', true)}${campo(o, 'alternativa', 'Alternativa de oferta', true)}
       <button type="button" class="btn btn-sm" data-obj-salvar="${escapeHtml(o.chave)}" style="width:auto">Salvar</button></div>`).join('');
@@ -11905,6 +11906,7 @@ document.getElementById('objEdNova').addEventListener('click', async () => {
   if(r && r.error){ mostrarAviso('Não foi possível criar: ' + r.error.message, 'erro'); return; }
   document.getElementById('objEdNovaRotulo').value = '';
   objEditorLinhas.push(linha); objRenderEditor();
+  objCarregar();
 });
 async function loadAgenda(){
   if(!currentUser) return;

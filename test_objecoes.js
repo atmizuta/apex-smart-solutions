@@ -139,6 +139,14 @@ rodar(`
   window.__tabelas.objecoes_respostas = [{ chave: 'caro', rotulo: 'Tá caro', fala: 'Fala caro.', pergunta: 'P?', alternativa: 'A.', ordem: 1, ativo: true }];
   eq(objNovaChave('Já tenho fidelidade!', ['caro']), 'ja_tenho_fidelidade', 'chave a partir do rótulo');
   eq(objNovaChave('Tá caro', ['ta_caro']), 'ta_caro_2', 'chave sem colidir');
+  // Fix round 1 (revisão Task 9, Importante): chave sempre válida para o check do banco
+  // ^[a-z0-9_]{2,40}$ — rótulo que vira só 1 caractere não pode gerar chave curta demais.
+  assert(/^[a-z0-9_]{2,40}$/.test(objNovaChave('x', [])), 'chave de rótulo de 1 caractere continua válida');
+  assert(/^[a-z0-9_]{2,40}$/.test(objNovaChave('😀x', [])), 'chave de rótulo com emoji continua válida');
+  const rot60 = 'a'.repeat(60);
+  const base60 = objNovaChave(rot60, []);
+  eq(base60.length, 36, 'base cortada em 36 caracteres');
+  assert(/^[a-z0-9_]{2,40}$/.test(objNovaChave(rot60, [base60])), 'chave longa com colisão continua <= 40');
   currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
   objAplicarPermissaoEditor();
   assert(document.getElementById('agEditarObj').style.display === 'none', 'consultor não vê o editor');
@@ -156,6 +164,9 @@ rodar(`
   document.getElementById('objEdNova').click(); await espera(30);
   const nova = window.__escritas.filter(e => e.tabela === 'objecoes_respostas' && e.op === 'upsert').pop();
   eq([nova.rows.chave, nova.rows.rotulo, nova.rows.ativo, nova.rows.ordem], ['ja_tenho_fidelidade', 'Já tenho fidelidade', true, 2], 'nova objeção no fim');
+  // Fix round 1 (revisão Task 9, Importante): "Adicionar" precisa recarregar a biblioteca
+  // (objCarregar) para a nova objeção aparecer nos chips do Caderno, igual ao Salvar.
+  assert(objEstado.lista.some(o => o.chave === 'ja_tenho_fidelidade'), 'chips recarregam (objCarregar) depois de Adicionar');
   // fala vazia não salva
   const l2 = document.querySelector('#objEditorLista [data-obj-ed="caro"]');
   l2.querySelector('[data-campo="fala"]').value = '  ';
