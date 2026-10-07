@@ -239,6 +239,41 @@ rodar(`
   assert(document.getElementById('cdBotao').style.display === 'none' && !document.getElementById('cdGaveta').classList.contains('aberta'), 'logout esconde o Caderno');
   Date.now = nowReal;
 
+  // ==== TASK 11: janela flutuante ====
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  cadernoAoEntrar(); cdAbrir();
+  const pip = new window.__JSDOM('<!doctype html><html><head></head><body></body></html>').window;
+  window.documentPictureInPicture = { requestWindow: async (o) => { window.__pipOpts = o; return pip; } };
+  await cdDestacar();
+  eq(window.__pipOpts, { width: 420, height: 720 }, 'tamanho da janela');
+  assert(pip.document.getElementById('cdGaveta') && pip.document.getElementById('cdGaveta').classList.contains('flutuante'), 'gaveta foi para a janela flutuante');
+  assert(!document.getElementById('cdGaveta'), 'saiu da página principal');
+  assert(pip.document.head.querySelectorAll('style').length >= 1, 'estilos copiados');
+  // digitar na janela flutuante continua salvando
+  const tel = pip.document.getElementById('cdF_telefone');
+  tel.value = '19990000009'; tel.dispatchEvent(new pip.Event('input', { bubbles: true }));
+  await espera(30);
+  assert(window.__escritas.some(e => e.tabela === 'caderno_notas' && e.rows.telefone === '19990000009'), 'salva a partir da janela flutuante');
+  // Alt+N na janela flutuante funciona
+  pip.document.dispatchEvent(new pip.KeyboardEvent('keydown', { key: 'N', altKey: true, shiftKey: true }));
+  await espera(30);
+  eq(pip.document.getElementById('cdF_telefone').value, '', 'Alt+Shift+N na flutuante');
+  // fechar a janela devolve a gaveta
+  pip.dispatchEvent(new pip.Event('pagehide'));
+  assert(document.getElementById('cdGaveta') && !document.getElementById('cdGaveta').classList.contains('flutuante'), 'volta para a página');
+  // sem PiP: usa janela comum
+  delete window.documentPictureInPicture;
+  const pop = new window.__JSDOM('<!doctype html><html><head></head><body></body></html>').window;
+  window.open = (u, nome, feat) => { window.__popup = { u, nome, feat }; return pop; };
+  await cdDestacar();
+  eq([window.__popup.nome, window.__popup.feat], ['cadernoApex', 'width=420,height=720'], 'reserva com window.open');
+  assert(pop.document.getElementById('cdGaveta'), 'gaveta na janela comum');
+  pop.dispatchEvent(new pop.Event('pagehide'));
+  // janela bloqueada: avisa e não perde a gaveta
+  window.open = () => null;
+  const okFlutuar = await cdDestacar();
+  assert(!okFlutuar && document.getElementById('cdGaveta') && avisos().includes('janela flutuante'), 'popup bloqueado: aviso');
+
   // ==== mais testes entram aqui ====
   fim();
 `);

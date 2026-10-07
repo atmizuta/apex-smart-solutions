@@ -11947,6 +11947,41 @@ function alParar(){
 }
 document.addEventListener('agenda:mudou', () => { if(currentUser) alCarregarProximos().then(alVerificar); });
 document.getElementById('agAtivarAlertas').addEventListener('click', alPedirPermissao);
+
+// Janela flutuante (seção 72): a gaveta muda de documento — os listeners ficam no próprio elemento (cdLigarEventos /
+// objLigarEventos), então continuam valendo; cdEl() procura primeiro no documento onde a gaveta está.
+async function cdDestacar(){
+  if(cdEstado.doc !== document) return true;
+  let win = null;
+  try{
+    if(window.documentPictureInPicture && typeof window.documentPictureInPicture.requestWindow === 'function') win = await window.documentPictureInPicture.requestWindow({ width: 420, height: 720 });
+    else win = window.open('', 'cadernoApex', 'width=420,height=720');
+  }catch(_e){ win = null; }
+  if(!win || !win.document){ mostrarAviso('O navegador bloqueou a janela flutuante. Permita pop-ups para o painel e tente de novo.', 'erro'); return false; }
+  const d = win.document;
+  d.title = 'Caderno — Apex';
+  document.querySelectorAll('style, link[rel="stylesheet"]').forEach(s => d.head.appendChild(s.cloneNode(true)));
+  const gaveta = document.getElementById('cdGaveta');
+  gaveta.classList.add('flutuante', 'aberta');
+  d.body.appendChild(d.adoptNode(gaveta));
+  cdEstado.doc = d;
+  d.addEventListener('keydown', cdTeclas);
+  win.addEventListener('pagehide', cdRecolher, { once: true });
+  cdEstado.janela = win;
+  return true;
+}
+function cdRecolher(){
+  if(cdEstado.doc === document) return;
+  const gaveta = cdEstado.doc.getElementById('cdGaveta');
+  cdEstado.doc = document;
+  cdEstado.janela = null;
+  if(gaveta){
+    gaveta.classList.remove('flutuante');
+    document.getElementById('app').appendChild(document.adoptNode(gaveta));
+    gaveta.classList.toggle('aberta', cdEstado.aberto);
+  }
+}
+
 function objPodeEditar(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
 function objAplicarPermissaoEditor(){ document.getElementById('agEditarObj').style.display = objPodeEditar() ? 'inline-block' : 'none'; }
 function objNovaChave(rotulo, existentes){
