@@ -540,7 +540,14 @@
   .agFHoras{display:flex;gap:var(--space-2);margin:0 0 var(--space-3);flex-wrap:wrap;}
   .agFErro{color:var(--st-perdido);font-size:var(--fs-sm);min-height:1em;margin-bottom:var(--space-2);}
   .agDiaModal{max-width:620px;}
-  #cdBotao{position:fixed;right:var(--space-6);bottom:100px;z-index:95;width:auto;box-shadow:var(--shadow-lg);}
+  /* 07/10/2026 (seção 74): ícone redondo (mesmo estilo do #apexMindBubble, agora escondido), no lugar dele */
+  #cdBotao{position:fixed;right:var(--space-6);bottom:32px;z-index:95;width:56px;height:56px;border-radius:50%;
+    background:linear-gradient(135deg, var(--c-sinal) 0%, var(--c-bordo) 100%);
+    display:flex;align-items:center;justify-content:center;padding:0;border:none;cursor:pointer;
+    box-shadow:0 8px 24px -8px rgba(82,12,7,.55);transition:transform .15s ease;}
+  #cdBotao:hover{transform:scale(1.06);}
+  #cdBotao:active{transform:scale(0.97);}
+  #cdBotao svg{width:26px;height:26px;}
   #cdGaveta{position:fixed;top:0;right:0;bottom:0;width:min(440px,100vw);background:var(--c-branco);border-left:1px solid var(--c-linha);box-shadow:var(--shadow-lg);z-index:96;display:none;flex-direction:column;}
   #cdGaveta.aberta{display:flex;}
   #cdGaveta.flutuante{position:static;width:100%;height:100vh;border:0;box-shadow:none;display:flex;}
@@ -562,6 +569,8 @@
   .cdAgendar h4,.cdHistorico h4{margin:0 0 var(--space-2);font-size:var(--fs-sm);}
   .cdSugestaoRetorno{display:flex;flex-direction:column;gap:var(--space-2);margin-top:var(--space-2);}
   .cdRetornoPendente:not(:empty){background:var(--st-andamento-bg);color:var(--st-andamento);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);font-size:var(--fs-sm);display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;}
+  /* confirmação de excluir dentro da gaveta (seção 74) — some/aparece via style.display, não :not(:empty) */
+  .cdExcluirConfirm{background:var(--st-perdido-bg);color:var(--st-perdido);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);font-size:var(--fs-sm);gap:var(--space-2);align-items:center;flex-wrap:wrap;}
   .cdHistorico{margin-top:var(--space-4);}
   .cdHistItem{padding:var(--space-2) 0;border-bottom:1px solid var(--c-linha);font-size:var(--fs-sm);cursor:pointer;}
   .cdHistItem small{display:block;color:var(--muted);}
@@ -585,6 +594,9 @@
   .anCardCliente{font-weight:600;margin-top:2px;}
   .anCardSub{font-size:var(--fs-xs);color:var(--muted);margin-top:2px;}
   .anCardChips{display:flex;gap:4px;flex-wrap:wrap;margin-top:var(--space-2);}
+  /* botão de excluir do cartão (seção 74) — ícone só, não abre o cartão ao clicar */
+  .anCardExcluir{padding:4px 8px;flex:none;}
+  .anCardExcluir svg{width:16px;height:16px;display:block;}
   .anCardChips .filterPill{padding:2px 8px;font-size:var(--fs-xs);cursor:default;}
   .anCardTexto{font-size:var(--fs-sm);margin-top:var(--space-2);color:var(--c-grafite);}
   @media (max-width:720px){ .agSemana,.agGrade{display:none;} .agLista{display:block;} .anCardTopo{flex-direction:column;align-items:flex-start;} }
@@ -635,7 +647,8 @@
 <div id="apexLoader" role="status" aria-live="polite"><span class="apxTri"></span><span class="apxSig"></span><span class="apxMsg">Carregando</span></div>
 <div id="apexToasts" aria-live="polite"></div>
 <div id="app">
-  <button id="apexMindBubble" type="button" title="Apex Mind — Praticar vendas com IA" aria-label="Abrir Apex Mind">
+  <!-- escondida a pedido do Rafael em 07/10/2026 — para voltar, remover este display:none (seção 74) -->
+  <button id="apexMindBubble" type="button" style="display:none" title="Apex Mind — Praticar vendas com IA" aria-label="Abrir Apex Mind">
     <span class="apxMindLabel">Apex Mind</span>
     <svg viewBox="0 0 100 86" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <path d="M50 3 L4 82 H50 Z" fill="#ffffff" fill-opacity="0.92"/>
@@ -643,8 +656,17 @@
       <path d="M50 40 L28 82 H72 Z" fill="#ffffff" fill-opacity="0.5"/>
     </svg>
   </button>
-  <!-- Caderno de Ligação (06/10/2026, seção 72): botão fixo + gaveta; Alt+N abre/fecha, Alt+Shift+N novo atendimento -->
-  <button id="cdBotao" type="button" class="btn" style="display:none" title="Caderno de Ligação (Alt+N)" aria-label="Abrir Caderno de Ligação">Caderno</button>
+  <!-- Caderno de Ligação (06/10/2026, seção 72): botão fixo + gaveta; Alt+N abre/fecha, Alt+Shift+N novo atendimento.
+       07/10/2026 (seção 74): virou botão redondo com ícone (pedido do Rafael), no lugar do #apexMindBubble. -->
+  <button id="cdBotao" type="button" style="display:none" title="Caderno de Ligação (Alt+N)" aria-label="Abrir Caderno de Ligação">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <path d="M14 2v6h6"/>
+      <path d="M9 13h6"/>
+      <path d="M9 17h6"/>
+      <path d="M9 9h1"/>
+    </svg>
+  </button>
   <aside id="cdGaveta" aria-label="Caderno de Ligação">
     <div class="cdTopo">
       <strong>Caderno</strong>
@@ -652,10 +674,20 @@
       <div class="cdTopoAcoes">
         <button type="button" class="btn btn-sm btn-ghost" id="cdNovo" title="Novo atendimento (Alt+Shift+N)" style="width:auto">Novo</button>
         <button type="button" class="btn btn-sm btn-ghost" id="cdDestacar" title="Janela flutuante sobre o ProContact" style="width:auto">Flutuar</button>
+        <!-- 07/10/2026 (seção 74): só aparece com uma nota salva/existente na tela (cdAtualizarBotaoExcluir) -->
+        <button type="button" class="btn btn-sm btn-ghost" id="cdExcluir" title="Excluir esta anotação" style="width:auto;display:none">Excluir</button>
         <button type="button" class="mClose" id="cdFechar" aria-label="Fechar">&times;</button>
       </div>
     </div>
     <div class="cdCorpo">
+      <!-- 07/10/2026 (seção 74): confirmação de excluir DENTRO da gaveta (não num overlay do documento
+           principal) — assim funciona também na janela flutuante (Document Picture-in-Picture), que é
+           um documento à parte (ver cdAbrirFlutuante). -->
+      <div id="cdExcluirConfirm" class="cdExcluirConfirm" style="display:none">
+        <span>Excluir esta anotação? Não dá para desfazer.</span>
+        <button type="button" class="btn btn-sm" id="cdExcluirSim" style="width:auto">Excluir</button>
+        <button type="button" class="btn btn-sm btn-outline" id="cdExcluirNao" style="width:auto">Cancelar</button>
+      </div>
       <div id="cdRetornoPendente" class="cdRetornoPendente"></div>
       <div class="cdGrid">
         <div class="field"><label>Telefone</label><input type="tel" id="cdF_telefone" data-cd-campo="telefone" maxlength="20"></div>
@@ -1563,6 +1595,21 @@
       <div id="objEditorLista"></div>
       <div class="agFLinha"><div class="field"><label>Nova objeção (rótulo do chip)</label><input type="text" id="objEdNovaRotulo" maxlength="60"></div></div>
       <button type="button" class="btn btn-sm btn-outline" id="objEdNova" style="width:auto">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirmação de exclusão de anotação do Caderno (07/10/2026, seção 74) — Caderno (Excluir) e cartão da aba Anotações -->
+<div class="overlay" id="cdExcluirOverlay">
+  <div class="modal" style="max-width:380px">
+    <div class="mHead">
+      <button class="mClose" id="cdExcluirFechar" type="button">&times;</button>
+      <h2>Excluir anotação</h2>
+    </div>
+    <div class="mBody">
+      <p>Excluir esta anotação? Não dá para desfazer.</p>
+      <button class="btn" id="cdExcluirConfirmar" type="button">Excluir</button>
+      <button class="btn btn-outline" id="cdExcluirCancelar" type="button" style="margin-top:8px">Cancelar</button>
     </div>
   </div>
 </div>
@@ -11527,8 +11574,12 @@ function agResetar(){
   ['agGrade', 'agLista', 'agDiaLista'].forEach(id => { document.getElementById(id).innerHTML = ''; });
 }
 const cdEstado = { nota: null, aberto: false, timer: null, retryTimer: null, debounceMs: 800, salvando: null, status: '', historico: [], retornoPendente: null, doc: document,
-  emVoo: new Map(), enviandoPendentes: null, reenviarPendentes: false, ctxSeq: 0 }; // emVoo: id -> promessa em andamento, para nunca ter 2 upserts da mesma nota ao mesmo tempo
-function cdTocar(n){ n.rev = (n.rev || 0) + 1; } // toda edição da nota chama isto (campo, texto, resultado, interesse, objeção)
+  emVoo: new Map(), enviandoPendentes: null, reenviarPendentes: false, ctxSeq: 0,
+  // seção 74 (07/10/2026, excluir anotação): excluidas guarda os ids apagados — nenhum salvamento
+  // (em voo, da fila ou futuro) pode voltar a gravar um id que já foi excluído; excluirAlvo guarda
+  // { id, origem } entre o clique em "Excluir"/lixeira e a confirmação do modal.
+  excluidas: new Set(), excluirAlvo: null }; // emVoo: id -> promessa em andamento, para nunca ter 2 upserts da mesma nota ao mesmo tempo
+function cdTocar(n){ n.rev = (n.rev || 0) + 1; cdAtualizarBotaoExcluir(); } // toda edição da nota chama isto (campo, texto, resultado, interesse, objeção)
 function cdEl(id){ return cdEstado.doc.getElementById(id) || document.getElementById(id); }
 function cdLsChave(){ return 'caderno_rascunho_' + agUid(); }
 function cdLsGravar(pendente){ try{ localStorage.setItem(cdLsChave(), JSON.stringify({ nota: cdEstado.nota, pendente })); }catch(_e){ /* sem localStorage: segue só com o banco */ } }
@@ -11567,8 +11618,22 @@ function cdPreencherTela(){
   cdEl('cdTexto').value = n.texto || '';
   cdEstado.doc.querySelectorAll('#cdInteresse [data-cd-int]').forEach(b => b.classList.toggle('active', n.interesse.includes(b.dataset.cdInt)));
   cdEstado.doc.querySelectorAll('#cdResultado [data-cd-res]').forEach(b => b.classList.toggle('active', n.resultado === b.dataset.cdRes));
-  cdValidarDocs(); cdRenderSugestoes(); cdRenderAtalhos(); cdRenderSugestaoRetorno();
+  cdValidarDocs(); cdRenderSugestoes(); cdRenderAtalhos(); cdRenderSugestaoRetorno(); cdAtualizarBotaoExcluir();
   if(typeof objRenderChips === 'function') objRenderChips();
+}
+// Só mostra "Excluir" com algo de fato pra excluir — nota nova/em branco não mostra (seção 74). Troca
+// de nota (toque em Novo, outro resultado etc.) também esconde uma confirmação de excluir que tivesse
+// ficado aberta — não pode confirmar a exclusão de uma nota que já não é mais a da tela.
+function cdAtualizarBotaoExcluir(){
+  const btn = cdEl('cdExcluir');
+  if(btn) btn.style.display = (cdEstado.nota && !cdNotaVazia(cdEstado.nota)) ? 'inline-block' : 'none';
+  cdEsconderConfirmarExcluir();
+}
+// Confirmação de excluir DENTRO da gaveta (cdEl/cdEstado.doc) — funciona também na janela flutuante,
+// que é um documento à parte (diferente de um overlay do documento principal). Seção 74.
+function cdEsconderConfirmarExcluir(){
+  const el = cdEl('cdExcluirConfirm');
+  if(el) el.style.display = 'none';
 }
 function cdValidarDocs(){
   const marca = (c, valido) => { const el = cdEl('cdF_' + c); el.closest('.field').classList.toggle('cdAviso', !!cdDigitos(el.value) && !valido(el.value)); };
@@ -11602,7 +11667,8 @@ function cdAgendarSalvar(){
 // apague por cima da edição mais nova (revisão §72, achado da revisão de código: "perde a edição mais nova").
 async function cdSalvarUmaVez(n){
   for(;;){
-    if(!n || cdNotaVazia(n) || !currentUser) return false;
+    // nota excluída (seção 74): nunca ressuscita — nem guarda na fila de pendentes, nem grava no banco
+    if(!n || cdNotaVazia(n) || !currentUser || cdEstado.excluidas.has(n.id)) return false;
     const atual = () => cdEstado.nota === n;
     const revAlvo = n.rev || 0;
     const payload = cdPayload(n);
@@ -11635,7 +11701,7 @@ async function cdSalvarUmaVez(n){
 // nada se perde (REGRAS_NEGOCIO §72, "nunca perde").
 function cdSalvarAgora(n){
   n = n || cdEstado.nota;
-  if(!n || cdNotaVazia(n) || !currentUser) return Promise.resolve(false);
+  if(!n || cdNotaVazia(n) || !currentUser || cdEstado.excluidas.has(n.id)) return Promise.resolve(false);
   const fila = cdEstado.emVoo.get(n.id) || Promise.resolve();
   const vez = fila.then(() => cdSalvarUmaVez(n), () => cdSalvarUmaVez(n));
   cdEstado.emVoo.set(n.id, vez);
@@ -11666,6 +11732,70 @@ function cdEnviarPendentes(){
   });
   cdEstado.enviandoPendentes = passada;
   return passada;
+}
+
+/* ============ EXCLUIR ANOTAÇÃO (07/10/2026, seção 74): botão "Excluir" da gaveta (nota aberta) e
+   lixeira do cartão da aba Anotações. Confirmação em tela (#cdExcluirOverlay, sem window.confirm).
+   Nunca ressuscita: cdEstado.excluidas bloqueia qualquer salvamento (em voo, da fila ou futuro)
+   daquele id; se a nota nunca chegou a ser salva, só descarta local, sem chamar o banco. ============ */
+// origem 'gaveta' (botão Excluir, nota aberta na tela): a confirmação aparece DENTRO da própria gaveta
+// (#cdExcluirConfirm, via cdEl()) — não num overlay do documento principal, porque a gaveta pode estar
+// na janela flutuante (Document Picture-in-Picture), que é um documento à parte (cdAbrirFlutuante); um
+// overlay do documento principal não apareceria lá. origem 'cartao' (lixeira da aba Anotações): essa
+// aba vive sempre no documento principal, então continua usando o overlay de sempre (#cdExcluirOverlay).
+function cdPedirExcluir(id, origem){
+  if(!id) return;
+  cdEstado.excluirAlvo = { id, origem };
+  if(origem === 'gaveta'){ const el = cdEl('cdExcluirConfirm'); if(el) el.style.display = 'flex'; }
+  else document.getElementById('cdExcluirOverlay').classList.add('active');
+}
+function cdCancelarExcluir(){
+  cdEstado.excluirAlvo = null;
+  cdEsconderConfirmarExcluir();
+  fecharOverlay(document.getElementById('cdExcluirOverlay'));
+}
+async function cdExcluirConfirmado(){
+  const alvo = cdEstado.excluirAlvo;
+  cdEsconderConfirmarExcluir();
+  fecharOverlay(document.getElementById('cdExcluirOverlay'));
+  cdEstado.excluirAlvo = null;
+  if(alvo) await cdExcluirNota(alvo.id, alvo.origem);
+}
+// origem: 'gaveta' (botão Excluir, nota aberta na tela) ou 'cartao' (lixeira da aba Anotações).
+async function cdExcluirNota(id, origem){
+  cdEstado.excluidas.add(id); // marca já — nenhum salvamento novo deste id vale a partir de agora
+  // guarda a referência da nota (se for a que está na tela) ANTES de esperar: cdEstado.nota pode trocar
+  // durante o await (cdNovo/cdAbrirDoRetorno) e não pode ser essa troca a ler aqui embaixo.
+  const notaRef = (cdEstado.nota && cdEstado.nota.id === id) ? cdEstado.nota : null;
+  if(notaRef) clearTimeout(cdEstado.timer);
+  // espera um salvamento já em andamento (não dá pra cancelar o que já foi para a rede) — só depois
+  // disso dá pra saber com certeza se a nota chegou a existir no banco (atualizado_em).
+  const emVoo = cdEstado.emVoo.get(id);
+  if(emVoo){ try{ await emVoo; }catch(_e){ /* erro do próprio salvamento, já tratado em cdSalvarUmaVez */ } }
+  const nuncaSalva = !!notaRef && !notaRef.atualizado_em; // só local: nada no banco pra apagar
+  if(!nuncaSalva){
+    const r = await ppSeguro(() => sb.from('caderno_notas').delete().eq('id', id));
+    if(r && r.error){
+      cdEstado.excluidas.delete(id); // não apagou de verdade: a nota continua podendo ser salva
+      cdAvisar('Não foi possível excluir: ' + r.error.message, 'erro');
+      return false;
+    }
+    // só uma nota que chegou a existir no banco pode ter retorno pendente (o gatilho cancela os dela);
+    // Agenda/alertas só precisam atualizar nesse caso (revisão §74).
+    agAvisarMudou();
+  }
+  cdPendenteRemover(id); // sai da fila de pendentes — uma rede que volte não manda de novo
+  // só mexe na gaveta se a nota excluída ainda é a que está na tela (pode ter trocado durante o await)
+  if(cdEstado.nota && cdEstado.nota.id === id){
+    try{ localStorage.removeItem(cdLsChave()); }catch(_e){ /* sem localStorage: nada a limpar */ }
+    cdEstado.nota = null; cdEstado.historico = []; cdEstado.retornoPendente = null;
+    // gaveta: abre em branco (como cdNovo, mas sem salvar a nota excluída); cartão: só limpa a tela
+    // se a nota apagada por acaso era a que estava aberta (sem forçar a gaveta a aparecer).
+    if(origem === 'gaveta') cdAbrir(); else cdLimparTela();
+  }
+  if(typeof anRemoverCard === 'function') anRemoverCard(id); // tira o cartão da lista sem recarregar tudo
+  cdAvisar(nuncaSalva ? 'Anotação descartada.' : 'Anotação excluída.', 'ok');
+  return true;
 }
 // Roda a cada tecla no telefone/CNPJ: só a resposta do pedido mais novo vale (revisão final M-7).
 async function cdCarregarContexto(){
@@ -11725,6 +11855,7 @@ function cdLimparTela(){
   if(gaveta) gaveta.querySelectorAll('.active, .cdAviso').forEach(x => x.classList.remove('active', 'cdAviso'));
   cdRenderContexto();
   cdStatus('');
+  cdAtualizarBotaoExcluir();
   if(typeof objAoTrocarNota === 'function') objAoTrocarNota();
 }
 async function cdNovo(){
@@ -11785,7 +11916,7 @@ async function cdAgendarRetorno(dia, hora, origem){
 }
 function cadernoAoEntrar(){
   cdEstado.nota = null;
-  document.getElementById('cdBotao').style.display = 'inline-block';
+  document.getElementById('cdBotao').style.display = 'flex'; // ícone redondo (seção 74) — não é mais "inline-block"
   cdRestaurar();
   if(typeof objCarregar === 'function') objCarregar();
   if(typeof alIniciar === 'function') alIniciar();
@@ -11796,7 +11927,8 @@ function cadernoResetar(){
   // Sair com a janela flutuante aberta não pode deixar os dados do consultor anterior visíveis numa
   // tela compartilhada: cdFechar traz a gaveta de volta (cdRecolher) e fecha a janela (fix round 1).
   cdFechar();
-  Object.assign(cdEstado, { nota: null, historico: [], retornoPendente: null, status: '', gaveta: null, remarcando: null });
+  Object.assign(cdEstado, { nota: null, historico: [], retornoPendente: null, status: '', gaveta: null, remarcando: null, excluidas: new Set(), excluirAlvo: null });
+  fecharOverlay(document.getElementById('cdExcluirOverlay'));
   cdEstado.ctxSeq++; // descarta resposta de contexto ainda no ar
   cdLimparTela();
   document.getElementById('cdBotao').style.display = 'none';
@@ -11848,6 +11980,11 @@ function cdLigarEventos(gaveta){
     if(t.id === 'cdNovo') cdNovo();
     else if(t.id === 'cdFechar') cdFechar();
     else if(t.id === 'cdDestacar' && typeof cdAbrirFlutuante === 'function') cdAbrirFlutuante();
+    else if(t.id === 'cdExcluir'){ if(cdEstado.nota) cdPedirExcluir(cdEstado.nota.id, 'gaveta'); }
+    // #cdExcluirSim/#cdExcluirNao ficam dentro da gaveta (seção 74) — o listener precisa estar preso
+    // ao elemento da gaveta (como os demais aqui), não ao document, pra funcionar na janela flutuante.
+    else if(t.id === 'cdExcluirSim') cdExcluirConfirmado();
+    else if(t.id === 'cdExcluirNao') cdCancelarExcluir();
   });
 }
 function cdTeclas(ev){
@@ -11861,6 +11998,13 @@ cdLigarEventos(document.getElementById('cdGaveta'));
 document.addEventListener('keydown', cdTeclas);
 document.getElementById('cdBotao').addEventListener('click', () => { if(cdEstado.aberto) cdFechar(); else cdAbrir(); });
 window.addEventListener('online', () => { if(currentUser) cdEnviarPendentes(); });
+// Confirmação de exclusão (seção 74) — overlay sempre no documento principal (nunca vai pra janela
+// flutuante), igual aos outros modais do painel.
+document.getElementById('cdExcluirFechar').addEventListener('click', cdCancelarExcluir);
+document.getElementById('cdExcluirCancelar').addEventListener('click', cdCancelarExcluir);
+document.getElementById('cdExcluirConfirmar').addEventListener('click', cdExcluirConfirmado);
+const cdExcluirOverlayEl = document.getElementById('cdExcluirOverlay');
+cdExcluirOverlayEl.addEventListener('click', (ev) => { if(ev.target === cdExcluirOverlayEl) cdCancelarExcluir(); });
 
 /* ============ OBJEÇÕES (06/10/2026, seção 72): chips com resposta instantânea da biblioteca +
    versão adaptada "para este cliente" pela IA (função caderno-ia), em segundo plano, com timeout
@@ -12488,8 +12632,10 @@ function anCardHtml(n){
     .filter(Boolean).map(escapeHtml).join(' · ');
   const chips = (n.objecoes || []).map(c => `<span class="filterPill">${escapeHtml(anObjChip(c))}</span>`).join('');
   const resumo = String(n.texto || '').split('\n').slice(0, 2).join(' · ');
+  // botão de excluir (07/10/2026, seção 74): data-an-excluir, não data-id — o clique nele não pode abrir o cartão
+  const btnExcluir = `<button type="button" class="btn btn-sm btn-ghost anCardExcluir" data-an-excluir="${escapeHtml(n.id)}" title="Excluir anotação" aria-label="Excluir anotação"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>`;
   return `<div class="card anCard" data-id="${escapeHtml(n.id)}">`
-    + `<div class="anCardTopo"><span class="anCardData">${escapeHtml(ppFmtDia(p.dia).slice(0, 5) + ' ' + p.hora)}</span>${resultadoLabel ? `<span class="badge">${escapeHtml(resultadoLabel)}</span>` : ''}</div>`
+    + `<div class="anCardTopo"><span class="anCardData">${escapeHtml(ppFmtDia(p.dia).slice(0, 5) + ' ' + p.hora)}</span>${resultadoLabel ? `<span class="badge">${escapeHtml(resultadoLabel)}</span>` : ''}${btnExcluir}</div>`
     + `<div class="anCardCliente">${escapeHtml(anFmtCliente(n))}</div>`
     + (sub ? `<div class="anCardSub">${sub}</div>` : '')
     + (chips ? `<div class="anCardChips">${chips}</div>` : '')
@@ -12510,6 +12656,16 @@ function anRenderStatus(){
   // escondido quando não há mais página (ver anRenderLista).
   const mais = document.getElementById('anCarregarMais');
   if(mais) mais.disabled = anEstado.carregando;
+}
+// Tira a nota excluída da lista sem recarregar tudo (07/10/2026, seção 74) — ajusta o contador já
+// conhecido e re-renderiza; se a nota não estiver na página carregada (ex.: excluída pelo Caderno,
+// não pelo cartão), não faz nada.
+function anRemoverCard(id){
+  const antes = anEstado.notas.length;
+  anEstado.notas = anEstado.notas.filter(n => n.id !== id);
+  if(anEstado.notas.length === antes) return;
+  if(typeof anEstado.total === 'number' && anEstado.total > 0) anEstado.total--;
+  anRenderLista();
 }
 function anResetar(){
   anEstado.geracao++; // descarta qualquer resposta ainda no ar
@@ -12544,6 +12700,9 @@ document.getElementById('anResultado').addEventListener('click', (ev) => {
 });
 document.getElementById('anCarregarMais').addEventListener('click', anCarregarMais);
 document.getElementById('anLista').addEventListener('click', (ev) => {
+  // 07/10/2026 (seção 74): clique na lixeira pede confirmação e não abre o cartão
+  const btnEx = ev.target.closest('[data-an-excluir]');
+  if(btnEx){ cdPedirExcluir(btnEx.dataset.anExcluir, 'cartao'); return; }
   const c = ev.target.closest('.anCard');
   if(!c) return;
   cdAbrirDoRetorno({ nota_id: c.dataset.id });
