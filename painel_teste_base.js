@@ -33,13 +33,28 @@ function montarPainel(){
     return String(a).localeCompare(String(b));
   }
   function builder(tabela){
-    const f = { eq: {}, neq: {}, gte: [], lte: [], ou: null, ordem: null, lim: null };
-    const linhas = () => {
+    const f = { eq: {}, neq: {}, gte: [], lte: [], ou: null, ordem: null, lim: null, faixa: null, contarExato: false };
+    // Filtros (sem ordenar/paginar) — usado tanto pela listagem quanto pelo count: 'exact' (teste_anotacoes.js, §73).
+    const linhasFiltradas = () => {
       let ls = (window.__tabelas[tabela] || []).filter(l => Object.keys(f.eq).every(c => l[c] === f.eq[c]) && Object.keys(f.neq).every(c => l[c] !== f.neq[c]));
       ls = ls.filter(l => f.gte.every(([c, v]) => cmpValor(l[c], v) >= 0) && f.lte.every(([c, v]) => cmpValor(l[c], v) <= 0));
-      if(f.ou) ls = ls.filter(l => f.ou.some(([c, v]) => String(l[c]) === v));
+      // .or('col.eq.v,col2.ilike.%v2%'): eq compara igual (comportamento de sempre); ilike/like casa
+      // substring sem diferenciar maiúsculas (suficiente para a busca da aba Anotações, §73).
+      if(f.ou) ls = ls.filter(l => f.ou.some(([c, op, v]) => {
+        const alvo = l[c] == null ? '' : String(l[c]);
+        if(op === 'ilike' || op === 'like'){
+          const termo = String(v).replace(/^%+/, '').replace(/%+$/, '').toLowerCase();
+          return alvo.toLowerCase().includes(termo);
+        }
+        return alvo === v;
+      }));
+      return ls;
+    };
+    const linhas = () => {
+      let ls = linhasFiltradas();
       if(f.ordem) ls = ls.slice().sort((a, b) => cmpValor(a[f.ordem[0]], b[f.ordem[0]]) * (f.ordem[1] ? 1 : -1));
       if(f.lim) ls = ls.slice(0, f.lim);
+      if(f.faixa) ls = ls.slice(f.faixa[0], f.faixa[1] + 1); // .range(de, ate): paginação de verdade (§73, "Carregar mais")
       return ls;
     };
     const escrita = (op, extra) => {
@@ -58,10 +73,13 @@ function montarPainel(){
       return Promise.resolve({ error: erro || null });
     };
     const b = {
-      select: () => b, in: () => b, is: () => b, range: () => b,
+      select: (cols, opts) => { if(opts && opts.count) f.contarExato = true; return b; },
+      in: () => b, is: () => b,
+      range: (de, ate) => { f.faixa = [de, ate]; return b; },
       eq: (c, v) => { f.eq[c] = v; return b; }, neq: (c, v) => { f.neq[c] = v; return b; },
       gte: (c, v) => { f.gte.push([c, v]); return b; }, lte: (c, v) => { f.lte.push([c, v]); return b; },
-      or: (s) => { f.ou = String(s).split(',').map(p => { const [c, , ...v] = p.split('.'); return [c, v.join('.')]; }); return b; },
+      // "col.op.valor" (op pode ter dentro "%...%" com pontos, por isso junta o resto de novo com '.')
+      or: (s) => { f.ou = String(s).split(',').map(p => { const partes = p.split('.'); return [partes[0], partes[1], partes.slice(2).join('.')]; }); return b; },
       order: (c, o) => { f.ordem = [c, !o || o.ascending !== false]; return b; }, limit: (n) => { f.lim = n; return b; },
       upsert: (rows, opts) => escrita('upsert', { rows, opts }),
       insert: (rows) => escrita('insert', { rows }),
@@ -87,7 +105,13 @@ function montarPainel(){
         return u;
       },
       maybeSingle: async () => ({ data: linhas()[0] || null, error: null }),
-      then: (ok, ko) => Promise.resolve({ data: linhas(), error: null }).then(ok, ko),
+      then: (ok, ko) => {
+        // select('*', { count: 'exact' }): count é o total que bate no filtro, sem o .range() da página
+        // (como o PostgREST faz) — a aba Anotações usa isso pro contador "N anotações" (§73).
+        const resp = { data: linhas(), error: null };
+        if(f.contarExato) resp.count = linhasFiltradas().length;
+        return Promise.resolve(resp).then(ok, ko);
+      },
     };
     return b;
   }
