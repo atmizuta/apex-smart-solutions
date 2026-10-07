@@ -502,6 +502,82 @@
   .ppRodape{margin-top:var(--space-4);font-size:var(--fs-xs);}
   @media (max-width:640px){ .ppEtapaRow{grid-template-columns:1fr;gap:var(--space-2);} .ppEtapaVal{text-align:left;} }
 </style>
+<style id="cadernoStyles">
+  /* Caderno + Agenda + Objeções (06/10/2026, seção 72) — só tokens do design */
+  .agTopo{display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);flex-wrap:wrap;}
+  .agNav{display:flex;align-items:center;gap:var(--space-3);}
+  .agNav h3{margin:0;min-width:180px;text-align:center;letter-spacing:.08em;}
+  .agAcoes{display:flex;gap:var(--space-2);flex-wrap:wrap;}
+  .agAlertasAviso{display:flex;gap:var(--space-3);align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--st-andamento-bg);color:var(--st-andamento);padding:var(--space-3);margin:var(--space-3) 0;font-size:var(--fs-sm);}
+  .agSemana,.agGrade{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+  .agSemana{margin-top:var(--space-4);font-size:var(--fs-xs);font-weight:700;letter-spacing:.08em;color:var(--muted);text-align:center;}
+  .agDia{min-height:96px;border:1px solid var(--c-linha);background:var(--c-branco);padding:6px;cursor:pointer;display:flex;flex-direction:column;gap:3px;overflow:hidden;}
+  .agDia:hover{border-color:var(--c-sinal);}
+  .agDia.fora{opacity:.45;}
+  .agDia.hoje{outline:2px solid var(--c-sinal);outline-offset:-2px;}
+  .agDia.temAtraso{border-color:var(--st-perdido);}
+  .agDia.soltar{background:var(--c-rosa);}
+  .agNum{font-size:var(--fs-xs);font-weight:700;display:flex;justify-content:space-between;}
+  .agNum .agAtr{color:var(--st-perdido);}
+  .agItem{font-size:var(--fs-xs);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:1px 4px;background:var(--c-papel);}
+  .agItem.atrasado{background:var(--st-perdido-bg);color:var(--st-perdido);}
+  .agItem.feito{text-decoration:line-through;opacity:.6;}
+  .agItem.pedido{background:var(--st-andamento-bg);color:var(--st-andamento);}
+  .agMais{font-size:var(--fs-xs);color:var(--muted);}
+  .agLista{display:none;}
+  .agListaDia h4{margin:var(--space-4) 0 var(--space-2);font-size:var(--fs-sm);}
+  .agLinha{display:flex;gap:var(--space-3);align-items:center;justify-content:space-between;flex-wrap:wrap;padding:var(--space-2) 0;border-bottom:1px solid var(--c-linha);}
+  .agLinha.feito .agLinhaTxt{text-decoration:line-through;opacity:.6;}
+  .agLinha.atrasado .agLinhaHora{color:var(--st-perdido);font-weight:700;}
+  .agLinhaHora{font-variant-numeric:tabular-nums;font-weight:600;margin-right:var(--space-2);}
+  .agLinhaSub{display:block;font-size:var(--fs-xs);color:var(--muted);}
+  .agLinhaAcoes{display:flex;gap:4px;flex-wrap:wrap;}
+  .agRemarcar{display:flex;gap:var(--space-2);width:100%;flex-wrap:wrap;}
+  .agForm{margin-top:var(--space-5);padding-top:var(--space-4);border-top:1px dashed var(--c-linha);}
+  .agForm h4{margin:0 0 var(--space-3);}
+  .agFLinha{display:flex;gap:var(--space-3);flex-wrap:wrap;}
+  .agFLinha .field{flex:1;min-width:120px;}
+  .agFHoras{display:flex;gap:var(--space-2);margin:0 0 var(--space-3);flex-wrap:wrap;}
+  .agFErro{color:var(--st-perdido);font-size:var(--fs-sm);min-height:1em;margin-bottom:var(--space-2);}
+  .agDiaModal{max-width:620px;}
+  #cdBotao{position:fixed;right:var(--space-6);bottom:100px;z-index:95;width:auto;box-shadow:var(--shadow-lg);}
+  #cdGaveta{position:fixed;top:0;right:0;bottom:0;width:min(440px,100vw);background:var(--c-branco);border-left:1px solid var(--c-linha);box-shadow:var(--shadow-lg);z-index:96;display:none;flex-direction:column;}
+  #cdGaveta.aberta{display:flex;}
+  #cdGaveta.flutuante{position:static;width:100%;height:100vh;border:0;box-shadow:none;display:flex;}
+  .cdTopo{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--c-linha);}
+  .cdTopo .mClose{position:static;}
+  .cdTopoAcoes{margin-left:auto;display:flex;gap:4px;align-items:center;}
+  .cdStatus{font-size:var(--fs-xs);color:var(--muted);}
+  .cdStatus.offline{color:var(--st-andamento);font-weight:600;}
+  .cdCorpo{overflow-y:auto;padding:var(--space-4);flex:1;}
+  .cdGrid{display:grid;grid-template-columns:1fr 1fr;gap:0 var(--space-3);}
+  .cdGrid .field{margin-bottom:var(--space-2);}
+  .field.cdAviso input{border-color:var(--st-andamento);}
+  .field.cdAviso label::after{content:" — confira";color:var(--st-andamento);font-weight:400;}
+  .cdMais{margin:var(--space-2) 0 var(--space-3);}
+  .cdMais summary{cursor:pointer;font-size:var(--fs-sm);color:var(--muted);}
+  .cdInteresse,.cdResultado,.cdAtalhos,.cdSugestoes{display:flex;gap:var(--space-2);flex-wrap:wrap;margin:var(--space-2) 0;}
+  .cdEscolher{display:flex;gap:var(--space-2);flex-wrap:wrap;}
+  .cdAgendar{border-top:1px dashed var(--c-linha);margin-top:var(--space-3);padding-top:var(--space-3);}
+  .cdAgendar h4,.cdHistorico h4{margin:0 0 var(--space-2);font-size:var(--fs-sm);}
+  .cdSugestaoRetorno{display:flex;flex-direction:column;gap:var(--space-2);margin-top:var(--space-2);}
+  .cdRetornoPendente:not(:empty){background:var(--st-andamento-bg);color:var(--st-andamento);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);font-size:var(--fs-sm);display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;}
+  .cdHistorico{margin-top:var(--space-4);}
+  .cdHistItem{padding:var(--space-2) 0;border-bottom:1px solid var(--c-linha);font-size:var(--fs-sm);cursor:pointer;}
+  .cdHistItem small{display:block;color:var(--muted);}
+  .cdObjecoes h4{margin:var(--space-3) 0 var(--space-2);font-size:var(--fs-sm);}
+  .objChips{display:flex;gap:var(--space-2);flex-wrap:wrap;}
+  .objLivreCampo{margin:var(--space-2) 0;}
+  .objResposta:not(:empty),.objIA:not(:empty){border-left:3px solid var(--c-sinal);background:var(--c-papel);padding:var(--space-3);margin:var(--space-2) 0;}
+  .objIA:not(:empty){border-left-color:var(--c-bordo);}
+  .objFala{font-size:var(--fs-md);font-weight:600;line-height:1.4;}
+  .objPergunta{margin-top:var(--space-2);}
+  .objAlt{margin-top:var(--space-2);font-size:var(--fs-sm);color:var(--muted);}
+  .objIATitulo{font-size:var(--fs-xs);font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--c-bordo);margin-bottom:var(--space-1);}
+  .objAcoes{display:flex;gap:4px;flex-wrap:wrap;margin-top:var(--space-2);}
+  .objCarregando{font-size:var(--fs-sm);color:var(--muted);margin:0;}
+  @media (max-width:720px){ .agSemana,.agGrade{display:none;} .agLista{display:block;} }
+</style>
 </head>
 <body>
 
@@ -556,6 +632,52 @@
       <path d="M50 40 L28 82 H72 Z" fill="#ffffff" fill-opacity="0.5"/>
     </svg>
   </button>
+  <!-- Caderno de Ligação (06/10/2026, seção 72): botão fixo + gaveta; Alt+N abre/fecha, Alt+Shift+N novo atendimento -->
+  <button id="cdBotao" type="button" class="btn" style="display:none" title="Caderno de Ligação (Alt+N)" aria-label="Abrir Caderno de Ligação">Caderno</button>
+  <aside id="cdGaveta" aria-label="Caderno de Ligação">
+    <div class="cdTopo">
+      <strong>Caderno</strong>
+      <span id="cdStatus" class="cdStatus"></span>
+      <div class="cdTopoAcoes">
+        <button type="button" class="btn btn-sm btn-ghost" id="cdNovo" title="Novo atendimento (Alt+Shift+N)" style="width:auto">Novo</button>
+        <button type="button" class="btn btn-sm btn-ghost" id="cdDestacar" title="Janela flutuante sobre o ProContact" style="width:auto">Flutuar</button>
+        <button type="button" class="mClose" id="cdFechar" aria-label="Fechar">&times;</button>
+      </div>
+    </div>
+    <div class="cdCorpo">
+      <div id="cdRetornoPendente" class="cdRetornoPendente"></div>
+      <div class="cdGrid">
+        <div class="field"><label>Telefone</label><input type="tel" id="cdF_telefone" data-cd-campo="telefone" maxlength="20"></div>
+        <div class="field"><label>Nome</label><input type="text" id="cdF_nome" data-cd-campo="nome" maxlength="120"></div>
+        <div class="field"><label>CPF</label><input type="text" id="cdF_cpf" data-cd-campo="cpf" inputmode="numeric" maxlength="14"></div>
+        <div class="field"><label>CNPJ</label><input type="text" id="cdF_cnpj" data-cd-campo="cnpj" inputmode="numeric" maxlength="18"></div>
+        <div class="field"><label>CEP</label><input type="text" id="cdF_cep" data-cd-campo="cep" inputmode="numeric" maxlength="9"></div>
+        <div class="field"><label>Linhas</label><input type="text" id="cdF_qtd_linhas" data-cd-campo="qtd_linhas" inputmode="numeric" maxlength="6"></div>
+        <div class="field"><label>Valor do plano (R$)</label><input type="text" id="cdF_valor_plano" data-cd-campo="valor_plano" inputmode="decimal" maxlength="12"></div>
+      </div>
+      <details class="cdMais">
+        <summary>Mais dados</summary>
+        <div class="cdGrid">
+          <div class="field"><label>E-mail</label><input type="email" id="cdF_email" data-cd-campo="email" maxlength="120"></div>
+          <div class="field"><label>Operadora atual</label><input type="text" id="cdF_operadora_atual" data-cd-campo="operadora_atual" maxlength="40"></div>
+          <div class="field"><label>Decisor</label><input type="text" id="cdF_decisor" data-cd-campo="decisor" maxlength="80"></div>
+          <div class="field"><label>Fidelidade vence</label><input type="month" id="cdF_fidelidade_vence" data-cd-campo="fidelidade_vence"></div>
+        </div>
+        <div class="cdInteresse" id="cdInteresse"><button type="button" class="filterPill" data-cd-int="movel">Móvel</button><button type="button" class="filterPill" data-cd-int="fibra">Fibra</button><button type="button" class="filterPill" data-cd-int="portabilidade">Portabilidade</button></div>
+      </details>
+      <div id="cdObjecoes" class="cdObjecoes"></div>
+      <div class="field"><label>Anotação</label><textarea id="cdTexto" rows="6" placeholder="Escreva como no Bloco de Notas: o que o cliente disse, o que ficou combinado…"></textarea></div>
+      <div id="cdSugestoes" class="cdSugestoes"></div>
+      <div class="cdResultado" id="cdResultado"><button type="button" class="filterPill" data-cd-res="atendeu">Atendeu</button><button type="button" class="filterPill" data-cd-res="nao_atendeu">Não atendeu</button><button type="button" class="filterPill" data-cd-res="caixa_postal">Caixa postal</button><button type="button" class="filterPill" data-cd-res="sem_interesse">Sem interesse</button><button type="button" class="filterPill" data-cd-res="fechou">Fechou</button></div>
+      <div class="cdAgendar">
+        <h4>Agendar retorno</h4>
+        <div id="cdAtalhos" class="cdAtalhos"></div>
+        <div class="cdEscolher"><input type="date" id="cdRetDia"><input type="time" id="cdRetHora" step="300"><button type="button" class="btn btn-sm" id="cdRetSalvar" style="width:auto">Agendar</button></div>
+        <div id="cdSugestaoRetorno" class="cdSugestaoRetorno"></div>
+      </div>
+      <div id="cdHistorico" class="cdHistorico"></div>
+    </div>
+  </aside>
   <!-- 29/09/2026: barra superior só no celular (ver @media max-width:768px) — hambúrguer abre o
        menu lateral como gaveta por cima do conteúdo, em vez da faixa de ícones fixa de antes. -->
   <div class="mobileTopbar">
@@ -581,6 +703,7 @@
       <button data-tab="funil" id="tabBtnFunil" data-sub="Negociações em andamento, por estágio"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg><span class="sbLabel">Funil</span></button>
       <!-- 30/09/2026: aba só do consultor (vê apenas os pedidos dele). Admin/supervisor seguem com "Pedidos em Alerta" no Dashboard. Ver seção 53 do REGRAS_NEGOCIO.md. -->
       <button data-tab="pedidosparados" id="tabBtnPedidosParados" style="display:none" data-sub="Seus pedidos parados, agenda e oportunidades"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="sbLabel">Pedidos Parados</span></button>
+      <button data-tab="agenda" id="tabBtnAgenda" data-sub="Seus retornos do mês"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/></svg><span class="sbLabel">Agenda</span></button>
       <div class="navGroupLabel">Ferramentas</div>
       <button data-tab="biometria" id="tabBtnBiometria" data-sub="Biometria facial do cliente"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h.01"/><path d="M15 12h.01"/><path d="M10 15.5c.6.4 1.3.6 2 .6s1.4-.2 2-.6"/><path d="M12 3a9 9 0 0 0-9 9v6.5A2.5 2.5 0 0 0 5.5 21h0A2.5 2.5 0 0 0 8 18.5v-1a4 4 0 0 1 8 0v1a2.5 2.5 0 0 0 2.5 2.5h0a2.5 2.5 0 0 0 2.5-2.5V12a9 9 0 0 0-9-9z"/></svg><span class="sbLabel">Biometria</span></button>
       <!-- 28/09/2026 (pedido do usuário: "deixe a opcao de cada usuário conectar o seu email do
@@ -939,6 +1062,11 @@
         <div class="filterPills" id="mesaVelPills" style="margin:10px 0"></div>
         <div id="mesaVelTabela"></div>
         <p class="desc">Amostra pequena: só leia diferenças com 30+ leads por faixa.</p>
+      </div>
+      <div class="card">
+        <h3>Retornos e objeções</h3>
+        <p class="desc">Retornos da Agenda por consultor (seção 72) e as objeções que mais apareceram nos últimos 7 dias.</p>
+        <div id="mesaRetObj"></div>
       </div>
     </section>
 
@@ -1304,6 +1432,32 @@
         <p class="desc ppRodape" id="ppRodape"></p>
       </div>
     </section>
+
+    <!-- AGENDA (06/10/2026, seção 72): calendário do mês com os retornos do consultor + datas dos pedidos -->
+    <section class="panel" id="panel-agenda">
+      <div class="card">
+        <div class="agTopo">
+          <div class="agNav">
+            <button type="button" class="btn btn-sm btn-outline" id="agMesAnt" aria-label="Mês anterior" style="width:auto">‹</button>
+            <h3 id="agTituloMes"></h3>
+            <button type="button" class="btn btn-sm btn-outline" id="agMesProx" aria-label="Próximo mês" style="width:auto">›</button>
+          </div>
+          <div class="agAcoes">
+            <button type="button" class="btn btn-sm btn-outline" id="agHoje" style="width:auto">Hoje</button>
+            <button type="button" class="btn btn-sm" id="agNovo" style="width:auto">+ Novo retorno</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="agEditarObj" style="width:auto;display:none">Objeções</button>
+          </div>
+        </div>
+        <p class="desc" id="agStatus"></p>
+        <div class="agAlertasAviso" id="agAlertasAviso" style="display:none">
+          <span>Ative os alertas para ser avisado 5 minutos antes de cada retorno (só tocam com o painel aberto em alguma aba).</span>
+          <button type="button" class="btn btn-sm" id="agAtivarAlertas" style="width:auto">Ativar alertas</button>
+        </div>
+        <div class="agSemana"><span>DOM</span><span>SEG</span><span>TER</span><span>QUA</span><span>QUI</span><span>SEX</span><span>SÁB</span></div>
+        <div class="agGrade" id="agGrade"></div>
+        <div class="agLista" id="agLista"></div>
+      </div>
+    </section>
   </main>
   </div>
 
@@ -1325,6 +1479,54 @@
       <button class="btn" id="btnSaveProfile">Salvar alterações</button>
       <div id="profileMsg" style="font-size:12px;margin-top:10px;color:var(--green);display:none">Alterações salvas com sucesso.</div>
       <div id="profileErr" style="font-size:12px;margin-top:10px;color:var(--red);display:none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Painel do dia da Agenda (seção 72) -->
+<div class="overlay" id="agDiaOverlay">
+  <div class="modal agDiaModal">
+    <div class="mHead">
+      <button class="mClose" id="agDiaFechar" type="button">&times;</button>
+      <h2 id="agDiaTitulo"></h2>
+      <div class="mCnpj">Retornos do dia</div>
+    </div>
+    <div class="mBody">
+      <div id="agDiaLista"></div>
+      <form id="agForm" class="agForm" autocomplete="off">
+        <h4>Novo retorno</h4>
+        <div class="field"><label>Cliente / nome</label><input type="text" id="agFNome" maxlength="120"></div>
+        <div class="field"><label>Telefone</label><input type="tel" id="agFTel" maxlength="20"></div>
+        <div class="agFLinha">
+          <div class="field"><label>Dia</label><input type="date" id="agFDia"></div>
+          <div class="field"><label>Hora</label><input type="time" id="agFHora" step="300"></div>
+        </div>
+        <div class="agFHoras" id="agFHoras"><button type="button" class="filterPill" data-hora="09:00">09:00</button><button type="button" class="filterPill" data-hora="11:00">11:00</button><button type="button" class="filterPill" data-hora="14:00">14:00</button><button type="button" class="filterPill" data-hora="16:00">16:00</button></div>
+        <div class="agFLinha">
+          <div class="field"><label>Tipo</label><select id="agFTipo"><option value="ligacao">Ligação</option><option value="whatsapp">WhatsApp</option><option value="reuniao">Reunião</option><option value="proposta">Enviar proposta</option></select></div>
+          <div class="field"><label>Linhas</label><input type="text" id="agFLinhas" inputmode="numeric" maxlength="6"></div>
+          <div class="field"><label>Valor do plano (R$)</label><input type="text" id="agFValor" inputmode="decimal" maxlength="12"></div>
+        </div>
+        <div class="field"><label>Observação</label><input type="text" id="agFObs" maxlength="200"></div>
+        <div class="agFErro" id="agFErro"></div>
+        <button type="submit" class="btn">Salvar retorno</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Editor da biblioteca de objeções (seção 72) — só admin/supervisor -->
+<div class="overlay" id="objEditorOverlay">
+  <div class="modal" style="max-width:760px">
+    <div class="mHead">
+      <button class="mClose" id="objEditorFechar" type="button">&times;</button>
+      <h2>Respostas de objeção</h2>
+      <div class="mCnpj">O que o consultor vê ao clicar no chip. Sem preço em R$ (preço muda); fale de franquia.</div>
+    </div>
+    <div class="mBody">
+      <div id="objEditorLista"></div>
+      <div class="agFLinha"><div class="field"><label>Nova objeção (rótulo do chip)</label><input type="text" id="objEdNovaRotulo" maxlength="60"></div></div>
+      <button type="button" class="btn btn-sm btn-outline" id="objEdNova" style="width:auto">Adicionar</button>
     </div>
   </div>
 </div>
@@ -1959,6 +2161,7 @@ async function loadProfileAndEnter(authUser){
 document.getElementById('btnLogout').addEventListener('click', async function(){
   await sb.auth.signOut();
   currentUser = null;
+  cadernoResetar(); // seção 72: some o Caderno e para os alertas
   verificarAlertaSyncProducao(); // sem usuário: esconde a faixa
   appEl.style.display = 'none';
   loginScreen.style.display = 'flex';
@@ -1987,6 +2190,8 @@ function enterApp(){
     document.getElementById('tabBtnFechamento').style.display = canSeeFechamento() ? 'inline-block' : 'none';
     // 02/10/2026 (seção 68): Mesa do Supervisor — só admin/supervisor
     mesaAplicarPermissao();
+    // 06/10/2026 (seção 72): Caderno + Agenda + Objeções — botão do Caderno, rascunho, biblioteca e alertas
+    cadernoAoEntrar();
     document.getElementById('btnConversaoSync').style.display = canSyncConversao() ? 'inline-block' : 'none';
 
     document.getElementById('newRole').innerHTML = '<option value="consultor">Consultor</option>'
@@ -2228,6 +2433,7 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
   if(btn.dataset.tab === 'fechamento') loadFechamento();
   if(btn.dataset.tab === 'config') carregarEmailConfigStatus();
   if(btn.dataset.tab === 'mesa') loadMesa(true);
+  if(btn.dataset.tab === 'agenda') loadAgenda();
 });
 
 // 28/09/2026: o menu lateral do chefe (27/09, com gaveta/hambúrguer no celular) foi substituído pelo
@@ -10910,6 +11116,7 @@ function mesaResetar(){
   clearInterval(mesaEstado.timer); mesaEstado.timer = null;
   Object.assign(mesaEstado, { dados: null, erros: {}, aba: null, aberto: null });
   ['mesaKpis', 'mesaFila', 'mesaSemaforoTbody', 'mesaVelPills', 'mesaVelTabela', 'mesaAtraso', 'mesaStatus'].forEach(id => { document.getElementById(id).innerHTML = ''; });
+  document.getElementById('mesaRetObj').innerHTML = '';
 }
 function mesaAplicarPermissao(){
   const vis = canSeeMesa();
@@ -10943,6 +11150,7 @@ async function loadMesa(forcar){
   mesaEstado.agora = agora; mesaEstado.hoje = hoje;
   document.getElementById('mesaStatus').textContent = 'Atualizado às ' + new Date(agora - 3 * 3600000).toISOString().slice(11, 16);
   mesaRender();
+  mesaCarregarRetObj(hoje); // §72 — não bloqueia o resto
   clearInterval(mesaEstado.timer);
   mesaEstado.timer = setInterval(() => {
     const ativo = document.getElementById('panel-mesa').classList.contains('active');
@@ -10984,6 +11192,25 @@ function mesaRender(){
       : '<p class="desc">Nenhum lead esperando agora.</p>');
   mesaRenderSemaforo();
   mesaRenderVelocidade();
+}
+// §72: bloco "Retornos e objeções" (RPC mesa_retornos_objecoes). Falha isolada: não derruba o resto da Mesa.
+function mesaRetObjHtml(d){
+  const cons = (d && d.consultores) || [], obj = (d && d.objecoes) || [];
+  const pct = c => (c.total7 ? fmtPctConversao(c.feitos7 / c.total7) : '—');
+  const tabela = `<div class="mlTabelaWrap"><table class="tbl"><thead><tr><th>Consultor</th><th>Hoje</th><th>Atrasados</th><th>Feitos no dia (7 d)</th></tr></thead><tbody>`
+    + cons.map(c => `<tr><td>${escapeHtml(c.nome)}</td><td>${c.hoje}</td><td>${c.atrasados ? `<span class="retornoBadge atrasado">${c.atrasados}</span>` : '0'}</td><td>${pct(c)}</td></tr>`).join('')
+    + '</tbody></table></div>';
+  const nome = o => (o === 'livre' ? 'Pergunta livre' : o);
+  const top = obj.length ? '<h4>Top objeções (7 dias)</h4><ul>' + obj.map(o => `<li><b>${escapeHtml(nome(o.objecao))}</b>: ${o.usos} vez(es) · ${o.uteis} útil(eis)</li>`).join('') + '</ul>' : '<p class="ppVazio">Nenhuma objeção registrada nos últimos 7 dias.</p>';
+  return { tabela, top };
+}
+async function mesaCarregarRetObj(hoje){
+  const el = document.getElementById('mesaRetObj');
+  const r = await ppSeguro(() => sb.rpc('mesa_retornos_objecoes', { p_ref: hoje }));
+  if(!canSeeMesa()) return;
+  if(!r || r.error){ el.innerHTML = '<p class="ppVazio">Não foi possível carregar os retornos agora.</p>'; return; }
+  const h = mesaRetObjHtml(r.data);
+  el.innerHTML = h.tabela + h.top;
 }
 function mesaLinhasAtuais(){ return mesaEstado.dados ? mesaSemaforo(mesaEstado.dados, mesaEstado.agora, mesaEstado.cfg, mesaEstado.hoje) : []; }
 const MESA_SELO = { vermelho: ['retornoBadge atrasado', 'Agir agora'], amarelo: ['retornoBadge hoje', 'Atenção'], verde: ['retornoBadge futuro', 'Em dia'] };
@@ -11061,6 +11288,1082 @@ document.getElementById('btnMesaExportar').addEventListener('click', function(){
   mlBaixarXlsx('MesaSupervisor_' + mesaEstado.hoje + '.xlsx', [{ nome: 'Semáforo', linhas: sem }, { nome: 'Itens', linhas: itens }]);
 });
 document.getElementById('btnMesaAtualizar').addEventListener('click', () => loadMesa(true).catch(err => console.error(err)));
+
+/* ============ CADERNO + AGENDA + OBJEÇÕES — 06/10/2026, REGRAS_NEGOCIO.md seção 72 ============
+   Para o consultor da discadora (fora do lead). Spec: docs/superpowers/specs/2026-10-06-caderno-agenda-objecoes-design.md.
+   Prefixos: ag* (Agenda), cd* (Caderno), obj* (Objeções), al* (Alertas). Funções puras primeiro (testadas em
+   test_agenda.js / test_caderno.js / test_objecoes.js), depois dados, telas e ações. Horário de SP = UTC−3 fixo. */
+const AG_TZ_MS = 3 * 3600000;
+const AG_TIPOS = { ligacao: 'Ligação', whatsapp: 'WhatsApp', reuniao: 'Reunião', proposta: 'Enviar proposta' };
+const AG_MESES = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
+function agAgora(){ return Date.now(); }
+function agPartesSP(v){
+  const ms = typeof v === 'number' ? v : new Date(v).getTime();
+  const s = new Date(ms - AG_TZ_MS).toISOString();
+  return { dia: s.slice(0, 10), hora: s.slice(11, 16) };
+}
+function agIsoSP(dia, hora){ return dia + 'T' + hora + ':00-03:00'; }
+function agMesVizinho(ym, delta){
+  const [y, m] = ym.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1 + delta, 1)).toISOString().slice(0, 7);
+}
+function agRotuloMes(ym){ return AG_MESES[Number(ym.slice(5, 7)) - 1] + ' ' + ym.slice(0, 4); }
+function agDiaSemana(dia){ return new Date(dia + 'T00:00:00Z').getUTCDay(); }
+// Grade de domingo a sábado cobrindo o mês inteiro (4 a 6 semanas).
+function agGradeMes(ym){
+  const primeiro = ym + '-01';
+  const inicio = somaDiasStr(primeiro, -agDiaSemana(primeiro));
+  const ultimo = somaDiasStr(agMesVizinho(ym, 1) + '-01', -1);
+  const fim = somaDiasStr(ultimo, 6 - agDiaSemana(ultimo));
+  const dias = [];
+  for(let d = inicio; d <= fim; d = somaDiasStr(d, 1)) dias.push({ dia: d, doMes: d.slice(0, 7) === ym });
+  return dias;
+}
+function agSituacao(r, agora){
+  if(r.status === 'feito') return 'feito';
+  if(r.status === 'cancelado') return 'cancelado';
+  return new Date(r.quando).getTime() < agora ? 'atrasado' : 'pendente';
+}
+function agPorDia(retornos, pedidos){
+  const m = new Map();
+  const slot = d => { if(!m.has(d)) m.set(d, { retornos: [], pedidos: [] }); return m.get(d); };
+  (retornos || []).filter(r => r.status !== 'cancelado').forEach(r => slot(agPartesSP(r.quando).dia).retornos.push(r));
+  (pedidos || []).forEach(p => { if(p.dia) slot(p.dia).pedidos.push(p); });
+  m.forEach(v => v.retornos.sort((a, b) => new Date(a.quando) - new Date(b.quando)));
+  return m;
+}
+function agResumoDia(entrada, agora){
+  const itens = entrada.retornos.map(r => ({ tipo: 'retorno', r })).concat(entrada.pedidos.map(p => ({ tipo: 'pedido', p })));
+  return { visiveis: itens.slice(0, 3), mais: Math.max(0, itens.length - 3), atrasados: entrada.retornos.filter(r => agSituacao(r, agora) === 'atrasado').length };
+}
+function agAtalhos(agora){
+  const p = agPartesSP(agora);
+  const em2 = agPartesSP(Math.ceil((agora + 2 * 3600000) / 300000) * 300000);
+  const amanha = somaDiasStr(p.dia, 1);
+  const seg = somaDiasStr(p.dia, ((8 - agDiaSemana(p.dia)) % 7) || 7);
+  return [{ rotulo: 'Em 2h', dia: em2.dia, hora: em2.hora }, { rotulo: 'Amanhã 9h', dia: amanha, hora: '09:00' },
+    { rotulo: 'Amanhã 14h', dia: amanha, hora: '14:00' }, { rotulo: 'Seg 9h', dia: seg, hora: '09:00' }];
+}
+function agRemarcarMesmoHorario(quando, novoDia){ return agIsoSP(novoDia, agPartesSP(quando).hora); }
+function agValidarRetorno(f, agora){
+  if(!String(f.nome || '').trim()) return { erro: 'Informe o nome do cliente.', aviso: null };
+  if(!chaveTel(f.telefone)) return { erro: 'Telefone inválido: use DDD + número.', aviso: null };
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(f.dia || '') || !/^\d{2}:\d{2}$/.test(f.hora || '')) return { erro: 'Escolha dia e hora.', aviso: null };
+  return { erro: null, aviso: new Date(agIsoSP(f.dia, f.hora)).getTime() < agora ? 'Esse horário já passou.' : null };
+}
+function agPedidosItens(calc){
+  if(!calc || !calc.agenda) return [];
+  return ['atrasados', 'hoje', 'amanha', 'proximos7', 'depois'].flatMap(k => calc.agenda[k] || [])
+    .filter(p => p.diaAlvo).map(p => ({ dia: p.diaAlvo, numero: p.numero, cliente: p.cliente || '', tipoData: p.tipoData }));
+}
+const CD_CAMPOS = ['telefone', 'nome', 'cpf', 'cnpj', 'cep', 'qtd_linhas', 'valor_plano', 'email', 'operadora_atual', 'decisor', 'fidelidade_vence'];
+const CD_RESULTADOS = { atendeu: 'Atendeu', nao_atendeu: 'Não atendeu', caixa_postal: 'Caixa postal', sem_interesse: 'Sem interesse', fechou: 'Fechou' };
+const CD_INTERESSES = { movel: 'Móvel', fibra: 'Fibra', portabilidade: 'Portabilidade' };
+function cdUuid(){
+  if(window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+}
+function cdNovaNota(){
+  // rev conta as edições da nota (nunca vai ao banco — cdPayload não a inclui); serve só para o
+  // envio saber se a versão que acabou de confirmar ainda é a mais nova (ver cdSalvarUmaVez).
+  const n = { id: cdUuid(), interesse: [], objecoes: [], texto: '', resultado: null, atualizado_em: null, rev: 0 };
+  CD_CAMPOS.forEach(c => { n[c] = ''; });
+  return n;
+}
+function cdDigitos(s){ return String(s == null ? '' : s).replace(/\D/g, ''); }
+function cdCpfValido(s){
+  const d = cdDigitos(s);
+  if(d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+  const dv = (n) => { let soma = 0; for(let i = 0; i < n; i++) soma += Number(d[i]) * (n + 1 - i); const r = (soma * 10) % 11; return r === 10 ? 0 : r; };
+  return dv(9) === Number(d[9]) && dv(10) === Number(d[10]);
+}
+function cdCnpjValido(s){
+  const d = cdDigitos(s);
+  if(d.length !== 14 || /^(\d)\1{13}$/.test(d)) return false;
+  const dv = (n) => { const pesos = n === 12 ? [5,4,3,2,9,8,7,6,5,4,3,2] : [6,5,4,3,2,9,8,7,6,5,4,3,2]; let soma = 0; for(let i = 0; i < n; i++) soma += Number(d[i]) * pesos[i]; const r = soma % 11; return r < 2 ? 0 : 11 - r; };
+  return dv(12) === Number(d[12]) && dv(13) === Number(d[13]);
+}
+// Reconhece dados colados na anotação (sem IA). Ordem: e-mail, CNPJ, CPF formatado, telefones/11 dígitos, CEP.
+function cdReconhecer(texto){
+  let t = String(texto || '');
+  const r = {};
+  const tira = (re, fn) => { t = t.replace(re, m => { const v = fn(m); return v ? ' ' : m; }); };
+  tira(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, m => (r.email ? null : (r.email = m)));
+  tira(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/g, m => (!r.cnpj && cdCnpjValido(m) ? (r.cnpj = cdDigitos(m)) : null));
+  tira(/\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g, m => (!r.cpf && cdCpfValido(m) ? (r.cpf = cdDigitos(m)) : null));
+  tira(/\(?\b\d{2}\)?\s?\d{4,5}[-\s]?\d{4}\b/g, m => {
+    const d = cdDigitos(m);
+    if(d.length === 11 && d[2] !== '9'){ return !r.cpf && cdCpfValido(d) ? (r.cpf = d) : null; }
+    if((d.length === 10 || d.length === 11) && !r.telefone && chaveTel(d)) return (r.telefone = d);
+    return null;
+  });
+  tira(/\b\d{5}-\d{3}\b/g, m => (r.cep ? null : (r.cep = cdDigitos(m))));
+  return r;
+}
+function cdSugestoesPreencher(nota){
+  const achado = cdReconhecer(nota.texto);
+  return ['telefone', 'cpf', 'cnpj', 'cep', 'email'].filter(c => achado[c] && !String(nota[c] || '').trim()).map(c => ({ campo: c, valor: achado[c] }));
+}
+// Tipagem BR: "." só é separador de milhar quando são grupos de 3 dígitos e não há vírgula na string
+// ("1.200" → 1200); com vírgula, "." é separador de milhar e "," é decimal ("1.234,56" → 1234.56);
+// sem vírgula e sem o padrão de milhar, Number() direto ("99.90" → 99.9, ponto decimal).
+function cdNum(v){
+  if(typeof v === 'number') return Number.isFinite(v) ? v : null;
+  const s = String(v == null ? '' : v).trim();
+  if(!s) return null;
+  let n;
+  if(s.includes(',')) n = Number(s.replace(/\./g, '').replace(',', '.'));
+  else if(/^\d{1,3}(\.\d{3})+$/.test(s)) n = Number(s.replace(/\./g, ''));
+  else n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+function cdNotaVazia(n){
+  return !String(n.texto || '').trim() && !n.resultado && !(n.objecoes || []).length && !(n.interesse || []).length
+    && CD_CAMPOS.every(c => !String(n[c] || '').trim());
+}
+function cdPayload(n){
+  const txt = v => { const s = String(v == null ? '' : v).trim(); return s || null; };
+  const dig = v => cdDigitos(v) || null;
+  const q = cdNum(n.qtd_linhas);
+  return {
+    id: n.id, telefone: txt(n.telefone), nome: txt(n.nome), cpf: dig(n.cpf), cnpj: dig(n.cnpj), cep: dig(n.cep), email: txt(n.email),
+    operadora_atual: txt(n.operadora_atual), decisor: txt(n.decisor),
+    qtd_linhas: q === null ? null : Math.round(q), valor_plano: cdNum(n.valor_plano),
+    fidelidade_vence: /^\d{4}-\d{2}$/.test(n.fidelidade_vence || '') ? n.fidelidade_vence + '-01' : null,
+    interesse: (n.interesse || []).slice(), objecoes: (n.objecoes || []).slice(), texto: String(n.texto || ''), resultado: n.resultado || null,
+  };
+}
+function cdFmtCnpj(d){ return d.length === 14 ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : d; }
+function cdRetornoDaNota(n, quando, origem){
+  const p = cdPayload(n);
+  const primeira = String(n.texto || '').split('\n').map(s => s.trim()).find(Boolean) || '';
+  return {
+    id: cdUuid(), nota_id: n.id, nome: p.nome || (p.cnpj ? 'CNPJ ' + cdFmtCnpj(p.cnpj) : 'Cliente'), telefone: p.telefone || '',
+    quando, tipo: 'ligacao', qtd_linhas: p.qtd_linhas, valor_plano: p.valor_plano, observacao: primeira.slice(0, 140) || null, origem,
+  };
+}
+function cdSugestaoFidelidade(ym, hoje){
+  if(!/^\d{4}-\d{2}$/.test(ym || '')) return null;
+  let dia = somaDiasStr(ym + '-01', -45);
+  const amanha = somaDiasStr(hoje, 1);
+  if(dia < amanha) dia = amanha;
+  return { dia, rotulo: 'Agendar retorno 45 dias antes do vencimento (' + ppFmtDia(dia).slice(0, 5) + ')' };
+}
+// Mesma regra do mascarar() da Edge Function caderno-ia (supabase/functions/caderno-ia/ia.ts).
+function cdMascarar(texto){
+  const semEmail = String(texto == null ? '' : texto).replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, '[EMAIL]');
+  return semEmail.replace(/[+(]?\d[\d\s().\/-]*\d/g, m => {
+    // data dd/mm/aaaa ou dd/mm/aa: não é dado pessoal mascarável aqui, deixa como está.
+    if(/^\d{2}\/\d{2}\/(\d{4}|\d{2})$/.test(m)) return m;
+    let d = m.replace(/\D/g, '');
+    if(d.length < 8) return m; // "12 linhas", "899,90": não é um documento/telefone
+    if(d.length >= 12 && d.length <= 13 && d.startsWith('55')) d = d.slice(2); // DDI Brasil
+    else if(d.length >= 11 && d.length <= 12 && d.startsWith('0')) d = d.slice(1); // 0 de tronco
+    if(d.length === 14) return '[CNPJ]';
+    // 11 dígitos com 3º dígito 9 é celular com DDD; senão é CPF sem pontuação.
+    if(d.length === 11) return d[2] === '9' ? '[TELEFONE]' : '[CPF]';
+    if(d.length === 10) return '[TELEFONE]'; // fixo com DDD
+    if(d.length === 8) return '[CEP]';
+    if(d.length >= 12 && d.length <= 13) return '[TELEFONE]'; // +55 sem o DDI já tratado acima
+    return '[NUMERO]'; // qualquer outra sequência longa: mascara por segurança
+  });
+}
+function cdContextoIA(n){
+  // operadora e interesse também passam pela máscara (texto livre pode trazer telefone/e-mail — revisão final M-4)
+  return { qtd_linhas: cdNum(n.qtd_linhas), valor_plano: cdNum(n.valor_plano), operadora_atual: cdMascarar(String(n.operadora_atual || '').trim()),
+    fidelidade_vence: n.fidelidade_vence || '', interesse: (n.interesse || []).map(cdMascarar), texto: cdMascarar(n.texto).slice(0, 2000) };
+}
+function cdTemContexto(n){
+  const c = cdContextoIA(n);
+  return c.qtd_linhas !== null || c.valor_plano !== null || !!c.operadora_atual || !!c.fidelidade_vence || c.interesse.length > 0 || !!c.texto.trim();
+}
+
+/* ============ AGENDA: tela (calendário do mês, painel do dia, criar/feito/remarcar/cancelar/arrastar) ============ */
+const agEstado = { ym: '', retornos: [], pedidos: [], carregando: false, erro: false, diaAberto: null, geracao: 0, arrastando: null,
+  filaTimer: null, filaRetryMs: 30000, enviandoFila: false }; // filaTimer: nova tentativa da fila de retornos guardados sem rede (revisão final I-4)
+function agUid(){ return currentUser ? currentUser.id : 'anon'; }
+function agAvisarMudou(){ document.dispatchEvent(new CustomEvent('agenda:mudou')); }
+function agResetar(){
+  agEstado.geracao++;
+  clearTimeout(agEstado.filaTimer); agEstado.filaTimer = null;
+  Object.assign(agEstado, { ym: '', retornos: [], pedidos: [], carregando: false, erro: false, diaAberto: null });
+  ['agGrade', 'agLista', 'agDiaLista'].forEach(id => { document.getElementById(id).innerHTML = ''; });
+}
+const cdEstado = { nota: null, aberto: false, timer: null, retryTimer: null, debounceMs: 800, salvando: null, status: '', historico: [], retornoPendente: null, doc: document,
+  emVoo: new Map(), enviandoPendentes: null, reenviarPendentes: false, ctxSeq: 0 }; // emVoo: id -> promessa em andamento, para nunca ter 2 upserts da mesma nota ao mesmo tempo
+function cdTocar(n){ n.rev = (n.rev || 0) + 1; } // toda edição da nota chama isto (campo, texto, resultado, interesse, objeção)
+function cdEl(id){ return cdEstado.doc.getElementById(id) || document.getElementById(id); }
+function cdLsChave(){ return 'caderno_rascunho_' + agUid(); }
+function cdLsGravar(pendente){ try{ localStorage.setItem(cdLsChave(), JSON.stringify({ nota: cdEstado.nota, pendente })); }catch(_e){ /* sem localStorage: segue só com o banco */ } }
+function cdLsLer(){ try{ return JSON.parse(localStorage.getItem(cdLsChave()) || 'null'); }catch(_e){ return null; } }
+// Fila de notas ainda não confirmadas no banco (por id) — além do rascunho atual (o que está na tela),
+// toda nota que trocou de atendimento (cdNovo/cdAbrirDoRetorno) sem terminar de salvar fica aqui até
+// confirmar; nada é removido da fila a não ser por um upsert bem-sucedido daquele id (REGRAS_NEGOCIO §72).
+function cdFilaChave(){ return 'caderno_pendentes_' + agUid(); }
+function cdFilaLer(){ try{ return JSON.parse(localStorage.getItem(cdFilaChave()) || '{}'); }catch(_e){ return {}; } }
+function cdFilaGravar(obj){ try{ localStorage.setItem(cdFilaChave(), JSON.stringify(obj)); }catch(_e){ /* sem localStorage: segue só com o banco */ } }
+function cdPendenteGuardar(n){ const f = cdFilaLer(); f[n.id] = n; cdFilaGravar(f); }
+function cdPendenteRemover(id){ const f = cdFilaLer(); if(f[id]){ delete f[id]; cdFilaGravar(f); } }
+function cdStatus(txt, offline){
+  cdEstado.status = txt;
+  const el = cdEl('cdStatus');
+  el.textContent = txt;
+  el.classList.toggle('offline', !!offline);
+}
+// Avisos do Caderno/objeções: mostrarAviso (página principal) e, com a gaveta na janela flutuante, também
+// no #cdStatus da própria janela — o toast da página principal não aparece lá (revisão final M-1).
+function cdAvisar(msg, tipo){
+  mostrarAviso(msg, tipo);
+  if(cdEstado.doc !== document) cdStatus(msg, tipo === 'erro');
+}
+function cdFmtCampo(c, v){
+  const d = cdDigitos(v);
+  if(c === 'cnpj' && d.length === 14) return cdFmtCnpj(d);
+  if(c === 'cpf' && d.length === 11) return d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+  if(c === 'cep' && d.length === 8) return d.replace(/^(\d{5})(\d{3})$/, '$1-$2');
+  return v == null ? '' : String(v);
+}
+// Preenche a tela a partir de cdEstado.nota (ao abrir, restaurar ou trocar de nota).
+function cdPreencherTela(){
+  const n = cdEstado.nota;
+  CD_CAMPOS.forEach(c => { const el = cdEl('cdF_' + c); if(el) el.value = cdFmtCampo(c, n[c]); });
+  cdEl('cdTexto').value = n.texto || '';
+  cdEstado.doc.querySelectorAll('#cdInteresse [data-cd-int]').forEach(b => b.classList.toggle('active', n.interesse.includes(b.dataset.cdInt)));
+  cdEstado.doc.querySelectorAll('#cdResultado [data-cd-res]').forEach(b => b.classList.toggle('active', n.resultado === b.dataset.cdRes));
+  cdValidarDocs(); cdRenderSugestoes(); cdRenderAtalhos(); cdRenderSugestaoRetorno();
+  if(typeof objRenderChips === 'function') objRenderChips();
+}
+function cdValidarDocs(){
+  const marca = (c, valido) => { const el = cdEl('cdF_' + c); el.closest('.field').classList.toggle('cdAviso', !!cdDigitos(el.value) && !valido(el.value)); };
+  marca('cpf', cdCpfValido); marca('cnpj', cdCnpjValido);
+}
+function cdRenderSugestoes(){
+  cdEl('cdSugestoes').innerHTML = cdSugestoesPreencher(cdEstado.nota).map(s => `<button type="button" class="filterPill" data-cd-preencher="${s.campo}" data-valor="${escapeHtml(s.valor)}">Preencher ${s.campo.toUpperCase()}: ${escapeHtml(cdFmtCampo(s.campo, s.valor))}</button>`).join('');
+}
+function cdRenderAtalhos(){
+  cdEl('cdAtalhos').innerHTML = agAtalhos(agAgora()).map(a => `<button type="button" class="filterPill" data-cd-dia="${escapeHtml(a.dia)}" data-cd-hora="${escapeHtml(a.hora)}" data-cd-origem="manual">${escapeHtml(a.rotulo)}</button>`).join('');
+}
+function cdRenderSugestaoRetorno(){
+  const n = cdEstado.nota, partes = [];
+  if(n.resultado === 'nao_atendeu'){ const a = agAtalhos(agAgora())[0]; partes.push(`<button type="button" class="btn btn-sm btn-outline" data-cd-dia="${escapeHtml(a.dia)}" data-cd-hora="${escapeHtml(a.hora)}" data-cd-origem="nao_atendeu" style="width:auto">${escapeHtml('Tentar de novo em 2h (' + a.hora + ')')}</button>`); }
+  const f = cdSugestaoFidelidade(n.fidelidade_vence, agPartesSP(agAgora()).dia);
+  if(f) partes.push(`<button type="button" class="btn btn-sm btn-outline" data-cd-dia="${f.dia}" data-cd-hora="09:00" data-cd-origem="fidelidade" style="width:auto">${escapeHtml(f.rotulo)}</button>`);
+  cdEl('cdSugestaoRetorno').innerHTML = partes.join('');
+}
+function cdAgendarSalvar(){
+  clearTimeout(cdEstado.timer);
+  if(!cdEstado.nota || cdNotaVazia(cdEstado.nota)) return;
+  cdLsGravar(true);
+  cdStatus('Salvando…');
+  cdEstado.timer = setTimeout(() => { cdSalvarAgora(); }, cdEstado.debounceMs);
+}
+// O upsert de verdade, uma vez. Lê revAlvo (a versão da nota neste exato momento) e manda um retrato
+// (cdPayload tira uma cópia por valor) — se, quando a resposta chegar, a nota já tiver sido editada de
+// novo (n.rev mudou), a versão que acabou de confirmar já está velha: não sai da fila, não marca como
+// salva, e manda a mais nova agora mesmo (sem voltar pela fila de id → promessa, só um laço aqui dentro,
+// senão criaria uma promessa à espera de si mesma). Isso impede que uma resposta atrasada (a antiga)
+// apague por cima da edição mais nova (revisão §72, achado da revisão de código: "perde a edição mais nova").
+async function cdSalvarUmaVez(n){
+  for(;;){
+    if(!n || cdNotaVazia(n) || !currentUser) return false;
+    const atual = () => cdEstado.nota === n;
+    const revAlvo = n.rev || 0;
+    const payload = cdPayload(n);
+    // o debounce (cdEstado.timer) é da nota da tela: salvar outra nota da fila não pode cancelá-lo (revisão final M-2)
+    if(atual()) clearTimeout(cdEstado.timer);
+    clearTimeout(cdEstado.retryTimer);
+    cdPendenteGuardar(n); // sempre guarda a referência mais nova (os campos já mudaram, mesmo que rev ainda não tenha sido comparada)
+    if(atual()) cdLsGravar(true);
+    const r = await ppSeguro(() => sb.from('caderno_notas').upsert(payload, { onConflict: 'id' }));
+    if(r && r.error){
+      if(agErroDeRede(r.error)){
+        if(atual()) cdStatus('Sem internet: guardado neste computador', true);
+        cdEstado.retryTimer = setTimeout(() => { cdEnviarPendentes(); }, 15000);
+      } else if(atual()) cdStatus('Não salvou no servidor: guardado neste computador', true);
+      return false;
+    }
+    if((n.rev || 0) !== revAlvo) continue; // editou de novo enquanto o upsert estava no ar: manda a nova versão já, sem sair da fila
+    n.atualizado_em = new Date().toISOString();
+    cdPendenteRemover(n.id);
+    if(atual()){ cdLsGravar(false); cdStatus('Salvo ✓'); }
+    return true;
+  }
+}
+// Recebe a nota a salvar (por padrão a da tela) e serializa por id em cdEstado.emVoo: nunca há dois
+// upserts da mesma nota em voo ao mesmo tempo, e chegam ao banco na ordem em que foram chamados — uma
+// resposta fora de ordem não pode mais apagar uma edição mais nova por cima (ver cdSalvarUmaVez).
+// Fecha sobre `n` para que, se o atendimento trocar (cdNovo/cdAbrirDoRetorno) enquanto este upsert está
+// no ar, a nota que saiu continue seu próprio fluxo — nunca a de quem entrou. Toda nota passa pela fila
+// de pendentes antes do upsert e só sai dali com sucesso confirmado da versão mais nova: é assim que
+// nada se perde (REGRAS_NEGOCIO §72, "nunca perde").
+function cdSalvarAgora(n){
+  n = n || cdEstado.nota;
+  if(!n || cdNotaVazia(n) || !currentUser) return Promise.resolve(false);
+  const fila = cdEstado.emVoo.get(n.id) || Promise.resolve();
+  const vez = fila.then(() => cdSalvarUmaVez(n), () => cdSalvarUmaVez(n));
+  cdEstado.emVoo.set(n.id, vez);
+  return vez;
+}
+// Reenvia toda a fila de pendentes (notas que trocaram de atendimento ou ficaram sem rede sem
+// terminar de salvar). Chamada pelo timer de retry, pelo evento "online" e ao entrar/restaurar.
+// Com trava de execução: se chamada de novo enquanto já está rodando, só marca para rodar mais uma
+// vez ao final — nunca duas passadas em paralelo brigando pela mesma nota. Devolve sempre a promessa
+// da passada em andamento, para quem precisa das notas no banco antes (agFilaEnviar: FK nota_id dos
+// retornos guardados sem rede — revisão final I-4) poder esperar por ela.
+function cdEnviarPendentes(){
+  if(cdEstado.enviandoPendentes){ cdEstado.reenviarPendentes = true; return cdEstado.enviandoPendentes; }
+  // começa num microtask, depois de guardar a promessa (senão uma fila vazia terminaria antes da atribuição)
+  const passada = Promise.resolve().then(async () => {
+    try{
+      do{
+        cdEstado.reenviarPendentes = false;
+        const fila = cdFilaLer();
+        for(const id of Object.keys(fila)){
+          const n = (cdEstado.nota && cdEstado.nota.id === id) ? cdEstado.nota : fila[id];
+          await cdSalvarAgora(n);
+        }
+      } while(cdEstado.reenviarPendentes);
+    } finally {
+      cdEstado.enviandoPendentes = null;
+    }
+  });
+  cdEstado.enviandoPendentes = passada;
+  return passada;
+}
+// Roda a cada tecla no telefone/CNPJ: só a resposta do pedido mais novo vale (revisão final M-7).
+async function cdCarregarContexto(){
+  const seq = ++cdEstado.ctxSeq;
+  const n = cdEstado.nota, k = chaveTel(n.telefone), cnpj = cdDigitos(n.cnpj);
+  if(!k && cnpj.length !== 14){ cdEstado.historico = []; cdEstado.retornoPendente = null; cdRenderContexto(); return; }
+  const filtro = [k ? 'chave_tel.eq.' + k : null, cnpj.length === 14 ? 'cnpj.eq.' + cnpj : null].filter(Boolean).join(',');
+  const [h, rp] = await Promise.all([
+    ppSeguro(() => sb.from('caderno_notas').select('id,nome,texto,resultado,atualizado_em').eq('consultor_id', currentUser.id).or(filtro).neq('id', n.id).order('atualizado_em', { ascending: false }).limit(5)),
+    k ? ppSeguro(() => sb.from('agenda_retornos').select('id,quando,nome,status').eq('consultor_id', currentUser.id).eq('chave_tel', k).eq('status', 'pendente').order('quando', { ascending: true }).limit(1)) : Promise.resolve({ data: [] }),
+  ]);
+  if(cdEstado.nota !== n || seq !== cdEstado.ctxSeq) return;
+  cdEstado.historico = h && !h.error ? (h.data || []) : [];
+  cdEstado.retornoPendente = rp && !rp.error && rp.data && rp.data[0] ? rp.data[0] : null;
+  cdRenderContexto();
+}
+function cdRenderContexto(){
+  const rp = cdEstado.retornoPendente;
+  if(rp){
+    const p = agPartesSP(rp.quando), sem = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'][agDiaSemana(p.dia)];
+    cdEl('cdRetornoPendente').innerHTML = `<span>Retorno marcado: ${sem} ${ppFmtDia(p.dia).slice(0, 5)} ${p.hora}</span><button type="button" class="btn btn-sm btn-ghost" data-cd-ret-feito="${escapeHtml(rp.id)}" style="width:auto">Feito</button><button type="button" class="btn btn-sm btn-ghost" data-cd-ret-remarcar="${escapeHtml(rp.id)}" style="width:auto">Remarcar</button>`;
+  } else cdEl('cdRetornoPendente').innerHTML = '';
+  const hs = cdEstado.historico;
+  cdEl('cdHistorico').innerHTML = hs.length ? '<h4>Anotações anteriores deste cliente</h4>' + hs.map(x => {
+    const resumo = String(x.texto || '').split('\n').slice(0, 2).join(' · ');
+    return `<div class="cdHistItem" data-cd-hist="${escapeHtml(x.id)}">${escapeHtml(resumo || '(sem anotação)')}<small>${escapeHtml(ppFmtDia(leadDateSP(x.atualizado_em)))}${x.resultado ? ' · ' + escapeHtml(CD_RESULTADOS[x.resultado] || x.resultado) : ''}</small></div>`;
+  }).join('') : '';
+}
+function cdAbrir(){
+  if(!currentUser) return;
+  if(!cdEstado.nota) cdEstado.nota = cdNovaNota();
+  cdEstado.aberto = true;
+  cdEl('cdGaveta').classList.add('aberta');
+  cdPreencherTela();
+  cdRenderContexto(); // histórico/retorno marcado da nota atual — nunca o que ficou de outra (revisão final I-1)
+  cdEl('cdF_telefone').focus();
+}
+// Na janela flutuante, o X (e Alt+N) recolhe a gaveta e fecha a janela — lá a gaveta é sempre visível
+// (.flutuante), então só tirar "aberta" não fazia nada (revisão final M-1).
+function cdFechar(){
+  cdEstado.aberto = false;
+  if(cdEstado.doc !== document){
+    const janela = cdEstado.janela; // cdRecolher zera cdEstado.janela
+    cdRecolher();
+    if(janela) try{ janela.close(); }catch(_e){ /* já pode estar fechada pelo usuário */ }
+  }
+  cdEl('cdGaveta').classList.remove('aberta');
+}
+// Limpa tudo o que a gaveta mostra do atendimento (campos, histórico, retorno marcado, objeção/IA,
+// status). Usada ao sair do painel: o próximo consultor no mesmo computador não vê nada do cliente
+// do anterior (revisão final I-1).
+function cdLimparTela(){
+  CD_CAMPOS.forEach(c => { const el = cdEl('cdF_' + c); if(el) el.value = ''; });
+  ['cdTexto', 'cdRetDia', 'cdRetHora'].forEach(id => { const el = cdEl(id); if(el) el.value = ''; });
+  ['cdSugestoes', 'cdSugestaoRetorno'].forEach(id => { const el = cdEl(id); if(el) el.innerHTML = ''; });
+  const gaveta = cdEl('cdGaveta');
+  if(gaveta) gaveta.querySelectorAll('.active, .cdAviso').forEach(x => x.classList.remove('active', 'cdAviso'));
+  cdRenderContexto();
+  cdStatus('');
+  if(typeof objAoTrocarNota === 'function') objAoTrocarNota();
+}
+async function cdNovo(){
+  const saindo = cdEstado.nota;
+  // Salva (ou deixa na fila de pendentes, se falhar) a nota que está saindo — nunca se perde, mesmo
+  // sem rede. Entra na fila de pendentes já, antes de trocar, e o envio segue em segundo plano: trocar
+  // de atendimento não espera o servidor (revisão final M-3). Limpar o rascunho atual abaixo é seguro
+  // porque a nota que saiu já está na fila.
+  clearTimeout(cdEstado.timer);
+  if(saindo && !cdNotaVazia(saindo)){ cdPendenteGuardar(saindo); cdSalvarAgora(saindo); }
+  cdEstado.nota = cdNovaNota();
+  cdEstado.historico = []; cdEstado.retornoPendente = null;
+  try{ localStorage.removeItem(cdLsChave()); }catch(_e){ /* idem */ }
+  cdStatus('');
+  if(typeof objAoTrocarNota === 'function') objAoTrocarNota();
+  cdAbrir(); cdRenderContexto();
+}
+async function cdAbrirDoRetorno(r){
+  const saindo = cdEstado.nota;
+  if(saindo && !cdNotaVazia(saindo)) await cdSalvarAgora(saindo);
+  let nota = null;
+  if(r.nota_id){
+    const q = await ppSeguro(() => sb.from('caderno_notas').select('*').eq('id', r.nota_id).maybeSingle());
+    if(q && !q.error && q.data) nota = Object.assign(cdNovaNota(), q.data, {
+      fidelidade_vence: q.data.fidelidade_vence ? String(q.data.fidelidade_vence).slice(0, 7) : '',
+      qtd_linhas: q.data.qtd_linhas == null ? '' : String(q.data.qtd_linhas),
+      valor_plano: q.data.valor_plano == null ? '' : String(q.data.valor_plano).replace('.', ','),
+      interesse: q.data.interesse || [], objecoes: q.data.objecoes || [],
+    });
+  }
+  cdEstado.nota = nota || Object.assign(cdNovaNota(), { nome: r.nome || '', telefone: r.telefone || '' });
+  CD_CAMPOS.forEach(c => { if(cdEstado.nota[c] == null) cdEstado.nota[c] = ''; });
+  cdEstado.historico = []; cdEstado.retornoPendente = null;
+  cdStatus(nota ? 'Salvo ✓' : '');
+  if(typeof objAoTrocarNota === 'function') objAoTrocarNota();
+  cdAbrir();
+  cdCarregarContexto();
+}
+// Só o rascunho que não chegou ao banco (pendente) volta para a tela; nota já salva não reabre no
+// próximo login — senão o consultor digitaria o cliente novo por cima dela (revisão final I-3).
+async function cdRestaurar(){
+  const ls = cdLsLer();
+  if(ls && ls.nota && ls.nota.id && ls.pendente){
+    cdEstado.nota = Object.assign(cdNovaNota(), ls.nota);
+    cdPreencherTela();
+    cdCarregarContexto();
+    cdStatus('Salvando…'); await cdSalvarAgora(cdEstado.nota);
+  } else if(ls){ try{ localStorage.removeItem(cdLsChave()); }catch(_e){ /* sem localStorage: nada a limpar */ } }
+  await cdEnviarPendentes(); // outras notas que ficaram pendentes (trocadas sem rede) de uma sessão anterior
+}
+async function cdAgendarRetorno(dia, hora, origem){
+  const n = cdEstado.nota;
+  if(!chaveTel(n.telefone)){ cdAvisar('Preencha o telefone do cliente para agendar o retorno.', 'erro'); cdEl('cdF_telefone').focus(); return false; }
+  await cdSalvarAgora();
+  const ok = await agCriarRetorno(cdRetornoDaNota(n, agIsoSP(dia, hora), origem));
+  if(ok){ cdAvisar('Retorno agendado para ' + ppFmtDia(dia) + ' às ' + hora + '.', 'ok'); cdCarregarContexto(); }
+  return ok;
+}
+function cadernoAoEntrar(){
+  cdEstado.nota = null;
+  document.getElementById('cdBotao').style.display = 'inline-block';
+  cdRestaurar();
+  if(typeof objCarregar === 'function') objCarregar();
+  if(typeof alIniciar === 'function') alIniciar();
+  agFilaEnviar();
+}
+function cadernoResetar(){
+  clearTimeout(cdEstado.timer); clearTimeout(cdEstado.retryTimer);
+  // Sair com a janela flutuante aberta não pode deixar os dados do consultor anterior visíveis numa
+  // tela compartilhada: cdFechar traz a gaveta de volta (cdRecolher) e fecha a janela (fix round 1).
+  cdFechar();
+  Object.assign(cdEstado, { nota: null, historico: [], retornoPendente: null, status: '', gaveta: null, remarcando: null });
+  cdEstado.ctxSeq++; // descarta resposta de contexto ainda no ar
+  cdLimparTela();
+  document.getElementById('cdBotao').style.display = 'none';
+  agResetar();
+  if(typeof alParar === 'function') alParar();
+}
+// Os listeners ficam presos ao elemento da gaveta (não ao document), para funcionarem também na janela flutuante.
+function cdLigarEventos(gaveta){
+  gaveta.addEventListener('input', (ev) => {
+    const el = ev.target;
+    if(!cdEstado.nota) return;
+    if(el.dataset && el.dataset.cdCampo){
+      cdEstado.nota[el.dataset.cdCampo] = el.value;
+      cdTocar(cdEstado.nota);
+      if(el.dataset.cdCampo === 'cpf' || el.dataset.cdCampo === 'cnpj') cdValidarDocs();
+      if(el.dataset.cdCampo === 'telefone' || el.dataset.cdCampo === 'cnpj') cdCarregarContexto();
+      if(el.dataset.cdCampo === 'fidelidade_vence') cdRenderSugestaoRetorno();
+    } else if(el.id === 'cdTexto'){
+      cdEstado.nota.texto = el.value;
+      cdTocar(cdEstado.nota);
+      cdRenderSugestoes();
+    } else return;
+    cdAgendarSalvar();
+  });
+  gaveta.addEventListener('click', (ev) => {
+    const t = ev.target;
+    const pre = t.closest('[data-cd-preencher]');
+    if(pre){ const c = pre.dataset.cdPreencher; cdEstado.nota[c] = pre.dataset.valor; cdTocar(cdEstado.nota); cdEl('cdF_' + c).value = cdFmtCampo(c, pre.dataset.valor); cdValidarDocs(); cdRenderSugestoes(); cdAgendarSalvar(); if(c === 'telefone' || c === 'cnpj') cdCarregarContexto(); return; }
+    const res = t.closest('[data-cd-res]');
+    if(res){ const v = res.dataset.cdRes; cdEstado.nota.resultado = cdEstado.nota.resultado === v ? null : v; cdTocar(cdEstado.nota); cdPreencherTela(); cdAgendarSalvar(); return; }
+    const int = t.closest('[data-cd-int]');
+    if(int){ const v = int.dataset.cdInt, l = cdEstado.nota.interesse; const i = l.indexOf(v); if(i >= 0) l.splice(i, 1); else l.push(v); cdTocar(cdEstado.nota); int.classList.toggle('active', i < 0); cdAgendarSalvar(); return; }
+    const ag = t.closest('[data-cd-dia]');
+    if(ag){ cdAgendarRetorno(ag.dataset.cdDia, ag.dataset.cdHora, ag.dataset.cdOrigem || 'manual'); return; }
+    const hist = t.closest('[data-cd-hist]');
+    if(hist){ cdAbrirDoRetorno({ nota_id: hist.dataset.cdHist }); return; }
+    const feito = t.closest('[data-cd-ret-feito]');
+    if(feito){ agMarcarFeito(feito.dataset.cdRetFeito).then(() => cdCarregarContexto()); return; }
+    const rem = t.closest('[data-cd-ret-remarcar]');
+    if(rem){ const p = agPartesSP(cdEstado.retornoPendente.quando); cdEl('cdRetDia').value = p.dia; cdEl('cdRetHora').value = p.hora; cdEstado.remarcando = rem.dataset.cdRetRemarcar; cdEl('cdRetDia').focus(); return; }
+    if(t.id === 'cdRetSalvar'){
+      const dia = cdEl('cdRetDia').value, hora = cdEl('cdRetHora').value;
+      if(cdEstado.remarcando){ const id = cdEstado.remarcando; cdEstado.remarcando = null; agRemarcar(id, dia, hora).then(() => cdCarregarContexto()); }
+      else if(/^\d{4}-\d{2}-\d{2}$/.test(dia) && /^\d{2}:\d{2}$/.test(hora)) cdAgendarRetorno(dia, hora, 'manual');
+      else cdAvisar('Escolha dia e hora.', 'erro');
+      return;
+    }
+    if(t.id === 'cdNovo') cdNovo();
+    else if(t.id === 'cdFechar') cdFechar();
+    else if(t.id === 'cdDestacar' && typeof cdAbrirFlutuante === 'function') cdAbrirFlutuante();
+  });
+}
+function cdTeclas(ev){
+  if(!currentUser || !ev.altKey) return;
+  const k = String(ev.key || '').toLowerCase();
+  if(k === 'n' && ev.shiftKey){ ev.preventDefault(); cdNovo(); }
+  else if(k === 'n'){ ev.preventDefault(); if(cdEstado.aberto) cdFechar(); else cdAbrir(); }
+  else if(/^[1-9]$/.test(k) && cdEstado.aberto && typeof objClicarPorIndice === 'function'){ ev.preventDefault(); objClicarPorIndice(Number(k) - 1); }
+}
+cdLigarEventos(document.getElementById('cdGaveta'));
+document.addEventListener('keydown', cdTeclas);
+document.getElementById('cdBotao').addEventListener('click', () => { if(cdEstado.aberto) cdFechar(); else cdAbrir(); });
+window.addEventListener('online', () => { if(currentUser) cdEnviarPendentes(); });
+
+/* ============ OBJEÇÕES (06/10/2026, seção 72): chips com resposta instantânea da biblioteca +
+   versão adaptada "para este cliente" pela IA (função caderno-ia), em segundo plano, com timeout
+   e cache. Nunca manda nome/CPF/CNPJ/telefone/e-mail — só o contexto mascarado (cdContextoIA). */
+const objEstado = { lista: [], erro: false, cache: new Map(), aberta: null, timeoutMs: 6000, cacheMs: 600000, pedido: 0 };
+async function objCarregar(){
+  const r = await ppSeguro(() => sb.from('objecoes_respostas').select('chave,rotulo,fala,pergunta,alternativa,ordem,ativo').eq('ativo', true).order('ordem', { ascending: true }));
+  objEstado.erro = !r || !!r.error;
+  objEstado.lista = objEstado.erro ? [] : (r.data || []).filter(o => o.ativo !== false);
+  objRenderChips();
+}
+// Esqueleto (#objChips/#objLivre/#objResposta/#objIA) é montado uma única vez por estado
+// (ok/erro); chamadas seguintes (ex.: cdPreencherTela a cada clique em resultado/interesse) só
+// atualizam a lista de chips, sem tocar no que o consultor está digitando em #objLivre nem na
+// resposta da IA já na tela em #objIA — ver revisão de código da Task 8, achado crítico.
+function objRenderChips(){
+  const box = cdEl('cdObjecoes');
+  if(!box) return;
+  const alvo = objEstado.erro ? 'erro' : 'ok';
+  if(box.dataset.objEstadoTela !== alvo || (alvo === 'ok' && !box.querySelector('#objChips'))){
+    box.innerHTML = alvo === 'erro'
+      ? '<p class="ppVazio">Não foi possível carregar as objeções agora.</p>'
+      : '<h4>Objeções</h4><div class="objChips" id="objChips"></div>'
+        + '<div class="field objLivreCampo"><input type="text" id="objLivre" maxlength="300" placeholder="O cliente disse… (Enter)"></div>'
+        + '<div id="objResposta" class="objResposta"></div><div id="objIA" class="objIA"></div>';
+    box.dataset.objEstadoTela = alvo;
+  }
+  if(alvo === 'erro') return;
+  objRenderListaChips();
+  if(objEstado.aberta) objRenderBiblioteca(objEstado.aberta);
+}
+function objRenderListaChips(){
+  const chips = cdEl('objChips');
+  if(!chips) return;
+  const usadas = cdEstado.nota ? cdEstado.nota.objecoes : [];
+  chips.innerHTML = objEstado.lista.map((o, i) => `<button type="button" class="filterPill${usadas.includes(o.chave) ? ' active' : ''}" data-obj="${escapeHtml(o.chave)}" title="${i < 9 ? 'Alt+' + (i + 1) : ''}">${escapeHtml(o.rotulo)}</button>`).join('');
+}
+function objRenderBiblioteca(chave){
+  const o = objEstado.lista.find(x => x.chave === chave);
+  const el = cdEl('objResposta');
+  if(!o || !el){ if(el) el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="objFala">${escapeHtml(o.fala)}</div>${o.pergunta ? `<div class="objPergunta">${escapeHtml(o.pergunta)}</div>` : ''}${o.alternativa ? `<div class="objAlt">Alternativa: ${escapeHtml(o.alternativa)}</div>` : ''}`
+    + `<div class="objAcoes"><button type="button" class="btn btn-sm btn-outline" data-obj-copiar="${escapeHtml(chave)}" style="width:auto">Copiar</button><button type="button" class="btn btn-sm btn-ghost" data-obj-usei="${escapeHtml(chave)}" style="width:auto">Usei</button><button type="button" class="btn btn-sm btn-ghost" data-obj-treinar="1" style="width:auto">Treinar no Apex Mind</button></div>`;
+}
+function objCacheChave(chave, ctx){ return chave + '|' + JSON.stringify(ctx); }
+// Chamada ao trocar de atendimento (Novo, abrir pelo retorno, histórico): a resposta de objeção do
+// cliente anterior nunca pode aparecer para o novo. Zera a tela (biblioteca, IA e o campo livre) e
+// invalida qualquer resposta da IA ainda no ar — quando ela chegar, objBuscarIA compara `pedido`
+// com `objEstado.pedido` e descarta por ser de um pedido antigo. O cache de 10 min (chave por
+// objeção + contexto mascarado, sem identidade) pode continuar valendo entre atendimentos.
+function objAoTrocarNota(){
+  objEstado.aberta = null;
+  objEstado.ultimaIA = null; // "Copiar" não pode copiar a resposta do cliente anterior (revisão final I-1)
+  objEstado.pedido++;
+  const livre = cdEl('objLivre'); if(livre) livre.value = '';
+  const resp = cdEl('objResposta'); if(resp) resp.innerHTML = '';
+  const ia = cdEl('objIA'); if(ia) ia.innerHTML = '';
+}
+function objMostrar(chave){
+  if(!cdEstado.nota) return;
+  objEstado.aberta = chave;
+  if(!cdEstado.nota.objecoes.includes(chave)){ cdEstado.nota.objecoes.push(chave); cdTocar(cdEstado.nota); cdAgendarSalvar(); }
+  cdEstado.doc.querySelectorAll('#cdObjecoes [data-obj]').forEach(b => b.classList.toggle('active', cdEstado.nota.objecoes.includes(b.dataset.obj)));
+  objRenderBiblioteca(chave);
+  if(!cdTemContexto(cdEstado.nota)){ cdEl('objIA').innerHTML = ''; return; }
+  objBuscarIA({ objecao_chave: chave, contexto: cdContextoIA(cdEstado.nota) }, chave);
+}
+function objClicarPorIndice(i){ const o = objEstado.lista[i]; if(o) objMostrar(o.chave); }
+async function objPedirIA(body){
+  let timer;
+  const tempo = new Promise(res => { timer = setTimeout(() => res({ timeout: true }), objEstado.timeoutMs); });
+  try{
+    const r = await Promise.race([ppSeguro(() => sb.functions.invoke('caderno-ia', { body })), tempo]);
+    if(!r || r.timeout || r.error || !r.data || !r.data.fala) return null;
+    return { fala: String(r.data.fala), pergunta: String(r.data.pergunta || '') };
+  } finally { clearTimeout(timer); }
+}
+async function objBuscarIA(body, rotuloUso){
+  const ia = cdEl('objIA');
+  const ck = objCacheChave(body.objecao_chave || ('livre:' + body.objecao_livre), body.contexto);
+  const emCache = objEstado.cache.get(ck);
+  if(emCache && agAgora() - emCache.em < objEstado.cacheMs){ objRenderIA(emCache.r, rotuloUso); return; }
+  const pedido = ++objEstado.pedido;
+  ia.innerHTML = '<p class="objCarregando">Adaptando para este cliente…</p>';
+  const r = await objPedirIA(body);
+  if(pedido !== objEstado.pedido) return; // outro clique mais novo
+  if(!r){ cdEl('objIA').innerHTML = '<p class="ppVazio">IA indisponível agora: use a resposta acima.</p>'; return; }
+  objEstado.cache.set(ck, { r, em: agAgora() });
+  objRenderIA(r, rotuloUso);
+}
+function objRenderIA(r, rotuloUso){
+  cdEl('objIA').innerHTML = `<div class="objIATitulo">Para este cliente</div><div class="objFala">${escapeHtml(r.fala)}</div>${r.pergunta ? `<div class="objPergunta">${escapeHtml(r.pergunta)}</div>` : ''}`
+    + `<div class="objAcoes"><button type="button" class="btn btn-sm btn-outline" data-obj-copiar-ia="1" style="width:auto">Copiar</button><button type="button" class="btn btn-sm btn-ghost" data-obj-util="1" data-obj-rotulo="${escapeHtml(rotuloUso)}" style="width:auto" aria-label="Ajudou">👍</button><button type="button" class="btn btn-sm btn-ghost" data-obj-util="0" data-obj-rotulo="${escapeHtml(rotuloUso)}" style="width:auto" aria-label="Não ajudou">👎</button></div>`;
+  objEstado.ultimaIA = r;
+}
+function objPerguntarLivre(texto){
+  const t = String(texto || '').trim();
+  if(!t || !cdEstado.nota) return;
+  objEstado.aberta = null;
+  cdEl('objResposta').innerHTML = '';
+  objBuscarIA({ objecao_livre: t, contexto: cdContextoIA(cdEstado.nota) }, 'livre');
+}
+async function objRegistrarUso(objecao, fonte, util){
+  const r = await ppSeguro(() => sb.from('objecoes_uso').insert({ objecao, fonte, util: util === undefined ? null : util, nota_id: cdEstado.nota ? cdEstado.nota.id : null }));
+  if(r && r.error) console.error('objecoes_uso: falha ao registrar');
+  else cdAvisar(fonte === 'ia' ? 'Obrigado pelo retorno.' : 'Registrado.', 'ok');
+}
+async function objAbrirApexMind(){
+  const { data, error } = await sb.functions.invoke('sso-pratica-vendas');
+  if(error || !data || !data.url){ cdAvisar(await mensagemErroFuncao(error, data), 'erro'); return; }
+  window.open(data.url, '_blank');
+}
+function objLigarEventos(gaveta){
+  gaveta.addEventListener('click', (ev) => {
+    const t = ev.target;
+    const chip = t.closest('[data-obj]');
+    if(chip){ objMostrar(chip.dataset.obj); return; }
+    const cp = t.closest('[data-obj-copiar]');
+    if(cp){ const o = objEstado.lista.find(x => x.chave === cp.dataset.objCopiar); if(o && navigator.clipboard) navigator.clipboard.writeText((o.fala + ' ' + (o.pergunta || '')).trim()); cdAvisar('Copiado.', 'ok'); return; }
+    if(t.closest('[data-obj-copiar-ia]') && objEstado.ultimaIA){ if(navigator.clipboard) navigator.clipboard.writeText((objEstado.ultimaIA.fala + ' ' + objEstado.ultimaIA.pergunta).trim()); cdAvisar('Copiado.', 'ok'); return; }
+    const us = t.closest('[data-obj-usei]');
+    if(us){ objRegistrarUso(us.dataset.objUsei, 'biblioteca'); return; }
+    const ut = t.closest('[data-obj-util]');
+    if(ut){ objRegistrarUso(ut.dataset.objRotulo, 'ia', ut.dataset.objUtil === '1'); return; }
+    if(t.closest('[data-obj-treinar]')) objAbrirApexMind();
+  });
+  gaveta.addEventListener('keydown', (ev) => {
+    if(ev.target && ev.target.id === 'objLivre' && ev.key === 'Enter'){ ev.preventDefault(); objPerguntarLivre(ev.target.value); }
+  });
+}
+objLigarEventos(document.getElementById('cdGaveta'));
+
+const alEstado = { proximos: [], timer: null, recarga: null, canal: null, alertados: new Set(), tituloBase: '', geracao: 0 };
+const AL_ANTES_MS = 5 * 60000, AL_VALIDADE_MS = 60 * 60000;
+function alChave(){ return 'agenda_alertados_' + agUid(); }
+function alCarregarAlertados(){ try{ alEstado.alertados = new Set(JSON.parse(localStorage.getItem(alChave()) || '[]')); }catch(_e){ alEstado.alertados = new Set(); } }
+function alGuardarAlertados(){ try{ localStorage.setItem(alChave(), JSON.stringify([...alEstado.alertados].slice(-300))); }catch(_e){ /* sem localStorage: vale só a memória */ } }
+// Pendentes que vencem em até 5 min (ou venceram há menos de 1 h) e ainda não alertaram.
+function alDevemAlertar(retornos, agora, ja){
+  return (retornos || []).filter(r => {
+    if(r.status !== 'pendente' || ja.has(r.id)) return false;
+    const t = new Date(r.quando).getTime();
+    return t - AL_ANTES_MS <= agora && agora < t + AL_VALIDADE_MS;
+  });
+}
+// Só os retornos do próprio usuário (I-2). A resposta só vale se, quando chegar, ainda for o mesmo
+// usuário e a mesma sessão de alertas (alParar incrementa a geração) — revisão final M-6.
+async function alCarregarProximos(){
+  if(!currentUser) return;
+  const uid = currentUser.id, geracao = alEstado.geracao;
+  const hoje = agPartesSP(agAgora()).dia;
+  const r = await ppSeguro(() => sb.from('agenda_retornos').select('id,nota_id,nome,telefone,quando,status').eq('consultor_id', uid)
+    .gte('quando', agIsoSP(somaDiasStr(hoje, -1), '00:00')).lte('quando', agIsoSP(somaDiasStr(hoje, 1), '23:59')).neq('status', 'cancelado').order('quando', { ascending: true }));
+  if(!currentUser || currentUser.id !== uid || geracao !== alEstado.geracao) return;
+  if(r && !r.error) alEstado.proximos = r.data || [];
+}
+function alBip(){
+  try{
+    const C = window.AudioContext || window.webkitAudioContext;
+    if(!C) return;
+    const ctx = new C(), o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = 880; g.gain.value = 0.08; o.connect(g); g.connect(ctx.destination);
+    o.onended = () => { try{ ctx.close(); }catch(_e){ /* já fechado */ } }; // um AudioContext por alerta: fecha ao terminar (revisão final M-5)
+    o.start(); o.stop(ctx.currentTime + 0.25);
+  }catch(_e){ /* sem áudio: segue com a notificação */ }
+}
+function alAoClicar(r){
+  try{ window.focus(); }catch(_e){ /* ok */ }
+  cdAbrirDoRetorno(r);
+}
+function alNotificar(r){
+  const p = agPartesSP(r.quando);
+  const titulo = 'Retorno às ' + p.hora + ' — ' + r.nome;
+  if('Notification' in window && Notification.permission === 'granted'){
+    const uid = currentUser ? currentUser.id : null; // notificação do Windows sobrevive à troca de usuário (revisão final M-6)
+    try{ const n = new Notification(titulo, { body: (r.telefone ? r.telefone + ' · ' : '') + 'Clique para abrir o Caderno', tag: 'retorno-' + r.id }); n.onclick = () => { if(currentUser && currentUser.id === uid) alAoClicar(r); }; }catch(_e){ /* alguns navegadores só aceitam via service worker */ }
+  }
+  mostrarAviso(titulo, 'info');
+  alBip();
+}
+function alAtualizarTitulo(agora){
+  if(!alEstado.tituloBase) alEstado.tituloBase = document.title.replace(/^\(\d+\)\s*/, '');
+  const n = alEstado.proximos.filter(r => r.status === 'pendente' && new Date(r.quando).getTime() - AL_ANTES_MS <= agora).length;
+  document.title = (n ? '(' + n + ') ' : '') + alEstado.tituloBase;
+}
+function alVerificar(){
+  if(!currentUser) return;
+  const agora = agAgora();
+  alDevemAlertar(alEstado.proximos, agora, alEstado.alertados).forEach(r => {
+    alEstado.alertados.add(r.id);
+    alGuardarAlertados();
+    if(alEstado.canal) try{ alEstado.canal.postMessage({ alertado: r.id }); }catch(_e){ /* ok */ }
+    alNotificar(r);
+  });
+  alAtualizarTitulo(agora);
+}
+function alReceber(ev){ if(ev && ev.data && ev.data.alertado){ alEstado.alertados.add(ev.data.alertado); alGuardarAlertados(); } }
+async function alResumoAoEntrar(){
+  await alCarregarProximos();
+  const agora = agAgora(), hoje = agPartesSP(agora).dia;
+  const pend = alEstado.proximos.filter(r => r.status === 'pendente');
+  const nHoje = pend.filter(r => agPartesSP(r.quando).dia === hoje).length;
+  const nAtr = pend.filter(r => new Date(r.quando).getTime() < agora).length;
+  if(nHoje || nAtr) mostrarAviso('Hoje: ' + nHoje + ' retorno' + (nHoje === 1 ? '' : 's') + (nAtr ? ' · ' + nAtr + ' atrasado' + (nAtr === 1 ? '' : 's') : ''), nAtr ? 'erro' : 'info');
+}
+function alAtualizarAvisoPermissao(){
+  const precisa = 'Notification' in window && Notification.permission === 'default';
+  document.getElementById('agAlertasAviso').style.display = precisa ? 'flex' : 'none';
+}
+async function alPedirPermissao(){
+  if(!('Notification' in window)) return;
+  try{ await Notification.requestPermission(); }catch(_e){ /* ok */ }
+  alAtualizarAvisoPermissao();
+}
+function alIniciar(){
+  alParar();
+  alCarregarAlertados();
+  try{ if('BroadcastChannel' in window){ alEstado.canal = new BroadcastChannel('apex-agenda'); alEstado.canal.onmessage = alReceber; } }catch(_e){ alEstado.canal = null; }
+  alResumoAoEntrar().then(alVerificar);
+  alEstado.timer = setInterval(alVerificar, 30000);
+  alEstado.recarga = setInterval(() => { alCarregarProximos().then(alVerificar); }, 300000);
+}
+function alParar(){
+  alEstado.geracao++;
+  clearInterval(alEstado.timer); clearInterval(alEstado.recarga);
+  if(alEstado.canal) try{ alEstado.canal.close(); }catch(_e){ /* ok */ }
+  alEstado.canal = null; alEstado.proximos = [];
+  if(alEstado.tituloBase) document.title = alEstado.tituloBase;
+}
+document.addEventListener('agenda:mudou', () => { if(currentUser) alCarregarProximos().then(alVerificar); });
+document.getElementById('agAtivarAlertas').addEventListener('click', alPedirPermissao);
+
+// Janela flutuante (seção 72): a gaveta muda de documento — os listeners ficam no próprio elemento (cdLigarEventos /
+// objLigarEventos), então continuam valendo; cdEl() procura primeiro no documento onde a gaveta está.
+// Nome cdAbrirFlutuante (não cdDestacar) para não colidir com o id do botão #cdDestacar — um elemento
+// com id vira propriedade nomeada de window, e "cdDestacar" apontaria pro <button>, não pra função
+// (achado da revisão de código, fix round 1).
+async function cdAbrirFlutuante(){
+  if(cdEstado.doc !== document) return true;
+  let win = null;
+  try{
+    if(window.documentPictureInPicture && typeof window.documentPictureInPicture.requestWindow === 'function') win = await window.documentPictureInPicture.requestWindow({ width: 420, height: 720 });
+    else win = window.open('', 'cadernoApex', 'width=420,height=720');
+  }catch(_e){ win = null; }
+  if(!win || !win.document){ mostrarAviso('O navegador bloqueou a janela flutuante. Permita pop-ups para o painel e tente de novo.', 'erro'); return false; }
+  const d = win.document;
+  d.title = 'Caderno — Apex';
+  document.querySelectorAll('style, link[rel="stylesheet"]').forEach(s => d.head.appendChild(s.cloneNode(true)));
+  const gaveta = document.getElementById('cdGaveta');
+  cdEstado.gaveta = gaveta; // referência própria (sobrevive mesmo se a janela flutuante for fechada por fora)
+  gaveta.classList.add('flutuante', 'aberta');
+  d.body.appendChild(d.adoptNode(gaveta));
+  cdEstado.doc = d;
+  d.addEventListener('keydown', cdTeclas);
+  win.addEventListener('pagehide', cdRecolher, { once: true });
+  cdEstado.janela = win;
+  return true;
+}
+// Traz a gaveta de volta para a página principal. Robusto a a janela flutuante já ter sido fechada
+// por fora (botão nativo de fechar, Alt+F4 etc.): usa cdEstado.gaveta (a referência do nó, guardada
+// ao destacar) em vez de só cdEstado.doc.getElementById, que pode falhar se o documento da janela já
+// não responde mais (revisão de código, fix round 1 — logout com a janela flutuante aberta).
+function cdRecolher(){
+  if(cdEstado.doc === document) return;
+  let gaveta = cdEstado.gaveta || null;
+  if(!gaveta){ try{ gaveta = cdEstado.doc.getElementById('cdGaveta'); }catch(_e){ gaveta = null; } }
+  cdEstado.doc = document;
+  cdEstado.janela = null;
+  if(gaveta){
+    gaveta.classList.remove('flutuante');
+    document.getElementById('app').appendChild(document.adoptNode(gaveta));
+    gaveta.classList.toggle('aberta', cdEstado.aberto);
+  }
+}
+
+function objPodeEditar(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
+function objAplicarPermissaoEditor(){ document.getElementById('agEditarObj').style.display = objPodeEditar() ? 'inline-block' : 'none'; }
+function objNovaChave(rotulo, existentes){
+  let base = String(rotulo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 36);
+  if(base.length < 2) base = 'objecao';
+  let c = base, i = 2;
+  while(existentes.includes(c)) c = base + '_' + (i++);
+  return c;
+}
+let objEditorLinhas = [];
+async function objAbrirEditor(){
+  if(!objPodeEditar()) return;
+  const r = await ppSeguro(() => sb.from('objecoes_respostas').select('chave,rotulo,fala,pergunta,alternativa,ordem,ativo').order('ordem', { ascending: true }));
+  if(r && r.error){ mostrarAviso('Não foi possível carregar as objeções.', 'erro'); return; }
+  objEditorLinhas = (r && r.data) || [];
+  objRenderEditor();
+  document.getElementById('objEditorOverlay').classList.add('active');
+}
+function objRenderEditor(){
+  const campo = (o, c, rot, area) => `<div class="field"><label>${rot}</label>${area ? `<textarea rows="2" data-campo="${c}">${escapeHtml(o[c] || '')}</textarea>` : `<input type="text" data-campo="${c}" value="${escapeHtml(o[c] == null ? '' : String(o[c]))}">`}</div>`;
+  document.getElementById('objEditorLista').innerHTML = objEditorLinhas.map(o => `<div class="card" data-obj-ed="${escapeHtml(o.chave)}">
+      <div class="agFLinha">${campo(o, 'rotulo', 'Rótulo')}${campo(o, 'ordem', 'Ordem')}<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-campo="ativo"${o.ativo ? ' checked' : ''}> Ativa</label></div>
+      ${campo(o, 'fala', 'Fala (o que dizer)', true)}${campo(o, 'pergunta', 'Pergunta de contorno', true)}${campo(o, 'alternativa', 'Alternativa de oferta', true)}
+      <button type="button" class="btn btn-sm" data-obj-salvar="${escapeHtml(o.chave)}" style="width:auto">Salvar</button></div>`).join('');
+}
+async function objSalvarLinha(chave){
+  const box = document.querySelector(`#objEditorLista [data-obj-ed="${chave}"]`);
+  const v = c => box.querySelector(`[data-campo="${c}"]`);
+  const linha = { chave, rotulo: v('rotulo').value.trim(), fala: v('fala').value.trim(), pergunta: v('pergunta').value.trim(), alternativa: v('alternativa').value.trim(),
+    ordem: Math.round(cdNum(v('ordem').value) || 100), ativo: v('ativo').checked, atualizado_em: new Date().toISOString() };
+  if(!linha.rotulo || !linha.fala){ mostrarAviso('Rótulo e fala são obrigatórios.', 'erro'); return false; }
+  const r = await ppSeguro(() => sb.from('objecoes_respostas').upsert(linha, { onConflict: 'chave' }));
+  if(r && r.error){ mostrarAviso('Não foi possível salvar: ' + r.error.message, 'erro'); return false; }
+  mostrarAviso('Objeção salva.', 'ok');
+  objCarregar();
+  return true;
+}
+document.getElementById('agEditarObj').addEventListener('click', objAbrirEditor);
+document.getElementById('objEditorFechar').addEventListener('click', () => fecharOverlay(document.getElementById('objEditorOverlay')));
+document.getElementById('objEditorLista').addEventListener('click', (ev) => { const b = ev.target.closest('[data-obj-salvar]'); if(b) objSalvarLinha(b.dataset.objSalvar); });
+document.getElementById('objEdNova').addEventListener('click', async () => {
+  const rot = document.getElementById('objEdNovaRotulo').value.trim();
+  if(!rot){ mostrarAviso('Escreva o rótulo da objeção.', 'erro'); return; }
+  const chave = objNovaChave(rot, objEditorLinhas.map(o => o.chave));
+  const ordem = objEditorLinhas.reduce((m, o) => Math.max(m, o.ordem || 0), 0) + 1;
+  const linha = { chave, rotulo: rot, fala: 'Escreva aqui a resposta.', pergunta: '', alternativa: '', ordem, ativo: true, atualizado_em: new Date().toISOString() };
+  const r = await ppSeguro(() => sb.from('objecoes_respostas').upsert(linha, { onConflict: 'chave' }));
+  if(r && r.error){ mostrarAviso('Não foi possível criar: ' + r.error.message, 'erro'); return; }
+  document.getElementById('objEdNovaRotulo').value = '';
+  objEditorLinhas.push(linha); objRenderEditor();
+  objCarregar();
+});
+async function loadAgenda(){
+  if(!currentUser) return;
+  if(!agEstado.ym) agEstado.ym = agPartesSP(agAgora()).dia.slice(0, 7);
+  alAtualizarAvisoPermissao();
+  objAplicarPermissaoEditor();
+  if(await agCarregarMes()) agRenderMes();
+}
+// Retorna true se a resposta ainda vale (nenhuma outra chamada começou depois desta) e os dados
+// foram atualizados; false se a chamada ficou obsoleta (nesse caso agEstado não é tocado).
+async function agCarregarMes(){
+  const geracao = ++agEstado.geracao;
+  const grade = agGradeMes(agEstado.ym);
+  const de = agIsoSP(grade[0].dia, '00:00'), ate = agIsoSP(grade[grade.length - 1].dia, '23:59');
+  agEstado.carregando = true;
+  document.getElementById('agStatus').textContent = 'Carregando…';
+  const r = await ppSeguro(() => sb.from('agenda_retornos')
+    .select('id,nota_id,nome,telefone,chave_tel,quando,tipo,qtd_linhas,valor_plano,observacao,origem,status,feito_em')
+    .eq('consultor_id', agUid()) // "Seus retornos": o RLS deixa admin/supervisor lerem os de todos (revisão final I-2)
+    .gte('quando', de).lte('quando', ate).neq('status', 'cancelado').order('quando', { ascending: true }));
+  if(geracao !== agEstado.geracao) return false;
+  agEstado.carregando = false;
+  agEstado.erro = !r || !!r.error;
+  agEstado.retornos = agEstado.erro ? [] : (r.data || []);
+  if(canSeePedidosParados()){
+    if(!ppEstado.calc) await ppSeguro(() => ppCarregarDados(false));
+    if(geracao !== agEstado.geracao) return false;
+    agEstado.pedidos = agPedidosItens(ppEstado.calc);
+  } else agEstado.pedidos = [];
+  return true;
+}
+function agFmtDiaLongo(dia){
+  const nomes = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  return nomes[agDiaSemana(dia)] + ', ' + ppFmtDia(dia).slice(0, 5);
+}
+function agItemHtml(it, agora){
+  if(it.tipo === 'pedido') return `<div class="agItem pedido" title="${escapeHtml(it.p.tipoData)}">Pedido ${escapeHtml(it.p.cliente || it.p.numero)}</div>`;
+  const r = it.r, s = agSituacao(r, agora);
+  return `<div class="agItem ${s}" draggable="${s === 'feito' ? 'false' : 'true'}" data-id="${escapeHtml(r.id)}">${agPartesSP(r.quando).hora} ${escapeHtml(r.nome)}</div>`;
+}
+function agRenderMes(){
+  if(!agEstado.ym) return; // Agenda ainda não aberta (ex.: retorno criado pelo Caderno): nada a desenhar
+  const agora = agAgora(), hoje = agPartesSP(agora).dia;
+  document.getElementById('agTituloMes').textContent = agRotuloMes(agEstado.ym);
+  document.getElementById('agStatus').textContent = agEstado.erro ? 'Não foi possível carregar seus retornos agora. Tente de novo em instantes.' : '';
+  const porDia = agPorDia(agEstado.retornos, agEstado.pedidos);
+  document.getElementById('agGrade').innerHTML = agGradeMes(agEstado.ym).map(d => {
+    const e = porDia.get(d.dia);
+    const res = e ? agResumoDia(e, agora) : { visiveis: [], mais: 0, atrasados: 0 };
+    const cls = ['agDia', d.doMes ? '' : 'fora', d.dia === hoje ? 'hoje' : '', res.atrasados ? 'temAtraso' : ''].filter(Boolean).join(' ');
+    return `<div class="${cls}" data-dia="${d.dia}"><div class="agNum"><span>${Number(d.dia.slice(8))}</span>${res.atrasados ? `<span class="agAtr">${res.atrasados} atrasado${res.atrasados > 1 ? 's' : ''}</span>` : ''}</div>`
+      + res.visiveis.map(it => agItemHtml(it, agora)).join('') + (res.mais ? `<div class="agMais">+${res.mais}</div>` : '') + '</div>';
+  }).join('');
+  // lista do celular: atrasados primeiro, depois de hoje em diante
+  const pend = agEstado.retornos.filter(r => r.status === 'pendente');
+  const atrasados = pend.filter(r => agSituacao(r, agora) === 'atrasado');
+  const dias = [...porDia.keys()].filter(d => d >= hoje && d.slice(0, 7) === agEstado.ym).sort();
+  const linha = r => `<div class="agLinha ${agSituacao(r, agora)}" data-id="${escapeHtml(r.id)}" data-dia="${agPartesSP(r.quando).dia}"><span class="agLinhaTxt"><span class="agLinhaHora">${agPartesSP(r.quando).hora}</span>${escapeHtml(r.nome)}</span></div>`;
+  document.getElementById('agLista').innerHTML = (atrasados.length ? `<div class="agListaDia"><h4>Atrasados (${atrasados.length})</h4>${atrasados.map(linha).join('')}</div>` : '')
+    + dias.map(d => { const rs = porDia.get(d).retornos.filter(r => agSituacao(r, agora) !== 'atrasado'); return rs.length ? `<div class="agListaDia" data-dia="${d}"><h4>${agFmtDiaLongo(d)}</h4>${rs.map(linha).join('')}</div>` : ''; }).join('')
+    || '<p class="ppVazio">Nenhum retorno neste mês. Toque em "+ Novo retorno" para agendar.</p>';
+  if(agEstado.diaAberto) agRenderDia();
+}
+function agAbrirDia(dia){
+  agEstado.diaAberto = dia;
+  agRenderDia();
+  const f = id => document.getElementById(id);
+  ['agFNome', 'agFTel', 'agFLinhas', 'agFValor', 'agFObs', 'agFHora'].forEach(id => { f(id).value = ''; });
+  f('agFDia').value = dia; f('agFTipo').value = 'ligacao'; f('agFErro').textContent = '';
+  document.getElementById('agDiaOverlay').classList.add('active');
+}
+function agRenderDia(){
+  const dia = agEstado.diaAberto, agora = agAgora();
+  document.getElementById('agDiaTitulo').textContent = agFmtDiaLongo(dia);
+  const e = agPorDia(agEstado.retornos, agEstado.pedidos).get(dia) || { retornos: [], pedidos: [] };
+  const btn = (acao, rotulo, id) => `<button type="button" class="btn btn-sm btn-ghost" data-ag="${acao}" data-id="${escapeHtml(id)}" style="width:auto">${rotulo}</button>`;
+  document.getElementById('agDiaLista').innerHTML = e.retornos.map(r => {
+    const s = agSituacao(r, agora), p = agPartesSP(r.quando);
+    const sub = [AG_TIPOS[r.tipo] || '', r.telefone, r.qtd_linhas != null ? r.qtd_linhas + ' linha(s)' : '', r.valor_plano != null ? fmtBRL(Number(r.valor_plano)) : '', r.observacao || ''].filter(Boolean).map(escapeHtml).join(' · ');
+    return `<div class="agLinha ${s}" data-id="${escapeHtml(r.id)}"><div class="agLinhaTxt"><span class="agLinhaHora">${p.hora}</span>${escapeHtml(r.nome)}<span class="agLinhaSub">${sub}</span></div>`
+      + `<div class="agLinhaAcoes">${s === 'feito' ? '' : btn('feito', 'Feito', r.id) + btn('remarcar', 'Remarcar', r.id) + btn('cancelar', 'Cancelar', r.id)}${btn('caderno', 'Abrir no Caderno', r.id)}</div></div>`;
+  }).join('') + e.pedidos.map(p => `<div class="agLinha"><div class="agLinhaTxt">Pedido ${escapeHtml(p.numero)} · ${escapeHtml(p.cliente)}<span class="agLinhaSub">${escapeHtml(p.tipoData)} prevista (veja em Pedidos Parados)</span></div></div>`).join('')
+    || '<p class="ppVazio">Nenhum retorno neste dia.</p>';
+}
+// Grava um retorno; sem rede vai para a fila local (enviada quando a rede volta). Usado pela Agenda e pelo Caderno.
+async function agCriarRetorno(linha){
+  const r = await ppSeguro(() => sb.from('agenda_retornos').insert(linha));
+  if(r && r.error){
+    if(agErroDeRede(r.error)){ agFilaGuardar(linha); cdAvisar('Sem internet: retorno guardado neste computador, será enviado quando a rede voltar.', 'info'); }
+    else { cdAvisar('Não foi possível salvar o retorno: ' + r.error.message, 'erro'); return false; }
+  }
+  agEstado.retornos.push(Object.assign({ status: 'pendente' }, linha));
+  agRenderMes(); agAvisarMudou();
+  return true;
+}
+function agErroDeRede(error){ return navigator.onLine === false || /fetch|network|Failed to fetch|NetworkError/i.test(String(error && error.message)); }
+function agFilaChave(){ return 'agenda_fila_' + agUid(); }
+function agFilaLer(){ try{ return JSON.parse(localStorage.getItem(agFilaChave()) || '[]'); }catch(_e){ return []; } }
+function agFilaGuardar(linha){ try{ const f = agFilaLer(); f.push(linha); localStorage.setItem(agFilaChave(), JSON.stringify(f)); }catch(_e){ /* sem localStorage: segue sem fila */ } }
+// Envia os retornos guardados sem rede. Antes, espera as notas pendentes do Caderno subirem: o retorno
+// aponta para a nota (FK nota_id) e, enviado antes dela, falharia (23503) e ficaria parado. Enquanto
+// sobrar algo na fila, tenta de novo a cada agEstado.filaRetryMs (timer desligado ao sair do painel) —
+// revisão final I-4. Com trava: nunca duas passadas ao mesmo tempo.
+async function agFilaEnviar(){
+  if(agEstado.enviandoFila || !currentUser) return;
+  clearTimeout(agEstado.filaTimer); agEstado.filaTimer = null;
+  if(!agFilaLer().length) return;
+  agEstado.enviandoFila = true;
+  const uid = agUid(), chave = agFilaChave();
+  let enviados = 0, resto = [];
+  try{
+    if(typeof cdEnviarPendentes === 'function') await cdEnviarPendentes();
+    if(agUid() !== uid) return;
+    const fila = agFilaLer();
+    for(const linha of fila){
+      const r = await ppSeguro(() => sb.from('agenda_retornos').upsert(linha, { onConflict: 'id' }));
+      if(r && r.error) resto.push(linha); else enviados++;
+    }
+    // o que entrou na fila enquanto esta passada enviava continua guardado
+    let atual = [];
+    try{ atual = JSON.parse(localStorage.getItem(chave) || '[]'); }catch(_e){ atual = []; }
+    resto = resto.concat(atual.filter(l => !fila.some(f => f.id === l.id)));
+    try{ localStorage.setItem(chave, JSON.stringify(resto)); }catch(_e){ /* idem */ }
+  } finally {
+    agEstado.enviandoFila = false;
+  }
+  if(enviados){ mostrarAviso('Retornos guardados sem internet foram enviados.', 'ok'); agAvisarMudou(); }
+  if(resto.length && currentUser && agUid() === uid) agEstado.filaTimer = setTimeout(() => { agEstado.filaTimer = null; if(currentUser) agFilaEnviar(); }, agEstado.filaRetryMs);
+}
+async function agSalvarNovo(f){
+  const v = agValidarRetorno(f, agAgora());
+  document.getElementById('agFErro').textContent = v.erro || '';
+  if(v.erro) return false;
+  const linha = { id: cdUuid(), nota_id: f.nota_id || null, nome: f.nome.trim(), telefone: f.telefone.trim(), quando: agIsoSP(f.dia, f.hora),
+    tipo: f.tipo || 'ligacao', qtd_linhas: cdNum(f.qtd_linhas) === null ? null : Math.round(cdNum(f.qtd_linhas)), valor_plano: cdNum(f.valor_plano),
+    observacao: String(f.observacao || '').trim() || null, origem: f.origem || 'manual' };
+  const ok = await agCriarRetorno(linha);
+  if(ok) mostrarAviso(v.aviso ? 'Retorno salvo. Atenção: ' + v.aviso : 'Retorno agendado para ' + ppFmtDia(f.dia) + ' às ' + f.hora + '.', v.aviso ? 'info' : 'ok');
+  return ok;
+}
+// .select('id') devolve as linhas que o UPDATE alterou: sem permissão (RLS — ex.: supervisor num retorno
+// de outro consultor) o banco não dá erro, só não altera nada; 0 linhas também é falha (revisão final I-2).
+async function agAtualizar(id, patch, msgOk){
+  const r = await ppSeguro(() => sb.from('agenda_retornos').update(patch).eq('id', id).select('id'));
+  const erro = !r ? 'sem resposta do servidor' : r.error ? r.error.message
+    : (!Array.isArray(r.data) || !r.data.length) ? 'retorno não encontrado ou sem permissão para alterá-lo' : null;
+  if(erro){ cdAvisar('Não foi possível atualizar o retorno: ' + erro, 'erro'); return false; }
+  const item = agEstado.retornos.find(x => x.id === id);
+  if(item) Object.assign(item, patch);
+  if(patch.status === 'cancelado') agEstado.retornos = agEstado.retornos.filter(x => x.id !== id);
+  agRenderMes(); agAvisarMudou();
+  if(msgOk) cdAvisar(msgOk, 'ok');
+  return true;
+}
+function agMarcarFeito(id){ return agAtualizar(id, { status: 'feito' }, 'Retorno marcado como feito.'); }
+function agCancelar(id){ return agAtualizar(id, { status: 'cancelado' }, 'Retorno cancelado.'); }
+function agRemarcar(id, dia, hora){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(dia || '') || !/^\d{2}:\d{2}$/.test(hora || '')){ cdAvisar('Escolha dia e hora.', 'erro'); return Promise.resolve(false); }
+  return agAtualizar(id, { quando: agIsoSP(dia, hora), status: 'pendente' }, 'Retorno remarcado para ' + ppFmtDia(dia) + ' às ' + hora + '.');
+}
+function agSoltarEm(id, dia){
+  const r = agEstado.retornos.find(x => x.id === id);
+  if(!r || agPartesSP(r.quando).dia === dia) return Promise.resolve(false);
+  const p = agPartesSP(agRemarcarMesmoHorario(r.quando, dia));
+  return agRemarcar(id, p.dia, p.hora);
+}
+
+document.getElementById('agMesAnt').addEventListener('click', async () => { agEstado.ym = agMesVizinho(agEstado.ym, -1); if(await agCarregarMes()) agRenderMes(); });
+document.getElementById('agMesProx').addEventListener('click', async () => { agEstado.ym = agMesVizinho(agEstado.ym, 1); if(await agCarregarMes()) agRenderMes(); });
+document.getElementById('agHoje').addEventListener('click', async () => { agEstado.ym = agPartesSP(agAgora()).dia.slice(0, 7); if(await agCarregarMes()) agRenderMes(); });
+document.getElementById('agNovo').addEventListener('click', () => agAbrirDia(agPartesSP(agAgora()).dia));
+document.getElementById('agGrade').addEventListener('click', (ev) => { const d = ev.target.closest('.agDia'); if(d) agAbrirDia(d.dataset.dia); });
+// a linha tem o próprio data-dia (inclusive no grupo "Atrasados", que não tem dia) — revisão final M-9
+document.getElementById('agLista').addEventListener('click', (ev) => { const l = ev.target.closest('[data-dia]'); if(l) agAbrirDia(l.dataset.dia); });
+document.getElementById('agGrade').addEventListener('dragstart', (ev) => { const it = ev.target.closest('.agItem[data-id]'); if(it){ agEstado.arrastando = it.dataset.id; if(ev.dataTransfer) ev.dataTransfer.setData('text/plain', it.dataset.id); } });
+document.getElementById('agGrade').addEventListener('dragover', (ev) => { const d = ev.target.closest('.agDia'); if(d && agEstado.arrastando){ ev.preventDefault(); d.classList.add('soltar'); } });
+document.getElementById('agGrade').addEventListener('dragleave', (ev) => { const d = ev.target.closest('.agDia'); if(d) d.classList.remove('soltar'); });
+document.getElementById('agGrade').addEventListener('drop', (ev) => {
+  const d = ev.target.closest('.agDia');
+  document.querySelectorAll('#agGrade .agDia.soltar').forEach(x => x.classList.remove('soltar'));
+  if(!d || !agEstado.arrastando) return;
+  ev.preventDefault();
+  const id = agEstado.arrastando; agEstado.arrastando = null;
+  agSoltarEm(id, d.dataset.dia);
+});
+document.getElementById('agGrade').addEventListener('dragend', () => {
+  agEstado.arrastando = null;
+  document.querySelectorAll('#agGrade .agDia.soltar').forEach(x => x.classList.remove('soltar'));
+});
+document.getElementById('agDiaFechar').addEventListener('click', () => { agEstado.diaAberto = null; fecharOverlay(document.getElementById('agDiaOverlay')); });
+document.getElementById('agFHoras').addEventListener('click', (ev) => { const b = ev.target.closest('[data-hora]'); if(b) document.getElementById('agFHora').value = b.dataset.hora; });
+document.getElementById('agForm').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const v = id => document.getElementById(id).value;
+  const ok = await agSalvarNovo({ nome: v('agFNome'), telefone: v('agFTel'), dia: v('agFDia'), hora: v('agFHora'), tipo: v('agFTipo'), qtd_linhas: v('agFLinhas'), valor_plano: v('agFValor'), observacao: v('agFObs') });
+  if(ok) ['agFNome', 'agFTel', 'agFLinhas', 'agFValor', 'agFObs', 'agFHora'].forEach(id => { document.getElementById(id).value = ''; });
+});
+document.getElementById('agDiaLista').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-ag]');
+  if(!b) return;
+  const id = b.dataset.id, acao = b.dataset.ag;
+  if(acao === 'feito') agMarcarFeito(id);
+  else if(acao === 'cancelar') agCancelar(id);
+  else if(acao === 'caderno'){ const r = agEstado.retornos.find(x => x.id === id); if(r) cdAbrirDoRetorno(r); }
+  else if(acao === 'remarcar'){
+    const linha = b.closest('.agLinha');
+    if(linha.querySelector('.agRemarcar')) return;
+    const r = agEstado.retornos.find(x => x.id === id), p = agPartesSP(r.quando);
+    linha.insertAdjacentHTML('beforeend', `<div class="agRemarcar"><input type="date" value="${p.dia}"><input type="time" step="300" value="${p.hora}"><button type="button" class="btn btn-sm" data-ag="salvarRemarcar" data-id="${escapeHtml(id)}" style="width:auto">Salvar</button></div>`);
+  } else if(acao === 'salvarRemarcar'){
+    const box = b.closest('.agRemarcar');
+    agRemarcar(id, box.querySelector('input[type=date]').value, box.querySelector('input[type=time]').value);
+  }
+});
+window.addEventListener('online', () => { if(currentUser){ agFilaEnviar(); } });
 </script>
 </body>
 </html>
