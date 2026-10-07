@@ -64,6 +64,15 @@ test("montarPrompt: traz a base, as franquias, proíbe preço e já vem mascarad
   assert.ok(p.includes('{"fala"'));
 });
 
+test("montarPrompt: operadora e interesse também vão mascarados (revisão final M-4)", () => {
+  const r = validarEntrada({ objecao_livre: "tá caro", contexto: { operadora_atual: "Vivo 19990000001", interesse: ["x@teste.com"] } });
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  const p = montarPrompt(r.dados, null, []);
+  assert.ok(!p.includes("19990000001") && !p.includes("x@teste.com"));
+  assert.ok(p.includes("Vivo [TELEFONE]") && p.includes("[EMAIL]"));
+});
+
 test("lerRespostaIA: JSON puro, dentro de ```json```, inválido e corta em 3 frases no total (fala + pergunta)", () => {
   assert.deepEqual(lerRespostaIA('{"fala":"A.","pergunta":"B?"}'), { fala: "A.", pergunta: "B?" });
   assert.deepEqual(lerRespostaIA('```json\n{"fala":"A.","pergunta":""}\n```'), { fala: "A.", pergunta: "" });

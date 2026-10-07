@@ -82,8 +82,8 @@ export function montarPrompt(dados: Entrada, base: Objecao | null, todas: Objeca
     "",
     "Dados do atendimento (dados pessoais já removidos):",
     `- linhas: ${c.qtd_linhas ?? "não informado"}; valor que paga hoje: ${c.valor_plano ?? "não informado"}`,
-    `- operadora atual: ${c.operadora_atual || "não informada"}; fidelidade vence: ${c.fidelidade_vence || "não informado"}`,
-    `- interesse: ${c.interesse.join(", ") || "não informado"}`,
+    `- operadora atual: ${mascarar(c.operadora_atual) || "não informada"}; fidelidade vence: ${c.fidelidade_vence || "não informado"}`,
+    `- interesse: ${c.interesse.map(mascarar).join(", ") || "não informado"}`,
     `- anotação do consultor: ${mascarar(c.texto) || "(vazia)"}`,
     "",
   ];

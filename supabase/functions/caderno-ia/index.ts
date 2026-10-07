@@ -52,13 +52,15 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Método não permitido" }, 405);
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return json({ error: "Não autenticado." }, 401);
+    // Valida o JWT do usuário explicitamente (token tirado do "Bearer …"), em vez de depender do header
+    // global de um cliente com a service role (revisão final M-10).
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const jwt = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (!jwt) return json({ error: "Não autenticado." }, 401);
     const url = env("SUPABASE_URL"), service = env("SUPABASE_SERVICE_ROLE_KEY"), chave = env("GEMINI_API_KEY");
-    const caller = createClient(url, service, { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false } });
-    const { data: u, error: ue } = await caller.auth.getUser();
-    if (ue || !u?.user) return json({ error: "Sessão inválida." }, 401);
     const admin = createClient(url, service, { auth: { persistSession: false } });
+    const { data: u, error: ue } = await admin.auth.getUser(jwt);
+    if (ue || !u?.user) return json({ error: "Sessão inválida." }, 401);
     const campos = "chave,rotulo,fala,pergunta,alternativa";
     const deps: DepsIA = {
       async buscarObjecao(c) {
