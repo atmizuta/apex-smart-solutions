@@ -565,6 +565,17 @@
   .cdHistorico{margin-top:var(--space-4);}
   .cdHistItem{padding:var(--space-2) 0;border-bottom:1px solid var(--c-linha);font-size:var(--fs-sm);cursor:pointer;}
   .cdHistItem small{display:block;color:var(--muted);}
+  .cdObjecoes h4{margin:var(--space-3) 0 var(--space-2);font-size:var(--fs-sm);}
+  .objChips{display:flex;gap:var(--space-2);flex-wrap:wrap;}
+  .objLivreCampo{margin:var(--space-2) 0;}
+  .objResposta:not(:empty),.objIA:not(:empty){border-left:3px solid var(--c-sinal);background:var(--c-papel);padding:var(--space-3);margin:var(--space-2) 0;}
+  .objIA:not(:empty){border-left-color:var(--c-bordo);}
+  .objFala{font-size:var(--fs-md);font-weight:600;line-height:1.4;}
+  .objPergunta{margin-top:var(--space-2);}
+  .objAlt{margin-top:var(--space-2);font-size:var(--fs-sm);color:var(--muted);}
+  .objIATitulo{font-size:var(--fs-xs);font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--c-bordo);margin-bottom:var(--space-1);}
+  .objAcoes{display:flex;gap:4px;flex-wrap:wrap;margin-top:var(--space-2);}
+  .objCarregando{font-size:var(--fs-sm);color:var(--muted);margin:0;}
   @media (max-width:720px){ .agSemana,.agGrade{display:none;} .agLista{display:block;} }
 </style>
 </head>
@@ -11695,6 +11706,109 @@ cdLigarEventos(document.getElementById('cdGaveta'));
 document.addEventListener('keydown', cdTeclas);
 document.getElementById('cdBotao').addEventListener('click', () => { if(cdEstado.aberto) cdFechar(); else cdAbrir(); });
 window.addEventListener('online', () => { if(currentUser) cdEnviarPendentes(); });
+
+/* ============ OBJEÇÕES (06/10/2026, seção 72): chips com resposta instantânea da biblioteca +
+   versão adaptada "para este cliente" pela IA (função caderno-ia), em segundo plano, com timeout
+   e cache. Nunca manda nome/CPF/CNPJ/telefone/e-mail — só o contexto mascarado (cdContextoIA). */
+const objEstado = { lista: [], erro: false, cache: new Map(), aberta: null, timeoutMs: 6000, cacheMs: 600000, pedido: 0 };
+async function objCarregar(){
+  const r = await ppSeguro(() => sb.from('objecoes_respostas').select('chave,rotulo,fala,pergunta,alternativa,ordem,ativo').eq('ativo', true).order('ordem', { ascending: true }));
+  objEstado.erro = !r || !!r.error;
+  objEstado.lista = objEstado.erro ? [] : (r.data || []).filter(o => o.ativo !== false);
+  objRenderChips();
+}
+function objRenderChips(){
+  const box = cdEl('cdObjecoes');
+  if(!box) return;
+  if(objEstado.erro){ box.innerHTML = '<p class="ppVazio">Não foi possível carregar as objeções agora.</p>'; return; }
+  const usadas = cdEstado.nota ? cdEstado.nota.objecoes : [];
+  box.innerHTML = '<h4>Objeções</h4><div class="objChips">' + objEstado.lista.map((o, i) => `<button type="button" class="filterPill${usadas.includes(o.chave) ? ' active' : ''}" data-obj="${escapeHtml(o.chave)}" title="${i < 9 ? 'Alt+' + (i + 1) : ''}">${escapeHtml(o.rotulo)}</button>`).join('') + '</div>'
+    + '<div class="field objLivreCampo"><input type="text" id="objLivre" maxlength="300" placeholder="O cliente disse… (Enter)"></div>'
+    + '<div id="objResposta" class="objResposta"></div><div id="objIA" class="objIA"></div>';
+  if(objEstado.aberta) objRenderBiblioteca(objEstado.aberta);
+}
+function objRenderBiblioteca(chave){
+  const o = objEstado.lista.find(x => x.chave === chave);
+  const el = cdEl('objResposta');
+  if(!o || !el){ if(el) el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="objFala">${escapeHtml(o.fala)}</div>${o.pergunta ? `<div class="objPergunta">${escapeHtml(o.pergunta)}</div>` : ''}${o.alternativa ? `<div class="objAlt">Alternativa: ${escapeHtml(o.alternativa)}</div>` : ''}`
+    + `<div class="objAcoes"><button type="button" class="btn btn-sm btn-outline" data-obj-copiar="${escapeHtml(chave)}" style="width:auto">Copiar</button><button type="button" class="btn btn-sm btn-ghost" data-obj-usei="${escapeHtml(chave)}" style="width:auto">Usei</button><button type="button" class="btn btn-sm btn-ghost" data-obj-treinar="1" style="width:auto">Treinar no Apex Mind</button></div>`;
+}
+function objCacheChave(chave, ctx){ return chave + '|' + JSON.stringify(ctx); }
+function objMostrar(chave){
+  if(!cdEstado.nota) return;
+  objEstado.aberta = chave;
+  if(!cdEstado.nota.objecoes.includes(chave)){ cdEstado.nota.objecoes.push(chave); cdTocar(cdEstado.nota); cdAgendarSalvar(); }
+  cdEstado.doc.querySelectorAll('#cdObjecoes [data-obj]').forEach(b => b.classList.toggle('active', cdEstado.nota.objecoes.includes(b.dataset.obj)));
+  objRenderBiblioteca(chave);
+  if(!cdTemContexto(cdEstado.nota)){ cdEl('objIA').innerHTML = ''; return; }
+  objBuscarIA({ objecao_chave: chave, contexto: cdContextoIA(cdEstado.nota) }, chave);
+}
+function objClicarPorIndice(i){ const o = objEstado.lista[i]; if(o) objMostrar(o.chave); }
+async function objPedirIA(body){
+  let timer;
+  const tempo = new Promise(res => { timer = setTimeout(() => res({ timeout: true }), objEstado.timeoutMs); });
+  try{
+    const r = await Promise.race([ppSeguro(() => sb.functions.invoke('caderno-ia', { body })), tempo]);
+    if(!r || r.timeout || r.error || !r.data || !r.data.fala) return null;
+    return { fala: String(r.data.fala), pergunta: String(r.data.pergunta || '') };
+  } finally { clearTimeout(timer); }
+}
+async function objBuscarIA(body, rotuloUso){
+  const ia = cdEl('objIA');
+  const ck = objCacheChave(body.objecao_chave || ('livre:' + body.objecao_livre), body.contexto);
+  const emCache = objEstado.cache.get(ck);
+  if(emCache && agAgora() - emCache.em < objEstado.cacheMs){ objRenderIA(emCache.r, rotuloUso); return; }
+  const pedido = ++objEstado.pedido;
+  ia.innerHTML = '<p class="objCarregando">Adaptando para este cliente…</p>';
+  const r = await objPedirIA(body);
+  if(pedido !== objEstado.pedido) return; // outro clique mais novo
+  if(!r){ cdEl('objIA').innerHTML = '<p class="ppVazio">IA indisponível agora: use a resposta acima.</p>'; return; }
+  objEstado.cache.set(ck, { r, em: agAgora() });
+  objRenderIA(r, rotuloUso);
+}
+function objRenderIA(r, rotuloUso){
+  cdEl('objIA').innerHTML = `<div class="objIATitulo">Para este cliente</div><div class="objFala">${escapeHtml(r.fala)}</div>${r.pergunta ? `<div class="objPergunta">${escapeHtml(r.pergunta)}</div>` : ''}`
+    + `<div class="objAcoes"><button type="button" class="btn btn-sm btn-outline" data-obj-copiar-ia="1" style="width:auto">Copiar</button><button type="button" class="btn btn-sm btn-ghost" data-obj-util="1" data-obj-rotulo="${escapeHtml(rotuloUso)}" style="width:auto" aria-label="Ajudou">👍</button><button type="button" class="btn btn-sm btn-ghost" data-obj-util="0" data-obj-rotulo="${escapeHtml(rotuloUso)}" style="width:auto" aria-label="Não ajudou">👎</button></div>`;
+  objEstado.ultimaIA = r;
+}
+function objPerguntarLivre(texto){
+  const t = String(texto || '').trim();
+  if(!t || !cdEstado.nota) return;
+  objEstado.aberta = null;
+  cdEl('objResposta').innerHTML = '';
+  objBuscarIA({ objecao_livre: t, contexto: cdContextoIA(cdEstado.nota) }, 'livre');
+}
+async function objRegistrarUso(objecao, fonte, util){
+  const r = await ppSeguro(() => sb.from('objecoes_uso').insert({ objecao, fonte, util: util === undefined ? null : util, nota_id: cdEstado.nota ? cdEstado.nota.id : null }));
+  if(r && r.error) console.error('objecoes_uso: falha ao registrar');
+  else mostrarAviso(fonte === 'ia' ? 'Obrigado pelo retorno.' : 'Registrado.', 'ok');
+}
+async function objAbrirApexMind(){
+  const { data, error } = await sb.functions.invoke('sso-pratica-vendas');
+  if(error || !data || !data.url){ mostrarAviso(await mensagemErroFuncao(error, data), 'erro'); return; }
+  window.open(data.url, '_blank');
+}
+function objLigarEventos(gaveta){
+  gaveta.addEventListener('click', (ev) => {
+    const t = ev.target;
+    const chip = t.closest('[data-obj]');
+    if(chip){ objMostrar(chip.dataset.obj); return; }
+    const cp = t.closest('[data-obj-copiar]');
+    if(cp){ const o = objEstado.lista.find(x => x.chave === cp.dataset.objCopiar); if(o && navigator.clipboard) navigator.clipboard.writeText((o.fala + ' ' + (o.pergunta || '')).trim()); mostrarAviso('Copiado.', 'ok'); return; }
+    if(t.closest('[data-obj-copiar-ia]') && objEstado.ultimaIA){ if(navigator.clipboard) navigator.clipboard.writeText((objEstado.ultimaIA.fala + ' ' + objEstado.ultimaIA.pergunta).trim()); mostrarAviso('Copiado.', 'ok'); return; }
+    const us = t.closest('[data-obj-usei]');
+    if(us){ objRegistrarUso(us.dataset.objUsei, 'biblioteca'); return; }
+    const ut = t.closest('[data-obj-util]');
+    if(ut){ objRegistrarUso(ut.dataset.objRotulo, 'ia', ut.dataset.objUtil === '1'); return; }
+    if(t.closest('[data-obj-treinar]')) objAbrirApexMind();
+  });
+  gaveta.addEventListener('keydown', (ev) => {
+    if(ev.target && ev.target.id === 'objLivre' && ev.key === 'Enter'){ ev.preventDefault(); objPerguntarLivre(ev.target.value); }
+  });
+}
+objLigarEventos(document.getElementById('cdGaveta'));
+
 function alAtualizarAvisoPermissao(){ /* Task 10 */ }
 function objAplicarPermissaoEditor(){ /* Task 9 */ }
 async function loadAgenda(){
