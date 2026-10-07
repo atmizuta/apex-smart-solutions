@@ -11037,6 +11037,75 @@ document.getElementById('btnMesaExportar').addEventListener('click', function(){
   mlBaixarXlsx('MesaSupervisor_' + mesaEstado.hoje + '.xlsx', [{ nome: 'Semáforo', linhas: sem }, { nome: 'Itens', linhas: itens }]);
 });
 document.getElementById('btnMesaAtualizar').addEventListener('click', () => loadMesa(true).catch(err => console.error(err)));
+
+/* ============ CADERNO + AGENDA + OBJEÇÕES — 06/10/2026, REGRAS_NEGOCIO.md seção 72 ============
+   Para o consultor da discadora (fora do lead). Spec: docs/superpowers/specs/2026-10-06-caderno-agenda-objecoes-design.md.
+   Prefixos: ag* (Agenda), cd* (Caderno), obj* (Objeções), al* (Alertas). Funções puras primeiro (testadas em
+   test_agenda.js / test_caderno.js / test_objecoes.js), depois dados, telas e ações. Horário de SP = UTC−3 fixo. */
+const AG_TZ_MS = 3 * 3600000;
+const AG_TIPOS = { ligacao: 'Ligação', whatsapp: 'WhatsApp', reuniao: 'Reunião', proposta: 'Enviar proposta' };
+const AG_MESES = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
+function agAgora(){ return Date.now(); }
+function agPartesSP(v){
+  const ms = typeof v === 'number' ? v : new Date(v).getTime();
+  const s = new Date(ms - AG_TZ_MS).toISOString();
+  return { dia: s.slice(0, 10), hora: s.slice(11, 16) };
+}
+function agIsoSP(dia, hora){ return dia + 'T' + hora + ':00-03:00'; }
+function agMesVizinho(ym, delta){
+  const [y, m] = ym.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1 + delta, 1)).toISOString().slice(0, 7);
+}
+function agRotuloMes(ym){ return AG_MESES[Number(ym.slice(5, 7)) - 1] + ' ' + ym.slice(0, 4); }
+function agDiaSemana(dia){ return new Date(dia + 'T00:00:00Z').getUTCDay(); }
+// Grade de domingo a sábado cobrindo o mês inteiro (4 a 6 semanas).
+function agGradeMes(ym){
+  const primeiro = ym + '-01';
+  const inicio = somaDiasStr(primeiro, -agDiaSemana(primeiro));
+  const ultimo = somaDiasStr(agMesVizinho(ym, 1) + '-01', -1);
+  const fim = somaDiasStr(ultimo, 6 - agDiaSemana(ultimo));
+  const dias = [];
+  for(let d = inicio; d <= fim; d = somaDiasStr(d, 1)) dias.push({ dia: d, doMes: d.slice(0, 7) === ym });
+  return dias;
+}
+function agSituacao(r, agora){
+  if(r.status === 'feito') return 'feito';
+  if(r.status === 'cancelado') return 'cancelado';
+  return new Date(r.quando).getTime() < agora ? 'atrasado' : 'pendente';
+}
+function agPorDia(retornos, pedidos){
+  const m = new Map();
+  const slot = d => { if(!m.has(d)) m.set(d, { retornos: [], pedidos: [] }); return m.get(d); };
+  (retornos || []).filter(r => r.status !== 'cancelado').forEach(r => slot(agPartesSP(r.quando).dia).retornos.push(r));
+  (pedidos || []).forEach(p => { if(p.dia) slot(p.dia).pedidos.push(p); });
+  // feito vai para o fim da lista do dia (já resolvido, menos prioridade); dentro de cada grupo, por hora.
+  m.forEach(v => v.retornos.sort((a, b) => (a.status === 'feito' ? 1 : 0) - (b.status === 'feito' ? 1 : 0) || new Date(a.quando) - new Date(b.quando)));
+  return m;
+}
+function agResumoDia(entrada, agora){
+  const itens = entrada.retornos.map(r => ({ tipo: 'retorno', r })).concat(entrada.pedidos.map(p => ({ tipo: 'pedido', p })));
+  return { visiveis: itens.slice(0, 3), mais: Math.max(0, itens.length - 3), atrasados: entrada.retornos.filter(r => agSituacao(r, agora) === 'atrasado').length };
+}
+function agAtalhos(agora){
+  const p = agPartesSP(agora);
+  const em2 = agPartesSP(Math.ceil((agora + 2 * 3600000) / 300000) * 300000);
+  const amanha = somaDiasStr(p.dia, 1);
+  const seg = somaDiasStr(p.dia, ((8 - agDiaSemana(p.dia)) % 7) || 7);
+  return [{ rotulo: 'Em 2h', dia: em2.dia, hora: em2.hora }, { rotulo: 'Amanhã 9h', dia: amanha, hora: '09:00' },
+    { rotulo: 'Amanhã 14h', dia: amanha, hora: '14:00' }, { rotulo: 'Seg 9h', dia: seg, hora: '09:00' }];
+}
+function agRemarcarMesmoHorario(quando, novoDia){ return agIsoSP(novoDia, agPartesSP(quando).hora); }
+function agValidarRetorno(f, agora){
+  if(!String(f.nome || '').trim()) return { erro: 'Informe o nome do cliente.', aviso: null };
+  if(!chaveTel(f.telefone)) return { erro: 'Telefone inválido: use DDD + número.', aviso: null };
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(f.dia || '') || !/^\d{2}:\d{2}$/.test(f.hora || '')) return { erro: 'Escolha dia e hora.', aviso: null };
+  return { erro: null, aviso: new Date(agIsoSP(f.dia, f.hora)).getTime() < agora ? 'Esse horário já passou.' : null };
+}
+function agPedidosItens(calc){
+  if(!calc || !calc.agenda) return [];
+  return ['atrasados', 'hoje', 'amanha', 'proximos7', 'depois'].flatMap(k => calc.agenda[k] || [])
+    .filter(p => p.diaAlvo).map(p => ({ dia: p.diaAlvo, numero: p.numero, cliente: p.cliente || '', tipoData: p.tipoData }));
+}
 </script>
 </body>
 </html>
