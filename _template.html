@@ -1510,6 +1510,22 @@
   </div>
 </div>
 
+<!-- Editor da biblioteca de objeções (seção 72) — só admin/supervisor -->
+<div class="overlay" id="objEditorOverlay">
+  <div class="modal" style="max-width:760px">
+    <div class="mHead">
+      <button class="mClose" id="objEditorFechar" type="button">&times;</button>
+      <h2>Respostas de objeção</h2>
+      <div class="mCnpj">O que o consultor vê ao clicar no chip. Sem preço em R$ (preço muda); fale de franquia.</div>
+    </div>
+    <div class="mBody">
+      <div id="objEditorLista"></div>
+      <div class="agFLinha"><div class="field"><label>Nova objeção (rótulo do chip)</label><input type="text" id="objEdNovaRotulo" maxlength="60"></div></div>
+      <button type="button" class="btn btn-sm btn-outline" id="objEdNova" style="width:auto">Adicionar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===================== MODAL DETALHE ===================== -->
 <div class="overlay" id="overlay">
   <div class="modal">
@@ -11840,7 +11856,56 @@ function objLigarEventos(gaveta){
 objLigarEventos(document.getElementById('cdGaveta'));
 
 function alAtualizarAvisoPermissao(){ /* Task 10 */ }
-function objAplicarPermissaoEditor(){ /* Task 9 */ }
+function objPodeEditar(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
+function objAplicarPermissaoEditor(){ document.getElementById('agEditarObj').style.display = objPodeEditar() ? 'inline-block' : 'none'; }
+function objNovaChave(rotulo, existentes){
+  const base = String(rotulo || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 36) || 'objecao';
+  let c = base, i = 2;
+  while(existentes.includes(c)) c = base + '_' + (i++);
+  return c;
+}
+let objEditorLinhas = [];
+async function objAbrirEditor(){
+  if(!objPodeEditar()) return;
+  const r = await ppSeguro(() => sb.from('objecoes_respostas').select('chave,rotulo,fala,pergunta,alternativa,ordem,ativo').order('ordem', { ascending: true }));
+  if(r && r.error){ mostrarAviso('Não foi possível carregar as objeções.', 'erro'); return; }
+  objEditorLinhas = (r && r.data) || [];
+  objRenderEditor();
+  document.getElementById('objEditorOverlay').classList.add('active');
+}
+function objRenderEditor(){
+  const campo = (o, c, rot, area) => `<div class="field"><label>${rot}</label>${area ? `<textarea rows="2" data-campo="${c}">${escapeHtml(o[c] || '')}</textarea>` : `<input type="text" data-campo="${c}" value="${escapeHtml(o[c] == null ? '' : String(o[c]))}">`}</div>`;
+  document.getElementById('objEditorLista').innerHTML = objEditorLinhas.map(o => `<div class="card objEdLinha" data-obj-ed="${escapeHtml(o.chave)}">
+      <div class="agFLinha">${campo(o, 'rotulo', 'Rótulo')}${campo(o, 'ordem', 'Ordem')}<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-campo="ativo"${o.ativo ? ' checked' : ''}> Ativa</label></div>
+      ${campo(o, 'fala', 'Fala (o que dizer)', true)}${campo(o, 'pergunta', 'Pergunta de contorno', true)}${campo(o, 'alternativa', 'Alternativa de oferta', true)}
+      <button type="button" class="btn btn-sm" data-obj-salvar="${escapeHtml(o.chave)}" style="width:auto">Salvar</button></div>`).join('');
+}
+async function objSalvarLinha(chave){
+  const box = document.querySelector(`#objEditorLista [data-obj-ed="${chave}"]`);
+  const v = c => box.querySelector(`[data-campo="${c}"]`);
+  const linha = { chave, rotulo: v('rotulo').value.trim(), fala: v('fala').value.trim(), pergunta: v('pergunta').value.trim(), alternativa: v('alternativa').value.trim(),
+    ordem: Math.round(cdNum(v('ordem').value) || 100), ativo: v('ativo').checked, atualizado_em: new Date().toISOString() };
+  if(!linha.rotulo || !linha.fala){ mostrarAviso('Rótulo e fala são obrigatórios.', 'erro'); return false; }
+  const r = await ppSeguro(() => sb.from('objecoes_respostas').upsert(linha, { onConflict: 'chave' }));
+  if(r && r.error){ mostrarAviso('Não foi possível salvar: ' + r.error.message, 'erro'); return false; }
+  mostrarAviso('Objeção salva.', 'ok');
+  objCarregar();
+  return true;
+}
+document.getElementById('agEditarObj').addEventListener('click', objAbrirEditor);
+document.getElementById('objEditorFechar').addEventListener('click', () => fecharOverlay(document.getElementById('objEditorOverlay')));
+document.getElementById('objEditorLista').addEventListener('click', (ev) => { const b = ev.target.closest('[data-obj-salvar]'); if(b) objSalvarLinha(b.dataset.objSalvar); });
+document.getElementById('objEdNova').addEventListener('click', async () => {
+  const rot = document.getElementById('objEdNovaRotulo').value.trim();
+  if(!rot){ mostrarAviso('Escreva o rótulo da objeção.', 'erro'); return; }
+  const chave = objNovaChave(rot, objEditorLinhas.map(o => o.chave));
+  const ordem = objEditorLinhas.reduce((m, o) => Math.max(m, o.ordem || 0), 0) + 1;
+  const linha = { chave, rotulo: rot, fala: 'Escreva aqui a resposta.', pergunta: '', alternativa: '', ordem, ativo: true, atualizado_em: new Date().toISOString() };
+  const r = await ppSeguro(() => sb.from('objecoes_respostas').upsert(linha, { onConflict: 'chave' }));
+  if(r && r.error){ mostrarAviso('Não foi possível criar: ' + r.error.message, 'erro'); return; }
+  document.getElementById('objEdNovaRotulo').value = '';
+  objEditorLinhas.push(linha); objRenderEditor();
+});
 async function loadAgenda(){
   if(!currentUser) return;
   if(!agEstado.ym) agEstado.ym = agPartesSP(agAgora()).dia.slice(0, 7);

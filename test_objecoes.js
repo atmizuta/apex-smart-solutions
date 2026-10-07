@@ -135,6 +135,34 @@ rodar(`
   assert(document.getElementById('cdObjecoes').textContent.includes('Não foi possível carregar as objeções'), 'aviso de falha');
   sb.from = sbFrom;
 
+  // ==== TASK 9: editor (admin/supervisor) ====
+  window.__tabelas.objecoes_respostas = [{ chave: 'caro', rotulo: 'Tá caro', fala: 'Fala caro.', pergunta: 'P?', alternativa: 'A.', ordem: 1, ativo: true }];
+  eq(objNovaChave('Já tenho fidelidade!', ['caro']), 'ja_tenho_fidelidade', 'chave a partir do rótulo');
+  eq(objNovaChave('Tá caro', ['ta_caro']), 'ta_caro_2', 'chave sem colidir');
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  objAplicarPermissaoEditor();
+  assert(document.getElementById('agEditarObj').style.display === 'none', 'consultor não vê o editor');
+  currentUser = { id: 's1', nome: 'Supervisor Teste', username: 'sup', role: 'supervisor' };
+  objAplicarPermissaoEditor();
+  assert(document.getElementById('agEditarObj').style.display !== 'none', 'supervisor vê o editor');
+  document.getElementById('agEditarObj').click(); await espera(30);
+  assert(document.getElementById('objEditorOverlay').classList.contains('active'), 'abre o editor');
+  const linha = document.querySelector('#objEditorLista [data-obj-ed="caro"]');
+  linha.querySelector('[data-campo="fala"]').value = 'Fala nova.';
+  linha.querySelector('[data-obj-salvar]').click(); await espera(30);
+  const up = window.__escritas.filter(e => e.tabela === 'objecoes_respostas' && e.op === 'upsert').pop();
+  eq([up.rows.chave, up.rows.fala, up.opts.onConflict], ['caro', 'Fala nova.', 'chave'], 'salva a linha');
+  document.getElementById('objEdNovaRotulo').value = 'Já tenho fidelidade';
+  document.getElementById('objEdNova').click(); await espera(30);
+  const nova = window.__escritas.filter(e => e.tabela === 'objecoes_respostas' && e.op === 'upsert').pop();
+  eq([nova.rows.chave, nova.rows.rotulo, nova.rows.ativo, nova.rows.ordem], ['ja_tenho_fidelidade', 'Já tenho fidelidade', true, 2], 'nova objeção no fim');
+  // fala vazia não salva
+  const l2 = document.querySelector('#objEditorLista [data-obj-ed="caro"]');
+  l2.querySelector('[data-campo="fala"]').value = '  ';
+  const n0 = window.__escritas.length;
+  l2.querySelector('[data-obj-salvar]').click(); await espera(20);
+  eq(window.__escritas.length, n0, 'fala vazia não grava');
+
   // ==== mais testes entram aqui ====
   fim();
 `);
