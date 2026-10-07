@@ -58,6 +58,94 @@ rodar(`
   const ordenado = await sb.from('x').select().order('quando');
   eq(ordenado.data.map(r => r.id), ['xb', 'xa'], 'order compara por instante: 16:00Z vem antes de 13:30-03:00 (16:30 UTC)');
 
+  // ==== TASK 6: aba, calendário, painel do dia ====
+  const nowReal = Date.now;
+  Date.now = () => AGORA;
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  window.__tabelas.agenda_retornos = rets.map(r => Object.assign({ consultor_id: 'c1', telefone: '19990000001', tipo: 'ligacao' }, r));
+  ppEstado.calc = calc;
+  const btnAg = document.querySelector('#tabsNav button[data-tab="agenda"]');
+  assert(btnAg && btnAg.querySelector('.sbLabel').textContent === 'Agenda', 'botão Agenda no menu');
+  btnAg.click();
+  await espera(60);
+  assert(document.getElementById('panel-agenda').classList.contains('active'), 'abre a aba');
+  eq(document.getElementById('agTituloMes').textContent, 'OUTUBRO 2026', 'mês atual');
+  const celulas = document.querySelectorAll('#agGrade .agDia');
+  eq(celulas.length, 35, 'grade com 35 dias');
+  const hoje = document.querySelector('#agGrade .agDia[data-dia="2026-10-06"]');
+  assert(hoje.classList.contains('hoje') && hoje.classList.contains('temAtraso'), 'hoje destacado e com atraso');
+  eq([...hoje.querySelectorAll('.agItem')].map(i => i.textContent.trim().slice(0, 5)), ['09:00', '16:00', '17:00'], '3 itens visíveis em ordem de hora');
+  assert(hoje.querySelector('.agMais').textContent.includes('+2'), '+2 (5 retornos no dia; o pedido do teste é do dia 01)');
+  const dia1 = document.querySelector('#agGrade .agDia[data-dia="2026-10-01"]');
+  assert(dia1.querySelector('.agItem.pedido') && dia1.textContent.includes('Pedido'), 'camada de pedidos no dia 01');
+  assert(document.querySelector('#agGrade .agDia[data-dia="2026-09-27"]').classList.contains('fora'), 'dia de fora do mês apagado');
+  assert(!/NaN|undefined/.test(document.getElementById('panel-agenda').textContent), 'sem NaN/undefined');
+  // lista do celular: atrasados no topo
+  assert(document.querySelector('#agLista .agListaDia') && document.getElementById('agLista').textContent.indexOf('A Teste') < document.getElementById('agLista').textContent.indexOf('B Teste'), 'lista do celular em ordem');
+
+  // navegar
+  document.getElementById('agMesProx').click(); await espera(30);
+  eq(document.getElementById('agTituloMes').textContent, 'NOVEMBRO 2026', 'próximo mês');
+  document.getElementById('agHoje').click(); await espera(30);
+  eq(document.getElementById('agTituloMes').textContent, 'OUTUBRO 2026', 'volta para hoje');
+
+  // painel do dia (a grade foi redesenhada ao navegar: buscar a célula de novo)
+  document.querySelector('#agGrade .agDia[data-dia="2026-10-06"]').click(); await espera(30);
+  const ov = document.getElementById('agDiaOverlay');
+  assert(ov.classList.contains('active'), 'clicar no dia abre o painel');
+  eq(document.getElementById('agDiaTitulo').textContent, 'Terça, 06/10', 'título do dia');
+  eq(document.querySelectorAll('#agDiaLista .agLinha').length, 5, '5 retornos no painel (cancelado fora)');
+  assert(document.querySelector('#agDiaLista .agLinha[data-id="r6"]').classList.contains('feito'), 'feito riscado');
+  eq(document.getElementById('agFDia').value, '2026-10-06', 'formulário com o dia clicado');
+
+  // criar
+  document.getElementById('agFNome').value = 'Nova Empresa Teste';
+  document.getElementById('agFTel').value = '(19) 99000-0002';
+  document.querySelector('#agFHoras [data-hora="14:00"]').click();
+  document.getElementById('agFTipo').value = 'whatsapp';
+  document.getElementById('agFLinhas').value = '5';
+  document.getElementById('agFValor').value = '450,00';
+  document.getElementById('agFObs').value = 'mandar proposta';
+  let mudou = 0; document.addEventListener('agenda:mudou', () => mudou++);
+  document.getElementById('agForm').dispatchEvent(new window.Event('submit', { cancelable: true }));
+  await espera(40);
+  const ins = window.__escritas.find(e => e.tabela === 'agenda_retornos' && e.op === 'insert');
+  assert(ins, 'insert em agenda_retornos');
+  eq([ins.rows.nome, ins.rows.quando, ins.rows.tipo, ins.rows.qtd_linhas, ins.rows.valor_plano, ins.rows.origem], ['Nova Empresa Teste', '2026-10-06T14:00:00-03:00', 'whatsapp', 5, 450, 'manual'], 'linha gravada');
+  assert(!('consultor_id' in ins.rows), 'consultor_id fica com o default do banco');
+  assert(mudou >= 1, 'evento agenda:mudou');
+  assert(document.querySelector('#agGrade .agDia[data-dia="2026-10-06"]').textContent.includes('+3'), 'calendário atualizado sem recarregar (6 retornos)');
+  // validação
+  document.getElementById('agFNome').value = '';
+  document.getElementById('agForm').dispatchEvent(new window.Event('submit', { cancelable: true }));
+  await espera(20);
+  eq(document.getElementById('agFErro').textContent, 'Informe o nome do cliente.', 'erro de validação na tela');
+
+  // feito / cancelar / remarcar
+  document.querySelector('#agDiaLista .agLinha[data-id="r1"] [data-ag="feito"]').click(); await espera(30);
+  assert(window.__escritas.some(e => e.tabela === 'agenda_retornos' && e.op === 'update' && e.patch.status === 'feito' && e.filtro.id === 'r1'), 'marcar feito');
+  document.querySelector('#agDiaLista .agLinha[data-id="r5"] [data-ag="cancelar"]').click(); await espera(30);
+  assert(window.__escritas.some(e => e.op === 'update' && e.patch.status === 'cancelado' && e.filtro.id === 'r5'), 'cancelar');
+  document.querySelector('#agDiaLista .agLinha[data-id="r2"] [data-ag="remarcar"]').click(); await espera(20);
+  const linhaR2 = document.querySelector('#agDiaLista .agLinha[data-id="r2"]');
+  linhaR2.querySelector('input[type=date]').value = '2026-10-08';
+  linhaR2.querySelector('input[type=time]').value = '10:30';
+  linhaR2.querySelector('[data-ag="salvarRemarcar"]').click(); await espera(30);
+  assert(window.__escritas.some(e => e.op === 'update' && e.patch.quando === '2026-10-08T10:30:00-03:00' && e.filtro.id === 'r2'), 'remarcar para outro dia e hora');
+  fecharOverlay(ov);
+
+  // arrastar para outro dia mantém a hora
+  agSoltarEm('r4', '2026-10-09'); await espera(30);
+  assert(window.__escritas.some(e => e.op === 'update' && e.patch.quando === '2026-10-09T22:30:00-03:00' && e.filtro.id === 'r4'), 'arrastar mantém a hora');
+
+  // falha ao carregar não quebra
+  const sbFromOriginal = sb.from;
+  sb.from = (t) => t === 'agenda_retornos' ? { select: () => ({ gte: () => ({ lte: () => ({ neq: () => ({ order: () => Promise.resolve({ data: null, error: { message: 'x' } }) }) }) }) }) } : sbFromOriginal(t);
+  await agCarregarMes(); agRenderMes();
+  assert(document.getElementById('agStatus').textContent.includes('Não foi possível carregar'), 'aviso de falha');
+  sb.from = sbFromOriginal;
+  Date.now = nowReal;
+
   // ==== mais testes entram aqui ====
   fim();
 `);

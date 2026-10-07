@@ -502,6 +502,46 @@
   .ppRodape{margin-top:var(--space-4);font-size:var(--fs-xs);}
   @media (max-width:640px){ .ppEtapaRow{grid-template-columns:1fr;gap:var(--space-2);} .ppEtapaVal{text-align:left;} }
 </style>
+<style id="cadernoStyles">
+  /* Caderno + Agenda + Objeções (06/10/2026, seção 72) — só tokens do design */
+  .agTopo{display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);flex-wrap:wrap;}
+  .agNav{display:flex;align-items:center;gap:var(--space-3);}
+  .agNav h3{margin:0;min-width:180px;text-align:center;letter-spacing:.08em;}
+  .agAcoes{display:flex;gap:var(--space-2);flex-wrap:wrap;}
+  .agAlertasAviso{display:flex;gap:var(--space-3);align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--st-andamento-bg);color:var(--st-andamento);padding:var(--space-3);margin:var(--space-3) 0;font-size:var(--fs-sm);}
+  .agSemana,.agGrade{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+  .agSemana{margin-top:var(--space-4);font-size:var(--fs-xs);font-weight:700;letter-spacing:.08em;color:var(--muted);text-align:center;}
+  .agDia{min-height:96px;border:1px solid var(--c-linha);background:var(--c-branco);padding:6px;cursor:pointer;display:flex;flex-direction:column;gap:3px;overflow:hidden;}
+  .agDia:hover{border-color:var(--c-sinal);}
+  .agDia.fora{opacity:.45;}
+  .agDia.hoje{outline:2px solid var(--c-sinal);outline-offset:-2px;}
+  .agDia.temAtraso{border-color:var(--st-perdido);}
+  .agDia.soltar{background:var(--c-rosa);}
+  .agNum{font-size:var(--fs-xs);font-weight:700;display:flex;justify-content:space-between;}
+  .agNum .agAtr{color:var(--st-perdido);}
+  .agItem{font-size:var(--fs-xs);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:1px 4px;background:var(--c-papel);}
+  .agItem.atrasado{background:var(--st-perdido-bg);color:var(--st-perdido);}
+  .agItem.feito{text-decoration:line-through;opacity:.6;}
+  .agItem.pedido{background:var(--st-andamento-bg);color:var(--st-andamento);}
+  .agMais{font-size:var(--fs-xs);color:var(--muted);}
+  .agLista{display:none;}
+  .agListaDia h4{margin:var(--space-4) 0 var(--space-2);font-size:var(--fs-sm);}
+  .agLinha{display:flex;gap:var(--space-3);align-items:center;justify-content:space-between;flex-wrap:wrap;padding:var(--space-2) 0;border-bottom:1px solid var(--c-linha);}
+  .agLinha.feito .agLinhaTxt{text-decoration:line-through;opacity:.6;}
+  .agLinha.atrasado .agLinhaHora{color:var(--st-perdido);font-weight:700;}
+  .agLinhaHora{font-variant-numeric:tabular-nums;font-weight:600;margin-right:var(--space-2);}
+  .agLinhaSub{display:block;font-size:var(--fs-xs);color:var(--muted);}
+  .agLinhaAcoes{display:flex;gap:4px;flex-wrap:wrap;}
+  .agRemarcar{display:flex;gap:var(--space-2);width:100%;flex-wrap:wrap;}
+  .agForm{margin-top:var(--space-5);padding-top:var(--space-4);border-top:1px dashed var(--c-linha);}
+  .agForm h4{margin:0 0 var(--space-3);}
+  .agFLinha{display:flex;gap:var(--space-3);flex-wrap:wrap;}
+  .agFLinha .field{flex:1;min-width:120px;}
+  .agFHoras{display:flex;gap:var(--space-2);margin:0 0 var(--space-3);flex-wrap:wrap;}
+  .agFErro{color:var(--st-perdido);font-size:var(--fs-sm);min-height:1em;margin-bottom:var(--space-2);}
+  .agDiaModal{max-width:620px;}
+  @media (max-width:720px){ .agSemana,.agGrade{display:none;} .agLista{display:block;} }
+</style>
 </head>
 <body>
 
@@ -581,6 +621,7 @@
       <button data-tab="funil" id="tabBtnFunil" data-sub="Negociações em andamento, por estágio"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg><span class="sbLabel">Funil</span></button>
       <!-- 30/09/2026: aba só do consultor (vê apenas os pedidos dele). Admin/supervisor seguem com "Pedidos em Alerta" no Dashboard. Ver seção 53 do REGRAS_NEGOCIO.md. -->
       <button data-tab="pedidosparados" id="tabBtnPedidosParados" style="display:none" data-sub="Seus pedidos parados, agenda e oportunidades"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="sbLabel">Pedidos Parados</span></button>
+      <button data-tab="agenda" id="tabBtnAgenda" data-sub="Seus retornos do mês"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/></svg><span class="sbLabel">Agenda</span></button>
       <div class="navGroupLabel">Ferramentas</div>
       <button data-tab="biometria" id="tabBtnBiometria" data-sub="Biometria facial do cliente"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h.01"/><path d="M15 12h.01"/><path d="M10 15.5c.6.4 1.3.6 2 .6s1.4-.2 2-.6"/><path d="M12 3a9 9 0 0 0-9 9v6.5A2.5 2.5 0 0 0 5.5 21h0A2.5 2.5 0 0 0 8 18.5v-1a4 4 0 0 1 8 0v1a2.5 2.5 0 0 0 2.5 2.5h0a2.5 2.5 0 0 0 2.5-2.5V12a9 9 0 0 0-9-9z"/></svg><span class="sbLabel">Biometria</span></button>
       <!-- 28/09/2026 (pedido do usuário: "deixe a opcao de cada usuário conectar o seu email do
@@ -1304,6 +1345,32 @@
         <p class="desc ppRodape" id="ppRodape"></p>
       </div>
     </section>
+
+    <!-- AGENDA (06/10/2026, seção 72): calendário do mês com os retornos do consultor + datas dos pedidos -->
+    <section class="panel" id="panel-agenda">
+      <div class="card">
+        <div class="agTopo">
+          <div class="agNav">
+            <button type="button" class="btn btn-sm btn-outline" id="agMesAnt" aria-label="Mês anterior" style="width:auto">‹</button>
+            <h3 id="agTituloMes"></h3>
+            <button type="button" class="btn btn-sm btn-outline" id="agMesProx" aria-label="Próximo mês" style="width:auto">›</button>
+          </div>
+          <div class="agAcoes">
+            <button type="button" class="btn btn-sm btn-outline" id="agHoje" style="width:auto">Hoje</button>
+            <button type="button" class="btn btn-sm" id="agNovo" style="width:auto">+ Novo retorno</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="agEditarObj" style="width:auto;display:none">Objeções</button>
+          </div>
+        </div>
+        <p class="desc" id="agStatus"></p>
+        <div class="agAlertasAviso" id="agAlertasAviso" style="display:none">
+          <span>Ative os alertas para ser avisado 5 minutos antes de cada retorno (só tocam com o painel aberto em alguma aba).</span>
+          <button type="button" class="btn btn-sm" id="agAtivarAlertas" style="width:auto">Ativar alertas</button>
+        </div>
+        <div class="agSemana"><span>DOM</span><span>SEG</span><span>TER</span><span>QUA</span><span>QUI</span><span>SEX</span><span>SÁB</span></div>
+        <div class="agGrade" id="agGrade"></div>
+        <div class="agLista" id="agLista"></div>
+      </div>
+    </section>
   </main>
   </div>
 
@@ -1325,6 +1392,38 @@
       <button class="btn" id="btnSaveProfile">Salvar alterações</button>
       <div id="profileMsg" style="font-size:12px;margin-top:10px;color:var(--green);display:none">Alterações salvas com sucesso.</div>
       <div id="profileErr" style="font-size:12px;margin-top:10px;color:var(--red);display:none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Painel do dia da Agenda (seção 72) -->
+<div class="overlay" id="agDiaOverlay">
+  <div class="modal agDiaModal">
+    <div class="mHead">
+      <button class="mClose" id="agDiaFechar" type="button">&times;</button>
+      <h2 id="agDiaTitulo"></h2>
+      <div class="mCnpj">Retornos do dia</div>
+    </div>
+    <div class="mBody">
+      <div id="agDiaLista"></div>
+      <form id="agForm" class="agForm" autocomplete="off">
+        <h4>Novo retorno</h4>
+        <div class="field"><label>Cliente / nome</label><input type="text" id="agFNome" maxlength="120"></div>
+        <div class="field"><label>Telefone</label><input type="tel" id="agFTel" maxlength="20"></div>
+        <div class="agFLinha">
+          <div class="field"><label>Dia</label><input type="date" id="agFDia"></div>
+          <div class="field"><label>Hora</label><input type="time" id="agFHora" step="300"></div>
+        </div>
+        <div class="agFHoras" id="agFHoras"><button type="button" class="filterPill" data-hora="09:00">09:00</button><button type="button" class="filterPill" data-hora="11:00">11:00</button><button type="button" class="filterPill" data-hora="14:00">14:00</button><button type="button" class="filterPill" data-hora="16:00">16:00</button></div>
+        <div class="agFLinha">
+          <div class="field"><label>Tipo</label><select id="agFTipo"><option value="ligacao">Ligação</option><option value="whatsapp">WhatsApp</option><option value="reuniao">Reunião</option><option value="proposta">Enviar proposta</option></select></div>
+          <div class="field"><label>Linhas</label><input type="text" id="agFLinhas" inputmode="numeric" maxlength="6"></div>
+          <div class="field"><label>Valor do plano (R$)</label><input type="text" id="agFValor" inputmode="decimal" maxlength="12"></div>
+        </div>
+        <div class="field"><label>Observação</label><input type="text" id="agFObs" maxlength="200"></div>
+        <div class="agFErro" id="agFErro"></div>
+        <button type="submit" class="btn">Salvar retorno</button>
+      </form>
     </div>
   </div>
 </div>
@@ -2228,6 +2327,7 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
   if(btn.dataset.tab === 'fechamento') loadFechamento();
   if(btn.dataset.tab === 'config') carregarEmailConfigStatus();
   if(btn.dataset.tab === 'mesa') loadMesa(true);
+  if(btn.dataset.tab === 'agenda') loadAgenda();
 });
 
 // 28/09/2026: o menu lateral do chefe (27/09, com gaveta/hambúrguer no celular) foi substituído pelo
@@ -11223,6 +11323,194 @@ function cdTemContexto(n){
   const c = cdContextoIA(n);
   return c.qtd_linhas !== null || c.valor_plano !== null || !!c.operadora_atual || !!c.fidelidade_vence || c.interesse.length > 0 || !!c.texto.trim();
 }
+
+/* ============ AGENDA: tela (calendário do mês, painel do dia, criar/feito/remarcar/cancelar/arrastar) ============ */
+const agEstado = { ym: '', retornos: [], pedidos: [], carregando: false, erro: false, diaAberto: null, geracao: 0, arrastando: null };
+function agUid(){ return currentUser ? currentUser.id : 'anon'; }
+function agAvisarMudou(){ document.dispatchEvent(new CustomEvent('agenda:mudou')); }
+function agResetar(){
+  agEstado.geracao++;
+  Object.assign(agEstado, { ym: '', retornos: [], pedidos: [], carregando: false, erro: false, diaAberto: null });
+  ['agGrade', 'agLista', 'agDiaLista'].forEach(id => { document.getElementById(id).innerHTML = ''; });
+}
+function cdAbrirDoRetorno(_r){ /* Task 7 */ }
+function alAtualizarAvisoPermissao(){ /* Task 10 */ }
+function objAplicarPermissaoEditor(){ /* Task 9 */ }
+async function loadAgenda(){
+  if(!currentUser) return;
+  if(!agEstado.ym) agEstado.ym = agPartesSP(agAgora()).dia.slice(0, 7);
+  alAtualizarAvisoPermissao();
+  objAplicarPermissaoEditor();
+  await agCarregarMes();
+  agRenderMes();
+}
+async function agCarregarMes(){
+  const geracao = agEstado.geracao;
+  const grade = agGradeMes(agEstado.ym);
+  const de = agIsoSP(grade[0].dia, '00:00'), ate = agIsoSP(grade[grade.length - 1].dia, '23:59');
+  agEstado.carregando = true;
+  document.getElementById('agStatus').textContent = 'Carregando…';
+  const r = await ppSeguro(() => sb.from('agenda_retornos')
+    .select('id,nota_id,nome,telefone,chave_tel,quando,tipo,qtd_linhas,valor_plano,observacao,origem,status,feito_em')
+    .gte('quando', de).lte('quando', ate).neq('status', 'cancelado').order('quando', { ascending: true }));
+  if(geracao !== agEstado.geracao) return;
+  agEstado.carregando = false;
+  agEstado.erro = !r || !!r.error;
+  agEstado.retornos = agEstado.erro ? [] : (r.data || []);
+  if(canSeePedidosParados()){
+    if(!ppEstado.calc) await ppSeguro(() => ppCarregarDados(false));
+    agEstado.pedidos = agPedidosItens(ppEstado.calc);
+  } else agEstado.pedidos = [];
+}
+function agFmtDiaLongo(dia){
+  const nomes = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  return nomes[agDiaSemana(dia)] + ', ' + ppFmtDia(dia).slice(0, 5);
+}
+function agItemHtml(it, agora){
+  if(it.tipo === 'pedido') return `<div class="agItem pedido" title="${escapeHtml(it.p.tipoData)}">Pedido ${escapeHtml(it.p.cliente || it.p.numero)}</div>`;
+  const r = it.r, s = agSituacao(r, agora);
+  return `<div class="agItem ${s}" draggable="${s === 'feito' ? 'false' : 'true'}" data-id="${escapeHtml(r.id)}">${agPartesSP(r.quando).hora} ${escapeHtml(r.nome)}</div>`;
+}
+function agRenderMes(){
+  if(!agEstado.ym) return; // Agenda ainda não aberta (ex.: retorno criado pelo Caderno): nada a desenhar
+  const agora = agAgora(), hoje = agPartesSP(agora).dia;
+  document.getElementById('agTituloMes').textContent = agRotuloMes(agEstado.ym);
+  document.getElementById('agStatus').textContent = agEstado.erro ? 'Não foi possível carregar seus retornos agora. Tente de novo em instantes.' : '';
+  const porDia = agPorDia(agEstado.retornos, agEstado.pedidos);
+  document.getElementById('agGrade').innerHTML = agGradeMes(agEstado.ym).map(d => {
+    const e = porDia.get(d.dia);
+    const res = e ? agResumoDia(e, agora) : { visiveis: [], mais: 0, atrasados: 0 };
+    const cls = ['agDia', d.doMes ? '' : 'fora', d.dia === hoje ? 'hoje' : '', res.atrasados ? 'temAtraso' : ''].filter(Boolean).join(' ');
+    return `<div class="${cls}" data-dia="${d.dia}"><div class="agNum"><span>${Number(d.dia.slice(8))}</span>${res.atrasados ? `<span class="agAtr">${res.atrasados} atrasado${res.atrasados > 1 ? 's' : ''}</span>` : ''}</div>`
+      + res.visiveis.map(it => agItemHtml(it, agora)).join('') + (res.mais ? `<div class="agMais">+${res.mais}</div>` : '') + '</div>';
+  }).join('');
+  // lista do celular: atrasados primeiro, depois de hoje em diante
+  const pend = agEstado.retornos.filter(r => r.status === 'pendente');
+  const atrasados = pend.filter(r => agSituacao(r, agora) === 'atrasado');
+  const dias = [...porDia.keys()].filter(d => d >= hoje && d.slice(0, 7) === agEstado.ym).sort();
+  const linha = r => `<div class="agLinha ${agSituacao(r, agora)}" data-id="${escapeHtml(r.id)}"><span class="agLinhaTxt"><span class="agLinhaHora">${agPartesSP(r.quando).hora}</span>${escapeHtml(r.nome)}</span></div>`;
+  document.getElementById('agLista').innerHTML = (atrasados.length ? `<div class="agListaDia"><h4>Atrasados (${atrasados.length})</h4>${atrasados.map(linha).join('')}</div>` : '')
+    + dias.map(d => { const rs = porDia.get(d).retornos.filter(r => agSituacao(r, agora) !== 'atrasado'); return rs.length ? `<div class="agListaDia" data-dia="${d}"><h4>${agFmtDiaLongo(d)}</h4>${rs.map(linha).join('')}</div>` : ''; }).join('')
+    || '<p class="ppVazio">Nenhum retorno neste mês. Toque em "+ Novo retorno" para agendar.</p>';
+  if(agEstado.diaAberto) agRenderDia();
+}
+function agAbrirDia(dia){
+  agEstado.diaAberto = dia;
+  agRenderDia();
+  const f = id => document.getElementById(id);
+  ['agFNome', 'agFTel', 'agFLinhas', 'agFValor', 'agFObs', 'agFHora'].forEach(id => { f(id).value = ''; });
+  f('agFDia').value = dia; f('agFTipo').value = 'ligacao'; f('agFErro').textContent = '';
+  document.getElementById('agDiaOverlay').classList.add('active');
+}
+function agRenderDia(){
+  const dia = agEstado.diaAberto, agora = agAgora();
+  document.getElementById('agDiaTitulo').textContent = agFmtDiaLongo(dia);
+  const e = agPorDia(agEstado.retornos, agEstado.pedidos).get(dia) || { retornos: [], pedidos: [] };
+  const btn = (acao, rotulo, id) => `<button type="button" class="btn btn-sm btn-ghost" data-ag="${acao}" data-id="${escapeHtml(id)}" style="width:auto">${rotulo}</button>`;
+  document.getElementById('agDiaLista').innerHTML = e.retornos.map(r => {
+    const s = agSituacao(r, agora), p = agPartesSP(r.quando);
+    const sub = [AG_TIPOS[r.tipo] || '', r.telefone, r.qtd_linhas != null ? r.qtd_linhas + ' linha(s)' : '', r.valor_plano != null ? fmtBRL(Number(r.valor_plano)) : '', r.observacao || ''].filter(Boolean).map(escapeHtml).join(' · ');
+    return `<div class="agLinha ${s}" data-id="${escapeHtml(r.id)}"><div class="agLinhaTxt"><span class="agLinhaHora">${p.hora}</span>${escapeHtml(r.nome)}<span class="agLinhaSub">${sub}</span></div>`
+      + `<div class="agLinhaAcoes">${s === 'feito' ? '' : btn('feito', 'Feito', r.id) + btn('remarcar', 'Remarcar', r.id) + btn('cancelar', 'Cancelar', r.id)}${btn('caderno', 'Abrir no Caderno', r.id)}</div></div>`;
+  }).join('') + e.pedidos.map(p => `<div class="agLinha"><div class="agLinhaTxt">Pedido ${escapeHtml(p.numero)} · ${escapeHtml(p.cliente)}<span class="agLinhaSub">${escapeHtml(p.tipoData)} prevista (veja em Pedidos Parados)</span></div></div>`).join('')
+    || '<p class="ppVazio">Nenhum retorno neste dia.</p>';
+}
+// Grava um retorno; sem rede vai para a fila local (enviada quando a rede volta). Usado pela Agenda e pelo Caderno.
+async function agCriarRetorno(linha){
+  const r = await ppSeguro(() => sb.from('agenda_retornos').insert(linha));
+  if(r && r.error){
+    if(agErroDeRede(r.error)){ agFilaGuardar(linha); mostrarAviso('Sem internet: retorno guardado neste computador, será enviado quando a rede voltar.', 'info'); }
+    else { mostrarAviso('Não foi possível salvar o retorno: ' + r.error.message, 'erro'); return false; }
+  }
+  agEstado.retornos.push(Object.assign({ status: 'pendente' }, linha));
+  agRenderMes(); agAvisarMudou();
+  return true;
+}
+function agErroDeRede(error){ return navigator.onLine === false || /fetch|network|Failed to fetch|NetworkError/i.test(String(error && error.message)); }
+function agFilaChave(){ return 'agenda_fila_' + agUid(); }
+function agFilaLer(){ try{ return JSON.parse(localStorage.getItem(agFilaChave()) || '[]'); }catch(_e){ return []; } }
+function agFilaGuardar(linha){ try{ const f = agFilaLer(); f.push(linha); localStorage.setItem(agFilaChave(), JSON.stringify(f)); }catch(_e){ /* sem localStorage: segue sem fila */ } }
+async function agFilaEnviar(){
+  const fila = agFilaLer();
+  if(!fila.length) return;
+  const resto = [];
+  for(const linha of fila){
+    const r = await ppSeguro(() => sb.from('agenda_retornos').upsert(linha, { onConflict: 'id' }));
+    if(r && r.error) resto.push(linha);
+  }
+  try{ localStorage.setItem(agFilaChave(), JSON.stringify(resto)); }catch(_e){ /* idem */ }
+  if(resto.length < fila.length){ mostrarAviso('Retornos guardados sem internet foram enviados.', 'ok'); agAvisarMudou(); }
+}
+async function agSalvarNovo(f){
+  const v = agValidarRetorno(f, agAgora());
+  document.getElementById('agFErro').textContent = v.erro || '';
+  if(v.erro) return false;
+  const linha = { id: cdUuid(), nota_id: f.nota_id || null, nome: f.nome.trim(), telefone: f.telefone.trim(), quando: agIsoSP(f.dia, f.hora),
+    tipo: f.tipo || 'ligacao', qtd_linhas: cdNum(f.qtd_linhas) === null ? null : Math.round(cdNum(f.qtd_linhas)), valor_plano: cdNum(f.valor_plano),
+    observacao: String(f.observacao || '').trim() || null, origem: f.origem || 'manual' };
+  const ok = await agCriarRetorno(linha);
+  if(ok) mostrarAviso(v.aviso ? 'Retorno salvo. Atenção: ' + v.aviso : 'Retorno agendado para ' + ppFmtDia(f.dia) + ' às ' + f.hora + '.', v.aviso ? 'info' : 'ok');
+  return ok;
+}
+async function agAtualizar(id, patch, msgOk){
+  const r = await ppSeguro(() => sb.from('agenda_retornos').update(patch).eq('id', id));
+  if(r && r.error){ mostrarAviso('Não foi possível atualizar o retorno: ' + r.error.message, 'erro'); return false; }
+  const item = agEstado.retornos.find(x => x.id === id);
+  if(item) Object.assign(item, patch);
+  if(patch.status === 'cancelado') agEstado.retornos = agEstado.retornos.filter(x => x.id !== id);
+  agRenderMes(); agAvisarMudou();
+  if(msgOk) mostrarAviso(msgOk, 'ok');
+  return true;
+}
+function agMarcarFeito(id){ return agAtualizar(id, { status: 'feito' }, 'Retorno marcado como feito.'); }
+function agCancelar(id){ return agAtualizar(id, { status: 'cancelado' }, 'Retorno cancelado.'); }
+function agRemarcar(id, dia, hora){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(dia || '') || !/^\d{2}:\d{2}$/.test(hora || '')){ mostrarAviso('Escolha dia e hora.', 'erro'); return Promise.resolve(false); }
+  return agAtualizar(id, { quando: agIsoSP(dia, hora), status: 'pendente' }, 'Retorno remarcado para ' + ppFmtDia(dia) + ' às ' + hora + '.');
+}
+function agSoltarEm(id, dia){
+  const r = agEstado.retornos.find(x => x.id === id);
+  if(!r || agPartesSP(r.quando).dia === dia) return Promise.resolve(false);
+  const p = agPartesSP(agRemarcarMesmoHorario(r.quando, dia));
+  return agRemarcar(id, p.dia, p.hora);
+}
+
+document.getElementById('agMesAnt').addEventListener('click', async () => { agEstado.ym = agMesVizinho(agEstado.ym, -1); await agCarregarMes(); agRenderMes(); });
+document.getElementById('agMesProx').addEventListener('click', async () => { agEstado.ym = agMesVizinho(agEstado.ym, 1); await agCarregarMes(); agRenderMes(); });
+document.getElementById('agHoje').addEventListener('click', async () => { agEstado.ym = agPartesSP(agAgora()).dia.slice(0, 7); await agCarregarMes(); agRenderMes(); });
+document.getElementById('agNovo').addEventListener('click', () => agAbrirDia(agPartesSP(agAgora()).dia));
+document.getElementById('agGrade').addEventListener('click', (ev) => { const d = ev.target.closest('.agDia'); if(d) agAbrirDia(d.dataset.dia); });
+document.getElementById('agLista').addEventListener('click', (ev) => { const l = ev.target.closest('.agListaDia[data-dia]'); if(l) agAbrirDia(l.dataset.dia); });
+document.getElementById('agGrade').addEventListener('dragstart', (ev) => { const it = ev.target.closest('.agItem[data-id]'); if(it){ agEstado.arrastando = it.dataset.id; if(ev.dataTransfer) ev.dataTransfer.setData('text/plain', it.dataset.id); } });
+document.getElementById('agGrade').addEventListener('dragover', (ev) => { const d = ev.target.closest('.agDia'); if(d && agEstado.arrastando){ ev.preventDefault(); d.classList.add('soltar'); } });
+document.getElementById('agGrade').addEventListener('dragleave', (ev) => { const d = ev.target.closest('.agDia'); if(d) d.classList.remove('soltar'); });
+document.getElementById('agGrade').addEventListener('drop', (ev) => { const d = ev.target.closest('.agDia'); if(!d || !agEstado.arrastando) return; ev.preventDefault(); const id = agEstado.arrastando; agEstado.arrastando = null; agSoltarEm(id, d.dataset.dia); });
+document.getElementById('agDiaFechar').addEventListener('click', () => { agEstado.diaAberto = null; fecharOverlay(document.getElementById('agDiaOverlay')); });
+document.getElementById('agFHoras').addEventListener('click', (ev) => { const b = ev.target.closest('[data-hora]'); if(b) document.getElementById('agFHora').value = b.dataset.hora; });
+document.getElementById('agForm').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const v = id => document.getElementById(id).value;
+  const ok = await agSalvarNovo({ nome: v('agFNome'), telefone: v('agFTel'), dia: v('agFDia'), hora: v('agFHora'), tipo: v('agFTipo'), qtd_linhas: v('agFLinhas'), valor_plano: v('agFValor'), observacao: v('agFObs') });
+  if(ok) ['agFNome', 'agFTel', 'agFLinhas', 'agFValor', 'agFObs', 'agFHora'].forEach(id => { document.getElementById(id).value = ''; });
+});
+document.getElementById('agDiaLista').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-ag]');
+  if(!b) return;
+  const id = b.dataset.id, acao = b.dataset.ag;
+  if(acao === 'feito') agMarcarFeito(id);
+  else if(acao === 'cancelar') agCancelar(id);
+  else if(acao === 'caderno'){ const r = agEstado.retornos.find(x => x.id === id); if(r) cdAbrirDoRetorno(r); }
+  else if(acao === 'remarcar'){
+    const linha = b.closest('.agLinha');
+    if(linha.querySelector('.agRemarcar')) return;
+    const r = agEstado.retornos.find(x => x.id === id), p = agPartesSP(r.quando);
+    linha.insertAdjacentHTML('beforeend', `<div class="agRemarcar"><input type="date" value="${p.dia}"><input type="time" step="300" value="${p.hora}"><button type="button" class="btn btn-sm" data-ag="salvarRemarcar" data-id="${escapeHtml(id)}" style="width:auto">Salvar</button></div>`);
+  } else if(acao === 'salvarRemarcar'){
+    const box = b.closest('.agRemarcar');
+    agRemarcar(id, box.querySelector('input[type=date]').value, box.querySelector('input[type=time]').value);
+  }
+});
+window.addEventListener('online', () => { if(currentUser){ agFilaEnviar(); } });
 </script>
 </body>
 </html>
