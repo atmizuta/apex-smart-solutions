@@ -80,6 +80,29 @@ rodar(`
   document.querySelector('#objResposta [data-obj-treinar]').click(); await espera(20);
   assert(window.__abertos.includes('https://mind.teste/api/auth/sso?token=x'), 'abre o Apex Mind por SSO');
 
+  // Fix round 1 (revisão Task 8, Crítico): re-render parcial não pode apagar o que o consultor está
+  // digitando em "O cliente disse…" nem a resposta "Para este cliente" já na tela.
+  window.__invokeResposta = () => Promise.resolve({ data: { fala: 'Resposta IA antes do clique.', pergunta: 'Pergunta antes?' }, error: null });
+  objEstado.cache.clear();
+  document.querySelector('#cdObjecoes [data-obj="caro"]').click();
+  await espera(30);
+  assert(document.getElementById('objIA').textContent.includes('Resposta IA antes do clique.'), 'IA mostrada antes do teste de re-render');
+  document.getElementById('objLivre').value = 'meu contador cuida disso';
+  // (a) clicar num resultado dispara cdPreencherTela → objRenderChips: não pode apagar #objLivre nem #objIA
+  document.querySelector('#cdResultado [data-cd-res="atendeu"]').click();
+  eq(document.getElementById('objLivre').value, 'meu contador cuida disso', 'texto do campo livre preservado após clicar em resultado');
+  assert(document.getElementById('objIA').textContent.includes('Resposta IA antes do clique.'), 'resposta da IA preservada após clicar em resultado');
+  assert(document.querySelector('#cdObjecoes [data-obj="caro"]').classList.contains('active'), 'chip continua ativo após o re-render parcial');
+  // (b) biblioteca recarregada (objCarregar de novo): a mesma garantia vale
+  await objCarregar();
+  eq(document.getElementById('objLivre').value, 'meu contador cuida disso', 'texto do campo livre preservado após objCarregar de novo');
+  assert(document.getElementById('objIA').textContent.includes('Resposta IA antes do clique.'), 'resposta da IA preservada após objCarregar de novo');
+  assert(document.querySelector('#cdObjecoes [data-obj="caro"]').classList.contains('active'), 'chip continua ativo depois de objCarregar de novo');
+  // (c) a classe "active" do chip continua atualizando normalmente depois do re-render parcial
+  document.querySelector('#cdObjecoes [data-obj="pensar"]').click();
+  assert(document.querySelector('#cdObjecoes [data-obj="pensar"]').classList.contains('active'), 'novo chip clicado fica ativo');
+  assert(document.querySelector('#cdObjecoes [data-obj="caro"]').classList.contains('active'), 'chip anterior (já registrado na nota) continua ativo');
+
   // biblioteca que falha ao carregar: aviso no bloco, Caderno segue
   window.__tabelas.objecoes_respostas = null;
   const sbFrom = sb.from;

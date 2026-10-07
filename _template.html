@@ -11717,15 +11717,31 @@ async function objCarregar(){
   objEstado.lista = objEstado.erro ? [] : (r.data || []).filter(o => o.ativo !== false);
   objRenderChips();
 }
+// Esqueleto (#objChips/#objLivre/#objResposta/#objIA) é montado uma única vez por estado
+// (ok/erro); chamadas seguintes (ex.: cdPreencherTela a cada clique em resultado/interesse) só
+// atualizam a lista de chips, sem tocar no que o consultor está digitando em #objLivre nem na
+// resposta da IA já na tela em #objIA — ver revisão de código da Task 8, achado crítico.
 function objRenderChips(){
   const box = cdEl('cdObjecoes');
   if(!box) return;
-  if(objEstado.erro){ box.innerHTML = '<p class="ppVazio">Não foi possível carregar as objeções agora.</p>'; return; }
-  const usadas = cdEstado.nota ? cdEstado.nota.objecoes : [];
-  box.innerHTML = '<h4>Objeções</h4><div class="objChips">' + objEstado.lista.map((o, i) => `<button type="button" class="filterPill${usadas.includes(o.chave) ? ' active' : ''}" data-obj="${escapeHtml(o.chave)}" title="${i < 9 ? 'Alt+' + (i + 1) : ''}">${escapeHtml(o.rotulo)}</button>`).join('') + '</div>'
-    + '<div class="field objLivreCampo"><input type="text" id="objLivre" maxlength="300" placeholder="O cliente disse… (Enter)"></div>'
-    + '<div id="objResposta" class="objResposta"></div><div id="objIA" class="objIA"></div>';
+  const alvo = objEstado.erro ? 'erro' : 'ok';
+  if(box.dataset.objEstadoTela !== alvo || (alvo === 'ok' && !box.querySelector('#objChips'))){
+    box.innerHTML = alvo === 'erro'
+      ? '<p class="ppVazio">Não foi possível carregar as objeções agora.</p>'
+      : '<h4>Objeções</h4><div class="objChips" id="objChips"></div>'
+        + '<div class="field objLivreCampo"><input type="text" id="objLivre" maxlength="300" placeholder="O cliente disse… (Enter)"></div>'
+        + '<div id="objResposta" class="objResposta"></div><div id="objIA" class="objIA"></div>';
+    box.dataset.objEstadoTela = alvo;
+  }
+  if(alvo === 'erro') return;
+  objRenderListaChips();
   if(objEstado.aberta) objRenderBiblioteca(objEstado.aberta);
+}
+function objRenderListaChips(){
+  const chips = cdEl('objChips');
+  if(!chips) return;
+  const usadas = cdEstado.nota ? cdEstado.nota.objecoes : [];
+  chips.innerHTML = objEstado.lista.map((o, i) => `<button type="button" class="filterPill${usadas.includes(o.chave) ? ' active' : ''}" data-obj="${escapeHtml(o.chave)}" title="${i < 9 ? 'Alt+' + (i + 1) : ''}">${escapeHtml(o.rotulo)}</button>`).join('');
 }
 function objRenderBiblioteca(chave){
   const o = objEstado.lista.find(x => x.chave === chave);
