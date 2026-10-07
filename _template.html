@@ -11287,7 +11287,9 @@ function cdUuid(){
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
 }
 function cdNovaNota(){
-  const n = { id: cdUuid(), interesse: [], objecoes: [], texto: '', resultado: null, atualizado_em: null };
+  // rev conta as edições da nota (nunca vai ao banco — cdPayload não a inclui); serve só para o
+  // envio saber se a versão que acabou de confirmar ainda é a mais nova (ver cdSalvarUmaVez).
+  const n = { id: cdUuid(), interesse: [], objecoes: [], texto: '', resultado: null, atualizado_em: null, rev: 0 };
   CD_CAMPOS.forEach(c => { n[c] = ''; });
   return n;
 }
@@ -11407,7 +11409,9 @@ function agResetar(){
   Object.assign(agEstado, { ym: '', retornos: [], pedidos: [], carregando: false, erro: false, diaAberto: null });
   ['agGrade', 'agLista', 'agDiaLista'].forEach(id => { document.getElementById(id).innerHTML = ''; });
 }
-const cdEstado = { nota: null, aberto: false, timer: null, retryTimer: null, debounceMs: 800, salvando: null, status: '', historico: [], retornoPendente: null, doc: document };
+const cdEstado = { nota: null, aberto: false, timer: null, retryTimer: null, debounceMs: 800, salvando: null, status: '', historico: [], retornoPendente: null, doc: document,
+  emVoo: new Map(), enviandoPendentes: false, reenviarPendentes: false }; // emVoo: id -> promessa em andamento, para nunca ter 2 upserts da mesma nota ao mesmo tempo
+function cdTocar(n){ n.rev = (n.rev || 0) + 1; } // toda edição da nota chama isto (campo, texto, resultado, interesse, objeção)
 function cdEl(id){ return cdEstado.doc.getElementById(id) || document.getElementById(id); }
 function cdLsChave(){ return 'caderno_rascunho_' + agUid(); }
 function cdLsGravar(pendente){ try{ localStorage.setItem(cdLsChave(), JSON.stringify({ nota: cdEstado.nota, pendente })); }catch(_e){ /* sem localStorage: segue só com o banco */ } }
@@ -11467,38 +11471,70 @@ function cdAgendarSalvar(){
   cdStatus('Salvando…');
   cdEstado.timer = setTimeout(() => { cdSalvarAgora(); }, cdEstado.debounceMs);
 }
-// Recebe a nota a salvar (por padrão a da tela). Fecha sobre ela para que, se o atendimento trocar
-// (cdNovo/cdAbrirDoRetorno) enquanto este upsert está no ar, a nota que saiu continue seu próprio
-// fluxo — nunca a de quem entrou. Toda nota passa pela fila de pendentes antes do upsert e só sai
-// dali com sucesso confirmado: é assim que nada se perde (REGRAS_NEGOCIO §72, "nunca perde").
-async function cdSalvarAgora(n){
-  n = n || cdEstado.nota;
-  if(!n || cdNotaVazia(n) || !currentUser) return false;
-  const atual = () => cdEstado.nota === n;
-  clearTimeout(cdEstado.timer);
-  clearTimeout(cdEstado.retryTimer);
-  cdPendenteGuardar(n);
-  if(atual()) cdLsGravar(true);
-  const r = await ppSeguro(() => sb.from('caderno_notas').upsert(cdPayload(n), { onConflict: 'id' }));
-  if(r && r.error){
-    if(agErroDeRede(r.error)){
-      if(atual()) cdStatus('Sem internet: guardado neste computador', true);
-      cdEstado.retryTimer = setTimeout(() => { cdEnviarPendentes(); }, 15000);
-    } else if(atual()) cdStatus('Não salvou no servidor: guardado neste computador', true);
-    return false;
+// O upsert de verdade, uma vez. Lê revAlvo (a versão da nota neste exato momento) e manda um retrato
+// (cdPayload tira uma cópia por valor) — se, quando a resposta chegar, a nota já tiver sido editada de
+// novo (n.rev mudou), a versão que acabou de confirmar já está velha: não sai da fila, não marca como
+// salva, e manda a mais nova agora mesmo (sem voltar pela fila de id → promessa, só um laço aqui dentro,
+// senão criaria uma promessa à espera de si mesma). Isso impede que uma resposta atrasada (a antiga)
+// apague por cima da edição mais nova (revisão §72, achado da revisão de código: "perde a edição mais nova").
+async function cdSalvarUmaVez(n){
+  for(;;){
+    if(!n || cdNotaVazia(n) || !currentUser) return false;
+    const atual = () => cdEstado.nota === n;
+    const revAlvo = n.rev || 0;
+    const payload = cdPayload(n);
+    clearTimeout(cdEstado.timer);
+    clearTimeout(cdEstado.retryTimer);
+    cdPendenteGuardar(n); // sempre guarda a referência mais nova (os campos já mudaram, mesmo que rev ainda não tenha sido comparada)
+    if(atual()) cdLsGravar(true);
+    const r = await ppSeguro(() => sb.from('caderno_notas').upsert(payload, { onConflict: 'id' }));
+    if(r && r.error){
+      if(agErroDeRede(r.error)){
+        if(atual()) cdStatus('Sem internet: guardado neste computador', true);
+        cdEstado.retryTimer = setTimeout(() => { cdEnviarPendentes(); }, 15000);
+      } else if(atual()) cdStatus('Não salvou no servidor: guardado neste computador', true);
+      return false;
+    }
+    if((n.rev || 0) !== revAlvo) continue; // editou de novo enquanto o upsert estava no ar: manda a nova versão já, sem sair da fila
+    n.atualizado_em = new Date().toISOString();
+    cdPendenteRemover(n.id);
+    if(atual()){ cdLsGravar(false); cdStatus('Salvo ✓'); }
+    return true;
   }
-  n.atualizado_em = new Date().toISOString();
-  cdPendenteRemover(n.id);
-  if(atual()){ cdLsGravar(false); cdStatus('Salvo ✓'); }
-  return true;
+}
+// Recebe a nota a salvar (por padrão a da tela) e serializa por id em cdEstado.emVoo: nunca há dois
+// upserts da mesma nota em voo ao mesmo tempo, e chegam ao banco na ordem em que foram chamados — uma
+// resposta fora de ordem não pode mais apagar uma edição mais nova por cima (ver cdSalvarUmaVez).
+// Fecha sobre `n` para que, se o atendimento trocar (cdNovo/cdAbrirDoRetorno) enquanto este upsert está
+// no ar, a nota que saiu continue seu próprio fluxo — nunca a de quem entrou. Toda nota passa pela fila
+// de pendentes antes do upsert e só sai dali com sucesso confirmado da versão mais nova: é assim que
+// nada se perde (REGRAS_NEGOCIO §72, "nunca perde").
+function cdSalvarAgora(n){
+  n = n || cdEstado.nota;
+  if(!n || cdNotaVazia(n) || !currentUser) return Promise.resolve(false);
+  const fila = cdEstado.emVoo.get(n.id) || Promise.resolve();
+  const vez = fila.then(() => cdSalvarUmaVez(n), () => cdSalvarUmaVez(n));
+  cdEstado.emVoo.set(n.id, vez);
+  return vez;
 }
 // Reenvia toda a fila de pendentes (notas que trocaram de atendimento ou ficaram sem rede sem
 // terminar de salvar). Chamada pelo timer de retry, pelo evento "online" e ao entrar/restaurar.
+// Com trava de execução: se chamada de novo enquanto já está rodando, só marca para rodar mais uma
+// vez ao final — nunca duas passadas em paralelo brigando pela mesma nota.
 async function cdEnviarPendentes(){
-  const fila = cdFilaLer();
-  for(const id of Object.keys(fila)){
-    const n = (cdEstado.nota && cdEstado.nota.id === id) ? cdEstado.nota : fila[id];
-    await cdSalvarAgora(n);
+  if(cdEstado.enviandoPendentes){ cdEstado.reenviarPendentes = true; return; }
+  cdEstado.enviandoPendentes = true;
+  try{
+    do{
+      cdEstado.reenviarPendentes = false;
+      const fila = cdFilaLer();
+      for(const id of Object.keys(fila)){
+        const n = (cdEstado.nota && cdEstado.nota.id === id) ? cdEstado.nota : fila[id];
+        await cdSalvarAgora(n);
+      }
+    } while(cdEstado.reenviarPendentes);
+  } finally {
+    cdEstado.enviandoPendentes = false;
   }
 }
 async function cdCarregarContexto(){
@@ -11609,11 +11645,13 @@ function cdLigarEventos(gaveta){
     if(!cdEstado.nota) return;
     if(el.dataset && el.dataset.cdCampo){
       cdEstado.nota[el.dataset.cdCampo] = el.value;
+      cdTocar(cdEstado.nota);
       if(el.dataset.cdCampo === 'cpf' || el.dataset.cdCampo === 'cnpj') cdValidarDocs();
       if(el.dataset.cdCampo === 'telefone' || el.dataset.cdCampo === 'cnpj') cdCarregarContexto();
       if(el.dataset.cdCampo === 'fidelidade_vence') cdRenderSugestaoRetorno();
     } else if(el.id === 'cdTexto'){
       cdEstado.nota.texto = el.value;
+      cdTocar(cdEstado.nota);
       cdRenderSugestoes();
     } else return;
     cdAgendarSalvar();
@@ -11621,11 +11659,11 @@ function cdLigarEventos(gaveta){
   gaveta.addEventListener('click', (ev) => {
     const t = ev.target;
     const pre = t.closest('[data-cd-preencher]');
-    if(pre){ const c = pre.dataset.cdPreencher; cdEstado.nota[c] = pre.dataset.valor; cdEl('cdF_' + c).value = cdFmtCampo(c, pre.dataset.valor); cdValidarDocs(); cdRenderSugestoes(); cdAgendarSalvar(); if(c === 'telefone' || c === 'cnpj') cdCarregarContexto(); return; }
+    if(pre){ const c = pre.dataset.cdPreencher; cdEstado.nota[c] = pre.dataset.valor; cdTocar(cdEstado.nota); cdEl('cdF_' + c).value = cdFmtCampo(c, pre.dataset.valor); cdValidarDocs(); cdRenderSugestoes(); cdAgendarSalvar(); if(c === 'telefone' || c === 'cnpj') cdCarregarContexto(); return; }
     const res = t.closest('[data-cd-res]');
-    if(res){ const v = res.dataset.cdRes; cdEstado.nota.resultado = cdEstado.nota.resultado === v ? null : v; cdPreencherTela(); cdAgendarSalvar(); return; }
+    if(res){ const v = res.dataset.cdRes; cdEstado.nota.resultado = cdEstado.nota.resultado === v ? null : v; cdTocar(cdEstado.nota); cdPreencherTela(); cdAgendarSalvar(); return; }
     const int = t.closest('[data-cd-int]');
-    if(int){ const v = int.dataset.cdInt, l = cdEstado.nota.interesse; const i = l.indexOf(v); if(i >= 0) l.splice(i, 1); else l.push(v); int.classList.toggle('active', i < 0); cdAgendarSalvar(); return; }
+    if(int){ const v = int.dataset.cdInt, l = cdEstado.nota.interesse; const i = l.indexOf(v); if(i >= 0) l.splice(i, 1); else l.push(v); cdTocar(cdEstado.nota); int.classList.toggle('active', i < 0); cdAgendarSalvar(); return; }
     const ag = t.closest('[data-cd-dia]');
     if(ag){ cdAgendarRetorno(ag.dataset.cdDia, ag.dataset.cdHora, ag.dataset.cdOrigem || 'manual'); return; }
     const hist = t.closest('[data-cd-hist]');

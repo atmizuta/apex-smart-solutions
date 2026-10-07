@@ -177,6 +177,63 @@ rodar(`
   filaPend = JSON.parse(localStorage.getItem('caderno_pendentes_c1')) || {};
   assert(!filaPend[idA] && !filaPend[idB], 'nenhuma das duas fica na fila depois de enviada');
 
+  // salvamento serializado por nota: uma resposta atrasada (da v1) não pode apagar a v2 editada por cima (fix round 2)
+  await cdNovo(); await espera(10);
+  const idV = cdEstado.nota.id;
+  const fromOriginal = sb.from.bind(sb);
+  let primeiraChamada = true;
+  sb.from = (tabela) => {
+    const b = fromOriginal(tabela);
+    if(tabela !== 'caderno_notas') return b;
+    return Object.assign({}, b, { upsert: (rows, opts) => {
+      if(primeiraChamada){ primeiraChamada = false; return new Promise(resolve => setTimeout(() => resolve(b.upsert(rows, opts)), 60)); }
+      return b.upsert(rows, opts);
+    } });
+  };
+  digita('cdF_telefone', '19990000009');
+  digita('cdTexto', 'v1');
+  await espera(5); // dispara o upsert da v1 (lento: só responde em 60ms) — é a única chamada em voo
+  // edita por cima sem passar por cdAgendarSalvar (como aconteceria se o debounce ainda estivesse
+  // esperando a digitação parar): isola o mecanismo de versão, sem um segundo envio encadeado para
+  // "consertar" sozinho — só a resposta (atrasada) da v1 está em voo quando a v2 é escrita.
+  cdEstado.nota.texto = 'v2';
+  cdTocar(cdEstado.nota);
+  document.getElementById('cdTexto').value = 'v2';
+  assert(document.getElementById('cdStatus').textContent !== 'Salvo ✓', 'não mostra salvo logo depois de editar por cima de um envio em voo');
+  await espera(110); // a v1 (atrasada) responde, vê que já está velha e manda a v2 na hora; espera a v2 confirmar
+  sb.from = fromOriginal;
+  const upsV = window.__escritas.filter(e => e.tabela === 'caderno_notas' && e.op === 'upsert' && e.rows.id === idV);
+  assert(upsV.length >= 2, 'a v1 atrasada e a v2 chegam a virar upsert (a v1 não é descartada, só não vale mais)');
+  eq(upsV[upsV.length - 1].rows.texto, 'v2', 'a última versão que o banco recebe é a v2, nunca a v1 atrasada por cima dela');
+  eq(document.getElementById('cdStatus').textContent, 'Salvo ✓', 'confirma salvo só depois que a versão mais nova (v2) chegou no banco');
+  let filaV = JSON.parse(localStorage.getItem('caderno_pendentes_c1')) || {};
+  assert(!filaV[idV], 'depois de confirmar a v2, a nota sai da fila de pendentes');
+
+  // cdEnviarPendentes chamado duas vezes seguidas: nunca duas passadas em paralelo pela mesma nota
+  window.__falharEscrita = (t) => (t === 'caderno_notas' ? { message: 'Failed to fetch' } : null);
+  await cdNovo(); await espera(10);
+  const idX = cdEstado.nota.id;
+  digita('cdF_telefone', '19990000010');
+  digita('cdTexto', 'fila dupla X');
+  await espera(40);
+  document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'N', altKey: true, shiftKey: true }));
+  await espera(40);
+  const idY = cdEstado.nota.id;
+  digita('cdF_telefone', '19990000011');
+  digita('cdTexto', 'fila dupla Y');
+  await espera(40);
+  window.__falharEscrita = null;
+  const antesX = window.__escritas.filter(e => e.tabela === 'caderno_notas' && e.op === 'upsert' && e.rows.id === idX).length;
+  const antesY = window.__escritas.filter(e => e.tabela === 'caderno_notas' && e.op === 'upsert' && e.rows.id === idY).length;
+  await Promise.all([cdEnviarPendentes(), cdEnviarPendentes()]); // as duas chamadas "ao mesmo tempo": a segunda só reagenda, não roda junto
+  await espera(30);
+  const depoisX = window.__escritas.filter(e => e.tabela === 'caderno_notas' && e.op === 'upsert' && e.rows.id === idX).length;
+  const depoisY = window.__escritas.filter(e => e.tabela === 'caderno_notas' && e.op === 'upsert' && e.rows.id === idY).length;
+  eq(depoisX - antesX, 1, 'nota X é enviada uma única vez mesmo com duas chamadas simultâneas de cdEnviarPendentes');
+  eq(depoisY - antesY, 1, 'nota Y é enviada uma única vez mesmo com duas chamadas simultâneas de cdEnviarPendentes');
+  const filaDupla = JSON.parse(localStorage.getItem('caderno_pendentes_c1')) || {};
+  assert(!filaDupla[idX] && !filaDupla[idY], 'as duas saem da fila depois do envio (sem duplicar nem perder)');
+
   // logout limpa
   cadernoResetar();
   assert(document.getElementById('cdBotao').style.display === 'none' && !document.getElementById('cdGaveta').classList.contains('aberta'), 'logout esconde o Caderno');
