@@ -215,4 +215,7 @@ const testScript = `
 })().catch(e => { console.log('ERRO:', e.message); console.log(e.stack); process.exitCode = 1; });
 `;
 
-window.eval(jsCode + testScript);
+// 07/10/2026 (§72): desde a Task 10, enterApp() liga o verificador de alertas da Agenda (alIniciar,
+// setInterval) em qualquer login — sem forçar a saída aqui, o processo nunca fecha sozinho depois
+// que esse timer existe (window.eval roda em outro realm: "process" não existe lá dentro).
+window.eval(jsCode + testScript).then(() => process.exit(process.exitCode || 0));

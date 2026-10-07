@@ -113,4 +113,8 @@ function montar(role){
 
   console.log(`--- RESULTADO: ${ok} passaram, ${fail} falharam ---`);
   if(fail) process.exitCode = 1;
-})().catch(e => { console.log('ERRO FATAL:', e.stack); process.exitCode = 1; });
+})().catch(e => { console.log('ERRO FATAL:', e.stack); process.exitCode = 1; })
+  // 07/10/2026 (§72): desde a Task 10, enterApp() liga o verificador de alertas da Agenda (alIniciar,
+  // setInterval) em qualquer login — sem forçar a saída aqui, o processo nunca fecha sozinho depois
+  // que esse timer existe (e aqui são dois logins/janelas: montar('admin') e montar('consultor')).
+  .then(() => process.exit(process.exitCode || 0));

@@ -11855,7 +11855,98 @@ function objLigarEventos(gaveta){
 }
 objLigarEventos(document.getElementById('cdGaveta'));
 
-function alAtualizarAvisoPermissao(){ /* Task 10 */ }
+const alEstado = { proximos: [], timer: null, recarga: null, canal: null, alertados: new Set(), tituloBase: '' };
+const AL_ANTES_MS = 5 * 60000, AL_VALIDADE_MS = 60 * 60000;
+function alChave(){ return 'agenda_alertados_' + agUid(); }
+function alCarregarAlertados(){ try{ alEstado.alertados = new Set(JSON.parse(localStorage.getItem(alChave()) || '[]')); }catch(_e){ alEstado.alertados = new Set(); } }
+function alGuardarAlertados(){ try{ localStorage.setItem(alChave(), JSON.stringify([...alEstado.alertados].slice(-300))); }catch(_e){ /* sem localStorage: vale só a memória */ } }
+// Pendentes que vencem em até 5 min (ou venceram há menos de 1 h) e ainda não alertaram.
+function alDevemAlertar(retornos, agora, ja){
+  return (retornos || []).filter(r => {
+    if(r.status !== 'pendente' || ja.has(r.id)) return false;
+    const t = new Date(r.quando).getTime();
+    return t - AL_ANTES_MS <= agora && agora < t + AL_VALIDADE_MS;
+  });
+}
+async function alCarregarProximos(){
+  if(!currentUser) return;
+  const hoje = agPartesSP(agAgora()).dia;
+  const r = await ppSeguro(() => sb.from('agenda_retornos').select('id,nota_id,nome,telefone,quando,status')
+    .gte('quando', agIsoSP(somaDiasStr(hoje, -1), '00:00')).lte('quando', agIsoSP(somaDiasStr(hoje, 1), '23:59')).neq('status', 'cancelado').order('quando', { ascending: true }));
+  if(r && !r.error) alEstado.proximos = r.data || [];
+}
+function alBip(){
+  try{
+    const C = window.AudioContext || window.webkitAudioContext;
+    if(!C) return;
+    const ctx = new C(), o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = 880; g.gain.value = 0.08; o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime + 0.25);
+  }catch(_e){ /* sem áudio: segue com a notificação */ }
+}
+function alAoClicar(r){
+  try{ window.focus(); }catch(_e){ /* ok */ }
+  cdAbrirDoRetorno(r);
+}
+function alNotificar(r){
+  const p = agPartesSP(r.quando);
+  const titulo = 'Retorno às ' + p.hora + ' — ' + r.nome;
+  if('Notification' in window && Notification.permission === 'granted'){
+    try{ const n = new Notification(titulo, { body: (r.telefone ? r.telefone + ' · ' : '') + 'Clique para abrir o Caderno', tag: 'retorno-' + r.id }); n.onclick = () => alAoClicar(r); }catch(_e){ /* alguns navegadores só aceitam via service worker */ }
+  }
+  mostrarAviso(titulo, 'info');
+  alBip();
+}
+function alAtualizarTitulo(agora){
+  if(!alEstado.tituloBase) alEstado.tituloBase = document.title.replace(/^\(\d+\)\s*/, '');
+  const n = alEstado.proximos.filter(r => r.status === 'pendente' && new Date(r.quando).getTime() - AL_ANTES_MS <= agora).length;
+  document.title = (n ? '(' + n + ') ' : '') + alEstado.tituloBase;
+}
+function alVerificar(){
+  if(!currentUser) return;
+  const agora = agAgora();
+  alDevemAlertar(alEstado.proximos, agora, alEstado.alertados).forEach(r => {
+    alEstado.alertados.add(r.id);
+    alGuardarAlertados();
+    if(alEstado.canal) try{ alEstado.canal.postMessage({ alertado: r.id }); }catch(_e){ /* ok */ }
+    alNotificar(r);
+  });
+  alAtualizarTitulo(agora);
+}
+function alReceber(ev){ if(ev && ev.data && ev.data.alertado){ alEstado.alertados.add(ev.data.alertado); alGuardarAlertados(); } }
+async function alResumoAoEntrar(){
+  await alCarregarProximos();
+  const agora = agAgora(), hoje = agPartesSP(agora).dia;
+  const pend = alEstado.proximos.filter(r => r.status === 'pendente');
+  const nHoje = pend.filter(r => agPartesSP(r.quando).dia === hoje).length;
+  const nAtr = pend.filter(r => new Date(r.quando).getTime() < agora).length;
+  if(nHoje || nAtr) mostrarAviso('Hoje: ' + nHoje + ' retorno' + (nHoje === 1 ? '' : 's') + (nAtr ? ' · ' + nAtr + ' atrasado' + (nAtr === 1 ? '' : 's') : ''), nAtr ? 'erro' : 'info');
+}
+function alAtualizarAvisoPermissao(){
+  const precisa = 'Notification' in window && Notification.permission === 'default';
+  document.getElementById('agAlertasAviso').style.display = precisa ? 'flex' : 'none';
+}
+async function alPedirPermissao(){
+  if(!('Notification' in window)) return;
+  try{ await Notification.requestPermission(); }catch(_e){ /* ok */ }
+  alAtualizarAvisoPermissao();
+}
+function alIniciar(){
+  alParar();
+  alCarregarAlertados();
+  try{ if('BroadcastChannel' in window){ alEstado.canal = new BroadcastChannel('apex-agenda'); alEstado.canal.onmessage = alReceber; } }catch(_e){ alEstado.canal = null; }
+  alResumoAoEntrar().then(alVerificar);
+  alEstado.timer = setInterval(alVerificar, 30000);
+  alEstado.recarga = setInterval(() => { alCarregarProximos().then(alVerificar); }, 300000);
+}
+function alParar(){
+  clearInterval(alEstado.timer); clearInterval(alEstado.recarga);
+  if(alEstado.canal) try{ alEstado.canal.close(); }catch(_e){ /* ok */ }
+  alEstado.canal = null; alEstado.proximos = [];
+  if(alEstado.tituloBase) document.title = alEstado.tituloBase;
+}
+document.addEventListener('agenda:mudou', () => { if(currentUser) alCarregarProximos().then(alVerificar); });
+document.getElementById('agAtivarAlertas').addEventListener('click', alPedirPermissao);
 function objPodeEditar(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
 function objAplicarPermissaoEditor(){ document.getElementById('agEditarObj').style.display = objPodeEditar() ? 'inline-block' : 'none'; }
 function objNovaChave(rotulo, existentes){

@@ -180,6 +180,54 @@ rodar(`
   sb.from = sbFromOriginal;
   Date.now = nowReal;
 
+  // ==== TASK 10: alertas ====
+  const A0 = sp('2026-10-06T13:56:00');
+  const prox = [
+    { id: 'a1', status: 'pendente', quando: '2026-10-06T14:00:00-03:00', nome: 'Alerta Teste', telefone: '19990000001' },
+    { id: 'a2', status: 'pendente', quando: '2026-10-06T14:10:00-03:00', nome: 'Depois Teste' },
+    { id: 'a3', status: 'feito', quando: '2026-10-06T13:58:00-03:00', nome: 'Feito Teste' },
+    { id: 'a4', status: 'pendente', quando: '2026-10-06T11:00:00-03:00', nome: 'Velho Teste' },
+  ];
+  eq(alDevemAlertar(prox, A0, new Set()).map(r => r.id), ['a1'], 'só o que vence em até 5 min (não feito, não velho de 1h+)');
+  eq(alDevemAlertar(prox, A0, new Set(['a1'])).length, 0, 'já alertado não repete');
+  Date.now = () => A0;
+  window.__tabelas.agenda_retornos = prox.map(r => Object.assign({ consultor_id: 'c1' }, r));
+  try{ localStorage.removeItem('agenda_alertados_c1'); }catch(_e){}
+  document.title = 'Painel Apex';
+  await alCarregarProximos();
+  alVerificar();
+  eq(window.__notificacoes.length, 1, 'uma notificação');
+  assert(window.__notificacoes[0].titulo.includes('14:00') && window.__notificacoes[0].titulo.includes('Alerta Teste'), 'texto da notificação');
+  assert(document.title.startsWith('(2) '), 'contador no título (a1 em 4 min + a4 atrasado)');
+  alVerificar();
+  eq(window.__notificacoes.length, 1, 'não repete na mesma aba');
+  // outra aba já alertou a2 (mensagem do BroadcastChannel)
+  alReceber({ data: { alertado: 'a2' } });
+  Date.now = () => sp('2026-10-06T14:06:00');
+  alVerificar();
+  eq(window.__notificacoes.length, 1, 'a2 alertado em outra aba: não toca aqui');
+  // clicar na notificação abre o Caderno
+  let aberto = null;
+  const cdAbrirOriginal = cdAbrirDoRetorno;
+  cdAbrirDoRetorno = (r) => { aberto = r.id; };
+  alAoClicar(prox[0]);
+  eq(aberto, 'a1', 'clique abre o Caderno do cliente');
+  cdAbrirDoRetorno = cdAbrirOriginal;
+  // resumo ao entrar
+  Date.now = () => sp('2026-10-06T08:00:00');
+  window.__tabelas.agenda_retornos = [{ id: 'h1', consultor_id: 'c1', status: 'pendente', quando: '2026-10-06T09:00:00-03:00', nome: 'H Teste' }, { id: 'h2', consultor_id: 'c1', status: 'pendente', quando: '2026-10-05T16:00:00-03:00', nome: 'Atr Teste' }];
+  await alResumoAoEntrar();
+  assert(avisos().includes('Hoje: 1 retorno · 1 atrasado'), 'resumo ao entrar');
+  // permissão: aviso aparece quando ainda não foi dada
+  window.Notification.permission = 'default';
+  alAtualizarAvisoPermissao();
+  assert(document.getElementById('agAlertasAviso').style.display !== 'none', 'pede para ativar alertas');
+  window.Notification.permission = 'granted';
+  alAtualizarAvisoPermissao();
+  assert(document.getElementById('agAlertasAviso').style.display === 'none', 'some depois de ativar');
+  alParar();
+  Date.now = nowReal;
+
   // ==== mais testes entram aqui ====
   fim();
 `);

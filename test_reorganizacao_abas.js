@@ -112,5 +112,9 @@ try{
   await window.eval('(async () => {' + jsCode + testScript + '})()');
   setTimeout(() => {
     if(window.__testResult !== 'OK') process.exitCode = 1;
+    // 07/10/2026 (§72): desde a Task 10, enterApp() liga o verificador de alertas da Agenda (alIniciar,
+    // setInterval) em qualquer login — sem forçar a saída aqui, o processo nunca fecha sozinho depois
+    // que esse timer existe.
+    process.exit(process.exitCode || 0);
   }, 500);
 })();
