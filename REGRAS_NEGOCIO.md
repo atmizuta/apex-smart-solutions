@@ -2897,3 +2897,9 @@ Pedido do Rafael ao aprovar: aba só de supervisor/admin, ao lado de Pedidos em 
 - **Dentro das regras da API:** é horário diurno (janela de no máximo 85 min), e a janela de cada execução (último sucesso menos 15 min de sobreposição) fica em ~25 min; folga de 10 min entre execuções.
 - **Reverter:** `select cron.unschedule('sync-producao-janela-noite-a'); select cron.unschedule('sync-producao-janela-noite-b'); select cron.alter_job(1, schedule := '59 * * * *');`
 - Aplicado direto no banco de produção em 05/10/2026 (jobs 13 e 14). Sem mudança de código nem de painel.
+
+## 71. Vendas Perdidas: faixa de datas por calendário (06/10/2026)
+- Na sub-aba **Vendas Perdidas** do Dashboard de Produção, o filtro **Período** ganhou a opção **Personalizado** e o campo **Faixa de datas** (calendário flatpickr em modo faixa, o mesmo das outras abas). Escolher as duas datas liga "Personalizado"; escolher um atalho (Este mês, Mês passado, 90 dias, 180 dias) reposiciona o calendário.
+- O calendário só aceita os últimos 180 dias (é o que o painel carrega via RPC `vendas_perdidas`). Faixa de um dia: clicar duas vezes na mesma data. Faixa vazia ou invertida volta para "Este mês".
+- Filtros de consultor/motivo/tipo, KPIs, gráficos, tabela e Excel usam a mesma faixa (`perdPeriodo(tipo, hoje, custom)`).
+- Teste: `test_vendas_perdidas.js` (4 asserts novos da faixa personalizada).
