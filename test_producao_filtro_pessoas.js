@@ -32,16 +32,17 @@ try{
     { numero_pedido: '4', usuario: '  vitoria priscila da silva santos  ', valor: 400 },
     { numero_pedido: '5', usuario: 'DANILO MORAIS ARAUJO', valor: 500 },
     { numero_pedido: '6', usuario: 'Giovanna Firmina Gonçalves', valor: 600 },
+    { numero_pedido: '7', usuario: 'Gabriel Macedo Martins', valor: 700 },
   ];
   const filtrados = filtrarProducaoPedidos(PEDIDOS);
   assert(filtrados.length === 2, 'só sobram os 2 pedidos de gente da Apex (Caio e Giovanna) — achou ' + filtrados.length);
   assert(filtrados.map(p => p.numero_pedido).sort().join(',') === '1,6', 'os pedidos que sobram são o 1 e o 6 — achou ' + filtrados.map(p => p.numero_pedido).join(','));
-  assert(filtrarProducaoPedidos(PEDIDOS).every(p => p.usuario !== 'Vitor Queiroz Cavalcante'), 'Vitor Queiroz Cavalcante não aparece mais, mesmo tendo usuário no painel');
+  assert(filtrarProducaoPedidos(PEDIDOS).every(p => p.usuario !== 'Vitor Queiroz Cavalcante' && p.usuario !== 'Gabriel Macedo Martins'), 'Vitor Queiroz Cavalcante e Gabriel Macedo Martins não aparecem mais, mesmo tendo usuário no painel');
   assert(filtrarProducaoPedidos(null).length === 0, 'lista vazia/nula não quebra, devolve array vazio');
 
-  const EQUIPE = ['Caio Costa Santana', 'Vitor Queiroz Cavalcante', 'Giovanna Firmina Gonçalves', 'Danilo Morais Araujo'];
+  const EQUIPE = ['Caio Costa Santana', 'Vitor Queiroz Cavalcante', 'Giovanna Firmina Gonçalves', 'Danilo Morais Araujo', 'Gabriel Macedo Martins'];
   const equipeFiltrada = filtrarProducaoEquipe(EQUIPE);
-  assert(equipeFiltrada.length === 2 && equipeFiltrada.includes('Caio Costa Santana') && equipeFiltrada.includes('Giovanna Firmina Gonçalves'), 'lista de equipe (usada pro "quem zerou") também exclui as 4 pessoas — achou ' + JSON.stringify(equipeFiltrada));
+  assert(equipeFiltrada.length === 2 && equipeFiltrada.includes('Caio Costa Santana') && equipeFiltrada.includes('Giovanna Firmina Gonçalves'), 'lista de equipe (usada pro "quem zerou") também exclui as 5 pessoas — achou ' + JSON.stringify(equipeFiltrada));
 
   console.log(\`\\n--- RESULTADO: \${ok} passaram, \${fail} falharam ---\`);
   window.__testResult = fail > 0 ? 'FAIL' : 'OK';

@@ -7187,11 +7187,13 @@ function jsonParaScript(v){ return JSON.stringify(v).replace(/</g, '\\u003c'); }
 // atualização automática de hora em hora) e na lista de equipe (pra não aparecer como "zerou"
 // no Cadastro Diário). Vitor Queiroz Cavalcante também tem usuário no painel (consultor_neo/
 // profiles) — isso aqui só tira ele das telas de produção, não mexe no acesso dele ao sistema.
+// Gabriel Macedo Martins (06/10/2026) também tem usuário no painel, mesma observação.
 const PRODUCAO_USUARIOS_EXCLUIDOS = new Set([
   'VITOR QUEIROZ CAVALCANTE',
   'RANNIELE DA SILVA VIEIRA COTRIM',
   'VITORIA PRISCILA DA SILVA SANTOS',
   'DANILO MORAIS ARAUJO',
+  'GABRIEL MACEDO MARTINS',
 ]);
 function filtrarProducaoPedidos(rows){
   return (rows || []).filter(r => !PRODUCAO_USUARIOS_EXCLUIDOS.has(String(r.usuario || '').trim().toUpperCase()));

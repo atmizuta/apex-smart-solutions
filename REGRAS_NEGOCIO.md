@@ -685,6 +685,14 @@ Testado: `test_dashboard_ajustes.js` atualizado (a seção 55 previa 3 seções 
 
 - **06/10/2026** — Removidas da Visão Geral as seções "Motivos de Perda" e "Diagnóstico e Plano de Ação" — a pedido do usuário. Ver seção 16.19.
 
+### 16.20 Mais uma pessoa fora da Apex removida das telas (06/10/2026)
+
+**Pedido do usuário**: remover também `GABRIEL MACEDO MARTINS` das telas do Dashboard de Produção, mesmo mecanismo da seção 16.18. Conferido direto no banco antes de aplicar: 122 pedidos reais em `producao_pedidos` (24/08 a 01/10/2026, ~R$ 10.397 somados) — como os outros casos, não é um erro pontual. Ele **também está em `equipe_vendedores()`** (tem conta real no painel, `consultor_neo`/`profiles`), igual ao Vitor Queiroz Cavalcante — mesma decisão: só filtro de exibição, acesso ao sistema não foi tocado.
+
+**Implementação**: nome adicionado ao `Set` `PRODUCAO_USUARIOS_EXCLUIDOS` (seção 16.18) — como todos os pontos de leitura já passam por `filtrarProducaoPedidos`/`filtrarProducaoEquipe`, nenhum outro código precisou mudar. Testado em `test_producao_filtro_pessoas.js` (fixture atualizado com um 7º pedido do Gabriel).
+
+- **06/10/2026** — Mais uma pessoa (`GABRIEL MACEDO MARTINS`) removida das telas do Dashboard de Produção — mesmo filtro de exibição da seção 16.18. Ver seção 16.20.
+
 ## 17. Digital (leads de campanhas Facebook/Instagram)
 
 Aba **"Digital"** (nome interno/técnico `conversao` — vem da época em que a aba se chamava "Conversão de Vendas", mantido nos IDs/funções do código pra não gerar retrabalho num rename só de rótulo visível). Até 01/09/2026 era visível só para admin e supervisor; a partir dessa data, **qualquer perfil vê a aba**, incluindo o consultor (ver seção 2.1) — mesma visibilidade do Dashboard de Produção (porta de entrada de qualquer perfil, seção 16.6). O botão **"Atualizar agora"**, porém, continua restrito a admin/supervisor (ver seção 17.1) — ver dados é uma permissão, disparar a sincronização com o Google Sheets é outra.
