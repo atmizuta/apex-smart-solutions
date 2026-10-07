@@ -12424,7 +12424,7 @@ function anCorte(periodo){
 function anFiltroBusca(termo){
   const t = String(termo || '').trim();
   if(!t) return null;
-  const seguro = t.replace(/[,()%*_]/g, ' ').trim();
+  const seguro = t.replace(/[,()%*_"\\]/g, ' ').trim(); // , ( ) " \ quebram o or(); * % _ são curingas
   const digitos = cdDigitos(t);
   const partes = [];
   if(seguro) partes.push(`nome.ilike.%${seguro}%`, `texto.ilike.%${seguro}%`);

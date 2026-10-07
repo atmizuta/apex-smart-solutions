@@ -92,6 +92,9 @@ rodar(`
   // podem ir crus pro .or() — senão o próprio usuário digitando um "_" vira um curinga sem querer.
   const filtroCuringas = anFiltroBusca('abc*def_ghi%jkl,(mno)');
   assert(!filtroCuringas.includes('*') && !filtroCuringas.includes('_'), 'filtro de busca remove * e _ (curingas do ilike/like) do termo digitado, além de , ( ) %');
+  // aspas e barra invertida têm significado no filtro or() do PostgREST: também saem do termo
+  const filtroAspas = anFiltroBusca('padaria "bom" sabor\\\\x');
+  assert(!filtroAspas.includes('"') && !filtroAspas.includes('\\\\'), 'filtro de busca remove aspas e barra invertida');
 
   // debounce: não dispara a cada tecla, só depois de ~300ms parado
   let chamadas = 0;
