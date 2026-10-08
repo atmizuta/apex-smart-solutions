@@ -43,8 +43,8 @@ Em vez de uma única coluna de conteúdo, a página passa a ter três abas (shad
 - **Proposta** — o construtor de proposta: lista de itens adicionados (cada um com descrição e
   valor), campo para adicionar um novo item (select agrupado por categoria do catálogo, ou opção
   "Oferta avulsa" que libera um campo de texto + valor), total calculado, botão salvar. Propostas
-  salvas anteriormente para este lead aparecem listadas (mais recente primeiro), com a ativa
-  destacada.
+  salvas anteriormente para este lead aparecem listadas (mais recente primeiro), com a mais recente
+  destacada pelo selo "Mais recente".
 
 Nenhuma rota nova é criada. O layout `(protected)/layout.tsx` e a guarda de sessão não mudam.
 
@@ -110,8 +110,6 @@ select
   c.apto_renovacao,
   c.cep_cabeado,
   c.linhas_fixas,
-  c.linhas_voz,
-  c.valor_contrato,
   case
     when c.cep_cabeado = 'CEP Cabeado' and coalesce(c.linhas_fixas, 0) = 0
       then 'fibra_candidato'
@@ -126,13 +124,17 @@ select
   a.consultor_id as dono_consultor_id,
   a.status_contato,
   a.atribuido_em,
-  a.ultimo_contato_em
+  a.ultimo_contato_em,
+  c.linhas_voz,
+  c.valor_contrato
 from public.clientes c
 left join crm_fibra.atribuicoes a on a.cnpj_digits = c.cnpj_digits
 where c.cnpj_digits is not null and c.cnpj_digits <> '';
 ```
 
-(`create or replace view` preserva as permissões já concedidas — não precisa re-conceder grants.)
+`linhas_voz` e `valor_contrato` entram **no fim** da lista de colunas: o `create or replace view` do
+Postgres só aceita colunas novas depois das existentes (mesmos nomes, ordem e tipos antes delas).
+`create or replace view` preserva as permissões já concedidas — não precisa re-conceder grants.
 
 ## Catálogo — conteúdo inicial
 
@@ -204,8 +206,8 @@ Sem exclusão física de item do catálogo — só desativação — para nunca 
 
 1. Página carrega as propostas já existentes para o CNPJ (mais recente primeiro) e os itens de
    catálogo ativos, agrupados por categoria.
-2. Consultor clica "Nova proposta" (ou continua editando a mais recente, se preferir reabri-la —
-   ver nota de escopo abaixo) e vai adicionando linhas: escolhe categoria → plano (preenche
+2. O construtor fica sempre visível e sempre começa vazio (propostas salvas não são reabertas — ver
+   nota de escopo abaixo). O consultor vai adicionando linhas: escolhe categoria → plano (preenche
    descrição/valor automaticamente) ou escolhe "Oferta avulsa" (digita descrição e valor).
 3. Cada linha adicionada aparece na lista com botão de remover; total soma em tempo real.
 4. "Salvar proposta" grava `propostas` + `proposta_itens` em uma única operação no servidor (Server
@@ -216,6 +218,15 @@ edição posterior de uma proposta já salva) — simples e suficiente para o ca
 proposta" é o padrão já usado no funil antigo, `public.propostas`, para o mesmo cenário). O
 consultor que quiser mudar algo cria uma nova proposta; as antigas ficam no histórico da aba.
 
+**Quem pode salvar:** qualquer consultor ativo pode salvar uma proposta para qualquer lead (não exige
+ser o dono, ao contrário de registrar mensagem); `propostas.consultor_id` guarda quem criou.
+Propostas são sempre linhas novas, então dois consultores salvando para o mesmo CNPJ nunca se
+sobrescrevem.
+
+**Atomicidade:** o cliente Supabase não tem transação multi-tabela, então salvar grava o cabeçalho e
+depois os itens; se os itens falharem, o cabeçalho recém-criado é apagado (limpeza compensatória) e
+o erro é propagado.
+
 ## Testes
 
 Segue o padrão TDD já estabelecido no projeto (Vitest). Cobertura mínima:
@@ -224,9 +235,11 @@ Segue o padrão TDD já estabelecido no projeto (Vitest). Cobertura mínima:
   ativar/desativar.
 - `lib/propostas.ts`: criar proposta com itens, listar propostas por CNPJ (mais recente primeiro),
   cálculo de total.
-- Componentes da aba Proposta: adicionar linha de catálogo preenche descrição/valor; adicionar
-  oferta avulsa exige descrição e valor; remover linha atualiza o total; salvar com zero linhas é
-  bloqueado (proposta vazia não faz sentido).
+- Lógica do construtor da aba Proposta (`lib/proposta-rascunho.ts`, funções puras testadas em Node —
+  o projeto não tem infra de teste de DOM; mesmo padrão de `lib/camadas.ts`): adicionar linha de
+  catálogo preenche descrição/valor; adicionar oferta avulsa exige descrição e valor; remover linha
+  atualiza o total; salvar com zero linhas é bloqueado (proposta vazia não faz sentido). O
+  componente React fica fino, só liga essas funções ao estado e à Server Action.
 
 ## Review Focus
 
