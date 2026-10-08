@@ -65,6 +65,31 @@ w = montar(DADOS, []);
 w.renderVendorDailyMatrix();
 assert(JSON.stringify(linhas(w)) === JSON.stringify(['CAIO TESTE', 'MARIA TESTE']), 'lista vazia: só quem vendeu no mês, como antes');
 
+
+// 08/10/2026: a matriz conta VENDAS (pedidos distintos); clicar mostra quantos produtos tem em cada venda
+const DADOS_V = [ped({ numero_pedido: 'V1', produto: 'CLARO PÓS 25GB' }), ped({ numero_pedido: 'V1', produto: 'CLARO MONITOR' }), ped({ numero_pedido: 'V1', produto: 'WI-FI MESH', quantidade: 2 }),
+  ped({ numero_pedido: 'V2', produto: 'ULTRA 600 MEGA' })];
+w = montar(DADOS_V, ['CAIO TESTE']);
+w.renderVendorDailyMatrix();
+const trCaio = [...w.document.querySelectorAll('#vendorMatrixWrap tbody tr')].find(tr => tr.children[0].textContent.trim() === 'CAIO TESTE');
+assert(trCaio.children[1].textContent.trim() === '2', '4 linhas em 2 pedidos = 2 vendas no dia 1 — achou ' + trCaio.children[1].textContent);
+assert(trCaio.lastElementChild.textContent.trim() === '2', 'total do mês = 2 vendas');
+const rodape = [...w.document.querySelectorAll('#vendorMatrixWrap tr')].find(tr => /^TOTAL$/i.test(tr.children[0].textContent.trim()));
+assert(rodape.lastElementChild.textContent.trim() === '2', 'total geral = 2 vendas');
+trCaio.children[1].click();
+assert(w.document.getElementById('vendasOverlay').classList.contains('open'), 'clicar no número abre a janela de vendas');
+const lv = [...w.document.querySelectorAll('#vendasBody tr')].map(tr => [...tr.children].map(td => td.textContent.trim()));
+assert(lv.length === 2, 'a janela lista 2 vendas — ' + JSON.stringify(lv));
+const v1 = lv.find(l => l[1] === 'V1'), v2 = lv.find(l => l[1] === 'V2');
+assert(v1 && v1[2] === '3' && /CLARO MONITOR/.test(v1[3]) && /WI-FI MESH \(x2\)/.test(v1[3]), 'V1 tem 3 produtos listados — ' + JSON.stringify(v1));
+assert(v2 && v2[2] === '1', 'V2 tem 1 produto — ' + JSON.stringify(v2));
+assert(/2 venda\(s\) — 4 produto\(s\)/.test(w.document.getElementById('vendasSub').textContent), 'resumo: 2 vendas, 4 produtos — ' + w.document.getElementById('vendasSub').textContent);
+w.fecharVendasModal();
+assert(!w.document.getElementById('vendasOverlay').classList.contains('open'), 'fecha a janela');
+const celZero = [...w.document.querySelectorAll('#vendorMatrixWrap tbody td.vm-cell[data-count="0"]')][0];
+celZero.click();
+assert(!w.document.getElementById('vendasOverlay').classList.contains('open'), 'célula zerada não abre janela');
+
 // o painel busca a lista no banco e preenche o template
 const fnLoad = outerHtml.slice(outerHtml.indexOf('async function loadProducaoDashboard'), outerHtml.indexOf('async function loadProducaoDashboard') + 4000);
 assert(fnLoad.includes("sb.rpc('equipe_vendedores')"), 'o painel busca a equipe (rpc equipe_vendedores)');
