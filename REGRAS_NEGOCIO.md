@@ -3004,3 +3004,4 @@ Pedido do Rafael ao aprovar: aba só de supervisor/admin, ao lado de Pedidos em 
 - **Testes:** `test_cadastro_diario_equipe.js` (contagem por venda, janela, produtos) e `test_producao_filtro_pessoas.js` (7 pessoas).
 - **Entrada no ar (08/10/2026):** painel publicado, MD5 `57075c5b…`, depois de conferir que o painel no ar era igual ao da `oficial/main`; backup `~/deploy_backups/painel_clientes_apex_20261008_antes_cadastro_vendas.html` (para reverter, copiar de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`).
 - **Ajuste (08/10/2026, tarde):** a janela "Vendas" ficou só com o essencial, a pedido do usuário: pedido (e a data, no Total do mês) + **quantidade de produtos** de cada venda, e no topo "N venda(s) — M produto(s) no total". Saíram os nomes dos produtos e o valor.
+- **Entrada no ar do ajuste (08/10/2026):** painel publicado, MD5 `85f4e5ac…`; backup `~/deploy_backups/painel_clientes_apex_20261008_antes_vendas_simples.html`.
