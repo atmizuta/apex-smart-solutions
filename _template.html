@@ -7541,6 +7541,13 @@ function filtrarProducaoEquipe(nomes){
   return (nomes || []).filter(n => !PRODUCAO_USUARIOS_EXCLUIDOS.has(String(n || '').trim().toUpperCase()));
 }
 
+// 08/10/2026 (seção 76): + criado_em (hora de entrada na sincronização) — é a hora da venda no gráfico por hora
+// da Visão Diária, no corte do relatório das 17h e no Boletim da Manhã (a API manda o cadastro sem hora).
+function producaoColunas(adminMode){
+  return adminMode
+    ? 'numero_pedido,grupo,usuario,etapa,cadastro,atualizacao,valor,quantidade,produto,cliente,cnpj,tag,criado_em'
+    : 'numero_pedido,grupo,usuario,etapa,cadastro,atualizacao,valor,quantidade,produto,tag,criado_em';
+}
 let producaoAutoRefreshTimer = null; // recarrega os dados (sem recriar o iframe) a cada 1h — ver Visão Diária
 async function loadProducaoDashboard(){
   const emptyCard = document.getElementById('producaoEmptyCard');
@@ -7548,11 +7555,7 @@ async function loadProducaoDashboard(){
   const frame = document.getElementById('producaoFrame');
 
   const adminMode = producaoAdminMode();
-  // 08/10/2026 (seção 76): + criado_em (hora de entrada na sincronização) — é a hora da venda no gráfico por hora
-  // da Visão Diária, no corte do relatório das 17h e no Boletim da Manhã (a API manda o cadastro sem hora).
-  const cols = adminMode
-    ? 'numero_pedido,grupo,usuario,etapa,cadastro,atualizacao,valor,quantidade,produto,cliente,cnpj,tag,criado_em'
-    : 'numero_pedido,grupo,usuario,etapa,cadastro,atualizacao,valor,quantidade,produto,tag,criado_em';
+  const cols = producaoColunas(adminMode);
 
   const [{ data: recordsRaw, error }, { data: cfg }, equipeRes, [perdidasRes, perdidasSyncRes]] = await Promise.all([
     fetchAllRows(() => sb.from('producao_pedidos').select(cols)),
@@ -11796,7 +11799,22 @@ async function bmObterResumoDiaria(){
   if(pega()) return pega();
   if(frame && !frame.srcdoc) await loadProducaoDashboard();
   for(let i = 0; i < 150 && !pega(); i++) await new Promise(r => setTimeout(r, 200));
-  return pega();
+  if(!pega()) return null;
+  return (await bmRefrescarDashboard()) ? pega() : null;
+}
+// O dashboard só se atualiza de hora em hora desde que o painel foi aberto: antes de contar as vendas do boletim, busca os
+// pedidos de novo e empurra para o iframe (mesmo caminho da atualização horária). Falhou = vendas indisponíveis (não usa dado velho).
+async function bmRefrescarDashboard(){
+  const frame = document.getElementById('producaoFrame'), win = frame && frame.contentWindow;
+  if(!win || typeof win.atualizarDadosDashboard !== 'function') return false;
+  const [lin, cfg] = await Promise.all([
+    ppSeguro(() => fetchAllRows(() => sb.from('producao_pedidos').select(producaoColunas(producaoAdminMode())))),
+    ppSeguro(() => sb.from('config').select('valor').eq('chave', 'producao_neo_atualizado_em').maybeSingle()),
+  ]);
+  if(!lin || lin.error || !Array.isArray(lin.data) || !lin.data.length) return false;
+  try{ win.atualizarDadosDashboard(filtrarProducaoPedidos(lin.data), (cfg && !cfg.error && cfg.data && cfg.data.valor) || null); }
+  catch(err){ console.error('Boletim: atualizar o dashboard', err); return false; }
+  return true;
 }
 
 // Busca tudo o que o boletim usa. Cada fonte falha sozinha (ppSeguro): o que falhar vira null e o sinal fica "sem base".
@@ -11865,8 +11883,16 @@ async function bmCarregar(ctx){
 }
 
 // Gera o boletim de hoje: carrega, confere o plano anterior, monta e grava ("primeiro ganha": se outra pessoa gravou antes, vale o dela).
+const BM_FONTES_ESSENCIAIS = ['vendas', 'linhas', 'anterior'];
 async function bmGerar(ctx){
   const d = await bmCarregar(ctx);
+  // sem vendas, pedidos ou o plano anterior o boletim sairia com zeros e, gravado, ninguém refaria no dia: não grava
+  const faltam = BM_FONTES_ESSENCIAIS.filter(k => (d.falhas || []).indexOf(k) >= 0);
+  if(faltam.length){
+    const m0 = bmMontar(d, ctx);
+    return { boletim: { dia: ctx.hoje, periodo_de: ctx.periodo.de, periodo_ate: ctx.periodo.ate, gerado_em: m0.retrato.gerado_em, gerado_por_nome: ctx.nome || '',
+      retrato: m0.retrato, acoes: m0.acoes.map(a => Object.assign({ status: 'aberta' }, a)) }, gravado: false, faltam };
+  }
   if(d.anterior && Array.isArray(d.anterior.acoes) && d.anterior.acoes.length && d.pedidos){
     const itens = bmConferir(d.anterior.acoes.map(a => Object.assign({ dia: d.anterior.dia }, a)), d, ctx);
     if(itens.length){
@@ -11930,6 +11956,12 @@ async function bmGarantirDoDia(){
   bmStatus('Montando o boletim de hoje…');
   const r = await bmGerar({ hoje, agoraMs: agora, cfg, vlcfg: vlCfg(await bmCfgVelocidade()), periodo: per, semSync: !syncOk, nome: currentUser.nome });
   if(ger !== bmEstado.geracao || !canSeeBoletim()) return;
+  if(r.faltam){
+    bmMostrar(r.boletim, 'Não foi possível carregar ' + r.faltam.map(k => ({ vendas: 'as vendas', linhas: 'os pedidos', anterior: 'o plano anterior' })[k]).join(', ')
+      + ' — este boletim NÃO foi salvo. Tento de novo em 1 minuto.');
+    bmAgendar(60000);
+    return;
+  }
   bmMostrar(r.boletim, r.gravado ? '' : 'Não foi possível guardar o boletim agora — o que está na tela não foi salvo. Tente abrir de novo em alguns minutos.');
   bmCarregarLista();
   bmPlanoCarregar();
@@ -12068,10 +12100,13 @@ async function bmMarcar(id, status, nota){
     mostrarAviso('Não foi possível salvar — tente de novo', 'erro');
     return false;
   }
-  if(bmEstado.atual && bmEstado.atual.dia === b.dia){
-    const t = (bmEstado.atual.acoes || []).find(x => x.id === id);
-    if(t) Object.assign(t, { status: a.status, nota: a.nota, marcado_por_nome: a.marcado_por_nome, marcado_em: a.marcado_em });
-  }
+  const marcado = { status: a.status, nota: a.nota, marcado_por_nome: a.marcado_por_nome, marcado_em: a.marcado_em };
+  [bmEstado.plano, bmEstado.atual].forEach(x => {
+    if(!x || x.dia !== b.dia) return;
+    const t = (x.acoes || []).find(y => y.id === id);
+    if(t) Object.assign(t, marcado);
+  });
+  bmPlanoRender();
   return true;
 }
 function bmAbrirNota(id, status){
@@ -12208,6 +12243,7 @@ function bmVerificarHora(entrando){
 document.getElementById('bmSeletor').addEventListener('change', async function(){
   const dia = this.value;
   if(!dia || !canSeeBoletim()) return;
+  clearTimeout(bmEstado.timer);
   const ger = ++bmEstado.geracao;
   bmStatus('Carregando…');
   const r = await ppSeguro(() => sb.rpc('boletim_obter', { p_dia: dia, p_antes: null }));

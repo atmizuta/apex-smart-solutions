@@ -359,6 +359,38 @@ try{
   await bmGarantirDoDia();
   assert(/não é dia útil/.test(document.getElementById('bmAviso').textContent), 'sábado: sem boletim');
 
+  // revisão: fonte essencial que falha não vira boletim definitivo com zeros
+  respostas();
+  const gravadoOk = gravado;
+  gravado = null;
+  bmObterResumoDiaria = async () => null;
+  agoraTeste = sp('2026-10-08T10:20:00');
+  await bmGarantirDoDia();
+  assert(gravado === null && /NÃO foi salvo/.test(document.getElementById('bmAviso').textContent) && /as vendas/.test(document.getElementById('bmAviso').textContent), 'sem as vendas: mostra, avisa e não grava — ' + document.getElementById('bmAviso').textContent);
+  assert(!!bmEstado.timer, 'sem as vendas: agenda nova tentativa');
+  // revisão: abrir um boletim antigo cancela a nova tentativa automática
+  document.getElementById('bmSeletor').innerHTML = '<option value="2026-10-07">x</option>';
+  document.getElementById('bmSeletor').value = '2026-10-07';
+  const timerAntes = bmEstado.timer;
+  let cancelado = false; const ctOriginal = window.clearTimeout;
+  window.clearTimeout = (t) => { if(t === timerAntes) cancelado = true; return ctOriginal(t); };
+  document.getElementById('bmSeletor').dispatchEvent(new window.Event('change'));
+  await new Promise(r => setTimeout(r, 20));
+  window.clearTimeout = ctOriginal;
+  assert(cancelado, 'seletor de boletim antigo cancela a tentativa agendada');
+  bmObterResumoDiaria = async () => resumoFalso;
+  gravado = gravadoOk;
+  // revisão: antes de contar as vendas, os pedidos do dashboard são recarregados do banco
+  const frameW = document.getElementById('producaoFrame').contentWindow;
+  let empurrado = null;
+  frameW.atualizarDadosDashboard = (linhas, quando) => { empurrado = { linhas, quando }; };
+  window.__tabelas.producao_pedidos = [{ numero_pedido: 'N1', usuario: 'CAIO TESTE', criado_em: iso('2026-10-07T15:00:00') }, { numero_pedido: 'N2', usuario: 'VITOR QUEIROZ CAVALCANTE' }];
+  window.__tabelas.config.push({ chave: 'producao_neo_atualizado_em', valor: '08/10/2026, 09:59:40' });
+  eq(await bmRefrescarDashboard(), true, 'recarrega os pedidos do dashboard');
+  eq(empurrado && [empurrado.linhas.map(x => x.numero_pedido), empurrado.quando], [['N1'], '08/10/2026, 09:59:40'], 'empurra os pedidos novos (sem as pessoas de fora) para o iframe');
+  delete frameW.atualizarDadosDashboard;
+  eq(await bmRefrescarDashboard(), false, 'sem o dashboard carregado: não finge que atualizou');
+
   // ==== PDF: página 1 + anexo, sem cliente e sem CNPJ ====
   const bPdf = { dia: '2026-10-08', gerado_em: iso('2026-10-08T10:16:00'), retrato: gravado.p_retrato, acoes: gravado.p_acoes.map((x, i) => Object.assign({ id: i + 1, status: 'aberta' }, x)) };
   const doc = bmPdf(bPdf);
@@ -390,6 +422,17 @@ try{
   document.querySelector('[data-bm-desfazer="71"]').click();
   await new Promise(r => setTimeout(r, 30));
   eq((window.__rpcCalls.filter(c => c.nome === 'boletim_marcar_acao').pop() || {}).args, { p_id: 71, p_status: 'aberta', p_nota: null }, 'Desfazer volta a aberta');
+  // revisão: a Mesa recarrega o plano enquanto a marcação está sendo salva — a marcação gravada não "volta"
+  let liberar;
+  window.__rpcRespostas.boletim_marcar_acao = () => new Promise(r => { liberar = () => r({ data: null, error: null }); });
+  const marcando = bmMarcar(71, 'feita', 'ok');
+  bmEstado.plano = JSON.parse(JSON.stringify(PLANO));   // o que o refresh da Mesa traria (ainda "aberta")
+  bmEstado.plano.acoes[0].status = 'aberta';
+  bmPlanoRender();
+  liberar(); await marcando;
+  assert(bmEstado.plano.acoes[0].status === 'feita' && /Feito por Supervisor Teste/.test(document.getElementById('bmPlanoLista').textContent), 'marcação reaplicada no plano recarregado');
+  window.__rpcRespostas.boletim_marcar_acao = { data: null, error: null };
+  await bmMarcar(71, 'aberta', null);
   // falha da RPC: a linha volta e aparece o aviso
   window.__rpcRespostas.boletim_marcar_acao = { data: null, error: { message: 'x' } };
   const alertas = []; window.alert = (m) => alertas.push(String(m));
