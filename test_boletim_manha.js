@@ -45,6 +45,7 @@ window.alert = () => {};
 window.confirm = () => true;
 window.Chart = function(){ this.destroy = function(){}; return this; };
 window.TextDecoder = TextDecoder;
+window.jspdf = require('jspdf');
 window.process = process;
 
 const testScript = `
@@ -253,6 +254,183 @@ try{
   eq(res.frase.replace(/\\u00a0/g, ' '), 'Plano de qua, 07/10: 3 de 5 ações concluídas (2 feitas + 1 resolvida sozinha), R$ 500,00 recuperados.', 'frase do resultado');
   eq([res.naoDeu.length, res.naoDeu[0].nota, res.semMarcacao.length], [1, 'cliente viajando', 1], 'listas do resultado');
   eq(bmResultadoAnterior(null), null, 'sem plano anterior');
+
+  // ==== montagem do retrato (paridade com as abas) ====
+  const dadosM = Object.assign({}, dados, {
+    perdas, ligPeriodo: 30, ligJanela: 1000, saude: { producao: iso('2026-10-08T09:59:40'), ligacoes: null, exportacao: null, leadsErro: '' }, falhas: [],
+    anterior: { dia: '2026-10-07', retrato: { semaforo: [{ chave: 'esteira', valor: 100 }] }, acoes: [
+      { id: 1, ordem: 1, regra: 'pedido_grande_parado', chave: 'G1', quem: 'Supervisão', o_que: 'x', status: 'feita', resolvida_em: null, valor_recuperado: 0, dias_seguidos: 1 } ] },
+  });
+  const mont = bmMontar(dadosM, Object.assign({ nome: 'Isa Teste', semSync: true }, ctx));
+  const R = mont.retrato, sinalDe = k => R.semaforo.find(s => s.chave === k);
+  eq(R.semaforo.map(s => s.chave), ['vendas', 'ritmo', 'esteira', 'perdas', 'velocidade', 'ligacoes'], '6 sinais na ordem');
+  eq([sinalDe('vendas').valor, sinalDe('vendas').ref, sinalDe('vendas').cor], [350, 120, 'verde'], 'vendas do período × média de 20 dias úteis (R$ 2.400 / 20)');
+  const filaPP = ppResumoFila(pedidos, HOJE);
+  eq(sinalDe('esteira').valor, filaPP.lista.filter(x => x.nivel === 'medio' || x.nivel === 'maximo').reduce((s, x) => s + x.valor, 0), 'paridade: esteira = MÉDIO + MÁXIMO do Pedidos Parados (ppResumoFila)');
+  eq([sinalDe('esteira').ref, sinalDe('esteira').sentido], [100, 'menor'], 'esteira compara com o retrato anterior (menor é melhor)');
+  const plTime = ppPlacar(linhas, '2026-10', '2026-10-07', 1000);
+  eq(sinalDe('ritmo').valor, Math.round((plTime.receita / 1000) / (plTime.diasUteisDecorridos / plTime.diasUteisMes) * 100) / 100, 'paridade: ritmo da meta pelo ppPlacar (Fechamento/Meu Placar)');
+  eq([sinalDe('perdas').valor, sinalDe('ligacoes').valor, sinalDe('ligacoes').ref, sinalDe('ligacoes').cor], [150, 30, 50, 'vermelho'], 'perdas do período e ligações × média (60% da média: vermelho)');
+  eq(R.manchete[2].indexOf('Maior risco: ' + mont.acoes[0].o_que), 0, 'manchete: maior risco = ação nº 1');
+  assert(R.resultado_anterior && R.resultado_anterior.feitas === 1, 'resultado do plano anterior no retrato');
+  assert(R.saude.semSync === true && R.gerado_por_nome === 'Isa Teste' && R.versao === 1 && R.limites.length === 6, 'saúde, autor e limites no retrato');
+  eq(R.plano.length, mont.acoes.length, 'plano guardado no retrato');
+  assert(JSON.stringify(R).length < 60000, 'retrato pequeno (< 60 KB)');
+
+  // ==== geração do dia: regra das 10h, espera da sincronização, primeiro ganha ====
+  let agoraTeste = sp('2026-10-08T09:30:00');
+  bmAgora = () => agoraTeste;
+  const resumoFalso = (dia) => ({ contratos: dia === '2026-10-07' ? 2 : 1, valor: dia === '2026-10-07' ? 350 : 100, linhas: 1,
+    porConsultor: [{ key: 'CAIO TESTE', contratos: 1, valor: 100 }], porContrato: [{ chave: 'K', numero: 'K', usuario: 'CAIO TESTE', valor: 100 }] });
+  bmObterResumoDiaria = async () => resumoFalso;
+  const RETRATO_ANT = { dia: '2026-10-07', periodo_de: '2026-10-06', periodo_ate: '2026-10-06', gerado_em: iso('2026-10-07T10:01:00'), gerado_por_nome: 'Isa Teste',
+    retrato: { versao: 1, rotulo: 'Ontem (ter, 06/10)', manchete: ['m1', 'm2', 'm3'], semaforo: [], cfg: {}, limites: [] },
+    acoes: [{ id: 501, ordem: 1, regra: 'pedido_grande_parado', chave: 'G1', quem: 'Supervisão', o_que: 'Cobrar o back office: pedido G1', valor: 200, prazo: 'hoje', dias_seguidos: 1, status: 'aberta',
+      extra: { numero: 'G1', etapa: 'ANTIFRAUDE (NEOCRM)', valor: 200 } }] };
+  let gravado = null;
+  const respostas = () => {
+    window.__rpcRespostas = {
+      boletim_obter: (a) => ({ data: !a.p_dia || a.p_dia === '2026-10-07' ? RETRATO_ANT : null, error: null }),
+      boletim_pedidos: { data: linhas, error: null },
+      equipe_vendedores: { data: ['CAIO TESTE', 'GIO TESTE'], error: null },
+      vendas_perdidas: { data: perdas, error: null }, mesa_leads_relogio: { data: leads, error: null },
+      monitor_ligacoes_por_usuario: { data: [{ usuario: 'u1', total: 12 }], error: null },
+      boletim_resolver_acoes: { data: null, error: null },
+      boletim_gravar: (a) => { gravado = a; return { data: { dia: a.p_dia, periodo_de: a.p_de, periodo_ate: a.p_ate, gerado_em: iso('2026-10-08T10:16:00'), gerado_por_nome: 'Supervisor Teste',
+        retrato: a.p_retrato, acoes: a.p_acoes.map((x, i) => Object.assign({ id: 900 + i, status: 'aberta' }, x)), gravou: true }, error: null }; },
+    };
+  };
+  respostas();
+  window.__tabelas = { config: [{ chave: 'boletim', valor: '{"abre_sozinho":["s1"]}' }], producao_sync_log: [{ ok: true, terminou_em: iso('2026-10-08T08:59:30') }],
+    metas_consultor: [], consultor_neo: [], profiles: [], boletim_retratos: [{ dia: '2026-10-07', periodo_de: '2026-10-06', periodo_ate: '2026-10-06' }] };
+
+  // consultor: sem botão, painel vazio e nenhuma RPC
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  bmAplicarPermissao();
+  assert(document.getElementById('tabBtnBoletim').style.display === 'none', 'consultor não vê o botão do boletim');
+  window.__rpcCalls.length = 0;
+  await bmGarantirDoDia(); await bmPlanoCarregar(); await bmAoEntrar();
+  assert(!window.__rpcCalls.length, 'consultor não chama nenhuma RPC do boletim');
+  assert(document.getElementById('bmConteudo').innerHTML === '' && document.getElementById('bmPlanoCard').style.display === 'none', 'painel e card vazios para o consultor');
+
+  currentUser = { id: 's1', nome: 'Supervisor Teste', username: 'sup', role: 'supervisor' };
+  bmAplicarPermissao();
+  assert(document.getElementById('tabBtnBoletim').style.display !== 'none', 'supervisor vê o botão do boletim');
+  // antes das 10h: mostra o último, com aviso, sem gravar
+  window.__rpcCalls.length = 0;
+  await bmGarantirDoDia();
+  assert(/sai às 10:00/.test(document.getElementById('bmAviso').textContent) && /ter, 06\\/10|qua, 07\\/10/.test(document.getElementById('bmTitulo').textContent), 'antes das 10h: último boletim + aviso — ' + document.getElementById('bmAviso').textContent);
+  assert(!window.__rpcCalls.some(c => c.nome === 'boletim_gravar'), 'antes das 10h não grava');
+  // 10:05 sem a sincronização das 9h59: espera
+  agoraTeste = sp('2026-10-08T10:05:00');
+  await bmGarantirDoDia();
+  assert(/Aguardando a sincronização das 09h59/.test(document.getElementById('bmAviso').textContent), 'às 10:05 sem sync: aguarda — ' + document.getElementById('bmAviso').textContent);
+  assert(!window.__rpcCalls.some(c => c.nome === 'boletim_gravar'), 'esperando a sync não grava');
+  // 10:16 ainda sem sync: gera assim mesmo, com aviso no rodapé, e confere o plano anterior
+  agoraTeste = sp('2026-10-08T10:16:00');
+  await bmGarantirDoDia();
+  assert(gravado && gravado.p_dia === '2026-10-08' && gravado.p_de === '2026-10-07' && gravado.p_retrato.saude.semSync === true, 'às 10:16 grava com "gerado sem a sincronização"');
+  const resolv = window.__rpcCalls.find(c => c.nome === 'boletim_resolver_acoes');
+  eq(resolv && resolv.args.p_itens, [{ id: 501, desfecho: 'avancou', valor_recuperado: 200 }], 'confere o plano anterior antes de gravar (G1 saiu do Antifraude)');
+  assert(gravado.p_retrato.resultado_anterior && gravado.p_retrato.resultado_anterior.sozinhas === 1, 'resultado anterior já conta a ação resolvida sozinha');
+  const telaTxt = document.getElementById('bmConteudo').textContent;
+  assert(telaTxt.includes('gerado sem a sincronização das 9h59') && telaTxt.includes('Plano do dia') && telaTxt.includes('EMPRESA FICTICIA'), 'tela: rodapé com aviso e cliente na lista (só na tela)');
+  assert(document.querySelectorAll('#bmConteudo [data-bm-sinal]').length === 6, 'tela: 6 sinais');
+  assert(document.querySelectorAll('#bmConteudo tr[data-bm-acao]').length === 8, 'tela: 8 ações na página 1');
+  document.getElementById('btnBmVerTodas').click();
+  assert(document.querySelectorAll('#bmConteudo tr[data-bm-acao]').length === gravado.p_acoes.length, 'ver todas mostra o anexo');
+  assert(!document.getElementById('btnBmPdf').disabled, 'Baixar PDF habilitado');
+  // já existe o de hoje: mostra, não grava de novo
+  const jaTem = { dia: '2026-10-08', periodo_de: '2026-10-07', periodo_ate: '2026-10-07', gerado_em: iso('2026-10-08T10:02:00'), gerado_por_nome: 'Outra Pessoa', retrato: gravado.p_retrato, acoes: [] };
+  window.__rpcRespostas.boletim_obter = (a) => ({ data: a.p_dia === '2026-10-08' || (!a.p_dia && !a.p_antes) ? jaTem : RETRATO_ANT, error: null });
+  window.__rpcCalls.length = 0;
+  await bmGarantirDoDia();
+  assert(!window.__rpcCalls.some(c => c.nome === 'boletim_gravar') && /Outra Pessoa/.test(document.getElementById('bmSubtitulo').textContent), 'boletim de hoje já gravado: abre o que está guardado');
+  // primeiro ganha: a gravação devolve o de outra pessoa
+  respostas();
+  window.__rpcRespostas.boletim_gravar = () => ({ data: Object.assign({}, jaTem, { gravou: false }), error: null });
+  window.__tabelas.producao_sync_log = [{ ok: true, terminou_em: iso('2026-10-08T09:59:40') }];
+  agoraTeste = sp('2026-10-08T10:03:00');
+  await bmGarantirDoDia();
+  assert(/Outra Pessoa/.test(document.getElementById('bmSubtitulo').textContent), 'primeiro ganha: mostra o boletim de quem gravou antes');
+  // sábado
+  respostas();
+  agoraTeste = sp('2026-10-10T11:00:00');
+  await bmGarantirDoDia();
+  assert(/não é dia útil/.test(document.getElementById('bmAviso').textContent), 'sábado: sem boletim');
+
+  // ==== PDF: página 1 + anexo, sem cliente e sem CNPJ ====
+  const bPdf = { dia: '2026-10-08', gerado_em: iso('2026-10-08T10:16:00'), retrato: gravado.p_retrato, acoes: gravado.p_acoes.map((x, i) => Object.assign({ id: i + 1, status: 'aberta' }, x)) };
+  const doc = bmPdf(bPdf);
+  const saida = doc.output();
+  eq(doc.getNumberOfPages(), 2, 'PDF com página 1 + anexo');
+  assert(saida.includes('Boletim da Manh') && saida.includes('Plano do dia') && saida.includes('Anexo') && saida.includes('Resultado do plano anterior'), 'PDF tem os blocos da página 1 e o anexo');
+  assert(saida.includes('pedido G1') && saida.includes('CAIO TESTE'), 'PDF identifica pedido pelo número e o consultor');
+  assert(!/EMPRESA FICTICIA/.test(saida) && !/00\\.000\\.000\\//.test(saida) && !/00000000000301|00000000000201/.test(saida), 'PDF sem nome de cliente e sem CNPJ');
+  assert(/p.gina 1 de 2/.test(saida) && /p.gina 2 de 2/.test(saida), 'rodapé com página N de M');
+
+  // ==== card "Plano do dia" na Mesa ====
+  const PLANO = { dia: '2026-10-08', acoes: [
+    { id: 71, ordem: 1, regra: 'pedido_grande_parado', chave: 'G1', quem: 'Supervisão', o_que: 'Cobrar o back office: pedido G1', valor: 200, prazo: 'hoje', dias_seguidos: 2, status: 'aberta' },
+    { id: 72, ordem: 2, regra: 'destaque', chave: 'maior-valor', quem: 'Supervisão', o_que: 'Parabenizar no grupo', valor: 0, prazo: 'hoje', dias_seguidos: 1, status: 'aberta', resolvida_em: null } ] };
+  window.__rpcRespostas.boletim_obter = { data: PLANO, error: null };
+  window.__rpcRespostas.boletim_marcar_acao = { data: null, error: null };
+  agoraTeste = sp('2026-10-08T11:00:00');
+  await bmPlanoCarregar();
+  assert(document.getElementById('bmPlanoCard').style.display !== 'none' && document.getElementById('bmPlanoTitulo').textContent === 'Plano de hoje', 'card do plano visível com o plano de hoje');
+  assert(document.getElementById('bmPlanoLista').textContent.includes('2º dia'), 'card mostra "2º dia"');
+  document.querySelector('[data-bm-marcar="71"][data-status="feita"]').click();
+  assert(document.getElementById('bmNotaOverlay').classList.contains('active'), 'Feito abre a janela da nota');
+  document.getElementById('bmNotaTexto').value = '  cliente assinou ';
+  window.__rpcCalls.length = 0;
+  document.getElementById('bmNotaSalvar').click();
+  await new Promise(r => setTimeout(r, 30));
+  eq((window.__rpcCalls.find(c => c.nome === 'boletim_marcar_acao') || {}).args, { p_id: 71, p_status: 'feita', p_nota: 'cliente assinou' }, 'grava feita com a nota');
+  assert(/Feito por Supervisor Teste às 11:00 — cliente assinou/.test(document.getElementById('bmPlanoLista').textContent), 'linha mostra quem marcou e quando');
+  document.querySelector('[data-bm-desfazer="71"]').click();
+  await new Promise(r => setTimeout(r, 30));
+  eq((window.__rpcCalls.filter(c => c.nome === 'boletim_marcar_acao').pop() || {}).args, { p_id: 71, p_status: 'aberta', p_nota: null }, 'Desfazer volta a aberta');
+  // falha da RPC: a linha volta e aparece o aviso
+  window.__rpcRespostas.boletim_marcar_acao = { data: null, error: { message: 'x' } };
+  const alertas = []; window.alert = (m) => alertas.push(String(m));
+  document.querySelector('[data-bm-marcar="72"][data-status="nao_deu"]').click();
+  document.getElementById('bmNotaSalvar').click();
+  await new Promise(r => setTimeout(r, 30));
+  assert(document.querySelector('[data-bm-marcar="72"]') && !/Não deu por/.test(document.getElementById('bmPlanoLista').textContent), 'falha ao salvar: a linha volta a aberta');
+  assert(alertas.some(m => /Não foi possível salvar/.test(m)), 'falha ao salvar: aviso de erro');
+
+  // ==== abertura automática ====
+  const marcas = {};
+  Object.defineProperty(window, 'localStorage', { configurable: true, value: { getItem: k => (k in marcas ? marcas[k] : null), setItem: (k, v) => { marcas[k] = String(v); } } });
+  window.__rpcRespostas.boletim_obter = { data: PLANO, error: null };
+  const sair = () => document.getElementById('panel-boletim').classList.remove('active');
+  sair();
+  agoraTeste = sp('2026-10-08T09:40:00');
+  await bmAoEntrar();
+  assert(!document.getElementById('panel-boletim').classList.contains('active'), 'antes das 10h não abre sozinho');
+  agoraTeste = sp('2026-10-08T10:01:00');
+  bmVerificarHora(false);
+  assert(alertas.some(m => /Boletim da Manhã pronto/.test(m)) && !document.getElementById('panel-boletim').classList.contains('active'), 'painel aberto às 10h: só o aviso, sem trocar de aba');
+  delete marcas['bmAbriu:s1']; bmEstado.avisadoDia = '';
+  sair();
+  await bmAoEntrar();
+  assert(document.getElementById('panel-boletim').classList.contains('active'), 'quem está em abre_sozinho: 1º acesso depois das 10h abre o boletim');
+  sair();
+  await bmAoEntrar();
+  assert(!document.getElementById('panel-boletim').classList.contains('active'), 'abre uma vez por dia');
+  currentUser = { id: 'a9', nome: 'Admin Teste', username: 'adm', role: 'admin' };
+  await bmAoEntrar();
+  assert(!document.getElementById('panel-boletim').classList.contains('active'), 'quem não está na lista não é levado ao boletim');
+  // sem armazenamento no navegador: não quebra e abre uma vez na sessão
+  currentUser = { id: 's1', nome: 'Supervisor Teste', username: 'sup', role: 'supervisor' };
+  Object.defineProperty(window, 'localStorage', { configurable: true, get(){ throw new Error('bloqueado'); } });
+  bmEstado.avisadoDia = ''; bmEstado.abriuSessao = false;
+  await bmAoEntrar();
+  assert(document.getElementById('panel-boletim').classList.contains('active'), 'sem localStorage: abre na sessão');
+  sair();
+  await bmAoEntrar();
+  assert(!document.getElementById('panel-boletim').classList.contains('active'), 'sem localStorage: só uma vez na sessão');
+  clearInterval(bmEstado.relogio); clearTimeout(bmEstado.timer);
 
   console.log('--- test_boletim_manha RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
   window.__resultado = fail > 0 ? 1 : 0;

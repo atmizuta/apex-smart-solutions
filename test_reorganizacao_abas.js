@@ -91,7 +91,8 @@ try{
   // depois de "biometria".
   // NOTA (02/10/2026): incluída "mesa" (Mesa do Supervisor, só admin/supervisor), no grupo Visão geral logo depois de "producao" (seção 68).
   // NOTA (07/10/2026): incluída "anotacoes" ("Minhas anotações", todos os perfis), no grupo Vendas logo depois de "agenda" (seção 73).
-  const ordemEsperada = ['producao','mesa','conversao','busca','proposta','funil','pedidosparados','agenda','anotacoes','biometria','config','basedados','movimentacao','consultores','fechamento'];
+  // NOTA (08/10/2026): incluída "boletim" (Boletim da Manhã, só admin/supervisor), no grupo Visão geral logo depois de "mesa" (seção 76).
+  const ordemEsperada = ['producao','mesa','boletim','conversao','busca','proposta','funil','pedidosparados','agenda','anotacoes','biometria','config','basedados','movimentacao','consultores','fechamento'];
   assert(botoes.map(b => b.dataset.tab).join(',') === ordemEsperada.join(','), 'ordem das abas no menu segue: ' + ordemEsperada.join(', ') + ' (atual: ' + botoes.map(b => b.dataset.tab).join(',') + ')');
   const rotulos = { producao: 'Dashboard', conversao: 'Digital', busca: 'Buscar Clientes', proposta: 'Gerar Proposta', funil: 'Funil', basedados: 'Upload Base', movimentacao: 'Upload Dash', consultores: 'Usuários' };
   Object.entries(rotulos).forEach(([tab, rotulo]) => {

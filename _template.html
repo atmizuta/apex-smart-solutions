@@ -739,6 +739,8 @@
       <div class="navGroupLabel">Visão geral</div>
       <button data-tab="producao" id="tabBtnProducao" class="active" data-sub="Vendas, contratos e ranking do time"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg><span class="sbLabel">Dashboard</span></button>
       <button data-tab="mesa" id="tabBtnMesa" style="display:none" data-sub="Pendências da equipe e cobrança em 1 clique"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10"/><path d="M7 13h6"/><circle cx="17" cy="15" r="2"/></svg><span class="sbLabel">Mesa do Supervisor</span></button>
+      <!-- 08/10/2026, seção 76: Boletim da Manhã — admin/supervisor (o dia em 2 minutos e o plano com check). -->
+      <button data-tab="boletim" id="tabBtnBoletim" style="display:none" data-sub="O dia em 2 minutos e o plano com check"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3"/><path d="m5.6 6.6 1.4 1.4"/><path d="m18.4 6.6-1.4 1.4"/><path d="M3 14h2"/><path d="M19 14h2"/><path d="M7 14a5 5 0 0 1 10 0"/><path d="M3 18h18"/><path d="M8 21h8"/></svg><span class="sbLabel">Boletim da Manhã</span></button>
       <button data-tab="conversao" id="tabBtnConversao" style="display:none" data-sub="Leads das campanhas e conversão em vendas"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg><span class="sbLabel">Digital</span></button>
       <div class="navGroupLabel">Vendas</div>
       <button data-tab="busca" data-sub="Base de clientes por razão social, CNPJ ou telefone"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span class="sbLabel">Buscar Clientes</span></button>
@@ -1074,6 +1076,15 @@
     <!-- MESA DO SUPERVISOR (02/10/2026, seção 68) — admin/supervisor: pendências da equipe e cobrança em 1 clique.
          Para o consultor o botão some e o painel fica vazio (mesaResetar); a proteção real são as RPCs. -->
     <section class="panel" id="panel-mesa">
+      <!-- 08/10/2026 (seção 76): ações do Boletim da Manhã com check (Feito / Não deu, com nota). -->
+      <div class="card" id="bmPlanoCard" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <h3 style="margin:0" id="bmPlanoTitulo">Plano do dia</h3>
+          <button type="button" class="btn btn-sm btn-outline" id="btnBmAbrir" style="width:auto">Abrir o Boletim de hoje</button>
+        </div>
+        <p class="desc" id="bmPlanoResumo"></p>
+        <div id="bmPlanoLista"></div>
+      </div>
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
           <h3 style="margin:0">Mesa do Supervisor</h3>
@@ -1113,6 +1124,22 @@
         <p class="desc">Retornos da Agenda por consultor (seção 72) e as objeções que mais apareceram nos últimos 7 dias.</p>
         <div id="mesaRetObj"></div>
       </div>
+    </section>
+
+    <!-- BOLETIM DA MANHÃ (08/10/2026, seção 76) — admin/supervisor: retrato do período anterior às 10h de todo dia útil.
+         Para o consultor o botão some e o painel fica vazio (bmResetar); a proteção real são a RLS e as RPCs. -->
+    <section class="panel" id="panel-boletim">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <div><h3 style="margin:0" id="bmTitulo">Boletim da Manhã</h3><p class="desc" id="bmSubtitulo" style="margin:4px 0 0"></p></div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <select id="bmSeletor" aria-label="Boletins anteriores" style="width:auto"></select>
+            <button type="button" class="btn btn-sm btn-outline" id="btnBmPdf" style="width:auto" disabled>Baixar PDF</button>
+          </div>
+        </div>
+        <p class="desc" id="bmAviso"></p>
+      </div>
+      <div id="bmConteudo"></div>
     </section>
 
     <!-- DASHBOARD DE PRODUÇÃO (Apex/Claro) — página inicial pós-login, visível a qualquer perfil
@@ -1579,6 +1606,21 @@
         <div class="agFErro" id="agFErro"></div>
         <button type="submit" class="btn">Salvar retorno</button>
       </form>
+    </div>
+  </div>
+</div>
+
+<!-- Marcar ação do Plano do dia (seção 76) -->
+<div class="overlay" id="bmNotaOverlay">
+  <div class="modal" style="max-width:520px">
+    <div class="mHead">
+      <button class="mClose" id="bmNotaFechar" type="button">&times;</button>
+      <h2 id="bmNotaTitulo">Marcar ação</h2>
+      <div class="mCnpj" id="bmNotaAcao"></div>
+    </div>
+    <div class="mBody">
+      <div class="field"><label for="bmNotaTexto">Nota (opcional)</label><textarea id="bmNotaTexto" maxlength="500" rows="3"></textarea></div>
+      <button type="button" class="btn" id="bmNotaSalvar">Salvar</button>
     </div>
   </div>
 </div>
@@ -2273,6 +2315,8 @@ function enterApp(){
     document.getElementById('tabBtnFechamento').style.display = canSeeFechamento() ? 'inline-block' : 'none';
     // 02/10/2026 (seção 68): Mesa do Supervisor — só admin/supervisor
     mesaAplicarPermissao();
+    // 08/10/2026 (seção 76): Boletim da Manhã — só admin/supervisor
+    bmAplicarPermissao();
     // 06/10/2026 (seção 72): Caderno + Agenda + Objeções — botão do Caderno, rascunho, biblioteca e alertas
     cadernoAoEntrar();
     document.getElementById('btnConversaoSync').style.display = canSyncConversao() ? 'inline-block' : 'none';
@@ -2294,6 +2338,8 @@ function enterApp(){
     // mesmo clique que o consultor daria manualmente na aba, então já ativa a aba certa e carrega os
     // dados (ver listener de #tabsNav abaixo).
     document.querySelector('#tabsNav button[data-tab="producao"]').click();
+    // seção 76: quem está em config.boletim.abre_sozinho vai direto para o boletim no 1º acesso do dia (a partir das 10h)
+    bmAoEntrar().catch(err => console.error(err));
   }catch(e){
     ApexMotion.loader.hide(); // erro no meio da entrada não pode deixar a tela coberta
     throw e;
@@ -2516,6 +2562,7 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
   if(btn.dataset.tab === 'fechamento') loadFechamento();
   if(btn.dataset.tab === 'config') carregarEmailConfigStatus();
   if(btn.dataset.tab === 'mesa') loadMesa(true);
+  if(btn.dataset.tab === 'boletim') bmGarantirDoDia().catch(err => { console.error(err); bmStatus('Não foi possível montar o boletim agora.'); });
   if(btn.dataset.tab === 'agenda') loadAgenda();
   if(btn.dataset.tab === 'anotacoes') loadAnotacoes();
 });
@@ -11240,6 +11287,7 @@ async function loadMesa(forcar){
   document.getElementById('mesaStatus').textContent = 'Atualizado às ' + new Date(agora - 3 * 3600000).toISOString().slice(11, 16);
   mesaRender();
   mesaCarregarRetObj(hoje); // §72 — não bloqueia o resto
+  bmPlanoCarregar().catch(err => console.error(err)); // §76 — card "Plano do dia", também isolado
   clearInterval(mesaEstado.timer);
   mesaEstado.timer = setInterval(() => {
     const ativo = document.getElementById('panel-mesa').classList.contains('active');
@@ -11682,6 +11730,516 @@ function bmResultadoAnterior(ant){
     semMarcacao: acoes.filter(a => a.status === 'aberta' && !a.resolvida_em).map(a => ({ ordem: a.ordem, quem: a.quem, o_que: a.o_que })),
   };
 }
+
+// Retrato do dia (função pura): semáforo, manchete, plano, resultado anterior, saúde dos dados. Devolve também as ações a gravar.
+function bmMontar(d, ctx){
+  const per = ctx.periodo, cfg = ctx.cfg, q = Number(cfg.queda_alerta) || 0, hoje = ctx.hoje, ym = hoje.slice(0, 7);
+  const refDias = bmDiasUteisAntes(per.de, 20), noPer = new Set(per.dias), noRef = new Set(refDias);
+  const somaVendas = (dias, f) => d.vendas ? dias.reduce((s, dia) => s + (d.vendas[dia] ? Number(f(d.vendas[dia])) || 0 : 0), 0) : null;
+  const vendasValor = somaVendas(per.dias, v => v.valor), vendasContratos = somaVendas(per.dias, v => v.contratos);
+  const vendasRef = d.vendas ? somaVendas(refDias, v => v.valor) / refDias.length : null;
+  const metaTotal = (d.metas || []).reduce((s, m) => s + (Number(m.meta_receita) || 0), 0);
+  const placar = d.linhas ? ppPlacar(d.linhas, ym, per.ate, metaTotal) : null;
+  const pctMes = placar && placar.diasUteisMes ? placar.diasUteisDecorridos / placar.diasUteisMes : 0;
+  const ritmo = placar && metaTotal > 0 && pctMes > 0 ? (placar.receita / metaTotal) / pctMes : null;
+  const fila = d.pedidos ? ppResumoFila(d.pedidos, hoje) : null;
+  const esteira = fila ? ppR2(fila.lista.filter(p => p.nivel === 'medio' || p.nivel === 'maximo').reduce((s, p) => s + p.valor, 0)) : null;
+  const antEsteira = d.anterior && d.anterior.retrato && (d.anterior.retrato.semaforo || []).find(s => s.chave === 'esteira');
+  const somaPerdas = set => d.perdas ? ppR2(d.perdas.filter(x => set.has(leadDateSP(x.perdido_em))).reduce((s, x) => s + (Number(x.valor) || 0), 0)) : null;
+  const leadsDe = set => (d.leads || []).filter(l => set.has(mesaDiaSP(l.criado_em_lead)));
+  const sinal = (chave, rotulo, valor, ref, sentido, fmt) => ({ chave, rotulo, valor: valor === null || valor === undefined ? null : ppR2(valor),
+    ref: ref === null || ref === undefined ? null : ppR2(ref), sentido, fmt, cor: bmCor(valor, ref, sentido, q) });
+  const semaforo = [
+    sinal('vendas', 'Vendas do período', vendasValor, vendasRef, 'maior', 'brl'),
+    sinal('ritmo', 'Ritmo da meta', ritmo, ritmo === null ? null : 1, 'maior', 'pct'),
+    sinal('esteira', 'Esteira parada (6+ dias úteis)', esteira, antEsteira && typeof antEsteira.valor === 'number' ? antEsteira.valor : null, 'menor', 'brl'),
+    sinal('perdas', 'Perdas do período', somaPerdas(noPer), d.perdas ? somaPerdas(noRef) / refDias.length : null, 'menor', 'brl'),
+    sinal('velocidade', 'Leads atendidos no prazo', d.leads ? mesaNoPrazo(leadsDe(noPer), ctx.agoraMs, ctx.vlcfg) : null, d.leads ? mesaNoPrazo(leadsDe(noRef), ctx.agoraMs, ctx.vlcfg) : null, 'maior', 'pct'),
+    sinal('ligacoes', 'Ligações manuais', d.ligPeriodo, d.ligJanela === null || d.ligJanela === undefined ? null : d.ligJanela / refDias.length, 'maior', 'n'),
+  ];
+  const acoes = bmAcoes(d, ctx);
+  const rotulo = bmRotuloPeriodo(per);
+  const manchete = bmManchete({ rotulo, contratos: vendasContratos || 0, valor: vendasValor || 0, refValor: vendasRef, mes: ym, receita: placar ? placar.receita : 0,
+    meta: metaTotal, pctMes, previsao: placar ? placar.previsao : null, acao1: acoes[0] && acoes[0].valor > 0 ? acoes[0] : null });
+  // pendências de cadastro: quem tem pedido aberto sem vínculo perfil × NeoCRM; quem tem vínculo e não tem meta no mês
+  const vinculados = new Set((d.vinculos || []).map(v => Number(v.neo_usuario_id)));
+  const semVinculo = [...new Set((d.linhas || []).filter(r => ppEtapaAberta(r.etapa) && r.usuario_id != null && !vinculados.has(Number(r.usuario_id))).map(r => r.usuario).filter(Boolean))].sort();
+  const comMeta = new Set((d.metas || []).filter(m => Number(m.meta_receita) > 0).map(m => m.profile_id)), nomes = bmNomes(d);
+  const semMeta = (d.vinculos || []).filter(v => !comMeta.has(v.profile_id)).map(v => nomes.doPerfil(v.profile_id)).sort();
+  const ultimaEntradaLead = (d.leads || []).reduce((m, l) => { const t = vlMs(l.primeira_sync_em); return t !== null && (m === null || t > m) ? t : m; }, null);
+  const retrato = {
+    versao: BM_VERSAO, dia: hoje, periodo: { de: per.de, ate: per.ate, dias: per.dias }, edicao: per.edicao, rotulo,
+    gerado_em: new Date(ctx.agoraMs).toISOString(), gerado_por_nome: ctx.nome || '', cfg,
+    manchete, semaforo,
+    plano: acoes.map(a => ({ ordem: a.ordem, regra: a.regra, chave: a.chave, quem: a.quem, o_que: a.o_que, valor: a.valor, prazo: a.prazo, dias_seguidos: a.dias_seguidos })),
+    resultado_anterior: bmResultadoAnterior(d.anterior),
+    blocos: {},
+    saude: Object.assign({}, d.saude || {}, { leadsUltima: ultimaEntradaLead === null ? null : new Date(ultimaEntradaLead).toISOString(),
+      semSync: !!ctx.semSync, falhas: d.falhas || [], semVinculo, semMeta }),
+    limites: BM_LIMITES,
+  };
+  return { retrato, acoes };
+}
+
+/* ---- Boletim: dados, geração do dia (regra das 10h), tela, card da Mesa e PDF ---- */
+const bmEstado = { geracao: 0, cfg: bmCfg(null), atual: null, timer: null, verTodas: false, plano: null, marcando: null, avisadoDia: '', abriuSessao: false, relogio: null };
+function bmAgora(){ return Date.now(); }
+function canSeeBoletim(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
+function bmHoraSP(v){ const ms = vlMs(v); return ms === null ? '' : new Date(ms - 3 * 3600000).toISOString().slice(11, 16); }
+function bmDiaHoraSP(v){ const ms = vlMs(v); if(ms === null) return '—'; const s = new Date(ms - 3 * 3600000).toISOString(); return s.slice(8, 10) + '/' + s.slice(5, 7) + ' ' + s.slice(11, 16); }
+function bmRotuloDia(dia){ return BM_DIAS_CURTOS[bmDiaSemana(dia)] + ', ' + bmDdMm(dia); }
+
+// Costura com o dashboard: a conta da Visão Diária mora no iframe (resumoDiaria, fonte única). Os testes trocam esta função.
+async function bmObterResumoDiaria(){
+  const frame = document.getElementById('producaoFrame');
+  const pega = () => { try{ const w = frame && frame.contentWindow; return w && typeof w.resumoDiaria === 'function' ? w.resumoDiaria : null; }catch(e){ return null; } };
+  if(pega()) return pega();
+  if(frame && !frame.srcdoc) await loadProducaoDashboard();
+  for(let i = 0; i < 150 && !pega(); i++) await new Promise(r => setTimeout(r, 200));
+  return pega();
+}
+
+// Busca tudo o que o boletim usa. Cada fonte falha sozinha (ppSeguro): o que falhar vira null e o sinal fica "sem base".
+async function bmCarregar(ctx){
+  const hoje = ctx.hoje, per = ctx.periodo, ym = hoje.slice(0, 7);
+  const refDias = bmDiasUteisAntes(per.de, 20), desde = refDias[refDias.length - 1];
+  const ultimoOk = tabela => ppSeguro(() => sb.from(tabela).select('terminou_em').eq('ok', true).not('terminou_em', 'is', null).order('terminou_em', { ascending: false }).limit(1).maybeSingle());
+  const fontes = {
+    linhas: ppSeguro(() => fetchAllRows(() => sb.rpc('boletim_pedidos'))),
+    anterior: ppSeguro(() => sb.rpc('boletim_obter', { p_dia: null, p_antes: hoje })),
+    equipe: ppSeguro(() => sb.rpc('equipe_vendedores')),
+    metas: ppSeguro(() => sb.from('metas_consultor').select('profile_id,meta_receita').eq('mes', ym + '-01')),
+    vinculos: ppSeguro(() => sb.from('consultor_neo').select('profile_id,neo_usuario_id')),
+    perfis: ppSeguro(() => sb.from('profiles').select('id,nome')),
+    perdas: ppSeguro(() => fetchAllRows(() => sb.rpc('vendas_perdidas', { p_de: desde, p_ate: per.ate }))),
+    leads: ppSeguro(() => fetchAllRows(() => sb.rpc('mesa_leads_relogio', { p_desde: desde + 'T00:00:00-03:00' }))),
+    receita: ppSeguro(() => fetchAllRows(() => sb.from('leads').select('id,receita,aba').gte('criado_em_lead', somaDiasStr(hoje, -30) + 'T00:00:00-03:00').order('id'))),
+    ligPeriodo: ppSeguro(() => sb.rpc('monitor_ligacoes_por_usuario', { p_ref: hoje, p_de: per.de, p_ate: per.ate })),
+    ligJanela: ppSeguro(() => sb.rpc('monitor_ligacoes_por_usuario', { p_ref: hoje, p_de: desde, p_ate: somaDiasStr(per.de, -1) })),
+    agenda: ppSeguro(() => fetchAllRows(() => sb.from('agenda_retornos').select('id,consultor_id,quando,status').eq('status', 'pendente').lt('quando', hoje + 'T00:00:00-03:00').order('id'))),
+    followups: ppSeguro(() => fetchAllRows(() => sb.from('leads_followups').select('id,consultor_id,data_prevista,feito').eq('feito', false).lt('data_prevista', hoje).order('id'))),
+    syncProducao: ultimoOk('producao_sync_log'), syncLigacoes: ultimoOk('ligacoes_sync_log'), syncExportacao: ultimoOk('exportacao_sync_log'),
+    leadsErro: ppSeguro(() => sb.from('config').select('chave,valor').eq('chave', 'leads_sync_erro').maybeSingle()),
+  };
+  const nomes = Object.keys(fontes), res = {};
+  (await Promise.all(nomes.map(k => fontes[k]))).forEach((r, i) => { res[nomes[i]] = r; });
+  const ok = k => res[k] && !res[k].error;
+  const dados = k => ok(k) ? (res[k].data || []) : null;
+  const falhas = nomes.filter(k => !ok(k));
+  falhas.forEach(k => console.error('Boletim: falha em ' + k, res[k] && res[k].error));
+  const anterior = ok('anterior') ? (res.anterior.data || null) : null;
+  let vendas = null;
+  try{
+    const fn = await bmObterResumoDiaria();
+    if(fn){
+      const dias = new Set(refDias.concat(per.dias, bmDiasUteisAte(per.ate, 20)));
+      if(anterior && anterior.dia) dias.add(anterior.dia);
+      vendas = {};
+      dias.forEach(dia => {
+        const r = fn(dia);
+        vendas[dia] = { contratos: r.contratos, valor: ppR2(r.valor), linhas: r.linhas,
+          porConsultor: (r.porConsultor || []).map(x => ({ key: x.key, contratos: x.contratos, valor: ppR2(x.valor) })),
+          porContrato: (r.porContrato || []).slice(0, 3).map(x => ({ chave: x.chave, numero: x.numero, usuario: x.usuario, valor: ppR2(x.valor) })) };
+      });
+    }else falhas.push('vendas');
+  }catch(err){ console.error('Boletim: resumoDiaria', err); vendas = null; falhas.push('vendas'); }
+  const linhas = ok('linhas') ? filtrarProducaoPedidos(res.linhas.data || []) : null;
+  const receita = dados('receita');
+  const leadsMes = receita ? receita.filter(l => l.aba !== 'REPIQUE') : [];
+  const somaLig = k => ok(k) ? (res[k].data || []).reduce((s, x) => s + (Number(x.total) || 0), 0) : null;
+  const termino = k => ok(k) && res[k].data ? res[k].data.terminou_em || null : null;
+  return {
+    linhas, pedidos: linhas ? ppAgruparPedidos(linhas) : null, vendas, anterior,
+    equipe: ok('equipe') ? filtrarProducaoEquipe((res.equipe.data || []).map(x => typeof x === 'string' ? x : (x && x.equipe_vendedores)).filter(Boolean)) : [],
+    metas: dados('metas') || [], vinculos: dados('vinculos') || [],
+    perfis: Object.fromEntries((dados('perfis') || []).map(p => [p.id, p.nome])),
+    perdas: ok('perdas') ? filtrarProducaoPedidos(res.perdas.data || []) : null,
+    leads: dados('leads'),
+    receitaPorLead: leadsMes.length ? leadsMes.reduce((s, l) => s + (Number(l.receita) || 0), 0) / leadsMes.length : 0,
+    ligPeriodo: somaLig('ligPeriodo'), ligJanela: somaLig('ligJanela'),
+    retornos: { agenda: dados('agenda') || [], followups: dados('followups') || [] },
+    saude: { producao: termino('syncProducao'), ligacoes: termino('syncLigacoes'), exportacao: termino('syncExportacao'),
+      leadsErro: ok('leadsErro') && res.leadsErro.data ? String(res.leadsErro.data.valor || '') : '' },
+    falhas,
+  };
+}
+
+// Gera o boletim de hoje: carrega, confere o plano anterior, monta e grava ("primeiro ganha": se outra pessoa gravou antes, vale o dela).
+async function bmGerar(ctx){
+  const d = await bmCarregar(ctx);
+  if(d.anterior && Array.isArray(d.anterior.acoes) && d.anterior.acoes.length && d.pedidos){
+    const itens = bmConferir(d.anterior.acoes.map(a => Object.assign({ dia: d.anterior.dia }, a)), d, ctx);
+    if(itens.length){
+      const r = await ppSeguro(() => sb.rpc('boletim_resolver_acoes', { p_itens: itens }));
+      if(r && !r.error){
+        const quando = new Date(ctx.agoraMs).toISOString();
+        itens.forEach(it => { const a = d.anterior.acoes.find(x => x.id === it.id); if(a && !a.resolvida_em) Object.assign(a, { resolvida_em: quando, desfecho: it.desfecho, valor_recuperado: it.valor_recuperado }); });
+      }
+    }
+  }
+  const m = bmMontar(d, ctx);
+  const g = await ppSeguro(() => sb.rpc('boletim_gravar', { p_dia: ctx.hoje, p_de: ctx.periodo.de, p_ate: ctx.periodo.ate, p_retrato: m.retrato, p_acoes: m.acoes }));
+  if(g && !g.error && g.data) return { boletim: g.data, gravado: true };
+  console.error('Boletim: não gravou', g && g.error);
+  // sem gravar: mostra o que foi montado (sem os botões de marcar), avisando
+  return { boletim: { dia: ctx.hoje, periodo_de: ctx.periodo.de, periodo_ate: ctx.periodo.ate, gerado_em: m.retrato.gerado_em, gerado_por_nome: ctx.nome || '',
+    retrato: m.retrato, acoes: m.acoes.map(a => Object.assign({ status: 'aberta' }, a)) }, gravado: false };
+}
+
+function bmStatus(txt){ const el = document.getElementById('bmAviso'); if(el) el.textContent = txt || ''; }
+function bmPainelAtivo(){ const p = document.getElementById('panel-boletim'); return !!p && p.classList.contains('active'); }
+function bmAgendar(ms){
+  clearTimeout(bmEstado.timer);
+  bmEstado.timer = setTimeout(() => { if(bmPainelAtivo() && canSeeBoletim()) bmGarantirDoDia().catch(err => console.error(err)); }, ms);
+}
+// Regra das 10h (spec 6.2): só em dia útil, a partir de config.boletim.hora; espera a sincronização das 9h59 até 10:15.
+async function bmGarantirDoDia(){
+  if(!canSeeBoletim()) return;
+  const ger = ++bmEstado.geracao;
+  clearTimeout(bmEstado.timer);
+  const agora = bmAgora(), partes = vlPartesSP(agora), hoje = partes.dia;
+  bmStatus('Carregando…');
+  const [cfgRes, hojeRes] = await Promise.all([
+    ppSeguro(() => sb.from('config').select('chave,valor').eq('chave', 'boletim').maybeSingle()),
+    ppSeguro(() => sb.rpc('boletim_obter', { p_dia: hoje, p_antes: null })),
+  ]);
+  if(ger !== bmEstado.geracao || !canSeeBoletim()) return;
+  const cfg = bmEstado.cfg = bmCfg(cfgRes && !cfgRes.error && cfgRes.data ? cfgRes.data.valor : null);
+  bmCarregarLista();
+  if(hojeRes && hojeRes.error){ bmStatus('Não foi possível carregar o boletim agora.'); return; }
+  if(hojeRes && hojeRes.data){ bmMostrar(hojeRes.data, ''); return; }
+  const per = bmPeriodo(hoje), hora = vlHoraMin(cfg.hora) || 600;
+  const mostrarUltimo = async (aviso) => {
+    const u = await ppSeguro(() => sb.rpc('boletim_obter', { p_dia: null, p_antes: null }));
+    if(ger !== bmEstado.geracao) return;
+    if(u && !u.error && u.data) bmMostrar(u.data, aviso);
+    else { bmEstado.atual = null; document.getElementById('bmConteudo').innerHTML = ''; bmStatus(aviso); bmAtualizarCabecalho(null); }
+  };
+  if(!per.diaUtil) return mostrarUltimo('Hoje não tem boletim: não é dia útil.');
+  if(partes.min < hora){ bmAgendar(Math.max(60000, (hora - partes.min) * 60000)); return mostrarUltimo('O boletim de hoje sai às ' + cfg.hora + '.'); }
+  // espera a sincronização da produção das 9h59 (última ok depois de hora − 5 min), no máximo até hora + 15 min
+  const sync = await ppSeguro(() => sb.from('producao_sync_log').select('terminou_em').eq('ok', true).not('terminou_em', 'is', null).order('terminou_em', { ascending: false }).limit(1).maybeSingle());
+  if(ger !== bmEstado.geracao) return;
+  const fimSync = sync && !sync.error && sync.data ? vlMs(sync.data.terminou_em) : null;
+  const corte = Date.parse(hoje + 'T00:00:00-03:00') + (hora - 5) * 60000;
+  const syncOk = fimSync !== null && fimSync >= corte;
+  if(!syncOk && partes.min < hora + 15){
+    bmAgendar(60000);
+    return mostrarUltimo('Aguardando a sincronização das ' + String(Math.floor((hora - 1) / 60)).padStart(2, '0') + 'h' + String((hora - 1) % 60).padStart(2, '0') + ' — tento de novo em 1 minuto.');
+  }
+  bmStatus('Montando o boletim de hoje…');
+  const r = await bmGerar({ hoje, agoraMs: agora, cfg, vlcfg: vlCfg(await bmCfgVelocidade()), periodo: per, semSync: !syncOk, nome: currentUser.nome });
+  if(ger !== bmEstado.geracao || !canSeeBoletim()) return;
+  bmMostrar(r.boletim, r.gravado ? '' : 'Não foi possível guardar o boletim agora — o que está na tela não foi salvo. Tente abrir de novo em alguns minutos.');
+  bmCarregarLista();
+  bmPlanoCarregar();
+}
+async function bmCfgVelocidade(){
+  const r = await ppSeguro(() => sb.from('config').select('chave,valor').eq('chave', 'velocidade_lead').maybeSingle());
+  return r && !r.error && r.data ? r.data.valor : null;
+}
+async function bmCarregarLista(){
+  const r = await ppSeguro(() => sb.from('boletim_retratos').select('dia,periodo_de,periodo_ate').order('dia', { ascending: false }).limit(260));
+  const sel = document.getElementById('bmSeletor');
+  if(!sel || !r || r.error || !Array.isArray(r.data)) return;
+  const atual = bmEstado.atual ? bmEstado.atual.dia : '';
+  sel.innerHTML = r.data.map(x => `<option value="${escapeHtml(x.dia)}"${x.dia === atual ? ' selected' : ''}>${escapeHtml(bmRotuloDia(x.dia) + '/' + x.dia.slice(0, 4))}</option>`).join('');
+}
+function bmAtualizarCabecalho(b){
+  document.getElementById('bmTitulo').textContent = b ? 'Boletim da Manhã — ' + bmRotuloDia(b.dia) : 'Boletim da Manhã';
+  const r = b && b.retrato;
+  document.getElementById('bmSubtitulo').textContent = r ? (r.rotulo || '') + (b.gerado_em ? ' · gerado às ' + bmHoraSP(b.gerado_em) + (b.gerado_por_nome ? ' por ' + b.gerado_por_nome : '') : '') : '';
+  document.getElementById('btnBmPdf').disabled = !b;
+}
+function bmMostrar(b, aviso){
+  bmEstado.atual = b;
+  bmEstado.verTodas = false;
+  bmAtualizarCabecalho(b);
+  bmStatus(aviso || '');
+  document.getElementById('bmConteudo').innerHTML = bmTelaHtml(b, false);
+  const sel = document.getElementById('bmSeletor');
+  if(sel && b && [...sel.options].some(o => o.value === b.dia)) sel.value = b.dia;
+}
+
+// ---- Tela (desenha só a partir do retrato + ações guardadas) ----
+const BM_COR = { verde: 'var(--st-ganho)', amarelo: 'var(--st-andamento)', vermelho: 'var(--st-perdido)', cinza: 'var(--st-neutro)' };
+const BM_COR_ROTULO = { verde: 'bom', amarelo: 'atenção', vermelho: 'agir', cinza: 'sem base' };
+function bmFmtValor(v, fmt){
+  if(v === null || v === undefined) return '—';
+  if(fmt === 'brl') return fmtBRL(v);
+  if(fmt === 'pct') return bmPct(v);
+  return (Math.round(v * 10) / 10).toLocaleString('pt-BR');
+}
+function bmSeta(s){ if(s.valor === null || s.ref === null) return ''; return s.valor > s.ref ? '↑' : (s.valor < s.ref ? '↓' : '='); }
+function bmSituacao(a){
+  if(a.status === 'feita') return ['retornoBadge futuro', 'Feito'];
+  if(a.status === 'nao_deu') return ['retornoBadge atrasado', 'Não deu'];
+  if(a.resolvida_em) return ['retornoBadge futuro', 'Resolvida'];
+  return ['badge', 'Aberta'];
+}
+function bmTelaHtml(b, verTodas){
+  if(!b) return '';
+  const r = b.retrato || {}, acoes = b.acoes || [], n1 = Number((r.cfg || {}).max_acoes_pagina1) || 8;
+  const bloco = (titulo, corpo) => `<div class="card"><h3>${escapeHtml(titulo)}</h3>${corpo}</div>`;
+  const naoDisp = '<p class="ppVazio">Não disponível nesta edição.</p>';
+  const manchete = (r.manchete || []).length ? (r.manchete || []).map((f, i) => `<p style="margin:${i ? '8px' : '0'} 0 0;${i === 0 ? 'font-size:1.1em;font-weight:700' : ''}">${escapeHtml(f)}</p>`).join('') : naoDisp;
+  const semaforo = (r.semaforo || []).length ? '<div class="kpiGrid">' + r.semaforo.map(s => `<div class="kpiCard" data-bm-sinal="${escapeHtml(s.chave)}" data-cor="${escapeHtml(s.cor)}">
+      <div class="kpiLabel"><span aria-hidden="true" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${BM_COR[s.cor] || BM_COR.cinza};margin-right:6px"></span>${escapeHtml(s.rotulo)}</div>
+      <div class="kpiValue">${escapeHtml(bmFmtValor(s.valor, s.fmt))} <span style="font-size:.6em">${bmSeta(s)}</span></div>
+      <div class="kpiSub">${escapeHtml(s.ref === null || s.ref === undefined ? 'sem base' : 'referência ' + bmFmtValor(s.ref, s.fmt))} · ${escapeHtml(BM_COR_ROTULO[s.cor] || '')}</div></div>`).join('') + '</div>' : naoDisp;
+  const linha = a => {
+    const x = a.extra || {}, sit = bmSituacao(a);
+    const cli = x.cliente ? `<div class="retornoLeadSub">${escapeHtml(x.cliente)}${x.cnpj ? ' · ' + escapeHtml(x.cnpj) : ''}</div>` : '';
+    const msg = x.msg ? `<div class="retornoLeadSub">Mensagem: ${escapeHtml(x.msg)}</div>` : '';
+    return `<tr data-bm-acao="${escapeHtml(String(a.id || a.ordem))}"><td>${a.ordem}</td><td>${escapeHtml(a.quem)}</td><td>${escapeHtml(a.o_que)}${a.dias_seguidos > 1 ? ` <span class="badge">${a.dias_seguidos}º dia</span>` : ''}${cli}${msg}</td>
+      <td>${a.valor > 0 ? escapeHtml(fmtBRL(a.valor)) : '—'}</td><td>${escapeHtml(a.prazo)}</td><td><span class="${sit[0]}">${sit[1]}</span></td></tr>`;
+  };
+  const visiveis = verTodas ? acoes : acoes.slice(0, n1);
+  const plano = acoes.length
+    ? `<p class="desc">Marque "Feito" ou "Não deu" no card "Plano do dia" da Mesa do Supervisor.</p><div class="mlTabelaWrap"><table class="tbl"><thead><tr><th>#</th><th>Quem</th><th>O que fazer</th><th>R$ em jogo</th><th>Prazo</th><th>Situação</th></tr></thead><tbody>${visiveis.map(linha).join('')}</tbody></table></div>`
+      + (acoes.length > n1 ? `<button type="button" class="btn btn-sm btn-outline" id="btnBmVerTodas" style="width:auto;margin-top:10px">${verTodas ? 'Ver só as ' + n1 + ' primeiras' : 'Ver todas (' + acoes.length + ')'}</button>` : '')
+    : '<p class="ppVazio">Nenhuma ação para hoje.</p>';
+  const ra = r.resultado_anterior;
+  const resultado = ra ? `<p style="margin:0">${escapeHtml(ra.frase)}</p>`
+      + (ra.naoDeu.length ? '<h4>Não deu</h4><ul>' + ra.naoDeu.map(x => `<li>${escapeHtml(x.o_que)} — ${escapeHtml(x.quem)}${x.nota ? ': <i>' + escapeHtml(x.nota) + '</i>' : ''}</li>`).join('') + '</ul>' : '')
+      + (ra.semMarcacao.length ? '<h4>Sem marcação</h4><ul>' + ra.semMarcacao.map(x => `<li>${escapeHtml(x.o_que)} — ${escapeHtml(x.quem)}</li>`).join('') + '</ul>' : '')
+    : '<p class="ppVazio">Primeiro boletim: ainda não há plano anterior.</p>';
+  const sd = r.saude || {};
+  const quando = v => v ? bmDiaHoraSP(v) : 'sem registro';
+  const saude = `<ul>
+      <li>Produção (NeoCRM): última sincronização ok em ${escapeHtml(quando(sd.producao))}${sd.semSync ? ' — <b>gerado sem a sincronização das 9h59</b>' : ''}</li>
+      <li>Leads: última entrada em ${escapeHtml(quando(sd.leadsUltima))}${sd.leadsErro ? ' — <b>erro na sincronização: ' + escapeHtml(sd.leadsErro) + '</b>' : ''}</li>
+      <li>Ligações: última sincronização ok em ${escapeHtml(quando(sd.ligacoes))}</li>
+      <li>Exportação Xeotech (perdas): última sincronização ok em ${escapeHtml(quando(sd.exportacao))}</li>
+      ${(sd.falhas || []).length ? `<li><b>Não carregou: ${escapeHtml(sd.falhas.join(', '))}</b> — os sinais dessas fontes ficam "sem base".</li>` : ''}
+      ${(sd.semVinculo || []).length ? `<li>Sem vínculo perfil × NeoCRM: ${escapeHtml(sd.semVinculo.join(', '))}</li>` : ''}
+      ${(sd.semMeta || []).length ? `<li>Sem meta no mês: ${escapeHtml(sd.semMeta.join(', '))}</li>` : ''}
+    </ul><h4>Limites dos dados</h4><ul>${(r.limites || []).map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul>`;
+  return bloco('Manchete', manchete) + bloco('Semáforo', semaforo) + bloco('Plano do dia', plano) + bloco('Resultado do plano anterior', resultado) + bloco('Saúde dos dados', saude);
+}
+
+// ---- Card "Plano do dia" na Mesa (marcar Feito / Não deu, com nota; desfazer) ----
+async function bmPlanoCarregar(){
+  const card = document.getElementById('bmPlanoCard');
+  if(!canSeeBoletim()){ card.style.display = 'none'; return; }
+  card.style.display = '';
+  const r = await ppSeguro(() => sb.rpc('boletim_obter', { p_dia: null, p_antes: null }));
+  if(!canSeeBoletim()) return;
+  if(!r || r.error){ document.getElementById('bmPlanoLista').innerHTML = '<p class="ppVazio">Não foi possível carregar o plano agora.</p>'; return; }
+  bmEstado.plano = r.data || null;
+  bmPlanoRender();
+}
+function bmPlanoRender(){
+  const b = bmEstado.plano, agora = vlPartesSP(bmAgora()), hoje = agora.dia;
+  const hora = vlHoraMin(bmEstado.cfg.hora) || 600;
+  const titulo = document.getElementById('bmPlanoTitulo'), resumo = document.getElementById('bmPlanoResumo'), lista = document.getElementById('bmPlanoLista');
+  document.getElementById('btnBmAbrir').style.display = (!b || b.dia !== hoje) && ppDiaUtil(hoje) && agora.min >= hora ? '' : 'none';
+  if(!b){ titulo.textContent = 'Plano do dia'; resumo.textContent = 'Ainda não há boletim.'; lista.innerHTML = ''; return; }
+  titulo.textContent = b.dia === hoje ? 'Plano de hoje' : 'Plano de ' + bmRotuloDia(b.dia) + (ppDiaUtil(hoje) && agora.min < hora ? ' — o de hoje sai às ' + bmEstado.cfg.hora : '');
+  const acoes = b.acoes || [];
+  const feitas = acoes.filter(a => a.status === 'feita').length, naoDeu = acoes.filter(a => a.status === 'nao_deu').length;
+  resumo.textContent = acoes.length ? acoes.length + ' ações · ' + feitas + ' feitas · ' + naoDeu + ' não deu' : 'Nenhuma ação neste plano.';
+  lista.innerHTML = acoes.map(a => {
+    const sit = bmSituacao(a);
+    const marcado = a.status !== 'aberta'
+      ? `<span class="retornoLeadSub">${a.status === 'feita' ? 'Feito' : 'Não deu'} por ${escapeHtml(a.marcado_por_nome || '—')}${a.marcado_em ? ' às ' + escapeHtml(bmHoraSP(a.marcado_em)) : ''}${a.nota ? ' — ' + escapeHtml(a.nota) : ''}</span>
+         <button type="button" class="btn btn-sm btn-outline" data-bm-desfazer="${a.id}" style="width:auto">Desfazer</button>`
+      : `<button type="button" class="btn btn-sm" data-bm-marcar="${a.id}" data-status="feita" style="width:auto">Feito</button>
+         <button type="button" class="btn btn-sm btn-outline" data-bm-marcar="${a.id}" data-status="nao_deu" style="width:auto">Não deu</button>`;
+    return `<div class="retornoLeadRow" data-bm-linha="${a.id}">
+      <div class="retornoLeadInfo"><strong>${a.ordem}. ${escapeHtml(a.quem)}</strong>
+        <span class="retornoLeadSub">${escapeHtml(a.o_que)}${a.valor > 0 ? ' · ' + escapeHtml(fmtBRL(a.valor)) : ''} · ${escapeHtml(a.prazo)}${a.dias_seguidos > 1 ? ' · ' + a.dias_seguidos + 'º dia' : ''}</span></div>
+      <div class="retornoLeadAcoes">${a.resolvida_em ? '<span class="retornoBadge futuro">resolvida</span>' : ''}<span class="${sit[0]}">${sit[1]}</span>${marcado}</div></div>`;
+  }).join('');
+}
+// Grava a marcação. Otimista: a linha muda na hora; se o banco recusar, volta e avisa.
+async function bmMarcar(id, status, nota){
+  const b = bmEstado.plano, a = b && (b.acoes || []).find(x => x.id === id);
+  if(!a) return false;
+  const antes = { status: a.status, nota: a.nota, marcado_por_nome: a.marcado_por_nome, marcado_em: a.marcado_em };
+  Object.assign(a, status === 'aberta' ? { status, nota: null, marcado_por_nome: null, marcado_em: null }
+    : { status, nota: String(nota || '').trim() || null, marcado_por_nome: currentUser.nome, marcado_em: new Date(bmAgora()).toISOString() });
+  bmPlanoRender();
+  const r = await ppSeguro(() => sb.rpc('boletim_marcar_acao', { p_id: id, p_status: status, p_nota: status === 'aberta' ? null : (String(nota || '').trim() || null) }));
+  if(!r || r.error){
+    Object.assign(a, antes);
+    bmPlanoRender();
+    mostrarAviso('Não foi possível salvar — tente de novo', 'erro');
+    return false;
+  }
+  if(bmEstado.atual && bmEstado.atual.dia === b.dia){
+    const t = (bmEstado.atual.acoes || []).find(x => x.id === id);
+    if(t) Object.assign(t, { status: a.status, nota: a.nota, marcado_por_nome: a.marcado_por_nome, marcado_em: a.marcado_em });
+  }
+  return true;
+}
+function bmAbrirNota(id, status){
+  const a = bmEstado.plano && (bmEstado.plano.acoes || []).find(x => x.id === id);
+  if(!a) return;
+  bmEstado.marcando = { id, status };
+  document.getElementById('bmNotaTitulo').textContent = status === 'feita' ? 'Marcar como feito' : 'Marcar como "não deu"';
+  document.getElementById('bmNotaAcao').textContent = a.ordem + '. ' + a.o_que;
+  document.getElementById('bmNotaTexto').value = '';
+  document.getElementById('bmNotaOverlay').classList.add('active');
+}
+
+// ---- PDF (jsPDF): página 1 + anexo das ações. Sem nome de cliente e sem CNPJ: pedido pelo número e consultor. ----
+// Cores literais de propósito (gerador de documento externo, mesma exceção dos outros PDFs).
+function bmPdfTexto(s){
+  return String(s == null ? '' : s).replace(/[  ]/g, ' ').replace(/[–—]/g, '-').replace(/[“”]/g, '"').replace(/[‘’]/g, "'")
+    .replace(/…/g, '...').replace(/↑/g, '(sobe)').replace(/↓/g, '(desce)').replace(/[^\x00-\xff]/g, '');
+}
+function bmPdf(b){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const r = b.retrato || {}, acoes = b.acoes || [], n1 = Number((r.cfg || {}).max_acoes_pagina1) || 8;
+  const W = 210, M = 14, L = W - 2 * M;
+  const T = s => bmPdfTexto(s);
+  const RGB = { verde: [31, 122, 69], amarelo: [180, 83, 9], vermelho: [193, 5, 15], cinza: [102, 102, 102] };
+  let y = 18;
+  const quebra = (txt, larg) => doc.splitTextToSize(T(txt), larg);
+  const novaPagina = () => { doc.addPage(); y = 18; };
+  const garante = h => { if(y + h > 280) novaPagina(); };
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(193, 5, 15);
+  doc.text(T('Boletim da Manhã — ' + bmRotuloDia(b.dia) + '/' + b.dia.slice(0, 4)), M, y); y += 6;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(60, 60, 60);
+  doc.text(T(r.rotulo || ''), M, y); y += 8;
+  // manchete
+  doc.setTextColor(20, 20, 20);
+  (r.manchete || []).forEach((f, i) => {
+    doc.setFont('helvetica', i === 0 ? 'bold' : 'normal'); doc.setFontSize(i === 0 ? 12 : 10.5);
+    const ls = quebra(f, L); garante(ls.length * 5); doc.text(ls, M, y); y += ls.length * 5 + 1.5;
+  });
+  // semáforo (6 círculos)
+  y += 3; doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('Semáforo', M, y); y += 4;
+  const col = L / 3;
+  (r.semaforo || []).forEach((s, i) => {
+    const cx = M + (i % 3) * col, cy = y + Math.floor(i / 3) * 16;
+    const c = RGB[s.cor] || RGB.cinza;
+    doc.setFillColor(c[0], c[1], c[2]); doc.circle(cx + 3, cy + 4, 2.6, 'F');
+    doc.setTextColor(20, 20, 20); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+    doc.text(quebra(s.rotulo, col - 10)[0] || '', cx + 8, cy + 3);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+    doc.text(T(bmFmtValor(s.valor, s.fmt) + ' ' + bmSeta(s)), cx + 8, cy + 7.5);
+    doc.setTextColor(102, 102, 102); doc.setFontSize(8);
+    doc.text(T(s.ref === null || s.ref === undefined ? 'sem base' : 'ref. ' + bmFmtValor(s.ref, s.fmt)), cx + 8, cy + 11.5);
+  });
+  y += Math.ceil((r.semaforo || []).length / 3) * 16 + 4;
+  // plano (página 1: as N primeiras)
+  const tabela = (lista, titulo) => {
+    doc.setTextColor(20, 20, 20); doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+    garante(12); doc.text(T(titulo), M, y); y += 5;
+    doc.setFontSize(8.5); doc.text('#', M, y); doc.text('Quem', M + 7, y); doc.text('O que fazer', M + 42, y); doc.text('R$', M + 150, y); doc.text('Prazo', M + 168, y); y += 1.5;
+    doc.setDrawColor(200, 200, 200); doc.line(M, y, W - M, y); y += 4;
+    doc.setFont('helvetica', 'normal');
+    lista.forEach(a => {
+      const oQue = quebra(a.o_que + (a.dias_seguidos > 1 ? ' (' + a.dias_seguidos + 'º dia)' : ''), 104), quem = quebra(a.quem, 33);
+      const h = Math.max(oQue.length, quem.length) * 4 + 1.5;
+      garante(h);
+      doc.text(String(a.ordem), M, y); doc.text(quem, M + 7, y); doc.text(oQue, M + 42, y);
+      doc.text(T(a.valor > 0 ? fmtBRL(a.valor) : '-'), M + 150, y); doc.text(T(a.prazo), M + 168, y);
+      y += h;
+    });
+    if(!lista.length){ doc.text('Nenhuma ação.', M, y); y += 5; }
+  };
+  tabela(acoes.slice(0, n1), 'Plano do dia');
+  // resultado anterior
+  y += 3; garante(14);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('Resultado do plano anterior', M, y); y += 5;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
+  const ra = r.resultado_anterior;
+  const linhasRa = ra ? [ra.frase].concat(ra.naoDeu.map(x => 'Não deu: ' + x.o_que + ' - ' + x.quem + (x.nota ? ' (' + x.nota + ')' : '')), ra.semMarcacao.map(x => 'Sem marcação: ' + x.o_que + ' - ' + x.quem))
+    : ['Primeiro boletim: ainda não há plano anterior.'];
+  linhasRa.forEach(t => { const ls = quebra(t, L); garante(ls.length * 4.5); doc.text(ls, M, y); y += ls.length * 4.5 + 1; });
+  // anexo: as demais ações
+  if(acoes.length > n1){ novaPagina(); tabela(acoes.slice(n1), 'Anexo — demais ações do plano'); }
+  // rodapé em todas as páginas
+  const total = doc.getNumberOfPages(), gerado = bmHoraSP(b.gerado_em);
+  for(let i = 1; i <= total; i++){
+    doc.setPage(i); doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(102, 102, 102);
+    doc.text(T(`Boletim da Manhã — ${bmDdMm(b.dia)}/${b.dia.slice(0, 4)} — página ${i} de ${total} — gerado às ${gerado}`), M, 290);
+  }
+  return doc;
+}
+
+// ---- Permissão, abertura da aba e abertura automática ----
+function bmResetar(){
+  bmEstado.geracao++;
+  clearTimeout(bmEstado.timer); bmEstado.timer = null;
+  Object.assign(bmEstado, { atual: null, plano: null, marcando: null });
+  ['bmConteudo', 'bmPlanoLista', 'bmSeletor'].forEach(id => { document.getElementById(id).innerHTML = ''; });
+  ['bmAviso', 'bmSubtitulo', 'bmPlanoResumo'].forEach(id => { document.getElementById(id).textContent = ''; });
+  document.getElementById('bmPlanoCard').style.display = 'none';
+}
+function bmAplicarPermissao(){
+  const vis = canSeeBoletim();
+  document.getElementById('tabBtnBoletim').style.display = vis ? 'inline-block' : 'none';
+  if(!vis){ bmResetar(); clearInterval(bmEstado.relogio); bmEstado.relogio = null; }
+}
+function bmLerMarca(chave){ try{ return window.localStorage.getItem(chave); }catch(e){ return null; } }
+function bmGravarMarca(chave, valor){ try{ window.localStorage.setItem(chave, valor); return true; }catch(e){ return false; } }
+// Abre sozinho para quem está em config.boletim.abre_sozinho: 1º acesso do dia útil a partir da hora do boletim (uma vez
+// por dia; sem armazenamento no navegador, uma vez por sessão). Quem já está no painel quando dá a hora recebe só um aviso.
+async function bmAoEntrar(){
+  if(!canSeeBoletim()) return;
+  const r = await ppSeguro(() => sb.from('config').select('chave,valor').eq('chave', 'boletim').maybeSingle());
+  if(!canSeeBoletim()) return;
+  bmEstado.cfg = bmCfg(r && !r.error && r.data ? r.data.valor : null);
+  const lista = Array.isArray(bmEstado.cfg.abre_sozinho) ? bmEstado.cfg.abre_sozinho : [];
+  if(lista.indexOf(currentUser.id) < 0) return;
+  bmVerificarHora(true);
+  clearInterval(bmEstado.relogio);
+  bmEstado.relogio = setInterval(() => bmVerificarHora(false), 60000);
+}
+function bmVerificarHora(entrando){
+  if(!canSeeBoletim()) return;
+  const p = vlPartesSP(bmAgora()), hora = vlHoraMin(bmEstado.cfg.hora) || 600;
+  if(!ppDiaUtil(p.dia) || p.min < hora) return;
+  const chave = 'bmAbriu:' + currentUser.id;
+  if(bmLerMarca(chave) === p.dia || bmEstado.avisadoDia === p.dia) return;
+  if(!bmGravarMarca(chave, p.dia) && bmEstado.abriuSessao) return;
+  bmEstado.avisadoDia = p.dia;
+  bmEstado.abriuSessao = true;
+  if(entrando) document.querySelector('#tabsNav button[data-tab="boletim"]').click();
+  else if(!bmPainelAtivo()) mostrarAviso('Boletim da Manhã pronto — abra "Boletim da Manhã" no menu.', 'info');
+}
+
+document.getElementById('bmSeletor').addEventListener('change', async function(){
+  const dia = this.value;
+  if(!dia || !canSeeBoletim()) return;
+  const ger = ++bmEstado.geracao;
+  bmStatus('Carregando…');
+  const r = await ppSeguro(() => sb.rpc('boletim_obter', { p_dia: dia, p_antes: null }));
+  if(ger !== bmEstado.geracao) return;
+  if(r && !r.error && r.data) bmMostrar(r.data, dia === vlPartesSP(bmAgora()).dia ? '' : 'Boletim de ' + bmRotuloDia(dia) + ' (guardado).');
+  else bmStatus('Não foi possível abrir esse boletim.');
+});
+document.getElementById('btnBmPdf').addEventListener('click', function(){
+  const b = bmEstado.atual;
+  if(!b) return;
+  try{ bmPdf(b).save('BoletimDaManha_' + b.dia + '.pdf'); }
+  catch(err){ console.error(err); mostrarAviso('Não foi possível gerar o PDF.', 'erro'); }
+});
+document.getElementById('bmConteudo').addEventListener('click', function(ev){
+  if(!ev.target.closest('#btnBmVerTodas') || !bmEstado.atual) return;
+  bmEstado.verTodas = !bmEstado.verTodas;
+  document.getElementById('bmConteudo').innerHTML = bmTelaHtml(bmEstado.atual, bmEstado.verTodas);
+});
+document.getElementById('btnBmAbrir').addEventListener('click', () => document.querySelector('#tabsNav button[data-tab="boletim"]').click());
+document.getElementById('bmPlanoLista').addEventListener('click', function(ev){
+  const m = ev.target.closest('[data-bm-marcar]');
+  if(m){ bmAbrirNota(Number(m.dataset.bmMarcar), m.dataset.status); return; }
+  const u = ev.target.closest('[data-bm-desfazer]');
+  if(u) bmMarcar(Number(u.dataset.bmDesfazer), 'aberta', null);
+});
+document.getElementById('bmNotaFechar').addEventListener('click', () => { bmEstado.marcando = null; fecharOverlay(document.getElementById('bmNotaOverlay')); });
+document.getElementById('bmNotaSalvar').addEventListener('click', function(){
+  const m = bmEstado.marcando;
+  if(!m) return;
+  bmEstado.marcando = null;
+  fecharOverlay(document.getElementById('bmNotaOverlay'));
+  bmMarcar(m.id, m.status, document.getElementById('bmNotaTexto').value);
+});
 
 /* ============ CADERNO + AGENDA + OBJEÇÕES — 06/10/2026, REGRAS_NEGOCIO.md seção 72 ============
    Para o consultor da discadora (fora do lead). Spec: docs/superpowers/specs/2026-10-06-caderno-agenda-objecoes-design.md.
