@@ -3027,3 +3027,33 @@ Spec: `docs/superpowers/specs/2026-10-08-boletim-da-manha-design.md`; plano: `do
 - **Observação:** o calendário de feriados do painel (`ppFeriados` e o do dashboard) usa Páscoa −47/−46, que dá terça de carnaval e quarta de cinzas (e não segunda e terça). O banco (`boletim_dia_util`) copia a mesma regra para não divergir; corrigir os três juntos se for o caso.
 - **Testes:** `test_boletim_manha.js` (novo: período, semáforo, manchete, 12 regras, conferência, montagem e paridade com as abas, regra das 10h, primeiro ganha, card da Mesa, abertura automática, PDF sem dado de cliente); `test_visao_diaria.js` e `test_relatorio_17h.js` (hora pela entrada na sincronização); `test_velocidade_lead.js` e `test_mesa_supervisor.js` (expediente novo); `test_reorganizacao_abas.js` (aba nova no menu); `test_redesign_shell.js` (`bmPdf` na exceção de cor literal dos geradores de PDF).
 - **Entrada no ar (09/10/2026, ~12:00 SP):** migration `boletim_manha` aplicada no Supabase `apex` (verificação SQL em duas partes, com rollback, ok; nenhum dado de teste ficou). `config.boletim.abre_sozinho` recebeu os dois perfis da supervisora (admin e supervisor), escrita feita direto no banco. Painel publicado, MD5 `dd4eabf5…`, depois de conferir que o painel no ar era igual ao da `oficial/main` (`85f4e5ac…`). Backup: `~/deploy_backups/painel_clientes_apex_20261009_antes_boletim_manha.html`. **Para reverter:** copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html` e rodar `supabase/rollback/20261008100000_boletim_manha_rollback.sql` (apaga os boletins guardados e volta o relógio do lead para 08–18h + sábado).
+
+## 77. Boletim da Manhã v2 — resumo do dia anterior; Rafael e Isabelly fora do Dashboard (09/10/2026)
+
+Spec: `docs/superpowers/specs/2026-10-09-boletim-da-manha-v2-design.md`. Substitui o conteúdo da §76: o boletim de 09/10 saiu com 93 ações de pedidos antigos e não servia como resumo. Pedido do usuário: um **resumo do dia anterior** no visual da Apex (prévia aprovada em 09/10).
+
+- **O que mostra** (tela e PDF de 4 páginas):
+  - **Página 1 (resumo):** cabeçalho Apex/Claro; 3 frases; 6 números (vendas, valor, linhas, ligações, leads, perdas) com ▲/▼ contra a média dos 20 dias úteis anteriores; "Atenção hoje" (até 3 pontos, só sobre o período); mês até ontem (vendido × meta).
+  - **Página 2 (vendas):** ranking por valor; quem não vendeu (equipe ativa = vendeu ao menos uma vez nos 20 dias úteis anteriores); o que foi vendido; mapa de calor dos últimos 5 dias úteis; meta do mês por consultor.
+  - **Página 3 (ligações):** funil por consultor (ligações → atendidas → conversas de mais de 1 min → vendas; vendas por 100 ligações; 1ª e última ligação); ritmo por hora (8h–21h), com as horas do expediente abaixo de 20% da média em cinza.
+  - **Página 4 (leads e perdas):** leads do período por consultor (recebidos, viraram venda, conversão, mediana de minutos úteis até o 1º contato, sem contato pela planilha e pelo sistema); maior conversão (mínimo de 3 leads); vendas perdidas por consultor e por motivo, em evitáveis × não evitáveis × sem motivo × outros.
+- **Leads sem contato:** duas contas — **planilha** (status "sem contato") e **sistema** (sem ligação manual nem clique no painel). Na tela aparece o nome do lead; no PDF, só a contagem por consultor (**sem nome de cliente, de lead nem CNPJ**).
+- **Saiu:** a lista de ações com check, o card "Plano do dia" da Mesa e a tabela `boletim_acoes` (com as RPCs de marcar e conferir).
+- **Configuração** (`config.boletim`, editável sem publicar):
+  - `telefonia`: login do ProContact → nome do NeoCRM. Login de pessoa fora fica fora; login sem vínculo aparece pelo próprio login e entra no rodapé.
+  - `planilha`: nome da coluna CONSULTOR → nome do NeoCRM.
+  - `perdas`: listas `evitaveis` e `nao_evitaveis`. Categoria nova entra como "outros".
+  - Os dois mapas foram preenchidos direto no banco (não ficam no repositório).
+- **Rafael Santiago e Isabelly** (pedido do usuário) entraram na lista nova `PRODUCAO_FORA_DO_DASHBOARD`:
+  - saem do Dashboard de Produção (carga, atualização de 1 h, equipe do Cadastro Diário) e do boletim (vendas, ligações, leads, metas);
+  - **continuam no Fechamento** (comissão), que segue usando só `PRODUCAO_USUARIOS_EXCLUIDOS`.
+- **Fica da §76:** a regra das 10h, a espera da sincronização até 10:15, o "primeiro ganha", o histórico, a abertura automática, a recarga dos pedidos do dashboard antes de contar e o "não grava" quando faltam vendas, ligações ou leads.
+- **Banco** (migration `20261009100000_boletim_v2.sql`; rollback em `supabase/rollback/`; verificação em `supabase/tests/boletim_v2_check.sql`): `boletim_gravar(p_dia, p_de, p_ate, p_retrato)` sem ações; `boletim_obter` sem `acoes`; `boletim_acoes`, `boletim_marcar_acao` e `boletim_resolver_acoes` removidos.
+- **Testes:**
+  - `test_boletim_manha.js` reescrito: cada bloco, exclusões, geração, tela, PDF de 4 páginas sem dado de cliente, Mesa sem o card;
+  - `test_producao_filtro_pessoas.js`: Rafael e Isabelly fora do Dashboard e presentes no Fechamento.
+- **Entrada no ar (09/10/2026, 16:03 SP):**
+  - migration aplicada e verificação SQL ok (com rollback; nada de teste ficou);
+  - boletim de 09/10 no formato antigo apagado, para o novo ser gerado na próxima abertura da aba;
+  - painel publicado, MD5 `b4fbec51…`, depois de conferir que o do ar era o da §76 (`dd4eabf5…`); backup `~/deploy_backups/painel_clientes_apex_20261009_antes_boletim_v2.html`;
+  - **para reverter:** copiar o backup de volta e rodar o rollback da v2.
