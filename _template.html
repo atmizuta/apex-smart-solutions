@@ -11943,6 +11943,7 @@ async function bmCarregarLista(){
   const sel = document.getElementById('bmSeletor');
   if(!sel || !r || r.error || !Array.isArray(r.data)) return;
   const atual = bmEstado.atual ? bmEstado.atual.dia : '';
+  sel.style.display = r.data.length ? '' : 'none';
   sel.innerHTML = r.data.map(x => `<option value="${escapeHtml(x.dia)}"${x.dia === atual ? ' selected' : ''}>${escapeHtml(bmRotuloDia(x.dia) + '/' + x.dia.slice(0, 4))}</option>`).join('');
 }
 function bmAtualizarCabecalho(b){
@@ -11986,7 +11987,7 @@ function bmTelaHtml(b, verTodas){
   const semaforo = (r.semaforo || []).length ? '<div class="kpiGrid">' + r.semaforo.map(s => `<div class="kpiCard" data-bm-sinal="${escapeHtml(s.chave)}" data-cor="${escapeHtml(s.cor)}">
       <div class="kpiLabel"><span aria-hidden="true" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${BM_COR[s.cor] || BM_COR.cinza};margin-right:6px"></span>${escapeHtml(s.rotulo)}</div>
       <div class="kpiValue">${escapeHtml(bmFmtValor(s.valor, s.fmt))} <span style="font-size:.6em">${bmSeta(s)}</span></div>
-      <div class="kpiSub">${escapeHtml(s.ref === null || s.ref === undefined ? 'sem base' : 'referência ' + bmFmtValor(s.ref, s.fmt))} · ${escapeHtml(BM_COR_ROTULO[s.cor] || '')}</div></div>`).join('') + '</div>' : naoDisp;
+      <div class="kpiSub">${escapeHtml(s.ref === null || s.ref === undefined ? 'sem base' : 'referência ' + bmFmtValor(s.ref, s.fmt) + ' · ' + (BM_COR_ROTULO[s.cor] || ''))}</div></div>`).join('') + '</div>' : naoDisp;
   const linha = a => {
     const x = a.extra || {}, sit = bmSituacao(a);
     const cli = x.cliente ? `<div class="retornoLeadSub">${escapeHtml(x.cliente)}${x.cnpj ? ' · ' + escapeHtml(x.cnpj) : ''}</div>` : '';
@@ -12005,12 +12006,12 @@ function bmTelaHtml(b, verTodas){
       + (ra.semMarcacao.length ? '<h4>Sem marcação</h4><ul>' + ra.semMarcacao.map(x => `<li>${escapeHtml(x.o_que)} — ${escapeHtml(x.quem)}</li>`).join('') + '</ul>' : '')
     : '<p class="ppVazio">Primeiro boletim: ainda não há plano anterior.</p>';
   const sd = r.saude || {};
-  const quando = v => v ? bmDiaHoraSP(v) : 'sem registro';
+  const quando = v => v ? 'em ' + bmDiaHoraSP(v) : 'sem registro';
   const saude = `<ul>
-      <li>Produção (NeoCRM): última sincronização ok em ${escapeHtml(quando(sd.producao))}${sd.semSync ? ' — <b>gerado sem a sincronização das 9h59</b>' : ''}</li>
-      <li>Leads: última entrada em ${escapeHtml(quando(sd.leadsUltima))}${sd.leadsErro ? ' — <b>erro na sincronização: ' + escapeHtml(sd.leadsErro) + '</b>' : ''}</li>
-      <li>Ligações: última sincronização ok em ${escapeHtml(quando(sd.ligacoes))}</li>
-      <li>Exportação Xeotech (perdas): última sincronização ok em ${escapeHtml(quando(sd.exportacao))}</li>
+      <li>Produção (NeoCRM): última sincronização ok ${escapeHtml(quando(sd.producao))}${sd.semSync ? ' — <b>gerado sem a sincronização das 9h59</b>' : ''}</li>
+      <li>Leads: última entrada ${escapeHtml(quando(sd.leadsUltima))}${sd.leadsErro ? ' — <b>erro na sincronização: ' + escapeHtml(sd.leadsErro) + '</b>' : ''}</li>
+      <li>Ligações: última sincronização ok ${escapeHtml(quando(sd.ligacoes))}</li>
+      <li>Exportação Xeotech (perdas): última sincronização ok ${escapeHtml(quando(sd.exportacao))}</li>
       ${(sd.falhas || []).length ? `<li><b>Não carregou: ${escapeHtml(sd.falhas.join(', '))}</b> — os sinais dessas fontes ficam "sem base".</li>` : ''}
       ${(sd.semVinculo || []).length ? `<li>Sem vínculo perfil × NeoCRM: ${escapeHtml(sd.semVinculo.join(', '))}</li>` : ''}
       ${(sd.semMeta || []).length ? `<li>Sem meta no mês: ${escapeHtml(sd.semMeta.join(', '))}</li>` : ''}
