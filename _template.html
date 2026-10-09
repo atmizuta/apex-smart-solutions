@@ -12050,14 +12050,14 @@ function bmTelaHtml(b){
       <td>${x.porCem === null ? '—' : e(String(x.porCem).replace('.', ','))}</td><td>${x.primeira ? e(x.primeira + ' – ' + x.ultima) : '—'}</td></tr>`).join('')
     + '</tbody></table></div><div class="bmLegenda"><i style="background:var(--c-sinal)"></i>ligações<i style="background:var(--c-carmim)"></i>atendidas</div>' : vazio('Sem ligações no período.');
   const ph = r.porHora || { horas: [] }, maxH = Math.max(1, ...ph.horas.map(h => h.ligacoes));
-  const horas = `<div class="bmHoras">${ph.horas.map(h => `<div class="bmHora${h.parada ? ' parada' : ''}" data-bm-hora="${h.h}" title="${h.ligacoes} ligações · ${h.vendas} vendas"><b>${h.ligacoes || ''}</b><i style="height:${Math.round(h.ligacoes / maxH * 100)}%"></i>${h.h}h${h.vendas ? `<span style="color:var(--st-ganho);font-weight:700">${h.vendas}v</span>` : ''}</div>`).join('')}</div>
+  const horas = `<div class="bmHoras">${ph.horas.map(h => `<div class="bmHora${h.parada ? ' parada' : ''}" data-bm-hora="${h.h}" title="${h.ligacoes} ligações · ${h.vendas} vendas"><b>${h.ligacoes || ''}</b><i style="height:${Math.round(h.ligacoes / maxH * 100)}%"></i>${h.h}h<span style="color:var(--st-ganho);font-weight:700;min-height:14px">${h.vendas ? h.vendas + 'v' : ''}</span></div>`).join('')}</div>
     <div class="bmLegenda">Barra = ligações na hora · em verde, vendas que entraram na hora · cinza = hora do expediente com menos de 20% da média (${e(String(ph.mediaExpediente).replace('.', ','))} ligações/hora).</div>`;
   // leads e perdas
   const ld = r.leads || { lista: [], semContato: [] };
   const leadsTab = ld.lista.length ? `<div class="mlTabelaWrap"><table class="tbl"><thead><tr><th>Consultor</th><th>Recebidos</th><th>Viraram venda</th><th>Conversão</th><th>1º contato (mediana)</th><th>Sem contato (planilha)</th><th>Sem contato (sistema)</th></tr></thead><tbody>`
     + ld.lista.map(c => `<tr><td>${e(c.curto)}${c.semVinculo ? ' <span class="badge">sem vínculo</span>' : ''}</td><td>${c.recebidos}</td><td>${c.convertidos}</td><td>${e(bmPct(c.conversao))}</td>
       <td>${c.minutos === null ? '—' : e(vlFmtMin(c.minutos))}</td><td>${c.semPlanilha || ''}</td><td>${c.semSistema || ''}</td></tr>`).join('') + '</tbody></table></div>' : vazio('Nenhum lead no período.');
-  const destaque = ld.destaque ? `<p style="margin:var(--space-3) 0 0"><b>Maior conversão:</b> ${e(ld.destaque.curto)} — ${ld.destaque.convertidos} de ${ld.destaque.recebidos} leads viraram venda (${e(bmPct(ld.destaque.conversao))}).</p>` : '';
+  const destaque = ld.destaque ? `<p style="margin:var(--space-3) 0 0"><b>Maior conversão:</b> ${e(ld.destaque.curto)} — ${ld.destaque.convertidos} de ${ld.destaque.recebidos} leads ${ld.destaque.convertidos === 1 ? 'virou' : 'viraram'} venda (${e(bmPct(ld.destaque.conversao))}).</p>` : '';
   const semContato = ld.semContato.length ? '<ul>' + ld.semContato.map(x => `<li><b>${e(x.consultor)}</b> — ${e(x.lead)} <span class="retornoLeadSub">(${[x.planilha ? 'planilha' : '', x.sistema ? 'sistema' : ''].filter(Boolean).join(' e ')})</span></li>`).join('') + '</ul>' : vazio('Todos os leads do período tiveram contato.');
   const pd = r.perdas || { porConsultor: [], porMotivo: [], grupos: {} }, gr = pd.grupos || {};
   const grupoRot = { evitavel: 'Evitáveis', nao_evitavel: 'Não evitáveis', sem_motivo: 'Sem motivo', outros: 'Outros' };
@@ -12076,7 +12076,7 @@ function bmTelaHtml(b){
     + '<div class="bmSecao">Ligações</div>'
     + `<div class="bmGrade">${card('Funil por consultor', 'manuais do ProContact', funil)}${card('Ritmo por hora', 'ligações e vendas', horas)}</div>`
     + '<div class="bmSecao">Leads e perdas</div>'
-    + `<div class="bmGrade">${card('Leads por consultor', ld.recebidos + ' recebidos · ' + ld.convertidos + ' viraram venda', leadsTab + destaque)}</div>`
+    + `<div class="bmGrade">${card('Leads por consultor', ld.recebidos + ' recebidos · ' + ld.convertidos + (ld.convertidos === 1 ? ' virou venda' : ' viraram venda'), leadsTab + destaque)}</div>`
     + `<div class="bmGrade bmG2">${card('Leads sem contato', ld.semPlanilha + ' na planilha · ' + ld.semSistema + ' no sistema', semContato)}${card('Vendas perdidas', pd.n ? pd.n + ' · ' + fmtBRL(pd.valor) : '', perdas)}</div>`
     + rodape;
 }
@@ -12158,7 +12158,7 @@ function bmPdf(b){
     });
     cor(COR.grafite); fonte('bold', 8.5); doc.text(String(l.total), M + 50 + 5 * cw + 8, y + 3.6, { align: 'center' }); y += 5.6;
   });
-  y += 3; titulo('Meta do mês por consultor', 'linha = parte do mês decorrida');
+  y += 7; titulo('Meta do mês por consultor', 'linha = parte do mês decorrida');
   (m.consultores || []).slice(0, 12).forEach(c => {
     if(y > 282) return;
     cor(COR.grafite); fonte('bold', 8.5); doc.text(T(c.curto), M, y);
@@ -12192,7 +12192,7 @@ function bmPdf(b){
   // Página 4 — leads e perdas
   doc.addPage(); cabecalho('Leads e perdas');
   const ld = r.leads || { lista: [] };
-  titulo('Leads por consultor', ld.recebidos + ' recebidos · ' + ld.convertidos + ' viraram venda');
+  titulo('Leads por consultor', ld.recebidos + ' recebidos · ' + ld.convertidos + (ld.convertidos === 1 ? ' virou venda' : ' viraram venda'));
   const lc = [['Consultor', M], ['Recebidos', M + 56], ['Venda', M + 78], ['Conversão', M + 96], ['1º contato', M + 120], ['Sem contato planilha', M + 144], ['Sistema', W - M]];
   cor(COR.cinza); fonte('bold', 7.5); lc.forEach(([t, x], i) => doc.text(T(t), x, y, i === lc.length - 1 ? { align: 'right' } : undefined)); y += 1.5; fill(COR.linha); doc.rect(M, y, L, 0.3, 'F'); y += 4;
   ld.lista.slice(0, 14).forEach(c => {
@@ -12201,7 +12201,7 @@ function bmPdf(b){
       .forEach((v, i) => doc.text(T(String(v)), lc[i][1], y, i === lc.length - 1 ? { align: 'right' } : undefined)); y += 5;
   });
   if(!ld.lista.length) texto('Nenhum lead no período.');
-  if(ld.destaque){ y += 1; texto(`Maior conversão: ${ld.destaque.curto} - ${ld.destaque.convertidos} de ${ld.destaque.recebidos} leads viraram venda (${bmPct(ld.destaque.conversao)}).`, 9.5, 'bold', COR.ganho); }
+  if(ld.destaque){ y += 1; texto(`Maior conversão: ${ld.destaque.curto} - ${ld.destaque.convertidos} de ${ld.destaque.recebidos} leads ${ld.destaque.convertidos === 1 ? 'virou' : 'viraram'} venda (${bmPct(ld.destaque.conversao)}).`, 9.5, 'bold', COR.ganho); }
   y += 3; titulo('Vendas perdidas', (r.perdas || {}).n ? r.perdas.n + ' · ' + fmtBRL(r.perdas.valor) : '');
   const pd = r.perdas || { porConsultor: [], grupos: {} }, gr = pd.grupos || {};
   const grupoRot = { evitavel: 'Evitáveis', nao_evitavel: 'Não evitáveis', sem_motivo: 'Sem motivo', outros: 'Outros' };
