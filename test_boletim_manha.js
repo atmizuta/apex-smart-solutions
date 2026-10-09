@@ -73,7 +73,7 @@ try{
 
   // ==== dados fictícios de quarta, 07/10 (boletim de quinta, 08/10) ====
   const HOJE = '2026-10-08', AGORA = sp('2026-10-08T10:20:00');
-  const cfg = bmCfg({ telefonia: { 'apex.caio': 'CAIO TESTE', 'Apex.Yasmin': 'YASMIN TESTE', 'apex.gio': 'GIO TESTE', 'apex.rafael': 'RAFAEL SANTIAGO ANGELÃO' },
+  const cfg = bmCfg({ telefonia: { 'apex.caio': 'CAIO TESTE', 'Apex.YasminFicticia': 'YASMIN TESTE', 'apex.gio': 'GIO TESTE', 'apex.rafael': 'RAFAEL SANTIAGO ANGELÃO' },
     planilha: { Caio: 'CAIO TESTE', Rafael: 'RAFAEL SANTIAGO ANGELÃO' }, perdas: { evitaveis: ['Desistência Demora'], nao_evitaveis: ['Restrição de Crédito'] } });
   const ctx = { hoje: HOJE, agoraMs: AGORA, periodo: bmPeriodo(HOJE), cfg, vlcfg: vlCfg('{"seg_sex":["11:00","21:00"],"sabado":null}'), nome: 'Supervisora Teste' };
   const hora = (h, n) => { const a = Array(24).fill(0); a[h] = n; return a; };
@@ -88,7 +88,7 @@ try{
   const lig = (usuario, hh, at, seg) => ({ usuario, gerada_em: iso('2026-10-07T' + hh + ':00'), atendida: at, seg_falados: seg });
   const ligacoes = [];
   for(let i = 0; i < 10; i++) ligacoes.push(lig('apex.caio', '14:' + String(10 + i), i < 6, i < 2 ? 90 : 20));
-  for(let i = 0; i < 4; i++) ligacoes.push(lig('apex.yasmin', '19:' + String(10 + i), i < 2, 30));
+  for(let i = 0; i < 4; i++) ligacoes.push(lig('apex.yasminficticia', '19:' + String(10 + i), i < 2, 30));
   ligacoes.push(lig('apex.gio', '15:10', false, 0), lig('apex.gio', '15:20', false, 0), lig('apex.novo', '16:00', true, 70));
   for(let i = 0; i < 5; i++) ligacoes.push(lig('apex.rafael', '14:3' + i, true, 100));
   ligacoes.push(lig('apex.caio', '23:59', true, 10)); ligacoes[ligacoes.length - 1].gerada_em = iso('2026-10-06T14:00:00');   // outro dia: fora
