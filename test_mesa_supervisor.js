@@ -62,7 +62,9 @@ try{
   const espera = (ms) => new Promise(r => setTimeout(r, ms || 20));
   const sp = (s) => Date.parse(s + '-03:00');
   const iso = (s) => new Date(sp(s)).toISOString();
-  const cfg = vlCfg(null);
+  // 08/10/2026 (§76): o padrão virou 11h–21h sem sábado; estes casos foram escritos para 08h–18h + sábado 08h–12h
+  const cfg = vlCfg('{"seg_sex":["08:00","18:00"],"sabado":["08:00","12:00"]}');
+  assert(JSON.stringify([vlCfg(null).seg_sex, vlCfg(null).sabado]) === JSON.stringify([['11:00', '21:00'], null]), 'padrão do relógio: seg–sex 11h–21h, sábado sem expediente');
   const AGORA = sp('2026-10-05T10:00:00'), HOJE = '2026-10-05';
   const LD = (id, extra) => Object.assign({ aba: 'OUTUBRO', lead_id: id, consultor: 'Caio', profile_id: 'p-caio', criado_em_lead: iso('2026-10-05T09:00:00'), primeira_sync_em: iso('2026-10-05T09:06:00'), categoria: 'andamento', converteu: false, primeiro_clique: null, canal_clique: null, primeira_ligacao: null }, extra || {});
 
@@ -149,7 +151,8 @@ try{
   window.__rpcRespostas.mesa_ligacoes_hoje = { data: lig, error: null };
   window.__rpcRespostas.mesa_vendas_mes = { data: vendas, error: null };
   window.__tabelas.metas_consultor = [{ profile_id: 'p-caio', mes: '2026-10-01', meta_receita: 3000 }];
-  window.__tabelas.config = [];
+  // 08/10/2026 (§76): o padrão virou 11h–21h; estes cenários foram escritos para o expediente antigo (08h–18h)
+  window.__tabelas.config = [{ chave: 'velocidade_lead', valor: '{"seg_sex":["08:00","18:00"],"sabado":["08:00","12:00"]}' }];
 
   // consultor: sem botão, painel vazio, nenhuma RPC da Mesa
   currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };

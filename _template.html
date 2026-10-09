@@ -9610,7 +9610,8 @@ document.getElementById('plAbaPills').addEventListener('click', function(ev){
 /* ---- Velocidade do lead ("Atender agora") — 02/10/2026, REGRAS_NEGOCIO.md §68 ----
    Relógio em MINUTOS ÚTEIS desde a entrada do lead até o 1º contato (clique no painel ou ligação manual).
    O status da planilha não conta como contato: os leads já chegam com status (verificado em 02/10). */
-const VL_CFG_PADRAO = { seg_sex: ['08:00', '18:00'], sabado: ['08:00', '12:00'], verde_min: 5, amarelo_min: 15, janela_dias: 7 };
+// 08/10/2026 (§76): expediente seg–sex 11h–21h, sábado sem expediente — igual a config.velocidade_lead no banco.
+const VL_CFG_PADRAO = { seg_sex: ['11:00', '21:00'], sabado: null, verde_min: 5, amarelo_min: 15, janela_dias: 7 };
 function vlCfg(valor){
   let o = null;
   try{ o = typeof valor === 'string' ? JSON.parse(valor) : valor; }catch(e){ o = null; }
@@ -11376,6 +11377,311 @@ document.getElementById('btnMesaExportar').addEventListener('click', function(){
   mlBaixarXlsx('MesaSupervisor_' + mesaEstado.hoje + '.xlsx', [{ nome: 'Semáforo', linhas: sem }, { nome: 'Itens', linhas: itens }]);
 });
 document.getElementById('btnMesaAtualizar').addEventListener('click', () => loadMesa(true).catch(err => console.error(err)));
+
+/* ============ BOLETIM DA MANHÃ + PLANO DO DIA COM CHECK — 08/10/2026, REGRAS_NEGOCIO.md §76 ============
+   Admin/supervisor: às 10h de todo dia útil, o retrato do período anterior (manchete, semáforo, plano de ações) e o
+   resultado do plano anterior; as ações viram uma lista com check no card "Plano do dia" da Mesa.
+   Spec: docs/superpowers/specs/2026-10-08-boletim-da-manha-design.md. Prefixo bm*. Funções puras primeiro
+   (test_boletim_manha.js). Cada número vem da MESMA função que a aba usa: vendas = resumoDiaria do dashboard (Visão
+   Diária); esteira, agenda e perdas recuperáveis = pp* (Pedidos Parados); mês = ppPlacar; leads = vl* e mesa* (Mesa).
+   Tela e PDF desenham só a partir do retrato guardado: um boletim antigo reabre igual. */
+const BM_VERSAO = 1;
+const BM_CFG_PADRAO = { hora: '10:00', pedido_grande: 150, queda_alerta: 0.30, ritmo_minimo: 0.50, ritmo_desde_dia_util: 5,
+  dias_zerado: 2, dias_parado: 2, max_acoes_pagina1: 8, abre_sozinho: [], retencao_meses: 12 };
+// Ordem da tabela de regras (desempate do plano) e prioridade quando um pedido cai em várias regras.
+const BM_REGRAS = ['pedido_grande_parado', 'pedido_vermelho', 'cliente_parado', 'data_vencida', 'consultor_zerado', 'consultor_ritmo',
+  'lead_noite', 'perda_recuperavel', 'perda_sem_motivo', 'cnpj_conflito', 'retorno_atrasado', 'destaque'];
+const BM_PRIORIDADE_PEDIDO = ['data_vencida', 'pedido_grande_parado', 'pedido_vermelho', 'cliente_parado', 'perda_recuperavel'];
+const BM_REGRAS_DE_PEDIDO = ['pedido_grande_parado', 'pedido_vermelho', 'cliente_parado', 'data_vencida'];
+const BM_ETAPAS_CLIENTE = ['BIOMETRIA (NEOCRM)', 'AGUARDANDO ASSINATURA (NEOCRM)'];
+const BM_DIAS_SEMANA = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+const BM_DIAS_CURTOS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+const BM_MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+const BM_LIMITES = [
+  'Relógio do lead: expediente seg–sex, 11h às 21h; sábado sem expediente (desde 08/10/2026).',
+  'Ligações: só as manuais do ProContact; a discadora fica de fora. Consultor sem usuário de telefonia aparece com "—".',
+  'Tempo por etapa: o histórico começou em 30/09/2026; a média só fica confiável depois de algumas semanas.',
+  'Caderno, Agenda e Objeções saíram em 07/10/2026; os retornos ainda são poucos.',
+  'Hora da venda: é a hora em que o pedido entrou na sincronização (até 1 h de atraso).',
+  'Valores de pedido são mensalidade (R$/mês).',
+];
+
+function bmCfg(valor){
+  let o = null;
+  try{ o = typeof valor === 'string' ? JSON.parse(valor) : valor; }catch(e){ o = null; }
+  return Object.assign({}, BM_CFG_PADRAO, (o && typeof o === 'object') ? o : {});
+}
+function bmNorm(s){ return String(s == null ? '' : s).trim().toUpperCase(); }
+function bmDiaSemana(dia){ return new Date(dia + 'T00:00:00Z').getUTCDay(); }
+function bmDdMm(dia){ return dia.slice(8, 10) + '/' + dia.slice(5, 7); }
+function bmPct(x){ return Math.round((Number(x) || 0) * 100) + '%'; }
+function bmPrimeiroNome(nome){ const p = String(nome || '').trim().split(/\s+/)[0] || ''; return p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : ''; }
+// R$ curto para a manchete: "R$ 2,3 mil", "R$ 850".
+function bmFmtMil(v){
+  const n = Number(v) || 0;
+  if(Math.abs(n) >= 1000) return 'R$ ' + (Math.round(n / 100) / 10).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' mil';
+  return 'R$ ' + Math.round(n);
+}
+function bmUltimoDiaUtilAntes(dia){
+  let d = somaDiasStr(dia, -1);
+  for(let g = 0; g < 30 && !ppDiaUtil(d); g++) d = somaDiasStr(d, -1);
+  return d;
+}
+// n dias úteis antes de `dia` (sem ele), do mais recente para o mais antigo.
+function bmDiasUteisAntes(dia, n){
+  const out = [];
+  let d = dia;
+  while(out.length < n){ d = bmUltimoDiaUtilAntes(d); out.push(d); }
+  return out;
+}
+// n dias úteis até `dia` (com ele, se for útil), do mais recente para o mais antigo.
+function bmDiasUteisAte(dia, n){
+  const out = [];
+  let d = ppDiaUtil(dia) ? dia : bmUltimoDiaUtilAntes(dia);
+  while(out.length < n){ out.push(d); d = bmUltimoDiaUtilAntes(d); }
+  return out;
+}
+// Período coberto = do último dia útil antes de hoje até ontem. Edição: 1º dia útil do mês ou da semana.
+function bmPeriodo(hoje){
+  const de = bmUltimoDiaUtilAntes(hoje), ate = somaDiasStr(hoje, -1);
+  const dias = [];
+  for(let d = de; d <= ate; d = somaDiasStr(d, 1)) dias.push(d);
+  const segundaDaSemana = somaDiasStr(hoje, -((bmDiaSemana(hoje) + 6) % 7));
+  const edicao = de.slice(0, 7) !== hoje.slice(0, 7) ? 'inicio_mes' : (de < segundaDaSemana ? 'segunda' : 'normal');
+  return { diaUtil: ppDiaUtil(hoje), de, ate, dias, edicao };
+}
+function bmRotuloPeriodo(p){
+  if(p.de === p.ate) return 'Ontem (' + BM_DIAS_CURTOS[bmDiaSemana(p.de)] + ', ' + bmDdMm(p.de) + ')';
+  return 'De ' + BM_DIAS_SEMANA[bmDiaSemana(p.de)] + ' (' + bmDdMm(p.de) + ') a ' + BM_DIAS_SEMANA[bmDiaSemana(p.ate)] + ' (' + bmDdMm(p.ate) + ')';
+}
+// Cor do semáforo. "maior" = maior é melhor; q = queda_alerta. Sem referência = cinza ("sem base").
+function bmCor(valor, ref, sentido, q){
+  if(valor === null || valor === undefined || ref === null || ref === undefined || isNaN(valor) || isNaN(ref)) return 'cinza';
+  const r = ref === 0 ? (valor === 0 ? 1 : Infinity) : valor / ref, e = 1e-9;
+  if(sentido === 'menor') return r <= 1 + e ? 'verde' : (r <= 1 + q + e ? 'amarelo' : 'vermelho');
+  return r >= 1 - e ? 'verde' : (r >= 1 - q - e ? 'amarelo' : 'vermelho');
+}
+// Manchete por modelo fixo (sem IA): período, mês e maior risco (= ação nº 1 do plano).
+function bmManchete(m){
+  const pl = (n, um, varios) => n + ' ' + (n === 1 ? um : varios);
+  let comp = 'sem média de 20 dias úteis para comparar';
+  if(m.refValor > 0){
+    const d = m.valor / m.refValor - 1, p = Math.round(Math.abs(d) * 100);
+    comp = p === 0 ? 'na média de 20 dias úteis' : p + '% ' + (d > 0 ? 'acima' : 'abaixo') + ' da média de 20 dias úteis';
+  }
+  const f1 = `${m.rotulo}: ${pl(m.contratos, 'contrato', 'contratos')}, ${bmFmtMil(m.valor)} — ${comp}.`;
+  const mes = BM_MESES[Number(String(m.mes).slice(5, 7)) - 1];
+  const prev = m.previsao === null || m.previsao === undefined ? '' : '; previsão ' + bmFmtMil(m.previsao);
+  const f2 = m.meta > 0
+    ? `${mes}: ${bmFmtMil(m.receita)} de ${bmFmtMil(m.meta)} (${bmPct(m.receita / m.meta)}) com ${bmPct(m.pctMes)} do mês útil decorrido${prev}.`
+    : `${mes}: ${bmFmtMil(m.receita)} ativados com ${bmPct(m.pctMes)} do mês útil decorrido${prev}.`;
+  const a = m.acao1;
+  const f3 = a ? `Maior risco: ${a.o_que} — ${a.quem}${a.valor > 0 ? ', ' + bmFmtMil(a.valor) : ''}.` : 'Sem risco grande hoje.';
+  return [f1, f2, f3];
+}
+// Retornos atrasados por consultor (perfil): Agenda pendente de dia anterior a hoje + follow-up de lead vencido.
+function bmRetornosAtrasados(ret, hoje){
+  const inicio = Date.parse(hoje + 'T00:00:00-03:00'), m = new Map();
+  const add = (pid, id) => { if(!pid) return; if(!m.has(pid)) m.set(pid, []); m.get(pid).push(id); };
+  ((ret && ret.agenda) || []).forEach(r => { const t = vlMs(r.quando); if(r.status === 'pendente' && t !== null && t < inicio) add(r.consultor_id, 'ag:' + r.id); });
+  ((ret && ret.followups) || []).forEach(f => { if(!f.feito && f.data_prevista && String(f.data_prevista).slice(0, 10) < hoje) add(f.consultor_id, 'fu:' + f.id); });
+  return m;
+}
+// Nome do consultor = o do NeoCRM (via consultor_neo); sem vínculo, o do perfil.
+function bmNomes(d){
+  const neoPorPerfil = new Map((d.vinculos || []).map(v => [v.profile_id, Number(v.neo_usuario_id)]));
+  const nomeNeo = new Map();
+  (d.linhas || []).forEach(r => { const id = Number(r.usuario_id); if(r.usuario_id != null && r.usuario && !nomeNeo.has(id)) nomeNeo.set(id, String(r.usuario)); });
+  return { neoPorPerfil, nomeNeo, doPerfil: pid => { const neo = neoPorPerfil.get(pid); return (neo != null && nomeNeo.get(neo)) || (d.perfis || {})[pid] || '(sem nome)'; } };
+}
+
+// As 12 regras do plano (spec 8.1). Devolve as ações já ordenadas (R$ em jogo, depois a ordem da tabela).
+function bmAcoes(d, ctx){
+  const cfg = ctx.cfg, hoje = ctx.hoje, per = ctx.periodo;
+  const noPeriodo = dia => !!dia && dia >= per.de && dia <= per.ate;
+  const pedidos = d.pedidos || [];
+  const nomes = bmNomes(d);
+  const dono = p => p.usuario || 'Supervisão';
+  const candidatos = [];
+  const addPedido = (regra, p, quem, oQue, mais) => candidatos.push({ regra, chave: p.numero, quem, o_que: oQue, valor: ppR2(p.valor), prazo: 'hoje',
+    extra: Object.assign({ numero: p.numero, etapa: p.etapa, valor: ppR2(p.valor), consultor: p.usuario || '', cliente: p.cliente || '', cnpj: p.cnpj || '' }, mais || {}) });
+  const nivelNoInicio = new Map(ppClassificarFila(pedidos, per.de).map(p => [p.numero, p.nivel]));
+  ppClassificarFila(pedidos, hoje).forEach(p => {
+    if(p.valor >= cfg.pedido_grande && p.dias >= cfg.dias_parado){                                        // 1
+      if(p.bola === 'cliente') addPedido('pedido_grande_parado', p, dono(p), `Acionar o cliente: pedido ${p.numero} em ${p.etapaCurta} há ${p.dias} dias úteis`, { dias: p.dias });
+      else addPedido('pedido_grande_parado', p, 'Supervisão', `Cobrar o back office: pedido ${p.numero} em ${p.etapaCurta} há ${p.dias} dias úteis`, { dias: p.dias });
+    }
+    if(p.nivel === 'maximo' && nivelNoInicio.get(p.numero) !== 'maximo')                                // 2
+      addPedido('pedido_vermelho', p, 'Supervisão', `Cobrar ${dono(p)}: pedido ${p.numero} chegou a ${p.dias} dias úteis em ${p.etapaCurta}`, { dias: p.dias });
+    if(BM_ETAPAS_CLIENTE.indexOf(p.etapa) >= 0 && p.dias >= cfg.dias_parado)                            // 3
+      addPedido('cliente_parado', p, dono(p), `Reenviar a mensagem ao cliente: pedido ${p.numero} em ${p.etapaCurta} há ${p.dias} dias úteis`, { dias: p.dias });
+  });
+  ppAgenda(pedidos, hoje).atrasados.forEach(p => addPedido('data_vencida', p, dono(p),                    // 4
+    `Confirmar a nova data com o cliente ou o back office: pedido ${p.numero} (${p.tipoData} prevista para ${ppFmtDia(p.diaAlvo)})`, { diaAlvo: p.diaAlvo }));
+  ppRecuperaveis(pedidos, hoje).lista.filter(p => (p.motivo === 'quente' || p.motivo === 'credito_ok') && noPeriodo(leadDateSP(p.atualizacao)))
+    .forEach(p => addPedido('perda_recuperavel', p, dono(p), `Reatacar: ${p.motivoTexto.toLowerCase()} — pedido ${p.numero}`));   // 8
+  // um pedido, uma ação: fica a primeira na ordem 4, 1, 2, 3, 8
+  const porPedido = new Map();
+  candidatos.forEach(a => { const atual = porPedido.get(a.chave); if(!atual || BM_PRIORIDADE_PEDIDO.indexOf(a.regra) < BM_PRIORIDADE_PEDIDO.indexOf(atual.regra)) porPedido.set(a.chave, a); });
+  const acoes = [...porPedido.values()];
+
+  // 5 — consultor zerado nos últimos dias úteis (contagem para trás até 20)
+  const vendasDia = dia => (d.vendas || {})[dia] || null;
+  const doConsultor = (dia, k) => { const v = vendasDia(dia); if(!v) return null; return (v.porConsultor || []).find(x => bmNorm(x.key) === k) || { contratos: 0, valor: 0 }; };
+  const refDias = bmDiasUteisAntes(per.de, 20), ultimos = bmDiasUteisAte(per.ate, 20);
+  (d.equipe || []).forEach(nome => {
+    const k = bmNorm(nome);
+    let n = 0;
+    for(const dia of ultimos){ const c = doConsultor(dia, k); if(!c || c.contratos > 0) break; n++; }
+    if(n < cfg.dias_zerado) return;
+    const media = refDias.reduce((s, dia) => s + (Number((doConsultor(dia, k) || {}).valor) || 0), 0) / refDias.length;
+    acoes.push({ regra: 'consultor_zerado', chave: k, quem: 'Supervisão', o_que: `Conversa individual hoje com ${nome}: ${n >= 20 ? '20+' : n} dias úteis sem venda`,
+      valor: ppR2(media * n), prazo: 'hoje', extra: { consultor: k, dias: n } });
+  });
+  // 6 — ritmo da meta abaixo do mínimo (a partir do Nº dia útil do mês)
+  const ym = hoje.slice(0, 7);
+  if(ppDiasUteisNoMes(ym, hoje) >= cfg.ritmo_desde_dia_util){
+    (d.metas || []).forEach(mt => {
+      const meta = Number(mt.meta_receita) || 0, neo = nomes.neoPorPerfil.get(mt.profile_id);
+      if(meta <= 0 || neo == null) return;
+      const pl = ppPlacar((d.linhas || []).filter(r => Number(r.usuario_id) === neo), ym, per.ate, meta);
+      if(!pl.diasUteisMes || !pl.diasUteisDecorridos) return;
+      const pctMeta = pl.receita / meta, pctMes = pl.diasUteisDecorridos / pl.diasUteisMes;
+      if(pctMeta / pctMes >= cfg.ritmo_minimo) return;
+      const nome = nomes.doPerfil(mt.profile_id);
+      acoes.push({ regra: 'consultor_ritmo', chave: 'neo:' + neo, quem: 'Supervisão',
+        o_que: `Plano de recuperação com ${nome}: ${bmPct(pctMeta)} da meta com ${bmPct(pctMes)} do mês; faltam ${fmtBRL(pl.faltam)}`,
+        valor: ppR2(pl.faltam / Math.max(1, pl.diasUteisRestantes)), prazo: 'hoje', extra: { consultor: nome } });
+    });
+  }
+  // 7 — leads da noite (depois das 21h do último dia útil) sem dono ou sem contato: uma ação só
+  const noite = Date.parse(per.de + 'T21:00:00-03:00');
+  const daNoite = (d.leads || []).filter(l => { const t = vlMs(l.criado_em_lead); return t !== null && t >= noite && t <= ctx.agoraMs && (!l.consultor || vlEsperando(l)); });
+  if(daNoite.length){
+    const semDono = daNoite.filter(l => !l.consultor).length;
+    acoes.push({ regra: 'lead_noite', chave: 'leads-noite', quem: 'Supervisão', o_que: `Distribuir agora: ${semDono} sem dono, ${daNoite.length - semDono} sem contato (leads da noite)`,
+      valor: ppR2(daNoite.length * (Number(d.receitaPorLead) || 0)), prazo: 'até 11h', extra: { leads: daNoite.map(vlChave) } });
+  }
+  // 9 — perdas do período sem motivo no NEO: uma ação por consultor
+  const semMotivo = new Map();
+  (d.perdas || []).forEach(x => {
+    if(String(x.categoria || '').trim() || !noPeriodo(leadDateSP(x.perdido_em))) return;
+    const k = x.usuario || '(sem consultor)';
+    if(!semMotivo.has(k)) semMotivo.set(k, { n: 0, valor: 0, numeros: [] });
+    const g = semMotivo.get(k); g.n++; g.valor += Number(x.valor) || 0; g.numeros.push(String(x.numero_pedido));
+  });
+  semMotivo.forEach((g, k) => acoes.push({ regra: 'perda_sem_motivo', chave: 'sem-motivo:' + k, quem: 'Supervisão',
+    o_que: `Cobrar ${k}: ${g.n} ${g.n === 1 ? 'perda' : 'perdas'} sem motivo no NEO`, valor: ppR2(g.valor), prazo: 'hoje', extra: { consultor: k, numeros: g.numeros } }));
+  // 10 — CNPJ com pedido aberto de 2+ consultores
+  const porCnpj = new Map();
+  pedidos.filter(p => ppEtapaAberta(p.etapa) && ppDigitos(p.cnpj)).forEach(p => { const k = ppDigitos(p.cnpj); if(!porCnpj.has(k)) porCnpj.set(k, []); porCnpj.get(k).push(p); });
+  porCnpj.forEach((ps, k) => {
+    if(new Set(ps.map(p => bmNorm(p.usuario))).size < 2) return;
+    ps.sort((a, b) => a.numero.localeCompare(b.numero));
+    acoes.push({ regra: 'cnpj_conflito', chave: k, quem: 'Supervisão', o_que: 'Decidir o dono: ' + ps.map(p => `pedido ${p.numero} (${p.usuario || '—'})`).join(' × '),
+      valor: ppR2(ps.reduce((s, p) => s + p.valor, 0)), prazo: 'hoje', extra: { cnpj: ps[0].cnpj || '', cliente: ps[0].cliente || '', pedidos: ps.map(p => ({ numero: p.numero, consultor: p.usuario || '' })) } });
+  });
+  // 11 — retornos atrasados (Agenda + follow-ups de lead): uma ação por consultor
+  bmRetornosAtrasados(d.retornos, hoje).forEach((ids, pid) => {
+    const nome = nomes.doPerfil(pid);
+    acoes.push({ regra: 'retorno_atrasado', chave: 'retornos:' + pid, quem: 'Supervisão', o_que: `Cobrar ${nome}: ${ids.length} ${ids.length === 1 ? 'retorno atrasado' : 'retornos atrasados'}`,
+      valor: 0, prazo: 'hoje', extra: { consultor: nome, ids } });
+  });
+  // 12 — destaques do período (fase 1: maior contrato e maior R$), com a mensagem pronta para o grupo
+  let maior = null;
+  const porCons = new Map();
+  per.dias.forEach(dia => {
+    const v = vendasDia(dia);
+    if(!v) return;
+    (v.porContrato || []).forEach(c => { if(!maior || c.valor > maior.valor) maior = c; });
+    (v.porConsultor || []).forEach(c => porCons.set(c.key, (porCons.get(c.key) || 0) + (Number(c.valor) || 0)));
+  });
+  const quando = per.de === per.ate ? 'de ontem' : 'do período';
+  if(maior && maior.valor > 0) acoes.push({ regra: 'destaque', chave: 'maior-contrato', quem: 'Supervisão',
+    o_que: `Parabenizar no grupo: ${maior.usuario} fez o maior contrato do período (${fmtBRL(maior.valor)}/mês)`, valor: 0, prazo: 'hoje',
+    extra: { consultor: maior.usuario, msg: `Parabéns, ${bmPrimeiroNome(maior.usuario)}! Maior contrato ${quando}: ${fmtBRL(maior.valor)}/mês. Bora, time!` } });
+  let topo = null;
+  porCons.forEach((v, k) => { if(!topo || v > topo.valor) topo = { nome: k, valor: v }; });
+  if(topo && topo.valor > 0) acoes.push({ regra: 'destaque', chave: 'maior-valor', quem: 'Supervisão',
+    o_que: `Parabenizar no grupo: ${topo.nome} fez o maior R$ do período (${fmtBRL(topo.valor)})`, valor: 0, prazo: 'hoje',
+    extra: { consultor: topo.nome, msg: `Parabéns, ${bmPrimeiroNome(topo.nome)}! Maior valor vendido ${quando}: ${fmtBRL(topo.valor)}. Bora, time!` } });
+
+  // dias seguidos (a mesma regra + chave no plano anterior) e ordem final
+  const antes = new Map(((d.anterior && d.anterior.acoes) || []).map(a => [a.regra + '|' + a.chave, Number(a.dias_seguidos) || 1]));
+  acoes.forEach(a => { const k = a.regra + '|' + a.chave; a.dias_seguidos = a.regra !== 'destaque' && antes.has(k) ? antes.get(k) + 1 : 1; });
+  acoes.sort((a, b) => (b.valor - a.valor) || (BM_REGRAS.indexOf(a.regra) - BM_REGRAS.indexOf(b.regra)) || String(a.chave).localeCompare(String(b.chave)));
+  acoes.forEach((a, i) => { a.ordem = i + 1; });
+  return acoes;
+}
+
+// Conferência automática das ações ainda não resolvidas do plano anterior (spec 8.2). Devolve {id, desfecho, valor_recuperado}.
+function bmDesfechoPedido(p, extra){
+  if(!p || p.etapa === extra.etapa) return null;
+  if(p.etapa === 'CONCLUIDO (NEOCRM)') return { desfecho: 'concluiu', valor: p.valor };
+  if(p.etapa === 'VENDA PERDIDA (NEOCRM)') return { desfecho: 'perdeu', valor: 0 };
+  if(p.etapa === 'DEVOLVIDO (NEOCRM)') return { desfecho: 'devolvido', valor: 0 };
+  return { desfecho: 'avancou', valor: p.valor };
+}
+function bmConferir(acoes, d, ctx){
+  const hoje = ctx.hoje, pedidos = d.pedidos || [];
+  const porNum = new Map(pedidos.map(p => [p.numero, p]));
+  const abertosPorCnpj = new Map();
+  pedidos.filter(p => ppEtapaAberta(p.etapa) && ppDigitos(p.cnpj)).forEach(p => { const k = ppDigitos(p.cnpj); if(!abertosPorCnpj.has(k)) abertosPorCnpj.set(k, []); abertosPorCnpj.get(k).push(p); });
+  const leadsPor = new Map((d.leads || []).map(l => [vlChave(l), l]));
+  const perdasPor = new Map((d.perdas || []).map(x => [String(x.numero_pedido), x]));
+  const atrasadosAgora = new Set();
+  bmRetornosAtrasados(d.retornos, hoje).forEach(ids => ids.forEach(id => atrasadosAgora.add(id)));
+  const saida = [];
+  const resolve = (a, desfecho, valor) => saida.push({ id: a.id, desfecho, valor_recuperado: ppR2(Number(valor) || 0) });
+  (acoes || []).forEach(a => {
+    if(a.resolvida_em) return;
+    const x = a.extra || {};
+    if(BM_REGRAS_DE_PEDIDO.indexOf(a.regra) >= 0){
+      const p = porNum.get(x.numero), r = bmDesfechoPedido(p, x);
+      if(r){ resolve(a, r.desfecho, r.valor); return; }
+      if(a.regra === 'data_vencida' && p){
+        const alvo = p.dataPortabilidade || p.dataInstalacao, dia = alvo ? leadDateSP(alvo) : null;
+        if(dia && dia >= hoje) resolve(a, 'avancou', p.valor);
+      }
+      return;
+    }
+    if(a.regra === 'consultor_zerado'){
+      const v = (d.vendas || {})[a.dia], k = bmNorm(x.consultor || a.chave);
+      const c = v && (v.porConsultor || []).find(y => bmNorm(y.key) === k);
+      if(c && c.contratos > 0) resolve(a, 'vendeu', c.valor);
+    }else if(a.regra === 'lead_noite'){
+      const ls = (x.leads || []).map(k => leadsPor.get(k)).filter(Boolean);
+      if(ls.length && ls.every(l => l.consultor && vlPrimeiroContatoMs(l) !== null)) resolve(a, 'atribuido', 0);
+    }else if(a.regra === 'perda_recuperavel'){
+      const novos = (abertosPorCnpj.get(ppDigitos(x.cnpj)) || []).filter(p => p.numero !== x.numero);
+      if(novos.length) resolve(a, 'reaberto', novos.reduce((s, p) => s + p.valor, 0));
+    }else if(a.regra === 'perda_sem_motivo'){
+      const ps = (x.numeros || []).map(n => perdasPor.get(String(n))).filter(Boolean);
+      if(ps.length && ps.every(y => String(y.categoria || '').trim())) resolve(a, 'preenchido', 0);
+    }else if(a.regra === 'cnpj_conflito'){
+      if(new Set((abertosPorCnpj.get(a.chave) || []).map(p => bmNorm(p.usuario))).size <= 1) resolve(a, 'decidido', 0);
+    }else if(a.regra === 'retorno_atrasado'){
+      const ids = x.ids || [];
+      if(ids.length && ids.every(id => !atrasadosAgora.has(id))) resolve(a, 'zerou', 0);
+    }
+  });
+  return saida;
+}
+// Resultado do plano anterior (spec 8.3). Concluídas = marcadas "Feito" + resolvidas sozinhas sem marcação.
+function bmResultadoAnterior(ant){
+  if(!ant || !ant.dia) return null;
+  const acoes = ant.acoes || [];
+  const feitas = acoes.filter(a => a.status === 'feita').length;
+  const sozinhas = acoes.filter(a => a.status === 'aberta' && a.resolvida_em).length;
+  const recuperado = ppR2(acoes.reduce((s, a) => s + (Number(a.valor_recuperado) || 0), 0));
+  const frase = `Plano de ${BM_DIAS_CURTOS[bmDiaSemana(ant.dia)]}, ${bmDdMm(ant.dia)}: ${feitas + sozinhas} de ${acoes.length} ${acoes.length === 1 ? 'ação concluída' : 'ações concluídas'}`
+    + ` (${feitas} ${feitas === 1 ? 'feita' : 'feitas'} + ${sozinhas} ${sozinhas === 1 ? 'resolvida sozinha' : 'resolvidas sozinhas'}), ${fmtBRL(recuperado)} recuperados.`;
+  return {
+    dia: ant.dia, total: acoes.length, feitas, sozinhas, concluidas: feitas + sozinhas, recuperado, frase,
+    naoDeu: acoes.filter(a => a.status === 'nao_deu').map(a => ({ ordem: a.ordem, quem: a.quem, o_que: a.o_que, nota: a.nota || '' })),
+    semMarcacao: acoes.filter(a => a.status === 'aberta' && !a.resolvida_em).map(a => ({ ordem: a.ordem, quem: a.quem, o_que: a.o_que })),
+  };
+}
 
 /* ============ CADERNO + AGENDA + OBJEÇÕES — 06/10/2026, REGRAS_NEGOCIO.md seção 72 ============
    Para o consultor da discadora (fora do lead). Spec: docs/superpowers/specs/2026-10-06-caderno-agenda-objecoes-design.md.

@@ -61,7 +61,9 @@ try{
   function eq(a, b, msg){ assert(JSON.stringify(a) === JSON.stringify(b), msg + ' — esperado ' + JSON.stringify(b) + ', veio ' + JSON.stringify(a)); }
   const espera = (ms) => new Promise(r => setTimeout(r, ms || 20));
   const sp = (s) => Date.parse(s + '-03:00');   // '2026-10-05T09:00:00' em São Paulo -> ms
-  const cfg = vlCfg(null);
+  // 08/10/2026 (§76): o padrão virou 11h–21h sem sábado; estes casos foram escritos para 08h–18h + sábado 08h–12h
+  const cfg = vlCfg('{"seg_sex":["08:00","18:00"],"sabado":["08:00","12:00"]}');
+  assert(JSON.stringify([vlCfg(null).seg_sex, vlCfg(null).sabado]) === JSON.stringify([['11:00', '21:00'], null]), 'padrão do relógio: seg–sex 11h–21h, sábado sem expediente');
 
   // ==== TASK 3: funções puras ====
   eq(cfg.amarelo_min, 15, 'padrão amarelo 15');
@@ -118,7 +120,8 @@ try{
   const nowReal = Date.now;
   Date.now = () => sp('2026-10-05T10:00:00');
   currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
-  window.__tabelas.config = [{ chave: 'velocidade_lead', valor: '{"amarelo_min":15}' }];
+  // 08/10/2026 (§76): o padrão virou 11h–21h; estes cenários foram escritos para o expediente antigo (08h–18h)
+  window.__tabelas.config = [{ chave: 'velocidade_lead', valor: '{"amarelo_min":15,"seg_sex":["08:00","18:00"],"sabado":["08:00","12:00"]}' }];
   window.__rpcRespostas.meus_leads_vinculado = { data: true, error: null };
   window.__rpcRespostas.meus_leads_para_tratar = { data: [], error: null };
   window.__rpcRespostas.meu_placar_ligacoes = { data: [], error: null };
