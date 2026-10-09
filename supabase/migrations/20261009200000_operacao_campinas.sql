@@ -2,12 +2,11 @@
 -- Spec: docs/superpowers/specs/2026-10-09-operacao-campinas-design.md
 -- Fase 1 = separação NA TELA: cada login tem uma operação; cada venda é da operação do vendedor (vínculo consultor_neo).
 -- O painel filtra por isso. O RLS da produção NÃO muda aqui (fase 2).
--- Aditiva. Desfazer: supabase/rollback/20261009200000_operacao_campinas_rollback.sql
+-- Aditiva e sem DROP (roda uma vez). Desfazer: supabase/rollback/20261009200000_operacao_campinas_rollback.sql
 
 -- ---------------------------------------------------------------- 1) operação de cada login
 -- 'apex' = padrão: todo mundo que já existe continua na Apex.
 alter table public.profiles add column if not exists operacao text not null default 'apex';
-alter table public.profiles drop constraint if exists profiles_operacao_check;
 alter table public.profiles add constraint profiles_operacao_check check (operacao in ('apex', 'campinas'));
 
 -- O usuário consegue editar a própria linha de profiles (nome/usuário, policy profiles_update): só admin muda a operação.
@@ -22,7 +21,6 @@ begin
   end if;
   return new;
 end $$;
-drop trigger if exists trg_profiles_trava_operacao on public.profiles;
 create trigger trg_profiles_trava_operacao before update of operacao on public.profiles
   for each row execute function public.profiles_trava_operacao();
 

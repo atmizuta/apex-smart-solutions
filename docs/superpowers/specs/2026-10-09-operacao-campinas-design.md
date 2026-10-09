@@ -35,8 +35,11 @@ veem as duas operações, com um seletor "Operação Apex | Operação Campinas"
 - Ligações (robô ProContact): os logins de Campinas já vêm no relatório de Chamadas Manuais (`Apex.beatrizS`, `apex.Juan`,
   `Apex.ranniele`, `Apex.vitoriaS`); falta separar por operação na Mesa, no Monitoramento e no Boletim.
 - Boletim da Manhã de Campinas para o Jaime.
-- Furo já existente: o usuário consegue mudar o próprio `role` em `profiles` (policy `profiles_update` + grant de coluna).
-  Correção proposta: trigger igual ao da operação, também para `role`. Depende do ok do Rafael.
+
+
+## Trava de cargo (aprovada pelo Rafael em 09/10)
+Furo antigo: o usuário consegue mudar o próprio `role` em `profiles` (policy `profiles_update` + grant de coluna).
+Migration `20261009210000_profiles_trava_role.sql`: trigger igual ao da operação — só admin muda cargo.
 
 ## Testes
 `test_operacao_campinas.js` (filtros, seletor, abas, funil, boletim, falha do mapa) e `test_producao_filtro_pessoas.js`
