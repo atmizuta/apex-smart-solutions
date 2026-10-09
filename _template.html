@@ -1191,6 +1191,11 @@
     <!-- DASHBOARD DE PRODUÇÃO (Apex/Claro) — página inicial pós-login, visível a qualquer perfil
          logado. Upload da planilha fica na aba "Atualização de Bases" (admin), não aqui. -->
     <section class="panel" id="panel-producao">
+      <!-- seção 78: seletor de operação (só admin; opAtualizarSeletores) -->
+      <div class="filterPills" data-operacao-seletor style="display:none;margin:0 0 14px">
+        <button type="button" class="filterPill active" data-operacao="apex">Operação Apex</button>
+        <button type="button" class="filterPill" data-operacao="campinas">Operação Campinas</button>
+      </div>
       <!-- "Meu dia" (30/09/2026): resumo do consultor logado; só aparece para role=consultor (ppRenderMeuDia) -->
       <div class="dashFunil" id="meuDiaCard" style="display:none">
         <div class="dfHead"><h3 id="meuDiaTitulo">Meu dia</h3><a data-tab="pedidosparados" id="meuDiaLink">Abrir Pedidos Parados →</a></div>
@@ -1488,6 +1493,11 @@
          mês). Não calcula valor de comissão, só lista as ativações qualificadas no período.
          Ver REGRAS_NEGOCIO.md seção 16.14. -->
     <section class="panel" id="panel-fechamento">
+      <!-- seção 78: seletor de operação (só admin; opAtualizarSeletores) -->
+      <div class="filterPills" data-operacao-seletor style="display:none;margin:0 0 14px">
+        <button type="button" class="filterPill active" data-operacao="apex">Operação Apex</button>
+        <button type="button" class="filterPill" data-operacao="campinas">Operação Campinas</button>
+      </div>
       <div class="card">
         <h3>Fechamento</h3>
         <p class="desc">Relatório de ativações pra comissionamento do consultor. Considera a data de ativação de cada produto: qualquer produto com a coluna Portabilidade preenchida (linha nova, renovação, titularidade, portabilidade — ou qualquer outro produto vendido junto) conta como ativação; banda larga sem Portabilidade preenchida usa a Data de instalação. Só entram pedidos dentro do período selecionado. Esse dado só começou a ser preenchido pelo NeoCRM a partir de 01/08/2026, então o relatório nunca considera pedidos anteriores a essa data, mesmo que "De" seja preenchido com uma data mais antiga. Não calcula valor de comissão — só lista as ativações qualificadas; o cálculo do comissionamento fica por conta de quem gera o relatório.</p>
@@ -2310,7 +2320,10 @@ async function loadProfileAndEnter(authUser){
     errEl.style.display = 'block';
     return;
   }
-  currentUser = { id: authUser.id, email: authUser.email, nome: profile.nome, username: profile.username, role: profile.role };
+  currentUser = { id: authUser.id, email: authUser.email, nome: profile.nome, username: profile.username, role: profile.role,
+    operacao: profile.operacao || 'apex' }; // seção 78
+  operacaoSelecionada = 'apex'; // admin: sempre abre na Operação Apex
+  await carregarVendedoresOperacao(); // seção 78: antes do Dashboard (página inicial) e do Boletim
   enterApp();
 }
 
@@ -2335,7 +2348,8 @@ function enterApp(){
     document.getElementById('ubName').textContent = currentUser.nome;
     document.getElementById('ubRole').textContent = ROLE_LABELS[currentUser.role] || currentUser.role;
 
-    const canSeeConsultores = currentUser.role === 'admin' || currentUser.role === 'supervisor';
+    // seção 78: Usuários (cadastro/edição de acessos) só para quem é da Apex — supervisor de outra operação não mexe nos consultores da Apex
+    const canSeeConsultores = (currentUser.role === 'admin' || currentUser.role === 'supervisor') && veAbasDaApex();
     const canSeeBaseDados = currentUser.role === 'admin';
     document.getElementById('tabBtnConsultores').style.display = canSeeConsultores ? 'inline-block' : 'none';
     document.getElementById('tabBtnBaseDados').style.display = canSeeBaseDados ? 'inline-block' : 'none';
@@ -6774,9 +6788,10 @@ async function loadFunil(){
   if(error){ console.error('Erro ao carregar funil:', error.message); return; }
   funilCache = data || [];
   if(currentUser.role !== 'consultor'){
-    const { data: profs } = await sb.from('profiles').select('id,nome,username');
+    const { data: profs } = await sb.from('profiles').select('id,nome,username,operacao');
     funilConsultores = {};
     (profs || []).forEach(p => { funilConsultores[p.id] = p; });
+    funilCache = funilDaOperacao(funilCache, funilConsultores); // seção 78: supervisor só vê a própria operação
     const sel = document.getElementById('funilFiltroConsultor');
     const presentes = new Set(funilCache.map(p => p.consultor_id));
     const valorAtual = sel.value;
@@ -7556,14 +7571,12 @@ function jsonParaScript(v){ return JSON.stringify(v).replace(/</g, '\\u003c'); }
 // no Cadastro Diário). Vitor Queiroz Cavalcante também tem usuário no painel (consultor_neo/
 // profiles) — isso aqui só tira ele das telas de produção, não mexe no acesso dele ao sistema.
 // Gabriel Macedo Martins (06/10/2026) também tem usuário no painel, mesma observação.
+// 09/10/2026 (seção 78): Ranniele, Vitória Priscila, Juan e Beatriz SAÍRAM desta lista — são da Operação Campinas
+// e aparecem na visão de Campinas (ver "OPERAÇÃO CAMPINAS" abaixo).
 const PRODUCAO_USUARIOS_EXCLUIDOS = new Set([
   'VITOR QUEIROZ CAVALCANTE',
-  'RANNIELE DA SILVA VIEIRA COTRIM',
-  'VITORIA PRISCILA DA SILVA SANTOS',
   'DANILO MORAIS ARAUJO',
   'GABRIEL MACEDO MARTINS',
-  'JUAN DE MELO FERNANDES', // 08/10/2026
-  'BEATRIZ CRISTINA GERMANIA SILVA', // 08/10/2026
 ]);
 function filtrarProducaoPedidos(rows){
   return (rows || []).filter(r => !PRODUCAO_USUARIOS_EXCLUIDOS.has(String(r.usuario || '').trim().toUpperCase()));
@@ -7578,8 +7591,66 @@ const PRODUCAO_FORA_DO_DASHBOARD = new Set([
   'ISABELLY FONSECA BATISTA DA SILVA',
 ]);
 function foraDoDashboard(nome){ const n = String(nome || '').trim().toUpperCase(); return PRODUCAO_USUARIOS_EXCLUIDOS.has(n) || PRODUCAO_FORA_DO_DASHBOARD.has(n); }
-function filtrarDashboardPedidos(rows){ return (rows || []).filter(r => !foraDoDashboard(r.usuario)); }
-function filtrarDashboardEquipe(nomes){ return (nomes || []).filter(n => !foraDoDashboard(n)); }
+
+/* ============ OPERAÇÃO CAMPINAS — separação NA TELA entre operações (09/10/2026, seção 78) ============
+   Cada login tem uma operação (profiles.operacao: 'apex' padrão | 'campinas'). Cada venda é da operação do vendedor:
+   rpc vendedores_operacao (nome do NeoCRM em maiúsculo -> operação, pelo vínculo consultor_neo); vendedor fora do mapa
+   = Apex. Admin vê as duas com o seletor no topo do Dashboard e do Fechamento (abre sempre na Apex); supervisor e
+   consultor ficam presos na própria operação. O Boletim da Manhã é sempre da Apex (bmFora). Fase 1: filtro só de
+   EXIBIÇÃO — o banco ainda entrega a produção inteira para qualquer login (como antes); a fase 2 leva a regra para o RLS. */
+const OPERACOES = { apex: 'Operação Apex', campinas: 'Operação Campinas' };
+let vendedorOperacao = new Map();
+let operacaoSelecionada = 'apex'; // só vale para admin
+function definirVendedoresOperacao(linhas){
+  vendedorOperacao = new Map();
+  (linhas || []).forEach(l => {
+    const nome = String((l && l.nome) || '').trim().toUpperCase();
+    if(nome && OPERACOES[l.operacao]) vendedorOperacao.set(nome, l.operacao);
+  });
+}
+async function carregarVendedoresOperacao(){
+  const r = await ppSeguro(() => sb.rpc('vendedores_operacao'));
+  if(!r || r.error || !Array.isArray(r.data)){
+    console.error('vendedores_operacao:', r && r.error);
+    definirVendedoresOperacao([]);
+    mostrarAviso('Não foi possível separar as operações (Apex/Campinas) agora. Recarregue a página.', 'erro');
+    return;
+  }
+  definirVendedoresOperacao(r.data);
+}
+function operacaoDoVendedor(nome){ return vendedorOperacao.get(String(nome || '').trim().toUpperCase()) || 'apex'; }
+function minhaOperacao(){ return currentUser && OPERACOES[currentUser.operacao] ? currentUser.operacao : 'apex'; }
+function podeTrocarOperacao(){ return !!currentUser && currentUser.role === 'admin'; }
+function operacaoAtiva(){ return podeTrocarOperacao() && OPERACOES[operacaoSelecionada] ? operacaoSelecionada : minhaOperacao(); }
+// Mesa, Boletim, Digital e Usuários só têm dados/gestão da Apex por enquanto: escondidos para quem é de outra operação.
+function veAbasDaApex(){ return !currentUser || currentUser.role === 'admin' || minhaOperacao() === 'apex'; }
+function filtrarDashboardPedidos(rows, op){ const o = op || operacaoAtiva(); return (rows || []).filter(r => !foraDoDashboard(r.usuario) && operacaoDoVendedor(r.usuario) === o); }
+function filtrarDashboardEquipe(nomes, op){ const o = op || operacaoAtiva(); return (nomes || []).filter(n => !foraDoDashboard(n) && operacaoDoVendedor(n) === o); }
+// null = erro na busca (o dashboard mostra o aviso); mantém null
+function filtrarDashboardPerdidas(linhas, op){ const o = op || operacaoAtiva(); return Array.isArray(linhas) ? linhas.filter(x => operacaoDoVendedor(x && x.usuario) === o) : linhas; }
+// Funil: supervisor vê só as propostas de consultores da própria operação (perfil sem operação = Apex); admin vê tudo.
+function funilDaOperacao(propostas, perfisPorId){
+  if(!currentUser || currentUser.role === 'admin') return propostas || [];
+  const minha = minhaOperacao();
+  return (propostas || []).filter(p => { const pf = perfisPorId[p.consultor_id]; return ((pf && OPERACOES[pf.operacao]) ? pf.operacao : 'apex') === minha; });
+}
+function opAtualizarSeletores(){
+  const vis = podeTrocarOperacao(), atual = operacaoAtiva();
+  document.querySelectorAll('[data-operacao-seletor]').forEach(sel => {
+    sel.style.display = vis ? '' : 'none';
+    sel.querySelectorAll('button[data-operacao]').forEach(b => b.classList.toggle('active', b.dataset.operacao === atual));
+  });
+}
+function trocarOperacao(op){
+  if(!podeTrocarOperacao() || !OPERACOES[op] || op === operacaoSelecionada) return;
+  operacaoSelecionada = op;
+  opAtualizarSeletores();
+  loadProducaoDashboard().catch(err => console.error(err));
+  // o Fechamento se recarrega sozinho ao abrir a aba; aqui só se ele estiver na tela
+  const fech = document.getElementById('panel-fechamento');
+  if(canSeeFechamento() && fech && fech.classList.contains('active')) loadFechamento().catch(err => console.error(err));
+}
+document.querySelectorAll('[data-operacao-seletor] button[data-operacao]').forEach(b => b.addEventListener('click', () => trocarOperacao(b.dataset.operacao)));
 
 // 08/10/2026 (seção 76): + criado_em (hora de entrada na sincronização) — é a hora da venda no gráfico por hora
 // da Visão Diária, no corte do relatório das 17h e no Boletim da Manhã (a API manda o cadastro sem hora).
@@ -7589,10 +7660,13 @@ function producaoColunas(adminMode){
     : 'numero_pedido,grupo,usuario,etapa,cadastro,atualizacao,valor,quantidade,produto,tag,criado_em';
 }
 let producaoAutoRefreshTimer = null; // recarrega os dados (sem recriar o iframe) a cada 1h — ver Visão Diária
+let producaoGeracao = 0; // seção 78: trocar de operação rápido não deixa uma carga antiga terminar por cima da nova
 async function loadProducaoDashboard(){
   const emptyCard = document.getElementById('producaoEmptyCard');
   const frameWrap = document.getElementById('producaoFrameWrap');
   const frame = document.getElementById('producaoFrame');
+  const geracao = ++producaoGeracao;
+  opAtualizarSeletores();
 
   const adminMode = producaoAdminMode();
   const cols = producaoColunas(adminMode);
@@ -7605,8 +7679,9 @@ async function loadProducaoDashboard(){
     // 05/10/2026 (seção 70): vendas perdidas por categoria — só admin/supervisor
     buscarVendasPerdidasDashboard(adminMode),
   ]);
+  if(geracao !== producaoGeracao) return; // seção 78: já pediram outra operação
   if(adminMode && perdidasRes && perdidasRes.error) console.error('vendas_perdidas:', perdidasRes.error);
-  const perdidas = adminMode ? vendasPerdidasLinhas(perdidasRes) : [];
+  const perdidas = adminMode ? filtrarDashboardPerdidas(vendasPerdidasLinhas(perdidasRes)) : [];
   const perdidasSync = adminMode ? vendasPerdidasSyncOk(perdidasSyncRes) : null;
   const equipeNomes = filtrarDashboardEquipe(equipeRes && !equipeRes.error && Array.isArray(equipeRes.data)
     ? equipeRes.data.map(x => typeof x === 'string' ? x : (x && x.equipe_vendedores)).filter(Boolean) : []);
@@ -7694,7 +7769,7 @@ async function loadProducaoDashboard(){
       // seção 70: Vendas Perdidas também acompanham a hora, depois da produção e isoladas (um erro aqui não afeta o resto);
       // falha na busca mantém o que já está na tela
       try{
-        const linhasPerd = adminMode ? vendasPerdidasLinhas(perdAuto) : null;
+        const linhasPerd = adminMode ? filtrarDashboardPerdidas(vendasPerdidasLinhas(perdAuto)) : null;
         if(linhasPerd && win && typeof win.atualizarVendasPerdidas === 'function') win.atualizarVendasPerdidas(linhasPerd, vendasPerdidasSyncOk(perdSyncAuto));
       }catch(errPerd){ console.error('Erro ao atualizar as Vendas Perdidas do Dashboard:', errPerd); }
     }catch(err){ console.error('Erro ao atualizar automaticamente o Dashboard de Produção:', err); }
@@ -7845,7 +7920,7 @@ let conversaoFunilChartInstance = null;
 // 01/09/2026: aba Digital liberada pro consultor também (antes só admin/supervisor) — ver
 // REGRAS_NEGOCIO.md seção 2.1. Mantida como função (em vez de sempre `true`) pra ficar explícito
 // que os 3 perfis atuais têm acesso, e documentado igual às outras checagens de visibilidade.
-function canSeeConversao(){ return currentUser.role === 'admin' || currentUser.role === 'supervisor' || currentUser.role === 'consultor'; }
+function canSeeConversao(){ return (currentUser.role === 'admin' || currentUser.role === 'supervisor' || currentUser.role === 'consultor') && veAbasDaApex(); } // seção 78
 // Ver os dados (acima) e sincronizar são permissões diferentes: o botão "Atualizar agora" dispara
 // a Edge Function sync-leads, que já recusa (403) quem não é admin/supervisor — mantido assim de
 // propósito (é uma ação de gestão de dados, igual Upload Base/Upload Dash, que também continuam
@@ -8698,7 +8773,9 @@ async function loadFechamento(){
   const { data, error } = await sb.from('producao_pedidos')
     .select('numero_pedido,grupo,usuario,etapa,produto,cliente,cnpj,valor,data_portabilidade,data_instalacao');
   if(error){ console.error(error); info.textContent = 'Não foi possível carregar os dados agora.'; ApexMotion.limparSkeleton(document.getElementById('fechamentoResumoCards')); return; }
-  fechamentoRegistrosCache = filtrarProducaoPedidos(data);
+  // seção 78: só a operação escolhida no seletor (Apex ou Campinas); Rafael e Isabelly continuam (comissão)
+  const op = operacaoAtiva();
+  fechamentoRegistrosCache = filtrarProducaoPedidos(data).filter(r => operacaoDoVendedor(r.usuario) === op);
   info.textContent = '';
   buscarFechamento();
 }
@@ -9079,7 +9156,7 @@ function mlCardsEquipe(equipe, leads){
 /* ---- Monitoramento Leads: estado, carga e telas (admin/supervisor) ---- */
 const mlEstado = { geracao: 0, aba: null, sub: 'leads', equipe: [], metas: Object.assign({}, ML_METAS_PADRAO), leads: [], resumo: null,
   porUsuario: [], tabela: 'equipe', de: undefined, ate: undefined, filtro: '', erro: false };
-function canSeeMonitoramentoLeads(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
+function canSeeMonitoramentoLeads(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor') && veAbasDaApex(); } // seção 78
 function mlFmtDiaHora(iso){
   const d = new Date(iso);
   return isNaN(d.getTime()) ? '—' : d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -11189,7 +11266,7 @@ document.getElementById('ppMetasMes').addEventListener('change', ppAdminCarregar
 /* ============ MESA DO SUPERVISOR — 02/10/2026, REGRAS_NEGOCIO.md §68 ============
    Admin/supervisor: pendências da equipe numa tela só (leads esperando, retornos, propostas, pedidos,
    ligações e vendas) e cobrança em 1 clique. Regras de tempo: funções vl* (minutos úteis). */
-function canSeeMesa(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
+function canSeeMesa(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor') && veAbasDaApex(); } // seção 78
 function mesaDiaSP(v){ const ms = vlMs(v); return ms === null ? null : vlPartesSP(ms).dia; }
 function mesaMediana(nums){
   if(!nums || !nums.length) return null;
@@ -11473,6 +11550,8 @@ document.getElementById('btnMesaAtualizar').addEventListener('click', () => load
    Spec: docs/superpowers/specs/2026-10-09-boletim-da-manha-v2-design.md. Prefixo bm*. Funções puras primeiro
    (test_boletim_manha.js). Vendas = resumoDiaria do dashboard (mesma conta da Visão Diária); leads = relógio do lead
    (vl*, minutos úteis); pessoas fora = foraDoDashboard. Tela e PDF desenham só a partir do retrato guardado. */
+// seção 78: o boletim é só da Operação Apex — vendedor de outra operação fica fora, como quem já está fora do Dashboard
+function bmFora(nome){ return foraDoDashboard(nome) || operacaoDoVendedor(nome) !== 'apex'; }
 const BM_VERSAO = 2;
 const BM_CFG_PADRAO = { hora: '10:00', abre_sozinho: [], queda_alerta: 0.30, telefonia: {}, planilha: {},
   perdas: { evitaveis: [], nao_evitaveis: [] }, retencao_meses: 12 };
@@ -11563,7 +11642,7 @@ function bmSomaVendas(d, dias){
     r.contratos += v.contratos; r.valor += v.valor; r.linhas += v.linhas;
     (v.porConsultor || []).forEach(c => {
       const k = bmNorm(c.key);
-      if(foraDoDashboard(k)) return;
+      if(bmFora(k)) return;
       const a = r.cons.get(k) || { nome: k, contratos: 0, linhas: 0, valor: 0 };
       a.contratos += c.contratos; a.linhas += Number(c.linhas) || 0; a.valor += Number(c.valor) || 0;
       r.cons.set(k, a);
@@ -11611,7 +11690,7 @@ function bmMetaMes(d, ctx){
   (d.metas || []).forEach(m => {
     const nome = bmNorm((d.neoNomes || {})[neoPorPerfil.get(m.profile_id)]);
     const meta = Number(m.meta_receita) || 0;
-    if(!nome || meta <= 0 || foraDoDashboard(nome)) return;
+    if(!nome || meta <= 0 || bmFora(nome)) return;
     metaPorNome.set(nome, (metaPorNome.get(nome) || 0) + meta);
   });
   const nomes = new Set([...metaPorNome.keys(), ...soma.cons.keys()]);
@@ -11625,7 +11704,7 @@ function bmMetaMes(d, ctx){
 }
 // Ligações manuais do período por consultor (login do ProContact -> nome do NeoCRM). Login de pessoa fora: fora.
 function bmLigacoesValidas(lig, tel){
-  return (lig || []).filter(x => { const n = tel.get(String(x.usuario || '').trim().toLowerCase()); return !(n && foraDoDashboard(n)); });
+  return (lig || []).filter(x => { const n = tel.get(String(x.usuario || '').trim().toLowerCase()); return !(n && bmFora(n)); });
 }
 function bmFunil(d, ctx, ranking){
   const tel = bmMapa(ctx.cfg.telefonia), set = new Set(ctx.periodo.dias);
@@ -11683,7 +11762,7 @@ function bmLeads(d, ctx){
   (d.leads || []).filter(l => l.aba !== 'REPIQUE' && set.has(mesaDiaSP(l.criado_em_lead))).forEach(l => {
     const bruto = String(l.consultor || '').trim();
     const neo = bruto ? mapa.get(bruto.toLowerCase()) : null;
-    if(neo && foraDoDashboard(neo)) return;
+    if(neo && bmFora(neo)) return;
     const nome = bruto ? (neo || bruto) : '(sem dono)';
     if(!porC.has(nome)) porC.set(nome, { nome, curto: neo ? bmNomeCurto(neo) : (bruto ? bmNomeBonito(bruto) : '(sem dono)'), semVinculo: !!bruto && !neo,
       recebidos: 0, convertidos: 0, tempos: [], semPlanilha: 0, semSistema: 0 });
@@ -11718,7 +11797,7 @@ function bmGrupoPerda(cat, cfg){
 }
 function bmPerdas(d, ctx){
   const set = new Set(ctx.periodo.dias);
-  const ps = (d.perdas || []).filter(x => !foraDoDashboard(x.usuario) && set.has(leadDateSP(x.perdido_em)));
+  const ps = (d.perdas || []).filter(x => !bmFora(x.usuario) && set.has(leadDateSP(x.perdido_em)));
   const grupos = { evitavel: { n: 0, valor: 0 }, nao_evitavel: { n: 0, valor: 0 }, sem_motivo: { n: 0, valor: 0 }, outros: { n: 0, valor: 0 } };
   const porC = new Map(), porM = new Map();
   ps.forEach(x => {
@@ -11785,7 +11864,7 @@ function bmMontar(d, ctx){
   const tel = bmMapa(ctx.cfg.telefonia);
   const ligP = d.ligacoes ? bmFunil(d, ctx, ranking) : { lista: [], total: null, atendidas: null, mediaPorConsultor: null };
   const ligRef = d.ligacoesRef === null || d.ligacoesRef === undefined ? null
-    : (d.ligacoesRef || []).filter(x => { const n = tel.get(String(x.usuario || '').trim().toLowerCase()); return !(n && foraDoDashboard(n)); }).reduce((s, x) => s + (Number(x.total) || 0), 0);
+    : (d.ligacoesRef || []).filter(x => { const n = tel.get(String(x.usuario || '').trim().toLowerCase()); return !(n && bmFora(n)); }).reduce((s, x) => s + (Number(x.total) || 0), 0);
   const leads = bmLeads(d, ctx), perdas = bmPerdas(d, ctx);
   const somaRef = d.vendas ? bmSomaVendas(d, ref) : null;
   const numeros = [
@@ -11816,7 +11895,7 @@ function bmMontar(d, ctx){
 /* ---- Boletim: dados, geração do dia (regra das 10h), tela, PDF ---- */
 const bmEstado = { geracao: 0, cfg: bmCfg(null), atual: null, timer: null, avisadoDia: '', abriuSessao: false, relogio: null };
 function bmAgora(){ return Date.now(); }
-function canSeeBoletim(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
+function canSeeBoletim(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor') && veAbasDaApex(); } // seção 78 (boletim de Campinas: fase seguinte)
 function bmDiaHoraSP(v){ const ms = vlMs(v); if(ms === null) return '—'; const s = new Date(ms - 3 * 3600000).toISOString(); return s.slice(8, 10) + '/' + s.slice(5, 7) + ' ' + s.slice(11, 16); }
 function bmRotuloDia(dia){ return BM_DIAS_CURTOS[bmDiaSemana(dia)] + ', ' + bmDdMm(dia); }
 
@@ -11824,6 +11903,13 @@ function bmRotuloDia(dia){ return BM_DIAS_CURTOS[bmDiaSemana(dia)] + ', ' + bmDd
 async function bmObterResumoDiaria(){
   const frame = document.getElementById('producaoFrame');
   const pega = () => { try{ const w = frame && frame.contentWindow; return w && typeof w.resumoDiaria === 'function' ? w.resumoDiaria : null; }catch(e){ return null; } };
+  // seção 78: a conta mora no iframe — se o admin estava vendo Campinas, o Dashboard volta para a Apex antes (e o seletor junto)
+  if(operacaoAtiva() !== 'apex' && frame){
+    operacaoSelecionada = 'apex';
+    const carregou = new Promise(r => frame.addEventListener('load', r, { once: true }));
+    await loadProducaoDashboard();
+    await Promise.race([carregou, new Promise(r => setTimeout(r, 30000))]);
+  }
   if(pega()) return (await bmRefrescarDashboard()) ? pega() : null;
   if(frame && !frame.srcdoc) await loadProducaoDashboard();
   for(let i = 0; i < 150 && !pega(); i++) await new Promise(r => setTimeout(r, 200));
@@ -11840,7 +11926,7 @@ async function bmRefrescarDashboard(){
     ppSeguro(() => sb.from('config').select('valor').eq('chave', 'producao_neo_atualizado_em').maybeSingle()),
   ]);
   if(!lin || lin.error || !Array.isArray(lin.data) || !lin.data.length) return false;
-  try{ win.atualizarDadosDashboard(filtrarDashboardPedidos(lin.data), (cfg && !cfg.error && cfg.data && cfg.data.valor) || null); }
+  try{ win.atualizarDadosDashboard(filtrarDashboardPedidos(lin.data, 'apex'), (cfg && !cfg.error && cfg.data && cfg.data.valor) || null); }
   catch(err){ console.error('Boletim: atualizar o dashboard', err); return false; }
   return true;
 }

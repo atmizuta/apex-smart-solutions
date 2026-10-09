@@ -3057,3 +3057,23 @@ Spec: `docs/superpowers/specs/2026-10-09-boletim-da-manha-v2-design.md`. Substit
   - boletim de 09/10 no formato antigo apagado, para o novo ser gerado na próxima abertura da aba;
   - painel publicado, MD5 `b4fbec51…`, depois de conferir que o do ar era o da §76 (`dd4eabf5…`); backup `~/deploy_backups/painel_clientes_apex_20261009_antes_boletim_v2.html`;
   - **para reverter:** copiar o backup de volta e rodar o rollback da v2.
+
+## 78. Operação Campinas — separação por operação no mesmo painel, fase 1 na tela (09/10/2026)
+
+Spec: `docs/superpowers/specs/2026-10-09-operacao-campinas-design.md`. Pedido do Rafael: a Apex abriu uma operação em Campinas (supervisor Jaime; consultores Vitória Priscila, Beatriz, Ranniele e Juan). Mesmo painel, mesmo link; cada operação vê só os seus consultores.
+
+- **Quem vê o quê:**
+  - **admin** (todos, inclusive a Isabelly): as duas operações, com o seletor **Operação Apex | Operação Campinas** no topo do Dashboard de Produção e do Fechamento (os dois andam juntos; abre sempre na Apex);
+  - **supervisor e consultor:** só a própria operação (`profiles.operacao`), sem seletor. Supervisor e consultor da Apex: igual a antes.
+- **De quem é cada venda:** da operação do vendedor, pelo vínculo `consultor_neo` (login × ID do NeoCRM). O NeoCRM não separa operação (`nomeEquipe` vazio, `estruturaNome` = "apex" para todos). Vendedor sem vínculo = Apex. **Vendedor novo de Campinas precisa do login vinculado ao ID do NeoCRM**, senão cai na Apex.
+- **Onde o filtro vale:** Dashboard inteiro (carga, atualização de 1 h, equipe do "quem zerou", Vendas Perdidas) e Fechamento. Funil: supervisor vê só propostas de consultores da própria operação.
+- **Boletim da Manhã:** sempre da Apex (`bmFora` = fora do Dashboard ou de outra operação). Se o admin estava em Campinas quando o boletim precisa da conta da Visão Diária, o Dashboard volta para a Apex antes.
+- **Abas escondidas para quem é de Campinas** (dados ou gestão só da Apex, por enquanto): Mesa do Supervisor, Boletim, Digital (leads e Monitoramento) e Usuários. Ficam: Dashboard, Busca, Proposta, Funil, Biometria, Agenda, Anotações e Pedidos Parados.
+- **Ranniele, Vitória Priscila, Juan e Beatriz** saíram de `PRODUCAO_USUARIOS_EXCLUIDOS` (§16.18, §75): eram de Campinas, não "fora da Apex".
+- **Banco** (migration `20261009200000_operacao_campinas.sql`; rollback em `supabase/rollback/`):
+  - `profiles.operacao` (`apex` padrão | `campinas`) + trigger `profiles_trava_operacao` (só admin muda);
+  - `vendedores_operacao()` (security definer; devolve só nome do NeoCRM + operação);
+  - dados: Jaime admin → supervisor; Jaime e os 4 consultores em `campinas`; vínculo dos 4 com o NeoCRM (103626 a 103629).
+- **Limite da fase 1:** a separação é só de exibição. O banco ainda entrega a produção inteira a qualquer login (como antes). A fase 2 leva a regra para o RLS e para as funções do banco.
+- **Próximas fases:** RLS por operação; ligações por operação (os logins de Campinas já vêm no relatório de Chamadas Manuais do robô, §67); Boletim de Campinas para o Jaime.
+- **Testes:** `test_operacao_campinas.js` (novo) e `test_producao_filtro_pessoas.js` (atualizado).
