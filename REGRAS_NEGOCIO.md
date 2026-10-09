@@ -3075,7 +3075,9 @@ Spec: `docs/superpowers/specs/2026-10-09-operacao-campinas-design.md`. Pedido do
   - `vendedores_operacao()` (security definer; devolve só nome do NeoCRM + operação);
   - dados: Jaime admin → supervisor; Jaime e os 4 consultores em `campinas`; vínculo dos 4 com o NeoCRM (103626 a 103629).
 - **Entrada no banco (09/10/2026):** migration aplicada e conferida. O perfil do Jaime tinha sido apagado (o login continuava): foi recriado direto no banco como supervisor de Campinas, ligado ao login existente.
-- **Trava de cargo** (migration `20261009210000_profiles_trava_role.sql`): fecha um furo antigo — a policy `profiles_update` deixava cada usuário mudar o próprio `role` pela API (um consultor conseguia virar admin). Trigger: só admin muda cargo (service_role passa).
+- **Trava de cargo** (migration `20261009210000_profiles_trava_role.sql`, **ainda não aplicada** — ver Pendente): fecha um furo antigo — a policy `profiles_update` deixava cada usuário mudar o próprio `role` pela API (um consultor conseguia virar admin). Trigger: só admin muda cargo (service_role passa).
 - **Limite da fase 1:** a separação é só de exibição. O banco ainda entrega a produção inteira a qualquer login (como antes). A fase 2 leva a regra para o RLS e para as funções do banco.
 - **Próximas fases:** RLS por operação; ligações por operação (os logins de Campinas já vêm no relatório de Chamadas Manuais do robô, §67); Boletim de Campinas para o Jaime.
 - **Testes:** `test_operacao_campinas.js` (novo) e `test_producao_filtro_pessoas.js` (atualizado).
+- **Entrada no ar (09/10/2026):** painel publicado, MD5 `a3968bb8…`, depois de conferir que o do ar era o da §77 (`b4fbec51…`); backup `~/deploy_backups/painel_clientes_apex_20261009_antes_operacao_campinas.html`. **Para reverter:** copiar o backup de volta (o banco pode ficar: o painel antigo ignora `profiles.operacao` e `vendedores_operacao`).
+- **Pendente:** aplicar a trava de cargo (`20261009210000_profiles_trava_role.sql`) no Supabase — o arquivo está no repositório, mas não foi aplicado (bloqueado na sessão do Claude; o Rafael aplica pelo editor SQL).
