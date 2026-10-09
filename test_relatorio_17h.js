@@ -24,11 +24,13 @@ function montarDashboard({ data = [], adminMode = true } = {}){
   return w;
 }
 const DIA = '2026-09-30'; // quarta-feira
-function ped(over){ return Object.assign({
+// 08/10/2026 (seção 76): o corte das 17h passou a usar a hora de entrada na sincronização (criado_em). Nas fixtures
+// antigas a hora estava em `cadastro`; por padrão criado_em = cadastro, então os casos antigos seguem iguais.
+function ped(over){ const r = Object.assign({
   numero_pedido: 'P', grupo: 'VOZ - Novo', usuario: 'Caio', etapa: 'CONCLUIDO (NEOCRM)',
   cadastro: '2026-09-30T10:00:00-03:00', atualizacao: '2026-09-30T10:00:00-03:00',
   valor: 100, quantidade: 1, produto: 'Plano Teste', cliente: 'EMPRESA FICTICIA LTDA', cnpj: null, tag: null,
-}, over); }
+}, over); if(!('criado_em' in (over || {}))) r.criado_em = r.cadastro; return r; }
 
 const DADOS = [
   // dentro do corte (até 16:59 em São Paulo)
@@ -56,6 +58,10 @@ const DADOS = [
   ped({ numero_pedido: 'EXCL-1', grupo: 'VOZ - Novo', etapa: 'AGUARDANDO INTERACAO (NEOCRM)', valor: 900, cadastro: '2026-09-28T09:00:00-03:00' }),
   ped({ numero_pedido: 'EXCL-2', grupo: 'VOZ - Novo', etapa: 'PROPOSTA (NEOCRM)',             valor: 900, cadastro: '2026-09-28T09:10:00-03:00' }),
   ped({ numero_pedido: 'EXCL-3', grupo: 'VOZ - Novo', etapa: 'CONCLUIDO (NEOCRM)',            valor: 80,  cadastro: '2026-09-28T09:20:00-03:00' }),
+  // 08/10/2026 (seção 76): como vem da API — cadastro 00:00, hora real na entrada da sincronização
+  ped({ numero_pedido: 'E-1', grupo: 'VOZ - Novo',          valor: 10, cadastro: '2026-10-02T00:00:00-03:00', criado_em: '2026-10-02T16:40:00-03:00' }),
+  ped({ numero_pedido: 'E-2', grupo: 'VOZ - Portabilidade', valor: 20, cadastro: '2026-10-02T00:00:00-03:00', criado_em: '2026-10-02T18:10:00-03:00' }),
+  ped({ numero_pedido: 'E-3', grupo: 'VOZ - Novo',          valor: 40, cadastro: '2026-10-02T00:00:00-03:00', criado_em: null }),
 ];
 
 let w = montarDashboard({ data: DADOS });
@@ -83,6 +89,11 @@ assert(w.dadosRelatorioDia(DIA, null).rows.length === 15, 'sem corte, o dia tem 
 const dadosExcluidos = w.dadosRelatorioDia('2026-09-28', null);
 assert(dadosExcluidos.rows.length === 1, 'dia com pedidos em aguardando interação/proposta: só 1 pedido conta (o concluído) — achou ' + dadosExcluidos.rows.length);
 assert(dadosExcluidos.valor === 80, 'dia com pedidos em aguardando interação/proposta: valor soma só R$ 80 (EXCL-1 e EXCL-2 ficam de fora) — achou ' + dadosExcluidos.valor);
+
+// --- 2.2) 08/10/2026 (seção 76): o corte é pela hora de entrada (antes todo pedido caía às 00h e nada era cortado)
+const dadosEntrada = w.dadosRelatorioDia('2026-10-02', 17);
+assert(dadosEntrada.rows.length === 2 && dadosEntrada.valor === 50, 'corte das 17h pela entrada: E-1 (16:40) e E-3 (sem hora) contam; E-2 (18:10) fica de fora — achou ' + dadosEntrada.rows.length + ' / ' + dadosEntrada.valor);
+assert(w.dadosRelatorioDia('2026-10-02', null).rows.length === 3, 'sem corte, os 3 pedidos do dia contam');
 
 // ---------------------------------------------------------------- 3) texto
 const agoraDepois = { date: DIA, hora: '17:05' };

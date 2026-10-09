@@ -58,11 +58,15 @@ console.log('--- (estrutura) RESULTADO:', ok0, 'passaram,', fail0, 'falharam ---
 // perto da virada do dia em UTC que só fica no dia certo se a conversão pro fuso de São Paulo
 // estiver correta (22h de 19/08 em SP = 01h de 20/08 em UTC — se o código só cortasse os 10
 // primeiros caracteres do ISO feito antes do fix de fuso, esse pedido cairia errado no dia 20).
-function lead(over){ return Object.assign({
+// 08/10/2026 (seção 76): a hora da venda passou a vir da entrada na sincronização (criado_em). Nas fixtures
+// antigas a hora estava em `cadastro`; por padrão criado_em = cadastro, então as contas por hora seguem iguais.
+function lead(over){ const r = Object.assign({
   numero_pedido: 'P', grupo: 'VOZ - Novo', usuario: 'Caio', etapa: 'CONCLUIDO (NEOCRM)',
   cadastro: '2026-08-20T12:00:00-03:00', atualizacao: '2026-08-20T12:00:00-03:00',
   valor: 100, quantidade: 1, produto: 'Plano X', tag: null, cnpj: null,
 }, over);
+  if(!('criado_em' in (over || {}))) r.criado_em = r.cadastro;
+  return r;
 }
 const FIXTURE = [
   lead({ numero_pedido: '1', usuario: 'Caio',     grupo: 'VOZ - Novo',          cadastro: '2026-08-20T09:15:00-03:00', valor: 100, quantidade: 1 }),
@@ -116,6 +120,12 @@ const FIXTURE = [
   lead({ numero_pedido: 'EXCL-1', usuario: 'Caio', grupo: 'VOZ - Novo', etapa: 'AGUARDANDO INTERACAO (NEOCRM)', cadastro: '2026-10-07T09:00:00-03:00', valor: 900, quantidade: 1 }),
   lead({ numero_pedido: 'EXCL-2', usuario: 'Caio', grupo: 'VOZ - Novo', etapa: 'PROPOSTA (NEOCRM)',             cadastro: '2026-10-07T09:10:00-03:00', valor: 900, quantidade: 1 }),
   lead({ numero_pedido: 'EXCL-3', usuario: 'Caio', grupo: 'VOZ - Novo', etapa: 'CONCLUIDO (NEOCRM)',            cadastro: '2026-10-07T09:20:00-03:00', valor: 80,  quantidade: 1 }),
+  // 08/10/2026 (seção 76): como vem da API de verdade — cadastro sem hora (00:00 em SP) e a hora real na entrada
+  // da sincronização (criado_em). H-1 entrou 15:20, H-2 18:10, H-3 sem criado_em, H-4 entrou no dia seguinte.
+  lead({ numero_pedido: 'H-1', usuario: 'Caio',     grupo: 'VOZ - Novo',          cadastro: '2026-10-02T00:00:00-03:00', criado_em: '2026-10-02T15:20:00-03:00', valor: 100, quantidade: 1 }),
+  lead({ numero_pedido: 'H-2', usuario: 'Giovanna', grupo: 'VOZ - Portabilidade', cadastro: '2026-10-02T00:00:00-03:00', criado_em: '2026-10-02T21:10:00Z',      valor: 200, quantidade: 2 }),
+  lead({ numero_pedido: 'H-3', usuario: 'Caio',     grupo: 'BANDA LARGA - Novo',  cadastro: '2026-10-02T00:00:00-03:00', criado_em: null,                        valor: 300, quantidade: 1 }),
+  lead({ numero_pedido: 'H-4', usuario: 'Giovanna', grupo: 'VOZ - Novo',          cadastro: '2026-10-02T00:00:00-03:00', criado_em: '2026-10-03T08:00:00-03:00', valor: 50,  quantidade: 1 }),
 ];
 
 const htmlNoScript = tplRaw.replace(/<script>[\s\S]*?<\/script>/g, '');
@@ -404,6 +414,33 @@ try{
   assert(path.includes('M'), 'o path da linha de ticket médio começa com um "M" (move-to)');
   assert((path.match(/M/g) || []).length === 2, 'o path tem 2 sub-trajetos "M" (a hora vazia do meio quebra a linha em vez de interpolar) — path: ' + path);
   assert(!path.includes(' L '), 'sem dois pontos consecutivos válidos nesse fixture, não deveria ter nenhum "L" (linha) — path: ' + path);
+
+  // --- 10) 08/10/2026 (seção 76): resumoDiaria é a fonte única das contas da Visão Diária ---
+  assert(typeof window.resumoDiaria === 'function', 'resumoDiaria exposta em window (usada pelo Boletim da Manhã)');
+  const r20 = resumoDiaria('2026-08-20');
+  assert(r20.contratos === 10 && r20.linhas === 11 && Math.abs(r20.valor - 2860) < 0.001 && Math.abs(r20.ticket - 286) < 0.001, 'resumoDiaria(20/08) bate com os cards: 10 contratos, 11 linhas, R$ 2.860, ticket 286 — ' + JSON.stringify([r20.contratos, r20.linhas, r20.valor, r20.ticket]));
+  assert(r20.porHora.length === 24 && r20.porHora[9].contratos === 2 && r20.porHora[14].contratos === 3 && r20.porHora[14].linhas === 5, 'resumoDiaria: por hora igual ao gráfico (09h 2, 14h 3 com 5 linhas)');
+  assert(r20.porConsultor[0].key === 'Caio' && r20.porConsultor[0].contratos === 6 && Math.abs(r20.porConsultor[0].valor - 2150) < 0.001, 'resumoDiaria: ranking por consultor igual ao da tela (Caio 6 / R$ 2.150)');
+  const tipoNovo = r20.porTipo.find(t => t.grupo === 'VOZ - Novo');
+  assert(r20.porTipo.length === 8 && tipoNovo && tipoNovo.qtd === 2, 'resumoDiaria: por tipo de venda igual aos cards (Linha Nova 2)');
+  const r21 = resumoDiaria('2026-09-21');
+  assert(r21.contratos === 5, 'resumoDiaria: convergência funde CONV-A1/A2 (5 contratos em 21/09) — obtido ' + r21.contratos);
+  assert(r21.porContrato.length === 5 && r21.porContrato.some(c => c.chave === 'CONV_AAA111' && Math.abs(c.valor - 110) < 0.001), 'resumoDiaria: porContrato traz o contrato de convergência com o valor somado (R$ 110)');
+  const rH = resumoDiaria('2026-10-02');
+  assert(rH.contratos === 4 && Math.abs(rH.valor - 650) < 0.001, 'dia com hora só na entrada: 4 contratos, R$ 650 (todos contam no total)');
+  assert(rH.porHora[15].contratos === 1 && rH.porHora[18].contratos === 1 && rH.porHora[0].contratos === 0, 'hora vem da entrada na sincronização: 15h e 18h, nada às 00h');
+  assert(rH.semHora === 2, 'sem criado_em ou entrada em outro dia: fora do gráfico (semHora = 2) — obtido ' + rH.semHora);
+  const rCorte = resumoDiaria('2026-10-02', { corteHora: 17 });
+  assert(rCorte.contratos === 3 && Math.abs(rCorte.valor - 450) < 0.001, 'corte das 17h: tira só o H-2 (entrou 18:10); linha sem hora conhecida continua contando — ' + JSON.stringify([rCorte.contratos, rCorte.valor]));
+  document.getElementById('diariaDate').value = '2026-10-02';
+  renderVisaoDiaria();
+  const colsH = Array.from(document.querySelectorAll('.diaria-hour-col'));
+  assert(colsH.find(el => el.dataset.hora === '0').dataset.contratos === '0' && colsH.find(el => el.dataset.hora === '15').dataset.contratos === '1' && colsH.find(el => el.dataset.hora === '18').dataset.contratos === '1', 'gráfico por hora usa a hora de entrada (nada às 00h; 15h e 18h com 1)');
+  assert(document.getElementById('diariaKpis').innerHTML.includes('>4<'), 'KPI de contratos do dia conta também quem não tem hora (4)');
+  let ddH = null;
+  window.openDrilldown = function(recs, titulo){ ddH = { recs, titulo }; };
+  colsH.find(el => el.dataset.hora === '18').dispatchEvent(new window.Event('click', { bubbles: true }));
+  assert(ddH && ddH.recs.length === 1 && ddH.recs[0].numero_pedido === 'H-2', 'clique na hora 18h abre só o pedido que entrou às 18h');
 
   console.log('--- (render real) RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
   window.__testResult = fail > 0 ? 'FAIL' : 'OK';
