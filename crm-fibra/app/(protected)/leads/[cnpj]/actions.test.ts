@@ -22,6 +22,15 @@ vi.mock("@/lib/leads", async () => {
   };
 });
 
+const criarProposta = vi.fn();
+vi.mock("@/lib/propostas", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/propostas")>("@/lib/propostas");
+  return {
+    ...actual,
+    criarProposta: (...args: unknown[]) => criarProposta(...args),
+  };
+});
+
 const cookieGet = vi.fn();
 vi.mock("next/headers", () => ({
   cookies: async () => ({ get: cookieGet }),
@@ -43,7 +52,7 @@ vi.mock("next/cache", () => ({
   revalidatePath: () => {},
 }));
 
-import { atribuirLeadAction, registrarMensagemAction } from "./actions";
+import { atribuirLeadAction, registrarMensagemAction, salvarPropostaAction } from "./actions";
 import { LeadJaAtribuidoError } from "@/lib/leads";
 
 const consultorAtivo = {
@@ -61,6 +70,7 @@ beforeEach(() => {
   atribuirLead.mockReset();
   registrarMensagem.mockReset();
   buscarLeadPorCnpj.mockReset();
+  criarProposta.mockReset();
   cookieGet.mockReset();
   verifySessionToken.mockReset();
 });
@@ -132,5 +142,77 @@ describe("registrarMensagemAction", () => {
     const resultado = await registrarMensagemAction("00005087000190", "Oi", "whatsapp");
     expect(resultado.erro).toMatch(/dono/);
     expect(registrarMensagem).not.toHaveBeenCalled();
+  });
+});
+
+describe("salvarPropostaAction", () => {
+  const itensValidos = [
+    { catalogoPlanoId: "p1", descricao: "  400 Mega (G1 Padrão)  ", valor: 79.9 },
+    { catalogoPlanoId: null, descricao: "Oferta avulsa", valor: 59.9 },
+  ];
+
+  it("redireciona pra /login quando não há sessão", async () => {
+    cookieGet.mockReturnValue(undefined);
+    await expect(salvarPropostaAction("00005087000190", itensValidos)).rejects.toThrow("REDIRECT:/login");
+    expect(criarProposta).not.toHaveBeenCalled();
+  });
+
+  it("recusa proposta sem nenhuma linha, sem gravar nada", async () => {
+    sessaoValida();
+    const resultado = await salvarPropostaAction("00005087000190", []);
+    expect(resultado.erro).toMatch(/pelo menos uma linha/);
+    expect(criarProposta).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["descrição em branco", { catalogoPlanoId: null, descricao: "   ", valor: 10 }],
+    ["valor zero", { catalogoPlanoId: null, descricao: "Oferta", valor: 0 }],
+    ["valor NaN", { catalogoPlanoId: null, descricao: "Oferta", valor: Number.NaN }],
+    ["valor que não é número", { catalogoPlanoId: null, descricao: "Oferta", valor: "abc" as unknown as number }],
+  ])("recusa linha inválida (%s) sem gravar nada", async (_nome, item) => {
+    sessaoValida();
+    const resultado = await salvarPropostaAction("00005087000190", [item]);
+    expect(resultado.erro).toBeDefined();
+    expect(criarProposta).not.toHaveBeenCalled();
+  });
+
+  it("recusa CNPJ que não existe na base", async () => {
+    sessaoValida();
+    buscarLeadPorCnpj.mockResolvedValue(null);
+    const resultado = await salvarPropostaAction("99999999999999", itensValidos);
+    expect(resultado.erro).toMatch(/não encontrado/);
+    expect(criarProposta).not.toHaveBeenCalled();
+  });
+
+  it("usa o consultor da sessão e permite salvar em lead de outro consultor", async () => {
+    sessaoValida();
+    buscarLeadPorCnpj.mockResolvedValue({ cnpjDigits: "00005087000190", donoConsultorId: "outro-consultor" });
+    criarProposta.mockResolvedValue({ id: "prop1" });
+
+    const resultado = await salvarPropostaAction("00005087000190", itensValidos);
+
+    expect(resultado).toEqual({});
+    expect(criarProposta).toHaveBeenCalledWith({}, {
+      cnpjDigits: "00005087000190",
+      consultorId: "c1",
+      itens: [
+        { catalogoPlanoId: "p1", descricao: "400 Mega (G1 Padrão)", valor: 79.9 },
+        { catalogoPlanoId: null, descricao: "Oferta avulsa", valor: 59.9 },
+      ],
+    });
+  });
+
+  it("trata um catalogoPlanoId que não é texto como oferta avulsa", async () => {
+    sessaoValida();
+    buscarLeadPorCnpj.mockResolvedValue({ cnpjDigits: "00005087000190", donoConsultorId: null });
+    criarProposta.mockResolvedValue({ id: "prop1" });
+
+    await salvarPropostaAction("00005087000190", [
+      { catalogoPlanoId: 123 as unknown as string, descricao: "Oferta", valor: 10 },
+    ]);
+
+    expect(criarProposta).toHaveBeenCalledWith({}, expect.objectContaining({
+      itens: [{ catalogoPlanoId: null, descricao: "Oferta", valor: 10 }],
+    }));
   });
 });

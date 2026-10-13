@@ -7,6 +7,7 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { verifySessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { buscarConsultorPorId } from "@/lib/consultores";
 import { atribuirLead, registrarMensagem, buscarLeadPorCnpj, LeadJaAtribuidoError } from "@/lib/leads";
+import { criarProposta, validarItensProposta, type NovoItemProposta } from "@/lib/propostas";
 
 async function sessaoAtiva() {
   const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
@@ -54,6 +55,35 @@ export async function registrarMensagemAction(
     consultorId: consultor.id,
     canal,
     conteudo: conteudo.trim(),
+  });
+
+  revalidatePath(`/leads/${cnpjDigits}`);
+  return {};
+}
+
+export async function salvarPropostaAction(
+  cnpjDigits: string,
+  itens: NovoItemProposta[]
+): Promise<{ erro?: string }> {
+  const consultor = await sessaoAtiva();
+
+  // Argumentos de Server Action vêm do navegador: normaliza antes de confiar.
+  const itensLimpos: NovoItemProposta[] = (Array.isArray(itens) ? itens : []).map((item) => ({
+    catalogoPlanoId: typeof item?.catalogoPlanoId === "string" ? item.catalogoPlanoId : null,
+    descricao: String(item?.descricao ?? "").trim(),
+    valor: Number(item?.valor),
+  }));
+
+  const erro = validarItensProposta(itensLimpos);
+  if (erro) return { erro };
+
+  const lead = await buscarLeadPorCnpj(getSupabaseAdmin(), cnpjDigits);
+  if (!lead) return { erro: "Lead não encontrado" };
+
+  await criarProposta(getSupabaseAdmin(), {
+    cnpjDigits,
+    consultorId: consultor.id,
+    itens: itensLimpos,
   });
 
   revalidatePath(`/leads/${cnpjDigits}`);
