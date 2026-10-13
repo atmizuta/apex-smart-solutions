@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Users2, UserCog, UploadCloud, LogOut } from "lucide-react";
+import { LayoutDashboard, Users2, UserCog, UploadCloud, LogOut, Tags } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -28,6 +28,7 @@ const ITENS_PRINCIPAIS = [
 
 const ITENS_ADMIN = [
   { href: "/consultores", rotulo: "Consultores", Icone: UserCog },
+  { href: "/catalogo", rotulo: "Catálogo", Icone: Tags },
   { href: "/atualizar-base", rotulo: "Atualizar base", Icone: UploadCloud },
 ];
 
