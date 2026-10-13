@@ -1,11 +1,18 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
+import { ArrowLeft } from "lucide-react";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { buscarLeadPorCnpj, listarMensagens } from "@/lib/leads";
 import { normalizarTelefone } from "@/lib/whatsapp";
 import { verifySessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/session";
-import { AtribuirButton } from "./atribuir-button";
-import { NovaMensagemForm } from "./nova-mensagem-form";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AbaCliente } from "./aba-cliente";
+import { AbaLinhas } from "./aba-linhas";
+
+// forceMount mantém as três abas montadas: o rascunho de proposta e os
+// formulários não podem perder o que foi digitado ao trocar de aba.
+const CONTEUDO_DA_ABA = "data-[state=inactive]:hidden";
 
 export default async function LeadDetailPage({
   params,
@@ -31,61 +38,34 @@ export default async function LeadDetailPage({
   const souODono = session != null && lead.donoConsultorId === session.consultorId;
 
   return (
-    <div>
-      <h2>{lead.razaoSocial || lead.cnpjDigits}</h2>
-      <div style={{ display: "flex", gap: 24, fontSize: 13, color: "var(--cinza)", marginBottom: 16, flexWrap: "wrap" }}>
-        <span>CNPJ: {lead.cnpjDigits}</span>
-        <span>Cidade: {lead.cidade ?? "-"}</span>
-        <span>ARPU: {lead.arpu != null ? `R$ ${lead.arpu.toFixed(2)}` : "-"}</span>
-        <span>{lead.cepCabeado ?? "-"}</span>
-        <span>Renovação: {lead.aptoRenovacao ?? "-"}</span>
+    <div className="space-y-6">
+      <div>
+        <Link
+          href="/leads"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" />
+          Carteira de Leads
+        </Link>
+        <h2 className="mt-2">{lead.razaoSocial || lead.cnpjDigits}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          CNPJ {lead.cnpjDigits}
+          {lead.cidade ? ` · ${lead.cidade}` : ""}
+        </p>
       </div>
 
-      {!lead.donoConsultorId && <AtribuirButton cnpjDigits={lead.cnpjDigits} />}
-      {lead.donoConsultorId && !souODono && (
-        <p style={{ fontSize: 13, color: "var(--cinza)" }}>Este lead já está atribuído a outro consultor.</p>
-      )}
-
-      {souODono ? (
-        telefone ? (
-          <NovaMensagemForm cnpjDigits={lead.cnpjDigits} telefone={telefone} />
-        ) : (
-          <div style={{ fontSize: 13, color: "var(--sinal)", marginBottom: 16 }}>
-            <p style={{ margin: "0 0 4px" }}>
-              Nenhum telefone válido encontrado — contato precisa ser manual.
-            </p>
-            {(lead.tel1 || lead.tel2 || lead.telefoneContato || lead.email) && (
-              <p style={{ margin: 0, color: "var(--cinza)" }}>
-                {lead.tel1 && `Tel 1: ${lead.tel1} `}
-                {lead.tel2 && `Tel 2: ${lead.tel2} `}
-                {lead.telefoneContato && `Contato: ${lead.telefoneContato} `}
-                {lead.email && `E-mail: ${lead.email}`}
-              </p>
-            )}
-          </div>
-        )
-      ) : (
-        !lead.donoConsultorId && (
-          <p style={{ fontSize: 13, color: "var(--cinza)", marginBottom: 16 }}>
-            Atribua este lead a você para poder registrar contato.
-          </p>
-        )
-      )}
-
-      <h3 style={{ marginTop: 24 }}>Histórico de mensagens</h3>
-      {mensagens.length === 0 && (
-        <p style={{ color: "var(--cinza)", fontSize: 13 }}>Nenhuma mensagem registrada ainda.</p>
-      )}
-      <ul style={{ listStyle: "none", padding: 0 }}>
-        {mensagens.map((m) => (
-          <li key={m.id} style={{ borderLeft: "3px solid var(--sinal)", padding: "8px 12px", marginBottom: 8 }}>
-            <div style={{ fontSize: 11, color: "var(--cinza)", textTransform: "uppercase" }}>
-              {m.canal} · {new Date(m.enviadoEm).toLocaleString("pt-BR")}
-            </div>
-            <div style={{ fontSize: 13 }}>{m.conteudo}</div>
-          </li>
-        ))}
-      </ul>
+      <Tabs defaultValue="cliente">
+        <TabsList>
+          <TabsTrigger value="cliente">Cliente</TabsTrigger>
+          <TabsTrigger value="linhas">Linhas</TabsTrigger>
+        </TabsList>
+        <TabsContent value="cliente" forceMount className={CONTEUDO_DA_ABA}>
+          <AbaCliente lead={lead} mensagens={mensagens} telefone={telefone} souODono={souODono} />
+        </TabsContent>
+        <TabsContent value="linhas" forceMount className={CONTEUDO_DA_ABA}>
+          <AbaLinhas lead={lead} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
