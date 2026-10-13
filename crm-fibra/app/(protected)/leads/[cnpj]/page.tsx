@@ -4,11 +4,15 @@ import { cookies } from "next/headers";
 import { ArrowLeft } from "lucide-react";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { buscarLeadPorCnpj, listarMensagens } from "@/lib/leads";
+import { listarCatalogo } from "@/lib/catalogo";
+import { listarConsultores } from "@/lib/consultores";
+import { listarPropostasPorCnpj } from "@/lib/propostas";
 import { normalizarTelefone } from "@/lib/whatsapp";
 import { verifySessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AbaCliente } from "./aba-cliente";
 import { AbaLinhas } from "./aba-linhas";
+import { AbaProposta } from "./aba-proposta";
 
 // forceMount mantém as três abas montadas: o rascunho de proposta e os
 // formulários não podem perder o que foi digitado ao trocar de aba.
@@ -25,7 +29,13 @@ export default async function LeadDetailPage({
   const lead = await buscarLeadPorCnpj(admin, cnpj);
   if (!lead) notFound();
 
-  const mensagens = await listarMensagens(admin, cnpj);
+  const [mensagens, propostas, catalogo, consultores] = await Promise.all([
+    listarMensagens(admin, cnpj),
+    listarPropostasPorCnpj(admin, cnpj),
+    listarCatalogo(admin, { apenasAtivos: true }),
+    listarConsultores(admin),
+  ]);
+  const nomesConsultores = Object.fromEntries(consultores.map((c) => [c.id, c.nome]));
   const telefone = normalizarTelefone({
     ddd: lead.ddd,
     tel1: lead.tel1,
@@ -58,12 +68,21 @@ export default async function LeadDetailPage({
         <TabsList>
           <TabsTrigger value="cliente">Cliente</TabsTrigger>
           <TabsTrigger value="linhas">Linhas</TabsTrigger>
+          <TabsTrigger value="proposta">Proposta</TabsTrigger>
         </TabsList>
         <TabsContent value="cliente" forceMount className={CONTEUDO_DA_ABA}>
           <AbaCliente lead={lead} mensagens={mensagens} telefone={telefone} souODono={souODono} />
         </TabsContent>
         <TabsContent value="linhas" forceMount className={CONTEUDO_DA_ABA}>
           <AbaLinhas lead={lead} />
+        </TabsContent>
+        <TabsContent value="proposta" forceMount className={CONTEUDO_DA_ABA}>
+          <AbaProposta
+            cnpjDigits={lead.cnpjDigits}
+            catalogo={catalogo}
+            propostas={propostas}
+            nomesConsultores={nomesConsultores}
+          />
         </TabsContent>
       </Tabs>
     </div>
