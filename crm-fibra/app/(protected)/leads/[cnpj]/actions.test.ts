@@ -202,6 +202,31 @@ describe("salvarPropostaAction", () => {
     });
   });
 
+  it("quando gravar falha, devolve mensagem amigável em vez de estourar (o rascunho do consultor não pode sumir)", async () => {
+    sessaoValida();
+    buscarLeadPorCnpj.mockResolvedValue({ cnpjDigits: "00005087000190", donoConsultorId: null });
+    criarProposta.mockRejectedValue(new Error("banco fora do ar"));
+    const erroNoLog = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const resultado = await salvarPropostaAction("00005087000190", itensValidos);
+
+    expect(resultado.erro).toMatch(/Não foi possível salvar/);
+    expect(erroNoLog).toHaveBeenCalled();
+    erroNoLog.mockRestore();
+  });
+
+  it("também devolve mensagem amigável quando a consulta do lead falha", async () => {
+    sessaoValida();
+    buscarLeadPorCnpj.mockRejectedValue(new Error("banco fora do ar"));
+    const erroNoLog = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const resultado = await salvarPropostaAction("00005087000190", itensValidos);
+
+    expect(resultado.erro).toMatch(/Não foi possível salvar/);
+    expect(criarProposta).not.toHaveBeenCalled();
+    erroNoLog.mockRestore();
+  });
+
   it("trata um catalogoPlanoId que não é texto como oferta avulsa", async () => {
     sessaoValida();
     buscarLeadPorCnpj.mockResolvedValue({ cnpjDigits: "00005087000190", donoConsultorId: null });

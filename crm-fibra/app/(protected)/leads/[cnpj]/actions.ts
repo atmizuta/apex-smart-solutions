@@ -77,14 +77,21 @@ export async function salvarPropostaAction(
   const erro = validarItensProposta(itensLimpos);
   if (erro) return { erro };
 
-  const lead = await buscarLeadPorCnpj(getSupabaseAdmin(), cnpjDigits);
-  if (!lead) return { erro: "Lead não encontrado" };
+  // Um erro do banco aqui não pode estourar: no cliente isso derruba a página
+  // inteira e o consultor perde o rascunho da proposta que ele montou.
+  try {
+    const lead = await buscarLeadPorCnpj(getSupabaseAdmin(), cnpjDigits);
+    if (!lead) return { erro: "Lead não encontrado" };
 
-  await criarProposta(getSupabaseAdmin(), {
-    cnpjDigits,
-    consultorId: consultor.id,
-    itens: itensLimpos,
-  });
+    await criarProposta(getSupabaseAdmin(), {
+      cnpjDigits,
+      consultorId: consultor.id,
+      itens: itensLimpos,
+    });
+  } catch (err) {
+    console.error("salvarPropostaAction falhou", err);
+    return { erro: "Não foi possível salvar a proposta agora. Tente de novo em instantes." };
+  }
 
   revalidatePath(`/leads/${cnpjDigits}`);
   return {};

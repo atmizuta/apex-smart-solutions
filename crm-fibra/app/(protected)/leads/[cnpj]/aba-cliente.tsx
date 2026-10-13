@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatarBRL, formatarDataHora } from "@/lib/formato";
 import { CamadaBadges } from "@/components/camada-badges";
+import { contatosVisiveis } from "@/lib/lead-contatos";
 import type { LeadSegmentado, Mensagem } from "@/lib/leads";
 import { AtribuirButton } from "./atribuir-button";
 import { NovaMensagemForm } from "./nova-mensagem-form";
@@ -25,6 +26,8 @@ export function AbaCliente({
   telefone: string | null;
   souODono: boolean;
 }) {
+  const contatos = contatosVisiveis(lead, souODono);
+
   return (
     <div className="space-y-4">
       <Card>
@@ -37,10 +40,14 @@ export function AbaCliente({
             <Campo rotulo="Cidade" valor={lead.cidade ?? "-"} />
             <Campo rotulo="ARPU" valor={lead.arpu != null ? formatarBRL(lead.arpu) : "-"} />
             <Campo rotulo="CEP" valor={lead.cepCabeado ?? "-"} />
-            <Campo rotulo="Telefone 1" valor={lead.tel1 || "-"} />
-            <Campo rotulo="Telefone 2" valor={lead.tel2 || "-"} />
-            <Campo rotulo="Contato" valor={lead.telefoneContato || "-"} />
-            <Campo rotulo="E-mail" valor={lead.email || "-"} />
+            {contatos && (
+              <>
+                <Campo rotulo="Telefone 1" valor={contatos.tel1 || "-"} />
+                <Campo rotulo="Telefone 2" valor={contatos.tel2 || "-"} />
+                <Campo rotulo="Contato" valor={contatos.telefoneContato || "-"} />
+                <Campo rotulo="E-mail" valor={contatos.email || "-"} />
+              </>
+            )}
           </dl>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <span className="text-xs uppercase tracking-wide text-muted-foreground">Segmentação</span>

@@ -114,6 +114,31 @@ export async function criarProposta(
   return toProposta(propostaRow, (itensRows as ItemRow[] | null) ?? []);
 }
 
+const TAMANHO_PAGINA_ITENS = 1000;
+
+// O PostgREST corta toda resposta em 1000 linhas, em silêncio: uma empresa
+// com muitas linhas por proposta e várias revisões passaria disso e a tela
+// mostraria itens faltando e um total errado, sem nenhum erro.
+async function buscarItens(client: SupabaseClient, propostaIds: string[]): Promise<ItemRow[]> {
+  const todos: ItemRow[] = [];
+  for (let inicio = 0; ; inicio += TAMANHO_PAGINA_ITENS) {
+    const { data, error } = await client
+      .schema("crm_fibra")
+      .from("proposta_itens")
+      .select()
+      .in("proposta_id", propostaIds)
+      .order("proposta_id", { ascending: true })
+      .order("ordem", { ascending: true })
+      .order("id", { ascending: true })
+      .range(inicio, inicio + TAMANHO_PAGINA_ITENS - 1);
+    if (error) throw error;
+
+    const pagina = (data as ItemRow[] | null) ?? [];
+    todos.push(...pagina);
+    if (pagina.length < TAMANHO_PAGINA_ITENS) return todos;
+  }
+}
+
 export async function listarPropostasPorCnpj(
   client: SupabaseClient,
   cnpjDigits: string
@@ -129,18 +154,10 @@ export async function listarPropostasPorCnpj(
   const propostas = (data as PropostaRow[] | null) ?? [];
   if (propostas.length === 0) return [];
 
-  const { data: itensData, error: erroItens } = await client
-    .schema("crm_fibra")
-    .from("proposta_itens")
-    .select()
-    .in(
-      "proposta_id",
-      propostas.map((proposta) => proposta.id)
-    )
-    .order("ordem", { ascending: true });
-  if (erroItens) throw erroItens;
-
-  const itens = (itensData as ItemRow[] | null) ?? [];
+  const itens = await buscarItens(
+    client,
+    propostas.map((proposta) => proposta.id)
+  );
   return propostas.map((proposta) =>
     toProposta(
       proposta,

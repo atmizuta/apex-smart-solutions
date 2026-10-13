@@ -15,6 +15,7 @@ type Operacao = {
   payload?: unknown;
   filtros: Array<[string, unknown]>;
   ordens: unknown[][];
+  ranges: unknown[][];
 };
 
 // Registra cada operação por tabela; o `responder` do teste decide o que o
@@ -25,7 +26,7 @@ function makeClientFake(responder: (op: Operacao) => { data?: unknown; error?: u
     operacoes,
     schema: () => client,
     from: (tabela: string) => {
-      const op: Operacao = { tabela, tipo: "select", filtros: [], ordens: [] };
+      const op: Operacao = { tabela, tipo: "select", filtros: [], ordens: [], ranges: [] };
       operacoes.push(op);
       const q: any = {
         select: () => q,
@@ -53,6 +54,10 @@ function makeClientFake(responder: (op: Operacao) => { data?: unknown; error?: u
         },
         order: (...args: unknown[]) => {
           op.ordens.push(args);
+          return q;
+        },
+        range: (...args: unknown[]) => {
+          op.ranges.push(args);
           return q;
         },
         single: () => Promise.resolve(responder(op)),
@@ -240,6 +245,34 @@ describe("listarPropostasPorCnpj", () => {
     expect(client.operacoes[0].filtros).toContainEqual(["cnpj_digits", "00005087000190"]);
     expect(client.operacoes[0].ordens).toContainEqual(["criado_em", { ascending: false }]);
     expect(client.operacoes[1].filtros).toContainEqual(["proposta_id", ["nova", "antiga"]]);
+  });
+
+  it("lê todos os itens mesmo passando de 1000 (o PostgREST corta a resposta em silêncio no limite)", async () => {
+    const proposta = { id: "nova", cnpj_digits: "00005087000190", consultor_id: "c1", criado_em: "2026-10-08T17:32:00Z" };
+    const paginaCheia = Array.from({ length: 1000 }, (_, i) => ({
+      id: `i${i}`,
+      proposta_id: "nova",
+      catalogo_plano_id: null,
+      descricao: `Linha ${i}`,
+      valor: 1,
+      ordem: i,
+    }));
+    const ultimaPagina = [
+      { id: "i1000", proposta_id: "nova", catalogo_plano_id: null, descricao: "Linha 1000", valor: 0.5, ordem: 1000 },
+    ];
+    let leiturasDeItens = 0;
+    const client = makeClientFake((op) => {
+      if (op.tabela === "propostas") return { data: [proposta], error: null };
+      leiturasDeItens += 1;
+      return { data: leiturasDeItens === 1 ? paginaCheia : ultimaPagina, error: null };
+    });
+
+    const resultado = await listarPropostasPorCnpj(client as unknown as SupabaseClient, "00005087000190");
+
+    expect(resultado[0].itens).toHaveLength(1001);
+    expect(resultado[0].total).toBe(1000.5);
+    const leituras = client.operacoes.filter((op: Operacao) => op.tabela === "proposta_itens");
+    expect(leituras.map((op: Operacao) => op.ranges)).toEqual([[[0, 999]], [[1000, 1999]]]);
   });
 
   it("propaga erro do banco", async () => {
