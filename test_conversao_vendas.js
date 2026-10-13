@@ -108,7 +108,9 @@ try{
   assert(document.getElementById('conversaoSyncStatus').textContent.includes('25/08/2026 14:00'), 'mostra a data da última sincronização vinda do config');
 
   const resumoHtml = document.getElementById('conversaoResumoCards').innerHTML;
-  assert((resumoHtml.match(/class="kpiCard"/g) || []).length === 4, 'resumo mostra 4 cards modernos (kpiCard): leads, convertidos, taxa, receita');
+  // 13/10/2026 (seção 80): supervisor/admin ganham o 5º card, "Vendas de lead hoje" (ver test_vendas_lead_hoje.js)
+  assert((resumoHtml.match(/class="kpiCard"/g) || []).length === 5, 'resumo do supervisor mostra 5 cards modernos (kpiCard): leads, convertidos, taxa, receita e vendas de lead hoje');
+  assert(resumoHtml.includes('Vendas de lead hoje'), 'o 5º card é o "Vendas de lead hoje"');
   assert(resumoHtml.includes('kpiValue">5<'), 'KPI de total de leads mostra 5 (' + resumoHtml + ')');
   assert(resumoHtml.includes('kpiValue">2<'), 'KPI de convertidos mostra 2');
   assert(resumoHtml.includes('40,0%'), 'KPI de taxa de conversão geral mostra 40,0% (2 de 5)');

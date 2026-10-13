@@ -8150,6 +8150,15 @@ function renderConversaoFiltrado(){
       <div class="kpiValue">${fmtBRL(totalReceita)}</div>
       <div class="kpiSub">${totalConvertidos > 0 ? 'ticket médio ' + fmtBRL(ticketMedio) : 'sem vendas ainda'}</div>
     </div>
+    ${producaoAdminMode() ? (() => {
+      // seção 80: vale para HOJE e todas as abas, qualquer que seja o período escolhido acima (ver vendasLeadDoDia)
+      const v = vendasLeadDoDia(producaoPedidosCacheDigital, conversaoLeadsCache, hojeSP());
+      return `<div class="kpiCard" style="--kpi-color:var(--green);cursor:pointer" onclick="verVendasLeadHoje()" title="Pedidos cadastrados hoje no NeoCRM de leads convertidos na planilha — clique para ver a lista">
+      <div class="kpiLabel">Vendas de lead hoje</div>
+      <div class="kpiValue">${v.clientes.toLocaleString('pt-BR')}</div>
+      <div class="kpiSub">${v.pedidos === 1 ? '1 pedido' : v.pedidos.toLocaleString('pt-BR') + ' pedidos'} no NeoCRM hoje</div>
+    </div>`;
+    })() : ''}
   `;
 
   renderConversaoFunilChart(leads);
@@ -8949,6 +8958,28 @@ function casarVendasComLeads(pedidos, leads){
       };
     })
     .filter(linha => linha !== null);
+}
+
+// 13/10/2026 (seção 80): cartão "Vendas de lead hoje" do Resumo da Digital. O Resumo filtra pela data em que o
+// LEAD chegou; a planilha não tem a data da venda. Aqui é o contrário: pedidos CADASTRADOS no dia no NeoCRM cujo
+// CNPJ é de lead convertido na planilha — a mesma regra do "Vendas x origem do lead", só a parte "com lead".
+// Clientes = CNPJs distintos; pedidos = numero_pedido distintos (itens do mesmo pedido contam 1).
+function vendasLeadDoDia(pedidos, leads, dia){
+  const doDia = (pedidos || []).filter(p => leadDateSP(p.cadastro) === dia);
+  const linhas = casarVendasComLeads(doDia, leads).filter(l => l.leadEncontrado);
+  return {
+    clientes: new Set(linhas.map(l => onlyDigits(l.cnpj))).size,
+    pedidos: new Set(linhas.map((l, i) => l.numero_pedido || '__sempedido_' + i)).size,
+  };
+}
+// Clique no cartão: abre o detalhe no "Vendas x origem do lead", já com a data de hoje.
+async function verVendasLeadHoje(){
+  const dataInput = document.getElementById('vendaOrigemData');
+  if(!dataInput) return;
+  dataInput.value = hojeSP();
+  await buscarVendasOrigemLead();
+  const card = document.getElementById('vendaOrigemCard');
+  if(card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function buscarVendasOrigemLead(){
