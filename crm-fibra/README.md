@@ -83,3 +83,33 @@ está na sua versão correta antes de desconfiar do CRM Fibra.
    mensagem deve aparecer no histórico da página ao voltar.
 8. Abra um lead cujo cliente não tenha telefone válido na base → deve
    aparecer o aviso de contato manual, não um botão de WhatsApp quebrado.
+
+## Card de lead + propostas (Plano 3)
+
+A página `/leads/[cnpj]` tem três abas (Cliente, Linhas, Proposta). A aba Proposta monta uma
+proposta linha a linha a partir do catálogo de planos Claro-empresas
+(`crm_fibra.catalogo_planos`, 22 itens iniciais), que o admin edita em `/catalogo`.
+
+**Migração aplicada em produção (2026-10-13):** `db/schema.sql` (idempotente) criou
+`catalogo_planos`, `propostas` e `proposta_itens`, semeou o catálogo e acrescentou
+`linhas_voz`/`valor_contrato` ao **fim** da view `leads_segmentados`. `db/rollback-lead-card.sql`
+desfaz tudo (e apaga as propostas salvas). **Ordem de publicação:** aplicar a migração ANTES de
+publicar o código — o código novo lê tabelas que só existem depois dela.
+
+### Checklist de verificação manual (Plano 3)
+
+1. Em `/leads`, clique num lead → a página abre com as abas Cliente, Linhas e Proposta; a aba
+   Cliente mostra os mesmos dados e o histórico de mensagens de antes.
+2. Aba Linhas → linhas fixas, linhas de voz, valor do contrato e ARPU preenchidos (ou "-" quando a
+   base não tem) e os selos de camada.
+3. Aba Proposta → escolha "600 Mega (G1 Padrão)" e adicione; depois adicione "Claro Monitor" →
+   total R$ 64,90; remova uma linha → o total atualiza.
+4. Escolha "Oferta avulsa", digite uma descrição e "149,90" → a linha entra com R$ 149,90; digite
+   "abc" no valor → aparece erro e nada entra.
+5. Salvar proposta → mensagem "Proposta salva.", o construtor esvazia e a proposta aparece em
+   "Propostas salvas" com o selo "Mais recente", o seu nome e a hora de Brasília.
+6. Salve uma segunda proposta com outra combinação → as duas ficam listadas, a nova primeiro.
+7. Como admin em `/catalogo`: mude o valor de um plano e salve → a proposta antiga continua com o
+   valor antigo; desative um plano → ele some do seletor da aba Proposta; reative → ele volta.
+8. Como consultor comum, abra `/catalogo` → redireciona para `/dashboard`.
+9. Troque de aba no meio de uma proposta ainda não salva → as linhas continuam lá ao voltar.
