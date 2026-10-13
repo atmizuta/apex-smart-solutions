@@ -156,7 +156,7 @@ O padrão visual é o mesmo do Excel de Pedidos em Alerta (§48.4).
 - **Tabela `relatorio_destinatarios`:** `relatorio` (chave primária, `'pedidos_parados'`), `para text[]`, `cc text[]`,
   `ativo boolean default true`, `atualizado_em`.
   - RLS ligada; só admin lê e grava. A função usa service role.
-- **Tabela `relatorio_envio_log`:** `id`, `relatorio` (`'pedidos_parados'`), `executado_em`, `data_ref` (date),
+- **Tabela `relatorio_envio_log`:** `id`, `relatorio` (`'pedidos_parados'`), `modo` (`agendado` | `teste` | `reenviar`), `executado_em`, `data_ref` (date),
   `status` (`enviado` | `pulado` | `erro`), `motivo`, `qtd_pedidos`, `destinatarios` (text[]), `erro`.
   - RLS ligada; só admin lê. Só a função grava (service role).
 - **Job do `pg_cron` `relatorio-pedidos-parados`:** `0 11 * * 1-5` (UTC), `net.http_post` com `x-cron-secret` do
