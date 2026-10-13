@@ -13,6 +13,8 @@ export interface LeadSegmentado {
   aptoRenovacao: string | null;
   cepCabeado: string | null;
   linhasFixas: number | null;
+  linhasVoz: number | null;
+  valorContrato: number | null;
   camadaFibra: "fibra_candidato" | null;
   camadaRenovacao: "apto_agora" | "apto_1_mes" | "apto_2_meses" | null;
   donoConsultorId: string | null;
@@ -34,6 +36,8 @@ interface LeadRow {
   apto_renovacao: string | null;
   cep_cabeado: string | null;
   linhas_fixas: number | null;
+  linhas_voz: number | null;
+  valor_contrato: number | null;
   camada_fibra: "fibra_candidato" | null;
   camada_renovacao: "apto_agora" | "apto_1_mes" | "apto_2_meses" | null;
   dono_consultor_id: string | null;
@@ -56,6 +60,8 @@ function toLead(row: LeadRow): LeadSegmentado {
     aptoRenovacao: row.apto_renovacao,
     cepCabeado: row.cep_cabeado,
     linhasFixas: row.linhas_fixas,
+    linhasVoz: row.linhas_voz,
+    valorContrato: row.valor_contrato,
     camadaFibra: row.camada_fibra,
     camadaRenovacao: row.camada_renovacao,
     donoConsultorId: row.dono_consultor_id,
