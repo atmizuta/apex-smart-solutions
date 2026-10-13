@@ -54,9 +54,10 @@ pg_cron (seg–sex 11:00 UTC = 08:00 SP)
 | `relatorio.ts` | Orquestra os passos 1–8 recebendo dependências injetadas (`agora`, `lerPedidos`, `lerDestinatarios`, `jaEnviouHoje`, `enviar`, `registrar`), para testar sem banco nem SMTP. | os três acima |
 | `index.ts` | Confere o `x-cron-secret`, cria as dependências reais (Supabase service role, denomailer) e chama `relatorio.ts`. | supabase-js, denomailer |
 
-Os feriados e a contagem de dias úteis seguem a mesma regra do Dashboard (seção 48.2 do REGRAS). Como a Edge
-Function não enxerga o código do painel, a regra é **copiada** para `regras.ts`, e os testes usam as mesmas datas de
-fronteira do `test_pedidos_alerta.js`, para garantir que as duas cópias concordam.
+Os feriados e a contagem de dias úteis seguem a regra do Dashboard (seção 48.2 do REGRAS), **copiada** para
+`regras.ts`, porque a Edge Function não enxerga o código do painel. Há uma diferença de propósito: o Carnaval fica na
+segunda e na terça (Páscoa − 48 e − 47). O painel usa − 47 e − 46, que marca a terça e a Quarta de Cinzas, e
+esse erro será corrigido à parte.
 
 ## 3. Regras dos dados
 
@@ -191,7 +192,7 @@ apaga as duas tabelas.
 ## 7. Testes
 
 São testes do Deno, no mesmo formato de `sync-producao/*.test.ts`. Rodam com
-`deno test supabase/functions/relatorio-pedidos-parados/`.
+`node --test "supabase/functions/relatorio-pedidos-parados/*.test.ts"` (o projeto roda os testes das Edge Functions com o Node 24, sem Deno).
 
 - **`regras.test.ts`:**
   - feriados fixos e móveis de 2026 e 2027 (Carnaval, Sexta-feira Santa, Corpus Christi);
