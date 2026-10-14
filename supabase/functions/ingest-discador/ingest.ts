@@ -46,7 +46,7 @@ function dataValida(s: unknown): s is string {
   return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d;
 }
 
-// Cada helper devolve undefined quando o valor é inválido (a linha toda é descartada).
+// Cada helper devolve undefined quando o valor é inválido; validarLinha troca por null.
 const INVALIDO = undefined;
 function dataOuNulo(v: unknown): string | null | undefined {
   if (v == null) return null;
@@ -94,7 +94,8 @@ function validarLinha(r: unknown): LinhaDiscador | undefined {
     regiao: textoOuNulo(o.regiao, 50),
     gravacao: textoOuNulo(o.gravacao, 400),
   };
-  if (Object.values(l).some((v) => v === INVALIDO)) return INVALIDO;
+  // Só id, gerada_em e status são obrigatórios (spec §5): campo opcional inválido vira null em vez de derrubar a linha.
+  for (const k of Object.keys(l) as (keyof typeof l)[]) if (l[k] === INVALIDO) (l as Record<string, unknown>)[k] = null;
   l.chave_tel = chaveTel(l.telefone);
   return l as LinhaDiscador;
 }

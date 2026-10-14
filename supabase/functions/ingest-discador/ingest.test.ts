@@ -43,20 +43,31 @@ test("validarLote: campos fora da lista (nome, cpf) nunca passam", () => {
   assert.equal("cpf" in r.linhas[0], false);
   assert.equal("documento_1" in r.linhas[0], false);
 });
-test("validarLote: inválidas são contadas e ignoradas", () => {
+test("validarLote: só id, gerada_em e status inválidos derrubam a linha", () => {
   const ruins = [
     { ...base, id: 0 }, { ...base, id: "12" }, { ...base, id: 1.5 },
     { ...base, id: 11, gerada_em: "02/10/2026 15:14:20" },
     { ...base, id: 12, gerada_em: "2026-02-30T10:00:00-03:00" },
     { ...base, id: 13, status: "" }, { ...base, id: 14, status: "answered; drop" },
-    { ...base, id: 15, agente_id: -1 }, { ...base, id: 16, seg_falados: 90000 },
-    { ...base, id: 17, cnpj: "123" }, { ...base, id: 18, telefone: "abc" },
-    { ...base, id: 19, fim_em: "ontem" }, { ...base, id: 20, tabulacao: "x".repeat(201) },
     null, [1], "texto",
   ];
   const r = validarLote(ruins);
   assert.equal(r.linhas.length, 0);
   assert.equal(r.invalidas, ruins.length);
+});
+test("validarLote: campo opcional inválido vira null e a linha entra (spec §5: o resto pode ser nulo)", () => {
+  const r = validarLote([{
+    ...base, agente_id: 0, carga_id: -3, seg_falados: 90000, cnpj: "123", telefone: "abc", fim_em: "ontem",
+    tabulacao: "x".repeat(201), cidade: { a: 1 },
+  }]);
+  assert.equal(r.invalidas, 0);
+  const l = r.linhas[0];
+  assert.deepEqual(
+    [l.agente_id, l.carga_id, l.seg_falados, l.cnpj, l.telefone, l.chave_tel, l.fim_em, l.tabulacao, l.cidade],
+    [null, null, null, null, null, null, null, null, null],
+  );
+  assert.equal(l.status, "ANSWERED");
+  assert.equal(l.carga, base.carga);
 });
 test("validarLote: id repetido no lote entra uma vez", () => {
   const r = validarLote([base, { ...base, tabulacao: "RETORNO" }]);

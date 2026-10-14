@@ -35,6 +35,10 @@ insert into public.producao_pedidos_neo (item_id, numero_pedido, etapa, cadastro
 do $$
 declare r record; n int; v_ok boolean;
 begin
+  -- discador_periodo precisa ser inlinável (sem security definer nem SET) para usar o índice de gerada_em
+  assert not (select prosecdef from pg_proc where oid = 'public.discador_periodo(date,date)'::regprocedure), 'discador_periodo não é security definer';
+  assert (select proconfig is null from pg_proc where oid = 'public.discador_periodo(date,date)'::regprocedure), 'discador_periodo sem SET';
+
   execute 'set local role authenticated';
 
   -- consultor: tudo recusado com 42501

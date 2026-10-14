@@ -15,8 +15,10 @@ begin
   end if;
 end $$;
 
+-- Sem security definer/SET de propósito: assim o Postgres "inlina" a função e usa o índice de gerada_em. Fica fechada a
+-- authenticated; só as funções acima (que rodam como dono) a chamam.
 create or replace function public.discador_periodo(p_de date, p_ate date)
-returns setof public.discador_chamadas language sql stable security definer set search_path = public as $$
+returns setof public.discador_chamadas language sql stable as $$
   select * from public.discador_chamadas
    where gerada_em >= (p_de::timestamp at time zone 'America/Sao_Paulo')
      and gerada_em <  ((p_ate + 1)::timestamp at time zone 'America/Sao_Paulo');
