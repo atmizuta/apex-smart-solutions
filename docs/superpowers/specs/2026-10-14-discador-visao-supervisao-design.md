@@ -27,10 +27,10 @@ Fora de escopo nesta versão:
 
 ## 2. Contexto confirmado (Excel de 14/10, `dialer_calls_report_*.xlsx`)
 
-- Uma aba, linha 1 = cabeçalho, 50 colunas (com nomes repetidos: `UniqueID` e `Região` aparecem duas vezes). Os cabeçalhos vêm com acento em codificação quebrada; normalizar como no upload manual (sem acento/caixa/espaço) e casar por nome normalizado, tolerando o `?`/caractere inválido no lugar do acento.
-- Volume: 139.926 linhas de 01/10 a 14/10 (9 dias úteis), ~15 mil por dia útil, ~20 MB o mês até o dia 14.
+- Uma aba, linha 1 = cabeçalho, 50 colunas (com nomes repetidos: `UniqueID` e `Região` aparecem duas vezes). Os cabeçalhos vêm em UTF-8 correto (com acento); normalizar sem acento/caixa, mantendo o `_` para separar colunas homônimas (`Data/Hora Fim` × `DataHora_Fim`, `Tempo Total` × `Tempo_Total`).
+- Volume: 139.926 linhas de 01/10 a 14/10 (139.925 válidas) (9 dias úteis), ~15 mil por dia útil, ~20 MB o mês até o dia 14.
 - `Status`: BUSY 76.548 · CHANUNAVAIL 28.981 · NOANSWER 24.425 · ANSWERED 5.932 · ABANDONED 2.619 · CONGESTION 1.413 (e mais 3 valores raros).
-- 4 cargas no período: `TIM-APEX-1` 45.570 · `ICP-D-MEI-VIVO-APEX (3)` 35.830 · `TIM-APEX-1 (2)` 31.040 · `ICP-D-MEI-VIVO-APEX (2)` 27.485. Mais uma linha final de totais/vazia (sem `Status`), que deve ser descartada.
+- 4 cargas no período: `TIM-APEX-1` 45.570 · `ICP-D-MEI-VIVO-APEX (3)` 35.830 · `TIM-APEX-1 (2)` 31.040 · `ICP-D-MEI-VIVO-APEX (2)` 27.485. Uma linha tem ID mas não tem `Status` nem carga: é descartada como inválida.
 - `ID do Usuário` é **número do agente** (14 distintos com atendimento), não o login `apex.*` das chamadas manuais. Não existe hoje vínculo número → consultor.
 - Datas: `DataHora_Geracao`, `DataHora_Conectado`, `DataHora_Atendimento`, `DataHora_Fim` em texto `dd/mm/aaaa hh:mm:ss`, horário de São Paulo. As colunas `Dt/Hr Início`, `Data/Hora Atendida` etc. estão em formato ISO e **3 h à frente** (UTC) — não usar.
 - Tempos `Tempo_Espera`, `Tempo_Total`, `Tempo_Chamada` em `hh:mm:ss`; vazios quando não houve atendimento.
@@ -91,7 +91,7 @@ pg_cron `discador-limpeza`, diário às 04:30 SP: `delete from discador_chamadas
 
 - Separada de `ingest-ligacoes` (falha de uma não afeta a outra).
 - `POST` JSON `{ lote: [...], execucao_id, final: bool, resumo? }`; até 500 linhas e 1 MB por requisição.
-- Autorização: `Authorization: Bearer <INGEST_DISCADOR_TOKEN>` comparado em tempo constante; inválido → `401` sem corpo. Token próprio, revogável sem mexer nas manuais.
+- Autorização: header `x-robo-token` = secret `INGEST_DISCADOR_TOKEN` (mesmo padrão da ingest-ligacoes), comparado em tempo constante; inválido → `401` sem corpo. Token próprio, revogável sem mexer nas manuais.
 - Validação: `id` numérico, `gerada_em` válida e `status` presente; o resto pode ser nulo. Linha inválida é contada e ignorada.
 - `upsert on conflict (id)`; resposta com contagens (`recebidas`, `gravadas`, `invalidas`) e no máximo os `id` rejeitados — nunca telefone ou CNPJ.
 - `final: true` grava o resumo em `discador_sync_log`.
@@ -121,8 +121,8 @@ Definições (vão para REGRAS §82):
 - **Abandono** = `ABANDONED` ÷ contato (cliente atendeu e não havia consultor livre).
 - **Atendidas** = `ANSWERED` com `agente_id` preenchido.
 - **Sem tabulação** = atendida com `tabulacao` nula.
-- **Venda do discador** = pedido em `producao_pedidos_neo` (mesmos filtros do Dashboard de Produção, sem GROSS) cujo `cnpj` teve uma chamada **atendida** no discador entre `criado_em - janela_venda_dias` e `criado_em`. Atribuída ao consultor e à carga da **última** chamada atendida antes do pedido. Um pedido conta uma vez.
-- Período por `gerada_em` (chamadas) e por `criado_em` (vendas), sempre em horário de SP.
+- **Venda do discador** = pedido em `producao_pedidos_neo` (mesmos filtros do Dashboard de Produção, sem GROSS) cujo `cnpj` teve uma chamada **atendida** no discador entre o dia de `cadastro` − `janela_venda_dias` e o fim do dia de `cadastro` (mesma data da matriz do Cadastro Diário, §66; `cadastro` não tem hora, então chamada no mesmo dia conta). Atribuída ao consultor e à carga da **última** chamada atendida antes do pedido. Um pedido conta uma vez.
+- Período por `gerada_em` (chamadas) e por `cadastro` (vendas), sempre em horário de SP.
 
 Funções:
 - `discador_resumo(de, ate)` → cartões.
@@ -173,7 +173,7 @@ Local: Dashboard de Produção, ao lado de Pedidos em Alerta e Vendas Perdidas. 
    - agente sem vínculo aparecendo como "Agente N";
    - consultor recebendo erro de permissão.
 3. **Carga inicial (referência de 14/10):**
-   - tentativas 139.926 (sem a linha sem `Status`);
+   - tentativas 139.925 (a linha sem `Status` fica de fora);
    - ANSWERED 5.932;
    - ABANDONED 2.619;
    - por carga: 45.570 / 35.830 / 31.040 / 27.485.
