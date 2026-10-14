@@ -1,0 +1,11 @@
+drop function if exists public.discador_vincular_agente(int, uuid, text);
+drop function if exists public.discador_agentes_sem_vinculo();
+drop function if exists public.discador_mailing(date, date, text);
+drop function if exists public.discador_consultor_dias(int, date, date);
+drop function if exists public.discador_consultores(date, date);
+drop function if exists public.discador_mapa_calor(date, date);
+drop function if exists public.discador_por_hora(date, date);
+drop function if exists public.discador_resumo(date, date);
+drop function if exists public.discador_vendas_atribuidas(date, date);
+drop function if exists public.discador_periodo(date, date);
+drop function if exists public.discador_exige_supervisao(date, date);
