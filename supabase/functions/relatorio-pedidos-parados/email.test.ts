@@ -13,11 +13,11 @@ const base = { diaRef: "2026-10-14", agora: AGORA, sincronizadoEm: new Date("202
 
 test("assunto com total e quantos em alta", () => {
   const m = montarEmail({ ...base, resumo: resumo([1, 1, 0], [0, 0, 1]) });
-  assert.equal(m.assunto, "Pedidos parados — Antifraude e Entrega — 14/10/2026 (3 pedidos, 1 em alta)");
+  assert.equal(m.assunto, "Pedidos parados - Antifraude e Entrega - 14/10/2026 (3 pedidos, 1 em alta)");
 });
 test("assunto no singular com 1 pedido", () => {
   const m = montarEmail({ ...base, resumo: resumo([0, 0, 1], [0, 0, 0]) });
-  assert.equal(m.assunto, "Pedidos parados — Antifraude e Entrega — 14/10/2026 (1 pedido, 0 em alta)");
+  assert.equal(m.assunto, "Pedidos parados - Antifraude e Entrega - 14/10/2026 (1 pedido, 0 em alta)");
 });
 test("modo teste ganha o prefixo [TESTE]", () => {
   const m = montarEmail({ ...base, teste: true, resumo: resumo([1, 0, 0], [0, 0, 0]) });
@@ -48,4 +48,17 @@ test("dados com mais de 3 h: aviso; até 3 h: sem aviso; sem hora: aviso de não
   assert.doesNotMatch(ok.texto, /Atenção/);
   const nulo = montarEmail({ ...base, sincronizadoEm: null, resumo: resumo([1, 0, 0], [0, 0, 0]) });
   assert.match(nulo.texto, /não foi possível confirmar a hora da última sincronização/);
+});
+
+// A denomailer 1.6.0 codifica assunto com caractere não-ASCII em quoted-printable e quebra a linha a cada 74
+// caracteres com "=CRLF" DENTRO do cabeçalho: o leitor entende que o cabeçalho acabou ali e mostra o e-mail
+// cru, com o anexo como texto (envio de teste de 13/10/2026). O assunto precisa ser ASCII puro.
+test("assunto é sempre ASCII puro (a denomailer quebra o cabeçalho de assunto com acento ou travessão)", () => {
+  for (const teste of [false, true]) {
+    for (const r of [resumo([1, 1, 0], [27, 9, 19]), resumo([0, 0, 0], [0, 0, 0]), resumo([0, 0, 1], [0, 0, 0])]) {
+      const m = montarEmail({ ...base, teste, resumo: r });
+      assert.match(m.assunto, /^[ -~]+$/, m.assunto);
+      assert.ok(!m.assunto.startsWith("=?"), m.assunto);
+    }
+  }
 });

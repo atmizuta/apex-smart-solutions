@@ -24,7 +24,8 @@ export function montarEmail(d: DadosEmail): { assunto: string; html: string; tex
   const prefixo = d.teste ? "[TESTE] " : "";
   const qtd = total === 0 ? "nenhum pedido parado"
     : `${total} ${total === 1 ? "pedido" : "pedidos"}, ${d.resumo.total.alta} em alta`;
-  const assunto = `${prefixo}Pedidos parados — Antifraude e Entrega — ${fmtDiaBr(d.diaRef)} (${qtd})`;
+  // Só ASCII: a denomailer 1.6.0 quebra o cabeçalho de assunto com acento ou travessão (e-mail chega cru).
+  const assunto = `${prefixo}Pedidos parados - Antifraude e Entrega - ${fmtDiaBr(d.diaRef)} (${qtd})`;
 
   const aviso = avisoSincronizacao(d);
   const sinc = d.sincronizadoEm ? `Dados do NeoCRM sincronizados em ${fmtDataHoraSp(d.sincronizadoEm)}.` : null;
