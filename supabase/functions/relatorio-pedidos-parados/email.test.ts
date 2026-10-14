@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { montarEmail } from "./email.ts";
+import { base64Mime, conteudoMime, montarEmail } from "./email.ts";
 import type { Resumo } from "./regras.ts";
 
 const AGORA = new Date("2026-10-14T11:00:00Z"); // 08:00 SP
@@ -61,4 +61,23 @@ test("assunto é sempre ASCII puro (a denomailer quebra o cabeçalho de assunto 
       assert.ok(!m.assunto.startsWith("=?"), m.assunto);
     }
   }
+});
+
+// Revisão final: a denomailer não escapa linha de corpo que começa com "." (SMTP dot-stuffing) e o
+// quoted-printable dela pode pôr um "." no início da linha → ponto some ou o e-mail é cortado. Corpo em base64.
+test("base64Mime: volta ao texto original, linhas de até 76, só caracteres base64 (nenhuma começa com '.')", () => {
+  const original = "Bom dia!\n\nLinha que termina com ponto.\n.\nAção — Média · Baixa 0–3.\n" + "x".repeat(300) + ".";
+  const enc = base64Mime(original);
+  const linhas = enc.split("\r\n");
+  for (const l of linhas) {
+    assert.ok(l.length <= 76, `linha com ${l.length}`);
+    assert.match(l, /^[A-Za-z0-9+/=]+$/);
+  }
+  assert.equal(Buffer.from(linhas.join(""), "base64").toString("utf8"), original);
+});
+test("conteudoMime: texto e HTML em base64, nessa ordem", () => {
+  const c = conteudoMime({ texto: "oi.", html: "<p>oi.</p>" });
+  assert.deepEqual(c.map((x) => [x.mimeType, x.transferEncoding]), [
+    ['text/plain; charset="utf-8"', "base64"], ['text/html; charset="utf-8"', "base64"]]);
+  assert.equal(Buffer.from(c[1].content.replace(/\r\n/g, ""), "base64").toString("utf8"), "<p>oi.</p>");
 });

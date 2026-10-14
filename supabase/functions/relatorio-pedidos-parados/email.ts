@@ -75,3 +75,20 @@ export function montarEmail(d: DadosEmail): { assunto: string; html: string; tex
 
   return { assunto, html, texto };
 }
+
+// Corpo em base64 (e não o quoted-printable da denomailer): a biblioteca não faz o "dot-stuffing" do SMTP e o QP dela
+// pode começar uma linha com "." — o ponto some ou, num servidor tolerante a LF solto, o e-mail é cortado ali.
+export function base64Mime(s: string): string {
+  const bytes = new TextEncoder().encode(s);
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return (btoa(bin).match(/.{1,76}/g) ?? []).join("\r\n");
+}
+
+export interface ParteMime { mimeType: string; content: string; transferEncoding: string }
+export function conteudoMime(m: { texto: string; html: string }): ParteMime[] {
+  return [
+    { mimeType: 'text/plain; charset="utf-8"', transferEncoding: "base64", content: base64Mime(m.texto) },
+    { mimeType: 'text/html; charset="utf-8"', transferEncoding: "base64", content: base64Mime(m.html) },
+  ];
+}

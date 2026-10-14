@@ -43,6 +43,15 @@ export function ocultarSegredo(texto: string, segredo: string | undefined): stri
   return segredo ? texto.split(segredo).join("***") : texto;
 }
 
+// A denomailer não tem timeout: um SMTP travado mataria a função sem gravar o log.
+export function comPrazo<T>(p: Promise<T>, ms: number, rotulo: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const prazo = new Promise<never>((_, rej) => {
+    timer = setTimeout(() => rej(new Error(`${rotulo}: tempo esgotado (${ms} ms)`)), ms);
+  });
+  return Promise.race([p, prazo]).finally(() => clearTimeout(timer));
+}
+
 export const TAMANHO_PAGINA = 1000;
 const MAX_PAGINAS = 100;
 export async function lerTodasPaginas<T>(buscar: (de: number, ate: number) => Promise<T[]>, tamanho = TAMANHO_PAGINA): Promise<T[]> {
@@ -93,12 +102,13 @@ export async function executarRelatorio(deps: Deps, op: Opcoes): Promise<Registr
   const todos = [...para, ...cc];
 
   let linhas: Linha[];
-  let sincronizadoEm: Date | null;
   try {
-    [linhas, sincronizadoEm] = await Promise.all([deps.lerLinhas(), deps.ultimaSincronizacao()]);
+    linhas = await deps.lerLinhas();
   } catch (e) {
     return erro("falha ao ler os pedidos", mensagem(e), todos);
   }
+  // sem a hora da sincronização o e-mail sai mesmo assim, com o aviso de "não foi possível confirmar" (§4.1)
+  const sincronizadoEm = await deps.ultimaSincronizacao().catch(() => null);
 
   const pedidos = montarPedidos(linhas, diaRef);
   let anexo: Mensagem["anexo"] = null;

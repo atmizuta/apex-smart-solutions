@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { executarRelatorio, lerTodasPaginas, ocultarSegredo, validarEmails } from "./relatorio.ts";
+import { comPrazo, executarRelatorio, lerTodasPaginas, ocultarSegredo, validarEmails } from "./relatorio.ts";
 import type { Deps, Mensagem, RegistroEnvio } from "./relatorio.ts";
 import type { Linha } from "./regras.ts";
 
@@ -164,4 +164,19 @@ test("ocultarSegredo troca a senha por ***", () => {
   assert.equal(ocultarSegredo("falhou com senha S3nh@ no login", "S3nh@"), "falhou com senha *** no login");
   assert.equal(ocultarSegredo("sem segredo", undefined), "sem segredo");
   assert.equal(ocultarSegredo("sem segredo", ""), "sem segredo");
+});
+
+// Revisão final: falha só ao ler a hora da sincronização não pode cancelar o envio (§4.1: sai com aviso).
+test("falha ao ler a hora da sincronização: envia mesmo assim, com o aviso de hora não confirmada", async () => {
+  const f = fakes({ ultimaSincronizacao: async () => { throw new Error("config fora"); } });
+  const r = await executarRelatorio(f.deps, { modo: "agendado" });
+  assert.equal(r.status, "enviado");
+  assert.match(f.enviados[0].texto, /não foi possível confirmar a hora da última sincronização/);
+});
+// Revisão final: a denomailer não tem timeout; SMTP travado mataria a função sem log.
+test("comPrazo: rejeita com mensagem de tempo esgotado quando a promessa não termina", async () => {
+  await assert.rejects(comPrazo(new Promise(() => {}), 20, "envio SMTP"), /envio SMTP: tempo esgotado \(20 ms\)/);
+});
+test("comPrazo: devolve o valor quando termina antes do prazo", async () => {
+  assert.equal(await comPrazo(Promise.resolve(7), 1000, "x"), 7);
 });

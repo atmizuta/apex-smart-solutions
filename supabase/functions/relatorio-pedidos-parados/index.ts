@@ -8,13 +8,15 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import ExcelJS from "npm:exceljs@4.4.0";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
-import { MODOS, executarRelatorio, lerTodasPaginas, ocultarSegredo } from "./relatorio.ts";
+import { MODOS, comPrazo, executarRelatorio, lerTodasPaginas, ocultarSegredo } from "./relatorio.ts";
+import { conteudoMime } from "./email.ts";
 import type { Deps, Modo } from "./relatorio.ts";
 import { gerarPlanilha } from "./planilha.ts";
 import type { Linha } from "./regras.ts";
 
 const RELATORIO = "pedidos_parados";
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const PRAZO_SMTP_MS = 45_000; // abaixo dos 60 s do net.http_post do cron, para dar tempo de gravar o log
 
 function env(k: string): string {
   const v = Deno.env.get(k);
@@ -73,21 +75,21 @@ function criarDeps(): Deps {
         },
       });
       try {
-        await client.send({
+        await comPrazo(client.send({
           from: `Apex Smart Solutions <${smtpUser}>`,
           to: m.para,
           ...(m.cc.length ? { cc: m.cc } : {}),
           subject: m.assunto,
-          content: m.texto,
-          html: m.html,
+          // corpo em base64 próprio (não content/html): ver conteudoMime em email.ts
+          mimeContent: conteudoMime(m),
           attachments: m.anexo
             ? [{ filename: m.anexo.nome, content: m.anexo.bytes, encoding: "binary", contentType: XLSX_MIME }]
             : [],
-        });
+        }), PRAZO_SMTP_MS, "envio SMTP");
       } catch (e) {
         throw new Error(ocultarSegredo((e as Error).message, smtpPass));
       } finally {
-        try { await client.close(); } catch { /* a conexão já pode ter caído */ }
+        try { await comPrazo(client.close(), 5_000, "fechar SMTP"); } catch { /* a conexão já pode ter caído */ }
       }
     },
     async registrar(r) {
