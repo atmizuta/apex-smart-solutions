@@ -107,7 +107,7 @@ Fluxo de cada execução (pg_cron, 07:17–22:17 SP, seg–sáb, sem mudança no
 4. Falha na etapa 3 grava erro em `discador_sync_log` e **não** altera o resultado da etapa 2; o job termina com aviso.
 
 Peças:
-- `src/procontact.js`: navegação até o relatório do discador, filtro e exportação. O caminho no menu e o formato do filtro serão confirmados num **reconhecimento** em modo `dry`; se o filtro não aceitar hora, usa dia inteiro.
+- `src/procontact.js`: navegação **Relatório → Call Center → Discador → Filtros → Buscar → Exportar** (confirmado pelo Rafael em 14/10; o filtro aceita período com hora). O reconhecimento em modo `dry` só confirma seletores e o formato exato do campo de período.
 - `src/parseDiscador.js`: leitor do layout de 50 colunas.
 - `src/enviar.js`: reaproveitado, com destino e token parametrizados.
 - Secrets novos: `INGEST_DISCADOR_URL`, `INGEST_DISCADOR_TOKEN`. Variável `DISCADOR_ATIVO`.
@@ -192,9 +192,10 @@ Reverter: `DISCADOR_ATIVO=false` e revogar o token; rollback da migration; resta
 
 ## 12. Pendências do Rafael
 
-- (a) Caminho do relatório no ProContact e se o filtro aceita hora (senão o reconhecimento descobre).
-- (b) Quem faz o vínculo agente → consultor (a tela fica pronta para o admin).
-- (c) Confirmar o limite de abandono do alerta (padrão 15%).
+Respondidas em 14/10:
+- (a) Caminho: Relatório → Call Center → Discador → Filtros → Buscar → Exportar; o filtro aceita hora.
+- (b) O Rafael faz o vínculo agente → consultor pela tela do admin.
+- (c) Limite de abandono do alerta: 15% (aceito, sabendo que a média de outubro está em 30,6%).
 
 ## 13. Decomposição em planos
 
