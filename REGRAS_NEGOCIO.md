@@ -3097,3 +3097,15 @@ Spec: `docs/superpowers/specs/2026-10-09-operacao-campinas-design.md`. Pedido do
 - **Limite conhecido:** lead marcado como VENDA na planilha que ainda não tem pedido no NeoCRM com o mesmo CNPJ não aparece (nem aqui nem no "Vendas x origem"). O pedido também só aparece depois da sincronização de produção (minuto 59).
 - **Código:** `vendasLeadDoDia(pedidos, leads, dia)` e `verVendasLeadHoje()` no `_template.html`, junto do `casarVendasComLeads`. Testes: `test_vendas_lead_hoje.js` (10 ok) e `test_conversao_vendas.js` atualizado (o supervisor vê 5 cards).
 - **Entrada no ar (13/10/2026, ~19:50, horário de SP):** o painel no ar (`a2d5de20…`) era idêntico ao `oficial/main` c34ead1. Publicado **`d0c7eb9dd71b54858b3c1496469230fb`** (gerado = servidor = site; diff de +31 linhas, só o cartão). Backup: `~/deploy_backups/painel_clientes_apex_20261013_194907_antes_vendas_lead_hoje.html`. **Reverter:** copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`.
+
+## 82. Etapa TERRITÓRIO deduzida pela exportação (14/10/2026)
+(A §81 está reservada para a migração da sync-producao para a API nova.)
+
+- **Problema:** o pedido 49579315 estava em TERRITORIO no NEO, mas o painel o mostrava "parado há mais de 3 dias em ANTIFRAUDE". Nenhuma das duas APIs da NeoSales (produção e exportação) devolve pedido na etapa TERRITORIO: quando sai de ANTIFRAUDE para TERRITORIO, o pedido **some das duas**, e o banco ficava com a última etapa vista. Até 14/10 nenhum pedido tinha chegado com essa etapa (ver §55.5).
+- **Regra:** a exportação (sync-exportacao, §70) devolve o painel 15455 inteiro a cada hora. Pedido que estava em **ANTIFRAUDE** e não aparece na exportação há mais de 90 min (2 execuções seguidas) passa para **`TERRITORIO (NEOCRM)`** em `producao_pedidos_neo` e em `producao_atividades`. No `producao_etapa_historico`, a entrada na etapa fica com a hora da última vez em que o pedido apareceu na exportação (origem `sync`). Assim, os dias parados contam a partir dessa hora.
+- **Só ANTIFRAUDE.** Pedidos que somem de outras etapas (NEGOCIAÇÃO, VALIDAÇÃO ESIM, REABRIR) ficam como estão até o usuário confirmar para onde vão.
+- **Trava:** se mais de 40 linhas sumirem de uma vez (sinal de exportação incompleta), nada é marcado e o número vai negativo em `exportacao_sync_log.territorio`.
+- **Volta:** se o pedido reaparecer na API (saiu de TERRITORIO), a sync-producao grava a etapa real por cima.
+- **Banco:** migration `20261014100000_territorio_sumiu_exportacao.sql`, com a função `producao_marca_territorio(p_agora)` (security definer, sem grant para anon/authenticated) e a coluna `exportacao_sync_log.territorio`. A sync-exportacao chama a função depois de gravar uma exportação completa.
+- **Aplicado em 14/10/2026:** migration no ar e primeira marcação manual. Foram 28 linhas em 11 pedidos, entre eles o 49579315, que está em TERRITORIO desde 09/10 às 14:41. **Pendente:** implantar a sync-exportacao v9 com a chamada. Sem ela, só a marcação manual vale e os próximos pedidos não são marcados sozinhos.
+- **Ideal:** pedir à Xeotech que a API passe a mandar a etapa TERRITORIO.
