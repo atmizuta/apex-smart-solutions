@@ -92,7 +92,7 @@ esse erro será corrigido à parte.
 ### 4.1 E-mail
 
 - **De:** `Apex Smart Solutions <corporativo@apexsmart.com.br>`.
-- **Assunto:** `Pedidos parados — Antifraude e Entrega — 14/10/2026 (105 pedidos, 18 em alta)`.
+- **Assunto:** `Pedidos parados - Antifraude e Entrega - 14/10/2026 (105 pedidos, 18 em alta)`. **Só ASCII** (hífen, sem acento): a denomailer 1.6.0 quebra o cabeçalho de assunto com caractere especial e o e-mail chega cru.
 - **Corpo (HTML simples, com versão em texto):**
   - uma frase de abertura;
   - uma tabelinha Etapa × Criticidade com totais;

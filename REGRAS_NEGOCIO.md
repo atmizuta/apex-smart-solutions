@@ -3097,3 +3097,41 @@ Spec: `docs/superpowers/specs/2026-10-09-operacao-campinas-design.md`. Pedido do
 - **Limite conhecido:** lead marcado como VENDA na planilha que ainda não tem pedido no NeoCRM com o mesmo CNPJ não aparece (nem aqui nem no "Vendas x origem"). O pedido também só aparece depois da sincronização de produção (minuto 59).
 - **Código:** `vendasLeadDoDia(pedidos, leads, dia)` e `verVendasLeadHoje()` no `_template.html`, junto do `casarVendasComLeads`. Testes: `test_vendas_lead_hoje.js` (10 ok) e `test_conversao_vendas.js` atualizado (o supervisor vê 5 cards).
 - **Entrada no ar (13/10/2026, ~19:50, horário de SP):** o painel no ar (`a2d5de20…`) era idêntico ao `oficial/main` c34ead1. Publicado **`d0c7eb9dd71b54858b3c1496469230fb`** (gerado = servidor = site; diff de +31 linhas, só o cartão). Backup: `~/deploy_backups/painel_clientes_apex_20261013_194907_antes_vendas_lead_hoje.html`. **Reverter:** copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`.
+
+## 81. E-mail diário dos pedidos parados (Antifraude e Entrega) para a executiva da Claro (13/10/2026)
+
+Pedido do Rafael: todo dia útil de manhã, a executiva da Claro que acompanha a operação recebe por e-mail um Excel com **todos os pedidos parados em Antifraude e Entrega**, com a criticidade de cada um, para conferir o status e repassar ao back office. Spec: `docs/superpowers/specs/2026-10-13-relatorio-pedidos-parados-email-design.md`; plano: `docs/superpowers/plans/2026-10-13-relatorio-pedidos-parados-email.md`.
+
+- **Quando:** seg–sex às 08:00 de São Paulo (`pg_cron` `relatorio-pedidos-parados`, `0 11 * * 1-5` UTC). Feriado nacional não envia (registra "pulado").
+- **De/para:**
+  - sai de `corporativo@apexsmart.com.br` (SMTP Hostinger, 465/TLS), com o nome "Apex Smart Solutions";
+  - os destinatários ficam na tabela `relatorio_destinatarios` (só admin lê). **Não** ficam na `config`, que qualquer usuário logado lê, e nunca entram no repositório.
+- **Quais pedidos:**
+  - todos em `ANTIFRAUDE (NEOCRM)` e `ENTREGA (NEOCRM)` na hora do envio, sem corte de data, Apex e Campinas (coluna Operação);
+  - uma linha por pedido, como na §48.2.
+- **Dias parados:**
+  - dias úteis desde a **entrada na etapa atual** (`producao_na_etapa_desde`, §76; sem histórico, a ATUALIZACAO) até o dia do envio;
+  - **Baixa 0–3 · Média 4–6 · Alta 7+**. São faixas próprias do e-mail: a aba Pedidos em Alerta continua com 3–5 / 6–9 / 10+.
+- **Carnaval:** a função conta segunda e terça (Páscoa − 48/− 47). O painel usa − 47/− 46 (terça e Quarta de Cinzas), erro a corrigir à parte.
+- **Excel `PedidosParados_AAAA-MM-DD.xlsx`:**
+  - aba "Pedidos Parados", colorida por criticidade, com filtro, cabeçalho congelado e a coluna **Retorno** em branco para a executiva preencher. É dela que sairão as categorias para o back office (próxima fase);
+  - aba "Resumo" (Etapa × Criticidade).
+- **Corpo do e-mail:** só contagens. Avisa se a última sincronização com o NeoCRM tiver mais de 3 h. Sem pedidos, sai sem anexo.
+- **Código:** Edge Function `supabase/functions/relatorio-pedidos-parados/` (`regras.ts`, `planilha.ts`, `email.ts`, `relatorio.ts`, `index.ts`); testes `node --test "supabase/functions/relatorio-pedidos-parados/*.test.ts"`.
+- **Banco:**
+  - migration `20261013100000_relatorio_pedidos_parados.sql`: tabelas `relatorio_destinatarios` e `relatorio_envio_log`, função `relatorio_pedidos_parados_linhas()` (só `service_role`) e o job;
+  - rollback em `supabase/rollback/`; conferência em `supabase/tests/relatorio_pedidos_parados_check.sql`.
+- **Segredos (Edge Function):**
+  - `SMTP_USER` e `SMTP_PASS`. O Rafael grava a senha no painel do Supabase; ela nunca aparece em conversa nem em arquivo;
+  - o cron reaproveita `SYNC_CRON_SECRET` / `sync_producao_cron_secret`.
+- **Acompanhar:** `select * from relatorio_envio_log order by id desc;`. Um envio por dia (`enviado`); duplicidade vira `pulado`.
+- **Reenviar no mesmo dia:** chamar a função com `{"modo":"reenviar"}` (mesmo `net.http_post` do cron, trocando o body).
+- **Teste para outro e-mail:** `{"modo":"teste","para":["..."]}` (assunto com `[TESTE]`).
+- **Pausar:** `update relatorio_destinatarios set ativo = false where relatorio = 'pedidos_parados';`.
+- **Desligar:** `select cron.unschedule(jobid) from cron.job where jobname = 'relatorio-pedidos-parados';`.
+- **Trocar destinatário:** `update relatorio_destinatarios set para = array['novo@...'] where relatorio = 'pedidos_parados';`.
+- **Entrada no ar (13/10/2026):**
+  - 1º envio de teste (22:23) chegou **cru**: a denomailer 1.6.0 codifica assunto com caractere não-ASCII (o travessão "—") em quoted-printable e quebra a linha a cada 74 caracteres **dentro do cabeçalho**, então o leitor mostrou o e-mail inteiro como texto, com o anexo em base64. Correção: o assunto é só ASCII (hífen), com teste que impede a volta (`email.test.ts`). **Nunca pôr acento ou travessão no assunto** enquanto a biblioteca for essa.
+  - 2º envio de teste aprovado pelo Rafael (~22:50); destinatária real cadastrada às 22:55; primeiro envio automático: quarta 14/10/2026 às 08:00.
+  - A migration foi rodada pelo Rafael no SQL Editor (a ferramenta de migration da sessão do Claude foi bloqueada duas vezes).
+- **Fora de escopo (por ora):** categorias de retorno, leitura da planilha devolvida, tela no painel para destinatários/log, aviso de falha por Telegram, outras etapas.
