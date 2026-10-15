@@ -3138,6 +3138,8 @@ Pedido do usuário: na aba Biometria incluir também a imagem do e-mail Claro "V
 - **Arquivo baixado:** `biometria-instrucoes-claro-<nome>.png`. Enviar como foto no WhatsApp, como a primeira imagem.
 - **Limites:** a fonte do nome é Arial (a original do e-mail é outra, parecida); o resto da imagem é idêntico à base. Se a Claro mudar o e-mail, trocar o PNG base e regerar `BIO_EMAIL_B64`.
 
+- **Imagem compacta (ajuste posterior):** o WhatsApp Web/celular corta o centro de imagens muito altas na conversa (o logo da Claro no topo e o rodapé sumiam). A imagem agora sai quase quadrada (457×500 px na base, 2×): faixa vermelha com o logo Claro Empresas + saudação personalizada + caixa "Veja como é fácil"; o rodapé cinza e o texto pequeno foram removidos.
+
 ## 86. Biometria: legenda com link clicável para o WhatsApp (15/10/2026)
 No WhatsApp (aplicativo comum e Business) a imagem não aceita link; só o texto fica clicável. Por isso a aba Biometria ganhou o cartão **"Legenda com link para o WhatsApp"**.
 - **Campos:** o **link da biometria** (`#bioLegendaLink`) fica no cartão de cima, logo abaixo do "Nome do cliente", e o consultor informa os dois juntos; a "Legenda" (`#bioLegenda`, editável) fica no cartão "Legenda com link para o WhatsApp" e se atualiza ao digitar nome ou link. Usa o primeiro nome do cliente ("Olá, Adriano!...").

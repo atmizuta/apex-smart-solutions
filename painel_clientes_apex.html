@@ -2902,7 +2902,18 @@ function gerarImagemBiometriaEmail(nome){
     const largura = ctx.measureText(texto).width;
     ctx.font = '400 ' + tam + 'px Arial, Helvetica, sans-serif';
     ctx.fillText('.', 65 * S + largura + 1 * S, 131.5 * S);
-    const dataUrl = canvas.toDataURL('image/png');
+    // 15/10/2026: o WhatsApp corta o centro de imagens muito altas na conversa (some o logo do topo). Por isso a
+    // imagem sai compacta (quase quadrada): faixa vermelha com o logo + saudação, depois a caixa "Veja como é fácil".
+    const A0 = 0, A1 = 246, B0 = 274, B1 = 514, GAP = 14; // trechos da base (px da base de 457×769)
+    const out = document.createElement('canvas');
+    out.width = W * S; out.height = ((A1 - A0) + GAP + (B1 - B0)) * S;
+    const octx = out.getContext('2d');
+    if(!octx) return;
+    octx.fillStyle = '#ffffff';
+    octx.fillRect(0, 0, out.width, out.height);
+    octx.drawImage(canvas, 0, A0 * S, W * S, (A1 - A0) * S, 0, 0, W * S, (A1 - A0) * S);
+    octx.drawImage(canvas, 0, B0 * S, W * S, (B1 - B0) * S, 0, (A1 - A0 + GAP) * S, W * S, (B1 - B0) * S);
+    const dataUrl = out.toDataURL('image/png');
     preview.src = dataUrl;
     if(btnBaixar){
       btnBaixar.href = dataUrl;
