@@ -1,4 +1,4 @@
--- Verificação de 20261014100000_discador_chamadas.sql (§87). Rodar SOMENTE depois da migration; SEMPRE termina em ROLLBACK.
+-- Verificação de 20261014110000_discador_chamadas.sql (§87). Rodar SOMENTE depois da migration; SEMPRE termina em ROLLBACK.
 begin;
 do $$
 declare n int;

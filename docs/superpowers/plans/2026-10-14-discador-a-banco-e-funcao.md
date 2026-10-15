@@ -38,11 +38,11 @@
 ## File Structure
 
 Repositório do painel (worktree `discador-supervisao`):
-- Create `supabase/migrations/20261014100000_discador_chamadas.sql`: tabelas, RLS, config, cron de limpeza.
-- Create `supabase/rollback/20261014100000_discador_chamadas_rollback.sql`
+- Create `supabase/migrations/20261014110000_discador_chamadas.sql`: tabelas, RLS, config, cron de limpeza.
+- Create `supabase/rollback/20261014110000_discador_chamadas_rollback.sql`
 - Create `supabase/tests/discador_chamadas_check.sql`: estrutura e RLS; termina em ROLLBACK.
-- Create `supabase/migrations/20261014100100_discador_metricas.sql`: funções de leitura, atribuição de venda e vínculo.
-- Create `supabase/rollback/20261014100100_discador_metricas_rollback.sql`
+- Create `supabase/migrations/20261014110100_discador_metricas.sql`: funções de leitura, atribuição de venda e vínculo.
+- Create `supabase/rollback/20261014110100_discador_metricas_rollback.sql`
 - Create `supabase/tests/discador_metricas_check.sql`: cenário fictício; termina em ROLLBACK.
 - Create `supabase/functions/ingest-discador/ingest.ts`: lógica pura.
 - Create `supabase/functions/ingest-discador/ingest.test.ts`
@@ -59,8 +59,8 @@ Repositório do robô (`apex-robo-procontact`, privado):
 ### Task 1: Migration de estrutura (tabelas, RLS, config, limpeza)
 
 **Files:**
-- Create: `supabase/migrations/20261014100000_discador_chamadas.sql`
-- Create: `supabase/rollback/20261014100000_discador_chamadas_rollback.sql`
+- Create: `supabase/migrations/20261014110000_discador_chamadas.sql`
+- Create: `supabase/rollback/20261014110000_discador_chamadas_rollback.sql`
 - Create: `supabase/tests/discador_chamadas_check.sql`
 
 **Interfaces:**
@@ -76,7 +76,7 @@ Todos os comandos rodam do worktree `C:\Users\acer1\Downloads\apex-smart-solutio
 - [ ] **Step 1: Escrever o teste de estrutura** (`supabase/tests/discador_chamadas_check.sql`)
 
 ```sql
--- Verificação de 20261014100000_discador_chamadas.sql (§87). Rodar SOMENTE depois da migration; SEMPRE termina em ROLLBACK.
+-- Verificação de 20261014110000_discador_chamadas.sql (§87). Rodar SOMENTE depois da migration; SEMPRE termina em ROLLBACK.
 begin;
 do $$
 declare n int;
@@ -127,7 +127,7 @@ rollback;
 Rodar o conteúdo do arquivo no Supabase (`mcp__supabase__execute_sql`, projeto `mdgfboijyqfkggcrhptn`). É leitura com ROLLBACK, então é seguro em produção.
 Expected: FAIL com `assertion failed: tabela discador_chamadas existe`.
 
-- [ ] **Step 3: Escrever a migration** (`supabase/migrations/20261014100000_discador_chamadas.sql`)
+- [ ] **Step 3: Escrever a migration** (`supabase/migrations/20261014110000_discador_chamadas.sql`)
 
 ```sql
 -- 14/10/2026 — Discador automático do ProContact: uma linha por tentativa de discagem (REGRAS_NEGOCIO.md §87).
@@ -213,7 +213,7 @@ select cron.schedule('discador-limpeza', '30 7 * * *',
   $job$ delete from public.discador_chamadas where gerada_em < now() - interval '90 days' $job$);
 ```
 
-- [ ] **Step 4: Escrever o rollback** (`supabase/rollback/20261014100000_discador_chamadas_rollback.sql`)
+- [ ] **Step 4: Escrever o rollback** (`supabase/rollback/20261014110000_discador_chamadas_rollback.sql`)
 
 ```sql
 select cron.unschedule(jobid) from cron.job where jobname = 'discador-limpeza';
@@ -226,7 +226,7 @@ drop table if exists public.discador_chamadas;
 - [ ] **Step 5: Commit**
 
 ```bash
-git add supabase/migrations/20261014100000_discador_chamadas.sql supabase/rollback/20261014100000_discador_chamadas_rollback.sql supabase/tests/discador_chamadas_check.sql
+git add supabase/migrations/20261014110000_discador_chamadas.sql supabase/rollback/20261014110000_discador_chamadas_rollback.sql supabase/tests/discador_chamadas_check.sql
 git commit -m "feat(discador): tabelas, RLS, config e limpeza de 90 dias (secao 87)"
 ```
 
@@ -237,8 +237,8 @@ A migration **não** é aplicada aqui: isso acontece na Task 7, com ok do Rafael
 ### Task 2: Funções de métricas, atribuição de venda e vínculo
 
 **Files:**
-- Create: `supabase/migrations/20261014100100_discador_metricas.sql`
-- Create: `supabase/rollback/20261014100100_discador_metricas_rollback.sql`
+- Create: `supabase/migrations/20261014110100_discador_metricas.sql`
+- Create: `supabase/rollback/20261014110100_discador_metricas_rollback.sql`
 - Create: `supabase/tests/discador_metricas_check.sql`
 
 **Interfaces:**
@@ -259,7 +259,7 @@ A migration **não** é aplicada aqui: isso acontece na Task 7, com ok do Rafael
 Cenário fictício em janeiro de 2000. 03/01/2000 é segunda-feira; as semanas de referência são 27/12/1999 e 20/12/1999. CNPJs falsos: A = `00000000000101`, B = `00000000000202`, C = `00000000000303`.
 
 ```sql
--- Verificação de 20261014100100_discador_metricas.sql (§87). Rodar SOMENTE depois das duas migrations; SEMPRE termina
+-- Verificação de 20261014110100_discador_metricas.sql (§87). Rodar SOMENTE depois das duas migrations; SEMPRE termina
 -- em ROLLBACK. Dados fictícios em 2000 (zz*), CNPJs falsos.
 begin;
 insert into auth.users (id, instance_id, aud, role, email) values
@@ -384,7 +384,7 @@ O teste não verifica `discador_agentes_sem_vinculo()` com contagem exata, porqu
 
 Mesmo modo da Task 1, Step 2. Se a Task 1 ainda não estiver aplicada, a falha é `relation "public.discador_agente" does not exist`; se estiver, `function public.discador_resumo(...) does not exist`. Os dois casos confirmam que o teste não passa sozinho.
 
-- [ ] **Step 3: Escrever a migration** (`supabase/migrations/20261014100100_discador_metricas.sql`)
+- [ ] **Step 3: Escrever a migration** (`supabase/migrations/20261014110100_discador_metricas.sql`)
 
 ```sql
 -- 14/10/2026 — Funções de leitura da aba "Discador" (REGRAS_NEGOCIO.md §87). Todas checam admin/supervisor.
@@ -663,7 +663,7 @@ begin
 end $$;
 ```
 
-- [ ] **Step 4: Escrever o rollback** (`supabase/rollback/20261014100100_discador_metricas_rollback.sql`)
+- [ ] **Step 4: Escrever o rollback** (`supabase/rollback/20261014110100_discador_metricas_rollback.sql`)
 
 ```sql
 drop function if exists public.discador_vincular_agente(int, uuid, text);
@@ -682,7 +682,7 @@ drop function if exists public.discador_exige_supervisao(date, date);
 - [ ] **Step 5: Commit**
 
 ```bash
-git add supabase/migrations/20261014100100_discador_metricas.sql supabase/rollback/20261014100100_discador_metricas_rollback.sql supabase/tests/discador_metricas_check.sql
+git add supabase/migrations/20261014110100_discador_metricas.sql supabase/rollback/20261014110100_discador_metricas_rollback.sql supabase/tests/discador_metricas_check.sql
 git commit -m "feat(discador): funcoes de metricas, atribuicao de venda e vinculo de agente (secao 87)"
 ```
 
@@ -1461,12 +1461,12 @@ Antes de **cada** passo abaixo, mostrar ao Rafael o que vai rodar e esperar o "o
 
 - [ ] **Step 1: Aplicar a migration de estrutura**
 
-`mcp__supabase__apply_migration` com o nome `discador_chamadas` e o conteúdo de `supabase/migrations/20261014100000_discador_chamadas.sql`. Depois rodar `supabase/tests/discador_chamadas_check.sql` com `mcp__supabase__execute_sql`.
+`mcp__supabase__apply_migration` com o nome `discador_chamadas` e o conteúdo de `supabase/migrations/20261014110000_discador_chamadas.sql`. Depois rodar `supabase/tests/discador_chamadas_check.sql` com `mcp__supabase__execute_sql`.
 Expected: o check termina sem exceção (ROLLBACK).
 
 - [ ] **Step 2: Aplicar a migration de métricas**
 
-`mcp__supabase__apply_migration` com o nome `discador_metricas` e o conteúdo de `20261014100100_discador_metricas.sql`. Depois rodar `supabase/tests/discador_metricas_check.sql`.
+`mcp__supabase__apply_migration` com o nome `discador_metricas` e o conteúdo de `20261014110100_discador_metricas.sql`. Depois rodar `supabase/tests/discador_metricas_check.sql`.
 Expected: sem exceção. Se o arquivo passar de ~20 KB e der `Invalid or expired requestState`, dividir em duas chamadas: as funções em uma e o bloco de grants em outra.
 
 - [ ] **Step 3: Gerar o token e publicar a função**
