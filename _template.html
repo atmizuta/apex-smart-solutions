@@ -343,6 +343,27 @@
   .propSection > summary .secRight{display:flex;align-items:center;gap:var(--space-3);}
   .propSection > summary .chev{color:var(--muted);font-size:11px;transition:transform var(--dur) var(--ease-out);display:inline-block;}
   .propSection[open] > summary .chev{transform:rotate(180deg);}
+  /* modo manual da proposta (15/10/2026, §83): cartões de dados do cliente e de itens */
+  .mmCard{border:1px solid var(--border);border-radius:14px;padding:16px 18px;margin-bottom:14px;background:var(--panel,#fff);box-shadow:0 1px 2px rgba(0,0,0,.04);}
+  .mmCardTitle{font-weight:700;font-size:14px;margin:0 0 4px;letter-spacing:.2px;}
+  .mmHint{font-size:11px;color:var(--muted);margin:0 0 12px;line-height:1.45;}
+  .mmGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px 12px;align-items:end;}
+  .mmF{display:flex;flex-direction:column;gap:4px;margin:0;min-width:0;}
+  .mmF label{font-size:11px;font-weight:600;color:var(--muted);margin:0;}
+  .mmF input,.mmF select{width:100%;box-sizing:border-box;}
+  .mmWide{grid-column:span 2;}
+  .mmItem{border:1px solid var(--border);border-left:4px solid var(--red);border-radius:12px;padding:12px 14px;margin:0 0 12px;background:rgba(0,0,0,.015);}
+  .mmItem[data-cob="unico"],.mmItem[data-cob="parcelado"]{border-left-color:#d97706;}
+  .mmHead{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin:0 0 10px;}
+  .mmHead .mmF{min-width:140px;}
+  .mmGrow{flex:1;min-width:220px !important;}
+  .mmNum{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--red);color:#fff;font-size:12px;font-weight:700;flex:none;align-self:center;}
+  .mmRemove{background:none;border:1px solid var(--red);color:var(--red);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:12px;}
+  .mmRemove:hover{background:var(--red);color:#fff;}
+  .mmSub{font-size:11px;color:var(--muted);text-align:right;}
+  .mmSub b{font-size:14px;color:inherit;}
+  .mmAdd{margin:2px 0 12px;padding:8px 14px;font-size:12px;width:auto;}
+  .mmTotais{display:flex;gap:24px;flex-wrap:wrap;font-size:13px;border-top:1px solid var(--border);padding-top:12px;}
   .propSection[open] > summary{border-bottom:1px solid var(--c-linha);}
   .propSection .secBody{padding:var(--space-4);}
   /* WhatsApp em lote (27/09/2026, pedido do chefe): aviso de risco de banimento e cartão de cada contato */
@@ -2952,7 +2973,41 @@ proposalOverlay.addEventListener('click', function(e){ if(e.target === proposalO
 // categoria é só um rótulo livre pra organizar/prefixar a descrição no documento (ver
 // buildPropostaDocModel) — não aciona nenhuma lógica de negócio por trás, ao contrário do fluxo
 // automático (ex.: escolher "Claro Monitor" aqui não vira badge de benefício, é só mais uma linha).
-const MODO_MANUAL_CATEGORIAS = ['Renovação', 'Incremento', 'Nova linha', 'Portabilidade', 'Banda Larga', 'PABX', 'Claro Monitor', 'Outro'];
+const MODO_MANUAL_CATEGORIAS = ['Renovação', 'Incremento', 'Nova linha', 'Portabilidade', 'Banda Larga', 'PABX', 'Claro Monitor', 'Aparelho', 'Produto avançado', 'Outro'];
+
+// 15/10/2026 (pedido do usuário: proposta totalmente customizável com dados do cliente, aparelho e produtos
+// avançados; valores mensais e únicos separados — REGRAS_NEGOCIO.md §83). Cobrança de cada item manual:
+// 'mensal' (recorrente, soma na mensalidade), 'unico' (valor único/à vista) ou 'parcelado' (valor da parcela
+// × nº de parcelas; entra no bloco de valores únicos pelo total do parcelamento).
+const MODO_MANUAL_COBRANCAS = [['mensal', 'Mensal (recorrente)'], ['unico', 'Valor único / à vista'], ['parcelado', 'Parcelado']];
+function modoManualCobranca(g){ return g && (g.cobranca === 'unico' || g.cobranca === 'parcelado') ? g.cobranca : 'mensal'; }
+function modoManualParcelas(g){ const n = parseInt(g && g.parcelas, 10); return n > 0 ? n : 1; }
+function modoManualItemTotal(g){
+  const v = (g && g.valorUnit) || 0, q = (g && g.qtd) || 0;
+  return modoManualCobranca(g) === 'parcelado' ? v * modoManualParcelas(g) * q : v * q;
+}
+function modoManualTotais(itens){
+  let mensal = 0, unico = 0;
+  (itens || []).forEach(g => { if(modoManualCobranca(g) === 'mensal') mensal += modoManualItemTotal(g); else unico += modoManualItemTotal(g); });
+  return { mensal, unico };
+}
+// catálogo para o seletor de produto (preenche descrição e valor, que continuam editáveis)
+function modoManualCatalogo(){
+  const grupos = [];
+  const movel = OFFERS_MOBILE.map(o => ({ label: `${o.gb}GB (${o.origem})${o.regional ? ' — ' + o.regional.label : ''}`, valor: o.valor }));
+  const fibra = CLARO_FIBRA.map(f => ({ label: `Claro Fibra ${f.mega}`, valor: f.valor }));
+  const conv = CONVERGENCIA_OFERTAS.map(c => ({ label: `Fibra ${c.fibraMega} + Claro-pós ${c.gbTotal}GB${c.regional ? ' — ' + c.regional.label : ''}`, valor: c.valor }));
+  grupos.push({ grupo: 'Linha móvel', itens: movel }, { grupo: 'Claro Fibra', itens: fibra }, { grupo: 'Convergência', itens: conv },
+    { grupo: 'Soluções', itens: [{ label: 'Claro Monitor — Jornada Mobilidade', valor: 5 }] });
+  let k = 0;
+  grupos.forEach(g => g.itens.forEach(it => { it.id = k++; }));
+  return grupos;
+}
+function modoManualProdutoPorId(id){
+  let achado = null;
+  modoManualCatalogo().forEach(g => g.itens.forEach(it => { if(String(it.id) === String(id)) achado = it; }));
+  return achado;
+}
 
 // modoManualSugestoes() (25/09/2026): autocomplete (via <datalist>) pro modo manual — puxa os nomes já
 // usados no catálogo estruturado (móvel, fibra, convergência) só pra ajudar o consultor a digitar mais
@@ -3101,6 +3156,8 @@ function openProposal(client, opts){
     // de negócio por trás (ao contrário do fluxo automático, aqui "Claro Monitor" não vira badge de
     // benefício — é só mais uma linha, sob controle total do consultor).
     itensManuais: [],
+    // dados extras do cliente no modo manual (contato/telefone/e-mail/endereço) — saem no documento; razão social e CNPJ editam proposalState.client
+    clienteManual: { contato: '', telefone: '', email: '', endereco: '' },
     // situação atual 100% livre — mesmo padrão de situacaoAtualGrupos, mas com descrição em texto
     // livre no lugar de GB (nem toda situação atual do modo manual é uma linha móvel: pode ser PABX,
     // banda larga etc). Só usada quando modoManual === true; situacaoAtualGrupos continua existindo
@@ -4877,6 +4934,17 @@ function renderProposalBody(){
       </div>`).join('')}
       <button type="button" id="btnAddSitAtual" class="btn" style="margin:2px 0 0;padding:6px 12px;font-size:12px;width:auto">+ Adicionar plano atual</button>
     </div>` : `
+    <div class="mmCard">
+      <div class="mmCardTitle">Dados do cliente</div>
+      <div class="mmGrid">
+        <div class="mmF mmWide"><label>Razão social / Nome</label><input type="text" class="propClienteManual" data-campo="razao_social" value="${escapeHtml((proposalState.client && proposalState.client.razao_social) || '')}"></div>
+        <div class="mmF"><label>CNPJ</label><input type="text" class="propClienteManual" data-campo="cnpj" value="${escapeHtml((proposalState.client && proposalState.client.cnpj) || '')}"></div>
+        <div class="mmF"><label>Contato / responsável</label><input type="text" class="propClienteManual" data-campo="contato" value="${escapeHtml((proposalState.clienteManual || {}).contato || '')}"></div>
+        <div class="mmF"><label>Telefone</label><input type="text" class="propClienteManual" data-campo="telefone" value="${escapeHtml((proposalState.clienteManual || {}).telefone || '')}"></div>
+        <div class="mmF"><label>E-mail</label><input type="text" class="propClienteManual" data-campo="email" value="${escapeHtml((proposalState.clienteManual || {}).email || '')}"></div>
+        <div class="mmF mmWide"><label>Endereço</label><input type="text" class="propClienteManual" data-campo="endereco" value="${escapeHtml((proposalState.clienteManual || {}).endereco || '')}"></div>
+      </div>
+    </div>
     <div style="border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px">
       <div class="grpTitle" style="margin:0 0 8px">Situação atual (modo manual)</div>
       <div style="font-size:11px;color:var(--muted);margin:0 0 10px">Descreva livremente o que o cliente tem hoje (linhas, PABX, banda larga etc.) — quantidade × valor unitário. Sem preencher, o documento mostra "Situação atual: não informada".</div>
@@ -5114,27 +5182,46 @@ function renderProposalBody(){
       </div>
     </details>
     ` : `
-    <div style="border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px">
-      <div class="grpTitle" style="margin:0 0 8px">Itens da proposta (manual)</div>
-      <div style="font-size:11px;color:var(--muted);margin:0 0 10px">Monte a nova proposta livremente — escolha uma categoria (só organiza/rotula a linha no documento, sem lógica de negócio por trás), descreva o produto/plano, valor unitário e quantidade.</div>
-      ${!(proposalState.itensManuais||[]).length ? `<div style="font-size:11px;color:var(--muted);margin:0 0 10px">Adicione pelo menos um item pra gerar a proposta.</div>` : ''}
-      ${(proposalState.itensManuais || []).map((g, idx) => `
-      <div class="field" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px">
-        <div style="min-width:150px;margin:0"><label>Categoria</label>
-          <select class="propItemManualCategoria" data-idx="${idx}">
-            ${MODO_MANUAL_CATEGORIAS.map(c => `<option value="${c}" ${g.categoria===c?'selected':''}>${c}</option>`).join('')}
-          </select></div>
-        <div style="flex:2;min-width:200px;margin:0"><label>Descrição</label>
-          <input type="text" class="propItemManualDescricao" data-idx="${idx}" list="dlModoManualSugestoes" placeholder="Descreva o produto/plano" value="${escapeHtml(g.descricao||'')}"></div>
-        <div style="width:130px;margin:0"><label>Valor unit. (R$)</label>
-          <input type="number" class="propItemManualValor" data-idx="${idx}" min="0" step="0.01" value="${g.valorUnit}"></div>
-        <div style="width:90px;margin:0"><label>Qtde.</label>
-          <input type="number" class="propItemManualQtd" data-idx="${idx}" min="1" step="1" value="${g.qtd}"></div>
-        <div class="propItemManualSubtotal" data-idx="${idx}" style="width:120px;margin:0;font-size:12px;color:var(--muted)">Subtotal<br><b>${fmtBRL((g.valorUnit||0)*(g.qtd||0))}</b></div>
-        <button type="button" class="btnRemoveItemManual" data-idx="${idx}" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:8px 10px;cursor:pointer;height:38px">Remover</button>
-      </div>`).join('')}
-      <button type="button" id="btnAddItemManual" class="btn" style="margin:2px 0 10px;padding:6px 12px;font-size:12px;width:auto">+ Adicionar item</button>
-      <div style="font-size:13px;border-top:1px solid var(--border);padding-top:10px">Total da proposta: <b id="propItemManualTotalValor">${fmtBRL((proposalState.itensManuais||[]).reduce((s,g)=>s+(g.valorUnit||0)*(g.qtd||0),0))}</b></div>
+    <div class="mmCard">
+      <div class="mmCardTitle">Itens da proposta (manual)</div>
+      <div class="mmHint">Escolha a categoria, selecione um produto do catálogo (ou descreva o seu) e ajuste descrição, valor e quantidade. Defina se a cobrança é mensal, valor único ou parcelada (aparelho, instalação etc.) — os totais saem separados no documento.</div>
+      ${!(proposalState.itensManuais||[]).length ? `<div class="mmHint">Adicione pelo menos um item pra gerar a proposta.</div>` : ''}
+      ${(proposalState.itensManuais || []).map((g, idx) => { const cob = modoManualCobranca(g); return `
+      <div class="mmItem" data-cob="${cob}">
+        <div class="mmHead">
+          <span class="mmNum">${idx + 1}</span>
+          <div class="mmF"><label>Categoria</label>
+            <select class="propItemManualCategoria" data-idx="${idx}">
+              ${MODO_MANUAL_CATEGORIAS.map(c => `<option value="${c}" ${g.categoria===c?'selected':''}>${c}</option>`).join('')}
+            </select></div>
+          <div class="mmF mmGrow"><label>Produto do catálogo</label>
+            <select class="propItemManualProduto" data-idx="${idx}">
+              <option value="">Escolher produto…</option>
+              ${modoManualCatalogo().map(gr => `<optgroup label="${escapeHtml(gr.grupo)}">${gr.itens.map(it => `<option value="${it.id}">${escapeHtml(it.label)} — ${fmtBRL(it.valor)}</option>`).join('')}</optgroup>`).join('')}
+            </select></div>
+          <button type="button" class="btnRemoveItemManual mmRemove" data-idx="${idx}" title="Remover item">Remover</button>
+        </div>
+        <div class="mmGrid">
+          <div class="mmF mmWide"><label>Descrição</label>
+            <input type="text" class="propItemManualDescricao" data-idx="${idx}" list="dlModoManualSugestoes" placeholder="Descreva o produto/plano/aparelho" value="${escapeHtml(g.descricao||'')}"></div>
+          <div class="mmF"><label>Cobrança</label>
+            <select class="propItemManualCobranca" data-idx="${idx}">
+              ${MODO_MANUAL_COBRANCAS.map(c => `<option value="${c[0]}" ${cob===c[0]?'selected':''}>${c[1]}</option>`).join('')}
+            </select></div>
+          <div class="mmF"><label>${cob === 'parcelado' ? 'Valor da parcela (R$)' : 'Valor unit. (R$)'}</label>
+            <input type="number" class="propItemManualValor" data-idx="${idx}" min="0" step="0.01" value="${g.valorUnit}"></div>
+          ${cob === 'parcelado' ? `<div class="mmF"><label>Nº de parcelas</label>
+            <input type="number" class="propItemManualParcelas" data-idx="${idx}" min="1" step="1" value="${modoManualParcelas(g)}"></div>` : ''}
+          <div class="mmF"><label>Qtde.</label>
+            <input type="number" class="propItemManualQtd" data-idx="${idx}" min="1" step="1" value="${g.qtd}"></div>
+          <div class="propItemManualSubtotal mmSub" data-idx="${idx}">${cob === 'mensal' ? 'Subtotal mensal' : 'Subtotal único'}<br><b>${fmtBRL(modoManualItemTotal(g))}</b></div>
+        </div>
+      </div>`; }).join('')}
+      <button type="button" id="btnAddItemManual" class="btn mmAdd">+ Adicionar item</button>
+      <div class="mmTotais">
+        <div>Total mensal: <b id="propItemManualTotalValor">${fmtBRL(modoManualTotais(proposalState.itensManuais).mensal)}</b></div>
+        <div>Total único / parcelado: <b id="propItemManualTotalUnico">${fmtBRL(modoManualTotais(proposalState.itensManuais).unico)}</b></div>
+      </div>
       <datalist id="dlModoManualSugestoes">
         ${modoManualSugestoes().map(s => `<option value="${escapeHtml(s)}"></option>`).join('')}
       </datalist>
@@ -5272,6 +5359,12 @@ function renderProposalBody(){
         g.descricao = 'Claro Monitor — Jornada Mobilidade';
         if(!g.valorUnit) g.valorUnit = 5;
         renderProposalBody();
+      } else if(this.value === 'Aparelho' && !g.cobrancaEscolhida){
+        // aparelho normalmente é valor único ou parcelado — só sugere "único" se o consultor ainda não escolheu a cobrança
+        g.cobranca = 'unico';
+        renderProposalBody();
+      } else {
+        updateModoManualTotals();
       }
     });
   });
@@ -5279,6 +5372,54 @@ function renderProposalBody(){
     inp.addEventListener('input', function(){
       const idx = parseInt(this.dataset.idx, 10);
       proposalState.itensManuais[idx].descricao = this.value;
+    });
+  });
+  // seletor de produto do catálogo: preenche descrição + valor (ambos continuam editáveis)
+  document.querySelectorAll('.propItemManualProduto').forEach(sel => {
+    sel.addEventListener('change', function(){
+      const idx = parseInt(this.dataset.idx, 10);
+      const prod = modoManualProdutoPorId(this.value);
+      if(!prod) return;
+      const g = proposalState.itensManuais[idx];
+      g.descricao = prod.label;
+      g.valorUnit = prod.valor;
+      g.cobranca = 'mensal';
+      g.cobrancaEscolhida = true;
+      renderProposalBody();
+    });
+  });
+  document.querySelectorAll('.propItemManualCobranca').forEach(sel => {
+    sel.addEventListener('change', function(){
+      const idx = parseInt(this.dataset.idx, 10);
+      const g = proposalState.itensManuais[idx];
+      g.cobranca = this.value;
+      g.cobrancaEscolhida = true;
+      if(g.cobranca === 'parcelado' && !(g.parcelas > 0)) g.parcelas = 12;
+      renderProposalBody();
+    });
+  });
+  document.querySelectorAll('.propItemManualParcelas').forEach(inp => {
+    inp.addEventListener('input', function(){
+      const idx = parseInt(this.dataset.idx, 10);
+      const v = parseInt(this.value, 10);
+      proposalState.itensManuais[idx].parcelas = (v && v > 0) ? v : 1;
+      updateModoManualTotals();
+    });
+  });
+  // dados do cliente no modo manual: razão social/CNPJ editam o cliente da proposta; o resto fica em clienteManual
+  document.querySelectorAll('.propClienteManual').forEach(inp => {
+    inp.addEventListener('input', function(){
+      const campo = this.dataset.campo;
+      if(campo === 'razao_social' || campo === 'cnpj'){
+        proposalState.client[campo] = this.value;
+        const head = document.getElementById('propClienteHead');
+        if(head) head.textContent = proposalState.client.cnpj
+          ? `${proposalState.client.razao_social || ''} — ${proposalState.client.cnpj}`
+          : `${proposalState.client.razao_social || ''} (proposta avulsa)`;
+      } else {
+        if(!proposalState.clienteManual) proposalState.clienteManual = { contato: '', telefone: '', email: '', endereco: '' };
+        proposalState.clienteManual[campo] = this.value;
+      }
     });
   });
   document.querySelectorAll('.propItemManualValor').forEach(inp => {
@@ -5306,7 +5447,7 @@ function renderProposalBody(){
   });
   const btnAddItemManual = document.getElementById('btnAddItemManual');
   if(btnAddItemManual) btnAddItemManual.addEventListener('click', function(){
-    proposalState.itensManuais.push({ categoria: 'Outro', descricao: '', valorUnit: 0, qtd: 1 });
+    proposalState.itensManuais.push({ categoria: 'Outro', descricao: '', valorUnit: 0, qtd: 1, cobranca: 'mensal', parcelas: 12 });
     renderProposalBody();
   });
   // grupos de renovação do cliente-da-base (qtd + oferta) — mesmo padrão do incremento/avulsa
@@ -5713,7 +5854,8 @@ function updateProposalPreview(){
   // total da Nova Proposta (itensManuais) digitados pelo consultor.
   if(proposalState.modoManual){
     const atualManual = (proposalState.situacaoAtualManual || []).reduce((s,g) => s + (g.valorUnit||0)*(g.qtd||0), 0);
-    const totalManual = (proposalState.itensManuais || []).reduce((s,g) => s + (g.valorUnit||0)*(g.qtd||0), 0);
+    const totaisPrev = modoManualTotais(proposalState.itensManuais);
+    const totalManual = totaisPrev.mensal;
     const deltaManual = totalManual - atualManual;
     const diffRowManual = deltaManual < 0
       ? kv('Redução na fatura', `<span class="badge apto">${fmtBRL(Math.abs(deltaManual))}${atualManual > 0 ? ' ('+Math.abs(deltaManual/atualManual*100).toFixed(1)+'%)' : ''}</span>`)
@@ -5721,7 +5863,8 @@ function updateProposalPreview(){
     el.innerHTML = `
     <div class="kv">
       ${kv('Valor atual', fmtBRL(atualManual))}
-      ${kv('Valor proposto', fmtBRL(totalManual))}
+      ${kv('Valor proposto (mensal)', fmtBRL(totalManual))}
+      ${totaisPrev.unico > 0 ? kv('Valor único / parcelado', fmtBRL(totaisPrev.unico)) : ''}
       ${diffRowManual}
       ${kv('Indicador', '<span class="badge apto">proposta manual — 100% customizável</span>')}
     </div>
@@ -5806,7 +5949,7 @@ function updateProposalPreview(){
 function updateModoManualTotals(){
   (proposalState.itensManuais || []).forEach((g, idx) => {
     const el = document.querySelector(`.propItemManualSubtotal[data-idx="${idx}"] b`);
-    if(el) el.textContent = fmtBRL((g.valorUnit||0)*(g.qtd||0));
+    if(el) el.textContent = fmtBRL(modoManualItemTotal(g));
   });
   (proposalState.situacaoAtualManual || []).forEach((g, idx) => {
     const el = document.querySelector(`.propSitManualSubtotal[data-idx="${idx}"] b`);
@@ -5814,9 +5957,10 @@ function updateModoManualTotals(){
   });
   const totalEl = document.getElementById('propItemManualTotalValor');
   if(totalEl){
-    const total = (proposalState.itensManuais || []).reduce((s,g) => s + (g.valorUnit||0)*(g.qtd||0), 0);
-    totalEl.textContent = fmtBRL(total);
+    totalEl.textContent = fmtBRL(modoManualTotais(proposalState.itensManuais).mensal);
   }
+  const totalUnicoEl = document.getElementById('propItemManualTotalUnico');
+  if(totalUnicoEl) totalUnicoEl.textContent = fmtBRL(modoManualTotais(proposalState.itensManuais).unico);
   updateProposalPreview();
 }
 
@@ -5864,12 +6008,28 @@ function buildPropostaDocModel(){
     }
     const atualManual = sitManuais.reduce((s,g) => s + (g.valorUnit||0)*(g.qtd||0), 0);
 
-    const itensNovaPropostaManual = itensManuais.map(g => ({
-      item: g.categoria ? `[${g.categoria}] ${g.descricao || 'Item'}` : (g.descricao || 'Item'),
-      desc: `${g.qtd}× ${fmtBRL(g.valorUnit || 0)}/un`,
-      subtotal: (g.valorUnit || 0) * (g.qtd || 0),
-    }));
+    // 15/10/2026 (§83): itens mensais (recorrentes) ficam em novaProposta.itens/total; valores únicos e
+    // parcelados (aparelho, instalação etc.) saem à parte em novaProposta.unicos, sem entrar na mensalidade
+    // nem na comparação "atual x proposto".
+    const montarLinhaManual = g => {
+      const cob = modoManualCobranca(g);
+      const q = g.qtd || 0, v = g.valorUnit || 0, n = modoManualParcelas(g);
+      let desc = `${q}× ${fmtBRL(v)}/un`;
+      if(cob === 'parcelado') desc = q > 1 ? `${q}× (${n}× ${fmtBRL(v)})` : `${n}× ${fmtBRL(v)}`;
+      else if(cob === 'unico') desc = q > 1 ? `${q}× ${fmtBRL(v)} (valor único)` : `${fmtBRL(v)} (valor único)`;
+      return {
+        item: g.categoria ? `[${g.categoria}] ${g.descricao || 'Item'}` : (g.descricao || 'Item'),
+        desc,
+        subtotal: modoManualItemTotal(g),
+      };
+    };
+    const itensNovaPropostaManual = itensManuais.filter(g => modoManualCobranca(g) === 'mensal').map(montarLinhaManual);
+    const itensUnicosManual = itensManuais.filter(g => modoManualCobranca(g) !== 'mensal').map(montarLinhaManual);
     const totalManual = itensNovaPropostaManual.reduce((s,it) => s + (it.subtotal||0), 0);
+    const totalUnicoManual = itensUnicosManual.reduce((s,it) => s + (it.subtotal||0), 0);
+    const cm = proposalState.clienteManual || {};
+    const extrasCliente = [['Contato', cm.contato], ['Telefone', cm.telefone], ['E-mail', cm.email], ['Endereço', cm.endereco]]
+      .filter(x => (x[1] || '').trim()).map(x => [x[0], x[1].trim()]);
 
     const deltaReaisManual = totalManual - atualManual;
     const deltaPctManual = atualManual > 0 ? (deltaReaisManual / atualManual * 100) : null;
@@ -5900,6 +6060,7 @@ function buildPropostaDocModel(){
         cnpj: client.cnpj,
         dataEmissao: new Date().toLocaleDateString('pt-BR'),
         consultor: proposalState.vendedorNome || currentUser.nome,
+        extras: extrasCliente, // contato/telefone/e-mail/endereço digitados no modo manual (só aparecem quando preenchidos)
       },
       subtitulo: subtituloManual,
       atual: atualManual,
@@ -5910,9 +6071,10 @@ function buildPropostaDocModel(){
         notaFibra: false,
         total: totalManual,
         valorMonitor: 0, // sem contabilidade especial de Claro Monitor aqui — é só mais uma linha, sob controle total do consultor
+        unicos: itensUnicosManual.length ? { itens: itensUnicosManual, total: totalUnicoManual } : null, // aparelho/instalação/parcelados
       },
-      beneficios: { temOfertaMovel: itensNovaPropostaManual.length > 0, badges: [], extras: ['Proposta manual — itens definidos livremente pelo consultor.'] },
-      destaque: { valorProposto: totalManual, reducao: reducaoManual },
+      beneficios: { temOfertaMovel: (itensNovaPropostaManual.length + itensUnicosManual.length) > 0, badges: [], extras: ['Proposta manual — itens definidos livremente pelo consultor.'] },
+      destaque: { valorProposto: totalManual, valorUnico: totalUnicoManual, reducao: reducaoManual },
       rodape: { validaAte: proposalValidUntil(), emitidoEm: new Date().toLocaleDateString('pt-BR') },
     };
   }
@@ -6215,6 +6377,18 @@ async function montarDocxProposta(modelo){
         celula('CNPJ: ' + (modelo.client.cnpj || '-'), { bg: corCinzaBg, width: 50 }),
         celula('Consultor: ' + modelo.client.consultor, { bg: corCinzaBg, width: 50 }),
       ]}),
+      // modo manual (§83): contato/telefone/e-mail/endereço, em pares por linha — só quando preenchidos
+      ...(() => {
+        const ex = (modelo.client.extras || []);
+        const linhas = [];
+        for(let i = 0; i < ex.length; i += 2){
+          linhas.push(new TableRow({ children: [
+            celula(`${ex[i][0]}: ${ex[i][1]}`, { bg: corCinzaBg, width: 50 }),
+            celula(ex[i + 1] ? `${ex[i + 1][0]}: ${ex[i + 1][1]}` : '', { bg: corCinzaBg, width: 50 }),
+          ]}));
+        }
+        return linhas;
+      })(),
     ],
   }));
   children.push(new Paragraph({ text: '', spacing: { after: 200 } }));
@@ -6235,7 +6409,11 @@ async function montarDocxProposta(modelo){
 
   // ===== nova proposta =====
   children.push(new Paragraph({ spacing: { before: 100, after: 100 }, children: [new TextRun({ text: 'NOVA PROPOSTA', bold: true, color: corVermelho, size: 22 })] }));
-  children.push(tabelaItens(modelo.novaProposta.itens));
+  if(modelo.novaProposta.itens.length || !modelo.novaProposta.unicos) children.push(tabelaItens(modelo.novaProposta.itens));
+  if(modelo.novaProposta.unicos){
+    children.push(new Paragraph({ spacing: { before: 200, after: 100 }, children: [new TextRun({ text: 'VALORES ÚNICOS / APARELHOS', bold: true, color: corVermelho, size: 22 })] }));
+    children.push(tabelaItens(modelo.novaProposta.unicos.itens));
+  }
   if(modelo.novaProposta.notaFibra){
     children.push(new Paragraph({ spacing: { before: 60 }, children: [new TextRun({ text: '* Oferta de Convergência: Claro Fibra + linha móvel garante bônus de 30GB (Mega Bônus) na franquia.', italics: true, color: corCinzaTexto, size: 14 })] }));
   }
@@ -6258,8 +6436,15 @@ async function montarDocxProposta(modelo){
   children.push(new Paragraph({
     spacing: { before: 300, after: 60 },
     shading: { fill: corVermelho, type: ShadingType.CLEAR, color: 'auto' },
-    children: [new TextRun({ text: `Valor proposto: ${fmtBRL(modelo.destaque.valorProposto)}`, bold: true, color: corBranco, size: 24 })],
+    children: [new TextRun({ text: `Valor proposto${modelo.novaProposta.unicos ? ' (mensal)' : ''}: ${fmtBRL(modelo.destaque.valorProposto)}`, bold: true, color: corBranco, size: 24 })],
   }));
+  if(modelo.novaProposta.unicos){
+    children.push(new Paragraph({
+      shading: { fill: corVermelho, type: ShadingType.CLEAR, color: 'auto' },
+      spacing: { after: 60 },
+      children: [new TextRun({ text: `Valor único / parcelado: ${fmtBRL(modelo.novaProposta.unicos.total)}`, bold: true, color: corBranco, size: 22 })],
+    }));
+  }
   if(modelo.destaque.reducao){
     children.push(new Paragraph({
       shading: { fill: corVermelho, type: ShadingType.CLEAR, color: 'auto' },
@@ -6360,6 +6545,14 @@ function montarPdfProposta(modelo){
   gridCell('Data de emissão', modelo.client.dataEmissao, 1, 0);
   gridCell('CNPJ', modelo.client.cnpj, 0, 1);
   gridCell('Consultor', modelo.client.consultor, 1, 1);
+  // modo manual (§83): contato/telefone/e-mail/endereço numa linha pequena sob a grade (só quando preenchidos)
+  if((modelo.client.extras || []).length){
+    doc.setFontSize(7);
+    doc.setTextColor(...grayText);
+    let linhaExtras = modelo.client.extras.map(x => `${x[0]}: ${x[1]}`).join('  |  ');
+    while(linhaExtras.length > 20 && doc.getTextWidth(linhaExtras) > 182) linhaExtras = linhaExtras.slice(0, -2);
+    doc.text(linhaExtras, 14, 68);
+  }
 
   // desenharTabelaItens: mesmo desenho de tabela usado tanto pela Situação Atual (quando detalhada
   // por plano) quanto pela Nova Proposta.
@@ -6449,7 +6642,16 @@ function montarPdfProposta(modelo){
   doc.setFontSize(10.5);
   doc.text('NOVA PROPOSTA', 14, ty);
   ty += 4;
-  ty = desenharTabelaItens(modelo.novaProposta.itens, ty);
+  if(modelo.novaProposta.itens.length || !modelo.novaProposta.unicos) ty = desenharTabelaItens(modelo.novaProposta.itens, ty);
+  if(modelo.novaProposta.unicos){
+    ty += 8;
+    if(ty + 30 > 265){ doc.addPage(); ty = 20; }
+    doc.setTextColor(...red);
+    doc.setFontSize(10.5);
+    doc.text('VALORES ÚNICOS / APARELHOS', 14, ty);
+    ty += 4;
+    ty = desenharTabelaItens(modelo.novaProposta.unicos.itens, ty);
+  }
 
   if(modelo.novaProposta.notaFibra){
     doc.setFontSize(7);
@@ -6509,7 +6711,12 @@ function montarPdfProposta(modelo){
   doc.roundedRect(14, boxY, 182, 24, 3, 3, 'F');
   doc.setTextColor(...white);
   doc.setFontSize(12);
-  doc.text(`Valor proposto: ${fmtBRL(modelo.destaque.valorProposto)}`, 20, boxY + 10);
+  doc.text(`Valor proposto${modelo.novaProposta.unicos ? ' (mensal)' : ''}: ${fmtBRL(modelo.destaque.valorProposto)}`, 20, boxY + 10);
+  if(modelo.novaProposta.unicos){
+    doc.setFontSize(10);
+    doc.text(`Valor único / parcelado: ${fmtBRL(modelo.novaProposta.unicos.total)}`, 190, boxY + 10, { align: 'right' });
+    doc.setFontSize(9);
+  }
   doc.setFontSize(9);
   if(modelo.destaque.reducao){
     doc.text(`Redução de ${fmtBRL(modelo.destaque.reducao.valor)}${modelo.destaque.reducao.pct !== null ? ' (' + Math.abs(modelo.destaque.reducao.pct).toFixed(1) + '%)' : ''} em relação ao valor atual`, 20, boxY + 18);
@@ -6609,6 +6816,13 @@ function montarPdfPropostaCliente(modelo){
   doc.setTextColor(...grayText);
   doc.text(`Emitido em ${modelo.client.dataEmissao}`, 196, y, { align: 'right' });
   y += 10;
+  if((modelo.client.extras || []).length){
+    let linhaExtras = modelo.client.extras.map(x => `${x[0]}: ${x[1]}`).join('  |  ');
+    while(linhaExtras.length > 20 && doc.getTextWidth(linhaExtras) > 182) linhaExtras = linhaExtras.slice(0, -2);
+    doc.setFontSize(7.5);
+    doc.text(linhaExtras, 14, y - 4);
+    y += 4;
+  }
 
   // ===== KPIs =====
   const kpis = [
@@ -6706,7 +6920,16 @@ function montarPdfPropostaCliente(modelo){
   doc.setFontSize(10.5);
   doc.text('NOSSA PROPOSTA', 14, y);
   y += 4;
-  y = desenharTabelaItens(modelo.novaProposta.itens, y, 'TOTAL PROPOSTO');
+  if(modelo.novaProposta.itens.length || !modelo.novaProposta.unicos) y = desenharTabelaItens(modelo.novaProposta.itens, y, 'TOTAL PROPOSTO');
+  if(modelo.novaProposta.unicos){
+    y += 8;
+    if(y + 30 > 265){ doc.addPage(); y = 20; }
+    doc.setTextColor(...red);
+    doc.setFontSize(10.5);
+    doc.text('INVESTIMENTO ÚNICO / APARELHOS', 14, y);
+    y += 4;
+    y = desenharTabelaItens(modelo.novaProposta.unicos.itens, y, 'TOTAL ÚNICO');
+  }
 
   // ===== destaque final (verde/âmbar — igual ao PDF de análise de fatura) =====
   if(y + 26 > 262){ doc.addPage(); y = 20; }
