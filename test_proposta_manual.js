@@ -244,6 +244,82 @@ const modelo3 = buildPropostaDocModel();
 assert(modelo3.novaProposta.itens.length === 1, 'item vazio (so espacos, valor 0) e filtrado do modelo (' + modelo3.novaProposta.itens.length + ')');
 assert(modelo3.situacaoAtual.tipo === 'resumo', 'item de situacao atual totalmente vazio tambem e filtrado -> vira resumo');
 
+// ===== 10b) 15/10/2026 (§83): dados do cliente, catalogo editavel, aparelho e valores mensal x unico =====
+proposalState.itensManuais = [];
+proposalState.situacaoAtualManual = [];
+renderProposalBody();
+assert(document.querySelectorAll('.propClienteManual').length === 6, 'card Dados do cliente tem 6 campos (razao, cnpj, contato, telefone, email, endereco)');
+const campoCli = (c) => document.querySelector('.propClienteManual[data-campo="' + c + '"]');
+campoCli('razao_social').value = 'EMPRESA NEGOCIACAO SA'; campoCli('razao_social').dispatchEvent(new window.Event('input'));
+campoCli('cnpj').value = '12.345.678/0001-90'; campoCli('cnpj').dispatchEvent(new window.Event('input'));
+campoCli('contato').value = 'Maria Silva'; campoCli('contato').dispatchEvent(new window.Event('input'));
+campoCli('telefone').value = '(11) 90000-0000'; campoCli('telefone').dispatchEvent(new window.Event('input'));
+campoCli('endereco').value = 'Rua Teste, 100 - SP'; campoCli('endereco').dispatchEvent(new window.Event('input'));
+assert(proposalState.client.razao_social === 'EMPRESA NEGOCIACAO SA' && proposalState.client.cnpj === '12.345.678/0001-90', 'razao social e CNPJ editam o cliente da proposta');
+assert(proposalState.clienteManual.contato === 'Maria Silva' && proposalState.clienteManual.telefone === '(11) 90000-0000', 'contato/telefone ficam em clienteManual');
+assert(document.getElementById('propClienteHead').textContent.indexOf('EMPRESA NEGOCIACAO SA') >= 0, 'cabecalho da proposta acompanha a razao social editada');
+
+document.getElementById('btnAddItemManual').click();
+assert(document.querySelector('.propItemManualProduto[data-idx="0"]') !== null, 'item tem seletor de produto do catalogo');
+assert(document.querySelectorAll('.propItemManualProduto[data-idx="0"] optgroup').length >= 3, 'seletor de produto agrupa Linha movel/Fibra/Convergencia/Solucoes');
+const prodSel = document.querySelector('.propItemManualProduto[data-idx="0"]');
+const primeiraOpcao = prodSel.querySelector('optgroup option');
+const prodEsperado = modoManualProdutoPorId(primeiraOpcao.value);
+prodSel.value = primeiraOpcao.value; prodSel.dispatchEvent(new window.Event('change'));
+assert(proposalState.itensManuais[0].descricao === prodEsperado.label && proposalState.itensManuais[0].valorUnit === prodEsperado.valor, 'escolher produto preenche descricao e valor');
+assert(document.querySelector('.propItemManualDescricao[data-idx="0"]').value === prodEsperado.label, 'descricao continua editavel no campo');
+let d0 = document.querySelector('.propItemManualDescricao[data-idx="0"]'); d0.value = 'Plano 12GB negociado'; d0.dispatchEvent(new window.Event('input'));
+let v0 = document.querySelector('.propItemManualValor[data-idx="0"]'); v0.value = '30'; v0.dispatchEvent(new window.Event('input'));
+let q0 = document.querySelector('.propItemManualQtd[data-idx="0"]'); q0.value = '10'; q0.dispatchEvent(new window.Event('input'));
+proposalState.itensManuais[0].categoria = 'Nova linha';
+
+// aparelho: categoria Aparelho sugere valor unico; depois parcelado
+document.getElementById('btnAddItemManual').click();
+let cat1b = document.querySelector('.propItemManualCategoria[data-idx="1"]'); cat1b.value = 'Aparelho'; cat1b.dispatchEvent(new window.Event('change'));
+assert(proposalState.itensManuais[1].cobranca === 'unico', 'categoria Aparelho sugere cobranca de valor unico');
+let d1 = document.querySelector('.propItemManualDescricao[data-idx="1"]'); d1.value = 'Smartphone Modelo X'; d1.dispatchEvent(new window.Event('input'));
+let v1 = document.querySelector('.propItemManualValor[data-idx="1"]'); v1.value = '2000'; v1.dispatchEvent(new window.Event('input'));
+let q1 = document.querySelector('.propItemManualQtd[data-idx="1"]'); q1.value = '2'; q1.dispatchEvent(new window.Event('input'));
+assert(document.querySelector('.propItemManualSubtotal[data-idx="1"] b').textContent === fmtBRL(4000), 'subtotal unico = valor x qtde');
+let cob1 = document.querySelector('.propItemManualCobranca[data-idx="1"]'); cob1.value = 'parcelado'; cob1.dispatchEvent(new window.Event('change'));
+assert(document.querySelector('.propItemManualParcelas[data-idx="1"]') !== null, 'cobranca parcelada mostra o campo de numero de parcelas');
+let v1p = document.querySelector('.propItemManualValor[data-idx="1"]'); v1p.value = '200'; v1p.dispatchEvent(new window.Event('input'));
+let par1 = document.querySelector('.propItemManualParcelas[data-idx="1"]'); par1.value = '10'; par1.dispatchEvent(new window.Event('input'));
+assert(proposalState.itensManuais[1].parcelas === 10, 'numero de parcelas gravado');
+assert(document.querySelector('.propItemManualSubtotal[data-idx="1"] b').textContent === fmtBRL(200 * 10 * 2), 'subtotal parcelado = parcela x parcelas x qtde (' + document.querySelector('.propItemManualSubtotal[data-idx="1"] b').textContent + ')');
+
+// produto avancado a valor unico (instalacao)
+document.getElementById('btnAddItemManual').click();
+let cat2c = document.querySelector('.propItemManualCategoria[data-idx="2"]'); cat2c.value = 'Produto avançado'; cat2c.dispatchEvent(new window.Event('change'));
+let cob2 = document.querySelector('.propItemManualCobranca[data-idx="2"]'); cob2.value = 'unico'; cob2.dispatchEvent(new window.Event('change'));
+let d2 = document.querySelector('.propItemManualDescricao[data-idx="2"]'); d2.value = 'Instalacao PABX'; d2.dispatchEvent(new window.Event('input'));
+let v2 = document.querySelector('.propItemManualValor[data-idx="2"]'); v2.value = '500'; v2.dispatchEvent(new window.Event('input'));
+
+const tot = modoManualTotais(proposalState.itensManuais);
+assert(tot.mensal === 300 && tot.unico === 4000 + 500, 'totais separados: mensal 300, unico 4.500 (' + JSON.stringify(tot) + ')');
+assert(document.getElementById('propItemManualTotalValor').textContent === fmtBRL(300), 'total mensal exibido');
+assert(document.getElementById('propItemManualTotalUnico').textContent === fmtBRL(4500), 'total unico/parcelado exibido');
+assert(document.getElementById('proposalPreview').textContent.indexOf('Valor único') >= 0, 'resumo fixo mostra o valor unico');
+
+const modeloU = buildPropostaDocModel();
+assert(modeloU.novaProposta.itens.length === 1 && modeloU.novaProposta.total === 300, 'modelo: so itens mensais na mensalidade (total 300)');
+assert(modeloU.novaProposta.unicos && modeloU.novaProposta.unicos.itens.length === 2 && modeloU.novaProposta.unicos.total === 4500, 'modelo: itens unicos/parcelados a parte (total 4500)');
+assert(modeloU.destaque.valorProposto === 300 && modeloU.destaque.valorUnico === 4500, 'destaque separa valor mensal e valor unico');
+assert(modeloU.novaProposta.unicos.itens[0].item === '[Aparelho] Smartphone Modelo X', 'rotulo do aparelho com categoria');
+assert(modeloU.novaProposta.unicos.itens[0].desc === '2× (10× ' + fmtBRL(200) + ')', 'descricao do parcelado (' + modeloU.novaProposta.unicos.itens[0].desc + ')');
+assert(modeloU.client.razaoSocial === 'EMPRESA NEGOCIACAO SA' && modeloU.client.cnpj === '12.345.678/0001-90', 'modelo usa razao social/CNPJ digitados');
+assert(modeloU.client.extras.length === 3 && modeloU.client.extras[0][0] === 'Contato' && modeloU.client.extras[2][0] === 'Endereço', 'modelo traz extras do cliente preenchidos (sem e-mail vazio)');
+assert(modeloU.beneficios.temOfertaMovel === true, 'secao de nota manual aparece quando ha itens');
+// proposta so com valores unicos: itens mensais vazios mas documento valido
+proposalState.itensManuais = [proposalState.itensManuais[1]];
+const modeloSoUnico = buildPropostaDocModel();
+assert(modeloSoUnico.novaProposta.itens.length === 0 && modeloSoUnico.novaProposta.unicos.total === 4000 && modeloSoUnico.destaque.valorProposto === 0, 'so valor unico: mensal zerado, unico preservado');
+// sem extras e sem unicos: modelo nao traz bloco unico
+proposalState.itensManuais = [{ categoria: 'Outro', descricao: 'Item simples', valorUnit: 10, qtd: 1, cobranca: 'mensal', parcelas: 12 }];
+proposalState.clienteManual = { contato: '', telefone: '', email: '', endereco: '' };
+const modeloSimples = buildPropostaDocModel();
+assert(modeloSimples.novaProposta.unicos === null && modeloSimples.client.extras.length === 0, 'sem unicos/extras o modelo fica como antes');
+
 // ===== 11) desligar modo manual restaura fluxo catalogado (sanity - nao deve quebrar) =====
 document.getElementById('propModoManual').click();
 assert(proposalState.modoManual === false, 'desligar modoManual funciona');

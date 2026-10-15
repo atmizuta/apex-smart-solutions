@@ -75,8 +75,12 @@ Deno.serve(async (req) => {
       if (error) throw new Error("Erro ao gravar producao_atividades: " + error.message);
       gravados += lote.length;
     }
-    await fechar({ ok: true, http: resp.status, linhas: linhas.length, pedidos: pedidos.length, gravados });
-    return json({ ok: true, linhas: linhas.length, pedidos: pedidos.length, gravados }, 200);
+    // §82: pedido em ANTIFRAUDE que sumiu da exportação completa foi para TERRITORIO (a API não mostra essa etapa).
+    const { data: terr, error: errTerr } = await admin.rpc("producao_marca_territorio", { p_agora: agora });
+    if (errTerr) throw new Error("Erro ao marcar TERRITORIO: " + errTerr.message);
+    const territorio = (terr as number | null) ?? 0;
+    await fechar({ ok: true, http: resp.status, linhas: linhas.length, pedidos: pedidos.length, gravados, territorio });
+    return json({ ok: true, linhas: linhas.length, pedidos: pedidos.length, gravados, territorio }, 200);
   } catch (e) {
     const erro = ocultarToken(String((e as Error)?.message ?? e), token).slice(0, 500);
     await fechar({ ok: false, erro });
