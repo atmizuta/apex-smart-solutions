@@ -105,6 +105,53 @@ try{
   eq(dcPiorQueMedia(0.01, 0.02, false), true, 'conversão 50% abaixo: pior');
   eq(dcPiorQueMedia(0.5, null, true), false, 'sem média: nunca destaca');
 
+  // ==== TASK 2: HTML dos blocos ====
+  const R = { tentativas: 139925, contato: 8551, atendidas: 5932, abandonadas: 2619, sem_tabulacao: 47, seg_falados_medio: 48, vendas: 34, abandono_alerta: 0.15, ultima_sync: null };
+  const k = dcKpisHtml(R);
+  assert(k.includes('139.925') && k.includes('6,1%') && k.includes('30,6%') && k.includes('5.932') && k.includes('48 s') && k.includes('>34<'), 'cartões com números formatados');
+  assert(k.includes('47 sem tabulação'), 'sub das atendidas');
+  const k0 = dcKpisHtml({ tentativas: 0, contato: 0, atendidas: 0, abandonadas: 0, sem_tabulacao: 0, seg_falados_medio: null, vendas: 0 });
+  assert(!k0.includes('NaN') && k0.includes('—'), 'período vazio: sem NaN, taxas com traço');
+  assert(dcKpisHtml(null).includes('Não foi possível carregar'), 'resumo com erro');
+
+  const horas = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21].map(h => ({ hora: h, tentativas: h === 14 ? 2935 : 0, contato: h === 14 ? 137 : 0, atendidas: h === 14 ? 120 : 0, abandonadas: h === 14 ? 17 : 0, media_atendidas: h === 14 ? 101 : 0, media_abandonadas: h === 14 ? 31 : 0 }));
+  const hh = dcHorasHtml(horas, true);
+  assert((hh.match(/class="bmHora"/g) || []).length === 13, '13 colunas de hora');
+  assert(hh.includes('14h') && hh.includes('12,4%'), 'hora 14 com % de abandono (17/137)');
+  assert(hh.includes('dashed'), 'linha da média quando comMedia');
+  assert(!dcHorasHtml(horas, false).includes('dashed'), 'sem média em período de vários dias');
+  assert(dcHorasHtml(null, true).includes('Não foi possível carregar'), 'por hora com erro');
+
+  const calor = [{ dia_semana: 1, hora: 14, tentativas: 1000, contato: 80 }, { dia_semana: 3, hora: 10, tentativas: 500, contato: 10 }];
+  const ch = dcCalorHtml(calor);
+  assert(ch.includes('bmCalor') && ch.includes('Seg') && ch.includes('Qua') && ch.includes('8,0%') && ch.includes('2,0%'), 'mapa de calor com taxa de contato');
+  assert(dcCalorHtml([]).includes('Sem chamadas'), 'mapa vazio');
+
+  const consultores = [
+    { agente_id: 189, profile_id: null, nome: 'Agente 189', atendidas: 100, seg_falados_total: 4800, seg_falados_medio: 48, sem_avanco: 60, retornos: 5, ganhos: 1, sem_tabulacao: 1, vendas: 3 },
+    { agente_id: 193, profile_id: 'p1', nome: 'Caio Teste', atendidas: 100, seg_falados_total: 6000, seg_falados_medio: 60, sem_avanco: 30, retornos: 2, ganhos: 2, sem_tabulacao: 9, vendas: 0 },
+    { agente_id: 93, profile_id: null, nome: 'Agente 93', atendidas: 4, seg_falados_total: 12, seg_falados_medio: 3, sem_avanco: 4, retornos: 0, ganhos: 0, sem_tabulacao: 4, vendas: 0 },
+  ];
+  const ct = dcConsultoresHtml(consultores);
+  assert(ct.includes('data-dc-agente="189"') && ct.includes('Caio Teste') && ct.includes('60,0%'), 'linha por agente, clicável');
+  assert(/data-dc-agente="189"[^]*?dcPior[^]*?60,0%/.test(ct), 'agente 189: sem avanço 60% vs média ~44% → destacado');
+  assert(/data-dc-agente="193"[^]*?dcPior[^]*?9,0%/.test(ct), 'agente 193: sem tabulação 9% vs média ~6,9% → destacado');
+  assert(!ct.split('data-dc-agente="93"')[1].split('</tr>')[0].includes('dcPior'), 'agente 93 com 4 atendidas não é destacado');
+  assert(dcConsultoresHtml([]).includes('Ninguém atendeu'), 'sem consultores');
+
+  const ml = dcMailingHtml([{ chave: 'ZZ-CARGA <b>1</b>', tentativas: 45570, contato: 2524, atendidas: 1854, abandonadas: 670, ganhos: 5, vendas: 15 }], 'Carga');
+  assert(ml.includes('ZZ-CARGA &lt;b&gt;1&lt;/b&gt;') && !ml.includes('<b>1</b>'), 'texto do banco escapado');
+  assert(ml.includes('45.570') && ml.includes('5,5%') && ml.includes('26,5%') && ml.includes('0,33'), 'contato, abandono e vendas por mil');
+  assert(dcMailingHtml([], 'Cidade').includes('Sem dados'), 'mailing vazio');
+
+  const dd = dcDiasHtml('Caio Teste', [{ dia: '2026-10-05', atendidas: 30, seg_falados_total: 1500, sem_avanco: 10, ganhos: 1, vendas: 2 }]);
+  assert(dd.includes('Caio Teste') && dd.includes('05/10') && dd.includes('25 min 00 s'), 'detalhe por dia');
+
+  const vh = dcVinculoHtml([{ agente_id: 189, atendidas_30d: 971, ultima_chamada: '2026-10-14T19:00:00Z' }], [{ id: 'p1', nome: 'Caio Teste', role: 'consultor' }, { id: 'p2', nome: 'Ana <Teste>', role: 'supervisor' }]);
+  assert(vh.includes('1 agente sem consultor') && vh.includes('Agente 189') && vh.includes('971'), 'vínculo: lista');
+  assert(vh.includes('data-dc-vinc="189"') && vh.includes('value="p1"') && vh.includes('Ana &lt;Teste&gt;'), 'vínculo: seletor com perfis escapados');
+  eq(dcVinculoHtml([], []), '', 'sem pendências: nada');
+
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');

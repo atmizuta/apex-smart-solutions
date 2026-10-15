@@ -12444,6 +12444,107 @@ function dcPiorQueMedia(valor, media, maiorEhPior){
   if(valor === null || media === null || media === undefined || !Number.isFinite(valor)) return false;
   return maiorEhPior ? valor > media * 1.3 : valor < media * 0.7;
 }
+const DC_DIAS_CURTOS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+function dcFalhou(titulo){ return `<div class="bmCard"><h4>${escapeHtml(titulo)}</h4><p class="ppVazio">Não foi possível carregar agora. Tente de novo em instantes.</p></div>`; }
+function dcKpisHtml(r){
+  if(!r) return dcFalhou('Resumo');
+  const e = escapeHtml;
+  const kpi = (rot, num, sub) => `<div class="bmCard bmKpi"><div class="bmRot">${e(rot)}</div><div class="bmNum">${e(num)}</div><div class="bmSub">${e(sub)}</div></div>`;
+  return '<div class="bmGrade bmG6">'
+    + kpi('Tentativas', dcFmtNum(r.tentativas), 'discagens no período')
+    + kpi('Taxa de contato', dcFmtPct(dcTaxa(r.contato, r.tentativas)), dcFmtNum(r.contato) + ' atenderam')
+    + kpi('Abandono', dcFmtPct(dcTaxa(r.abandonadas, r.contato)), dcFmtNum(r.abandonadas) + ' sem consultor livre')
+    + kpi('Atendidas', dcFmtNum(r.atendidas), dcFmtNum(r.sem_tabulacao) + ' sem tabulação')
+    + kpi('Tempo médio falado', dcFmtSeg(r.seg_falados_medio), 'por atendimento')
+    + `<div class="bmCard bmKpi"><div class="bmRot">Vendas do discador</div><div class="bmNum">${e(dcFmtNum(r.vendas))}</div><div class="bmSub">pedido no NEO com CNPJ atendido até 30 dias antes</div></div>`
+    + '</div>';
+}
+function dcHorasHtml(porHora, comMedia){
+  if(!Array.isArray(porHora)) return dcFalhou('Ritmo por hora');
+  const e = escapeHtml;
+  const max = Math.max(1, ...porHora.map(h => Math.max(Number(h.contato) || 0, comMedia ? (Number(h.media_atendidas) || 0) + (Number(h.media_abandonadas) || 0) : 0)));
+  const col = h => {
+    const at = Number(h.atendidas) || 0, ab = Number(h.abandonadas) || 0, ct = Number(h.contato) || 0;
+    const media = comMedia ? (Number(h.media_atendidas) || 0) + (Number(h.media_abandonadas) || 0) : 0;
+    const taxa = dcTaxa(ab, ct);
+    const titulo = `${h.hora}h: ${ct} contatos, ${at} atendidas, ${ab} abandonadas` + (comMedia ? ` · média do mesmo dia da semana: ${dcFmtNum(media)} contatos` : '');
+    return `<div class="bmHora" style="position:relative" title="${e(titulo)}"><b>${ct ? e(dcFmtPct(taxa)) : ''}</b>`
+      + `<i style="height:${Math.round(ab / max * 100)}%;background:var(--c-carmim)"></i><i style="height:${Math.round(at / max * 100)}%"></i>`
+      + (comMedia && media ? `<u style="position:absolute;left:0;right:0;bottom:calc(${Math.round(media / max * 100)}% * .85 + 16px);border-top:2px dashed var(--c-grafite)"></u>` : '')
+      + `<span>${e(String(h.hora))}h</span></div>`;
+  };
+  return `<div class="bmHoras">${porHora.map(col).join('')}</div>`
+    + `<div class="bmLegenda"><i style="background:var(--c-sinal)"></i>atendidas<i style="background:var(--c-carmim)"></i>abandonadas · número em cima = % de abandono da hora`
+    + (comMedia ? ' · tracejado = média de contatos do mesmo dia da semana nas 4 semanas anteriores' : '') + '</div>';
+}
+function dcCalorHtml(mapa){
+  if(!Array.isArray(mapa)) return dcFalhou('Melhor hora para ligar');
+  if(!mapa.length) return '<p class="ppVazio">Sem chamadas no período.</p>';
+  const dias = [...new Set(mapa.map(x => Number(x.dia_semana)))].sort((a, b) => a - b);
+  const horas = [...new Set(mapa.map(x => Number(x.hora)))].sort((a, b) => a - b);
+  const cel = new Map(mapa.map(x => [x.dia_semana + '-' + x.hora, x]));
+  const taxas = mapa.map(x => dcTaxa(x.contato, x.tentativas) || 0), max = Math.max(0.0001, ...taxas);
+  return `<div class="mlTabelaWrap"><table class="bmCalor"><thead><tr><th></th>${horas.map(h => `<th>${h}h</th>`).join('')}</tr></thead><tbody>`
+    + dias.map(d => `<tr><td>${DC_DIAS_CURTOS[d] || d}</td>${horas.map(h => {
+        const x = cel.get(d + '-' + h), t = x ? dcTaxa(x.contato, x.tentativas) : null;
+        if(t === null) return '<td style="background:var(--c-papel)"></td>';
+        const forca = Math.round(15 + 85 * t / max);
+        return `<td title="${escapeHtml(dcFmtNum(x.tentativas) + ' tentativas')}" style="background:color-mix(in srgb, var(--c-sinal) ${forca}%, var(--c-branco));color:${forca > 55 ? 'var(--c-branco)' : 'var(--c-grafite)'}">${dcFmtPct(t)}</td>`;
+      }).join('')}</tr>`).join('')
+    + '</tbody></table></div><div class="bmLegenda">Taxa de contato (cliente atendeu ÷ tentativas). Mais escuro = hora em que o mailing mais atende.</div>';
+}
+function dcConsultoresHtml(lista){
+  if(!Array.isArray(lista)) return dcFalhou('Consultores');
+  if(!lista.length) return '<p class="ppVazio">Ninguém atendeu pelo discador no período.</p>';
+  const e = escapeHtml, med = dcMediaEquipe(lista);
+  const td = (txt, pior) => `<td${pior ? ' class="dcPior" style="color:var(--st-perdido);font-weight:700"' : ''}>${e(txt)}</td>`;
+  const linhas = lista.map(c => {
+    const at = Number(c.atendidas) || 0, amostra = at >= DC_MIN_ATENDIDAS_DESTAQUE;
+    const sa = dcTaxa(c.sem_avanco, at), st = dcTaxa(c.sem_tabulacao, at), cv = dcTaxa(c.vendas, at);
+    return `<tr data-dc-agente="${e(String(c.agente_id))}" data-dc-nome="${e(c.nome || '')}" style="cursor:pointer" title="Ver por dia">`
+      + `<td>${e(c.nome || ('Agente ' + c.agente_id))}${c.profile_id ? '' : ' <span class="badge">sem vínculo</span>'}</td>`
+      + td(dcFmtNum(at)) + td(dcFmtSeg(c.seg_falados_total)) + td(dcFmtSeg(c.seg_falados_medio))
+      + td(dcFmtPct(sa), amostra && dcPiorQueMedia(sa, med.semAvanco, true))
+      + td(dcFmtNum(c.retornos)) + td(dcFmtNum(c.ganhos))
+      + td(dcFmtPct(st), amostra && dcPiorQueMedia(st, med.semTab, true))
+      + td(dcFmtNum(c.vendas)) + td(dcFmtPct(cv), amostra && dcPiorQueMedia(cv, med.conversao, false)) + '</tr>';
+  }).join('');
+  return '<div class="mlTabelaWrap"><table class="tbl"><thead><tr><th>Consultor</th><th>Atendidas</th><th>Falado</th><th>Médio</th><th>% sem avanço</th><th>Retornos</th><th>Ganhos</th><th>% sem tabulação</th><th>Vendas</th><th>Conversão</th></tr></thead><tbody>'
+    + linhas + '</tbody></table></div>'
+    + `<div class="bmLegenda">Em vermelho: mais de 30% pior que a média da equipe (sem avanço ${e(dcFmtPct(med.semAvanco))} · sem tabulação ${e(dcFmtPct(med.semTab))} · conversão ${e(dcFmtPct(med.conversao))}), só para quem atendeu ${DC_MIN_ATENDIDAS_DESTAQUE} ou mais. Clique na linha para ver por dia.</div>`;
+}
+function dcMailingHtml(linhas, rotuloChave){
+  if(!Array.isArray(linhas)) return dcFalhou(rotuloChave);
+  if(!linhas.length) return '<p class="ppVazio">Sem dados no período.</p>';
+  const e = escapeHtml;
+  return `<div class="mlTabelaWrap"><table class="tbl"><thead><tr><th>${e(rotuloChave)}</th><th>Tentativas</th><th>Contato</th><th>Abandono</th><th>Atendidas</th><th>Ganhos</th><th>Vendas</th><th>Vendas / 1.000</th></tr></thead><tbody>`
+    + linhas.map(l => {
+      const pm = dcTaxa(l.vendas, l.tentativas);
+      return `<tr><td>${e(l.chave)}</td><td>${e(dcFmtNum(l.tentativas))}</td><td>${e(dcFmtPct(dcTaxa(l.contato, l.tentativas)))}</td><td>${e(dcFmtPct(dcTaxa(l.abandonadas, l.contato)))}</td>`
+        + `<td>${e(dcFmtNum(l.atendidas))}</td><td>${e(dcFmtNum(l.ganhos))}</td><td>${e(dcFmtNum(l.vendas))}</td><td>${pm === null ? '—' : e((pm * 1000).toFixed(2).replace('.', ','))}</td></tr>`;
+    }).join('') + '</tbody></table></div>';
+}
+function dcDiasHtml(nome, linhas){
+  if(!Array.isArray(linhas)) return dcFalhou('Por dia');
+  const e = escapeHtml;
+  const corpo = linhas.length
+    ? '<div class="mlTabelaWrap"><table class="tbl"><thead><tr><th>Dia</th><th>Atendidas</th><th>Falado</th><th>Sem avanço</th><th>Ganhos</th><th>Vendas</th></tr></thead><tbody>'
+      + linhas.map(d => `<tr><td>${e(dcDdMm(d.dia))}</td><td>${e(dcFmtNum(d.atendidas))}</td><td>${e(dcFmtSeg(d.seg_falados_total))}</td><td>${e(dcFmtNum(d.sem_avanco))}</td><td>${e(dcFmtNum(d.ganhos))}</td><td>${e(dcFmtNum(d.vendas))}</td></tr>`).join('')
+      + '</tbody></table></div>'
+    : '<p class="ppVazio">Sem atendimentos no período.</p>';
+  return `<div class="bmCard"><h4>${e(nome)} <small>por dia</small></h4>${corpo}</div>`;
+}
+function dcVinculoHtml(semVinculo, perfis){
+  if(!Array.isArray(semVinculo) || !semVinculo.length) return '';
+  const e = escapeHtml, n = semVinculo.length;
+  const opcoes = '<option value="">Escolha o consultor…</option>' + (perfis || []).map(p => `<option value="${e(p.id)}">${e(p.nome || p.id)}</option>`).join('');
+  return `<div class="bmCard bmAtencao"><h4>${n} agente${n === 1 ? '' : 's'} sem consultor <small>só o admin vê e liga cada número a uma pessoa</small></h4>`
+    + semVinculo.map(a => `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0"><b style="min-width:110px">Agente ${e(String(a.agente_id))}</b>`
+      + `<span class="bmSub" style="min-width:150px">${e(dcFmtNum(a.atendidas_30d))} atendidas em 30 dias</span>`
+      + `<select data-dc-vinc-sel="${e(String(a.agente_id))}" style="width:auto">${opcoes}</select>`
+      + `<button type="button" class="btn btn-sm" data-dc-vinc="${e(String(a.agente_id))}" style="width:auto">Vincular</button></div>`).join('')
+    + '</div>';
+}
 document.getElementById('bmSeletor').addEventListener('change', async function(){
   const dia = this.value;
   if(!dia || !canSeeBoletim()) return;

@@ -178,7 +178,7 @@ Local: item próprio "Discador" no menu lateral, grupo "Visão geral", depois do
    - ABANDONED 2.619;
    - por carga: 45.570 / 35.830 / 31.040 / 27.485.
 4. **Robô:** testes do leitor com fixture falsa → `dry` (compara contagem, não grava) → `real` manual → `DISCADOR_ATIVO=true` e acompanhar 24 h.
-5. **Painel:** testes JS das contas da tela; conferência no navegador com perfil supervisor (vê) e consultor (não vê a sub-aba).
+5. **Painel:** testes JS das contas da tela; conferência no navegador com perfil supervisor (vê) e consultor (não vê a aba).
 
 ## 11. Ordem de entrada no ar (cada passo que toca produção só com ok explícito do Rafael)
 
