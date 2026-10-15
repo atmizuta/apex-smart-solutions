@@ -19,7 +19,7 @@ begin
   end if;
   return query
   with neo as (
-    select distinct regexp_replace(p.cnpj, '\D', '', 'g') as doc
+    select distinct regexp_replace(p.cnpj, '[^0-9]', '', 'g') as doc
       from public.producao_pedidos p
      where p.cnpj is not null
        and coalesce(p.etapa, '') !~* '(PERDID|DEVOLVID|CANCELAD)'
@@ -27,8 +27,8 @@ begin
   select l.id, l.full_name, l.phone_number, l.consultor, l.status, l.categoria, l.receita, l.criado_em_lead,
          coalesce(c.t, 0)::int, coalesce(c.a, 0)::int, c.u,
          exists (select 1 from neo
-                  where length(regexp_replace(coalesce(l.cnpj, ''), '\D', '', 'g')) >= 11
-                    and neo.doc = regexp_replace(l.cnpj, '\D', '', 'g'))
+                  where length(regexp_replace(coalesce(l.cnpj, ''), '[^0-9]', '', 'g')) >= 11
+                    and neo.doc = regexp_replace(l.cnpj, '[^0-9]', '', 'g'))
     from public.leads l
     join public.leads_equipe e on e.monitorar and public.norm_nome(e.nome_planilha) = public.norm_nome(l.consultor)
     left join lateral (
