@@ -3,7 +3,7 @@
 **Data:** 2026-10-14
 **Responsável:** Rafael
 **Status:** especificação para revisão (nada construído)
-**Base:** `oficial/main` em 12c9897 (REGRAS_NEGOCIO.md até a seção 80; a 81 está reservada para a migração da API de produção — esta frente usa a **seção 82**)
+**Base:** `oficial/main` em 12c9897 (REGRAS_NEGOCIO.md até a seção 80; a 81 está reservada para a migração da API de produção — esta frente usa a **seção 87**; a 82 acabou usada pela etapa TERRITÓRIO)
 
 ## 1. Objetivo e critérios de sucesso
 
@@ -115,7 +115,7 @@ Peças:
 
 ## 7. Métricas (funções SQL `security definer` com checagem de admin/supervisor)
 
-Definições (vão para REGRAS §82):
+Definições (vão para REGRAS §87):
 - **Tentativas** = linhas do período.
 - **Contato** = `status in ('ANSWERED','ABANDONED')`. **Taxa de contato** = contato ÷ tentativas.
 - **Abandono** = `ABANDONED` ÷ contato (cliente atendeu e não havia consultor livre).
@@ -186,7 +186,7 @@ Local: Dashboard de Produção, ao lado de Pedidos em Alerta e Vendas Perdidas. 
 2. Edge Function `ingest-discador` + secret; carga inicial de outubro; conferir a seção 10.3.
 3. Robô: reconhecimento → `dry` → `real` manual → ligar `DISCADOR_ATIVO`.
 4. Painel: worktree a partir de `oficial/main`, comparar com o painel no ar, backup, publicar, MD5, vigia `-Aceitar`.
-5. REGRAS_NEGOCIO.md §82 e push no oficial (fetch antes, sem force).
+5. REGRAS_NEGOCIO.md §87 e push no oficial (fetch antes, sem force).
 
 Reverter: `DISCADOR_ATIVO=false` e revogar o token; rollback da migration; restaurar o backup do painel. As chamadas manuais não são afetadas em nenhum caso.
 
@@ -201,6 +201,6 @@ Respondidas em 14/10:
 
 1. **Plano A — Banco e função:** migration, `ingest-discador`, testes, rollback, script da carga inicial.
 2. **Plano B — Robô:** reconhecimento, leitor, etapa nova, flag, testes.
-3. **Plano C — Painel:** sub-aba Discador, funções de leitura no front, testes JS, publicação, §82.
+3. **Plano C — Painel:** sub-aba Discador, funções de leitura no front, testes JS, publicação, §87.
 
 Ordem: A → carga inicial → C pode começar em paralelo a B (já há dados de outubro) → B ligado → publicação.

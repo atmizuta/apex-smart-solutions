@@ -1,4 +1,4 @@
--- 14/10/2026 — Discador automático do ProContact: uma linha por tentativa de discagem (REGRAS_NEGOCIO.md §82).
+-- 14/10/2026 — Discador automático do ProContact: uma linha por tentativa de discagem (REGRAS_NEGOCIO.md §87).
 -- Spec: docs/superpowers/specs/2026-10-14-discador-visao-supervisao-design.md
 -- Nome e CPF do cliente NUNCA chegam aqui: o robô descarta antes e a função ingest-discador só aceita as colunas abaixo.
 -- Quem grava é só a Edge Function ingest-discador (service role). Leitura: admin/supervisor.

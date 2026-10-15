@@ -1,4 +1,4 @@
--- 14/10/2026 — Funções de leitura da aba "Discador" (REGRAS_NEGOCIO.md §82). Todas checam admin/supervisor.
+-- 14/10/2026 — Funções de leitura da aba "Discador" (REGRAS_NEGOCIO.md §87). Todas checam admin/supervisor.
 -- Datas p_de/p_ate em São Paulo, ambas inclusive, no máximo 120 dias.
 -- Contato = ANSWERED + ABANDONED; abandono = ABANDONED ÷ contato; atendida = ANSWERED com agente.
 -- Venda do discador: pedido do NEO (sem perdido/devolvido; GROSS já não entra, §49) cujo CNPJ teve chamada atendida entre

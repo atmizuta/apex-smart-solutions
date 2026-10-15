@@ -1,4 +1,4 @@
--- Verificação de 20261014100100_discador_metricas.sql (§82). Rodar SOMENTE depois das duas migrations; SEMPRE termina
+-- Verificação de 20261014100100_discador_metricas.sql (§87). Rodar SOMENTE depois das duas migrations; SEMPRE termina
 -- em ROLLBACK. Dados fictícios em junho de 2000 (zz*), CNPJs falsos. Junho porque jan/2000 tinha horário de verão (UTC-2).
 begin;
 insert into auth.users (id, instance_id, aud, role, email) values

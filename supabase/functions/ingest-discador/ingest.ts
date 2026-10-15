@@ -1,5 +1,5 @@
 // Lógica pura da Edge Function ingest-discador (sem rede, testada com node --test). Spec:
-// docs/superpowers/specs/2026-10-14-discador-visao-supervisao-design.md (§82). Mesmo padrão da ingest-ligacoes:
+// docs/superpowers/specs/2026-10-14-discador-visao-supervisao-design.md (§87). Mesmo padrão da ingest-ligacoes:
 // a função valida de novo o que o robô enviou e só monta as colunas permitidas (nome e CPF nunca passam).
 export const MAX_LOTE = 500;
 

@@ -76,7 +76,7 @@ Todos os comandos rodam do worktree `C:\Users\acer1\Downloads\apex-smart-solutio
 - [ ] **Step 1: Escrever o teste de estrutura** (`supabase/tests/discador_chamadas_check.sql`)
 
 ```sql
--- Verificação de 20261014100000_discador_chamadas.sql (§82). Rodar SOMENTE depois da migration; SEMPRE termina em ROLLBACK.
+-- Verificação de 20261014100000_discador_chamadas.sql (§87). Rodar SOMENTE depois da migration; SEMPRE termina em ROLLBACK.
 begin;
 do $$
 declare n int;
@@ -130,7 +130,7 @@ Expected: FAIL com `assertion failed: tabela discador_chamadas existe`.
 - [ ] **Step 3: Escrever a migration** (`supabase/migrations/20261014100000_discador_chamadas.sql`)
 
 ```sql
--- 14/10/2026 — Discador automático do ProContact: uma linha por tentativa de discagem (REGRAS_NEGOCIO.md §82).
+-- 14/10/2026 — Discador automático do ProContact: uma linha por tentativa de discagem (REGRAS_NEGOCIO.md §87).
 -- Spec: docs/superpowers/specs/2026-10-14-discador-visao-supervisao-design.md
 -- Nome e CPF do cliente NUNCA chegam aqui: o robô descarta antes e a função ingest-discador só aceita as colunas abaixo.
 -- Quem grava é só a Edge Function ingest-discador (service role). Leitura: admin/supervisor.
@@ -227,7 +227,7 @@ drop table if exists public.discador_chamadas;
 
 ```bash
 git add supabase/migrations/20261014100000_discador_chamadas.sql supabase/rollback/20261014100000_discador_chamadas_rollback.sql supabase/tests/discador_chamadas_check.sql
-git commit -m "feat(discador): tabelas, RLS, config e limpeza de 90 dias (secao 82)"
+git commit -m "feat(discador): tabelas, RLS, config e limpeza de 90 dias (secao 87)"
 ```
 
 A migration **não** é aplicada aqui: isso acontece na Task 7, com ok do Rafael. O teste do Step 1 roda depois de aplicada.
@@ -259,7 +259,7 @@ A migration **não** é aplicada aqui: isso acontece na Task 7, com ok do Rafael
 Cenário fictício em janeiro de 2000. 03/01/2000 é segunda-feira; as semanas de referência são 27/12/1999 e 20/12/1999. CNPJs falsos: A = `00000000000101`, B = `00000000000202`, C = `00000000000303`.
 
 ```sql
--- Verificação de 20261014100100_discador_metricas.sql (§82). Rodar SOMENTE depois das duas migrations; SEMPRE termina
+-- Verificação de 20261014100100_discador_metricas.sql (§87). Rodar SOMENTE depois das duas migrations; SEMPRE termina
 -- em ROLLBACK. Dados fictícios em 2000 (zz*), CNPJs falsos.
 begin;
 insert into auth.users (id, instance_id, aud, role, email) values
@@ -387,7 +387,7 @@ Mesmo modo da Task 1, Step 2. Se a Task 1 ainda não estiver aplicada, a falha �
 - [ ] **Step 3: Escrever a migration** (`supabase/migrations/20261014100100_discador_metricas.sql`)
 
 ```sql
--- 14/10/2026 — Funções de leitura da aba "Discador" (REGRAS_NEGOCIO.md §82). Todas checam admin/supervisor.
+-- 14/10/2026 — Funções de leitura da aba "Discador" (REGRAS_NEGOCIO.md §87). Todas checam admin/supervisor.
 -- Datas p_de/p_ate em São Paulo, ambas inclusive, no máximo 120 dias.
 -- Contato = ANSWERED + ABANDONED; abandono = ABANDONED ÷ contato; atendida = ANSWERED com agente.
 -- Venda do discador: pedido do NEO (sem perdido/devolvido; GROSS já não entra, §49) cujo CNPJ teve chamada atendida entre
@@ -683,7 +683,7 @@ drop function if exists public.discador_exige_supervisao(date, date);
 
 ```bash
 git add supabase/migrations/20261014100100_discador_metricas.sql supabase/rollback/20261014100100_discador_metricas_rollback.sql supabase/tests/discador_metricas_check.sql
-git commit -m "feat(discador): funcoes de metricas, atribuicao de venda e vinculo de agente (secao 82)"
+git commit -m "feat(discador): funcoes de metricas, atribuicao de venda e vinculo de agente (secao 87)"
 ```
 
 A aplicação e o teste rodam na Task 7.
@@ -829,7 +829,7 @@ Expected: FAIL com `Cannot find module './ingest.ts'`.
 
 ```ts
 // Lógica pura da Edge Function ingest-discador (sem rede, testada com node --test). Spec:
-// docs/superpowers/specs/2026-10-14-discador-visao-supervisao-design.md (§82). Mesmo padrão da ingest-ligacoes:
+// docs/superpowers/specs/2026-10-14-discador-visao-supervisao-design.md (§87). Mesmo padrão da ingest-ligacoes:
 // a função valida de novo o que o robô enviou e só monta as colunas permitidas (nome e CPF nunca passam).
 export const MAX_LOTE = 500;
 
@@ -1023,7 +1023,7 @@ Expected: todos os testes PASS (`# fail 0`).
 
 ```bash
 git add supabase/functions/ingest-discador/ingest.ts supabase/functions/ingest-discador/ingest.test.ts
-git commit -m "feat(discador): logica pura da ingest-discador com validacao e testes (secao 82)"
+git commit -m "feat(discador): logica pura da ingest-discador com validacao e testes (secao 87)"
 ```
 
 ---
@@ -1275,7 +1275,7 @@ Expected: FAIL com `Cannot find module '../src/parseDiscador.js'`.
 ```js
 // src/parseDiscador.js
 // Leitor do relatório do DISCADOR automático (Relatório → Call Center → Discador → Exportar; dialer_calls_report_*.xlsx).
-// Spec: apex-smart-solutions docs/superpowers/specs/2026-10-14-discador-visao-supervisao-design.md (§82).
+// Spec: apex-smart-solutions docs/superpowers/specs/2026-10-14-discador-visao-supervisao-design.md (§87).
 // O layout tem colunas quase homônimas: "Data/Hora Fim" (UTC) × "DataHora_Fim" (São Paulo), "Tempo Total" (segundos) ×
 // "Tempo_Total" (hh:mm:ss) e duas "Região". Por isso o casamento usa normExata, que mantém o "_".
 // Nome (Nome/Desc) e CPF (Documento 1) NUNCA são lidos.
@@ -1532,7 +1532,7 @@ Expected:
 
 - [ ] **Step 8: Registrar o estado**
 
-Atualizar a memória da frente (`apex-frentes-estado`). Nenhum push ainda: o push no oficial e a REGRAS §82 acontecem na publicação do Plano C.
+Atualizar a memória da frente (`apex-frentes-estado`). Nenhum push ainda: o push no oficial e a REGRAS §87 acontecem na publicação do Plano C.
 
 ```bash
 git -C "C:/Users/acer1/Downloads/apex-smart-solutions/.worktrees/discador-supervisao" log --oneline -5
