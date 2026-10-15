@@ -52,7 +52,7 @@ begin
   exception when insufficient_privilege then null; end;
   begin perform public.discador_vincular_agente(900002, '00000000-0000-0000-0000-00000000d102'); assert false, 'consultor não vincula';
   exception when insufficient_privilege then null; end;
-  begin perform public.discador_vendas_atribuidas('2000-06-05', '2000-06-05'); assert false, 'função interna fechada para authenticated';
+  begin perform public.discador_vendas_atribuidas('2000-06-05', '2000-06-05', 'apex'); assert false, 'função interna fechada para authenticated';
   exception when insufficient_privilege then null; end;
 
   -- supervisor
