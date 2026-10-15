@@ -1262,20 +1262,22 @@
             <button type="button" class="btn btn-sm btn-outline" id="btnMesaAtualizar" style="width:auto">Atualizar</button>
           </div>
         </div>
+        <div class="filterPills" id="mesaSubPills" style="margin-top:10px">
+          <button type="button" class="filterPill active" data-mesa-sub="equipe">Equipe</button>
+          <button type="button" class="filterPill" data-mesa-sub="bio">Biometria</button>
+        </div>
+      </div>
+      <div id="mesaSubEquipe">
+      <div class="card">
         <p class="desc" id="mesaAtraso"></p>
         <div class="kpiGrid" id="mesaKpis"></div>
-      </div>
-      <div class="card">
-        <h3>Atender agora — equipe</h3>
-        <p class="desc">Leads que ainda não receberam o 1º contato (relógio em minutos úteis). Lead sem dono precisa ser atribuído na planilha.</p>
-        <div id="mesaFila"></div>
       </div>
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
           <h3 style="margin:0">Semáforo por consultor</h3>
           <button type="button" class="btn btn-sm btn-outline" id="btnMesaExportar" style="width:auto">Exportar Excel</button>
         </div>
-        <p class="desc">Clique numa linha para ver os itens. "Cobrar" copia a mensagem e abre o WhatsApp para você escolher o contato.</p>
+        <p class="desc">Só os consultores administrados (equipe de leads). Clique numa linha para ver os itens. "Cobrar" copia a mensagem e abre o WhatsApp para você escolher o contato.</p>
         <div class="mlTabelaWrap"><table class="tbl">
           <thead><tr><th></th><th>Consultor</th><th>Esperando agora</th><th>No prazo 7 d</th><th>Retornos atrasados</th><th>Leads esfriando</th><th>Propostas paradas</th><th>Pedidos em risco</th><th>Ligações hoje</th><th>Vendas no mês / meta</th><th></th></tr></thead>
           <tbody id="mesaSemaforoTbody"></tbody>
@@ -1292,6 +1294,23 @@
         <h3>Retornos e objeções</h3>
         <p class="desc">Retornos da Agenda por consultor (seção 72) e as objeções que mais apareceram nos últimos 7 dias.</p>
         <div id="mesaRetObj"></div>
+      </div>
+      </div>
+      <!-- §89: Biometria — pedidos do NeoCRM em BIOMETRIA / AGUARDANDO ASSINATURA dos consultores administrados, com celular -->
+      <div id="mesaSubBio" style="display:none">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+            <h3 style="margin:0">Biometria e assinatura</h3>
+            <button type="button" class="btn btn-sm btn-outline" id="btnMesaBioExportar" style="width:auto">Exportar Excel</button>
+          </div>
+          <p class="desc">Pedidos parados em BIOMETRIA ou AGUARDANDO ASSINATURA no NEO. Escolha o consultor; o celular vem do lead, do Caderno ou da base de clientes (pelo CNPJ).</p>
+          <div class="filterPills" id="mesaBioPills" style="margin:10px 0"></div>
+          <p class="desc" id="mesaBioResumo"></p>
+          <div class="mlTabelaWrap"><table class="tbl">
+            <thead><tr><th>Cliente</th><th>Etapa</th><th>Na etapa há</th><th>Pedido</th><th>Valor</th><th>Celular</th></tr></thead>
+            <tbody id="mesaBioTbody"></tbody>
+          </table></div>
+        </div>
       </div>
     </section>
 
@@ -12213,7 +12232,11 @@ function mesaSemaforo(dados, agoraMs, cfg, hoje){
   const vendasPor = new Map((dados.vendas || []).map(x => [x.profile_id, x]));
   const metaPor = new Map((dados.metas || []).map(x => [x.profile_id, Number(x.meta_receita) || 0]));
   const diaMs = (d) => Date.parse(d + 'T00:00:00Z');
-  return [...linhas.values()].map(r => {
+  // §89: com a equipe de leads carregada, o semáforo mostra só os consultores administrados (leads_equipe.monitorar)
+  const eq = (dados.equipe || []).filter(e => e.monitorar !== false);
+  const perfis = new Set(eq.map(e => e.profile_id).filter(Boolean)), nomes = new Set(eq.map(e => plNormStatus(e.nome_planilha)));
+  const administrado = r => !eq.length || (r.profileId ? perfis.has(r.profileId) : nomes.has(plNormStatus(r.nome)));
+  return [...linhas.values()].filter(administrado).map(r => {
     r.esperando = vlPendentes(mesaDesde(r.leads, agoraMs, cfg.janela_dias), agoraMs, cfg).filter(x => x.cor !== 'aguardando');
     const de7 = mesaDesde(r.leads, agoraMs, 7);
     r.noPrazo7 = de7.length >= 5 ? mesaNoPrazo(de7, agoraMs, cfg) : null;
@@ -12250,13 +12273,13 @@ function mesaAtrasoPlanilhaMin(leads, agoraMs){
   const v = mesaDesde(leads, agoraMs, 7).map(l => { const a = vlMs(l.primeira_sync_em), b = vlMs(l.criado_em_lead); return a !== null && b !== null && a >= b ? (a - b) / 60000 : null; }).filter(x => x !== null);
   return mesaMediana(v);
 }
-const mesaEstado = { geracao: 0, cfg: vlCfg(null), dados: null, erros: {}, aba: null, aberto: null, timer: null, agora: 0, hoje: '' };
+const mesaEstado = { geracao: 0, cfg: vlCfg(null), dados: null, erros: {}, aba: null, aberto: null, timer: null, agora: 0, hoje: '', sub: 'equipe', bioSel: '' };
 function mesaAgora(){ return Date.now(); }
 function mesaResetar(){
   mesaEstado.geracao++;
   clearInterval(mesaEstado.timer); mesaEstado.timer = null;
-  Object.assign(mesaEstado, { dados: null, erros: {}, aba: null, aberto: null });
-  ['mesaKpis', 'mesaFila', 'mesaSemaforoTbody', 'mesaVelPills', 'mesaVelTabela', 'mesaAtraso', 'mesaStatus'].forEach(id => { document.getElementById(id).innerHTML = ''; });
+  Object.assign(mesaEstado, { dados: null, erros: {}, aba: null, aberto: null, bioSel: '' });
+  ['mesaKpis', 'mesaBioPills', 'mesaBioResumo', 'mesaBioTbody', 'mesaSemaforoTbody', 'mesaVelPills', 'mesaVelTabela', 'mesaAtraso', 'mesaStatus'].forEach(id => { document.getElementById(id).innerHTML = ''; });
   document.getElementById('mesaRetObj').innerHTML = '';
 }
 function mesaAplicarPermissao(){
@@ -12271,22 +12294,25 @@ async function loadMesa(forcar){
   const [y, m] = ym.split('-').map(Number);
   const mesAnterior = (m === 1 ? (y - 1) + '-12' : y + '-' + String(m - 1).padStart(2, '0')) + '-01';
   document.getElementById('mesaStatus').textContent = 'Carregando…';
-  const [lds, pend, lig, ven, met, cfg] = await Promise.all([
+  const [lds, pend, lig, ven, met, cfg, eqp, bio] = await Promise.all([
     ppSeguro(() => fetchAllRows(() => sb.rpc('mesa_leads_relogio', { p_desde: mesAnterior + 'T00:00:00-03:00' }))),
     ppSeguro(() => fetchAllRows(() => sb.rpc('mesa_pendencias', { p_ref: hoje }))),
     ppSeguro(() => sb.rpc('mesa_ligacoes_hoje', { p_ref: hoje })),
     ppSeguro(() => sb.rpc('mesa_vendas_mes', { p_mes: ym + '-01' })),
     ppSeguro(() => sb.from('metas_consultor').select('profile_id,mes,meta_receita').eq('mes', ym + '-01')),
     ppSeguro(() => sb.from('config').select('chave,valor').eq('chave', 'velocidade_lead').maybeSingle()),
+    ppSeguro(() => sb.from('leads_equipe').select('nome_planilha,profile_id,monitorar')),   // §89
+    ppSeguro(() => sb.rpc('mesa_biometria')),                                                // §89
   ]);
   if(geracao !== mesaEstado.geracao || !canSeeMesa()) return;
   const ok = r => r && !r.error;
   mesaEstado.cfg = vlCfg(ok(cfg) && cfg.data ? cfg.data.valor : null);
-  mesaEstado.erros = { leads: !ok(lds), pend: !ok(pend), lig: !ok(lig), vendas: !ok(ven), metas: !ok(met) };
+  mesaEstado.erros = { leads: !ok(lds), pend: !ok(pend), lig: !ok(lig), vendas: !ok(ven), metas: !ok(met), bio: !ok(bio) };
   Object.keys(mesaEstado.erros).forEach(k => { if(mesaEstado.erros[k]) console.error('Mesa: falha em ' + k); });
   mesaEstado.dados = {
     leads: ok(lds) ? (lds.data || []) : [], pend: ok(pend) ? (pend.data || []) : [],
     lig: ok(lig) ? (lig.data || []) : [], vendas: ok(ven) ? (ven.data || []) : [], metas: ok(met) ? (met.data || []) : [],
+    equipe: ok(eqp) ? (eqp.data || []).filter(e => e.monitorar) : [], bio: ok(bio) ? (bio.data || []) : [],
   };
   mesaEstado.agora = agora; mesaEstado.hoje = hoje;
   document.getElementById('mesaStatus').textContent = 'Atualizado às ' + new Date(agora - 3 * 3600000).toISOString().slice(11, 16);
@@ -12321,18 +12347,9 @@ function mesaRender(){
     mesaKpiHtml('Retornos atrasados', mesaEstado.erros.pend ? '—' : k.retornosAtrasados),
     mesaKpiHtml('Pedidos em risco 🔴', mesaEstado.erros.pend ? '—' : k.pedidosVermelhos),
   ].join('');
-  // fila da equipe (sem telefone)
-  const fila = vlPendentes(mesaDesde(d.leads, agora, cfg.janela_dias), agora, cfg).filter(x => x.cor !== 'aguardando');
-  const classe = { vermelho: 'retornoBadge atrasado', amarelo: 'retornoBadge hoje', verde: 'retornoBadge futuro' };
-  document.getElementById('mesaFila').innerHTML = mesaEstado.erros.leads ? '<p class="desc">Não foi possível carregar agora.</p>'
-    : (fila.length ? fila.map(x => `<div class="retornoLeadRow vlRow" data-lead-id="${escapeHtml(x.lead.lead_id)}">
-        <div class="retornoLeadInfo"><strong>${escapeHtml(x.lead.consultor || 'Sem dono')}</strong>
-          <span class="retornoLeadSub">${escapeHtml(conversaoAbaRotulo(x.lead.aba))} · entrou ${escapeHtml(mlFmtDiaHora(x.lead.criado_em_lead))}</span></div>
-        <div class="retornoLeadAcoes">${x.lead.consultor ? '' : '<span class="badge">sem dono — atribua na planilha</span>'}
-          <span class="${classe[x.cor]} vlRelogio">${escapeHtml(vlFmtMin(x.min))}</span></div></div>`).join('')
-      : '<p class="desc">Nenhum lead esperando agora.</p>');
   mesaRenderSemaforo();
   mesaRenderVelocidade();
+  mesaRenderBio();
 }
 // §72: bloco "Retornos e objeções" (RPC mesa_retornos_objecoes). Falha isolada: não derruba o resto da Mesa.
 function mesaRetObjHtml(d){
@@ -12397,6 +12414,76 @@ function mesaRenderVelocidade(){
   el.innerHTML = `<div class="mlTabelaWrap"><table class="tbl"><thead><tr><th>Tempo até o 1º contato</th><th>Leads</th><th>Vendas</th><th>Conversão</th></tr></thead><tbody>${
     linhas.map(r => `<tr><td>${escapeHtml(r.rotulo)}</td><td>${r.leads}</td><td>${r.vendas}</td><td>${mesaFmtPct(r.conversao)}</td></tr>`).join('')}</tbody></table></div>`;
 }
+/* ---- §89: Mesa → Biometria (RPC mesa_biometria) ---- */
+const MESA_BIO_ETAPA = { 'BIOMETRIA (NEOCRM)': ['Biometria', 'biometria'], 'AGUARDANDO ASSINATURA (NEOCRM)': ['Aguardando assinatura', 'assinatura'] };
+// dias corridos desde a entrada na etapa (no fuso de SP); null sem data
+function mesaBioDias(desde, hoje){ const d = mesaDiaSP(desde); return d ? Math.max(0, Math.round((Date.parse(hoje + 'T00:00:00Z') - Date.parse(d + 'T00:00:00Z')) / 86400000)) : null; }
+// pílulas: cada consultor administrado (mesmo sem pedido), com a contagem
+function mesaBioConsultores(equipe, bio){
+  const nomes = (equipe || []).map(e => e.nome_planilha).filter(Boolean);
+  (bio || []).forEach(b => { if(b.consultor && !nomes.includes(b.consultor)) nomes.push(b.consultor); });
+  return nomes.sort((a, b) => a.localeCompare(b, 'pt-BR')).map(n => ({ nome: n, n: (bio || []).filter(b => b.consultor === n).length }));
+}
+// pedidos do consultor escolhido ('' = todos), o mais antigo na etapa primeiro
+function mesaBioLinhas(bio, sel, hoje){
+  return (bio || []).filter(b => !sel || b.consultor === sel).map(b => Object.assign({}, b, { dias: mesaBioDias(b.desde, hoje) }))
+    .sort((a, b) => (b.dias === null ? -1 : b.dias) - (a.dias === null ? -1 : a.dias) || String(a.cliente || '').localeCompare(String(b.cliente || ''), 'pt-BR'));
+}
+function mesaRenderBio(){
+  const d = mesaEstado.dados, tb = document.getElementById('mesaBioTbody');
+  if(!d) return;
+  if(mesaEstado.erros.bio){
+    tb.innerHTML = '<tr><td colspan="6">Não foi possível carregar os pedidos do NEO agora.</td></tr>';
+    document.getElementById('mesaBioPills').innerHTML = ''; document.getElementById('mesaBioResumo').textContent = '';
+    return;
+  }
+  const cons = mesaBioConsultores(d.equipe, d.bio);
+  if(mesaEstado.bioSel && !cons.some(c => c.nome === mesaEstado.bioSel)) mesaEstado.bioSel = '';
+  document.getElementById('mesaBioPills').innerHTML = [{ nome: '', rotulo: 'Todos', n: d.bio.length }].concat(cons.map(c => ({ nome: c.nome, rotulo: c.nome, n: c.n })))
+    .map(c => `<button type="button" class="filterPill${c.nome === mesaEstado.bioSel ? ' active' : ''}" data-mesa-bio="${escapeHtml(c.nome)}">${escapeHtml(c.rotulo)} (${c.n})</button>`).join('');
+  const linhas = mesaBioLinhas(d.bio, mesaEstado.bioSel, mesaEstado.hoje);
+  const comTel = linhas.filter(b => b.telefone).length;
+  document.getElementById('mesaBioResumo').textContent = linhas.length
+    ? `${linhas.length} ${linhas.length === 1 ? 'pedido' : 'pedidos'} · ${comTel} com celular · o mais antigo na etapa primeiro.` : '';
+  tb.innerHTML = linhas.length ? linhas.map(b => {
+    const et = MESA_BIO_ETAPA[b.etapa] || [b.etapa || '—', null];
+    const wa = b.telefone ? ppEscolherTelefone([b.telefone]) : null;
+    const msg = et[1] ? ppMensagem(et[1], { produtos: b.produtos }) : '';
+    const cel = b.telefone ? `<button type="button" class="btn btn-sm btn-outline" data-copiar="${escapeHtml(b.telefone)}" style="width:auto">${escapeHtml(b.telefone)}</button>`
+      + (wa ? ` <a class="btn btn-sm" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${encodeURIComponent(msg)}" style="width:auto">WhatsApp</a>` : '')
+      : '<span class="desc">sem celular — ver no NEO</span>';
+    const qtd = Number(b.quantidade) || 0;
+    const sub = t => `<div style="font-size:var(--fs-xs);color:var(--muted)">${t}</div>`;
+    return `<tr><td>${escapeHtml(b.cliente || '—')}${mesaEstado.bioSel ? '' : sub(escapeHtml(b.consultor || ''))}${sub(escapeHtml(b.cnpj || ''))}</td>
+      <td><span class="badge">${escapeHtml(et[0])}</span></td>
+      <td${b.dias !== null && b.dias >= 2 ? ' class="mlAtraso"' : ''}>${b.dias === null ? '—' : (b.dias === 0 ? 'hoje' : b.dias + ' d')}</td>
+      <td>${escapeHtml(b.numero_pedido || '')}${sub(escapeHtml(b.produtos || '') + (qtd ? ' · ' + qtd + (qtd === 1 ? ' linha' : ' linhas') : ''))}</td>
+      <td>${fmtBRL(Number(b.valor) || 0)}</td><td>${cel}</td></tr>`;
+  }).join('') : `<tr><td colspan="6" class="desc">${mesaEstado.bioSel ? escapeHtml(mesaEstado.bioSel) + ' não tem pedido em biometria ou assinatura.' : 'Nenhum pedido em biometria ou assinatura.'}</td></tr>`;
+}
+function mesaSubAtivar(sub){
+  mesaEstado.sub = sub === 'bio' ? 'bio' : 'equipe';
+  document.querySelectorAll('#mesaSubPills [data-mesa-sub]').forEach(b => b.classList.toggle('active', b.dataset.mesaSub === mesaEstado.sub));
+  document.getElementById('mesaSubEquipe').style.display = mesaEstado.sub === 'equipe' ? '' : 'none';
+  document.getElementById('mesaSubBio').style.display = mesaEstado.sub === 'bio' ? '' : 'none';
+}
+document.getElementById('btnMesaBioExportar').addEventListener('click', function(){
+  const d = mesaEstado.dados;
+  const linhas = mesaBioLinhas(d ? d.bio : [], mesaEstado.bioSel, mesaEstado.hoje).map(b => ({ Consultor: b.consultor || '', Cliente: b.cliente || '', CNPJ: b.cnpj || '',
+    Etapa: (MESA_BIO_ETAPA[b.etapa] || [b.etapa || ''])[0], 'Na etapa há (dias)': b.dias === null ? '' : b.dias, Pedido: b.numero_pedido || '', Produtos: b.produtos || '',
+    Linhas: Number(b.quantidade) || 0, 'Valor (R$)': Number(b.valor) || 0, Celular: b.telefone || '' }));
+  mlBaixarXlsx('MesaBiometria_' + (mesaEstado.bioSel || 'Todos') + '_' + mesaEstado.hoje + '.xlsx', [{ nome: 'Biometria', linhas }]);
+});
+document.getElementById('panel-mesa').addEventListener('click', function(ev){
+  const sub = ev.target.closest('[data-mesa-sub]');
+  if(sub){ mesaSubAtivar(sub.dataset.mesaSub); return; }
+  const bp = ev.target.closest('[data-mesa-bio]');
+  if(bp){ mesaEstado.bioSel = bp.dataset.mesaBio; mesaRenderBio(); return; }
+  const cp = ev.target.closest('#mesaSubBio [data-copiar]');
+  if(cp){
+    try{ navigator.clipboard.writeText(cp.dataset.copiar); mostrarAviso('Copiado: ' + cp.dataset.copiar, 'ok'); }catch(e){ mostrarAviso(cp.dataset.copiar, 'info'); }
+  }
+});
 document.getElementById('panel-mesa').addEventListener('click', function(ev){
   const cob = ev.target.closest('[data-mesa-cobrar]');
   if(cob){

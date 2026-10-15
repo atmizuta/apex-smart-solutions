@@ -116,6 +116,22 @@ try{
   eq(caio.mediaLig, 20, 'média de ligações da equipe (30 e 10)');
   eq([caio.vendas.receita, caio.meta], [900, 3000], 'Caio: vendas e meta do mês');
   assert(!sem.some(r => r.profileId === 'p-admin'), 'vendas de quem não é consultor não cria linha');
+  // §89: com a equipe de leads, só os administrados (por perfil; sem login, pelo nome da planilha)
+  const semEq = mesaSemaforo({ leads: leads.concat([LD('b1', { consultor: 'Beltrano', profile_id: null })]), pend, lig, vendas, metas,
+    equipe: [{ nome_planilha: 'Caio', profile_id: 'p-caio', monitorar: true }, { nome_planilha: 'Beltrano', profile_id: null, monitorar: true }, { nome_planilha: 'Zeca', profile_id: 'p-zeca', monitorar: false }] }, AGORA, cfg, HOJE);
+  eq(semEq.map(r => r.nome).sort(), ['Beltrano', 'Caio Teste'], 'semáforo só com os consultores administrados');
+
+  // §89: Biometria — funções puras
+  const BIO = [
+    { consultor: 'Mariana', numero_pedido: 'P1', cliente: 'Empresa A', etapa: 'BIOMETRIA (NEOCRM)', desde: iso('2026-10-01T10:00:00'), valor: 100, quantidade: 2, produtos: 'Plano X', telefone: '11999990001' },
+    { consultor: 'Mariana', numero_pedido: 'P2', cliente: 'Empresa B', etapa: 'AGUARDANDO ASSINATURA (NEOCRM)', desde: iso('2026-10-05T08:00:00'), valor: 50, quantidade: 1, produtos: 'Plano Y', telefone: null },
+    { consultor: 'Caio', numero_pedido: 'P3', cliente: 'Empresa C', etapa: 'BIOMETRIA (NEOCRM)', desde: iso('2026-10-03T10:00:00'), valor: 70, quantidade: 1, produtos: 'Plano Z', telefone: '(11) 98888-0002' },
+  ];
+  eq(mesaBioDias(iso('2026-10-01T10:00:00'), HOJE), 4, 'dias na etapa');
+  eq(mesaBioDias(null, HOJE), null, 'sem data: null');
+  eq(mesaBioConsultores([{ nome_planilha: 'Mariana' }, { nome_planilha: 'Bianca' }, { nome_planilha: 'Caio' }], BIO), [{ nome: 'Bianca', n: 0 }, { nome: 'Caio', n: 1 }, { nome: 'Mariana', n: 2 }], 'pílulas: todos os administrados, mesmo sem pedido');
+  eq(mesaBioLinhas(BIO, 'Mariana', HOJE).map(b => b.numero_pedido), ['P1', 'P2'], 'filtro por consultor, mais antigo primeiro');
+  eq(mesaBioLinhas(BIO, '', HOJE).map(b => b.numero_pedido), ['P1', 'P3', 'P2'], 'todos, mais antigo primeiro');
   eq(sem.find(r => r.nome === 'Zeca Teste').pedidos.map(p => p.ref), ['N1'], 'pedido com 1 dia útil não entra');
   const luria = sem.find(r => r.nome === 'Luria Teste');
   eq(luria.cor, 'amarelo', 'retorno atrasado de ontem (1 dia) = amarelo');
@@ -147,9 +163,13 @@ try{
   const nowReal = Date.now;
   Date.now = () => AGORA;
   window.__rpcRespostas.mesa_leads_relogio = { data: leads, error: null };
-  window.__rpcRespostas.mesa_pendencias = { data: pend, error: null };
+  window.__rpcRespostas.mesa_pendencias = { data: pend.concat([{ profile_id: 'p-fora', nome: 'Fora Teste', tipo: 'consultor' }]), error: null };
   window.__rpcRespostas.mesa_ligacoes_hoje = { data: lig, error: null };
   window.__rpcRespostas.mesa_vendas_mes = { data: vendas, error: null };
+  window.__rpcRespostas.mesa_biometria = { data: BIO, error: null };
+  window.__tabelas.leads_equipe = [{ nome_planilha: 'Mariana', profile_id: 'p-mari', monitorar: true }, { nome_planilha: 'Caio', profile_id: 'p-caio', monitorar: true },
+    { nome_planilha: 'Luria', profile_id: 'p-luria', monitorar: true }, { nome_planilha: 'Zeca', profile_id: 'p-zeca', monitorar: true },
+    { nome_planilha: 'Fora', profile_id: 'p-fora', monitorar: false }];
   window.__tabelas.metas_consultor = [{ profile_id: 'p-caio', mes: '2026-10-01', meta_receita: 3000 }];
   // 08/10/2026 (§76): o padrão virou 11h–21h; estes cenários foram escritos para o expediente antigo (08h–18h)
   window.__tabelas.config = [{ chave: 'velocidade_lead', valor: '{"seg_sex":["08:00","18:00"],"sabado":["08:00","12:00"]}' }];
@@ -178,9 +198,28 @@ try{
   assert(kTxt.includes('Leads novos hoje') && kTxt.includes('5'), 'KPI de leads novos');
   assert(kTxt.includes('33,3%'), 'KPI no prazo 7 d');
   assert(kTxt.includes('22 min'), 'KPI mediana');
-  eq([...document.querySelectorAll('#mesaFila .vlRow')].map(r => r.dataset.leadId), ['esperandoVerm', 'semDono', 'esperandoVerde'], 'fila da equipe: vermelho, amarelo, verde');
-  assert(document.querySelector('#mesaFila [data-lead-id="semDono"]').textContent.includes('sem dono'), 'sem dono sinalizado');
-  assert(!document.getElementById('mesaFila').innerHTML.includes('5519900'), 'Mesa não mostra telefone');
+  assert(!document.getElementById('mesaFila') && !document.getElementById('panel-mesa').textContent.includes('Atender agora — equipe'), '§89: card "Atender agora — equipe" removido');
+  eq([...document.querySelectorAll('#mesaSemaforoTbody .mesaNome')].map(e => e.textContent).sort(), ['Caio Teste', 'Luria Teste', 'Zeca Teste'], '§89: semáforo sem o "Fora Teste" (fora da equipe de leads)');
+  // §89: sub-aba Biometria
+  assert(document.getElementById('mesaSubBio').style.display === 'none', 'Biometria começa escondida');
+  document.querySelector('[data-mesa-sub="bio"]').click();
+  assert(document.getElementById('mesaSubBio').style.display === '' && document.getElementById('mesaSubEquipe').style.display === 'none', 'pílula Biometria troca a tela');
+  eq([...document.querySelectorAll('#mesaBioPills [data-mesa-bio]')].map(b => b.textContent), ['Todos (3)', 'Caio (1)', 'Luria (0)', 'Mariana (2)', 'Zeca (0)'], 'pílulas por consultor administrado');
+  document.querySelector('[data-mesa-bio="Mariana"]').click();
+  const bioTr = [...document.querySelectorAll('#mesaBioTbody tr')];
+  eq(bioTr.map(tr => tr.children[0].firstChild.textContent.trim()), ['Empresa A', 'Empresa B'], 'só os pedidos da Mariana');
+  assert(bioTr[0].textContent.includes('Biometria') && bioTr[1].textContent.includes('Aguardando assinatura'), 'mostra as duas etapas');
+  assert(bioTr[0].querySelector('a[href^="https://wa.me/5511999990001?text="]') && bioTr[0].querySelector('[data-copiar="11999990001"]'), 'celular com copiar e WhatsApp');
+  assert(decodeURIComponent(bioTr[0].querySelector('a[href^="https://wa.me/"]').href).includes('biometria facial'), 'mensagem de biometria');
+  assert(bioTr[1].textContent.includes('sem celular'), 'sem celular avisa');
+  assert(bioTr[0].children[2].classList.contains('mlAtraso') && bioTr[0].children[2].textContent.trim() === '4 d', '4 dias na etapa em destaque');
+  assert(document.getElementById('mesaBioResumo').textContent.includes('2 pedidos') && document.getElementById('mesaBioResumo').textContent.includes('1 com celular'), 'resumo');
+  document.querySelector('[data-mesa-bio="Luria"]').click();
+  assert(document.getElementById('mesaBioTbody').textContent.includes('Luria não tem pedido'), 'consultor sem pedido: mensagem');
+  window.__xlsx = window.__xlsx || [];
+  document.querySelector('[data-mesa-bio="Mariana"]').click();
+  document.querySelector('[data-mesa-sub="equipe"]').click();
+  assert(document.getElementById('mesaSubEquipe').style.display === '', 'volta para Equipe');
   assert(document.getElementById('mesaAtraso').textContent.includes('6 min'), 'atraso da planilha');
   assert(!/NaN|undefined/.test(document.getElementById('panel-mesa').textContent), 'nada de NaN/undefined');
 
@@ -188,13 +227,17 @@ try{
   window.__rpcRespostas.mesa_pendencias = { data: null, error: { message: 'x' } };
   await loadMesa(true);
   assert(document.getElementById('mesaSemaforoTbody').textContent.includes('Não foi possível carregar'), 'semáforo avisa a falha');
-  assert(document.querySelectorAll('#mesaFila .vlRow').length === 3, 'fila continua aparecendo');
+  assert(document.getElementById('mesaKpis').textContent.includes('Leads novos hoje'), 'KPIs continuam aparecendo');
+  window.__rpcRespostas.mesa_biometria = { data: null, error: { message: 'x' } };
+  await loadMesa(true);
+  assert(document.getElementById('mesaBioTbody').textContent.includes('Não foi possível carregar') && document.getElementById('mesaSemaforoTbody').querySelectorAll('tr').length > 0, 'falha da Biometria é isolada');
+  window.__rpcRespostas.mesa_biometria = { data: BIO, error: null };
   window.__rpcRespostas.mesa_pendencias = { data: pend, error: null };
 
   // reset ao trocar para consultor
   currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
   mesaAplicarPermissao();
-  assert(document.getElementById('mesaFila').innerHTML === '' && document.getElementById('mesaKpis').innerHTML === '', 'troca para consultor limpa a Mesa');
+  assert(document.getElementById('mesaBioTbody').innerHTML === '' && document.getElementById('mesaKpis').innerHTML === '', 'troca para consultor limpa a Mesa (inclusive a Biometria)');
   currentUser = { id: 's1', nome: 'Supervisor Teste', username: 'sup', role: 'supervisor' };
   mesaAplicarPermissao();
   Date.now = nowReal;
@@ -263,7 +306,7 @@ try{
   window.__rpcRespostas.mesa_retornos_objecoes = { data: null, error: { message: 'x' } };
   await loadMesa(true); await espera(40);
   assert(document.getElementById('mesaRetObj').textContent.includes('Não foi possível carregar'), 'falha isolada');
-  assert(document.querySelectorAll('#mesaFila .vlRow').length === 3, 'resto da Mesa continua');
+  assert(document.getElementById('mesaKpis').textContent.includes('Leads novos hoje'), 'resto da Mesa continua');
   Date.now = nowReal;
 
   // ==== mais testes entram aqui ====
