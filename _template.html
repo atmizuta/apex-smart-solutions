@@ -1296,7 +1296,7 @@
         <div id="mesaRetObj"></div>
       </div>
       </div>
-      <!-- §89: Biometria — pedidos do NeoCRM em BIOMETRIA / AGUARDANDO ASSINATURA dos consultores administrados, com celular -->
+      <!-- §90: Biometria — pedidos do NeoCRM em BIOMETRIA / AGUARDANDO ASSINATURA dos consultores administrados, com celular -->
       <div id="mesaSubBio" style="display:none">
         <div class="card">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
@@ -12232,7 +12232,7 @@ function mesaSemaforo(dados, agoraMs, cfg, hoje){
   const vendasPor = new Map((dados.vendas || []).map(x => [x.profile_id, x]));
   const metaPor = new Map((dados.metas || []).map(x => [x.profile_id, Number(x.meta_receita) || 0]));
   const diaMs = (d) => Date.parse(d + 'T00:00:00Z');
-  // §89: com a equipe de leads carregada, o semáforo mostra só os consultores administrados (leads_equipe.monitorar)
+  // §90: com a equipe de leads carregada, o semáforo mostra só os consultores administrados (leads_equipe.monitorar)
   const eq = (dados.equipe || []).filter(e => e.monitorar !== false);
   const perfis = new Set(eq.map(e => e.profile_id).filter(Boolean)), nomes = new Set(eq.map(e => plNormStatus(e.nome_planilha)));
   const administrado = r => !eq.length || (r.profileId ? perfis.has(r.profileId) : nomes.has(plNormStatus(r.nome)));
@@ -12301,8 +12301,8 @@ async function loadMesa(forcar){
     ppSeguro(() => sb.rpc('mesa_vendas_mes', { p_mes: ym + '-01' })),
     ppSeguro(() => sb.from('metas_consultor').select('profile_id,mes,meta_receita').eq('mes', ym + '-01')),
     ppSeguro(() => sb.from('config').select('chave,valor').eq('chave', 'velocidade_lead').maybeSingle()),
-    ppSeguro(() => sb.from('leads_equipe').select('nome_planilha,profile_id,monitorar')),   // §89
-    ppSeguro(() => sb.rpc('mesa_biometria')),                                                // §89
+    ppSeguro(() => sb.from('leads_equipe').select('nome_planilha,profile_id,monitorar')),   // §90
+    ppSeguro(() => sb.rpc('mesa_biometria')),                                                // §90
   ]);
   if(geracao !== mesaEstado.geracao || !canSeeMesa()) return;
   const ok = r => r && !r.error;
@@ -12414,7 +12414,7 @@ function mesaRenderVelocidade(){
   el.innerHTML = `<div class="mlTabelaWrap"><table class="tbl"><thead><tr><th>Tempo até o 1º contato</th><th>Leads</th><th>Vendas</th><th>Conversão</th></tr></thead><tbody>${
     linhas.map(r => `<tr><td>${escapeHtml(r.rotulo)}</td><td>${r.leads}</td><td>${r.vendas}</td><td>${mesaFmtPct(r.conversao)}</td></tr>`).join('')}</tbody></table></div>`;
 }
-/* ---- §89: Mesa → Biometria (RPC mesa_biometria) ---- */
+/* ---- §90: Mesa → Biometria (RPC mesa_biometria) ---- */
 const MESA_BIO_ETAPA = { 'BIOMETRIA (NEOCRM)': ['Biometria', 'biometria'], 'AGUARDANDO ASSINATURA (NEOCRM)': ['Aguardando assinatura', 'assinatura'] };
 // dias corridos desde a entrada na etapa (no fuso de SP); null sem data
 function mesaBioDias(desde, hoje){ const d = mesaDiaSP(desde); return d ? Math.max(0, Math.round((Date.parse(hoje + 'T00:00:00Z') - Date.parse(d + 'T00:00:00Z')) / 86400000)) : null; }

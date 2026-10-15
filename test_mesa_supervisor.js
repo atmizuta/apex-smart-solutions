@@ -116,12 +116,12 @@ try{
   eq(caio.mediaLig, 20, 'média de ligações da equipe (30 e 10)');
   eq([caio.vendas.receita, caio.meta], [900, 3000], 'Caio: vendas e meta do mês');
   assert(!sem.some(r => r.profileId === 'p-admin'), 'vendas de quem não é consultor não cria linha');
-  // §89: com a equipe de leads, só os administrados (por perfil; sem login, pelo nome da planilha)
+  // §90: com a equipe de leads, só os administrados (por perfil; sem login, pelo nome da planilha)
   const semEq = mesaSemaforo({ leads: leads.concat([LD('b1', { consultor: 'Beltrano', profile_id: null })]), pend, lig, vendas, metas,
     equipe: [{ nome_planilha: 'Caio', profile_id: 'p-caio', monitorar: true }, { nome_planilha: 'Beltrano', profile_id: null, monitorar: true }, { nome_planilha: 'Zeca', profile_id: 'p-zeca', monitorar: false }] }, AGORA, cfg, HOJE);
   eq(semEq.map(r => r.nome).sort(), ['Beltrano', 'Caio Teste'], 'semáforo só com os consultores administrados');
 
-  // §89: Biometria — funções puras
+  // §90: Biometria — funções puras
   const BIO = [
     { consultor: 'Mariana', numero_pedido: 'P1', cliente: 'Empresa A', etapa: 'BIOMETRIA (NEOCRM)', desde: iso('2026-10-01T10:00:00'), valor: 100, quantidade: 2, produtos: 'Plano X', telefone: '11999990001' },
     { consultor: 'Mariana', numero_pedido: 'P2', cliente: 'Empresa B', etapa: 'AGUARDANDO ASSINATURA (NEOCRM)', desde: iso('2026-10-05T08:00:00'), valor: 50, quantidade: 1, produtos: 'Plano Y', telefone: null },
@@ -198,9 +198,9 @@ try{
   assert(kTxt.includes('Leads novos hoje') && kTxt.includes('5'), 'KPI de leads novos');
   assert(kTxt.includes('33,3%'), 'KPI no prazo 7 d');
   assert(kTxt.includes('22 min'), 'KPI mediana');
-  assert(!document.getElementById('mesaFila') && !document.getElementById('panel-mesa').textContent.includes('Atender agora — equipe'), '§89: card "Atender agora — equipe" removido');
-  eq([...document.querySelectorAll('#mesaSemaforoTbody .mesaNome')].map(e => e.textContent).sort(), ['Caio Teste', 'Luria Teste', 'Zeca Teste'], '§89: semáforo sem o "Fora Teste" (fora da equipe de leads)');
-  // §89: sub-aba Biometria
+  assert(!document.getElementById('mesaFila') && !document.getElementById('panel-mesa').textContent.includes('Atender agora — equipe'), '§90: card "Atender agora — equipe" removido');
+  eq([...document.querySelectorAll('#mesaSemaforoTbody .mesaNome')].map(e => e.textContent).sort(), ['Caio Teste', 'Luria Teste', 'Zeca Teste'], '§90: semáforo sem o "Fora Teste" (fora da equipe de leads)');
+  // §90: sub-aba Biometria
   assert(document.getElementById('mesaSubBio').style.display === 'none', 'Biometria começa escondida');
   document.querySelector('[data-mesa-sub="bio"]').click();
   assert(document.getElementById('mesaSubBio').style.display === '' && document.getElementById('mesaSubEquipe').style.display === 'none', 'pílula Biometria troca a tela');

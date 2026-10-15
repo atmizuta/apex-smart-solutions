@@ -1,4 +1,4 @@
--- §89 (15/10/2026): Mesa do Supervisor → sub-aba "Biometria". Pedidos do NeoCRM em BIOMETRIA ou AGUARDANDO
+-- §90 (15/10/2026): Mesa do Supervisor → sub-aba "Biometria". Pedidos do NeoCRM em BIOMETRIA ou AGUARDANDO
 -- ASSINATURA dos consultores administrados (leads_equipe com monitorar), com o celular do cliente para a
 -- supervisora retornar. Celular: lead (planilha) pelo CNPJ → Caderno de Ligação pelo CNPJ → base de clientes pelo CNPJ.
 -- Só admin/supervisor (mesmo padrão da mesa_pendencias). Somente leitura.

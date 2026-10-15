@@ -3173,7 +3173,7 @@ Nova aba **Discador** no menu lateral (grupo "Visão geral", depois do Boletim d
 - **Ordem de entrada no ar:** migration primeiro, depois o painel (o painel antigo ignora a coluna nova; sem a migration o painel novo só não exclui a venda do NEO).
 - **Entrada no ar (15/10/2026, ~17:21, horário de SP):** migration aplicada via `execute_sql` (com `[^0-9]` no lugar de `\D` — o conector recusou a versão com `\D`; mesmo efeito). O painel no ar (`16bf0046…`) era idêntico ao `oficial/main` bb0973d. Publicado **`3d75c5af852b1f9afae9c27f70463ef2`** (gerado = servidor = site; diff só da §88). Backup: `~/deploy_backups/painel_clientes_apex_20261015_172200_antes_lead_repasse.html`. **Reverter:** copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html` (a RPC nova é compatível com o painel antigo).
 
-## 89. Mesa do Supervisor: sem "Atender agora — equipe", semáforo só da equipe de leads e sub-aba "Biometria" (15/10/2026)
+## 90. Mesa do Supervisor: sem "Atender agora — equipe", semáforo só da equipe de leads e sub-aba "Biometria" (15/10/2026)
 
 - **Pedido do Rafael (15/10):** tirar da Mesa o card "Atender agora — equipe"; no "Semáforo por consultor", deixar só os consultores administrados (os que estão nos leads); e uma área **Biometria** dentro da Mesa, com um seletor por consultor (Mariana, Bianca, Lucas, Henrique, Caio, Luria) que mostra os clientes em **BIOMETRIA** e **AGUARDANDO ASSINATURA** no NEO, com o celular para a supervisora (Isabelly) retornar.
 - **Equipe x Biometria:** o cabeçalho da Mesa ganhou duas pílulas, **Equipe** (tudo o que já existia, menos a fila) e **Biometria**. Os KPIs do topo continuam (inclusive "Esperando agora").
