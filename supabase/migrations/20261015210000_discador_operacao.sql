@@ -1,12 +1,12 @@
 -- 15/10/2026 — Operação (Apex / Campinas) na aba Discador (REGRAS_NEGOCIO.md §89).
 -- A operação de cada chamada vem da CAMPANHA (abandonada/não atendida não tem consultor), por PREFIXO do nome em
 -- config.discador.campanhas (o nome muda por mês: "MIGRAÇÃO CLARO OUTUBRO"). Campanha sem regra fica com operacao nula:
--- só aparece em "Todas" e o resumo avisa o admin. Admin escolhe apex/campinas/todas (padrão apex); supervisor vê só a
+-- só aparece em "Todas" e o resumo avisa o admin. O nome real no ProContact é "MIGRACAO-CLARO-OUTUBRO" (recon 15/10): por isso há os dois prefixos. Admin escolhe apex/campinas/todas (padrão apex); supervisor vê só a
 -- própria operação (pedir outra = 42501). Chamada sem p_operacao (painel antigo) continua funcionando.
 -- Mudou a regra em config? Reclassificar:  update public.discador_chamadas set operacao = public.discador_operacao_da_campanha(campanha);
 
 update public.config
-   set valor = (valor::jsonb || '{"campanhas":[{"prefixo":"DISCADOR-APEX","operacao":"apex"},{"prefixo":"MIGRAÇÃO CLARO","operacao":"campinas"}]}'::jsonb)::text,
+   set valor = (valor::jsonb || '{"campanhas":[{"prefixo":"DISCADOR-APEX","operacao":"apex"},{"prefixo":"MIGRAÇÃO CLARO","operacao":"campinas"},{"prefixo":"MIGRACAO-CLARO","operacao":"campinas"}]}'::jsonb)::text,
        atualizado_em = now()
  where chave = 'discador' and not (valor::jsonb ? 'campanhas');
 
