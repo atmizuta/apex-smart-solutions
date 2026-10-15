@@ -3130,3 +3130,10 @@ Pedido do usuário: o layout das propostas geradas estava fraco; criar uma pági
 - **Logo:** `CLARO_ESFERA_B64` (esfera Claro 240 px, PNG com transparência). Os outros documentos (propostas atuais, PDFs) continuam com o logo anterior.
 - **Segurança:** textos vindos do sistema entram escapados (`escapeHtml`); nada é gravado no banco; o funil de vendas não é atualizado por esta folha.
 - **Teste:** `test_proposta_timbrada.js` (18 asserts: abertura, timbre travado, logo, totais, adicionar/remover linha, escape, impressão e geração do Word).
+
+## 85. Biometria: segunda imagem "Instruções de envio de documentos" (15/10/2026)
+Pedido do usuário: na aba Biometria incluir também a imagem do e-mail Claro "Veja como é fácil" (envio da foto do rosto e do documento), personalizando o nome do cliente.
+- **Onde:** novo cartão abaixo do cartão atual da Biometria, com preview e botão "Baixar imagem". Usa o mesmo campo "Nome do cliente"; a imagem atualiza ao digitar (300 ms), como a primeira.
+- **Como é gerada:** base PNG de 457×769 px embutida no painel (`BIO_EMAIL_B64`, sem depender de arquivo no servidor nem de cache de CDN). No `<canvas>` (2×, saída 914×1538 px) o nome original é coberto por branco e o nome do cliente é escrito em negrito e CAIXA ALTA depois de "Olá,", seguido de ponto; a fonte encolhe se o nome for longo (mínimo 8 px na base). Sem nome, o preview mostra "NOME DO CLIENTE" e o download é bloqueado com a mensagem "Informe o nome do cliente.".
+- **Arquivo baixado:** `biometria-instrucoes-claro-<nome>.png`. Enviar como foto no WhatsApp, como a primeira imagem.
+- **Limites:** a fonte do nome é Arial (a original do e-mail é outra, parecida); o resto da imagem é idêntico à base. Se a Claro mudar o e-mail, trocar o PNG base e regerar `BIO_EMAIL_B64`.
