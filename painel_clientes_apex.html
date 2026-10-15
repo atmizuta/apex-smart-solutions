@@ -1057,6 +1057,7 @@
         <h3>Biometria facial</h3>
         <p class="desc">Baixe a imagem personalizada e envie pelo WhatsApp como FOTO (baixe e anexe manualmente — enviada assim, ela aparece grande na tela do cliente, sem ser reduzida pelo WhatsApp).</p>
         <div class="field" style="margin:0;max-width:320px"><label>Nome do cliente</label><input type="text" id="bioNome" placeholder="Ex: João da Silva"></div>
+        <div class="field" style="margin:14px 0 0;max-width:520px"><label>Link da biometria (gerado no pedido da Claro)</label><input type="text" id="bioLegendaLink" placeholder="https://..." autocomplete="off"><div style="font-size:11px;color:var(--muted);margin-top:4px">O link entra automaticamente na legenda do WhatsApp, mais abaixo nesta página.</div></div>
         <div class="field" style="margin:14px 0 0;max-width:320px">
           <label>Preview da imagem</label>
           <img id="bioImgPreview" src="https://apexsmart.com.br/biometria_preview.png?v=2" alt="Preview da imagem de biometria com o nome do cliente" style="width:100%;border-radius:12px;border:1px solid rgba(255,255,255,.12);display:block">
@@ -1077,9 +1078,8 @@
       <!-- 15/10/2026 (seção 86): legenda com o link clicável para enviar junto com a foto no WhatsApp -->
       <div class="card" style="margin-top:16px">
         <h3>Legenda com link para o WhatsApp</h3>
-        <p class="desc">No WhatsApp a imagem em si não tem link, mas o link escrito na legenda fica clicável. Cole o link da Claro, copie a legenda e cole no campo "Adicionar legenda" ao anexar a foto.</p>
-        <div class="field" style="margin:0;max-width:520px"><label>Link da Claro (biometria)</label><input type="text" id="bioLegendaLink" placeholder="https://..." autocomplete="off"></div>
-        <div class="field" style="margin:14px 0 0;max-width:520px"><label>Legenda (pode editar)</label><textarea id="bioLegenda" rows="8" style="width:100%;box-sizing:border-box"></textarea></div>
+        <p class="desc">No WhatsApp a imagem em si não tem link, mas o link escrito na legenda fica clicável. A legenda usa o nome do cliente e o link da biometria preenchidos no topo da página. Copie e cole no campo "Adicionar legenda" ao anexar a foto.</p>
+        <div class="field" style="margin:0;max-width:520px"><label>Legenda (pode editar)</label><textarea id="bioLegenda" rows="8" style="width:100%;box-sizing:border-box"></textarea></div>
         <div class="loginError" id="bioLegendaErr" style="display:none;margin-top:10px"></div>
         <button type="button" class="btn" id="btnCopiarLegendaBio" style="width:auto;margin-top:14px">Copiar legenda</button>
       </div>
@@ -2933,10 +2933,12 @@ function bioLinkValido(l){ return /^https?:\/\/\S+$/i.test((l || '').trim()); }
 function bioMontarLegenda(nome, link){
   const pn = bioPrimeiroNome(nome);
   const url = bioLinkValido(link) ? link.trim() : '[cole aqui o link da Claro]';
-  return 'Olá' + (pn ? ', ' + pn : '') + '! Para concluir o seu pedido, precisamos da sua foto e da sua documentação. É rápido e seguro.\n\n'
-    + 'Toque no link, permita o acesso à câmera, tire uma foto do seu rosto e do seu documento de identidade (frente e verso) e clique em "Finalizar":\n'
+  return 'Olá' + (pn ? ', ' + pn : '') + '! Tudo bem?\n\n'
+    + 'Falta só uma etapa para finalizarmos o seu pedido com a Claro Empresas: a confirmação de identidade. Ela existe para proteger você e garantir que ninguém use os seus dados sem autorização.\n\n'
+    + 'É simples e rápido, feito direto pelo celular: pelo link abaixo você tira uma foto do rosto e do documento de identidade.\n'
     + url + '\n\n'
-    + 'Qualquer dúvida, é só me chamar por aqui. Apex Smart Solutions, parceiro autorizado Claro Empresas.';
+    + 'O link leva ao ambiente seguro validado pelo Serasa. Se preferir, eu te acompanho por aqui durante o passo a passo.\n\n'
+    + 'Fico à disposição!';
 }
 function bioAtualizarLegenda(){
   const ta = document.getElementById('bioLegenda');
@@ -2950,7 +2952,7 @@ document.getElementById('btnCopiarLegendaBio').addEventListener('click', functio
   const link = document.getElementById('bioLegendaLink').value;
   const ta = document.getElementById('bioLegenda');
   if(!bioLinkValido(link) && ta.value.indexOf('[cole aqui o link da Claro]') >= 0){
-    errEl.textContent = 'Cole o link da Claro (começando com https://) antes de copiar a legenda.';
+    errEl.textContent = 'Informe o link da biometria (começando com https://) no topo da página antes de copiar a legenda.';
     errEl.style.display = 'block';
     return;
   }

@@ -3140,8 +3140,8 @@ Pedido do usuário: na aba Biometria incluir também a imagem do e-mail Claro "V
 
 ## 86. Biometria: legenda com link clicável para o WhatsApp (15/10/2026)
 No WhatsApp (aplicativo comum e Business) a imagem não aceita link; só o texto fica clicável. Por isso a aba Biometria ganhou o cartão **"Legenda com link para o WhatsApp"**.
-- **Campos:** "Link da Claro (biometria)" (`#bioLegendaLink`) e "Legenda" (`#bioLegenda`, editável). A legenda é montada com o primeiro nome do campo "Nome do cliente" ("Olá, Adriano!...") e o link, e se atualiza ao digitar nome ou link.
-- **Texto:** pede foto do rosto e do documento de identidade (frente e verso), orienta permitir a câmera e clicar em "Finalizar", e termina com a identificação "Apex Smart Solutions, parceiro autorizado Claro Empresas".
+- **Campos:** o **link da biometria** (`#bioLegendaLink`) fica no cartão de cima, logo abaixo do "Nome do cliente", e o consultor informa os dois juntos; a "Legenda" (`#bioLegenda`, editável) fica no cartão "Legenda com link para o WhatsApp" e se atualiza ao digitar nome ou link. Usa o primeiro nome do cliente ("Olá, Adriano!...").
+- **Texto (versão 3, redigida pelo usuário):** saudação; falta só uma etapa (confirmação de identidade), que existe para proteger o cliente; simples e rápido, direto pelo celular, foto do rosto e do documento de identidade; link; "O link leva ao ambiente seguro validado pelo Serasa."; oferece acompanhar o passo a passo; "Fico à disposição!". Versões anteriores (mais diretas) foram descartadas por parecerem agressivas.
 - **Validação do link:** só aceita `http://` ou `https://` sem espaços; qualquer outra coisa (inclusive `javascript:`) não entra na legenda e fica o marcador "[cole aqui o link da Claro]". "Copiar legenda" é bloqueado com aviso enquanto o link for inválido.
 - **Uso:** enviar a imagem como foto e colar a legenda no campo "Adicionar legenda" do WhatsApp; o link na legenda fica azul e clicável.
 - **Teste:** `test_biometria_legenda.js` (9 asserts). O id `bioLink` do fluxo antigo continua inexistente (`test_biometria_tab.js`).
