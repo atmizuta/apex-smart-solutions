@@ -1303,7 +1303,7 @@
             <h3 style="margin:0">Biometria e assinatura</h3>
             <button type="button" class="btn btn-sm btn-outline" id="btnMesaBioExportar" style="width:auto">Exportar Excel</button>
           </div>
-          <p class="desc">Pedidos parados em BIOMETRIA ou AGUARDANDO ASSINATURA no NEO. Escolha o consultor. O celular vem da planilha de leads (pelo CNPJ ou, se o CNPJ foi digitado diferente, pelo nome do cliente no mesmo consultor); sem lead, do Caderno ou da base de clientes. "Ligações desde a etapa" cruza todos os números do cliente na planilha com o relatório de ligações manuais.</p>
+          <p class="desc">Pedidos parados em BIOMETRIA ou AGUARDANDO ASSINATURA no NEO, de todos os consultores da operação Apex. Escolha o consultor. O celular vem da planilha de leads (pelo CNPJ ou, se o CNPJ foi digitado diferente, pelo nome do cliente no mesmo consultor); sem lead, do Caderno ou da base de clientes. "Ligações desde a etapa" cruza todos os números do cliente na planilha com o relatório de ligações manuais e diz quem ligou; ligação feita fora da telefonia (celular, WhatsApp) ou por login que não vem no relatório não aparece.</p>
           <div class="filterPills" id="mesaBioPills" style="margin:10px 0"></div>
           <p class="desc" id="mesaBioResumo"></p>
           <div class="mlTabelaWrap"><table class="tbl">
@@ -12424,9 +12424,9 @@ function mesaRenderVelocidade(){
 const MESA_BIO_ETAPA = { 'BIOMETRIA (NEOCRM)': ['Biometria', 'biometria'], 'AGUARDANDO ASSINATURA (NEOCRM)': ['Aguardando assinatura', 'assinatura'] };
 // dias corridos desde a entrada na etapa (no fuso de SP); null sem data
 function mesaBioDias(desde, hoje){ const d = mesaDiaSP(desde); return d ? Math.max(0, Math.round((Date.parse(hoje + 'T00:00:00Z') - Date.parse(d + 'T00:00:00Z')) / 86400000)) : null; }
-// pílulas: cada consultor administrado (mesmo sem pedido), com a contagem
-function mesaBioConsultores(equipe, bio){
-  const nomes = (equipe || []).map(e => e.nome_planilha).filter(Boolean);
+// pílulas: cada consultor com pedido parado (§93: todos da operação Apex, não só a equipe de leads), com a contagem
+function mesaBioConsultores(bio){
+  const nomes = [];
   (bio || []).forEach(b => { if(b.consultor && !nomes.includes(b.consultor)) nomes.push(b.consultor); });
   return nomes.sort((a, b) => a.localeCompare(b, 'pt-BR')).map(n => ({ nome: n, n: (bio || []).filter(b => b.consultor === n).length }));
 }
@@ -12445,8 +12445,12 @@ function mesaBioRadar(b){
   const ult = b.ultima_lig ? 'última ' + mlFmtDiaHora(b.ultima_lig).replace(',', '') : '';
   if(!b.telefone) return { nivel: 'semtel', texto: 'sem celular para cruzar', sub: '' };
   if(!n) return { nivel: b.dias === 0 ? 'hoje' : 'nenhuma', texto: 'Nenhuma ligação', sub: [b.dias === 0 ? 'entrou hoje' : '', antes ? pl(antes, 'antes da etapa', 'antes da etapa') : ''].filter(Boolean).join(' · ') };
-  const partes = [ult, cons === n ? '' : (cons ? pl(n - cons, 'de outra pessoa', 'de outra pessoa') : 'nenhuma do consultor')].filter(Boolean);
-  return { nivel: cons ? 'ok' : 'outro', texto: pl(n, 'ligação', 'ligações'), sub: partes.join(' · ') };
+  // §93: quem ligou (lig_por da RPC): "Caio 3 (consultor) · Isabelly 1"
+  const por = Array.isArray(b.lig_por) ? b.lig_por : [];
+  const quem = por.map(p => (p.quem || p.login || '?') + ' ' + (Number(p.n) || 0) + (p.proprio ? ' (consultor)' : '')).join(' · ');
+  const partes = por.length ? [cons ? quem : 'só de outra pessoa: ' + quem, ult]
+    : [ult, cons === n ? '' : (cons ? pl(n - cons, 'de outra pessoa', 'de outra pessoa') : 'nenhuma do consultor')];
+  return { nivel: cons ? 'ok' : 'outro', texto: pl(n, 'ligação', 'ligações'), sub: partes.filter(Boolean).join(' · ') };
 }
 function mesaRenderBio(){
   const d = mesaEstado.dados, tb = document.getElementById('mesaBioTbody');
@@ -12456,7 +12460,7 @@ function mesaRenderBio(){
     document.getElementById('mesaBioPills').innerHTML = ''; document.getElementById('mesaBioResumo').textContent = '';
     return;
   }
-  const cons = mesaBioConsultores(d.equipe, d.bio);
+  const cons = mesaBioConsultores(d.bio);
   if(mesaEstado.bioSel && !cons.some(c => c.nome === mesaEstado.bioSel)) mesaEstado.bioSel = '';
   document.getElementById('mesaBioPills').innerHTML = [{ nome: '', rotulo: 'Todos', n: d.bio.length }].concat(cons.map(c => ({ nome: c.nome, rotulo: c.nome, n: c.n })))
     .map(c => `<button type="button" class="filterPill${c.nome === mesaEstado.bioSel ? ' active' : ''}" data-mesa-bio="${escapeHtml(c.nome)}">${escapeHtml(c.rotulo)} (${c.n})</button>`).join('');
@@ -12493,6 +12497,7 @@ document.getElementById('btnMesaBioExportar').addEventListener('click', function
   const linhas = mesaBioLinhas(d ? d.bio : [], mesaEstado.bioSel, mesaEstado.hoje).map(b => ({ Consultor: b.consultor || '', Cliente: b.cliente || '', CNPJ: b.cnpj || '',
     Etapa: (MESA_BIO_ETAPA[b.etapa] || [b.etapa || ''])[0], 'Na etapa há (dias)': b.dias === null ? '' : b.dias,
     'Ligações desde a etapa': b.telefone ? Number(b.lig_etapa) || 0 : '', 'Do consultor': b.telefone ? Number(b.lig_consultor) || 0 : '',
+    'Quem ligou': (Array.isArray(b.lig_por) ? b.lig_por : []).map(p => (p.quem || p.login || '?') + ' ' + (Number(p.n) || 0)).join(' · '),
     'Última ligação': b.ultima_lig ? mlFmtDiaHora(b.ultima_lig) : '', Pedido: b.numero_pedido || '', Produtos: b.produtos || '',
     Linhas: Number(b.quantidade) || 0, 'Valor (R$)': Number(b.valor) || 0, Celular: b.telefone || '' }));
   mlBaixarXlsx('MesaBiometria_' + (mesaEstado.bioSel || 'Todos') + '_' + mesaEstado.hoje + '.xlsx', [{ nome: 'Biometria', linhas }]);
