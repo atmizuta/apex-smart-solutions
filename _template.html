@@ -1303,7 +1303,7 @@
             <h3 style="margin:0">Biometria e assinatura</h3>
             <button type="button" class="btn btn-sm btn-outline" id="btnMesaBioExportar" style="width:auto">Exportar Excel</button>
           </div>
-          <p class="desc">Pedidos parados em BIOMETRIA ou AGUARDANDO ASSINATURA no NEO. Escolha o consultor; o celular vem do lead, do Caderno ou da base de clientes (pelo CNPJ). "Ligações desde a etapa" cruza o celular com o relatório de ligações manuais.</p>
+          <p class="desc">Pedidos parados em BIOMETRIA ou AGUARDANDO ASSINATURA no NEO. Escolha o consultor. O celular vem da planilha de leads (pelo CNPJ ou, se o CNPJ foi digitado diferente, pelo nome do cliente no mesmo consultor); sem lead, do Caderno ou da base de clientes. "Ligações desde a etapa" cruza todos os números do cliente na planilha com o relatório de ligações manuais.</p>
           <div class="filterPills" id="mesaBioPills" style="margin:10px 0"></div>
           <p class="desc" id="mesaBioResumo"></p>
           <div class="mlTabelaWrap"><table class="tbl">
@@ -12436,6 +12436,8 @@ function mesaBioLinhas(bio, sel, hoje){
     .sort((a, b) => (b.dias === null ? -1 : b.dias) - (a.dias === null ? -1 : a.dias) || String(a.cliente || '').localeCompare(String(b.cliente || ''), 'pt-BR'));
 }
 // §91: radar de ligações manuais ao celular do cliente desde que o pedido entrou na etapa (campos da RPC mesa_biometria)
+// §92: de onde veio o celular quando não foi pelo CNPJ igual na planilha
+const MESA_BIO_FONTE = { lead_nome: 'achado na planilha pelo nome (CNPJ digitado diferente)', lead_cnpj_parecido: 'achado na planilha pelo CNPJ quase igual', caderno: 'do Caderno de Ligação', clientes: 'da base de clientes' };
 const MESA_BIO_RADAR_CLASSE = { nenhuma: 'retornoBadge atrasado', outro: 'retornoBadge hoje', ok: 'retornoBadge futuro', hoje: 'badge', semtel: '' };
 function mesaBioRadar(b){
   const n = Number(b.lig_etapa) || 0, cons = Number(b.lig_consultor) || 0, antes = Math.max(0, (Number(b.lig_total) || 0) - n);
@@ -12468,7 +12470,8 @@ function mesaRenderBio(){
     const msg = et[1] ? ppMensagem(et[1], { produtos: b.produtos }) : '';
     const cel = b.telefone ? `<button type="button" class="btn btn-sm btn-outline" data-copiar="${escapeHtml(b.telefone)}" style="width:auto">${escapeHtml(b.telefone)}</button>`
       + (wa ? ` <a class="btn btn-sm" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${encodeURIComponent(msg)}" style="width:auto">WhatsApp</a>` : '')
-      : '<span class="desc">sem celular — ver no NEO</span>';
+      + (MESA_BIO_FONTE[b.fonte_tel] ? `<div style="font-size:var(--fs-xs);color:var(--muted)">${escapeHtml(MESA_BIO_FONTE[b.fonte_tel])}</div>` : '')
+      : '<span class="desc">não está na planilha de leads — ver o celular no NEO</span>';
     const qtd = Number(b.quantidade) || 0;
     const sub = t => `<div style="font-size:var(--fs-xs);color:var(--muted)">${t}</div>`;
     return `<tr><td>${escapeHtml(b.cliente || '—')}${mesaEstado.bioSel ? '' : sub(escapeHtml(b.consultor || ''))}${sub(escapeHtml(b.cnpj || ''))}</td>

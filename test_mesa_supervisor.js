@@ -125,7 +125,7 @@ try{
   const BIO = [
     { consultor: 'Mariana', numero_pedido: 'P1', cliente: 'Empresa A', etapa: 'BIOMETRIA (NEOCRM)', desde: iso('2026-10-01T10:00:00'), valor: 100, quantidade: 2, produtos: 'Plano X', telefone: '11999990001' },
     { consultor: 'Mariana', numero_pedido: 'P2', cliente: 'Empresa B', etapa: 'AGUARDANDO ASSINATURA (NEOCRM)', desde: iso('2026-10-05T08:00:00'), valor: 50, quantidade: 1, produtos: 'Plano Y', telefone: null },
-    { consultor: 'Caio', numero_pedido: 'P3', cliente: 'Empresa C', etapa: 'BIOMETRIA (NEOCRM)', desde: iso('2026-10-03T10:00:00'), valor: 70, quantidade: 1, produtos: 'Plano Z', telefone: '(11) 98888-0002' },
+    { consultor: 'Caio', numero_pedido: 'P3', cliente: 'Empresa C', etapa: 'BIOMETRIA (NEOCRM)', desde: iso('2026-10-03T10:00:00'), valor: 70, quantidade: 1, produtos: 'Plano Z', telefone: '(11) 98888-0002', fonte_tel: 'lead_nome' },
   ];
   eq(mesaBioDias(iso('2026-10-01T10:00:00'), HOJE), 4, 'dias na etapa');
   eq(mesaBioDias(null, HOJE), null, 'sem data: null');
@@ -225,11 +225,14 @@ try{
   assert(bioTr[0].textContent.includes('Biometria') && bioTr[1].textContent.includes('Aguardando assinatura'), 'mostra as duas etapas');
   assert(bioTr[0].querySelector('a[href^="https://wa.me/5511999990001?text="]') && bioTr[0].querySelector('[data-copiar="11999990001"]'), 'celular com copiar e WhatsApp');
   assert(decodeURIComponent(bioTr[0].querySelector('a[href^="https://wa.me/"]').href).includes('biometria facial'), 'mensagem de biometria');
-  assert(bioTr[1].textContent.includes('sem celular'), 'sem celular avisa');
+  assert(bioTr[1].textContent.includes('não está na planilha de leads'), 'sem celular avisa que não está na planilha');
+  assert(!bioTr[0].textContent.includes('achado na planilha'), '§92: achado pelo CNPJ não mostra aviso de origem');
   assert(bioTr[0].querySelector('.mesaBioRadar') && bioTr[0].textContent.includes('Nenhuma ligação'), '§91: radar na mesma linha');
   assert(document.getElementById('mesaBioResumo').textContent.includes('1 sem nenhuma ligação'), '§91: resumo conta os sem ligação');
   assert(bioTr[0].children[2].classList.contains('mlAtraso') && bioTr[0].children[2].textContent.trim() === '4 d', '4 dias na etapa em destaque');
   assert(document.getElementById('mesaBioResumo').textContent.includes('2 pedidos') && document.getElementById('mesaBioResumo').textContent.includes('1 com celular'), 'resumo');
+  document.querySelector('[data-mesa-bio="Caio"]').click();
+  assert(document.getElementById('mesaBioTbody').textContent.includes('achado na planilha pelo nome'), '§92: celular achado pelo nome avisa a origem');
   document.querySelector('[data-mesa-bio="Luria"]').click();
   assert(document.getElementById('mesaBioTbody').textContent.includes('Luria não tem pedido'), 'consultor sem pedido: mensagem');
   window.__xlsx = window.__xlsx || [];
