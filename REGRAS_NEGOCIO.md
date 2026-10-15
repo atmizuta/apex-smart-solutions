@@ -3212,3 +3212,4 @@ A aba Discador (§87) passou a separar as operações. Spec: adendo da §8 em `d
 - **Tela:** quando o número não veio pelo CNPJ igual, embaixo do celular aparece a origem ("achado na planilha pelo nome (CNPJ digitado diferente)", "pelo CNPJ quase igual", "do Caderno", "da base de clientes"). Sem número: "não está na planilha de leads — ver o celular no NEO".
 - **Retrato em 15/10 (~20h30):** 30 pedidos, 26 com celular (2 achados pelo nome); 4 sem lead na planilha.
 - **Código:** `MESA_BIO_FONTE` no `_template.html`. Testes: `test_mesa_supervisor.js` (108 ok).
+- **Entrada no ar (15/10/2026, ~20:27, horário de SP):** `mesa_biometria()` atualizada via `execute_sql` (create or replace; security definer; sem acesso para anon). O painel no ar (`eec82ab1…`) era o da §91. Publicado **`bbcdff56366dc16845b30a3aaf18980d`** (gerado = servidor = site; diff só da §92). Backup: `~/deploy_backups/painel_clientes_apex_20261015_202654_antes_bio_planilha.html`.
