@@ -132,9 +132,9 @@ Funções:
 - `discador_mailing(de, ate, dimensao)` → `dimensao` = `carga` | `operadora` | `cidade` (cidade: mínimo de 300 tentativas, top 15 por vendas por 1.000).
 - `discador_agentes_sem_vinculo()` → para o aviso do admin.
 
-## 8. Painel: sub-aba "Discador"
+## 8. Painel: aba "Discador"
 
-Local: Dashboard de Produção, ao lado de Pedidos em Alerta e Vendas Perdidas. Visível só para admin/supervisor (mesmo controle dessas sub-abas). Segue o design atual (Sinal de Ápice), sem mudar estilos existentes.
+Local: item próprio "Discador" no menu lateral, grupo "Visão geral", depois do Boletim da Manhã (decisão do Rafael em 15/10: o Dashboard é um iframe com dados injetados e não reconsulta o banco por período). Visível só para admin/supervisor da operação Apex (mesmo critério do Boletim). Segue o design atual (Sinal de Ápice), sem mudar estilos existentes.
 
 - **Filtro:** Hoje · Ontem · 7 dias · Mês · Personalizado (abre em Hoje).
 - **Linha de status:** "Atualizado às HH:MM" (último log com sucesso). Faixa de aviso se não houver sincronização com sucesso há mais de 3 h entre 07h e 22h, segunda a sábado.
@@ -201,6 +201,6 @@ Respondidas em 14/10:
 
 1. **Plano A — Banco e função:** migration, `ingest-discador`, testes, rollback, script da carga inicial.
 2. **Plano B — Robô:** reconhecimento, leitor, etapa nova, flag, testes.
-3. **Plano C — Painel:** sub-aba Discador, funções de leitura no front, testes JS, publicação, §87.
+3. **Plano C — Painel:** aba Discador no menu lateral, funções de leitura no front, testes JS, publicação, §87.
 
 Ordem: A → carga inicial → C pode começar em paralelo a B (já há dados de outubro) → B ligado → publicação.

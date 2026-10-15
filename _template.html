@@ -12393,6 +12393,57 @@ function bmVerificarHora(entrando){
   else if(!bmPainelAtivo()) mostrarAviso('Boletim da Manhã pronto — abra "Boletim da Manhã" no menu.', 'info');
 }
 
+/* ============ DISCADOR (15/10/2026, seção 87) — admin/supervisor ============
+   Discador automático do ProContact: ritmo/abandono por hora, consultores e mailing, a partir das RPCs discador_*
+   (spec docs/superpowers/specs/2026-10-14-discador-visao-supervisao-design.md). O banco devolve só agregados: nenhuma
+   tela mostra cliente, CNPJ ou telefone. Consultor não vê o botão e nada é consultado; a proteção real são as RPCs. */
+const DC_MAX_DIAS = 120;               // igual ao limite das RPCs (p_ate - p_de > 120 é recusado)
+const DC_MIN_CONTATOS_ALERTA = 10;     // alerta de abandono só com amostra mínima na hora
+const DC_MIN_ATENDIDAS_DESTAQUE = 20;  // destaque de consultor só com amostra mínima no período
+const dcEstado = { geracao: 0, chave: 'hoje', de: null, ate: null };
+function canSeeDiscador(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor') && veAbasDaApex(); }
+function dcPeriodo(chave, hoje, de, ate){
+  if(chave === 'ontem'){ const d = somaDiasStr(hoje, -1); return { de: d, ate: d }; }
+  if(chave === '7dias') return { de: somaDiasStr(hoje, -6), ate: hoje };
+  if(chave === 'mes') return { de: hoje.slice(0, 8) + '01', ate: hoje };
+  if(chave === 'custom'){
+    const re = /^\d{4}-\d{2}-\d{2}$/;
+    if(!re.test(de || '') || !re.test(ate || '') || ate < de) return null;
+    const dias = (Date.parse(ate + 'T00:00:00Z') - Date.parse(de + 'T00:00:00Z')) / 86400000;
+    return dias > DC_MAX_DIAS ? null : { de, ate };
+  }
+  return { de: hoje, ate: hoje };
+}
+function dcTaxa(n, d){ return Number(d) > 0 ? (Number(n) || 0) / Number(d) : null; }
+function dcFmtPct(x){ return x === null || x === undefined || !Number.isFinite(x) ? '—' : (x * 100).toFixed(1).replace('.', ',') + '%'; }
+function dcFmtNum(n){ return (Number(n) || 0).toLocaleString('pt-BR'); }
+function dcFmtSeg(s){
+  if(s === null || s === undefined || !Number.isFinite(Number(s))) return '—';
+  const v = Math.round(Number(s));
+  return v < 60 ? v + ' s' : Math.floor(v / 60) + ' min ' + String(v % 60).padStart(2, '0') + ' s';
+}
+function dcDdMm(dia){ return String(dia).slice(8, 10) + '/' + String(dia).slice(5, 7); }
+// Última hora cheia (horaAgora - 1): abandono acima do limite, com amostra mínima.
+function dcAlertaAbandono(porHora, horaAgora, limite){
+  if(!Array.isArray(porHora)) return null;
+  const h = porHora.find(x => Number(x.hora) === horaAgora - 1);
+  if(!h || Number(h.contato) < DC_MIN_CONTATOS_ALERTA) return null;
+  const taxa = dcTaxa(h.abandonadas, h.contato);
+  return taxa !== null && taxa > Number(limite) ? { hora: Number(h.hora), taxa, abandonadas: Number(h.abandonadas), contato: Number(h.contato) } : null;
+}
+// Médias da equipe ponderadas pelas atendidas (quem atende mais pesa mais).
+function dcMediaEquipe(consultores){
+  const s = (consultores || []).reduce((a, c) => {
+    a.at += Number(c.atendidas) || 0; a.sa += Number(c.sem_avanco) || 0; a.st += Number(c.sem_tabulacao) || 0; a.v += Number(c.vendas) || 0;
+    return a;
+  }, { at: 0, sa: 0, st: 0, v: 0 });
+  return { semAvanco: dcTaxa(s.sa, s.at), semTab: dcTaxa(s.st, s.at), conversao: dcTaxa(s.v, s.at) };
+}
+// Mais de 30% pior que a média (maiorEhPior: % sem avanço e sem tabulação; senão: conversão).
+function dcPiorQueMedia(valor, media, maiorEhPior){
+  if(valor === null || media === null || media === undefined || !Number.isFinite(valor)) return false;
+  return maiorEhPior ? valor > media * 1.3 : valor < media * 0.7;
+}
 document.getElementById('bmSeletor').addEventListener('change', async function(){
   const dia = this.value;
   if(!dia || !canSeeBoletim()) return;
