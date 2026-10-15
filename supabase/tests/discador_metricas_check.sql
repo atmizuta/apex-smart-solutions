@@ -13,15 +13,15 @@ on conflict (id) do update set nome = excluded.nome, username = excluded.usernam
 
 insert into public.discador_agente (agente_id, profile_id) values (900001, '00000000-0000-0000-0000-00000000d102');
 
-insert into public.discador_chamadas (id, gerada_em, status, agente_id, seg_falados, tabulacao, carga_id, carga, operadora_base, cidade, cnpj) values
-  (999100001, '2000-06-05 10:05-03', 'ANSWERED',  900001, 60,   'SEM AVANÇO',        1, 'ZZ-CARGA-1', 'ZZ-TIM',  'ZZCIDADE', '00000000000101'),
-  (999100002, '2000-06-05 10:10-03', 'ANSWERED',  900001, 120,  null,                1, 'ZZ-CARGA-1', 'ZZ-TIM',  'ZZCIDADE', '00000000000202'),
-  (999100003, '2000-06-05 10:20-03', 'ABANDONED', null,   null, null,                1, 'ZZ-CARGA-1', 'ZZ-TIM',  'ZZCIDADE', '00000000000303'),
-  (999100004, '2000-06-05 11:00-03', 'BUSY',      null,   null, null,                2, 'ZZ-CARGA-2', 'ZZ-VIVO', 'ZZCIDADE', '00000000000404'),
-  (999100005, '2000-06-05 11:05-03', 'NOANSWER',  null,   null, null,                2, 'ZZ-CARGA-2', 'ZZ-VIVO', 'ZZCIDADE', '00000000000505'),
-  (999100006, '2000-06-05 11:30-03', 'ANSWERED',  900002, 30,   'AQUISIÇÃO - GANHO', 2, 'ZZ-CARGA-2', 'ZZ-VIVO', 'ZZCIDADE', '00000000000202'),
-  (999100007, '2000-05-29 10:00-03', 'ANSWERED',  900001, 10,   'RETORNO',           1, 'ZZ-CARGA-1', 'ZZ-TIM',  'ZZCIDADE', '00000000000606'),
-  (999100008, '2000-05-22 10:00-03', 'ABANDONED', null,   null, null,                1, 'ZZ-CARGA-1', 'ZZ-TIM',  'ZZCIDADE', '00000000000707');
+insert into public.discador_chamadas (id, gerada_em, status, agente_id, seg_falados, tabulacao, carga_id, carga, operadora_base, cidade, cnpj, campanha) values
+  (999100001, '2000-06-05 10:05-03', 'ANSWERED',  900001, 60,   'SEM AVANÇO',        1, 'ZZ-CARGA-1', 'ZZ-TIM',  'ZZCIDADE', '00000000000101', 'DISCADOR-APEX-ZZ'),
+  (999100002, '2000-06-05 10:10-03', 'ANSWERED',  900001, 120,  null,                1, 'ZZ-CARGA-1', 'ZZ-TIM',  'ZZCIDADE', '00000000000202', 'DISCADOR-APEX-ZZ'),
+  (999100003, '2000-06-05 10:20-03', 'ABANDONED', null,   null, null,                1, 'ZZ-CARGA-1', 'ZZ-TIM',  'ZZCIDADE', '00000000000303', 'DISCADOR-APEX-ZZ'),
+  (999100004, '2000-06-05 11:00-03', 'BUSY',      null,   null, null,                2, 'ZZ-CARGA-2', 'ZZ-VIVO', 'ZZCIDADE', '00000000000404', 'DISCADOR-APEX-ZZ'),
+  (999100005, '2000-06-05 11:05-03', 'NOANSWER',  null,   null, null,                2, 'ZZ-CARGA-2', 'ZZ-VIVO', 'ZZCIDADE', '00000000000505', 'DISCADOR-APEX-ZZ'),
+  (999100006, '2000-06-05 11:30-03', 'ANSWERED',  900002, 30,   'AQUISIÇÃO - GANHO', 2, 'ZZ-CARGA-2', 'ZZ-VIVO', 'ZZCIDADE', '00000000000202', 'DISCADOR-APEX-ZZ'),
+  (999100007, '2000-05-29 10:00-03', 'ANSWERED',  900001, 10,   'RETORNO',           1, 'ZZ-CARGA-1', 'ZZ-TIM',  'ZZCIDADE', '00000000000606', 'DISCADOR-APEX-ZZ'),
+  (999100008, '2000-05-22 10:00-03', 'ABANDONED', null,   null, null,                1, 'ZZ-CARGA-1', 'ZZ-TIM',  'ZZCIDADE', '00000000000707', 'DISCADOR-APEX-ZZ');
 
 -- pedidos: ZZP1 (2 itens, CNPJ B pontuado) conta 1 venda, atribuída à ÚLTIMA atendida (999100006, agente 900002, ZZ-CARGA-2);
 -- ZZP2 perdido não conta; ZZP3 (CNPJ C só abandonado) não conta; ZZP4 (CNPJ A, 43 dias depois) fora da janela de 30.
@@ -36,8 +36,8 @@ do $$
 declare r record; n int; v_ok boolean;
 begin
   -- discador_periodo precisa ser inlinável (sem security definer nem SET) para usar o índice de gerada_em
-  assert not (select prosecdef from pg_proc where oid = 'public.discador_periodo(date,date)'::regprocedure), 'discador_periodo não é security definer';
-  assert (select proconfig is null from pg_proc where oid = 'public.discador_periodo(date,date)'::regprocedure), 'discador_periodo sem SET';
+  assert not (select prosecdef from pg_proc where oid = 'public.discador_periodo(date,date,text)'::regprocedure), 'discador_periodo não é security definer';
+  assert (select proconfig is null from pg_proc where oid = 'public.discador_periodo(date,date,text)'::regprocedure), 'discador_periodo sem SET';
 
   execute 'set local role authenticated';
 
