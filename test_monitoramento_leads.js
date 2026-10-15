@@ -137,6 +137,27 @@ try{
   const vazio = mlClassificarLeads([], ML_METAS_PADRAO, agora);
   assert(vazio.semLigacao.length === 0 && vazio.inconsistencias.vendaSemLigacao.length === 0, 'lista vazia não quebra');
   assert(mlClassificarLeads(null, null, agora).semLigacao.length === 0, 'null não quebra');
+  eq(cl.repasse.map(x => x.lead_id), ['c', 'h'], 'repasse: em aberto com 1-2 ligações + perdido por "não responde" (CNPJ inapto fica fora)');
+
+  // §88: venda no NEO (venda_neo) vale como venda, mesmo com a planilha em aberto
+  const clNeo = mlClassificarLeads([
+    L('n1', 'andamento', 0, { venda_neo: true }),                           // venda pelo WhatsApp: não é "sem ligação"
+    L('n2', 'andamento', 1, { venda_neo: true }),                           // venda: não é repasse nem abaixo do mínimo
+    L('n3', 'sem_contato', 0),
+    L('n4', 'perdido', 2, { status: 'LEAD PAROU DE RESPONDER', consultor: 'Henrique', ultima_ligacao: '2026-10-02T15:00:00Z' }),
+    L('n5', 'andamento', 2, { consultor: 'Henrique', ultima_ligacao: '2026-10-01T15:00:00Z' }),
+    L('n6', 'perdido', 1, { status: 'CLIENTE NÃO RESPONDE', venda_neo: true }),
+  ], ML_METAS_PADRAO, agora);
+  eq(clNeo.semLigacao.map(x => x.lead_id), ['n3'], 'venda do NEO sem ligação não entra na fila');
+  eq(clNeo.abaixoMin.map(x => x.lead_id), ['n5'], 'venda do NEO não entra na cadência');
+  eq(clNeo.repasse.map(x => x.lead_id), ['n4', 'n5'], 'venda do NEO não entra no repasse');
+  eq(clNeo.inconsistencias.vendaSemLigacao.map(x => x.lead_id), ['n1'], 'venda do NEO sem ligação vira só "venda sem ligação"');
+  eq(clNeo.inconsistencias.perdidoCedo.map(x => x.lead_id), [], 'venda do NEO não é "perdido cedo"');
+  const grupos = mlRepassePorConsultor(clNeo.repasse);
+  eq(grupos.map(g => [g.consultor, g.leads.map(x => x.lead_id)]), [['Henrique', ['n5', 'n4']]], 'agrupa por consultor, última ligação mais antiga primeiro');
+  eq(grupos[0].ultimaMaisAntiga, '2026-10-01T15:00:00Z', 'guarda a última ligação mais antiga do grupo');
+  eq(mlRepassePorConsultor([]), [], 'sem repasse: lista vazia');
+  eq(mlCardsEquipe([{ nome_planilha: 'Caio', monitorar: true }], [L('v', 'andamento', 0, { venda_neo: true }), L('w', 'andamento', 0)])[0].semLigacao, 1, 'card não conta venda do NEO como sem ligação');
 
   // cards da equipe
   const equipe = [{ id: 1, nome_planilha: 'Caio', usuario_telefonia: 'apex.caiocosta', monitorar: true }, { id: 2, nome_planilha: 'Zé', usuario_telefonia: null, monitorar: false }, { id: 3, nome_planilha: 'Luria', usuario_telefonia: 'Apex.luria', monitorar: true }];
@@ -313,6 +334,11 @@ try{
   eq([...document.querySelectorAll('#mlAcimaTbody tr')].map(tr => tr.children[0].textContent.trim()), ['Acima Um'], 'acima do teto');
   const inc = document.getElementById('mlInconsLista').textContent;
   assert(inc.includes('Desatualizado Um') && inc.includes('Perdido Cedo') && inc.includes('Venda Sem Ligacao'), 'as três inconsistências aparecem');
+  // §88: "Necessita repasse" agrupado por consultor
+  const rep = document.getElementById('mlRepasseLista');
+  eq([...rep.querySelectorAll('p b:first-child')].map(b => b.textContent), ['Caio', 'Luria'], 'repasse: um bloco por consultor');
+  assert(rep.textContent.includes('precisa repassar') && rep.textContent.includes('1 lead') && rep.textContent.includes('menos de 3 ligações'), 'frase "X precisa repassar N lead(s): menos de 3 ligações"');
+  eq([...rep.querySelectorAll('tbody tr')].map(tr => tr.children[0].textContent.trim()), ['Abaixo Um', 'Perdido Cedo'], 'leads do repasse');
 
   // filtro por consultor afeta os blocos
   mlEstado.filtro = 'Luria'; mlRenderTudo();
@@ -338,7 +364,7 @@ try{
   // vazio: mensagens, sem NaN
   window.__rpcRespostas.monitor_leads_leads = { data: [], error: null };
   await mlCarregar();
-  assert(document.getElementById('mlFilaTbody').textContent.includes('Nenhum lead') && document.getElementById('mlAbaixoTbody').textContent.includes('Nenhum') && document.getElementById('mlInconsLista').textContent.includes('Nenhuma'), 'listas vazias mostram mensagem');
+  assert(document.getElementById('mlFilaTbody').textContent.includes('Nenhum lead') && document.getElementById('mlAbaixoTbody').textContent.includes('Nenhum') && document.getElementById('mlInconsLista').textContent.includes('Nenhuma') && document.getElementById('mlRepasseLista').textContent.includes('Nenhum consultor'), 'listas vazias mostram mensagem');
   assert(!/NaN|undefined/.test(document.getElementById('digitalSubMonitor').textContent), 'listas vazias sem NaN/undefined');
 
   // inconsistências muito longas: mostra 10 e resume o resto
@@ -519,7 +545,7 @@ try{
   document.getElementById('btnMlExportFila').click();
   assert(window.__xlsx.length === 1 && /^LeadsSemLigacao_OUTUBRO_\\d{4}-\\d{2}-\\d{2}\\.xlsx$/.test(window.__xlsx[0].nome), 'exporta a fila com nome \da aba e \data');
   const wbF = window.__xlsx[0].wb;
-  eq(wbF.SheetNames, ['Sem ligação', 'Abaixo do mínimo', 'Acima do teto', 'Inconsistências'], 'abas do arquivo da fila');
+  eq(wbF.SheetNames, ['Sem ligação', 'Necessita repasse', 'Abaixo do mínimo', 'Acima do teto', 'Inconsistências'], 'abas do arquivo da fila');
   const linhasF = XLSX.utils.sheet_to_json(wbF.Sheets['Sem ligação']);
   eq(linhasF.map(l => l.Lead), ['Fila Antigo', 'Fila Novo'], 'linhas da fila, mais antigo primeiro');
   assert(linhasF[0].Telefone === '+5519900000011' && linhasF[0]['Acima do SLA'] === 'Sim' && linhasF[1]['Acima do SLA'] === 'Não', 'telefone sem "p:" e SLA como Sim/Não');

@@ -1535,6 +1535,12 @@
         </div>
 
         <div class="card">
+          <h3>Necessita repasse</h3>
+          <p class="desc" id="mlRepasseInfo"></p>
+          <div id="mlRepasseLista"></div>
+        </div>
+
+        <div class="card">
           <h3>Cadência de tentativas</h3>
           <p class="desc" id="mlAbaixoInfo"></p>
           <div class="mlTabelaWrap"><table class="tbl">
@@ -9961,11 +9967,25 @@ function mlMetas(valor){
   return m;
 }
 
-function mlEmAberto(l){ return l.categoria === 'andamento' || l.categoria === 'sem_contato'; }
+// §88: venda = VENDA na planilha ou pedido no NeoCRM com o CNPJ do lead (venda_neo, vem da RPC). Venda não conta ligação.
+function mlEhVenda(l){ return l.categoria === 'convertido' || !!l.venda_neo; }
+function mlEmAberto(l){ return (l.categoria === 'andamento' || l.categoria === 'sem_contato') && !l.venda_neo; }
+// §88: "Necessita repasse" — sem venda, 1 a (mínimo - 1) ligações, em aberto ou perdido por "não responde"/"parou de responder".
+const mlNaoResponde = l => /NAO RESPONDE|PAROU DE RESPONDER/.test(mlNormTexto(l.status));
+function mlRepassePorConsultor(lista){
+  const g = {};
+  (lista || []).forEach(x => { const k = normalizarNomeConsultor(x.consultor); (g[k] = g[k] || { consultor: x.consultor || '', leads: [] }).leads.push(x); });
+  const t = x => x.ultima_ligacao ? new Date(x.ultima_ligacao).getTime() : 0;
+  return Object.values(g).map(o => {
+    o.leads.sort((a, b) => t(a) - t(b));
+    o.ultimaMaisAntiga = (o.leads.find(x => x.ultima_ligacao) || {}).ultima_ligacao || null;
+    return o;
+  }).sort((a, b) => b.leads.length - a.leads.length || a.consultor.localeCompare(b.consultor));
+}
 // Fila de leads sem ligação, cadência (abaixo do mínimo / acima do teto) e inconsistências.
 function mlClassificarLeads(leads, metas, agoraMs){
   const m = Object.assign({}, ML_METAS_PADRAO, metas || {});
-  const out = { semLigacao: [], abaixoMin: [], acimaTeto: [], inconsistencias: { planilhaDesatualizada: [], perdidoCedo: [], vendaSemLigacao: [] } };
+  const out = { semLigacao: [], abaixoMin: [], acimaTeto: [], repasse: [], inconsistencias: { planilhaDesatualizada: [], perdidoCedo: [], vendaSemLigacao: [] } };
   (leads || []).forEach(l => {
     const t = Number(l.tentativas) || 0;
     const ms = new Date(l.criado_em_lead).getTime();
@@ -9975,9 +9995,10 @@ function mlClassificarLeads(leads, metas, agoraMs){
     if(aberto && t === 0) out.semLigacao.push(it);
     else if(aberto && t < m.min_tentativas) out.abaixoMin.push(it);
     if(aberto && t > m.max_tentativas) out.acimaTeto.push(it);
-    if(l.categoria === 'sem_contato' && t >= m.min_tentativas) out.inconsistencias.planilhaDesatualizada.push(it);
-    if(l.categoria === 'perdido' && t < m.min_tentativas && mlNormTexto(l.status).includes('NAO RESPONDE')) out.inconsistencias.perdidoCedo.push(it);
-    if(l.categoria === 'convertido' && t === 0) out.inconsistencias.vendaSemLigacao.push(it);
+    if(!mlEhVenda(l) && t > 0 && t < m.min_tentativas && (aberto || (l.categoria === 'perdido' && mlNaoResponde(l)))) out.repasse.push(it);
+    if(aberto && l.categoria === 'sem_contato' && t >= m.min_tentativas) out.inconsistencias.planilhaDesatualizada.push(it);
+    if(!l.venda_neo && l.categoria === 'perdido' && t < m.min_tentativas && mlNormTexto(l.status).includes('NAO RESPONDE')) out.inconsistencias.perdidoCedo.push(it);
+    if(mlEhVenda(l) && t === 0) out.inconsistencias.vendaSemLigacao.push(it);
   });
   out.semLigacao.sort((a, b) => (b.horasDesdeEntrada || 0) - (a.horasDesdeEntrada || 0));   // mais antigo primeiro
   out.abaixoMin.sort((a, b) => a.tentativas - b.tentativas);
@@ -9995,7 +10016,7 @@ function mlCardsEquipe(equipe, leads){
     meus.forEach(l => {
       if(Object.prototype.hasOwnProperty.call(c, l.categoria)) c[l.categoria]++;
       if(l.categoria === 'convertido') receita += Number(l.receita) || 0;
-      if(!(Number(l.tentativas) > 0)) semLigacao++;
+      if(!mlEhVenda(l) && !(Number(l.tentativas) > 0)) semLigacao++;
     });
     const n = meus.length;
     return { nome: e.nome_planilha, usuario: e.usuario_telefonia, leads: n, convertidos: c.convertido, perdidos: c.perdido, andamento: c.andamento,
@@ -10109,6 +10130,7 @@ function mlRenderTudo(){
   const cl = mlClassificarLeads(mlLeadsFiltrados(), mlEstado.metas, Date.now());
   mlEstado.classificado = cl;
   mlRenderFila(cl);
+  mlRenderRepasse(cl);
   mlRenderCadencia(cl);
   mlRenderInconsistencias(cl);
   mlRenderPlacar();
@@ -10221,7 +10243,7 @@ document.getElementById('btnMlFilaMais').addEventListener('click', function(){
 function mlRenderFila(cl){
   const m = mlEstado.metas, f = cl.semLigacao, atrasados = f.filter(x => x.atrasadoSla).length;
   document.getElementById('mlFilaInfo').textContent = f.length
-    ? `${f.length} ${f.length === 1 ? 'lead' : 'leads'} em aberto sem nenhuma ligação manual, o mais antigo primeiro. ${atrasados} acima do SLA de ${m.sla_primeira_ligacao_h} h para a primeira ligação.`
+    ? `${f.length} ${f.length === 1 ? 'lead' : 'leads'} em aberto, sem venda (planilha ou NEO) e sem nenhuma ligação manual, o mais antigo primeiro. ${atrasados} acima do SLA de ${m.sla_primeira_ligacao_h} h para a primeira ligação.`
     : 'Todo lead em aberto já recebeu pelo menos uma ligação.';
   // 01/10/2026: fila longa mostra só as primeiras ML_FILA_CURTA linhas, com "Mostrar todos" / "Mostrar menos".
   const btnMais = document.getElementById('btnMlFilaMais');
@@ -10232,6 +10254,18 @@ function mlRenderFila(cl){
       <td>${escapeHtml(x.nome || '(sem nome)')}</td><td>${mlTelBotao(x.telefone)}</td><td>${escapeHtml(x.consultor || '')}</td>
       <td>${escapeHtml((x.status || '').trim() || 'sem status')}</td><td${x.atrasadoSla ? ' class="mlAtraso"' : ''}>${mlHaTexto(x.horasDesdeEntrada)}</td></tr>`).join('')
     : mlLinhaVazia(5, 'Nenhum lead sem ligação.');
+}
+function mlRenderRepasse(cl){
+  const min = mlEstado.metas.min_tentativas, grupos = mlRepassePorConsultor(cl.repasse);
+  const dia = iso => iso ? new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' }) : '—';
+  document.getElementById('mlRepasseInfo').textContent = `Leads que não viraram venda (nem na planilha, nem no NEO) e receberam só 1 ou ${min - 1} ligações — em aberto ou perdidos por "não responde". `
+    + (grupos.length ? 'A última ligação mais antiga primeiro.' : '');
+  document.getElementById('mlRepasseLista').innerHTML = grupos.length ? grupos.map(g => `<p style="margin:14px 0 6px"><b>${escapeHtml(g.consultor)}</b> precisa repassar
+      <b>${g.leads.length} ${g.leads.length === 1 ? 'lead' : 'leads'}</b>: ${g.leads.length === 1 ? 'recebeu' : 'todos receberam'} menos de ${min} ligações${g.ultimaMaisAntiga ? '; a última ligação mais antiga foi em ' + dia(g.ultimaMaisAntiga) : ''}.</p>
+    <div class="mlTabelaWrap"><table class="tbl"><thead><tr><th>Lead</th><th>Telefone</th><th>Status na planilha</th><th>Ligações</th><th>Última ligação</th></tr></thead><tbody>
+    ${g.leads.map(x => `<tr><td>${escapeHtml(x.nome || '(sem nome)')}</td><td>${mlTelBotao(x.telefone)}</td><td>${escapeHtml((x.status || '').trim() || 'sem status')}</td>
+      <td>${x.tentativas}</td><td>${x.ultima_ligacao ? escapeHtml(mlFmtDiaHora(x.ultima_ligacao)) : '—'}</td></tr>`).join('')}</tbody></table></div>`).join('')
+    : '<p class="desc">Nenhum consultor precisa repassar lead.</p>';
 }
 function mlLinhasCadencia(lista){
   return lista.map(x => `<tr><td>${escapeHtml(x.nome || '(sem nome)')}</td><td>${escapeHtml(x.consultor || '')}</td>
@@ -10460,6 +10494,7 @@ document.getElementById('btnMlExportFila').addEventListener('click', function(){
   const cl = mlEstado.classificado || mlClassificarLeads([], mlEstado.metas, Date.now());
   mlBaixarXlsx(`LeadsSemLigacao_${mlEstado.aba || 'SEM-ABA'}_${hojeSP()}.xlsx`, [
     { nome: 'Sem ligação', linhas: mlLinhasExportFila(cl) },
+    { nome: 'Necessita repasse', linhas: mlLinhasExportCadencia(cl.repasse) },
     { nome: 'Abaixo do mínimo', linhas: mlLinhasExportCadencia(cl.abaixoMin) },
     { nome: 'Acima do teto', linhas: mlLinhasExportCadencia(cl.acimaTeto) },
     { nome: 'Inconsistências', linhas: mlLinhasExportInconsistencias(cl) },
