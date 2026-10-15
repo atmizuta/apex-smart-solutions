@@ -1303,11 +1303,11 @@
             <h3 style="margin:0">Biometria e assinatura</h3>
             <button type="button" class="btn btn-sm btn-outline" id="btnMesaBioExportar" style="width:auto">Exportar Excel</button>
           </div>
-          <p class="desc">Pedidos parados em BIOMETRIA ou AGUARDANDO ASSINATURA no NEO. Escolha o consultor; o celular vem do lead, do Caderno ou da base de clientes (pelo CNPJ).</p>
+          <p class="desc">Pedidos parados em BIOMETRIA ou AGUARDANDO ASSINATURA no NEO. Escolha o consultor; o celular vem do lead, do Caderno ou da base de clientes (pelo CNPJ). "Ligações desde a etapa" cruza o celular com o relatório de ligações manuais.</p>
           <div class="filterPills" id="mesaBioPills" style="margin:10px 0"></div>
           <p class="desc" id="mesaBioResumo"></p>
           <div class="mlTabelaWrap"><table class="tbl">
-            <thead><tr><th>Cliente</th><th>Etapa</th><th>Na etapa há</th><th>Pedido</th><th>Valor</th><th>Celular</th></tr></thead>
+            <thead><tr><th>Cliente</th><th>Etapa</th><th>Na etapa há</th><th>Ligações desde a etapa</th><th>Pedido</th><th>Valor</th><th>Celular</th></tr></thead>
             <tbody id="mesaBioTbody"></tbody>
           </table></div>
         </div>
@@ -12435,11 +12435,22 @@ function mesaBioLinhas(bio, sel, hoje){
   return (bio || []).filter(b => !sel || b.consultor === sel).map(b => Object.assign({}, b, { dias: mesaBioDias(b.desde, hoje) }))
     .sort((a, b) => (b.dias === null ? -1 : b.dias) - (a.dias === null ? -1 : a.dias) || String(a.cliente || '').localeCompare(String(b.cliente || ''), 'pt-BR'));
 }
+// §91: radar de ligações manuais ao celular do cliente desde que o pedido entrou na etapa (campos da RPC mesa_biometria)
+const MESA_BIO_RADAR_CLASSE = { nenhuma: 'retornoBadge atrasado', outro: 'retornoBadge hoje', ok: 'retornoBadge futuro', hoje: 'badge', semtel: '' };
+function mesaBioRadar(b){
+  const n = Number(b.lig_etapa) || 0, cons = Number(b.lig_consultor) || 0, antes = Math.max(0, (Number(b.lig_total) || 0) - n);
+  const pl = (q, um, varios) => q + ' ' + (q === 1 ? um : varios);
+  const ult = b.ultima_lig ? 'última ' + mlFmtDiaHora(b.ultima_lig).replace(',', '') : '';
+  if(!b.telefone) return { nivel: 'semtel', texto: 'sem celular para cruzar', sub: '' };
+  if(!n) return { nivel: b.dias === 0 ? 'hoje' : 'nenhuma', texto: 'Nenhuma ligação', sub: [b.dias === 0 ? 'entrou hoje' : '', antes ? pl(antes, 'antes da etapa', 'antes da etapa') : ''].filter(Boolean).join(' · ') };
+  const partes = [ult, cons === n ? '' : (cons ? pl(n - cons, 'de outra pessoa', 'de outra pessoa') : 'nenhuma do consultor')].filter(Boolean);
+  return { nivel: cons ? 'ok' : 'outro', texto: pl(n, 'ligação', 'ligações'), sub: partes.join(' · ') };
+}
 function mesaRenderBio(){
   const d = mesaEstado.dados, tb = document.getElementById('mesaBioTbody');
   if(!d) return;
   if(mesaEstado.erros.bio){
-    tb.innerHTML = '<tr><td colspan="6">Não foi possível carregar os pedidos do NEO agora.</td></tr>';
+    tb.innerHTML = '<tr><td colspan="7">Não foi possível carregar os pedidos do NEO agora.</td></tr>';
     document.getElementById('mesaBioPills').innerHTML = ''; document.getElementById('mesaBioResumo').textContent = '';
     return;
   }
@@ -12448,9 +12459,9 @@ function mesaRenderBio(){
   document.getElementById('mesaBioPills').innerHTML = [{ nome: '', rotulo: 'Todos', n: d.bio.length }].concat(cons.map(c => ({ nome: c.nome, rotulo: c.nome, n: c.n })))
     .map(c => `<button type="button" class="filterPill${c.nome === mesaEstado.bioSel ? ' active' : ''}" data-mesa-bio="${escapeHtml(c.nome)}">${escapeHtml(c.rotulo)} (${c.n})</button>`).join('');
   const linhas = mesaBioLinhas(d.bio, mesaEstado.bioSel, mesaEstado.hoje);
-  const comTel = linhas.filter(b => b.telefone).length;
+  const comTel = linhas.filter(b => b.telefone).length, semLig = linhas.filter(b => mesaBioRadar(b).nivel === 'nenhuma').length;
   document.getElementById('mesaBioResumo').textContent = linhas.length
-    ? `${linhas.length} ${linhas.length === 1 ? 'pedido' : 'pedidos'} · ${comTel} com celular · o mais antigo na etapa primeiro.` : '';
+    ? `${linhas.length} ${linhas.length === 1 ? 'pedido' : 'pedidos'} · ${comTel} com celular · ${semLig} sem nenhuma ligação desde que entrou na etapa · o mais antigo primeiro.` : '';
   tb.innerHTML = linhas.length ? linhas.map(b => {
     const et = MESA_BIO_ETAPA[b.etapa] || [b.etapa || '—', null];
     const wa = b.telefone ? ppEscolherTelefone([b.telefone]) : null;
@@ -12463,9 +12474,10 @@ function mesaRenderBio(){
     return `<tr><td>${escapeHtml(b.cliente || '—')}${mesaEstado.bioSel ? '' : sub(escapeHtml(b.consultor || ''))}${sub(escapeHtml(b.cnpj || ''))}</td>
       <td><span class="badge">${escapeHtml(et[0])}</span></td>
       <td${b.dias !== null && b.dias >= 2 ? ' class="mlAtraso"' : ''}>${b.dias === null ? '—' : (b.dias === 0 ? 'hoje' : b.dias + ' d')}</td>
+      <td class="mesaBioRadar">${(() => { const r = mesaBioRadar(b); return (r.nivel === 'semtel' ? `<span class="desc">${escapeHtml(r.texto)}</span>` : `<span class="${MESA_BIO_RADAR_CLASSE[r.nivel]}">${escapeHtml(r.texto)}</span>`) + (r.sub ? sub(escapeHtml(r.sub)) : ''); })()}</td>
       <td>${escapeHtml(b.numero_pedido || '')}${sub(escapeHtml(b.produtos || '') + (qtd ? ' · ' + qtd + (qtd === 1 ? ' linha' : ' linhas') : ''))}</td>
       <td>${fmtBRL(Number(b.valor) || 0)}</td><td>${cel}</td></tr>`;
-  }).join('') : `<tr><td colspan="6" class="desc">${mesaEstado.bioSel ? escapeHtml(mesaEstado.bioSel) + ' não tem pedido em biometria ou assinatura.' : 'Nenhum pedido em biometria ou assinatura.'}</td></tr>`;
+  }).join('') : `<tr><td colspan="7" class="desc">${mesaEstado.bioSel ? escapeHtml(mesaEstado.bioSel) + ' não tem pedido em biometria ou assinatura.' : 'Nenhum pedido em biometria ou assinatura.'}</td></tr>`;
 }
 function mesaSubAtivar(sub){
   mesaEstado.sub = sub === 'bio' ? 'bio' : 'equipe';
@@ -12476,7 +12488,9 @@ function mesaSubAtivar(sub){
 document.getElementById('btnMesaBioExportar').addEventListener('click', function(){
   const d = mesaEstado.dados;
   const linhas = mesaBioLinhas(d ? d.bio : [], mesaEstado.bioSel, mesaEstado.hoje).map(b => ({ Consultor: b.consultor || '', Cliente: b.cliente || '', CNPJ: b.cnpj || '',
-    Etapa: (MESA_BIO_ETAPA[b.etapa] || [b.etapa || ''])[0], 'Na etapa há (dias)': b.dias === null ? '' : b.dias, Pedido: b.numero_pedido || '', Produtos: b.produtos || '',
+    Etapa: (MESA_BIO_ETAPA[b.etapa] || [b.etapa || ''])[0], 'Na etapa há (dias)': b.dias === null ? '' : b.dias,
+    'Ligações desde a etapa': b.telefone ? Number(b.lig_etapa) || 0 : '', 'Do consultor': b.telefone ? Number(b.lig_consultor) || 0 : '',
+    'Última ligação': b.ultima_lig ? mlFmtDiaHora(b.ultima_lig) : '', Pedido: b.numero_pedido || '', Produtos: b.produtos || '',
     Linhas: Number(b.quantidade) || 0, 'Valor (R$)': Number(b.valor) || 0, Celular: b.telefone || '' }));
   mlBaixarXlsx('MesaBiometria_' + (mesaEstado.bioSel || 'Todos') + '_' + mesaEstado.hoje + '.xlsx', [{ nome: 'Biometria', linhas }]);
 });

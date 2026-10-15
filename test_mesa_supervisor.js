@@ -132,6 +132,20 @@ try{
   eq(mesaBioConsultores([{ nome_planilha: 'Mariana' }, { nome_planilha: 'Bianca' }, { nome_planilha: 'Caio' }], BIO), [{ nome: 'Bianca', n: 0 }, { nome: 'Caio', n: 1 }, { nome: 'Mariana', n: 2 }], 'pílulas: todos os administrados, mesmo sem pedido');
   eq(mesaBioLinhas(BIO, 'Mariana', HOJE).map(b => b.numero_pedido), ['P1', 'P2'], 'filtro por consultor, mais antigo primeiro');
   eq(mesaBioLinhas(BIO, '', HOJE).map(b => b.numero_pedido), ['P1', 'P3', 'P2'], 'todos, mais antigo primeiro');
+  // §91: radar de ligações
+  const R = (extra) => mesaBioRadar(Object.assign({ telefone: '11999990001', dias: 3, lig_etapa: 0, lig_consultor: 0, lig_total: 0, ultima_lig: null }, extra));
+  eq(R({ telefone: null }).nivel, 'semtel', 'sem celular: não dá para cruzar');
+  assert(R({ telefone: null }).texto.includes('sem celular'), 'texto sem celular');
+  eq(R({}).nivel, 'nenhuma', 'nenhuma ligação desde a etapa');
+  assert(R({}).texto === 'Nenhuma ligação' && R({ lig_total: 2 }).sub.includes('2 antes da etapa'), 'nenhuma + as de antes');
+  eq(R({ dias: 0 }).nivel, 'hoje', 'entrou hoje sem ligação: ainda não é alerta');
+  const r3 = R({ lig_etapa: 3, lig_consultor: 3, lig_total: 5, ultima_lig: iso('2026-10-04T16:20:00') });
+  eq([r3.nivel, r3.texto], ['ok', '3 ligações'], '3 ligações do consultor');
+  assert(r3.sub.includes('última 04/10 16:20') && !r3.sub.includes('outra pessoa'), 'última ligação; todas do consultor');
+  const r1 = R({ lig_etapa: 2, lig_consultor: 0, lig_total: 2, ultima_lig: iso('2026-10-04T16:20:00') });
+  eq([r1.texto, r1.nivel], ['2 ligações', 'outro'], 'ligações só de outra pessoa');
+  assert(r1.sub.includes('nenhuma do consultor'), 'avisa que o consultor não ligou');
+  eq(R({ lig_etapa: 1, lig_consultor: 1, lig_total: 1 }).texto, '1 ligação', 'singular');
   eq(sem.find(r => r.nome === 'Zeca Teste').pedidos.map(p => p.ref), ['N1'], 'pedido com 1 dia útil não entra');
   const luria = sem.find(r => r.nome === 'Luria Teste');
   eq(luria.cor, 'amarelo', 'retorno atrasado de ontem (1 dia) = amarelo');
@@ -212,6 +226,8 @@ try{
   assert(bioTr[0].querySelector('a[href^="https://wa.me/5511999990001?text="]') && bioTr[0].querySelector('[data-copiar="11999990001"]'), 'celular com copiar e WhatsApp');
   assert(decodeURIComponent(bioTr[0].querySelector('a[href^="https://wa.me/"]').href).includes('biometria facial'), 'mensagem de biometria');
   assert(bioTr[1].textContent.includes('sem celular'), 'sem celular avisa');
+  assert(bioTr[0].querySelector('.mesaBioRadar') && bioTr[0].textContent.includes('Nenhuma ligação'), '§91: radar na mesma linha');
+  assert(document.getElementById('mesaBioResumo').textContent.includes('1 sem nenhuma ligação'), '§91: resumo conta os sem ligação');
   assert(bioTr[0].children[2].classList.contains('mlAtraso') && bioTr[0].children[2].textContent.trim() === '4 d', '4 dias na etapa em destaque');
   assert(document.getElementById('mesaBioResumo').textContent.includes('2 pedidos') && document.getElementById('mesaBioResumo').textContent.includes('1 com celular'), 'resumo');
   document.querySelector('[data-mesa-bio="Luria"]').click();
