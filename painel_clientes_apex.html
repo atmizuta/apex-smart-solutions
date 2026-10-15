@@ -2940,10 +2940,17 @@ function bioPrimeiroNome(nome){
   const n = (nome || '').trim().split(/\s+/)[0] || '';
   return n ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : '';
 }
-function bioLinkValido(l){ return /^https?:\/\/\S+$/i.test((l || '').trim()); }
+/* Aceita o link com ou sem "https://" (ex.: "claro.com.br/bio/abc" vira "https://claro.com.br/bio/abc"); recusa javascript: e textos com espaço. */
+function bioNormalizarLink(l){
+  const t = (l || '').trim();
+  if(/^https?:\/\/\S+$/i.test(t)) return t;
+  if(/^[a-z0-9-]+(\.[a-z0-9-]+)+(:\d+)?([\/?#]\S*)?$/i.test(t)) return 'https://' + t;
+  return '';
+}
+function bioLinkValido(l){ return !!bioNormalizarLink(l); }
 function bioMontarLegenda(nome, link){
   const pn = bioPrimeiroNome(nome);
-  const url = bioLinkValido(link) ? link.trim() : '[cole aqui o link da Claro]';
+  const url = bioNormalizarLink(link) || '[cole o link da biometria no campo acima]';
   return 'Olá' + (pn ? ', ' + pn : '') + '! Tudo bem?\n\n'
     + 'Falta só uma etapa para finalizarmos o seu pedido com a Claro Empresas: a confirmação de identidade. Ela existe para proteger você e garantir que ninguém use os seus dados sem autorização.\n\n'
     + 'É simples e rápido, feito direto pelo celular: pelo link abaixo você tira uma foto do rosto e do documento de identidade.\n'
@@ -2956,14 +2963,16 @@ function bioAtualizarLegenda(){
   if(!ta) return;
   ta.value = bioMontarLegenda(document.getElementById('bioNome').value, document.getElementById('bioLegendaLink').value);
 }
-document.getElementById('bioNome').addEventListener('input', bioAtualizarLegenda);
-document.getElementById('bioLegendaLink').addEventListener('input', bioAtualizarLegenda);
+['input','change','keyup','paste'].forEach(function(ev){
+  document.getElementById('bioLegendaLink').addEventListener(ev, function(){ bioAtualizarLegenda(); if(ev === 'paste') setTimeout(bioAtualizarLegenda, 0); });
+  document.getElementById('bioNome').addEventListener(ev, function(){ bioAtualizarLegenda(); if(ev === 'paste') setTimeout(bioAtualizarLegenda, 0); });
+});
 document.getElementById('btnCopiarLegendaBio').addEventListener('click', function(){
   const errEl = document.getElementById('bioLegendaErr');
   const link = document.getElementById('bioLegendaLink').value;
   const ta = document.getElementById('bioLegenda');
-  if(!bioLinkValido(link) && ta.value.indexOf('[cole aqui o link da Claro]') >= 0){
-    errEl.textContent = 'Informe o link da biometria (começando com https://) no topo da página antes de copiar a legenda.';
+  if(!bioLinkValido(link) && ta.value.indexOf('[cole o link da biometria no campo acima]') >= 0){
+    errEl.textContent = 'Informe um link válido da biometria no topo da página antes de copiar a legenda.';
     errEl.style.display = 'block';
     return;
   }

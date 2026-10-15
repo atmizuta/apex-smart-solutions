@@ -14,14 +14,14 @@ let ok = 0, fail = 0;
 function assert(c, m){ if(c) ok++; else { fail++; console.log('FALHOU:', m); } }
 const nome = document.getElementById('bioNome'), link = document.getElementById('bioLegendaLink'), leg = document.getElementById('bioLegenda');
 assert(nome && link && leg && document.getElementById('btnCopiarLegendaBio'), 'campos da legenda existem');
-assert(leg.value.indexOf('[cole aqui o link da Claro]') >= 0 && leg.value.indexOf('Olá!') === 0, 'legenda inicial sem nome/link');
+assert(leg.value.indexOf('[cole o link da biometria no campo acima]') >= 0 && leg.value.indexOf('Olá!') === 0, 'legenda inicial sem nome/link');
 nome.value = 'ADRIANO APARECIDO NAPPI'; nome.dispatchEvent(new window.Event('input'));
 assert(leg.value.indexOf('Olá, Adriano!') === 0, 'usa o primeiro nome capitalizado (' + leg.value.slice(0, 20) + ')');
 link.value = 'https://exemplo.claro.com.br/bio/abc123'; link.dispatchEvent(new window.Event('input'));
-assert(leg.value.indexOf('https://exemplo.claro.com.br/bio/abc123') >= 0 && leg.value.indexOf('[cole aqui') < 0, 'link entra na legenda');
-assert(bioLinkValido('https://a.com/x') && bioLinkValido('http://a.com') && !bioLinkValido('a.com') && !bioLinkValido('javascript:alert(1)') && !bioLinkValido('https://a b'), 'validacao do link');
+assert(leg.value.indexOf('https://exemplo.claro.com.br/bio/abc123') >= 0 && leg.value.indexOf('[cole o link da biometria no campo acima') < 0, 'link entra na legenda');
+assert(bioLinkValido('https://a.com/x') && bioLinkValido('http://a.com') && bioLinkValido('a.com/x') && bioNormalizarLink('claro.com.br/bio/1')==='https://claro.com.br/bio/1' && !bioLinkValido('abc') && !bioLinkValido('javascript:alert(1)') && !bioLinkValido('https://a b'), 'validacao do link');
 link.value = 'javascript:alert(1)'; link.dispatchEvent(new window.Event('input'));
-assert(leg.value.indexOf('javascript') < 0 && leg.value.indexOf('[cole aqui') >= 0, 'link invalido nao entra na legenda');
+assert(leg.value.indexOf('javascript') < 0 && leg.value.indexOf('[cole o link da biometria no campo acima') >= 0, 'link invalido nao entra na legenda');
 document.getElementById('btnCopiarLegendaBio').click();
 assert(document.getElementById('bioLegendaErr').style.display === 'block', 'copiar sem link valido mostra erro');
 link.value = 'https://exemplo.claro.com.br/bio/abc123'; link.dispatchEvent(new window.Event('input'));
