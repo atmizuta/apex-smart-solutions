@@ -1074,6 +1074,15 @@
         </div>
         <a class="btn" id="btnBaixarImagemBiometriaEmail" style="width:auto;margin-top:14px;text-decoration:none;text-align:center;display:inline-block" href="#" download="biometria-instrucoes-claro.png">Baixar imagem</a>
       </div>
+      <!-- 15/10/2026 (seção 86): legenda com o link clicável para enviar junto com a foto no WhatsApp -->
+      <div class="card" style="margin-top:16px">
+        <h3>Legenda com link para o WhatsApp</h3>
+        <p class="desc">No WhatsApp a imagem em si não tem link, mas o link escrito na legenda fica clicável. Cole o link da Claro, copie a legenda e cole no campo "Adicionar legenda" ao anexar a foto.</p>
+        <div class="field" style="margin:0;max-width:520px"><label>Link da Claro (biometria)</label><input type="text" id="bioLegendaLink" placeholder="https://..." autocomplete="off"></div>
+        <div class="field" style="margin:14px 0 0;max-width:520px"><label>Legenda (pode editar)</label><textarea id="bioLegenda" rows="8" style="width:100%;box-sizing:border-box"></textarea></div>
+        <div class="loginError" id="bioLegendaErr" style="display:none;margin-top:10px"></div>
+        <button type="button" class="btn" id="btnCopiarLegendaBio" style="width:auto;margin-top:14px">Copiar legenda</button>
+      </div>
     </section>
 
     <!-- 28/09/2026 (pedido do usuário: "deixe a opcao de cada usuário conectar o seu email do
@@ -2914,6 +2923,47 @@ document.getElementById('btnBaixarImagemBiometriaEmail').addEventListener('click
   errEl.style.display = 'none';
 });
 gerarImagemBiometriaEmail('');
+
+/* 15/10/2026 (seção 86): legenda do WhatsApp com o link da Claro (o link na legenda fica clicável; a imagem não). */
+function bioPrimeiroNome(nome){
+  const n = (nome || '').trim().split(/\s+/)[0] || '';
+  return n ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : '';
+}
+function bioLinkValido(l){ return /^https?:\/\/\S+$/i.test((l || '').trim()); }
+function bioMontarLegenda(nome, link){
+  const pn = bioPrimeiroNome(nome);
+  const url = bioLinkValido(link) ? link.trim() : '[cole aqui o link da Claro]';
+  return 'Olá' + (pn ? ', ' + pn : '') + '! Para concluir o seu pedido, precisamos da sua foto e da sua documentação. É rápido e seguro.\n\n'
+    + 'Toque no link, permita o acesso à câmera, tire uma foto do seu rosto e do seu documento de identidade (frente e verso) e clique em "Finalizar":\n'
+    + url + '\n\n'
+    + 'Qualquer dúvida, é só me chamar por aqui. Apex Smart Solutions, parceiro autorizado Claro Empresas.';
+}
+function bioAtualizarLegenda(){
+  const ta = document.getElementById('bioLegenda');
+  if(!ta) return;
+  ta.value = bioMontarLegenda(document.getElementById('bioNome').value, document.getElementById('bioLegendaLink').value);
+}
+document.getElementById('bioNome').addEventListener('input', bioAtualizarLegenda);
+document.getElementById('bioLegendaLink').addEventListener('input', bioAtualizarLegenda);
+document.getElementById('btnCopiarLegendaBio').addEventListener('click', function(){
+  const errEl = document.getElementById('bioLegendaErr');
+  const link = document.getElementById('bioLegendaLink').value;
+  const ta = document.getElementById('bioLegenda');
+  if(!bioLinkValido(link) && ta.value.indexOf('[cole aqui o link da Claro]') >= 0){
+    errEl.textContent = 'Cole o link da Claro (começando com https://) antes de copiar a legenda.';
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+  const texto = ta.value;
+  const ok = function(){ mostrarAviso('Legenda copiada. Cole no campo de legenda ao enviar a foto no WhatsApp.', 'ok'); };
+  const fallback = function(){
+    try{ ta.focus(); ta.select(); document.execCommand('copy'); ok(); }
+    catch(e){ mostrarAviso('Não foi possível copiar automaticamente. Selecione o texto e copie manualmente.', 'erro'); }
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(texto).then(ok, fallback); } else { fallback(); }
+});
+bioAtualizarLegenda();
 
 /* ============ BUSCA ============ */
 const searchInput = document.getElementById('searchInput');

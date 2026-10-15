@@ -3137,3 +3137,11 @@ Pedido do usuário: na aba Biometria incluir também a imagem do e-mail Claro "V
 - **Como é gerada:** base PNG de 457×769 px embutida no painel (`BIO_EMAIL_B64`, sem depender de arquivo no servidor nem de cache de CDN). No `<canvas>` (2×, saída 914×1538 px) o nome original é coberto por branco e o nome do cliente é escrito em negrito e CAIXA ALTA depois de "Olá,", seguido de ponto; a fonte encolhe se o nome for longo (mínimo 8 px na base). Sem nome, o preview mostra "NOME DO CLIENTE" e o download é bloqueado com a mensagem "Informe o nome do cliente.".
 - **Arquivo baixado:** `biometria-instrucoes-claro-<nome>.png`. Enviar como foto no WhatsApp, como a primeira imagem.
 - **Limites:** a fonte do nome é Arial (a original do e-mail é outra, parecida); o resto da imagem é idêntico à base. Se a Claro mudar o e-mail, trocar o PNG base e regerar `BIO_EMAIL_B64`.
+
+## 86. Biometria: legenda com link clicável para o WhatsApp (15/10/2026)
+No WhatsApp (aplicativo comum e Business) a imagem não aceita link; só o texto fica clicável. Por isso a aba Biometria ganhou o cartão **"Legenda com link para o WhatsApp"**.
+- **Campos:** "Link da Claro (biometria)" (`#bioLegendaLink`) e "Legenda" (`#bioLegenda`, editável). A legenda é montada com o primeiro nome do campo "Nome do cliente" ("Olá, Adriano!...") e o link, e se atualiza ao digitar nome ou link.
+- **Texto:** pede foto do rosto e do documento de identidade (frente e verso), orienta permitir a câmera e clicar em "Finalizar", e termina com a identificação "Apex Smart Solutions, parceiro autorizado Claro Empresas".
+- **Validação do link:** só aceita `http://` ou `https://` sem espaços; qualquer outra coisa (inclusive `javascript:`) não entra na legenda e fica o marcador "[cole aqui o link da Claro]". "Copiar legenda" é bloqueado com aviso enquanto o link for inválido.
+- **Uso:** enviar a imagem como foto e colar a legenda no campo "Adicionar legenda" do WhatsApp; o link na legenda fica azul e clicável.
+- **Teste:** `test_biometria_legenda.js` (9 asserts). O id `bioLink` do fluxo antigo continua inexistente (`test_biometria_tab.js`).
