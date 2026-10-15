@@ -12583,7 +12583,7 @@ function dcResetar(){
 function dcAplicarPermissao(){
   const vis = canSeeDiscador();
   document.getElementById('tabBtnDiscador').style.display = vis ? 'inline-block' : 'none';
-  if(!vis) dcResetar();
+  dcResetar(); // sempre: troca de usuário no mesmo navegador não pode herdar a tela (nem o vínculo do admin) e descarta carga em andamento
 }
 const DC_ROTULOS = { hoje: 'Hoje', ontem: 'Ontem', '7dias': 'Últimos 7 dias', mes: 'Mês até hoje', custom: 'Personalizado' };
 function dcAvisosHtml(resumo, porHora, chave){
@@ -12626,7 +12626,7 @@ async function dcCarregar(){
     : '';
   document.getElementById('dcStatus').textContent = DC_ROTULOS[dcEstado.chave] + ': ' + (p.de === p.ate ? dcDdMm(p.de) : dcDdMm(p.de) + ' a ' + dcDdMm(p.ate)) + quando;
   document.getElementById('dcAvisos').innerHTML = dcAvisosHtml(resumo, porHora, dcEstado.chave);
-  document.getElementById('dcVinculo').innerHTML = admin ? dcVinculoHtml(dados(semV), dados(perfis)) : '';
+  document.getElementById('dcVinculo').innerHTML = admin && currentUser.role === 'admin' ? dcVinculoHtml(dados(semV), dados(perfis)) : '';
   const card = (titulo, sub, corpo) => `<div class="bmCard"><h4>${escapeHtml(titulo)}${sub ? ' <small>' + escapeHtml(sub) + '</small>' : ''}</h4>${corpo}</div>`;
   document.getElementById('dcConteudo').innerHTML = dcKpisHtml(resumo)
     + '<div class="bmSecao">Ritmo do discador</div>'
@@ -12669,9 +12669,10 @@ document.getElementById('dcPeriodos').addEventListener('click', function(ev){
   dcCarregar();
 });
 document.getElementById('btnDcAplicar').addEventListener('click', function(){
-  dcEstado.chave = 'custom';
-  dcEstado.de = document.getElementById('dcDe').value;
-  dcEstado.ate = document.getElementById('dcAte').value;
+  const de = document.getElementById('dcDe').value, ate = document.getElementById('dcAte').value;
+  // valida antes de guardar: um período ruim não pode estragar o estado (detalhe por dia e recarga depois do vínculo)
+  if(!dcPeriodo('custom', hojeSP(), de, ate)){ mostrarAviso('Período inválido: escolha datas em ordem, com no máximo ' + DC_MAX_DIAS + ' dias.', 'erro'); return; }
+  dcEstado.chave = 'custom'; dcEstado.de = de; dcEstado.ate = ate;
   dcCarregar();
 });
 document.getElementById('dcConteudo').addEventListener('click', function(ev){

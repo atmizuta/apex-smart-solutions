@@ -211,6 +211,10 @@ try{
   window.__rpcCalls.length = 0; avisos.length = 0;
   document.getElementById('btnDcAplicar').click(); await espera(40);
   assert(!window.__rpcCalls.length && avisos.some(a => a[0] === 'erro'), 'personalizado inválido: aviso e nada consultado');
+  assert(dcPeriodo(dcEstado.chave, hojeSP(), dcEstado.de, dcEstado.ate) !== null, 'personalizado inválido não estraga o estado (período anterior continua valendo)');
+  window.__rpcCalls.length = 0;
+  document.querySelector('#dcConteudo tr[data-dc-agente="193"]').click(); await espera(40);
+  assert(window.__rpcCalls.some(c => c.nome === 'discador_consultor_dias'), 'depois do inválido, o detalhe por dia ainda funciona');
   document.getElementById('dcDe').value = '2026-10-01'; document.getElementById('dcAte').value = '2026-10-10';
   document.getElementById('btnDcAplicar').click(); await espera(60);
   eq(window.__rpcCalls.find(c => c.nome === 'discador_resumo').args, { p_de: '2026-10-01', p_ate: '2026-10-10' }, 'personalizado válido');
@@ -258,6 +262,20 @@ try{
   document.querySelector('#dcVinculo [data-dc-vinc="189"]').click(); await espera(80);
   eq((window.__rpcCalls.find(c => c.nome === 'discador_vincular_agente') || {}).args, { p_agente: 189, p_profile: 'p1', p_apelido: null }, 'vincula pela RPC');
   assert(avisos.some(a => a[0] === 'ok') && window.__rpcCalls.filter(c => c.nome === 'discador_resumo').length === 1, 'aviso ok e recarrega a aba');
+
+  // admin → supervisor no mesmo navegador: o bloco de vínculo some na hora, e carga do admin em andamento é descartada
+  currentUser = { id: 's1', nome: 'Supervisor Teste', username: 'sup', role: 'supervisor' };
+  dcAplicarPermissao();
+  assert(document.getElementById('dcVinculo').innerHTML === '', 'troca para supervisor limpa o vínculo do admin');
+  currentUser = { id: 'a1', nome: 'Admin Teste', username: 'adm', role: 'admin' };
+  dcAplicarPermissao();
+  window.__rpcAtraso = { discador_resumo: 100 };
+  const cargaAdmin = dcCarregar();
+  window.__rpcAtraso = {};
+  currentUser = { id: 's1', nome: 'Supervisor Teste', username: 'sup', role: 'supervisor' };
+  dcAplicarPermissao();
+  await cargaAdmin; await espera(130);
+  assert(document.getElementById('dcVinculo').innerHTML === '', 'carga do admin que termina depois da troca não mostra o vínculo ao supervisor');
 
   // trocar para consultor limpa a tela
   currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
