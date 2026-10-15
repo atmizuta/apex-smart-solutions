@@ -1324,6 +1324,12 @@
             <button type="button" class="filterPill" data-dc-periodo="custom">Personalizado</button>
           </div>
         </div>
+        <!-- §89: operação (só o admin escolhe; supervisor vê a própria) -->
+        <div class="filterPills" id="dcOperacoes" style="display:none;margin:var(--space-3) 0 0">
+          <button type="button" class="filterPill active" data-dc-operacao="apex">Operação Apex</button>
+          <button type="button" class="filterPill" data-dc-operacao="campinas">Operação Campinas</button>
+          <button type="button" class="filterPill" data-dc-operacao="todas">Todas</button>
+        </div>
         <div id="dcCustom" style="display:none;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-top:var(--space-3)">
           <div class="field" style="margin:0"><label for="dcDe">De</label><input type="date" id="dcDe"></div>
           <div class="field" style="margin:0"><label for="dcAte">Até</label><input type="date" id="dcAte"></div>
@@ -13241,8 +13247,11 @@ function bmVerificarHora(entrando){
 const DC_MAX_DIAS = 120;               // igual ao limite das RPCs (p_ate - p_de > 120 é recusado)
 const DC_MIN_CONTATOS_ALERTA = 10;     // alerta de abandono só com amostra mínima na hora
 const DC_MIN_ATENDIDAS_DESTAQUE = 20;  // destaque de consultor só com amostra mínima no período
-const dcEstado = { geracao: 0, chave: 'hoje', de: null, ate: null };
-function canSeeDiscador(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor') && veAbasDaApex(); }
+const dcEstado = { geracao: 0, chave: 'hoje', de: null, ate: null, operacao: 'apex' };
+const DC_OPERACOES = { apex: 'Apex', campinas: 'Campinas', todas: 'Todas as operações' };
+// §89: supervisor de qualquer operação vê a aba; o banco devolve só a operação dele (admin escolhe no seletor)
+function canSeeDiscador(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
+function dcOperacaoPedida(){ return currentUser && currentUser.role === 'admin' ? dcEstado.operacao : null; }
 function dcPeriodo(chave, hoje, de, ate){
   if(chave === 'ontem'){ const d = somaDiasStr(hoje, -1); return { de: d, ate: d }; }
   if(chave === '7dias') return { de: somaDiasStr(hoje, -6), ate: hoje };
@@ -13394,6 +13403,7 @@ function dcResetar(){
 function dcAplicarPermissao(){
   const vis = canSeeDiscador();
   document.getElementById('tabBtnDiscador').style.display = vis ? 'inline-block' : 'none';
+  document.getElementById('dcOperacoes').style.display = vis && currentUser.role === 'admin' ? 'flex' : 'none';
   dcResetar(); // sempre: troca de usuário no mesmo navegador não pode herdar a tela (nem o vínculo do admin) e descarta carga em andamento
 }
 const DC_ROTULOS = { hoje: 'Hoje', ontem: 'Ontem', '7dias': 'Últimos 7 dias', mes: 'Mês até hoje', custom: 'Personalizado' };
@@ -13415,7 +13425,7 @@ async function dcCarregar(){
   const p = dcPeriodo(dcEstado.chave, hojeSP(), dcEstado.de, dcEstado.ate);
   if(!p){ mostrarAviso('Período inválido: escolha datas em ordem, com no máximo ' + DC_MAX_DIAS + ' dias.', 'erro'); return; }
   const ger = ++dcEstado.geracao;
-  const args = { p_de: p.de, p_ate: p.ate };
+  const args = { p_de: p.de, p_ate: p.ate, p_operacao: dcOperacaoPedida() };
   const admin = currentUser.role === 'admin';
   document.getElementById('dcStatus').textContent = 'Carregando…';
   document.getElementById('dcDetalhe').innerHTML = '';
@@ -13435,8 +13445,10 @@ async function dcCarregar(){
   const quando = resumo && resumo.ultima_sync
     ? ' · dados até ' + new Date(resumo.ultima_sync).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
     : '';
-  document.getElementById('dcStatus').textContent = DC_ROTULOS[dcEstado.chave] + ': ' + (p.de === p.ate ? dcDdMm(p.de) : dcDdMm(p.de) + ' a ' + dcDdMm(p.ate)) + quando;
-  document.getElementById('dcAvisos').innerHTML = dcAvisosHtml(resumo, porHora, dcEstado.chave);
+  const opRot = DC_OPERACOES[(resumo && resumo.operacao) || args.p_operacao || minhaOperacao()] || '';
+  document.getElementById('dcStatus').textContent = (opRot ? opRot + ' · ' : '') + DC_ROTULOS[dcEstado.chave] + ': ' + (p.de === p.ate ? dcDdMm(p.de) : dcDdMm(p.de) + ' a ' + dcDdMm(p.ate)) + quando;
+  document.getElementById('dcAvisos').innerHTML = dcAvisosHtml(resumo, porHora, dcEstado.chave)
+    + (admin && resumo && resumo.sem_operacao ? `<div class="bmCard bmAtencao" style="margin-top:var(--space-3)">${escapeHtml('Campanha sem operação (aparece só em "Todas"): ' + resumo.sem_operacao + '. Inclua o começo do nome em config.discador.campanhas.')}</div>` : '');
   document.getElementById('dcVinculo').innerHTML = admin && currentUser.role === 'admin' ? dcVinculoHtml(dados(semV), dados(perfis)) : '';
   const card = (titulo, sub, corpo) => `<div class="bmCard"><h4>${escapeHtml(titulo)}${sub ? ' <small>' + escapeHtml(sub) + '</small>' : ''}</h4>${corpo}</div>`;
   document.getElementById('dcConteudo').innerHTML = dcKpisHtml(resumo)
@@ -13454,7 +13466,7 @@ async function dcAbrirDias(agenteId, nome){
   const p = dcPeriodo(dcEstado.chave, hojeSP(), dcEstado.de, dcEstado.ate);
   if(!p) return;
   const ger = dcEstado.geracao;
-  const r = await ppSeguro(() => sb.rpc('discador_consultor_dias', { p_agente: agenteId, p_de: p.de, p_ate: p.ate }));
+  const r = await ppSeguro(() => sb.rpc('discador_consultor_dias', { p_agente: agenteId, p_de: p.de, p_ate: p.ate, p_operacao: dcOperacaoPedida() }));
   if(ger !== dcEstado.geracao || !canSeeDiscador()) return;
   if(r && r.error) console.error('discador_consultor_dias:', r.error);
   const el = document.getElementById('dcDetalhe');
@@ -13477,6 +13489,13 @@ document.getElementById('dcPeriodos').addEventListener('click', function(ev){
   document.getElementById('dcCustom').style.display = custom ? 'flex' : 'none';
   if(custom) return; // espera o "Aplicar"
   dcEstado.chave = b.dataset.dcPeriodo;
+  dcCarregar();
+});
+document.getElementById('dcOperacoes').addEventListener('click', function(ev){
+  const b = ev.target.closest('[data-dc-operacao]');
+  if(!b || !currentUser || currentUser.role !== 'admin') return;
+  this.querySelectorAll('[data-dc-operacao]').forEach(x => x.classList.toggle('active', x === b));
+  dcEstado.operacao = b.dataset.dcOperacao;
   dcCarregar();
 });
 document.getElementById('btnDcAplicar').addEventListener('click', function(){

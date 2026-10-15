@@ -183,7 +183,7 @@ try{
   const nomes = window.__rpcCalls.map(c => c.nome).filter(n => n.startsWith('discador_')).sort();
   eq(nomes, ['discador_consultores', 'discador_mailing', 'discador_mailing', 'discador_mailing', 'discador_mapa_calor', 'discador_por_hora', 'discador_resumo'], 'supervisor: 7 RPCs, sem vínculo');
   const hoje = hojeSP();
-  eq(window.__rpcCalls.find(c => c.nome === 'discador_resumo').args, { p_de: hoje, p_ate: hoje }, 'abre em Hoje');
+  eq(window.__rpcCalls.find(c => c.nome === 'discador_resumo').args, { p_de: hoje, p_ate: hoje, p_operacao: null }, 'abre em Hoje (supervisor: operação decidida pelo banco)');
   eq(window.__rpcCalls.filter(c => c.nome === 'discador_mailing').map(c => c.args.p_dim).sort(), ['carga', 'cidade', 'operadora'], 'mailing nas 3 dimensões');
   const tela = document.getElementById('dcConteudo').innerHTML;
   assert(tela.includes('139.925') && tela.includes('bmHoras') && tela.includes('bmCalor') && tela.includes('data-dc-agente') && tela.includes('ZZ-carga') && tela.includes('ZZ-cidade'), 'todos os blocos na tela');
@@ -200,7 +200,7 @@ try{
   // período: Mês
   window.__rpcCalls.length = 0;
   document.querySelector('#dcPeriodos [data-dc-periodo="mes"]').click(); await espera(60);
-  eq(window.__rpcCalls.find(c => c.nome === 'discador_resumo').args, { p_de: hoje.slice(0, 8) + '01', p_ate: hoje }, 'Mês: do dia 1 até hoje');
+  eq(window.__rpcCalls.find(c => c.nome === 'discador_resumo').args, { p_de: hoje.slice(0, 8) + '01', p_ate: hoje, p_operacao: null }, 'Mês: do dia 1 até hoje');
   assert(document.querySelector('#dcPeriodos [data-dc-periodo="mes"]').classList.contains('active'), 'pílula ativa');
   assert(document.getElementById('dcDetalhe').innerHTML === '', 'trocar período limpa o detalhe');
 
@@ -217,7 +217,7 @@ try{
   assert(window.__rpcCalls.some(c => c.nome === 'discador_consultor_dias'), 'depois do inválido, o detalhe por dia ainda funciona');
   document.getElementById('dcDe').value = '2026-10-01'; document.getElementById('dcAte').value = '2026-10-10';
   document.getElementById('btnDcAplicar').click(); await espera(60);
-  eq(window.__rpcCalls.find(c => c.nome === 'discador_resumo').args, { p_de: '2026-10-01', p_ate: '2026-10-10' }, 'personalizado válido');
+  eq(window.__rpcCalls.find(c => c.nome === 'discador_resumo').args, { p_de: '2026-10-01', p_ate: '2026-10-10', p_operacao: null }, 'personalizado válido');
 
   // corrida: resposta antiga não sobrescreve a nova
   window.__rpcAtraso = { discador_resumo: 120 };
@@ -276,6 +276,41 @@ try{
   dcAplicarPermissao();
   await cargaAdmin; await espera(130);
   assert(document.getElementById('dcVinculo').innerHTML === '', 'carga do admin que termina depois da troca não mostra o vínculo ao supervisor');
+
+  // ==== §89: operação (Apex / Campinas) ====
+  respostasOk();
+  window.__rpcRespostas.discador_resumo = (a) => ({ data: [Object.assign({}, R, { operacao: a.p_operacao || 'apex', sem_operacao: 'ZZ-CAMPANHA-NOVA', ultima_sync: new Date().toISOString() })], error: null });
+  currentUser = { id: 'a1', nome: 'Admin Teste', username: 'adm', role: 'admin', operacao: 'apex' };
+  dcAplicarPermissao();
+  assert(document.getElementById('dcOperacoes').style.display !== 'none', 'admin vê o seletor de operação');
+  dcEstado.chave = 'hoje';
+  window.__rpcCalls.length = 0;
+  await dcCarregar(); await espera(60);
+  eq(window.__rpcCalls.filter(c => c.nome.startsWith('discador_') && c.nome !== 'discador_agentes_sem_vinculo').map(c => c.args.p_operacao), ['apex', 'apex', 'apex', 'apex', 'apex', 'apex', 'apex'], 'admin abre em Apex, nas 7 RPCs');
+  assert(document.getElementById('dcStatus').textContent.includes('Apex'), 'status com a operação');
+  assert(document.getElementById('dcAvisos').textContent.includes('ZZ-CAMPANHA-NOVA'), 'admin é avisado da campanha sem operação');
+  window.__rpcCalls.length = 0;
+  document.querySelector('#dcOperacoes [data-dc-operacao="campinas"]').click(); await espera(60);
+  eq(window.__rpcCalls.find(c => c.nome === 'discador_resumo').args.p_operacao, 'campinas', 'pílula Campinas');
+  assert(document.querySelector('#dcOperacoes [data-dc-operacao="campinas"]').classList.contains('active') && document.getElementById('dcStatus').textContent.includes('Campinas'), 'pílula ativa e status');
+  window.__rpcCalls.length = 0;
+  document.querySelector('#dcConteudo tr[data-dc-agente="193"]').click(); await espera(40);
+  eq(window.__rpcCalls.find(c => c.nome === 'discador_consultor_dias').args.p_operacao, 'campinas', 'detalhe por dia na mesma operação');
+  document.querySelector('#dcOperacoes [data-dc-operacao="todas"]').click(); await espera(60);
+  assert(document.getElementById('dcStatus').textContent.includes('Todas'), 'todas as operações');
+
+  // supervisor de Campinas: vê a aba, sem seletor, e não manda operação (o banco usa a dele)
+  currentUser = { id: 'sc', nome: 'Supervisor Campinas Teste', username: 'supc', role: 'supervisor', operacao: 'campinas' };
+  dcAplicarPermissao();
+  assert(document.getElementById('tabBtnDiscador').style.display !== 'none', 'supervisor de Campinas vê a aba');
+  assert(document.getElementById('dcOperacoes').style.display === 'none', 'supervisor não vê o seletor');
+  // o banco devolve a operação do supervisor (o mock imita); sem_operacao fica preenchido para provar que a TELA só avisa o admin
+  window.__rpcRespostas.discador_resumo = { data: [Object.assign({}, R, { operacao: 'campinas', sem_operacao: 'ZZ-CAMPANHA-NOVA', ultima_sync: new Date().toISOString() })], error: null };
+  window.__rpcCalls.length = 0;
+  await dcCarregar(); await espera(60);
+  eq(window.__rpcCalls.find(c => c.nome === 'discador_resumo').args.p_operacao, null, 'supervisor manda operação nula');
+  assert(document.getElementById('dcStatus').textContent.includes('Campinas'), 'status mostra a operação devolvida pelo banco');
+  assert(!document.getElementById('dcAvisos').textContent.includes('ZZ-CAMPANHA-NOVA'), 'aviso de campanha sem operação é só do admin');
 
   // trocar para consultor limpa a tela
   currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
