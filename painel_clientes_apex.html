@@ -1296,7 +1296,7 @@
         <div id="mesaRetObj"></div>
       </div>
       </div>
-      <!-- §89: Biometria — pedidos do NeoCRM em BIOMETRIA / AGUARDANDO ASSINATURA dos consultores administrados, com celular -->
+      <!-- §90: Biometria — pedidos do NeoCRM em BIOMETRIA / AGUARDANDO ASSINATURA dos consultores administrados, com celular -->
       <div id="mesaSubBio" style="display:none">
         <div class="card">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
@@ -1342,6 +1342,12 @@
             <button type="button" class="filterPill" data-dc-periodo="mes">Mês</button>
             <button type="button" class="filterPill" data-dc-periodo="custom">Personalizado</button>
           </div>
+        </div>
+        <!-- §89: operação (só o admin escolhe; supervisor vê a própria) -->
+        <div class="filterPills" id="dcOperacoes" style="display:none;margin:var(--space-3) 0 0">
+          <button type="button" class="filterPill active" data-dc-operacao="apex">Operação Apex</button>
+          <button type="button" class="filterPill" data-dc-operacao="campinas">Operação Campinas</button>
+          <button type="button" class="filterPill" data-dc-operacao="todas">Todas</button>
         </div>
         <div id="dcCustom" style="display:none;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-top:var(--space-3)">
           <div class="field" style="margin:0"><label for="dcDe">De</label><input type="date" id="dcDe"></div>
@@ -12232,7 +12238,7 @@ function mesaSemaforo(dados, agoraMs, cfg, hoje){
   const vendasPor = new Map((dados.vendas || []).map(x => [x.profile_id, x]));
   const metaPor = new Map((dados.metas || []).map(x => [x.profile_id, Number(x.meta_receita) || 0]));
   const diaMs = (d) => Date.parse(d + 'T00:00:00Z');
-  // §89: com a equipe de leads carregada, o semáforo mostra só os consultores administrados (leads_equipe.monitorar)
+  // §90: com a equipe de leads carregada, o semáforo mostra só os consultores administrados (leads_equipe.monitorar)
   const eq = (dados.equipe || []).filter(e => e.monitorar !== false);
   const perfis = new Set(eq.map(e => e.profile_id).filter(Boolean)), nomes = new Set(eq.map(e => plNormStatus(e.nome_planilha)));
   const administrado = r => !eq.length || (r.profileId ? perfis.has(r.profileId) : nomes.has(plNormStatus(r.nome)));
@@ -12301,8 +12307,8 @@ async function loadMesa(forcar){
     ppSeguro(() => sb.rpc('mesa_vendas_mes', { p_mes: ym + '-01' })),
     ppSeguro(() => sb.from('metas_consultor').select('profile_id,mes,meta_receita').eq('mes', ym + '-01')),
     ppSeguro(() => sb.from('config').select('chave,valor').eq('chave', 'velocidade_lead').maybeSingle()),
-    ppSeguro(() => sb.from('leads_equipe').select('nome_planilha,profile_id,monitorar')),   // §89
-    ppSeguro(() => sb.rpc('mesa_biometria')),                                                // §89
+    ppSeguro(() => sb.from('leads_equipe').select('nome_planilha,profile_id,monitorar')),   // §90
+    ppSeguro(() => sb.rpc('mesa_biometria')),                                                // §90
   ]);
   if(geracao !== mesaEstado.geracao || !canSeeMesa()) return;
   const ok = r => r && !r.error;
@@ -12414,7 +12420,7 @@ function mesaRenderVelocidade(){
   el.innerHTML = `<div class="mlTabelaWrap"><table class="tbl"><thead><tr><th>Tempo até o 1º contato</th><th>Leads</th><th>Vendas</th><th>Conversão</th></tr></thead><tbody>${
     linhas.map(r => `<tr><td>${escapeHtml(r.rotulo)}</td><td>${r.leads}</td><td>${r.vendas}</td><td>${mesaFmtPct(r.conversao)}</td></tr>`).join('')}</tbody></table></div>`;
 }
-/* ---- §89: Mesa → Biometria (RPC mesa_biometria) ---- */
+/* ---- §90: Mesa → Biometria (RPC mesa_biometria) ---- */
 const MESA_BIO_ETAPA = { 'BIOMETRIA (NEOCRM)': ['Biometria', 'biometria'], 'AGUARDANDO ASSINATURA (NEOCRM)': ['Aguardando assinatura', 'assinatura'] };
 // dias corridos desde a entrada na etapa (no fuso de SP); null sem data
 function mesaBioDias(desde, hoje){ const d = mesaDiaSP(desde); return d ? Math.max(0, Math.round((Date.parse(hoje + 'T00:00:00Z') - Date.parse(d + 'T00:00:00Z')) / 86400000)) : null; }
@@ -13328,8 +13334,11 @@ function bmVerificarHora(entrando){
 const DC_MAX_DIAS = 120;               // igual ao limite das RPCs (p_ate - p_de > 120 é recusado)
 const DC_MIN_CONTATOS_ALERTA = 10;     // alerta de abandono só com amostra mínima na hora
 const DC_MIN_ATENDIDAS_DESTAQUE = 20;  // destaque de consultor só com amostra mínima no período
-const dcEstado = { geracao: 0, chave: 'hoje', de: null, ate: null };
-function canSeeDiscador(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor') && veAbasDaApex(); }
+const dcEstado = { geracao: 0, chave: 'hoje', de: null, ate: null, operacao: 'apex' };
+const DC_OPERACOES = { apex: 'Apex', campinas: 'Campinas', todas: 'Todas as operações' };
+// §89: supervisor de qualquer operação vê a aba; o banco devolve só a operação dele (admin escolhe no seletor)
+function canSeeDiscador(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
+function dcOperacaoPedida(){ return currentUser && currentUser.role === 'admin' ? dcEstado.operacao : null; }
 function dcPeriodo(chave, hoje, de, ate){
   if(chave === 'ontem'){ const d = somaDiasStr(hoje, -1); return { de: d, ate: d }; }
   if(chave === '7dias') return { de: somaDiasStr(hoje, -6), ate: hoje };
@@ -13481,6 +13490,7 @@ function dcResetar(){
 function dcAplicarPermissao(){
   const vis = canSeeDiscador();
   document.getElementById('tabBtnDiscador').style.display = vis ? 'inline-block' : 'none';
+  document.getElementById('dcOperacoes').style.display = vis && currentUser.role === 'admin' ? 'flex' : 'none';
   dcResetar(); // sempre: troca de usuário no mesmo navegador não pode herdar a tela (nem o vínculo do admin) e descarta carga em andamento
 }
 const DC_ROTULOS = { hoje: 'Hoje', ontem: 'Ontem', '7dias': 'Últimos 7 dias', mes: 'Mês até hoje', custom: 'Personalizado' };
@@ -13502,7 +13512,7 @@ async function dcCarregar(){
   const p = dcPeriodo(dcEstado.chave, hojeSP(), dcEstado.de, dcEstado.ate);
   if(!p){ mostrarAviso('Período inválido: escolha datas em ordem, com no máximo ' + DC_MAX_DIAS + ' dias.', 'erro'); return; }
   const ger = ++dcEstado.geracao;
-  const args = { p_de: p.de, p_ate: p.ate };
+  const args = { p_de: p.de, p_ate: p.ate, p_operacao: dcOperacaoPedida() };
   const admin = currentUser.role === 'admin';
   document.getElementById('dcStatus').textContent = 'Carregando…';
   document.getElementById('dcDetalhe').innerHTML = '';
@@ -13522,8 +13532,10 @@ async function dcCarregar(){
   const quando = resumo && resumo.ultima_sync
     ? ' · dados até ' + new Date(resumo.ultima_sync).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
     : '';
-  document.getElementById('dcStatus').textContent = DC_ROTULOS[dcEstado.chave] + ': ' + (p.de === p.ate ? dcDdMm(p.de) : dcDdMm(p.de) + ' a ' + dcDdMm(p.ate)) + quando;
-  document.getElementById('dcAvisos').innerHTML = dcAvisosHtml(resumo, porHora, dcEstado.chave);
+  const opRot = DC_OPERACOES[(resumo && resumo.operacao) || args.p_operacao || minhaOperacao()] || '';
+  document.getElementById('dcStatus').textContent = (opRot ? opRot + ' · ' : '') + DC_ROTULOS[dcEstado.chave] + ': ' + (p.de === p.ate ? dcDdMm(p.de) : dcDdMm(p.de) + ' a ' + dcDdMm(p.ate)) + quando;
+  document.getElementById('dcAvisos').innerHTML = dcAvisosHtml(resumo, porHora, dcEstado.chave)
+    + (admin && resumo && resumo.sem_operacao ? `<div class="bmCard bmAtencao" style="margin-top:var(--space-3)">${escapeHtml('Campanha sem operação (aparece só em "Todas"): ' + resumo.sem_operacao + '. Inclua o começo do nome em config.discador.campanhas.')}</div>` : '');
   document.getElementById('dcVinculo').innerHTML = admin && currentUser.role === 'admin' ? dcVinculoHtml(dados(semV), dados(perfis)) : '';
   const card = (titulo, sub, corpo) => `<div class="bmCard"><h4>${escapeHtml(titulo)}${sub ? ' <small>' + escapeHtml(sub) + '</small>' : ''}</h4>${corpo}</div>`;
   document.getElementById('dcConteudo').innerHTML = dcKpisHtml(resumo)
@@ -13541,7 +13553,7 @@ async function dcAbrirDias(agenteId, nome){
   const p = dcPeriodo(dcEstado.chave, hojeSP(), dcEstado.de, dcEstado.ate);
   if(!p) return;
   const ger = dcEstado.geracao;
-  const r = await ppSeguro(() => sb.rpc('discador_consultor_dias', { p_agente: agenteId, p_de: p.de, p_ate: p.ate }));
+  const r = await ppSeguro(() => sb.rpc('discador_consultor_dias', { p_agente: agenteId, p_de: p.de, p_ate: p.ate, p_operacao: dcOperacaoPedida() }));
   if(ger !== dcEstado.geracao || !canSeeDiscador()) return;
   if(r && r.error) console.error('discador_consultor_dias:', r.error);
   const el = document.getElementById('dcDetalhe');
@@ -13564,6 +13576,13 @@ document.getElementById('dcPeriodos').addEventListener('click', function(ev){
   document.getElementById('dcCustom').style.display = custom ? 'flex' : 'none';
   if(custom) return; // espera o "Aplicar"
   dcEstado.chave = b.dataset.dcPeriodo;
+  dcCarregar();
+});
+document.getElementById('dcOperacoes').addEventListener('click', function(ev){
+  const b = ev.target.closest('[data-dc-operacao]');
+  if(!b || !currentUser || currentUser.role !== 'admin') return;
+  this.querySelectorAll('[data-dc-operacao]').forEach(x => x.classList.toggle('active', x === b));
+  dcEstado.operacao = b.dataset.dcOperacao;
   dcCarregar();
 });
 document.getElementById('btnDcAplicar').addEventListener('click', function(){
