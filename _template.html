@@ -809,6 +809,8 @@
       <button data-tab="mesa" id="tabBtnMesa" style="display:none" data-sub="Pendências da equipe e cobrança em 1 clique"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10"/><path d="M7 13h6"/><circle cx="17" cy="15" r="2"/></svg><span class="sbLabel">Mesa do Supervisor</span></button>
       <!-- 08/10/2026, seção 76 (v2 em 09/10, seção 77): Boletim da Manhã — admin/supervisor, resumo do dia anterior. -->
       <button data-tab="boletim" id="tabBtnBoletim" style="display:none" data-sub="Resumo do dia anterior para a supervisão"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3"/><path d="m5.6 6.6 1.4 1.4"/><path d="m18.4 6.6-1.4 1.4"/><path d="M3 14h2"/><path d="M19 14h2"/><path d="M7 14a5 5 0 0 1 10 0"/><path d="M3 18h18"/><path d="M8 21h8"/></svg><span class="sbLabel">Boletim da Manhã</span></button>
+      <!-- 15/10/2026, seção 87: Discador automático do ProContact — admin/supervisor -->
+      <button data-tab="discador" id="tabBtnDiscador" style="display:none" data-sub="Ritmo, consultores e mailing do discador automático"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/><path d="M15 3v6h6"/></svg><span class="sbLabel">Discador</span></button>
       <button data-tab="conversao" id="tabBtnConversao" style="display:none" data-sub="Leads das campanhas e conversão em vendas"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg><span class="sbLabel">Digital</span></button>
       <div class="navGroupLabel">Vendas</div>
       <button data-tab="busca" data-sub="Base de clientes por razão social, CNPJ ou telefone"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span class="sbLabel">Buscar Clientes</span></button>
@@ -1199,6 +1201,31 @@
         <p class="desc" id="bmAviso"></p>
       </div>
       <div id="bmConteudo"></div>
+    </section>
+    <!-- DISCADOR (15/10/2026, seção 87) — admin/supervisor: discador automático do ProContact (ritmo, consultores, mailing).
+         Para o consultor o botão some e o painel fica vazio (dcResetar); a proteção real são a RLS e as RPCs discador_*. -->
+    <section class="panel" id="panel-discador">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <div><h3 style="margin:0">Discador</h3><p class="desc" id="dcStatus" style="margin:4px 0 0"></p></div>
+          <div class="filterPills" id="dcPeriodos" style="margin:0">
+            <button type="button" class="filterPill active" data-dc-periodo="hoje">Hoje</button>
+            <button type="button" class="filterPill" data-dc-periodo="ontem">Ontem</button>
+            <button type="button" class="filterPill" data-dc-periodo="7dias">7 dias</button>
+            <button type="button" class="filterPill" data-dc-periodo="mes">Mês</button>
+            <button type="button" class="filterPill" data-dc-periodo="custom">Personalizado</button>
+          </div>
+        </div>
+        <div id="dcCustom" style="display:none;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-top:var(--space-3)">
+          <div class="field" style="margin:0"><label for="dcDe">De</label><input type="date" id="dcDe"></div>
+          <div class="field" style="margin:0"><label for="dcAte">Até</label><input type="date" id="dcAte"></div>
+          <button type="button" class="btn btn-sm" id="btnDcAplicar" style="width:auto">Aplicar</button>
+        </div>
+      </div>
+      <div id="dcAvisos"></div>
+      <div id="dcVinculo"></div>
+      <div id="dcConteudo"></div>
+      <div id="dcDetalhe"></div>
     </section>
 
     <!-- DASHBOARD DE PRODUÇÃO (Apex/Claro) — página inicial pós-login, visível a qualquer perfil
@@ -2375,6 +2402,8 @@ function enterApp(){
     mesaAplicarPermissao();
     // 08/10/2026 (seção 76): Boletim da Manhã — só admin/supervisor
     bmAplicarPermissao();
+    // 15/10/2026 (seção 87): Discador — só admin/supervisor
+    dcAplicarPermissao();
     // 06/10/2026 (seção 72): Caderno + Agenda + Objeções — botão do Caderno, rascunho, biblioteca e alertas
     cadernoAoEntrar();
     document.getElementById('btnConversaoSync').style.display = canSyncConversao() ? 'inline-block' : 'none';
@@ -2621,6 +2650,7 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
   if(btn.dataset.tab === 'config') carregarEmailConfigStatus();
   if(btn.dataset.tab === 'mesa') loadMesa(true);
   if(btn.dataset.tab === 'boletim') bmGarantirDoDia().catch(err => { console.error(err); bmStatus('Não foi possível montar o boletim agora.'); });
+  if(btn.dataset.tab === 'discador') dcCarregar();
   if(btn.dataset.tab === 'agenda') loadAgenda();
   if(btn.dataset.tab === 'anotacoes') loadAnotacoes();
 });
@@ -12545,6 +12575,115 @@ function dcVinculoHtml(semVinculo, perfis){
       + `<button type="button" class="btn btn-sm" data-dc-vinc="${e(String(a.agente_id))}" style="width:auto">Vincular</button></div>`).join('')
     + '</div>';
 }
+function dcResetar(){
+  dcEstado.geracao++;
+  ['dcConteudo', 'dcVinculo', 'dcDetalhe', 'dcAvisos'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = ''; });
+  const st = document.getElementById('dcStatus'); if(st) st.textContent = '';
+}
+function dcAplicarPermissao(){
+  const vis = canSeeDiscador();
+  document.getElementById('tabBtnDiscador').style.display = vis ? 'inline-block' : 'none';
+  if(!vis) dcResetar();
+}
+const DC_ROTULOS = { hoje: 'Hoje', ontem: 'Ontem', '7dias': 'Últimos 7 dias', mes: 'Mês até hoje', custom: 'Personalizado' };
+function dcAvisosHtml(resumo, porHora, chave){
+  const e = escapeHtml, partes = [];
+  const ms = resumo && resumo.ultima_sync ? new Date(resumo.ultima_sync).getTime() : NaN;
+  if(Number.isFinite(ms) && ligMinutosUteisSemSync(ms, Date.now()) > LIG_SYNC_LIMITE_MIN){
+    const quando = new Date(ms).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    partes.push(`O discador não sincroniza desde ${quando}. Os números podem estar atrasados; avise o responsável técnico.`);
+  }
+  if(chave === 'hoje' && resumo){
+    const a = dcAlertaAbandono(porHora, Math.floor(vlPartesSP(Date.now()).min / 60), resumo.abandono_alerta);
+    if(a) partes.push(`Abandono de ${dcFmtPct(a.taxa)} às ${a.hora}h (${a.abandonadas} de ${a.contato} contatos sem consultor livre) — segurar o ritmo do discador.`);
+  }
+  return partes.map(p => `<div class="bmCard bmAtencao" style="margin-top:var(--space-3)">${e(p)}</div>`).join('');
+}
+async function dcCarregar(){
+  if(!canSeeDiscador()) return;
+  const p = dcPeriodo(dcEstado.chave, hojeSP(), dcEstado.de, dcEstado.ate);
+  if(!p){ mostrarAviso('Período inválido: escolha datas em ordem, com no máximo ' + DC_MAX_DIAS + ' dias.', 'erro'); return; }
+  const ger = ++dcEstado.geracao;
+  const args = { p_de: p.de, p_ate: p.ate };
+  const admin = currentUser.role === 'admin';
+  document.getElementById('dcStatus').textContent = 'Carregando…';
+  document.getElementById('dcDetalhe').innerHTML = '';
+  const rpc = (nome, a) => ppSeguro(() => sb.rpc(nome, a));
+  const [res, hora, calor, cons, carga, oper, cid, semV, perfis] = await Promise.all([
+    rpc('discador_resumo', args), rpc('discador_por_hora', args), rpc('discador_mapa_calor', args), rpc('discador_consultores', args),
+    rpc('discador_mailing', Object.assign({}, args, { p_dim: 'carga' })),
+    rpc('discador_mailing', Object.assign({}, args, { p_dim: 'operadora' })),
+    rpc('discador_mailing', Object.assign({}, args, { p_dim: 'cidade' })),
+    admin ? rpc('discador_agentes_sem_vinculo', {}) : Promise.resolve(null),
+    admin ? ppSeguro(() => sb.from('profiles').select('id,nome,role').order('nome')) : Promise.resolve(null),
+  ]);
+  if(ger !== dcEstado.geracao || !canSeeDiscador()) return;
+  const dados = r => (r && !r.error && Array.isArray(r.data) ? r.data : null);
+  [res, hora, calor, cons, carga, oper, cid, semV].forEach(r => { if(r && r.error) console.error('discador:', r.error); });
+  const resumo = dados(res) ? (dados(res)[0] || null) : null, porHora = dados(hora);
+  const quando = resumo && resumo.ultima_sync
+    ? ' · dados até ' + new Date(resumo.ultima_sync).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    : '';
+  document.getElementById('dcStatus').textContent = DC_ROTULOS[dcEstado.chave] + ': ' + (p.de === p.ate ? dcDdMm(p.de) : dcDdMm(p.de) + ' a ' + dcDdMm(p.ate)) + quando;
+  document.getElementById('dcAvisos').innerHTML = dcAvisosHtml(resumo, porHora, dcEstado.chave);
+  document.getElementById('dcVinculo').innerHTML = admin ? dcVinculoHtml(dados(semV), dados(perfis)) : '';
+  const card = (titulo, sub, corpo) => `<div class="bmCard"><h4>${escapeHtml(titulo)}${sub ? ' <small>' + escapeHtml(sub) + '</small>' : ''}</h4>${corpo}</div>`;
+  document.getElementById('dcConteudo').innerHTML = dcKpisHtml(resumo)
+    + '<div class="bmSecao">Ritmo do discador</div>'
+    + `<div class="bmGrade">${card('Contatos por hora', p.de === p.ate ? '' : 'soma do período', dcHorasHtml(porHora, p.de === p.ate))}</div>`
+    + `<div class="bmGrade">${card('Melhor hora para ligar', 'taxa de contato por dia da semana e hora', dcCalorHtml(dados(calor)))}</div>`
+    + '<div class="bmSecao">Consultores</div>'
+    + `<div class="bmGrade">${card('Atendimentos do discador', '', dcConsultoresHtml(dados(cons)))}</div>`
+    + '<div class="bmSecao">Mailing</div>'
+    + `<div class="bmGrade">${card('Por carga', '', dcMailingHtml(dados(carga), 'Carga'))}</div>`
+    + `<div class="bmGrade bmG2">${card('Por operadora de origem', '', dcMailingHtml(dados(oper), 'Operadora'))}${card('Por cidade', '15 maiores com 300+ tentativas', dcMailingHtml(dados(cid), 'Cidade'))}</div>`;
+}
+async function dcAbrirDias(agenteId, nome){
+  if(!canSeeDiscador()) return;
+  const p = dcPeriodo(dcEstado.chave, hojeSP(), dcEstado.de, dcEstado.ate);
+  if(!p) return;
+  const ger = dcEstado.geracao;
+  const r = await ppSeguro(() => sb.rpc('discador_consultor_dias', { p_agente: agenteId, p_de: p.de, p_ate: p.ate }));
+  if(ger !== dcEstado.geracao || !canSeeDiscador()) return;
+  if(r && r.error) console.error('discador_consultor_dias:', r.error);
+  const el = document.getElementById('dcDetalhe');
+  el.innerHTML = dcDiasHtml(nome, r && !r.error && Array.isArray(r.data) ? r.data : null);
+  if(typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+async function dcVincular(agenteId, profileId){
+  if(!currentUser || currentUser.role !== 'admin') return;
+  if(!profileId){ mostrarAviso('Escolha o consultor antes de vincular.', 'erro'); return; }
+  const r = await ppSeguro(() => sb.rpc('discador_vincular_agente', { p_agente: agenteId, p_profile: profileId, p_apelido: null }));
+  if(r && r.error){ console.error('discador_vincular_agente:', r.error); mostrarAviso('Não foi possível vincular agora.', 'erro'); return; }
+  mostrarAviso('Agente ' + agenteId + ' vinculado.', 'ok');
+  await dcCarregar();
+}
+document.getElementById('dcPeriodos').addEventListener('click', function(ev){
+  const b = ev.target.closest('[data-dc-periodo]');
+  if(!b) return;
+  this.querySelectorAll('[data-dc-periodo]').forEach(x => x.classList.toggle('active', x === b));
+  const custom = b.dataset.dcPeriodo === 'custom';
+  document.getElementById('dcCustom').style.display = custom ? 'flex' : 'none';
+  if(custom) return; // espera o "Aplicar"
+  dcEstado.chave = b.dataset.dcPeriodo;
+  dcCarregar();
+});
+document.getElementById('btnDcAplicar').addEventListener('click', function(){
+  dcEstado.chave = 'custom';
+  dcEstado.de = document.getElementById('dcDe').value;
+  dcEstado.ate = document.getElementById('dcAte').value;
+  dcCarregar();
+});
+document.getElementById('dcConteudo').addEventListener('click', function(ev){
+  const tr = ev.target.closest('tr[data-dc-agente]');
+  if(tr) dcAbrirDias(Number(tr.dataset.dcAgente), tr.dataset.dcNome || ('Agente ' + tr.dataset.dcAgente));
+});
+document.getElementById('dcVinculo').addEventListener('click', function(ev){
+  const b = ev.target.closest('[data-dc-vinc]');
+  if(!b) return;
+  const sel = this.querySelector(`[data-dc-vinc-sel="${b.dataset.dcVinc}"]`);
+  dcVincular(Number(b.dataset.dcVinc), sel ? sel.value : '');
+});
 document.getElementById('bmSeletor').addEventListener('change', async function(){
   const dia = this.value;
   if(!dia || !canSeeBoletim()) return;

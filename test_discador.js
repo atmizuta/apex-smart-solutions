@@ -152,6 +152,118 @@ try{
   assert(vh.includes('data-dc-vinc="189"') && vh.includes('value="p1"') && vh.includes('Ana &lt;Teste&gt;'), 'vínculo: seletor com perfis escapados');
   eq(dcVinculoHtml([], []), '', 'sem pendências: nada');
 
+  // ==== TASK 3: permissão, carga e eventos ====
+  const respostasOk = () => {
+    window.__rpcRespostas = {
+      discador_resumo: { data: [Object.assign({}, R, { ultima_sync: new Date(Date.now() - 30 * 60000).toISOString() })], error: null },
+      discador_por_hora: { data: horas, error: null },
+      discador_mapa_calor: { data: calor, error: null },
+      discador_consultores: { data: consultores, error: null },
+      discador_mailing: (a) => ({ data: [{ chave: 'ZZ-' + a.p_dim, tentativas: 1000, contato: 60, atendidas: 40, abandonadas: 20, ganhos: 1, vendas: 2 }], error: null }),
+      discador_agentes_sem_vinculo: { data: [{ agente_id: 189, atendidas_30d: 971, ultima_chamada: null }], error: null },
+      discador_consultor_dias: { data: [{ dia: '2026-10-05', atendidas: 30, seg_falados_total: 1500, sem_avanco: 10, ganhos: 1, vendas: 2 }], error: null },
+      discador_vincular_agente: { data: null, error: null },
+    };
+  };
+  respostasOk();
+  window.__tabelas.profiles = [{ id: 'p1', nome: 'Caio Teste', role: 'consultor' }];
+
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  dcAplicarPermissao();
+  assert(document.getElementById('tabBtnDiscador').style.display === 'none', 'consultor não vê o botão');
+  window.__rpcCalls.length = 0;
+  await dcCarregar(); await espera();
+  assert(!window.__rpcCalls.length && document.getElementById('dcConteudo').innerHTML === '', 'consultor: nenhuma RPC, nada na tela');
+
+  currentUser = { id: 's1', nome: 'Supervisor Teste', username: 'sup', role: 'supervisor' };
+  dcAplicarPermissao();
+  assert(document.getElementById('tabBtnDiscador').style.display !== 'none', 'supervisor vê o botão');
+  window.__rpcCalls.length = 0;
+  document.querySelector('#tabsNav button[data-tab="discador"]').click(); await espera(60);
+  const nomes = window.__rpcCalls.map(c => c.nome).filter(n => n.startsWith('discador_')).sort();
+  eq(nomes, ['discador_consultores', 'discador_mailing', 'discador_mailing', 'discador_mailing', 'discador_mapa_calor', 'discador_por_hora', 'discador_resumo'], 'supervisor: 7 RPCs, sem vínculo');
+  const hoje = hojeSP();
+  eq(window.__rpcCalls.find(c => c.nome === 'discador_resumo').args, { p_de: hoje, p_ate: hoje }, 'abre em Hoje');
+  eq(window.__rpcCalls.filter(c => c.nome === 'discador_mailing').map(c => c.args.p_dim).sort(), ['carga', 'cidade', 'operadora'], 'mailing nas 3 dimensões');
+  const tela = document.getElementById('dcConteudo').innerHTML;
+  assert(tela.includes('139.925') && tela.includes('bmHoras') && tela.includes('bmCalor') && tela.includes('data-dc-agente') && tela.includes('ZZ-carga') && tela.includes('ZZ-cidade'), 'todos os blocos na tela');
+  assert(document.getElementById('dcVinculo').innerHTML === '', 'supervisor não vê o vínculo');
+  assert(document.getElementById('dcStatus').textContent.includes('Hoje'), 'status com o período');
+  assert(!document.getElementById('dcAvisos').textContent.includes('não sincroniza'), 'sync recente: sem faixa');
+
+  // detalhe por dia
+  window.__rpcCalls.length = 0;
+  document.querySelector('#dcConteudo tr[data-dc-agente="193"]').click(); await espera(40);
+  eq(window.__rpcCalls.map(c => [c.nome, c.args.p_agente]), [['discador_consultor_dias', 193]], 'clique no consultor busca por dia');
+  assert(document.getElementById('dcDetalhe').innerHTML.includes('Caio Teste') && document.getElementById('dcDetalhe').innerHTML.includes('05/10'), 'detalhe renderizado');
+
+  // período: Mês
+  window.__rpcCalls.length = 0;
+  document.querySelector('#dcPeriodos [data-dc-periodo="mes"]').click(); await espera(60);
+  eq(window.__rpcCalls.find(c => c.nome === 'discador_resumo').args, { p_de: hoje.slice(0, 8) + '01', p_ate: hoje }, 'Mês: do dia 1 até hoje');
+  assert(document.querySelector('#dcPeriodos [data-dc-periodo="mes"]').classList.contains('active'), 'pílula ativa');
+  assert(document.getElementById('dcDetalhe').innerHTML === '', 'trocar período limpa o detalhe');
+
+  // personalizado inválido: aviso, nenhuma RPC
+  document.querySelector('#dcPeriodos [data-dc-periodo="custom"]').click(); await espera();
+  assert(document.getElementById('dcCustom').style.display !== 'none', 'personalizado mostra as datas');
+  document.getElementById('dcDe').value = '2026-10-10'; document.getElementById('dcAte').value = '2026-10-01';
+  window.__rpcCalls.length = 0; avisos.length = 0;
+  document.getElementById('btnDcAplicar').click(); await espera(40);
+  assert(!window.__rpcCalls.length && avisos.some(a => a[0] === 'erro'), 'personalizado inválido: aviso e nada consultado');
+  document.getElementById('dcDe').value = '2026-10-01'; document.getElementById('dcAte').value = '2026-10-10';
+  document.getElementById('btnDcAplicar').click(); await espera(60);
+  eq(window.__rpcCalls.find(c => c.nome === 'discador_resumo').args, { p_de: '2026-10-01', p_ate: '2026-10-10' }, 'personalizado válido');
+
+  // corrida: resposta antiga não sobrescreve a nova
+  window.__rpcAtraso = { discador_resumo: 120 };
+  window.__rpcRespostas.discador_resumo = { data: [Object.assign({}, R, { tentativas: 111 })], error: null };
+  const lenta = dcCarregar();
+  window.__rpcAtraso = {};
+  window.__rpcRespostas.discador_resumo = { data: [Object.assign({}, R, { tentativas: 222 })], error: null };
+  await dcCarregar(); await lenta; await espera(150);
+  assert(document.getElementById('dcConteudo').innerHTML.includes('>222<') && !document.getElementById('dcConteudo').innerHTML.includes('>111<'), 'só a última carga aparece');
+
+  // falha isolada
+  respostasOk();
+  window.__rpcRespostas.discador_mapa_calor = { data: null, error: { message: 'timeout' } };
+  await dcCarregar(); await espera(60);
+  const t2 = document.getElementById('dcConteudo').innerHTML;
+  assert(t2.includes('Não foi possível carregar') && t2.includes('139.925') && t2.includes('data-dc-agente'), 'mapa falhou, resto aparece');
+
+  // faixa de sync parado (última há 2 dias úteis) e alerta de abandono no Hoje
+  respostasOk();
+  window.__rpcRespostas.discador_resumo = { data: [Object.assign({}, R, { ultima_sync: new Date(Date.now() - 3 * 86400000).toISOString() })], error: null };
+  const horaAgora = Math.floor(vlPartesSP(Date.now()).min / 60);
+  window.__rpcRespostas.discador_por_hora = { data: [{ hora: horaAgora - 1, tentativas: 900, contato: 50, atendidas: 30, abandonadas: 20, media_atendidas: 0, media_abandonadas: 0 }], error: null };
+  document.querySelector('#dcPeriodos [data-dc-periodo="hoje"]').click(); await espera(60);
+  const av = document.getElementById('dcAvisos').textContent;
+  assert(av.includes('não sincroniza'), 'faixa de sync parado');
+  assert(av.includes('40,0%') && av.includes('segurar o ritmo'), 'alerta de abandono na última hora cheia');
+  document.querySelector('#dcPeriodos [data-dc-periodo="ontem"]').click(); await espera(60);
+  assert(!document.getElementById('dcAvisos').textContent.includes('segurar o ritmo'), 'alerta só no Hoje');
+
+  // admin: vínculo
+  respostasOk();
+  currentUser = { id: 'a1', nome: 'Admin Teste', username: 'adm', role: 'admin' };
+  dcAplicarPermissao();
+  window.__rpcCalls.length = 0;
+  await dcCarregar(); await espera(60);
+  assert(window.__rpcCalls.some(c => c.nome === 'discador_agentes_sem_vinculo'), 'admin busca agentes sem vínculo');
+  assert(document.getElementById('dcVinculo').innerHTML.includes('Agente 189'), 'admin vê o vínculo');
+  avisos.length = 0; window.__rpcCalls.length = 0;
+  document.querySelector('#dcVinculo [data-dc-vinc="189"]').click(); await espera(40);
+  assert(!window.__rpcCalls.some(c => c.nome === 'discador_vincular_agente') && avisos.some(a => a[0] === 'erro'), 'sem escolher consultor: aviso, nada gravado');
+  document.querySelector('#dcVinculo [data-dc-vinc-sel="189"]').value = 'p1';
+  document.querySelector('#dcVinculo [data-dc-vinc="189"]').click(); await espera(80);
+  eq((window.__rpcCalls.find(c => c.nome === 'discador_vincular_agente') || {}).args, { p_agente: 189, p_profile: 'p1', p_apelido: null }, 'vincula pela RPC');
+  assert(avisos.some(a => a[0] === 'ok') && window.__rpcCalls.filter(c => c.nome === 'discador_resumo').length === 1, 'aviso ok e recarrega a aba');
+
+  // trocar para consultor limpa a tela
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  dcAplicarPermissao();
+  assert(document.getElementById('dcConteudo').innerHTML === '' && document.getElementById('dcVinculo').innerHTML === '', 'perdeu permissão: tela limpa');
+
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
