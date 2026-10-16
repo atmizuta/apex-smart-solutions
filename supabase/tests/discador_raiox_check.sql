@@ -51,7 +51,7 @@ begin
   assert j ->> 'operacao' = 'apex', 'operação';
   assert jsonb_array_length(j -> 'dias') = 1 and (j -> 'dias' -> 0 ->> 'atendidas')::int = 5 and (j -> 'dias' -> 0 ->> 'horas_ativas')::int = 2
      and (j -> 'dias' -> 0 ->> 'pausas')::int = 1 and (j -> 'dias' -> 0 ->> 'min_pausa')::int = 34, 'dias';
-  assert jsonb_array_length(j -> 'por_hora') = 13 and (select (x ->> 'atendidas')::int from jsonb_array_elements(j -> 'por_hora') x where (x ->> 'hora')::int = 10) = 4, 'por hora: 4 às 10h';
+  assert jsonb_array_length(j -> 'por_hora') = 16 and (select (x ->> 'atendidas')::int from jsonb_array_elements(j -> 'por_hora') x where (x ->> 'hora')::int = 10) = 4, 'por hora: 4 às 10h';
   assert jsonb_array_length(j -> 'pausas') = 2, 'lista com as duas pausas (inclusive a da equipe)';
   assert (j -> 'qualidade' -> 'agente' ->> 'curtas')::int = 2 and (j -> 'qualidade' -> 'agente' ->> 'seg_falados_medio_sem_curtas')::int = 43, 'qualidade: 2 curtas; média sem curtas (60+30+40)/3 = 43';
   assert (j -> 'qualidade' -> 'agente' -> 'mix' ->> 'sem_avanco')::int = 1 and (j -> 'qualidade' -> 'agente' -> 'mix' ->> 'ganho')::int = 1 and (j -> 'qualidade' -> 'agente' -> 'mix' ->> 'sem_tabulacao')::int = 1, 'mix';

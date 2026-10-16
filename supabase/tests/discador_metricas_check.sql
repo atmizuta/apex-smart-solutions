@@ -73,7 +73,7 @@ begin
   assert r.tentativas = 3 and r.atendidas = 2 and r.abandonadas = 1, '10h: 3 tentativas, 2 atendidas, 1 abandonada';
   assert r.media_atendidas = 0.5 and r.media_abandonadas = 0.5, '10h: média de 2 segundas de referência = 0,5 e 0,5';
   select count(*) into n from public.discador_por_hora('2000-06-05', '2000-06-05');
-  assert n = 13, 'horas 9 a 21 = 13 linhas';
+  assert n = 16, 'horas 7 a 22 = 16 linhas';
   select count(*) into n from public.discador_por_hora('2000-06-05', '2000-06-06') where media_atendidas is not null;
   assert n = 0, 'sem média quando o período tem mais de um dia';
 

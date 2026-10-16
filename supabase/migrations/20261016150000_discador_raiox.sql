@@ -114,7 +114,7 @@ begin
 
   if p_de = p_ate then
     select jsonb_agg(jsonb_build_object('hora', g.h, 'atendidas', coalesce(x.n, 0)) order by g.h) into v_hora
-      from generate_series(9, 21) as g(h)
+      from generate_series(7, 22) as g(h)  -- Campinas começa ~8h
       left join (select extract(hour from c.atendida_em at time zone 'America/Sao_Paulo')::int as h, count(*) as n
                    from public.discador_periodo(p_de, p_ate, v_op) c
                   where c.status = 'ANSWERED' and c.agente_id = p_agente and c.atendida_em is not null group by 1) x on x.h = g.h;
@@ -175,3 +175,48 @@ begin
 end $$;
 revoke all on function public.discador_consultor_raiox(int, date, date, text) from public, anon;
 grant execute on function public.discador_consultor_raiox(int, date, date, text) to authenticated;
+
+-- Ritmo por hora da aba: 7h–22h (antes 9h–21h; Campinas começa ~8h e as chamadas das 8h sumiam do gráfico). Mesma assinatura.
+create or replace function public.discador_por_hora(p_de date, p_ate date, p_operacao text default null)
+returns table (hora int, tentativas bigint, contato bigint, atendidas bigint, abandonadas bigint,
+               media_atendidas numeric, media_abandonadas numeric)
+language plpgsql stable security definer set search_path = public as $$
+#variable_conflict use_column
+declare v_op text;
+begin
+  perform public.discador_exige_supervisao(p_de, p_ate);
+  v_op := public.discador_operacao_efetiva(p_operacao);
+  return query
+  with per as (
+    select extract(hour from c.gerada_em at time zone 'America/Sao_Paulo')::int as h, c.status, c.agente_id
+      from public.discador_periodo(p_de, p_ate, v_op) c
+  ), ref as (
+    select (c.gerada_em at time zone 'America/Sao_Paulo')::date as dia,
+           extract(hour from c.gerada_em at time zone 'America/Sao_Paulo')::int as h, c.status, c.agente_id
+      from public.discador_periodo(p_de - 28, p_de - 7, v_op) c
+     where p_de = p_ate
+       and (c.gerada_em at time zone 'America/Sao_Paulo')::date in (p_de - 7, p_de - 14, p_de - 21, p_de - 28)
+  ), nd as (
+    select count(distinct ref.dia) as n from ref
+  ), a as (
+    select per.h, count(*) as t,
+           count(*) filter (where per.status in ('ANSWERED', 'ABANDONED')) as ct,
+           count(*) filter (where per.status = 'ANSWERED' and per.agente_id is not null) as atd,
+           count(*) filter (where per.status = 'ABANDONED') as abd
+      from per group by per.h
+  ), r as (
+    select ref.h,
+           count(*) filter (where ref.status = 'ANSWERED' and ref.agente_id is not null) as atd,
+           count(*) filter (where ref.status = 'ABANDONED') as abd
+      from ref group by ref.h
+  )
+  select g.h, coalesce(a.t, 0), coalesce(a.ct, 0), coalesce(a.atd, 0), coalesce(a.abd, 0),
+         case when p_de = p_ate and nd.n > 0 then round(coalesce(r.atd, 0)::numeric / nd.n, 1) end,
+         case when p_de = p_ate and nd.n > 0 then round(coalesce(r.abd, 0)::numeric / nd.n, 1) end
+    from generate_series(7, 22) as g(h)
+    cross join nd
+    left join a on a.h = g.h
+    left join r on r.h = g.h
+   order by g.h;
+end $$;
+grant execute on function public.discador_por_hora(date, date, text) to authenticated;
