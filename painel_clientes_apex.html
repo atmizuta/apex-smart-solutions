@@ -13417,7 +13417,7 @@ function bmVerificarHora(entrando){
 const DC_MAX_DIAS = 120;               // igual ao limite das RPCs (p_ate - p_de > 120 é recusado)
 const DC_MIN_CONTATOS_ALERTA = 10;     // alerta de abandono só com amostra mínima na hora
 const DC_MIN_ATENDIDAS_DESTAQUE = 20;  // destaque de consultor só com amostra mínima no período
-const dcEstado = { geracao: 0, chave: 'hoje', de: null, ate: null, operacao: 'apex', raiox: null, raioxGer: 0, consultores: null, janelaVenda: 30 };
+const dcEstado = { geracao: 0, chave: 'hoje', de: null, ate: null, operacao: 'apex', raiox: null, raioxGer: 0, consultores: null, janelaVenda: 30, pausaMin: 15 };
 const DC_OPERACOES = { apex: 'Apex', campinas: 'Campinas', todas: 'Todas as operações' };
 // §89: supervisor de qualquer operação vê a aba; o banco devolve só a operação dele (admin escolhe no seletor)
 function canSeeDiscador(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
@@ -13430,7 +13430,7 @@ function dcPeriodo(chave, hoje, de, ate){
     const re = /^\d{4}-\d{2}-\d{2}$/;
     if(!re.test(de || '') || !re.test(ate || '') || ate < de) return null;
     const dias = (Date.parse(ate + 'T00:00:00Z') - Date.parse(de + 'T00:00:00Z')) / 86400000;
-    return dias > DC_MAX_DIAS ? null : { de, ate };
+    return dias >= DC_MAX_DIAS ? null : { de, ate }; // até 120 dias contando os dois extremos (mesma regra do banco)
   }
   return { de: hoje, ate: hoje };
 }
@@ -13443,7 +13443,8 @@ function dcFmtSeg(s){
   return v < 60 ? v + ' s' : Math.floor(v / 60) + ' min ' + String(v % 60).padStart(2, '0') + ' s';
 }
 function dcDdMm(dia){ return String(dia).slice(8, 10) + '/' + String(dia).slice(5, 7); }
-function dcHoraMin(iso){ if(!iso) return '—'; const ms = Date.parse(iso); return Number.isFinite(ms) ? new Date(ms - 3 * 3600000).toISOString().slice(11, 16) : '—'; }
+const DC_HORA_SP = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+function dcHoraMin(iso){ if(!iso) return '—'; const ms = Date.parse(iso); return Number.isFinite(ms) ? DC_HORA_SP.format(new Date(ms)) : '—'; }
 // Última hora cheia (horaAgora - 1): abandono acima do limite, com amostra mínima.
 function dcAlertaAbandono(porHora, horaAgora, limite){
   if(!Array.isArray(porHora)) return null;
@@ -13539,7 +13540,7 @@ function dcConsultoresHtml(lista){
   }).join('');
   return '<div class="mlTabelaWrap"><table class="tbl"><thead><tr><th>Consultor</th><th>Jornada</th><th>Atendidas</th><th>Atend./h</th><th>Pausas</th><th>% curtas</th><th>Falado</th><th>Médio</th><th>% sem avanço</th><th>Retornos</th><th>Ganhos</th><th>% sem tabulação</th><th>Vendas</th><th>Conversão</th></tr></thead><tbody>'
     + linhas + '</tbody></table></div>'
-    + `<div class="bmLegenda">Em vermelho: mais de 30% pior que a média da equipe (atend./hora ativa ${e(med.atPorHora === null ? '—' : med.atPorHora.toFixed(1).replace('.', ','))} · pausas longas por hora ativa · curtas ${e(dcFmtPct(med.curtas))} · sem avanço ${e(dcFmtPct(med.semAvanco))} · sem tabulação ${e(dcFmtPct(med.semTab))} · conversão ${e(dcFmtPct(med.conversao))}), só para quem atendeu ${DC_MIN_ATENDIDAS_DESTAQUE} ou mais. Pausa longa: mais de 15 min sem atender com a equipe recebendo chamadas. Clique na linha para o Raio-X.</div>`;
+    + `<div class="bmLegenda">Em vermelho: mais de 30% pior que a média da equipe (atend./hora ativa ${e(med.atPorHora === null ? '—' : med.atPorHora.toFixed(1).replace('.', ','))} · pausas longas por hora ativa · curtas ${e(dcFmtPct(med.curtas))} · sem avanço ${e(dcFmtPct(med.semAvanco))} · sem tabulação ${e(dcFmtPct(med.semTab))} · conversão ${e(dcFmtPct(med.conversao))}), só para quem atendeu ${DC_MIN_ATENDIDAS_DESTAQUE} ou mais. Pausa longa: mais de ${dcEstado.pausaMin} min sem atender com a equipe recebendo chamadas. Clique na linha para o Raio-X.</div>`;
 }
 function dcMailingHtml(linhas, rotuloChave){
   if(!Array.isArray(linhas)) return dcFalhou(rotuloChave);
@@ -13552,17 +13553,6 @@ function dcMailingHtml(linhas, rotuloChave){
         + `<td>${e(dcFmtNum(l.atendidas))}</td><td>${e(dcFmtNum(l.ganhos))}</td><td>${e(dcFmtNum(l.vendas))}</td><td>${pm === null ? '—' : e((pm * 1000).toFixed(2).replace('.', ','))}</td></tr>`;
     }).join('') + '</tbody></table></div>';
 }
-function dcDiasHtml(nome, linhas){
-  if(!Array.isArray(linhas)) return dcFalhou('Por dia');
-  const e = escapeHtml;
-  const corpo = linhas.length
-    ? '<div class="mlTabelaWrap"><table class="tbl"><thead><tr><th>Dia</th><th>Atendidas</th><th>Falado</th><th>Sem avanço</th><th>Ganhos</th><th>Vendas</th></tr></thead><tbody>'
-      + linhas.map(d => `<tr><td>${e(dcDdMm(d.dia))}</td><td>${e(dcFmtNum(d.atendidas))}</td><td>${e(dcFmtSeg(d.seg_falados_total))}</td><td>${e(dcFmtNum(d.sem_avanco))}</td><td>${e(dcFmtNum(d.ganhos))}</td><td>${e(dcFmtNum(d.vendas))}</td></tr>`).join('')
-      + '</tbody></table></div>'
-    : '<p class="ppVazio">Sem atendimentos no período.</p>';
-  return `<div class="bmCard"><h4>${e(nome)} <small>por dia</small></h4>${corpo}</div>`;
-}
-// §96: Raio-X do consultor (presença/ritmo, qualidade e resultado), a partir de discador_consultor_raiox.
 function dcVariacao(atual, anterior){ const a = Number(anterior) || 0; return a > 0 ? (Number(atual) || 0) / a - 1 : null; }
 function dcRaioXHtml(nome, rx, med, periodo){
   const e = escapeHtml;
@@ -13580,7 +13570,7 @@ function dcRaioXHtml(nome, rx, med, periodo){
   const cartoes = '<div class="bmGrade bmG6" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">'
     + kpi('Jornada', jornada, umDia ? 'primeiro e último atendimento' : 'dias com atendimento', false)
     + kpi('Atend./hora ativa', num1(atH), 'equipe ' + num1(med.atPorHora), amostra && dcPiorQueMedia(atH, med.atPorHora, false))
-    + kpi('Pausas longas', tot.pz + ' · ' + tot.min + ' min', 'mais de 15 min, com a equipe recebendo', amostra && dcPiorQueMedia(pzH, med.pausasPorHora, true))
+    + kpi('Pausas longas', tot.pz + ' · ' + tot.min + ' min', 'mais de ' + dcEstado.pausaMin + ' min, com a equipe recebendo', amostra && dcPiorQueMedia(pzH, med.pausasPorHora, true))
     + kpi('% curtas', dcFmtPct(cur), 'equipe ' + dcFmtPct(curEq), amostra && dcPiorQueMedia(cur, curEq, true))
     + '</div>';
   let ritmo;
@@ -13613,7 +13603,7 @@ function dcRaioXHtml(nome, rx, med, periodo){
   const chip = (atual, ant) => { const v = dcVariacao(atual, ant); return v === null ? '' : ` <span class="bmChip ${v >= 0 ? 'sobe' : 'desce'}">${v >= 0 ? '▲' : '▼'} ${Math.round(Math.abs(v) * 100)}%</span>`; };
   const resultado = '<div class="mlTabelaWrap"><table class="tbl"><thead><tr><th>Dia</th><th>Atendidas</th><th>Vendas</th><th>Conversão</th></tr></thead><tbody>'
     + (Array.isArray(res.dias) ? res.dias : []).map(d => `<tr><td>${e(dcDdMm(d.dia))}</td><td>${e(dcFmtNum(d.atendidas))}</td><td>${e(dcFmtNum(d.vendas))}</td><td>${e(dcFmtPct(conv(d.vendas, d.atendidas)))}</td></tr>`).join('')
-    + `<tr><td><b>Últimos 7 dias úteis</b></td><td><b>${e(dcFmtNum(sa.atendidas))}</b>${chip(sa.atendidas, san.atendidas)}</td><td><b>${e(dcFmtNum(sa.vendas))}</b>${chip(sa.vendas, san.vendas)}</td><td><b>${e(dcFmtPct(conv(sa.vendas, sa.atendidas)))}</b></td></tr>`
+    + `<tr><td><b>Últimos 7 dias úteis</b></td><td><b>${e(dcFmtNum(sa.atendidas))}</b>${chip(sa.atendidas, san.atendidas)}</td><td><b>${e(dcFmtNum(sa.vendas))}</b>${chip(sa.vendas, san.vendas)}</td><td><b>${e(dcFmtPct(conv(sa.vendas, sa.atendidas)))}</b>${chip(conv(sa.vendas, sa.atendidas), conv(san.vendas, san.atendidas))}</td></tr>`
     + `<tr><td>Semana anterior</td><td>${e(dcFmtNum(san.atendidas))}</td><td>${e(dcFmtNum(san.vendas))}</td><td>${e(dcFmtPct(conv(san.vendas, san.atendidas)))}</td></tr>`
     + '</tbody></table></div>';
   const per = umDia ? dcDdMm(periodo.de) : dcDdMm(periodo.de) + ' a ' + dcDdMm(periodo.ate);
@@ -13679,7 +13669,11 @@ async function dcCarregar(){
   const dados = r => (r && !r.error && Array.isArray(r.data) ? r.data : null);
   [res, hora, calor, cons, carga, oper, cid, semV].forEach(r => { if(r && r.error) console.error('discador:', r.error); });
   // §96: janela da venda vem de config.discador (padrão 30) e a lista da tabela fica guardada para as médias do Raio-X
-  try{ const jv = cfgDc && !cfgDc.error && cfgDc.data ? Number(JSON.parse(cfgDc.data.valor).janela_venda_dias) : NaN; dcEstado.janelaVenda = Number.isFinite(jv) && jv > 0 ? jv : 30; }catch(err){ dcEstado.janelaVenda = 30; }
+  let cfgJs = {};
+  try{ cfgJs = cfgDc && !cfgDc.error && cfgDc.data ? (JSON.parse(cfgDc.data.valor) || {}) : {}; }catch(err){ cfgJs = {}; }
+  const numCfg = (v, padrao) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : padrao; };
+  dcEstado.janelaVenda = numCfg(cfgJs.janela_venda_dias, 30);
+  dcEstado.pausaMin = numCfg(cfgJs.pausa_min, 15);
   dcEstado.consultores = dados(cons);
   const resumo = dados(res) ? (dados(res)[0] || null) : null, porHora = dados(hora);
   const quando = resumo && resumo.ultima_sync

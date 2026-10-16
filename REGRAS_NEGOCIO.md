@@ -3257,3 +3257,13 @@ Visão da supervisão (pedido do Rafael, para a Isa) sobre cada consultor na aba
 - **Números de 15/10:** 43 pausas longas no total; 45% dos atendimentos com menos de 15 s.
 - **Publicação:** 16/10/2026 ~16:01 SP, MD5 `3bc5b713a7e8870d9851b539038124ad`; backup `~/deploy_backups/painel_clientes_apex_20261016_160147_antes_discador_raiox.html` (MD5 `99d05626…`, igual ao build de `oficial/main`). Testes: `test_discador.js` (129) e `supabase/tests/discador_raiox_check.sql`.
 - **Reverter:** painel: restaurar o backup; banco: `supabase/rollback/20261016150000_discador_raiox_rollback.sql` e recriar `discador_consultores` (bloco de `20261015210000_discador_operacao.sql`) e `discador_por_hora` 9–21 se quiser o gráfico antigo.
+
+## 97. Discador: ajustes do Raio-X e pontos menores das revisões (16/10/2026)
+Correções pedidas pelo Rafael para os pontos menores deixados nas revisões das §87 e §96.
+- **Tela:** seta ▲▼ também na conversão do Resultado; o texto "mais de N min" das pausas vem de `config.discador.pausa_min`; a hora (SP) é formatada pelo fuso `America/Sao_Paulo` (antes "−3h" fixo); o antigo "por dia" (`dcDiasHtml`) foi removido.
+- **Período:** no máximo **120 dias contando os dois extremos** no painel e no banco (antes passavam 121).
+- **Banco** (migration `20261016170000_discador_ajustes.sql`, aplicada pelo editor em 2 partes): `discador_pausas` não inventa pausa quando um atendimento vem sem `fim_em` (vale o início); `discador_consultor_dias` removida (nenhum painel no ar usa); `discador_vendas_atribuidas` ignora CNPJ do NEO com mais de 14 dígitos (antes era cortado e podia casar com outro cliente); `TRUNCATE` revogado de `anon`/`authenticated` nas três tabelas do discador. Teste: `supabase/tests/discador_ajustes_check.sql` (RED antes da migration: 1 pausa falsa, CNPJ de 15 dígitos casando, TRUNCATE liberado; GREEN depois).
+- **Rollback do Raio-X** (`20261016150000_discador_raiox_rollback.sql`) agora recria `discador_consultores` da §89 na mesma transação.
+- **Robô** (repositório privado, b676453): tempo fora do formato `h:mm:ss` vira nulo (antes 0, puxando médias); `scripts/carga-discador.js` para com mensagem quando o Excel não tem linha válida.
+- **Publicação:** 16/10/2026 ~16:23 SP, MD5 `c31fc994be44fd90a994156bcd68b393`; backup `~/deploy_backups/painel_clientes_apex_20261016_162317_antes_discador_ajustes.html` (MD5 `3bc5b713…`, igual ao build de `oficial/main`). Testes: `test_discador.js` (135).
+- **Reverter:** painel: restaurar o backup; banco: `supabase/rollback/20261016170000_discador_ajustes_rollback.sql`.
