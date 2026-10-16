@@ -66,7 +66,8 @@ try{
   eq(dcPeriodo('custom', '2026-10-15', '2026-09-01', '2026-10-10'), { de: '2026-09-01', ate: '2026-10-10' }, 'personalizado válido');
   eq(dcPeriodo('custom', '2026-10-15', '2026-10-10', '2026-10-01'), null, 'personalizado invertido');
   eq(dcPeriodo('custom', '2026-10-15', '2026-01-01', '2026-10-01'), null, 'personalizado acima de 120 dias');
-  eq(dcPeriodo('custom', '2026-10-15', '2026-06-03', '2026-10-01'), { de: '2026-06-03', ate: '2026-10-01' }, '120 dias exatos valem');
+  eq(dcPeriodo('custom', '2026-10-15', '2026-06-04', '2026-10-01'), { de: '2026-06-04', ate: '2026-10-01' }, '120 dias contando os dois extremos valem');
+  eq(dcPeriodo('custom', '2026-10-15', '2026-06-03', '2026-10-01'), null, '121 dias contando os dois extremos: recusado');
   eq(dcPeriodo('custom', '2026-10-15', '', '2026-10-01'), null, 'personalizado vazio');
   eq(dcPeriodo('xyz', '2026-10-15'), { de: '2026-10-15', ate: '2026-10-15' }, 'chave desconhecida = hoje');
 

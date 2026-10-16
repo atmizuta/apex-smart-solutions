@@ -13430,7 +13430,7 @@ function dcPeriodo(chave, hoje, de, ate){
     const re = /^\d{4}-\d{2}-\d{2}$/;
     if(!re.test(de || '') || !re.test(ate || '') || ate < de) return null;
     const dias = (Date.parse(ate + 'T00:00:00Z') - Date.parse(de + 'T00:00:00Z')) / 86400000;
-    return dias > DC_MAX_DIAS ? null : { de, ate };
+    return dias >= DC_MAX_DIAS ? null : { de, ate }; // até 120 dias contando os dois extremos (mesma regra do banco)
   }
   return { de: hoje, ate: hoje };
 }
