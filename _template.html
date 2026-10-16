@@ -13417,7 +13417,7 @@ function bmVerificarHora(entrando){
 const DC_MAX_DIAS = 120;               // igual ao limite das RPCs (p_ate - p_de > 120 é recusado)
 const DC_MIN_CONTATOS_ALERTA = 10;     // alerta de abandono só com amostra mínima na hora
 const DC_MIN_ATENDIDAS_DESTAQUE = 20;  // destaque de consultor só com amostra mínima no período
-const dcEstado = { geracao: 0, chave: 'hoje', de: null, ate: null, operacao: 'apex' };
+const dcEstado = { geracao: 0, chave: 'hoje', de: null, ate: null, operacao: 'apex', raiox: null, raioxGer: 0, consultores: null, janelaVenda: 30 };
 const DC_OPERACOES = { apex: 'Apex', campinas: 'Campinas', todas: 'Todas as operações' };
 // §89: supervisor de qualquer operação vê a aba; o banco devolve só a operação dele (admin escolhe no seletor)
 function canSeeDiscador(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
@@ -13479,7 +13479,7 @@ function dcKpisHtml(r){
     + kpi('Abandono', dcFmtPct(dcTaxa(r.abandonadas, r.contato)), dcFmtNum(r.abandonadas) + ' sem consultor livre')
     + kpi('Atendidas', dcFmtNum(r.atendidas), dcFmtNum(r.sem_tabulacao) + ' sem tabulação')
     + kpi('Tempo médio falado', dcFmtSeg(r.seg_falados_medio), 'por atendimento')
-    + `<div class="bmCard bmKpi"><div class="bmRot">Vendas do discador</div><div class="bmNum">${e(dcFmtNum(r.vendas))}</div><div class="bmSub">pedido no NEO com CNPJ atendido até 30 dias antes</div></div>`
+    + `<div class="bmCard bmKpi"><div class="bmRot">Vendas do discador</div><div class="bmNum">${e(dcFmtNum(r.vendas))}</div><div class="bmSub">pedido no NEO com CNPJ atendido até ${e(String(dcEstado.janelaVenda))} dias antes</div></div>`
     + '</div>';
 }
 function dcHorasHtml(porHora, comMedia){
@@ -13567,7 +13567,7 @@ function dcVariacao(atual, anterior){ const a = Number(anterior) || 0; return a 
 function dcRaioXHtml(nome, rx, med, periodo){
   const e = escapeHtml;
   const fechar = '<button type="button" class="btn btn-sm btn-outline" data-dc-fechar style="width:auto">Fechar</button>';
-  if(!rx) return `<div class="bmCard"><h4>${e(nome)} ${fechar}</h4><p class="ppVazio">Não foi possível carregar agora. Tente de novo em instantes.</p></div>`;
+  if(!rx) return `<div class="bmCard" style="margin-top:var(--space-3)"><h4>${e(nome)} <small>Raio-X</small> ${fechar}</h4><p class="ppVazio">Não foi possível carregar agora. Tente de novo em instantes.</p></div>`;
   med = med || {};
   const dias = Array.isArray(rx.dias) ? rx.dias : [], umDia = periodo.de === periodo.ate;
   const tot = dias.reduce((a, d) => { a.at += Number(d.atendidas) || 0; a.ha += Number(d.horas_ativas) || 0; a.pz += Number(d.pausas) || 0; a.min += Number(d.min_pausa) || 0; return a; }, { at: 0, ha: 0, pz: 0, min: 0 });
@@ -13633,7 +13633,7 @@ function dcVinculoHtml(semVinculo, perfis){
     + '</div>';
 }
 function dcResetar(){
-  dcEstado.geracao++;
+  dcEstado.geracao++; dcEstado.raiox = null; dcEstado.raioxGer++;
   ['dcConteudo', 'dcVinculo', 'dcDetalhe', 'dcAvisos'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = ''; });
   const st = document.getElementById('dcStatus'); if(st) st.textContent = '';
 }
@@ -13665,19 +13665,22 @@ async function dcCarregar(){
   const args = { p_de: p.de, p_ate: p.ate, p_operacao: dcOperacaoPedida() };
   const admin = currentUser.role === 'admin';
   document.getElementById('dcStatus').textContent = 'Carregando…';
-  document.getElementById('dcDetalhe').innerHTML = '';
   const rpc = (nome, a) => ppSeguro(() => sb.rpc(nome, a));
-  const [res, hora, calor, cons, carga, oper, cid, semV, perfis] = await Promise.all([
+  const [res, hora, calor, cons, carga, oper, cid, semV, perfis, cfgDc] = await Promise.all([
     rpc('discador_resumo', args), rpc('discador_por_hora', args), rpc('discador_mapa_calor', args), rpc('discador_consultores', args),
     rpc('discador_mailing', Object.assign({}, args, { p_dim: 'carga' })),
     rpc('discador_mailing', Object.assign({}, args, { p_dim: 'operadora' })),
     rpc('discador_mailing', Object.assign({}, args, { p_dim: 'cidade' })),
     admin ? rpc('discador_agentes_sem_vinculo', {}) : Promise.resolve(null),
     admin ? ppSeguro(() => sb.from('profiles').select('id,nome,role').order('nome')) : Promise.resolve(null),
+    ppSeguro(() => sb.from('config').select('valor').eq('chave', 'discador').maybeSingle()),
   ]);
   if(ger !== dcEstado.geracao || !canSeeDiscador()) return;
   const dados = r => (r && !r.error && Array.isArray(r.data) ? r.data : null);
   [res, hora, calor, cons, carga, oper, cid, semV].forEach(r => { if(r && r.error) console.error('discador:', r.error); });
+  // §96: janela da venda vem de config.discador (padrão 30) e a lista da tabela fica guardada para as médias do Raio-X
+  try{ const jv = cfgDc && !cfgDc.error && cfgDc.data ? Number(JSON.parse(cfgDc.data.valor).janela_venda_dias) : NaN; dcEstado.janelaVenda = Number.isFinite(jv) && jv > 0 ? jv : 30; }catch(err){ dcEstado.janelaVenda = 30; }
+  dcEstado.consultores = dados(cons);
   const resumo = dados(res) ? (dados(res)[0] || null) : null, porHora = dados(hora);
   const quando = resumo && resumo.ultima_sync
     ? ' · dados até ' + new Date(resumo.ultima_sync).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -13697,17 +13700,20 @@ async function dcCarregar(){
     + '<div class="bmSecao">Mailing</div>'
     + `<div class="bmGrade">${card('Por carga', '', dcMailingHtml(dados(carga), 'Carga'))}</div>`
     + `<div class="bmGrade bmG2">${card('Por operadora de origem', '', dcMailingHtml(dados(oper), 'Operadora'))}${card('Por cidade', '15 maiores com 300+ tentativas', dcMailingHtml(dados(cid), 'Cidade'))}</div>`;
+  // §96: o Raio-X aberto acompanha o período/operação
+  if(dcEstado.raiox) dcAbrirRaioX(dcEstado.raiox.agenteId, dcEstado.raiox.nome);
 }
-async function dcAbrirDias(agenteId, nome){
+async function dcAbrirRaioX(agenteId, nome){
   if(!canSeeDiscador()) return;
   const p = dcPeriodo(dcEstado.chave, hojeSP(), dcEstado.de, dcEstado.ate);
   if(!p) return;
-  const ger = dcEstado.geracao;
-  const r = await ppSeguro(() => sb.rpc('discador_consultor_dias', { p_agente: agenteId, p_de: p.de, p_ate: p.ate, p_operacao: dcOperacaoPedida() }));
-  if(ger !== dcEstado.geracao || !canSeeDiscador()) return;
-  if(r && r.error) console.error('discador_consultor_dias:', r.error);
+  dcEstado.raiox = { agenteId, nome };
+  const ger = ++dcEstado.raioxGer, gerAba = dcEstado.geracao; // contador próprio: clique rápido A→B mostra B
+  const r = await ppSeguro(() => sb.rpc('discador_consultor_raiox', { p_agente: agenteId, p_de: p.de, p_ate: p.ate, p_operacao: dcOperacaoPedida() }));
+  if(ger !== dcEstado.raioxGer || gerAba !== dcEstado.geracao || !canSeeDiscador() || !dcEstado.raiox) return;
+  if(r && r.error) console.error('discador_consultor_raiox:', r.error);
   const el = document.getElementById('dcDetalhe');
-  el.innerHTML = dcDiasHtml(nome, r && !r.error && Array.isArray(r.data) ? r.data : null);
+  el.innerHTML = dcRaioXHtml(nome, r && !r.error && r.data && typeof r.data === 'object' && !Array.isArray(r.data) ? r.data : null, dcMediaEquipe(dcEstado.consultores || []), p);
   if(typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 async function dcVincular(agenteId, profileId){
@@ -13744,7 +13750,12 @@ document.getElementById('btnDcAplicar').addEventListener('click', function(){
 });
 document.getElementById('dcConteudo').addEventListener('click', function(ev){
   const tr = ev.target.closest('tr[data-dc-agente]');
-  if(tr) dcAbrirDias(Number(tr.dataset.dcAgente), tr.dataset.dcNome || ('Agente ' + tr.dataset.dcAgente));
+  if(tr) dcAbrirRaioX(Number(tr.dataset.dcAgente), tr.dataset.dcNome || ('Agente ' + tr.dataset.dcAgente));
+});
+document.getElementById('dcDetalhe').addEventListener('click', function(ev){
+  if(!ev.target.closest('[data-dc-fechar]')) return;
+  dcEstado.raiox = null; dcEstado.raioxGer++;
+  this.innerHTML = '';
 });
 document.getElementById('dcVinculo').addEventListener('click', function(ev){
   const b = ev.target.closest('[data-dc-vinc]');

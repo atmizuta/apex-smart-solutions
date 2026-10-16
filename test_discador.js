@@ -194,15 +194,16 @@ try{
   // detalhe por dia
   window.__rpcCalls.length = 0;
   document.querySelector('#dcConteudo tr[data-dc-agente="193"]').click(); await espera(40);
-  eq(window.__rpcCalls.map(c => [c.nome, c.args.p_agente]), [['discador_consultor_dias', 193]], 'clique no consultor busca por dia');
-  assert(document.getElementById('dcDetalhe').innerHTML.includes('Caio Teste') && document.getElementById('dcDetalhe').innerHTML.includes('05/10'), 'detalhe renderizado');
+  eq(window.__rpcCalls.map(c => [c.nome, c.args.p_agente]), [['discador_consultor_raiox', 193]], 'clique no consultor abre o Raio-X');
+  assert(document.getElementById('dcDetalhe').innerHTML.includes('Caio Teste') && document.getElementById('dcDetalhe').innerHTML.includes('Raio-X'), 'Raio-X renderizado');
 
   // período: Mês
   window.__rpcCalls.length = 0;
   document.querySelector('#dcPeriodos [data-dc-periodo="mes"]').click(); await espera(60);
   eq(window.__rpcCalls.find(c => c.nome === 'discador_resumo').args, { p_de: hoje.slice(0, 8) + '01', p_ate: hoje, p_operacao: null }, 'Mês: do dia 1 até hoje');
   assert(document.querySelector('#dcPeriodos [data-dc-periodo="mes"]').classList.contains('active'), 'pílula ativa');
-  assert(document.getElementById('dcDetalhe').innerHTML === '', 'trocar período limpa o detalhe');
+  assert(document.getElementById('dcDetalhe').innerHTML.includes('Raio-X'), 'trocar período recarrega o Raio-X aberto');
+  document.querySelector('#dcDetalhe [data-dc-fechar]').click(); await espera();
 
   // personalizado inválido: aviso, nenhuma RPC
   document.querySelector('#dcPeriodos [data-dc-periodo="custom"]').click(); await espera();
@@ -214,7 +215,7 @@ try{
   assert(dcPeriodo(dcEstado.chave, hojeSP(), dcEstado.de, dcEstado.ate) !== null, 'personalizado inválido não estraga o estado (período anterior continua valendo)');
   window.__rpcCalls.length = 0;
   document.querySelector('#dcConteudo tr[data-dc-agente="193"]').click(); await espera(40);
-  assert(window.__rpcCalls.some(c => c.nome === 'discador_consultor_dias'), 'depois do inválido, o detalhe por dia ainda funciona');
+  assert(window.__rpcCalls.some(c => c.nome === 'discador_consultor_raiox'), 'depois do inválido, o Raio-X ainda funciona');
   document.getElementById('dcDe').value = '2026-10-01'; document.getElementById('dcAte').value = '2026-10-10';
   document.getElementById('btnDcAplicar').click(); await espera(60);
   eq(window.__rpcCalls.find(c => c.nome === 'discador_resumo').args, { p_de: '2026-10-01', p_ate: '2026-10-10', p_operacao: null }, 'personalizado válido');
@@ -295,7 +296,7 @@ try{
   assert(document.querySelector('#dcOperacoes [data-dc-operacao="campinas"]').classList.contains('active') && document.getElementById('dcStatus').textContent.includes('Campinas'), 'pílula ativa e status');
   window.__rpcCalls.length = 0;
   document.querySelector('#dcConteudo tr[data-dc-agente="193"]').click(); await espera(40);
-  eq(window.__rpcCalls.find(c => c.nome === 'discador_consultor_dias').args.p_operacao, 'campinas', 'detalhe por dia na mesma operação');
+  eq(window.__rpcCalls.find(c => c.nome === 'discador_consultor_raiox').args.p_operacao, 'campinas', 'Raio-X na mesma operação');
   document.querySelector('#dcOperacoes [data-dc-operacao="todas"]').click(); await espera(60);
   assert(document.getElementById('dcStatus').textContent.includes('Todas'), 'todas as operações');
 
@@ -364,6 +365,39 @@ try{
   assert(dcRaioXHtml('X', null, {}, { de: '2026-10-15', ate: '2026-10-15' }).includes('Não foi possível carregar'), 'falha');
   eq(Math.round(dcVariacao(480, 400) * 1000) / 1000, 0.2, 'variação +20%');
   eq(dcVariacao(5, 0), null, 'sem base: nula');
+  // ==== §96: carga do Raio-X ====
+  respostasOk();
+  window.__rpcRespostas.discador_consultor_raiox = (a) => ({ data: Object.assign({}, RX, { operacao: 'apex', dias: [Object.assign({}, RX.dias[0], { atendidas: a.p_agente })] }), error: null });
+  currentUser = { id: 'a1', nome: 'Admin Teste', username: 'adm', role: 'admin', operacao: 'apex' };
+  dcAplicarPermissao(); dcEstado.chave = 'hoje'; dcEstado.operacao = 'apex';
+  await dcCarregar(); await espera(60);
+  window.__rpcCalls.length = 0;
+  document.querySelector('#dcConteudo tr[data-dc-agente="193"]').click(); await espera(40);
+  const chamadaRx = window.__rpcCalls.find(c => c.nome === 'discador_consultor_raiox');
+  assert(chamadaRx && chamadaRx.args.p_agente === 193 && chamadaRx.args.p_operacao === 'apex', 'clique abre o Raio-X na operação');
+  assert(document.getElementById('dcDetalhe').innerHTML.includes('Raio-X') && document.getElementById('dcDetalhe').innerHTML.includes('Caio Teste'), 'Raio-X na tela');
+  // corrida: A (lento) e logo B — fica B
+  window.__rpcAtraso = { discador_consultor_raiox: 120 };
+  document.querySelector('#dcConteudo tr[data-dc-agente="189"]').click();
+  window.__rpcAtraso = {};
+  document.querySelector('#dcConteudo tr[data-dc-agente="193"]').click();
+  await espera(200);
+  assert(document.getElementById('dcDetalhe').innerHTML.includes('Caio Teste') && !document.getElementById('dcDetalhe').innerHTML.includes('Agente 189'), 'clique rápido A→B mostra B');
+  // trocar o período recarrega o Raio-X aberto
+  window.__rpcCalls.length = 0;
+  document.querySelector('#dcPeriodos [data-dc-periodo="ontem"]').click(); await espera(120);
+  assert(window.__rpcCalls.some(c => c.nome === 'discador_consultor_raiox' && c.args.p_de === somaDiasStr(hojeSP(), -1)), 'trocar período recarrega o Raio-X');
+  // fechar
+  document.querySelector('#dcDetalhe [data-dc-fechar]').click(); await espera();
+  assert(document.getElementById('dcDetalhe').innerHTML === '' && dcEstado.raiox === null, 'fechar limpa e não reabre');
+  window.__rpcCalls.length = 0;
+  document.querySelector('#dcPeriodos [data-dc-periodo="hoje"]').click(); await espera(100);
+  assert(!window.__rpcCalls.some(c => c.nome === 'discador_consultor_raiox'), 'depois de fechar, trocar período não abre de novo');
+  // janela de venda vem da config
+  window.__tabelas.config = [{ chave: 'discador', valor: '{"janela_venda_dias":45}' }];
+  await dcCarregar(); await espera(80);
+  assert(document.getElementById('dcConteudo').innerHTML.includes('até 45 dias antes'), 'cartão de vendas usa a janela da config');
+  window.__tabelas.config = [];
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
