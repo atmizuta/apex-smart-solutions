@@ -129,7 +129,7 @@ try{
   ];
   eq(mesaBioDias(iso('2026-10-01T10:00:00'), HOJE), 4, 'dias na etapa');
   eq(mesaBioDias(null, HOJE), null, 'sem data: null');
-  eq(mesaBioConsultores(BIO), [{ nome: 'Caio', n: 1 }, { nome: 'Mariana', n: 2 }], '§93: pílulas = quem tem pedido parado');
+  eq(mesaBioConsultores(BIO), [{ nome: 'Caio', n: 1 }, { nome: 'Mariana', n: 2 }], '§94: pílulas = quem tem pedido parado');
   eq(mesaBioLinhas(BIO, 'Mariana', HOJE).map(b => b.numero_pedido), ['P1', 'P2'], 'filtro por consultor, mais antigo primeiro');
   eq(mesaBioLinhas(BIO, '', HOJE).map(b => b.numero_pedido), ['P1', 'P3', 'P2'], 'todos, mais antigo primeiro');
   // §91: radar de ligações
@@ -146,7 +146,7 @@ try{
   eq([r1.texto, r1.nivel], ['2 ligações', 'outro'], 'ligações só de outra pessoa');
   assert(r1.sub.includes('nenhuma do consultor'), 'avisa que o consultor não ligou');
   eq(R({ lig_etapa: 1, lig_consultor: 1, lig_total: 1 }).texto, '1 ligação', 'singular');
-  // §93: quem ligou
+  // §94: quem ligou
   const rq = R({ lig_etapa: 4, lig_consultor: 3, lig_total: 4, ultima_lig: iso('2026-10-04T16:20:00'), lig_por: [{ quem: 'Caio', proprio: true, n: 3 }, { quem: 'Isabelly', proprio: false, n: 1 }] });
   eq(rq.nivel, 'ok', 'consultor ligou: verde');
   assert(rq.sub.includes('Caio 3 (consultor)') && rq.sub.includes('Isabelly 1') && rq.sub.includes('última 04/10 16:20'), 'diz quem ligou: ' + rq.sub);
@@ -224,7 +224,7 @@ try{
   assert(document.getElementById('mesaSubBio').style.display === 'none', 'Biometria começa escondida');
   document.querySelector('[data-mesa-sub="bio"]').click();
   assert(document.getElementById('mesaSubBio').style.display === '' && document.getElementById('mesaSubEquipe').style.display === 'none', 'pílula Biometria troca a tela');
-  eq([...document.querySelectorAll('#mesaBioPills [data-mesa-bio]')].map(b => b.textContent), ['Todos (3)', 'Caio (1)', 'Mariana (2)'], '§93: pílulas de quem tem pedido parado');
+  eq([...document.querySelectorAll('#mesaBioPills [data-mesa-bio]')].map(b => b.textContent), ['Todos (3)', 'Caio (1)', 'Mariana (2)'], '§94: pílulas de quem tem pedido parado');
   document.querySelector('[data-mesa-bio="Mariana"]').click();
   const bioTr = [...document.querySelectorAll('#mesaBioTbody tr')];
   eq(bioTr.map(tr => tr.children[0].firstChild.textContent.trim()), ['Empresa A', 'Empresa B'], 'só os pedidos da Mariana');
@@ -239,7 +239,7 @@ try{
   assert(document.getElementById('mesaBioResumo').textContent.includes('2 pedidos') && document.getElementById('mesaBioResumo').textContent.includes('1 com celular'), 'resumo');
   document.querySelector('[data-mesa-bio="Caio"]').click();
   assert(document.getElementById('mesaBioTbody').textContent.includes('achado na planilha pelo nome'), '§92: celular achado pelo nome avisa a origem');
-  assert(!document.querySelector('[data-mesa-bio="Luria"]'), '§93: quem não tem pedido parado não vira pílula');
+  assert(!document.querySelector('[data-mesa-bio="Luria"]'), '§94: quem não tem pedido parado não vira pílula');
   window.__xlsx = window.__xlsx || [];
   document.querySelector('[data-mesa-bio="Mariana"]').click();
   document.querySelector('[data-mesa-sub="equipe"]').click();

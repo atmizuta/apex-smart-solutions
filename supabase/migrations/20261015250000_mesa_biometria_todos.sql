@@ -1,4 +1,4 @@
--- §93 (15/10/2026): mesa_biometria — (1) TODOS os consultores da operação Apex com pedido em BIOMETRIA / AGUARDANDO
+-- §94 (15/10/2026): mesa_biometria — (1) TODOS os consultores da operação Apex com pedido em BIOMETRIA / AGUARDANDO
 -- ASSINATURA (não só a equipe de leads; Campinas fica fora, como no resto da Mesa); (2) "quem ligou": as ligações
 -- manuais desde a etapa vêm separadas por pessoa (lig_por: [{quem, login, proprio, n, ultima}]).
 -- Login da telefonia → pessoa: config.boletim.telefonia (login → nome no NEO) + leads_equipe.usuario_telefonia.

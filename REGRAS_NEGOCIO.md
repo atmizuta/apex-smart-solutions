@@ -3214,7 +3214,7 @@ A aba Discador (§87) passou a separar as operações. Spec: adendo da §8 em `d
 - **Código:** `MESA_BIO_FONTE` no `_template.html`. Testes: `test_mesa_supervisor.js` (108 ok).
 - **Entrada no ar (15/10/2026, ~20:27, horário de SP):** `mesa_biometria()` atualizada via `execute_sql` (create or replace; security definer; sem acesso para anon). O painel no ar (`eec82ab1…`) era o da §91. Publicado **`bbcdff56366dc16845b30a3aaf18980d`** (gerado = servidor = site; diff só da §92). Backup: `~/deploy_backups/painel_clientes_apex_20261015_202654_antes_bio_planilha.html`.
 
-## 93. Mesa → Biometria: todos os consultores da Apex e "quem ligou" (15/10/2026)
+## 94. Mesa → Biometria: todos os consultores da Apex e "quem ligou" (15/10/2026)
 
 - **Pedido do Rafael (15/10):** em vez de só os consultores dos leads, mostrar **todos os consultores com pedido parado** em biometria; e nas ligações, **dizer de onde veio cada uma** — se foi a Isabelly ou o próprio consultor (havia pedidos marcados "sem ligação" em que a Isabelly tinha ligado).
 - **Consultores:** `mesa_biometria()` (migration `20261015250000_mesa_biometria_todos.sql`, drop + create) passou a trazer os pedidos de **todos os vendedores da operação Apex** (`profiles.operacao`; quem não tem vínculo em `consultor_neo` conta como Apex). Campinas fica fora, como no resto da Mesa. Nome: equipe de leads (nome da planilha) → `profiles.nome` → nome do NEO. As pílulas mostram só quem tem pedido parado. O passo "achar pelo nome/CNPJ quase igual na planilha" (§92) continua só para quem é da equipe de leads (`equipe_leads`), que é quem tem lead.
