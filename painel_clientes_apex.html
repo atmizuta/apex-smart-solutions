@@ -12424,7 +12424,7 @@ function mesaRenderVelocidade(){
 const MESA_BIO_ETAPA = { 'BIOMETRIA (NEOCRM)': ['Biometria', 'biometria'], 'AGUARDANDO ASSINATURA (NEOCRM)': ['Aguardando assinatura', 'assinatura'] };
 // dias corridos desde a entrada na etapa (no fuso de SP); null sem data
 function mesaBioDias(desde, hoje){ const d = mesaDiaSP(desde); return d ? Math.max(0, Math.round((Date.parse(hoje + 'T00:00:00Z') - Date.parse(d + 'T00:00:00Z')) / 86400000)) : null; }
-// pílulas: cada consultor com pedido parado (§93: todos da operação Apex, não só a equipe de leads), com a contagem
+// pílulas: cada consultor com pedido parado (§94: todos da operação Apex, não só a equipe de leads), com a contagem
 function mesaBioConsultores(bio){
   const nomes = [];
   (bio || []).forEach(b => { if(b.consultor && !nomes.includes(b.consultor)) nomes.push(b.consultor); });
@@ -12445,7 +12445,7 @@ function mesaBioRadar(b){
   const ult = b.ultima_lig ? 'última ' + mlFmtDiaHora(b.ultima_lig).replace(',', '') : '';
   if(!b.telefone) return { nivel: 'semtel', texto: 'sem celular para cruzar', sub: '' };
   if(!n) return { nivel: b.dias === 0 ? 'hoje' : 'nenhuma', texto: 'Nenhuma ligação', sub: [b.dias === 0 ? 'entrou hoje' : '', antes ? pl(antes, 'antes da etapa', 'antes da etapa') : ''].filter(Boolean).join(' · ') };
-  // §93: quem ligou (lig_por da RPC): "Caio 3 (consultor) · Isabelly 1"
+  // §94: quem ligou (lig_por da RPC): "Caio 3 (consultor) · Isabelly 1"
   const por = Array.isArray(b.lig_por) ? b.lig_por : [];
   const quem = por.map(p => (p.quem || p.login || '?') + ' ' + (Number(p.n) || 0) + (p.proprio ? ' (consultor)' : '')).join(' · ');
   const partes = por.length ? [cons ? quem : 'só de outra pessoa: ' + quem, ult]
