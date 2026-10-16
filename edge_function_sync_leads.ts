@@ -239,9 +239,13 @@ export function parseSheetCsv(csvText: string, tabLabel: string, aba = "", ignor
   // é "CONSULTOR "), então o painel não a reconhecia e jogava os 836 leads do mês em "(Sem consultor)".
   // A coluna do consultor é sempre a que fica imediatamente antes de "STATUS": se não existe nenhuma
   // coluna chamada CONSULTOR e a anterior a STATUS está sem nome, ela é a do consultor.
+  // 16/10/2026: na aba de OUTUBRO o time renomeou o cabeçalho para "VENDEDOR" e os 473 leads do mês caíram em
+  // "(Sem consultor)". Sem uma coluna CONSULTOR, VENDEDOR / VENDEDORA / CONSULTORA valem como a do consultor.
   const idxStatus = headers.indexOf("STATUS");
-  if (!headers.some((h) => h.trim() === "CONSULTOR") && idxStatus > 0 && headers[idxStatus - 1].startsWith("__col")) {
-    headers[idxStatus - 1] = "CONSULTOR";
+  if (!headers.some((h) => h.trim() === "CONSULTOR")) {
+    const idxApelido = headers.findIndex((h) => ["VENDEDOR", "VENDEDORA", "CONSULTORA"].includes(h.trim().toUpperCase()));
+    if (idxApelido >= 0) headers[idxApelido] = "CONSULTOR";
+    else if (idxStatus > 0 && headers[idxStatus - 1].startsWith("__col")) headers[idxStatus - 1] = "CONSULTOR";
   }
   const saida: ReturnType<typeof mapearLinha>[] = [];
   allRows.slice(headerIdx + 1).forEach((r, i) => {

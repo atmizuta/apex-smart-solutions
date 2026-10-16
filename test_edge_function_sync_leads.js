@@ -206,6 +206,16 @@ assert(regsComConsultor[0].consultor === 'Yasmin' && regsComConsultor[0].aba ===
 // o ajuste só vale pra coluna SEM nome: uma coluna nomeada qualquer antes de STATUS não é tomada como consultor
 const csvOutraColuna = HEADER_SETEMBRO.replace('lead_status, ,STATUS', 'lead_status,OUTRA COISA,STATUS') + '\n' + linhaSet('l:o1', 'Fulano', 'CLIENTE NÃO RESPONDE', '', '');
 assert(sandbox.parseSheetCsv(csvOutraColuna, 'X (teste)', 'X')[0].consultor === null, 'coluna com nome próprio antes de STATUS não é confundida com a do consultor');
+// 16/10/2026: na aba de OUTUBRO o time renomeou o cabeçalho "CONSULTOR" para "VENDEDOR" e os 473 leads do
+// mês caíram em "(Sem consultor)". VENDEDOR (e as variantes no feminino) valem como a coluna do consultor.
+['VENDEDOR', 'Vendedor ', 'VENDEDORA', 'CONSULTORA'].forEach(nome => {
+  const csvVend = HEADER_SETEMBRO.replace('lead_status, ,STATUS', 'lead_status,' + nome + ',STATUS') + '\n' + linhaSet('l:v1', 'Caio', 'EM NEGOCIAÇÂO', '', '');
+  assert(sandbox.parseSheetCsv(csvVend, 'OUTUBRO (teste)', 'OUTUBRO')[0].consultor === 'Caio', 'cabeçalho "' + nome + '" é lido como a coluna do consultor');
+});
+// se a aba tiver CONSULTOR e VENDEDOR ao mesmo tempo, vale CONSULTOR
+const csvAmbos = HEADER_SETEMBRO.replace('lead_status, ,STATUS', 'lead_status,CONSULTOR,VENDEDOR,STATUS') + '\n' +
+  linhaSet('l:a1', 'Luria', 'EM NEGOCIAÇÂO', '', '').replace(',Luria,', ',Luria,Outro,');
+assert(sandbox.parseSheetCsv(csvAmbos, 'X (teste)', 'X')[0].consultor === 'Luria', 'com CONSULTOR e VENDEDOR na mesma aba, vale CONSULTOR');
 
 // --- status NOVOS viram VENDA PERDIDA (decisão do usuário, 30/09/2026) ---
 ['TELEFONE ERRADO OU SEM WHATSAPP', 'TELEFONE ERRADO ou  SEM WHATSAPP', 'TELEFONE ERRADO ou Sem Whatsapp', 'LEAD FORA DO PERFIL', 'CLIENTE SO QUERIA APARELHO',

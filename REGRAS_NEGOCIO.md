@@ -3267,3 +3267,12 @@ Correções pedidas pelo Rafael para os pontos menores deixados nas revisões da
 - **Robô** (repositório privado, b676453): tempo fora do formato `h:mm:ss` vira nulo (antes 0, puxando médias); `scripts/carga-discador.js` para com mensagem quando o Excel não tem linha válida.
 - **Publicação:** 16/10/2026 ~16:23 SP, MD5 `c31fc994be44fd90a994156bcd68b393`; backup `~/deploy_backups/painel_clientes_apex_20261016_162317_antes_discador_ajustes.html` (MD5 `3bc5b713…`, igual ao build de `oficial/main`). Testes: `test_discador.js` (135).
 - **Reverter:** painel: restaurar o backup; banco: `supabase/rollback/20261016170000_discador_ajustes_rollback.sql`.
+
+## 98. Digital: coluna "VENDEDOR" vale como consultor na sync-leads (16/10/2026)
+
+- **Problema:** em 16/10 o time renomeou o cabeçalho da coluna do consultor na aba OUTUBRO da planilha de leads de `CONSULTOR` para `VENDEDOR`. A `sync-leads` só reconhecia `CONSULTOR` (ou cabeçalho em branco antes de `STATUS`, §54) e passou a gravar `consultor = null` nos 473 leads de outubro — na Digital todos caíram em "(Sem consultor)" e os consultores sumiram de Conversão/Falha comercial/"Meus leads".
+- **Correção** (`edge_function_sync_leads.ts`, `parseSheetCsv`): se a aba não tem coluna `CONSULTOR`, as colunas `VENDEDOR`, `VENDEDORA` ou `CONSULTORA` (sem diferença de maiúsculas/espaços) valem como a do consultor; se não houver nenhuma, continua a regra da coluna sem nome antes de `STATUS`. Com `CONSULTOR` e `VENDEDOR` na mesma aba, vale `CONSULTOR`.
+- **Publicação:** `sync-leads` v22 em 16/10/2026 ~16:33 SP (verify_jwt false, igual à v21). Sincronização disparada na hora: OUTUBRO com 472 de 473 leads com consultor (o restante está sem vendedor na planilha).
+- **Observação:** a aba OUTUBRO tem 3 linhas com "ERRO - NUNCA EXCLUIR LINHAS" em `created_time` (a partir da linha 305); elas são ignoradas (§68.7) e o aviso aparece na Digital para admin/supervisor.
+- Testes: `test_edge_function_sync_leads.js` (122).
+- **Reverter:** reimplantar a versão anterior do arquivo (os leads voltariam a ficar sem consultor enquanto o cabeçalho for `VENDEDOR`).
