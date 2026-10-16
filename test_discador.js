@@ -144,8 +144,7 @@ try{
   assert(ml.includes('45.570') && ml.includes('5,5%') && ml.includes('26,5%') && ml.includes('0,33'), 'contato, abandono e vendas por mil');
   assert(dcMailingHtml([], 'Cidade').includes('Sem dados'), 'mailing vazio');
 
-  const dd = dcDiasHtml('Caio Teste', [{ dia: '2026-10-05', atendidas: 30, seg_falados_total: 1500, sem_avanco: 10, ganhos: 1, vendas: 2 }]);
-  assert(dd.includes('Caio Teste') && dd.includes('05/10') && dd.includes('25 min 00 s'), 'detalhe por dia');
+  assert(typeof dcDiasHtml === 'undefined', 'detalhe por dia antigo removido (virou o Raio-X)');
 
   const vh = dcVinculoHtml([{ agente_id: 189, atendidas_30d: 971, ultima_chamada: '2026-10-14T19:00:00Z' }], [{ id: 'p1', nome: 'Caio Teste', role: 'consultor' }, { id: 'p2', nome: 'Ana <Teste>', role: 'supervisor' }]);
   assert(vh.includes('1 agente sem consultor') && vh.includes('Agente 189') && vh.includes('971'), 'vínculo: lista');
@@ -161,7 +160,6 @@ try{
       discador_consultores: { data: consultores, error: null },
       discador_mailing: (a) => ({ data: [{ chave: 'ZZ-' + a.p_dim, tentativas: 1000, contato: 60, atendidas: 40, abandonadas: 20, ganhos: 1, vendas: 2 }], error: null }),
       discador_agentes_sem_vinculo: { data: [{ agente_id: 189, atendidas_30d: 971, ultima_chamada: null }], error: null },
-      discador_consultor_dias: { data: [{ dia: '2026-10-05', atendidas: 30, seg_falados_total: 1500, sem_avanco: 10, ganhos: 1, vendas: 2 }], error: null },
       discador_vincular_agente: { data: null, error: null },
     };
   };
@@ -202,7 +200,7 @@ try{
   document.querySelector('#dcPeriodos [data-dc-periodo="mes"]').click(); await espera(60);
   eq(window.__rpcCalls.find(c => c.nome === 'discador_resumo').args, { p_de: hoje.slice(0, 8) + '01', p_ate: hoje, p_operacao: null }, 'Mês: do dia 1 até hoje');
   assert(document.querySelector('#dcPeriodos [data-dc-periodo="mes"]').classList.contains('active'), 'pílula ativa');
-  assert(document.getElementById('dcDetalhe').innerHTML.includes('Raio-X'), 'trocar período recarrega o Raio-X aberto');
+  assert(window.__rpcCalls.some(c => c.nome === 'discador_consultor_raiox' && c.args.p_de === hoje.slice(0, 8) + '01'), 'trocar período recarrega o Raio-X aberto (nova chamada com o período novo)');
   document.querySelector('#dcDetalhe [data-dc-fechar]').click(); await espera();
 
   // personalizado inválido: aviso, nenhuma RPC
@@ -349,10 +347,17 @@ try{
   const medRX = { atPorHora: 18, pausasPorHora: 0.2, curtas: 0.4 };
   const rxh = dcRaioXHtml('Caio Teste', RX, medRX, { de: '2026-10-15', ate: '2026-10-15' });
   assert(rxh.includes('Caio Teste') && rxh.includes('Apex') && rxh.includes('14:02–19:58'), 'cabeçalho e jornada');
-  assert(rxh.includes('20,0') && rxh.includes('equipe 18,0'), 'atend./hora ativa 100/5 vs equipe');
+  assert(rxh.includes('>20,0<') && rxh.includes('equipe 18,0'), 'atend./hora ativa 100/5 vs equipe');
   assert(rxh.includes('2 · 41 min'), 'pausas e minutos');
   assert(rxh.includes('60,0%') && rxh.includes('equipe 40,0%'), '% curtas vs equipe');
-  assert((rxh.match(/dcPior/g) || []).length >= 2, 'pausas/h (0,4 vs 0,2) e curtas (60% vs 40%) em vermelho');
+  assert((rxh.match(/dcPior/g) || []).length === 2, 'pausas/h (0,4 vs 0,2) e curtas (60% vs 40%) em vermelho, e só eles');
+  const linhaSemana = rxh.split('Últimos 7 dias úteis')[1].split('</tr>')[0];
+  assert((linhaSemana.match(/bmChip/g) || []).length === 3 && (linhaSemana.match(/▼/g) || []).length === 2, 'seta em atendidas (▲), vendas (▼) e conversão (▼ 1,25% vs 2%)');
+  dcEstado.pausaMin = 20;
+  const rx20 = dcRaioXHtml('Caio Teste', RX, medRX, { de: '2026-10-15', ate: '2026-10-15' });
+  assert(rx20.includes('mais de 20 min') && !rx20.includes('mais de 15 min'), 'texto da pausa vem da config');
+  assert(dcConsultoresHtml(consN).includes('mais de 20 min'), 'legenda da tabela também');
+  dcEstado.pausaMin = 15;
   assert(rxh.includes('15:20–15:48 · 28 min') && rxh.includes('equipe sem chamadas'), 'lista de pausas com a etiqueta');
   assert(rxh.includes('bmHoras') && rxh.includes('Qualidade') && rxh.includes('Resultado'), 'blocos');
   assert(rxh.includes('Semana anterior') && rxh.includes('▲') && rxh.includes('▼'), 'variação: atendidas sobe, vendas desce');
@@ -397,6 +402,12 @@ try{
   window.__tabelas.config = [{ chave: 'discador', valor: '{"janela_venda_dias":45}' }];
   await dcCarregar(); await espera(80);
   assert(document.getElementById('dcConteudo').innerHTML.includes('até 45 dias antes'), 'cartão de vendas usa a janela da config');
+  window.__tabelas.config = [{ chave: 'discador', valor: '{"janela_venda_dias":30,"pausa_min":25}' }];
+  await dcCarregar(); await espera(80);
+  eq(dcEstado.pausaMin, 25, 'pausa_min lido da config');
+  window.__tabelas.config = [{ chave: 'discador', valor: 'xx' }];
+  await dcCarregar(); await espera(80);
+  eq([dcEstado.pausaMin, dcEstado.janelaVenda], [15, 30], 'config ilegível: padrões');
   window.__tabelas.config = [];
   // ==== mais testes entram aqui ====
 
