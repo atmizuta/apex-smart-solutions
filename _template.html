@@ -12437,7 +12437,16 @@ function mesaBioLinhas(bio, sel, hoje){
 }
 // §91: radar de ligações manuais ao celular do cliente desde que o pedido entrou na etapa (campos da RPC mesa_biometria)
 // §92: de onde veio o celular quando não foi pelo CNPJ igual na planilha
-const MESA_BIO_FONTE = { lead_nome: 'achado na planilha pelo nome (CNPJ digitado diferente)', lead_cnpj_parecido: 'achado na planilha pelo CNPJ quase igual', caderno: 'do Caderno de Ligação', clientes: 'da base de clientes' };
+const MESA_BIO_FONTE = { lead_nome: 'achado na planilha pelo nome (CNPJ digitado diferente)', lead_cnpj_parecido: 'achado na planilha pelo CNPJ quase igual', caderno: 'do Caderno de Ligação', clientes: 'da base de clientes',
+  digitado: 'digitado na Mesa', discador: 'número do discador (último atendido)' };   // §95
+// §95: campo para digitar/corrigir o celular do cliente (salvo por CNPJ na RPC mesa_bio_salvar_telefone)
+function mesaBioFormTel(b, aberto){
+  const doc = String(b.cnpj || '').replace(/\D/g, '');
+  if(doc.length < 11) return '';
+  return `<div data-mesa-bio-form="${escapeHtml(doc)}" style="display:${aberto ? 'flex' : 'none'};gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap">
+      <input type="tel" maxlength="20" placeholder="DDD + celular" data-mesa-bio-tel="${escapeHtml(doc)}" style="width:150px">
+      <button type="button" class="btn btn-sm" data-mesa-bio-salvar="${escapeHtml(doc)}" style="width:auto">Salvar</button></div>`;
+}
 const MESA_BIO_RADAR_CLASSE = { nenhuma: 'retornoBadge atrasado', outro: 'retornoBadge hoje', ok: 'retornoBadge futuro', hoje: 'badge', semtel: '' };
 function mesaBioRadar(b){
   const n = Number(b.lig_etapa) || 0, cons = Number(b.lig_consultor) || 0, antes = Math.max(0, (Number(b.lig_total) || 0) - n);
@@ -12475,7 +12484,9 @@ function mesaRenderBio(){
     const cel = b.telefone ? `<button type="button" class="btn btn-sm btn-outline" data-copiar="${escapeHtml(b.telefone)}" style="width:auto">${escapeHtml(b.telefone)}</button>`
       + (wa ? ` <a class="btn btn-sm" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${encodeURIComponent(msg)}" style="width:auto">WhatsApp</a>` : '')
       + (MESA_BIO_FONTE[b.fonte_tel] ? `<div style="font-size:var(--fs-xs);color:var(--muted)">${escapeHtml(MESA_BIO_FONTE[b.fonte_tel])}</div>` : '')
-      : '<span class="desc">não está na planilha de leads — ver o celular no NEO</span>';
+      + ` <button type="button" class="btn btn-sm btn-ghost" data-mesa-bio-corrigir="${escapeHtml(String(b.cnpj || '').replace(/\D/g, ''))}" style="width:auto">corrigir</button>`
+      + mesaBioFormTel(b, false)
+      : '<span class="desc">sem celular em nenhuma base — pegue no NEO e digite aqui</span>' + mesaBioFormTel(b, true);
     const qtd = Number(b.quantidade) || 0;
     const sub = t => `<div style="font-size:var(--fs-xs);color:var(--muted)">${t}</div>`;
     return `<tr><td>${escapeHtml(b.cliente || '—')}${mesaEstado.bioSel ? '' : sub(escapeHtml(b.consultor || ''))}${sub(escapeHtml(b.cnpj || ''))}</td>
@@ -12485,6 +12496,20 @@ function mesaRenderBio(){
       <td>${escapeHtml(b.numero_pedido || '')}${sub(escapeHtml(b.produtos || '') + (qtd ? ' · ' + qtd + (qtd === 1 ? ' linha' : ' linhas') : ''))}</td>
       <td>${fmtBRL(Number(b.valor) || 0)}</td><td>${cel}</td></tr>`;
   }).join('') : `<tr><td colspan="7" class="desc">${mesaEstado.bioSel ? escapeHtml(mesaEstado.bioSel) + ' não tem pedido em biometria ou assinatura.' : 'Nenhum pedido em biometria ou assinatura.'}</td></tr>`;
+}
+// §95: salva o celular digitado (vazio apaga) e recarrega a Mesa
+async function mesaBioSalvarTel(btn){
+  const doc = btn.dataset.mesaBioSalvar;
+  const inp = document.querySelector(`#mesaBioTbody input[data-mesa-bio-tel="${doc}"]`);
+  const tel = String(inp ? inp.value : '').replace(/\D/g, '');
+  if(tel && (tel.length < 10 || tel.length > 13)){ mostrarAviso('Digite o celular com DDD (10 ou 11 dígitos).', 'erro'); return; }
+  if(btn.disabled) return;
+  btn.disabled = true;
+  const r = await ppSeguro(() => sb.rpc('mesa_bio_salvar_telefone', { p_cnpj: doc, p_telefone: tel }));
+  btn.disabled = false;
+  if(!r || r.error){ console.error(r && r.error); mostrarAviso('Não foi possível salvar o celular agora.', 'erro'); return; }
+  mostrarAviso(tel ? 'Celular salvo' : 'Celular apagado', 'ok');
+  await loadMesa(true);
 }
 function mesaSubAtivar(sub){
   mesaEstado.sub = sub === 'bio' ? 'bio' : 'equipe';
@@ -12507,6 +12532,14 @@ document.getElementById('panel-mesa').addEventListener('click', function(ev){
   if(sub){ mesaSubAtivar(sub.dataset.mesaSub); return; }
   const bp = ev.target.closest('[data-mesa-bio]');
   if(bp){ mesaEstado.bioSel = bp.dataset.mesaBio; mesaRenderBio(); return; }
+  const corr = ev.target.closest('[data-mesa-bio-corrigir]');
+  if(corr){
+    const f = document.querySelector(`#mesaBioTbody [data-mesa-bio-form="${corr.dataset.mesaBioCorrigir}"]`);
+    if(f){ f.style.display = f.style.display === 'none' ? 'flex' : 'none'; }
+    return;
+  }
+  const salv = ev.target.closest('[data-mesa-bio-salvar]');
+  if(salv){ mesaBioSalvarTel(salv); return; }
   const cp = ev.target.closest('#mesaSubBio [data-copiar]');
   if(cp){
     try{ navigator.clipboard.writeText(cp.dataset.copiar); mostrarAviso('Copiado: ' + cp.dataset.copiar, 'ok'); }catch(e){ mostrarAviso(cp.dataset.copiar, 'info'); }

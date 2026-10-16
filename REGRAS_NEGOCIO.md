@@ -3232,3 +3232,13 @@ O robô ProContact (repositório privado `rafaangelao/apex-robo-procontact`, dis
 - **Retrato em 15/10 (~21h):** 17 consultores da Apex com pedido parado (antes 6).
 - **Código:** `mesaBioConsultores(bio)` e `mesaBioRadar` (lig_por) no `_template.html`. Testes: `test_mesa_supervisor.js` (111 ok).
 - **Entrada no ar (16/10/2026, ~13:33, horário de SP):** `mesa_biometria()` recriada via `execute_sql` (drop + create; security definer; sem acesso para anon). O painel no ar (`bbcdff56…`) era o da §92. Publicado `6daafca0…` e, logo depois da renumeração para §94 (a §93 é do robô do Discador, outra sessão), republicado **`4c7cbc8ed00545d1d09ca27c7d9ee09e`** (gerado = servidor = site; só os comentários mudaram). Backup: `~/deploy_backups/painel_clientes_apex_20261016_133330_antes_bio_todos.html`.
+
+## 95. Mesa → Biometria: celular do discador e celular digitado (16/10/2026)
+
+- **Pedido do Rafael (16/10):** muitos pedidos não tinham número para cruzar (22 de 58 na Apex). O NEO não manda telefone; o painel só achava o celular na planilha de leads, no Caderno e na base de clientes. Ele aprovou as duas saídas: usar o **discador** como fonte e um **campo para digitar** o celular.
+- **Discador:** `mesa_biometria()` passou a usar `discador_chamadas` (CNPJ igual, 14 dígitos, com índice): o número da **última chamada atendida**; sem atendida, o último discado. Entra depois de planilha, Caderno e base de clientes. Origem na tela: "número do discador (último atendido)".
+- **Digitado:** tabela nova `biometria_telefone` (CNPJ → celular, quem e quando), RLS ligada e **sem acesso direto** (nem para authenticated); grava só pela RPC `mesa_bio_salvar_telefone(p_cnpj, p_telefone)` (admin/supervisor; só dígitos, 10–13; vazio apaga). O digitado tem **prioridade** sobre todas as fontes (quem digitou sabe que é o certo). Na tela: sem número → "sem celular em nenhuma base — pegue no NEO e digite aqui" com o campo já aberto; com número → botão "corrigir". Depois de salvar, a Mesa recarrega.
+- **Ligações:** contam também para o número digitado/do discador (além de todos os números da planilha).
+- **Retrato em 16/10 (teste em transação desfeita):** 58 pedidos — 32 com número da planilha, 3 da base de clientes, **11 do discador**, 11 sem número (para digitar).
+- **Código:** `mesaBioFormTel`, `mesaBioSalvarTel` e `MESA_BIO_FONTE` (digitado, discador) no `_template.html`. Migration `20261016140000_mesa_biometria_telefone.sql`. Testes: `test_mesa_supervisor.js` (117 ok).
+- **Ordem de entrada no ar:** migration primeiro, depois o painel.

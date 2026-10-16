@@ -124,7 +124,7 @@ try{
   // §90: Biometria — funções puras
   const BIO = [
     { consultor: 'Mariana', numero_pedido: 'P1', cliente: 'Empresa A', etapa: 'BIOMETRIA (NEOCRM)', desde: iso('2026-10-01T10:00:00'), valor: 100, quantidade: 2, produtos: 'Plano X', telefone: '11999990001' },
-    { consultor: 'Mariana', numero_pedido: 'P2', cliente: 'Empresa B', etapa: 'AGUARDANDO ASSINATURA (NEOCRM)', desde: iso('2026-10-05T08:00:00'), valor: 50, quantidade: 1, produtos: 'Plano Y', telefone: null },
+    { consultor: 'Mariana', numero_pedido: 'P2', cliente: 'Empresa B', etapa: 'AGUARDANDO ASSINATURA (NEOCRM)', desde: iso('2026-10-05T08:00:00'), valor: 50, quantidade: 1, produtos: 'Plano Y', telefone: null, cnpj: '12345678000199' },
     { consultor: 'Caio', numero_pedido: 'P3', cliente: 'Empresa C', etapa: 'BIOMETRIA (NEOCRM)', desde: iso('2026-10-03T10:00:00'), valor: 70, quantidade: 1, produtos: 'Plano Z', telefone: '(11) 98888-0002', fonte_tel: 'lead_nome' },
   ];
   eq(mesaBioDias(iso('2026-10-01T10:00:00'), HOJE), 4, 'dias na etapa');
@@ -231,7 +231,7 @@ try{
   assert(bioTr[0].textContent.includes('Biometria') && bioTr[1].textContent.includes('Aguardando assinatura'), 'mostra as duas etapas');
   assert(bioTr[0].querySelector('a[href^="https://wa.me/5511999990001?text="]') && bioTr[0].querySelector('[data-copiar="11999990001"]'), 'celular com copiar e WhatsApp');
   assert(decodeURIComponent(bioTr[0].querySelector('a[href^="https://wa.me/"]').href).includes('biometria facial'), 'mensagem de biometria');
-  assert(bioTr[1].textContent.includes('não está na planilha de leads'), 'sem celular avisa que não está na planilha');
+  assert(bioTr[1].textContent.includes('sem celular em nenhuma base'), 'sem celular: avisa e pede para digitar');
   assert(!bioTr[0].textContent.includes('achado na planilha'), '§92: achado pelo CNPJ não mostra aviso de origem');
   assert(bioTr[0].querySelector('.mesaBioRadar') && bioTr[0].textContent.includes('Nenhuma ligação'), '§91: radar na mesma linha');
   assert(document.getElementById('mesaBioResumo').textContent.includes('1 sem nenhuma ligação'), '§91: resumo conta os sem ligação');
@@ -240,6 +240,25 @@ try{
   document.querySelector('[data-mesa-bio="Caio"]').click();
   assert(document.getElementById('mesaBioTbody').textContent.includes('achado na planilha pelo nome'), '§92: celular achado pelo nome avisa a origem');
   assert(!document.querySelector('[data-mesa-bio="Luria"]'), '§94: quem não tem pedido parado não vira pílula');
+  // §95: celular digitado na própria linha
+  document.querySelector('[data-mesa-bio="Mariana"]').click();
+  const inpSem = document.querySelector('#mesaBioTbody input[data-mesa-bio-tel="12345678000199"]');
+  assert(inpSem && inpSem.closest('[data-mesa-bio-form]').style.display !== 'none', 'sem celular: campo para digitar já aparece');
+  const inpCom = document.querySelector('#mesaBioTbody [data-mesa-bio-corrigir]');
+  assert(inpCom, 'com celular: botão "corrigir"');
+  window.__rpcCalls.length = 0;
+  inpSem.value = '123';
+  document.querySelector('[data-mesa-bio-salvar="12345678000199"]').click();
+  await espera(30);
+  assert(!window.__rpcCalls.some(c => c.nome === 'mesa_bio_salvar_telefone'), 'número inválido não salva');
+  window.__rpcRespostas.mesa_bio_salvar_telefone = { data: null, error: null };
+  inpSem.value = '(11) 98888-7777';
+  document.querySelector('[data-mesa-bio-salvar="12345678000199"]').click();
+  await espera(60);
+  eq((window.__rpcCalls.find(c => c.nome === 'mesa_bio_salvar_telefone') || {}).args, { p_cnpj: '12345678000199', p_telefone: '11988887777' }, 'salva só os dígitos, pelo CNPJ');
+  assert(window.__rpcCalls.some(c => c.nome === 'mesa_biometria'), 'depois de salvar, recarrega a Biometria');
+  // §95: origem "discador" e "digitado"
+  eq(MESA_BIO_FONTE.discador.includes('discador') && MESA_BIO_FONTE.digitado.includes('digitado'), true, 'rótulos das fontes novas');
   window.__xlsx = window.__xlsx || [];
   document.querySelector('[data-mesa-bio="Mariana"]').click();
   document.querySelector('[data-mesa-sub="equipe"]').click();
