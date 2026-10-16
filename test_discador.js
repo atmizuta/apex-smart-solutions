@@ -336,6 +336,34 @@ try{
   const linhaB = tN.split('data-dc-agente="2"')[1].split('</tr>')[0];
   assert(linhaB.includes('<td>—</td>') && !linhaB.includes('dcPior'), 'B: jornada — e sem destaque');
   assert(!dcConsultoresHtml([{ agente_id: 3, nome: 'C', atendidas: 0, horas_ativas: 0, pausas: 0, curtas: 0 }]).includes('NaN'), 'sem atendidas: sem NaN');
+  // ==== §96: Raio-X ====
+  const RX = { operacao: 'apex',
+    dias: [{ dia: '2026-10-15', inicio: '2026-10-15T17:02:00Z', fim: '2026-10-15T22:58:00Z', horas_ativas: 5, atendidas: 100, pausas: 2, min_pausa: 41 }],
+    por_hora: [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21].map(h => ({ hora: h, atendidas: h === 14 ? 30 : 0 })),
+    pausas: [{ inicio: '2026-10-15T18:20:00Z', fim: '2026-10-15T18:48:00Z', minutos: 28, equipe_sem_chamadas: false },
+             { inicio: '2026-10-15T20:00:00Z', fim: '2026-10-15T20:20:00Z', minutos: 20, equipe_sem_chamadas: true }],
+    qualidade: { agente: { atendidas: 100, curtas: 60, seg_falados_medio_sem_curtas: 71, seg_espera_medio: 2, mix: { sem_avanco: 50, retorno: 6, descarte: 4, perdido: 3, ganho: 1, sem_contato: 20, sem_tabulacao: 16, outros: 0 } },
+                 equipe: { atendidas: 1000, curtas: 400, seg_falados_medio_sem_curtas: 80, seg_espera_medio: 2, mix: { sem_avanco: 400, retorno: 60, descarte: 40, perdido: 30, ganho: 10, sem_contato: 300, sem_tabulacao: 160, outros: 0 } } },
+    resultado: { dias: [{ dia: '2026-10-15', atendidas: 100, vendas: 2 }], semana_atual: { atendidas: 480, vendas: 6 }, semana_anterior: { atendidas: 400, vendas: 8 } } };
+  const medRX = { atPorHora: 18, pausasPorHora: 0.2, curtas: 0.4 };
+  const rxh = dcRaioXHtml('Caio Teste', RX, medRX, { de: '2026-10-15', ate: '2026-10-15' });
+  assert(rxh.includes('Caio Teste') && rxh.includes('Apex') && rxh.includes('14:02–19:58'), 'cabeçalho e jornada');
+  assert(rxh.includes('20,0') && rxh.includes('equipe 18,0'), 'atend./hora ativa 100/5 vs equipe');
+  assert(rxh.includes('2 · 41 min'), 'pausas e minutos');
+  assert(rxh.includes('60,0%') && rxh.includes('equipe 40,0%'), '% curtas vs equipe');
+  assert((rxh.match(/dcPior/g) || []).length >= 2, 'pausas/h (0,4 vs 0,2) e curtas (60% vs 40%) em vermelho');
+  assert(rxh.includes('15:20–15:48 · 28 min') && rxh.includes('equipe sem chamadas'), 'lista de pausas com a etiqueta');
+  assert(rxh.includes('bmHoras') && rxh.includes('Qualidade') && rxh.includes('Resultado'), 'blocos');
+  assert(rxh.includes('Semana anterior') && rxh.includes('▲') && rxh.includes('▼'), 'variação: atendidas sobe, vendas desce');
+  assert(rxh.includes('data-dc-fechar'), 'botão fechar');
+  const rxv = dcRaioXHtml('Caio Teste', Object.assign({}, RX, { por_hora: [], pausas: [], dias: [RX.dias[0], Object.assign({}, RX.dias[0], { dia: '2026-10-16' })] }), medRX, { de: '2026-10-15', ate: '2026-10-16' });
+  assert(rxv.includes('2 dias') && rxv.includes('16/10') && !rxv.includes('bmHoras'), 'vários dias: tabela por dia, sem barras');
+  const rx0 = dcRaioXHtml('Zé Teste', { operacao: 'apex', dias: [], por_hora: [], pausas: [], qualidade: { agente: { atendidas: 0, curtas: 0, mix: {} }, equipe: { atendidas: 0, curtas: 0, mix: {} } },
+    resultado: { dias: [], semana_atual: { atendidas: 0, vendas: 0 }, semana_anterior: { atendidas: 0, vendas: 0 } } }, {}, { de: '2026-10-17', ate: '2026-10-17' });
+  assert(!rx0.includes('NaN') && rx0.includes('Sem atendimentos'), 'consultor sem atendimento: sem NaN');
+  assert(dcRaioXHtml('X', null, {}, { de: '2026-10-15', ate: '2026-10-15' }).includes('Não foi possível carregar'), 'falha');
+  eq(Math.round(dcVariacao(480, 400) * 1000) / 1000, 0.2, 'variação +20%');
+  eq(dcVariacao(5, 0), null, 'sem base: nula');
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
