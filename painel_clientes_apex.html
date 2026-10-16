@@ -13417,7 +13417,7 @@ function bmVerificarHora(entrando){
 const DC_MAX_DIAS = 120;               // igual ao limite das RPCs (p_ate - p_de > 120 é recusado)
 const DC_MIN_CONTATOS_ALERTA = 10;     // alerta de abandono só com amostra mínima na hora
 const DC_MIN_ATENDIDAS_DESTAQUE = 20;  // destaque de consultor só com amostra mínima no período
-const dcEstado = { geracao: 0, chave: 'hoje', de: null, ate: null, operacao: 'apex' };
+const dcEstado = { geracao: 0, chave: 'hoje', de: null, ate: null, operacao: 'apex', raiox: null, raioxGer: 0, consultores: null, janelaVenda: 30 };
 const DC_OPERACOES = { apex: 'Apex', campinas: 'Campinas', todas: 'Todas as operações' };
 // §89: supervisor de qualquer operação vê a aba; o banco devolve só a operação dele (admin escolhe no seletor)
 function canSeeDiscador(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
@@ -13443,6 +13443,7 @@ function dcFmtSeg(s){
   return v < 60 ? v + ' s' : Math.floor(v / 60) + ' min ' + String(v % 60).padStart(2, '0') + ' s';
 }
 function dcDdMm(dia){ return String(dia).slice(8, 10) + '/' + String(dia).slice(5, 7); }
+function dcHoraMin(iso){ if(!iso) return '—'; const ms = Date.parse(iso); return Number.isFinite(ms) ? new Date(ms - 3 * 3600000).toISOString().slice(11, 16) : '—'; }
 // Última hora cheia (horaAgora - 1): abandono acima do limite, com amostra mínima.
 function dcAlertaAbandono(porHora, horaAgora, limite){
   if(!Array.isArray(porHora)) return null;
@@ -13451,13 +13452,15 @@ function dcAlertaAbandono(porHora, horaAgora, limite){
   const taxa = dcTaxa(h.abandonadas, h.contato);
   return taxa !== null && taxa > Number(limite) ? { hora: Number(h.hora), taxa, abandonadas: Number(h.abandonadas), contato: Number(h.contato) } : null;
 }
-// Médias da equipe ponderadas pelas atendidas (quem atende mais pesa mais).
+// Médias da equipe ponderadas (quem atende mais pesa mais); por hora ativa para ritmo e pausas (§96).
 function dcMediaEquipe(consultores){
   const s = (consultores || []).reduce((a, c) => {
     a.at += Number(c.atendidas) || 0; a.sa += Number(c.sem_avanco) || 0; a.st += Number(c.sem_tabulacao) || 0; a.v += Number(c.vendas) || 0;
+    a.ha += Number(c.horas_ativas) || 0; a.pz += Number(c.pausas) || 0; a.cu += Number(c.curtas) || 0;
     return a;
-  }, { at: 0, sa: 0, st: 0, v: 0 });
-  return { semAvanco: dcTaxa(s.sa, s.at), semTab: dcTaxa(s.st, s.at), conversao: dcTaxa(s.v, s.at) };
+  }, { at: 0, sa: 0, st: 0, v: 0, ha: 0, pz: 0, cu: 0 });
+  return { semAvanco: dcTaxa(s.sa, s.at), semTab: dcTaxa(s.st, s.at), conversao: dcTaxa(s.v, s.at),
+           atPorHora: dcTaxa(s.at, s.ha), pausasPorHora: dcTaxa(s.pz, s.ha), curtas: dcTaxa(s.cu, s.at) };
 }
 // Mais de 30% pior que a média (maiorEhPior: % sem avanço e sem tabulação; senão: conversão).
 function dcPiorQueMedia(valor, media, maiorEhPior){
@@ -13476,7 +13479,7 @@ function dcKpisHtml(r){
     + kpi('Abandono', dcFmtPct(dcTaxa(r.abandonadas, r.contato)), dcFmtNum(r.abandonadas) + ' sem consultor livre')
     + kpi('Atendidas', dcFmtNum(r.atendidas), dcFmtNum(r.sem_tabulacao) + ' sem tabulação')
     + kpi('Tempo médio falado', dcFmtSeg(r.seg_falados_medio), 'por atendimento')
-    + `<div class="bmCard bmKpi"><div class="bmRot">Vendas do discador</div><div class="bmNum">${e(dcFmtNum(r.vendas))}</div><div class="bmSub">pedido no NEO com CNPJ atendido até 30 dias antes</div></div>`
+    + `<div class="bmCard bmKpi"><div class="bmRot">Vendas do discador</div><div class="bmNum">${e(dcFmtNum(r.vendas))}</div><div class="bmSub">pedido no NEO com CNPJ atendido até ${e(String(dcEstado.janelaVenda))} dias antes</div></div>`
     + '</div>';
 }
 function dcHorasHtml(porHora, comMedia){
@@ -13521,17 +13524,22 @@ function dcConsultoresHtml(lista){
   const linhas = lista.map(c => {
     const at = Number(c.atendidas) || 0, amostra = at >= DC_MIN_ATENDIDAS_DESTAQUE;
     const sa = dcTaxa(c.sem_avanco, at), st = dcTaxa(c.sem_tabulacao, at), cv = dcTaxa(c.vendas, at);
-    return `<tr data-dc-agente="${e(String(c.agente_id))}" data-dc-nome="${e(c.nome || '')}" style="cursor:pointer" title="Ver por dia">`
+    return `<tr data-dc-agente="${e(String(c.agente_id))}" data-dc-nome="${e(c.nome || '')}" style="cursor:pointer" title="Abrir o Raio-X">`
       + `<td>${e(c.nome || ('Agente ' + c.agente_id))}${c.profile_id ? '' : ' <span class="badge">sem vínculo</span>'}</td>`
-      + td(dcFmtNum(at)) + td(dcFmtSeg(c.seg_falados_total)) + td(dcFmtSeg(c.seg_falados_medio))
+      + td(c.jornada_inicio ? dcHoraMin(c.jornada_inicio) + '–' + dcHoraMin(c.jornada_fim) : '—')
+      + td(dcFmtNum(at))
+      + td(dcTaxa(at, c.horas_ativas) === null ? '—' : dcTaxa(at, c.horas_ativas).toFixed(1).replace('.', ','), amostra && dcPiorQueMedia(dcTaxa(at, c.horas_ativas), med.atPorHora, false))
+      + td(dcFmtNum(c.pausas), amostra && dcPiorQueMedia(dcTaxa(c.pausas, c.horas_ativas), med.pausasPorHora, true))
+      + td(dcFmtPct(dcTaxa(c.curtas, at)), amostra && dcPiorQueMedia(dcTaxa(c.curtas, at), med.curtas, true))
+      + td(dcFmtSeg(c.seg_falados_total)) + td(dcFmtSeg(c.seg_falados_medio))
       + td(dcFmtPct(sa), amostra && dcPiorQueMedia(sa, med.semAvanco, true))
       + td(dcFmtNum(c.retornos)) + td(dcFmtNum(c.ganhos))
       + td(dcFmtPct(st), amostra && dcPiorQueMedia(st, med.semTab, true))
       + td(dcFmtNum(c.vendas)) + td(dcFmtPct(cv), amostra && dcPiorQueMedia(cv, med.conversao, false)) + '</tr>';
   }).join('');
-  return '<div class="mlTabelaWrap"><table class="tbl"><thead><tr><th>Consultor</th><th>Atendidas</th><th>Falado</th><th>Médio</th><th>% sem avanço</th><th>Retornos</th><th>Ganhos</th><th>% sem tabulação</th><th>Vendas</th><th>Conversão</th></tr></thead><tbody>'
+  return '<div class="mlTabelaWrap"><table class="tbl"><thead><tr><th>Consultor</th><th>Jornada</th><th>Atendidas</th><th>Atend./h</th><th>Pausas</th><th>% curtas</th><th>Falado</th><th>Médio</th><th>% sem avanço</th><th>Retornos</th><th>Ganhos</th><th>% sem tabulação</th><th>Vendas</th><th>Conversão</th></tr></thead><tbody>'
     + linhas + '</tbody></table></div>'
-    + `<div class="bmLegenda">Em vermelho: mais de 30% pior que a média da equipe (sem avanço ${e(dcFmtPct(med.semAvanco))} · sem tabulação ${e(dcFmtPct(med.semTab))} · conversão ${e(dcFmtPct(med.conversao))}), só para quem atendeu ${DC_MIN_ATENDIDAS_DESTAQUE} ou mais. Clique na linha para ver por dia.</div>`;
+    + `<div class="bmLegenda">Em vermelho: mais de 30% pior que a média da equipe (atend./hora ativa ${e(med.atPorHora === null ? '—' : med.atPorHora.toFixed(1).replace('.', ','))} · pausas longas por hora ativa · curtas ${e(dcFmtPct(med.curtas))} · sem avanço ${e(dcFmtPct(med.semAvanco))} · sem tabulação ${e(dcFmtPct(med.semTab))} · conversão ${e(dcFmtPct(med.conversao))}), só para quem atendeu ${DC_MIN_ATENDIDAS_DESTAQUE} ou mais. Pausa longa: mais de 15 min sem atender com a equipe recebendo chamadas. Clique na linha para o Raio-X.</div>`;
 }
 function dcMailingHtml(linhas, rotuloChave){
   if(!Array.isArray(linhas)) return dcFalhou(rotuloChave);
@@ -13554,6 +13562,65 @@ function dcDiasHtml(nome, linhas){
     : '<p class="ppVazio">Sem atendimentos no período.</p>';
   return `<div class="bmCard"><h4>${e(nome)} <small>por dia</small></h4>${corpo}</div>`;
 }
+// §96: Raio-X do consultor (presença/ritmo, qualidade e resultado), a partir de discador_consultor_raiox.
+function dcVariacao(atual, anterior){ const a = Number(anterior) || 0; return a > 0 ? (Number(atual) || 0) / a - 1 : null; }
+function dcRaioXHtml(nome, rx, med, periodo){
+  const e = escapeHtml;
+  const fechar = '<button type="button" class="btn btn-sm btn-outline" data-dc-fechar style="width:auto">Fechar</button>';
+  if(!rx) return `<div class="bmCard" style="margin-top:var(--space-3)"><h4>${e(nome)} <small>Raio-X</small> ${fechar}</h4><p class="ppVazio">Não foi possível carregar agora. Tente de novo em instantes.</p></div>`;
+  med = med || {};
+  const dias = Array.isArray(rx.dias) ? rx.dias : [], umDia = periodo.de === periodo.ate;
+  const tot = dias.reduce((a, d) => { a.at += Number(d.atendidas) || 0; a.ha += Number(d.horas_ativas) || 0; a.pz += Number(d.pausas) || 0; a.min += Number(d.min_pausa) || 0; return a; }, { at: 0, ha: 0, pz: 0, min: 0 });
+  const qa = (rx.qualidade && rx.qualidade.agente) || {}, qe = (rx.qualidade && rx.qualidade.equipe) || {};
+  const amostra = tot.at >= DC_MIN_ATENDIDAS_DESTAQUE;
+  const atH = dcTaxa(tot.at, tot.ha), pzH = dcTaxa(tot.pz, tot.ha), cur = dcTaxa(qa.curtas, qa.atendidas), curEq = dcTaxa(qe.curtas, qe.atendidas);
+  const num1 = x => x === null || x === undefined ? '—' : Number(x).toFixed(1).replace('.', ',');
+  const kpi = (rot, valor, sub, pior) => `<div class="bmCard bmKpi"><div class="bmRot">${e(rot)}</div><div class="bmNum${pior ? ' dcPior' : ''}"${pior ? ' style="color:var(--st-perdido)"' : ''}>${e(valor)}</div><div class="bmSub">${e(sub)}</div></div>`;
+  const jornada = !dias.length ? '—' : (umDia ? dcHoraMin(dias[0].inicio) + '–' + dcHoraMin(dias[0].fim) : dias.length + ' dias');
+  const cartoes = '<div class="bmGrade bmG6" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">'
+    + kpi('Jornada', jornada, umDia ? 'primeiro e último atendimento' : 'dias com atendimento', false)
+    + kpi('Atend./hora ativa', num1(atH), 'equipe ' + num1(med.atPorHora), amostra && dcPiorQueMedia(atH, med.atPorHora, false))
+    + kpi('Pausas longas', tot.pz + ' · ' + tot.min + ' min', 'mais de 15 min, com a equipe recebendo', amostra && dcPiorQueMedia(pzH, med.pausasPorHora, true))
+    + kpi('% curtas', dcFmtPct(cur), 'equipe ' + dcFmtPct(curEq), amostra && dcPiorQueMedia(cur, curEq, true))
+    + '</div>';
+  let ritmo;
+  if(!dias.length) ritmo = '<p class="ppVazio">Sem atendimentos no período.</p>';
+  else if(umDia){
+    const ph = Array.isArray(rx.por_hora) ? rx.por_hora : [], max = Math.max(1, ...ph.map(h => Number(h.atendidas) || 0));
+    const barras = `<div class="bmHoras">${ph.map(h => `<div class="bmHora" title="${e(h.hora + 'h: ' + h.atendidas + ' atendimentos')}"><b>${Number(h.atendidas) || ''}</b><i style="height:${Math.round((Number(h.atendidas) || 0) / max * 100)}%"></i><span>${e(String(h.hora))}h</span></div>`).join('')}</div>`;
+    const pz = Array.isArray(rx.pausas) ? rx.pausas : [];
+    const lista = pz.length ? '<ul style="margin:var(--space-3) 0 0;padding-left:18px">' + pz.map(x => `<li>${e(dcHoraMin(x.inicio) + '–' + dcHoraMin(x.fim) + ' · ' + x.minutos + ' min')}${x.equipe_sem_chamadas ? ' <span class="badge">equipe sem chamadas</span>' : ''}</li>`).join('') + '</ul>'
+      : '<p class="ppVazio">Nenhuma pausa longa.</p>';
+    ritmo = barras + '<div class="bmLegenda">Atendimentos por hora. Pausas longas abaixo; "equipe sem chamadas" = o discador não entregou ligações a ninguém nesse intervalo (não conta).</div>' + lista;
+  } else {
+    ritmo = '<div class="mlTabelaWrap"><table class="tbl"><thead><tr><th>Dia</th><th>Jornada</th><th>Horas ativas</th><th>Atendidas</th><th>Atend./h</th><th>Pausas</th><th>Min em pausa</th></tr></thead><tbody>'
+      + dias.map(d => `<tr><td>${e(dcDdMm(d.dia))}</td><td>${e(dcHoraMin(d.inicio) + '–' + dcHoraMin(d.fim))}</td><td>${e(String(d.horas_ativas))}</td><td>${e(dcFmtNum(d.atendidas))}</td><td>${e(num1(dcTaxa(d.atendidas, d.horas_ativas)))}</td><td>${e(String(d.pausas))}</td><td>${e(String(d.min_pausa))}</td></tr>`).join('')
+      + '</tbody></table></div>';
+  }
+  const MIX = [['sem_avanco', 'Sem avanço'], ['sem_contato', 'Sem contato'], ['retorno', 'Retorno'], ['descarte', 'Descarte'], ['perdido', 'Perdido'], ['ganho', 'Ganho'], ['sem_tabulacao', 'Sem tabulação'], ['outros', 'Outros']];
+  const ma = qa.mix || {}, me = qe.mix || {};
+  const mix = MIX.map(([k, rot]) => {
+    const pa = dcTaxa(ma[k], qa.atendidas) || 0, pe = dcTaxa(me[k], qe.atendidas) || 0;
+    return `<div class="bmLin" style="grid-template-columns:120px minmax(0,1fr) auto"><div class="bmNome">${e(rot)}</div><div><div class="bmTrilho"><i style="width:${Math.round(pa * 100)}%"></i></div><div class="bmTrilho"><i class="at" style="width:${Math.round(pe * 100)}%"></i></div></div><div class="bmVal">${e(dcFmtPct(pa))}</div></div>`;
+  }).join('');
+  const qualidade = '<div class="mlTabelaWrap"><table class="tbl"><thead><tr><th></th><th>Consultor</th><th>Equipe</th></tr></thead><tbody>'
+    + `<tr><td>% curtas</td><td>${e(dcFmtPct(cur))}</td><td>${e(dcFmtPct(curEq))}</td></tr>`
+    + `<tr><td>Tempo médio falado (sem curtas)</td><td>${e(dcFmtSeg(qa.seg_falados_medio_sem_curtas))}</td><td>${e(dcFmtSeg(qe.seg_falados_medio_sem_curtas))}</td></tr>`
+    + `<tr><td>Espera média do cliente</td><td>${e(dcFmtSeg(qa.seg_espera_medio))}</td><td>${e(dcFmtSeg(qe.seg_espera_medio))}</td></tr>`
+    + '</tbody></table></div><h4 style="margin-top:var(--space-4)">Tabulação <small>barra de cima: consultor · de baixo: equipe</small></h4>' + mix;
+  const res = rx.resultado || {}, sa = res.semana_atual || {}, san = res.semana_anterior || {};
+  const conv = (v, a) => dcTaxa(v, a);
+  const chip = (atual, ant) => { const v = dcVariacao(atual, ant); return v === null ? '' : ` <span class="bmChip ${v >= 0 ? 'sobe' : 'desce'}">${v >= 0 ? '▲' : '▼'} ${Math.round(Math.abs(v) * 100)}%</span>`; };
+  const resultado = '<div class="mlTabelaWrap"><table class="tbl"><thead><tr><th>Dia</th><th>Atendidas</th><th>Vendas</th><th>Conversão</th></tr></thead><tbody>'
+    + (Array.isArray(res.dias) ? res.dias : []).map(d => `<tr><td>${e(dcDdMm(d.dia))}</td><td>${e(dcFmtNum(d.atendidas))}</td><td>${e(dcFmtNum(d.vendas))}</td><td>${e(dcFmtPct(conv(d.vendas, d.atendidas)))}</td></tr>`).join('')
+    + `<tr><td><b>Últimos 7 dias úteis</b></td><td><b>${e(dcFmtNum(sa.atendidas))}</b>${chip(sa.atendidas, san.atendidas)}</td><td><b>${e(dcFmtNum(sa.vendas))}</b>${chip(sa.vendas, san.vendas)}</td><td><b>${e(dcFmtPct(conv(sa.vendas, sa.atendidas)))}</b></td></tr>`
+    + `<tr><td>Semana anterior</td><td>${e(dcFmtNum(san.atendidas))}</td><td>${e(dcFmtNum(san.vendas))}</td><td>${e(dcFmtPct(conv(san.vendas, san.atendidas)))}</td></tr>`
+    + '</tbody></table></div>';
+  const per = umDia ? dcDdMm(periodo.de) : dcDdMm(periodo.de) + ' a ' + dcDdMm(periodo.ate);
+  return `<div class="bmCard" style="margin-top:var(--space-3)"><h4>${e(nome)} <small>Raio-X · ${e(DC_OPERACOES[rx.operacao] || '')} · ${e(per)}</small> ${fechar}</h4>${cartoes}</div>`
+    + `<div class="bmGrade bmG2"><div class="bmCard"><h4>Ritmo</h4>${ritmo}</div><div class="bmCard"><h4>Qualidade</h4>${qualidade}</div></div>`
+    + `<div class="bmGrade"><div class="bmCard"><h4>Resultado <small>vendas do discador nos últimos 7 dias úteis</small></h4>${resultado}</div></div>`;
+}
 function dcVinculoHtml(semVinculo, perfis){
   if(!Array.isArray(semVinculo) || !semVinculo.length) return '';
   const e = escapeHtml, n = semVinculo.length;
@@ -13566,7 +13633,7 @@ function dcVinculoHtml(semVinculo, perfis){
     + '</div>';
 }
 function dcResetar(){
-  dcEstado.geracao++;
+  dcEstado.geracao++; dcEstado.raiox = null; dcEstado.raioxGer++;
   ['dcConteudo', 'dcVinculo', 'dcDetalhe', 'dcAvisos'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = ''; });
   const st = document.getElementById('dcStatus'); if(st) st.textContent = '';
 }
@@ -13598,19 +13665,22 @@ async function dcCarregar(){
   const args = { p_de: p.de, p_ate: p.ate, p_operacao: dcOperacaoPedida() };
   const admin = currentUser.role === 'admin';
   document.getElementById('dcStatus').textContent = 'Carregando…';
-  document.getElementById('dcDetalhe').innerHTML = '';
   const rpc = (nome, a) => ppSeguro(() => sb.rpc(nome, a));
-  const [res, hora, calor, cons, carga, oper, cid, semV, perfis] = await Promise.all([
+  const [res, hora, calor, cons, carga, oper, cid, semV, perfis, cfgDc] = await Promise.all([
     rpc('discador_resumo', args), rpc('discador_por_hora', args), rpc('discador_mapa_calor', args), rpc('discador_consultores', args),
     rpc('discador_mailing', Object.assign({}, args, { p_dim: 'carga' })),
     rpc('discador_mailing', Object.assign({}, args, { p_dim: 'operadora' })),
     rpc('discador_mailing', Object.assign({}, args, { p_dim: 'cidade' })),
     admin ? rpc('discador_agentes_sem_vinculo', {}) : Promise.resolve(null),
     admin ? ppSeguro(() => sb.from('profiles').select('id,nome,role').order('nome')) : Promise.resolve(null),
+    ppSeguro(() => sb.from('config').select('valor').eq('chave', 'discador').maybeSingle()),
   ]);
   if(ger !== dcEstado.geracao || !canSeeDiscador()) return;
   const dados = r => (r && !r.error && Array.isArray(r.data) ? r.data : null);
   [res, hora, calor, cons, carga, oper, cid, semV].forEach(r => { if(r && r.error) console.error('discador:', r.error); });
+  // §96: janela da venda vem de config.discador (padrão 30) e a lista da tabela fica guardada para as médias do Raio-X
+  try{ const jv = cfgDc && !cfgDc.error && cfgDc.data ? Number(JSON.parse(cfgDc.data.valor).janela_venda_dias) : NaN; dcEstado.janelaVenda = Number.isFinite(jv) && jv > 0 ? jv : 30; }catch(err){ dcEstado.janelaVenda = 30; }
+  dcEstado.consultores = dados(cons);
   const resumo = dados(res) ? (dados(res)[0] || null) : null, porHora = dados(hora);
   const quando = resumo && resumo.ultima_sync
     ? ' · dados até ' + new Date(resumo.ultima_sync).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -13630,17 +13700,20 @@ async function dcCarregar(){
     + '<div class="bmSecao">Mailing</div>'
     + `<div class="bmGrade">${card('Por carga', '', dcMailingHtml(dados(carga), 'Carga'))}</div>`
     + `<div class="bmGrade bmG2">${card('Por operadora de origem', '', dcMailingHtml(dados(oper), 'Operadora'))}${card('Por cidade', '15 maiores com 300+ tentativas', dcMailingHtml(dados(cid), 'Cidade'))}</div>`;
+  // §96: o Raio-X aberto acompanha o período/operação
+  if(dcEstado.raiox) dcAbrirRaioX(dcEstado.raiox.agenteId, dcEstado.raiox.nome);
 }
-async function dcAbrirDias(agenteId, nome){
+async function dcAbrirRaioX(agenteId, nome){
   if(!canSeeDiscador()) return;
   const p = dcPeriodo(dcEstado.chave, hojeSP(), dcEstado.de, dcEstado.ate);
   if(!p) return;
-  const ger = dcEstado.geracao;
-  const r = await ppSeguro(() => sb.rpc('discador_consultor_dias', { p_agente: agenteId, p_de: p.de, p_ate: p.ate, p_operacao: dcOperacaoPedida() }));
-  if(ger !== dcEstado.geracao || !canSeeDiscador()) return;
-  if(r && r.error) console.error('discador_consultor_dias:', r.error);
+  dcEstado.raiox = { agenteId, nome };
+  const ger = ++dcEstado.raioxGer, gerAba = dcEstado.geracao; // contador próprio: clique rápido A→B mostra B
+  const r = await ppSeguro(() => sb.rpc('discador_consultor_raiox', { p_agente: agenteId, p_de: p.de, p_ate: p.ate, p_operacao: dcOperacaoPedida() }));
+  if(ger !== dcEstado.raioxGer || gerAba !== dcEstado.geracao || !canSeeDiscador() || !dcEstado.raiox) return;
+  if(r && r.error) console.error('discador_consultor_raiox:', r.error);
   const el = document.getElementById('dcDetalhe');
-  el.innerHTML = dcDiasHtml(nome, r && !r.error && Array.isArray(r.data) ? r.data : null);
+  el.innerHTML = dcRaioXHtml(nome, r && !r.error && r.data && typeof r.data === 'object' && !Array.isArray(r.data) ? r.data : null, dcMediaEquipe(dcEstado.consultores || []), p);
   if(typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 async function dcVincular(agenteId, profileId){
@@ -13677,7 +13750,12 @@ document.getElementById('btnDcAplicar').addEventListener('click', function(){
 });
 document.getElementById('dcConteudo').addEventListener('click', function(ev){
   const tr = ev.target.closest('tr[data-dc-agente]');
-  if(tr) dcAbrirDias(Number(tr.dataset.dcAgente), tr.dataset.dcNome || ('Agente ' + tr.dataset.dcAgente));
+  if(tr) dcAbrirRaioX(Number(tr.dataset.dcAgente), tr.dataset.dcNome || ('Agente ' + tr.dataset.dcAgente));
+});
+document.getElementById('dcDetalhe').addEventListener('click', function(ev){
+  if(!ev.target.closest('[data-dc-fechar]')) return;
+  dcEstado.raiox = null; dcEstado.raioxGer++;
+  this.innerHTML = '';
 });
 document.getElementById('dcVinculo').addEventListener('click', function(ev){
   const b = ev.target.closest('[data-dc-vinc]');
