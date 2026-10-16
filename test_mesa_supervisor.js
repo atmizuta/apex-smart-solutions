@@ -132,6 +132,13 @@ try{
   eq(mesaBioConsultores(BIO), [{ nome: 'Caio', n: 1 }, { nome: 'Mariana', n: 2 }], '§94: pílulas = quem tem pedido parado');
   eq(mesaBioLinhas(BIO, 'Mariana', HOJE).map(b => b.numero_pedido), ['P1', 'P2'], 'filtro por consultor, mais antigo primeiro');
   eq(mesaBioLinhas(BIO, '', HOJE).map(b => b.numero_pedido), ['P1', 'P3', 'P2'], 'todos, mais antigo primeiro');
+  // §95: filtro de data (dia em que entrou na etapa, SP) e ordem
+  eq(mesaBioLinhas(BIO, '', HOJE, 'novas').map(b => b.numero_pedido), ['P2', 'P3', 'P1'], 'mais novas primeiro');
+  eq(mesaBioNoPeriodo(BIO, '2026-10-02', '').map(b => b.numero_pedido), ['P2', 'P3'], 'de 02/10 em diante');
+  eq(mesaBioNoPeriodo(BIO, '', '2026-10-03').map(b => b.numero_pedido), ['P1', 'P3'], 'até 03/10');
+  eq(mesaBioNoPeriodo(BIO, '2026-10-03', '2026-10-03').map(b => b.numero_pedido), ['P3'], 'um dia só');
+  eq(mesaBioNoPeriodo(BIO, '', '').length, 3, 'sem datas: todos');
+  eq(mesaBioNoPeriodo([{ desde: null }], '2026-10-01', '').length, 0, 'sem data de entrada fica fora quando há filtro');
   // §91: radar de ligações
   const R = (extra) => mesaBioRadar(Object.assign({ telefone: '11999990001', dias: 3, lig_etapa: 0, lig_consultor: 0, lig_total: 0, ultima_lig: null }, extra));
   eq(R({ telefone: null }).nivel, 'semtel', 'sem celular: não dá para cruzar');
@@ -235,11 +242,23 @@ try{
   assert(!bioTr[0].textContent.includes('achado na planilha'), '§92: achado pelo CNPJ não mostra aviso de origem');
   assert(bioTr[0].querySelector('.mesaBioRadar') && bioTr[0].textContent.includes('Nenhuma ligação'), '§91: radar na mesma linha');
   assert(document.getElementById('mesaBioResumo').textContent.includes('1 sem nenhuma ligação'), '§91: resumo conta os sem ligação');
-  assert(bioTr[0].children[2].classList.contains('mlAtraso') && bioTr[0].children[2].textContent.trim() === '4 d', '4 dias na etapa em destaque');
+  assert(bioTr[0].children[2].classList.contains('mlAtraso') && bioTr[0].children[2].textContent.trim().startsWith('4 d'), '4 dias na etapa em destaque');
   assert(document.getElementById('mesaBioResumo').textContent.includes('2 pedidos') && document.getElementById('mesaBioResumo').textContent.includes('1 com celular'), 'resumo');
   document.querySelector('[data-mesa-bio="Caio"]').click();
   assert(document.getElementById('mesaBioTbody').textContent.includes('achado na planilha pelo nome'), '§92: celular achado pelo nome avisa a origem');
   assert(!document.querySelector('[data-mesa-bio="Luria"]'), '§94: quem não tem pedido parado não vira pílula');
+  // §95: filtro de data na tela
+  document.querySelector('[data-mesa-bio=""]').click();
+  const deInp = document.getElementById('mesaBioDe');
+  deInp.value = '2026-10-02'; deInp.dispatchEvent(new window.Event('change', { bubbles: true }));
+  eq([...document.querySelectorAll('#mesaBioTbody tr')].length, 2, 'filtro "de" esconde o pedido de 01/10');
+  assert(document.querySelector('[data-mesa-bio=""]').textContent === 'Todos (2)', 'pílulas contam só o período');
+  const ordSel = document.getElementById('mesaBioOrdem');
+  ordSel.value = 'novas'; ordSel.dispatchEvent(new window.Event('change', { bubbles: true }));
+  eq([...document.querySelectorAll('#mesaBioTbody tr')].map(tr => tr.children[0].firstChild.textContent.trim()), ['Empresa B', 'Empresa C'], 'mais novas primeiro na tela');
+  assert(document.getElementById('mesaBioResumo').textContent.includes('mais novo primeiro'), 'resumo diz a ordem');
+  document.getElementById('btnMesaBioLimpar').click();
+  assert(deInp.value === '' && ordSel.value === 'antigas' && document.querySelectorAll('#mesaBioTbody tr').length === 3, 'limpar volta tudo');
   // §95: celular digitado na própria linha
   document.querySelector('[data-mesa-bio="Mariana"]').click();
   const inpSem = document.querySelector('#mesaBioTbody input[data-mesa-bio-tel="12345678000199"]');
