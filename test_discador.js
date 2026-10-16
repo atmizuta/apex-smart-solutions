@@ -99,7 +99,7 @@ try{
   ];
   const m = dcMediaEquipe(cons);
   eq([Math.round(m.semAvanco * 1000), Math.round(m.semTab * 1000), Math.round(m.conversao * 1000)], [415, 73, 20], 'média ponderada pelas atendidas');
-  eq(dcMediaEquipe([]), { semAvanco: null, semTab: null, conversao: null }, 'equipe vazia');
+  eq(dcMediaEquipe([]), { semAvanco: null, semTab: null, conversao: null, atPorHora: null, pausasPorHora: null, curtas: null }, 'equipe vazia');
   eq(dcPiorQueMedia(0.6, 0.4, true), true, 'sem avanço 50% acima: pior');
   eq(dcPiorQueMedia(0.5, 0.4, true), false, 'sem avanço 25% acima: normal');
   eq(dcPiorQueMedia(0.01, 0.02, false), true, 'conversão 50% abaixo: pior');
@@ -317,6 +317,25 @@ try{
   dcAplicarPermissao();
   assert(document.getElementById('dcConteudo').innerHTML === '' && document.getElementById('dcVinculo').innerHTML === '', 'perdeu permissão: tela limpa');
 
+  // ==== §96: colunas novas da tabela ====
+  eq(dcHoraMin('2026-10-15T17:02:00Z'), '14:02', 'hora em SP');
+  eq(dcHoraMin(null), '—', 'hora nula');
+  const consN = [
+    { agente_id: 1, nome: 'A Teste', profile_id: 'p', atendidas: 100, seg_falados_total: 1, seg_falados_medio: 1, sem_avanco: 0, retornos: 0, ganhos: 0, sem_tabulacao: 0, vendas: 2,
+      jornada_inicio: '2026-10-15T17:02:00Z', jornada_fim: '2026-10-15T22:58:00Z', horas_ativas: 5, pausas: 5, curtas: 60 },
+    { agente_id: 2, nome: 'B Teste', profile_id: 'p', atendidas: 100, seg_falados_total: 1, seg_falados_medio: 1, sem_avanco: 0, retornos: 0, ganhos: 0, sem_tabulacao: 0, vendas: 2,
+      jornada_inicio: null, jornada_fim: null, horas_ativas: 5, pausas: 0, curtas: 20 },
+  ];
+  const mN = dcMediaEquipe(consN);
+  eq([mN.atPorHora, mN.pausasPorHora, mN.curtas], [20, 0.5, 0.4], 'médias: 200/10 at/h, 5/10 pausas/h, 80/200 curtas');
+  const tN = dcConsultoresHtml(consN);
+  assert(tN.includes('Jornada') && tN.includes('Atend./h') && tN.includes('Pausas') && tN.includes('% curtas'), 'cabeçalhos novos');
+  const linhaA = tN.split('data-dc-agente="1"')[1].split('</tr>')[0];
+  assert(linhaA.includes('14:02–19:58') && linhaA.includes('60,0%'), 'jornada e % curtas do A');
+  assert((linhaA.match(/dcPior/g) || []).length === 2, 'A: pausas (1/h vs 0,5) e curtas (60% vs 40%) em vermelho');
+  const linhaB = tN.split('data-dc-agente="2"')[1].split('</tr>')[0];
+  assert(linhaB.includes('<td>—</td>') && !linhaB.includes('dcPior'), 'B: jornada — e sem destaque');
+  assert(!dcConsultoresHtml([{ agente_id: 3, nome: 'C', atendidas: 0, horas_ativas: 0, pausas: 0, curtas: 0 }]).includes('NaN'), 'sem atendidas: sem NaN');
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
