@@ -3276,3 +3276,34 @@ Correções pedidas pelo Rafael para os pontos menores deixados nas revisões da
 - **Observação:** a aba OUTUBRO tem 3 linhas com "ERRO - NUNCA EXCLUIR LINHAS" em `created_time` (a partir da linha 305); elas são ignoradas (§68.7) e o aviso aparece na Digital para admin/supervisor.
 - Testes: `test_edge_function_sync_leads.js` (122).
 - **Reverter:** reimplantar a versão anterior do arquivo (os leads voltariam a ficar sem consultor enquanto o cabeçalho for `VENDEDOR`).
+
+## 99. Lead × Mailing no Boletim da Manhã e na Mesa do Supervisor (19/10/2026)
+
+- **Pedido do Rafael (19/10):** uma tabela comparando **Lead** × **Mailing**: quem vendeu mais ontem e nos últimos 7 dias, com as vendas perdidas, no Boletim da Manhã e também na Mesa do Supervisor. Decisões dele sobre a prévia com números reais: só as duas origens (sem "Outras"), Repique conta como lead, pedido que é lead e mailing ao mesmo tempo conta como lead, e uma tabela só, deixando claro quem converte mais.
+- **Origem de cada pedido** (decidida no banco, função `lead_mailing_comparativo(p_de, p_ate)`):
+  - **Lead:** o CNPJ do pedido está na planilha de leads (qualquer aba, inclusive REPIQUE).
+  - **Mailing:** se não for lead, o CNPJ teve chamada do discador atendida por consultor entre o dia do cadastro − `config.discador.janela_venda_dias` (30) e o fim do dia do cadastro (mesma regra da venda do discador, §87; chamada de qualquer operação).
+  - Pedido sem nenhuma das duas fica fora da tabela.
+- **Números:**
+  - **Vendas:** pedidos cadastrados no período sem as etapas iniciais (Aguardando interação / Proposta), como a Visão Diária; valor = soma dos itens.
+  - **Perdidas:** `vendas_perdidas` (data da perda, §70).
+  - **Base:** leads que chegaram no período (todas as abas) e chamadas do discador da operação Apex atendidas por consultor.
+  - **Conversão** = vendas ÷ base do mesmo período. É uma aproximação: parte das vendas vem de leads ou chamadas anteriores.
+  - **% perdida** = perdidas ÷ (vendas + perdidas).
+  - Ficam fora as mesmas pessoas do boletim (`bmFora`: fora do Dashboard e vendedor de outra operação).
+- **Tabela** (`origTabelaHtml`, igual nas duas telas):
+  - **Colunas:** duas janelas, cada uma com Lead e Mailing. A primeira é o período do boletim ("Ontem", ou "Sex a dom" na segunda-feira); a segunda são os 7 dias até o fim dele.
+  - **Linhas:** base, vendas, valor, ticket, conversão, "1 venda a cada", perdidas, valor perdido e % perdida.
+  - **Destaque:** em verde, a melhor das duas origens em vendas, valor, ticket, conversão e % perdida (menor é melhor); empate fica sem destaque. Acima da tabela, a faixa "Maior conversão: Lead/Mailing" com a frase dos 7 dias.
+- **Boletim:**
+  - Card logo depois de "Atenção hoje / mês" na tela, e na página 1 do PDF (continua com 4 páginas, sem cliente nem CNPJ).
+  - Fica guardado no retrato do dia (`retrato.origens`). Boletim antigo, sem o campo, não mostra o card.
+  - Se a função falhar, entra em "Não carregou" no rodapé. Não impede gravar: não é fonte essencial.
+- **Mesa:**
+  - Card "Lead × Mailing" depois dos KPIs, ao vivo, com as mesmas janelas do boletim de hoje.
+  - Carrega à parte e não derruba a Mesa se falhar. Na atualização automática de 2 min, só busca de novo a cada 10 min.
+- **Prévia (dados reais, 12 a 18/10, operação Apex):** Lead 50 vendas (R$ 4.209) em 161 leads (31%), 16 perdidas. Mailing 16 vendas (R$ 805) em 2.354 atendidas (0,7%), 6 perdidas. Nenhum pedido era lead e mailing ao mesmo tempo.
+- **Banco:** migration `20261019100000_lead_mailing_comparativo.sql` (security definer; admin/supervisor; período de até 31 dias; sem cliente/CNPJ na saída); rollback em `supabase/rollback/20261019100000_lead_mailing_comparativo_rollback.sql`.
+- **Código:** `origSomar`, `origMelhor`, `origJanelaRpc`, `origComparativo`, `ORIG_LINHAS`, `origTabelaHtml` (perto de `bmPerdas`), `mesaCarregarOrigens`, e os trechos em `bmCarregar`, `bmMontar`, `bmTelaHtml` e `bmPdf`. Testes: `test_lead_mailing.js` (novo, 31 ok); `test_boletim_manha.js` e `test_mesa_supervisor.js` seguem passando.
+- **Ordem de entrada no ar:** migration primeiro, depois o painel. Sem a função, o card da Mesa avisa "não foi possível carregar" e o boletim sai sem a tabela.
+- **Status:** ainda não publicado.

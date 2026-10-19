@@ -547,6 +547,15 @@
   .bmTag{font-size:var(--fs-xs);font-weight:600;padding:4px 9px;background:var(--c-rosa);color:var(--c-carmim);}
   .bmMini{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px var(--space-3);font-size:var(--fs-sm);}
   .bmMini b{font-family:var(--font-head);font-size:15px;}
+  /* §99 — Lead × Mailing (Boletim e Mesa) */
+  .origFrase{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px var(--space-3);background:var(--st-ganho-bg);border-left:4px solid var(--st-ganho);padding:var(--space-3) var(--space-4);margin:0 0 var(--space-3);font-size:var(--fs-sm);}
+  .origFrase b{font-family:var(--font-head);font-weight:700;font-size:20px;text-transform:uppercase;letter-spacing:.03em;color:var(--st-ganho);}
+  table.tbl.origTab th,table.tbl.origTab td{text-align:right;white-space:nowrap;}
+  table.tbl.origTab th:first-child,table.tbl.origTab td:first-child{text-align:left;}
+  table.tbl.origTab th.origJan{text-align:center;border-bottom:2px solid var(--c-sinal);}
+  .origTab td.origMelhor{background:var(--st-ganho-bg);color:var(--st-ganho);font-weight:700;}
+  .origTab tr.origConv td{font-family:var(--font-head);font-weight:700;font-size:17px;}
+  .origSelo{font-family:var(--font-body);font-size:var(--fs-xs);font-weight:700;text-transform:uppercase;}
   .bmAtencao{border-left:5px solid var(--c-sinal);}
   .bmAtencao ol{margin:0;padding-left:18px;}
   .bmAtencao li{margin:6px 0;}
@@ -1271,6 +1280,11 @@
       <div class="card">
         <p class="desc" id="mesaAtraso"></p>
         <div class="kpiGrid" id="mesaKpis"></div>
+      </div>
+      <div class="card">
+        <h3>Lead × Mailing</h3>
+        <p class="desc">De onde vieram as vendas e as vendas perdidas da operação Apex: o período do boletim de hoje e os últimos 7 dias. Mesma tabela do Boletim da Manhã.</p>
+        <div id="mesaOrig"></div>
       </div>
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
@@ -12295,6 +12309,7 @@ function mesaResetar(){
   document.getElementById('mesaBioOrdem').value = 'antigas';
   ['mesaKpis', 'mesaBioPills', 'mesaBioResumo', 'mesaBioTbody', 'mesaSemaforoTbody', 'mesaVelPills', 'mesaVelTabela', 'mesaAtraso', 'mesaStatus'].forEach(id => { document.getElementById(id).innerHTML = ''; });
   document.getElementById('mesaRetObj').innerHTML = '';
+  document.getElementById('mesaOrig').innerHTML = ''; mesaEstado.origEm = null;   // §99
 }
 function mesaAplicarPermissao(){
   const vis = canSeeMesa();
@@ -12332,6 +12347,7 @@ async function loadMesa(forcar){
   document.getElementById('mesaStatus').textContent = 'Atualizado às ' + new Date(agora - 3 * 3600000).toISOString().slice(11, 16);
   mesaRender();
   mesaCarregarRetObj(hoje); // §72 — não bloqueia o resto
+  mesaCarregarOrigens(hoje, forcar); // §99 — idem
   clearInterval(mesaEstado.timer);
   mesaEstado.timer = setInterval(() => {
     const ativo = document.getElementById('panel-mesa').classList.contains('active');
@@ -12383,6 +12399,19 @@ async function mesaCarregarRetObj(hoje){
   if(!r || r.error){ el.innerHTML = '<p class="ppVazio">Não foi possível carregar os retornos agora.</p>'; return; }
   const h = mesaRetObjHtml(r.data);
   el.innerHTML = h.tabela + h.top;
+}
+// §99: Lead × Mailing — a mesma tabela do Boletim, ao vivo ("ontem" = período do boletim de hoje; 7 dias até ontem).
+// Na atualização automática (2 min) só busca de novo a cada 10 min: os números mudam de hora em hora.
+async function mesaCarregarOrigens(hoje, forcar){
+  const el = document.getElementById('mesaOrig');
+  if(!el || !canSeeMesa()) return;
+  if(forcar === false && mesaEstado.origEm && mesaAgora() - mesaEstado.origEm < 600000) return;
+  const per = bmPeriodo(hoje);
+  const r = await ppSeguro(() => sb.rpc('lead_mailing_comparativo', origJanelaRpc(per)));
+  if(!canSeeMesa()) return;
+  if(!r || r.error || !r.data){ mesaEstado.origEm = null; el.innerHTML = '<p class="ppVazio">Não foi possível carregar o comparativo Lead × Mailing agora.</p>'; return; }
+  mesaEstado.origEm = mesaAgora();
+  el.innerHTML = origTabelaHtml(origComparativo(r.data, per, bmFora));
 }
 function mesaLinhasAtuais(){ return mesaEstado.dados ? mesaSemaforo(mesaEstado.dados, mesaEstado.agora, mesaEstado.cfg, mesaEstado.hoje) : []; }
 const MESA_SELO = { vermelho: ['retornoBadge atrasado', 'Agir agora'], amarelo: ['retornoBadge hoje', 'Atenção'], verde: ['retornoBadge futuro', 'Em dia'] };
@@ -12876,6 +12905,92 @@ function bmPerdas(d, ctx){
     porConsultor: [...porC.values()].map(c => Object.assign(c, { valor: ppR2(c.valor) })).sort((a, b) => (b.n - a.n) || (b.valor - a.valor)),
     porMotivo: [...porM.values()].map(m => Object.assign(m, { valor: ppR2(m.valor) })).sort((a, b) => (b.n - a.n) || (b.valor - a.valor)) };
 }
+/* ---- Lead × Mailing — §99 (19/10/2026): de onde vieram as vendas e as vendas perdidas, ontem e nos últimos 7 dias.
+   Dados da RPC lead_mailing_comparativo (a origem de cada pedido é decidida no banco: CNPJ na planilha de leads, inclusive
+   Repique = lead; senão chamada do discador atendida nos 30 dias antes = mailing; nos dois = lead). Só as duas origens
+   (decisão do Rafael). Mesma tabela no Boletim (retrato do dia) e na Mesa do Supervisor (ao vivo). ---- */
+const ORIG_ORIGENS = ['lead', 'mailing'];
+const ORIG_ROTULO = { lead: 'Lead', mailing: 'Mailing' };
+function origPct(x){ return x === null || x === undefined ? '—' : (Math.round(x * 1000) / 10).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'; }
+function origSomar(dados, de, ate, fora){
+  const r = {};
+  ORIG_ORIGENS.forEach(o => { r[o] = { base: 0, vendas: 0, valor: 0, perdas: 0, valorPerdido: 0 }; });
+  const dentro = dia => dia >= de && dia <= ate, vistos = new Set();
+  ((dados && dados.pedidos) || []).forEach(p => {
+    const o = r[p.origem], dia = String(p.dia || '').slice(0, 10);
+    if(!o || !dentro(dia) || (fora && fora(p.usuario))) return;
+    const k = p.tipo + '|' + p.numero_pedido;
+    if(vistos.has(k)) return;
+    vistos.add(k);
+    if(p.tipo === 'venda'){ o.vendas++; o.valor += Number(p.valor) || 0; }
+    else if(p.tipo === 'perda'){ o.perdas++; o.valorPerdido += Number(p.valor) || 0; }
+  });
+  const somaDias = mapa => Object.keys(mapa || {}).filter(dentro).reduce((s, k) => s + (Number(mapa[k]) || 0), 0);
+  r.lead.base = somaDias(dados && dados.leads);
+  r.mailing.base = somaDias(dados && dados.atendidas);
+  ORIG_ORIGENS.forEach(k => {
+    const o = r[k];
+    o.valor = ppR2(o.valor); o.valorPerdido = ppR2(o.valorPerdido);
+    o.ticket = o.vendas ? ppR2(o.valor / o.vendas) : null;
+    o.conversao = o.base ? o.vendas / o.base : null;
+    o.pctPerda = (o.vendas + o.perdas) ? o.perdas / (o.vendas + o.perdas) : null;
+  });
+  return r;
+}
+// Quem foi melhor em cada número (null = empate ou sem base dos dois lados).
+function origMelhor(r, campo, menorMelhor){
+  const a = r.lead[campo], b = r.mailing[campo];
+  if(a === null || b === null || a === undefined || b === undefined || a === b) return null;
+  return (menorMelhor ? a < b : a > b) ? 'lead' : 'mailing';
+}
+// Janela da RPC: do começo dos 7 dias até o fim do período do boletim.
+function origJanelaRpc(per){ const de7 = somaDiasStr(per.ate, -6); return { p_de: de7 < per.de ? de7 : per.de, p_ate: per.ate }; }
+function origComparativo(dados, per, fora){
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  const faixa = (de, ate) => de === ate ? bmDdMm(de) : de.slice(8, 10) + ' a ' + bmDdMm(ate);
+  const de7 = somaDiasStr(per.ate, -6);
+  const janelas = [
+    { chave: 'ontem', de: per.de, ate: per.ate, rotulo: per.de === per.ate ? 'Ontem' : cap(BM_DIAS_CURTOS[bmDiaSemana(per.de)]) + ' a ' + BM_DIAS_CURTOS[bmDiaSemana(per.ate)] },
+    { chave: 'sete', de: de7, ate: per.ate, rotulo: '7 dias' },
+  ].map(j => {
+    const r = origSomar(dados, j.de, j.ate, fora);
+    return Object.assign(j, { sub: faixa(j.de, j.ate), r, melhor: { vendas: origMelhor(r, 'vendas'), valor: origMelhor(r, 'valor'), ticket: origMelhor(r, 'ticket'),
+      conversao: origMelhor(r, 'conversao'), pctPerda: origMelhor(r, 'pctPerda', true) } });
+  });
+  const s = janelas[1], o = janelas[0], v = s.melhor.conversao;
+  const pl = (n, um, varios) => n.toLocaleString('pt-BR') + ' ' + (n === 1 ? um : varios);
+  const det = (j, k) => `${origPct(j.r[k].conversao)} (${pl(j.r[k].vendas, 'venda', 'vendas')} em ${k === 'lead' ? pl(j.r[k].base, 'lead', 'leads') : pl(j.r[k].base, 'chamada atendida', 'chamadas atendidas')})`;
+  const frase = v
+    ? `nos 7 dias, ${det(s, v)} contra ${det(s, v === 'lead' ? 'mailing' : 'lead')} do ${v === 'lead' ? 'mailing' : 'lead'}. ${o.rotulo}: Lead ${origPct(o.r.lead.conversao)} × Mailing ${origPct(o.r.mailing.conversao)}.`
+    : `Sem base para comparar a conversão nos 7 dias. ${o.rotulo}: Lead ${origPct(o.r.lead.conversao)} × Mailing ${origPct(o.r.mailing.conversao)}.`;
+  return { janelas, vencedor: v, frase };
+}
+// Linhas da tabela (tela e PDF). campo = número comparado (o melhor fica em verde); null = sem destaque.
+const ORIG_LINHAS = [
+  { rotulo: 'Base', campo: null, fmt: (x, o) => x.base.toLocaleString('pt-BR') + (o === 'lead' ? ' leads' : ' atendidas') },
+  { rotulo: 'Vendas', campo: 'vendas', fmt: x => x.vendas.toLocaleString('pt-BR') },
+  { rotulo: 'Valor (R$/mês)', campo: 'valor', fmt: x => bmFmtMil(x.valor) },
+  { rotulo: 'Ticket médio', campo: 'ticket', fmt: x => x.ticket === null ? '—' : bmFmtMil(x.ticket) },
+  { rotulo: 'Conversão', campo: 'conversao', conv: true, fmt: x => origPct(x.conversao) },
+  { rotulo: '1 venda a cada', campo: null, fmt: (x, o) => x.vendas && x.base ? Math.max(1, Math.round(x.base / x.vendas)).toLocaleString('pt-BR') + (o === 'lead' ? ' leads' : ' atendidas') : '—' },
+  { rotulo: 'Vendas perdidas', campo: null, fmt: x => x.perdas.toLocaleString('pt-BR') },
+  { rotulo: 'Valor perdido', campo: null, fmt: x => bmFmtMil(x.valorPerdido) },
+  { rotulo: '% perdida', campo: 'pctPerda', fmt: x => origPct(x.pctPerda) },
+];
+const ORIG_LEGENDA = 'Lead = CNPJ na planilha de leads (inclusive Repique). Mailing = CNPJ com chamada do discador atendida nos 30 dias antes do pedido. '
+  + 'CNPJ nos dois conta como lead. Conversão = vendas ÷ leads recebidos (ou chamadas atendidas) no mesmo período. % perdida = perdidas ÷ (vendas + perdidas). Verde = a melhor das duas origens.';
+function origTabelaHtml(c){
+  if(!c || !c.janelas) return '';
+  const e = escapeHtml, js = c.janelas;
+  const topo = `<div class="origFrase"><b>${c.vencedor ? 'Maior conversão: ' + e(ORIG_ROTULO[c.vencedor]) : 'Conversão'}</b><span>${e(c.frase.charAt(0).toUpperCase() + c.frase.slice(1))}</span></div>`;
+  const cab = `<thead><tr><th></th>${js.map(j => `<th colspan="2" class="origJan">${e(j.rotulo)} <small>${e(j.sub)}</small></th>`).join('')}</tr>
+    <tr><th></th>${js.map(() => ORIG_ORIGENS.map(o => `<th>${ORIG_ROTULO[o]}</th>`).join('')).join('')}</tr></thead>`;
+  const corpo = ORIG_LINHAS.map(l => `<tr${l.conv ? ' class="origConv"' : ''}><td>${e(l.rotulo)}</td>${js.map(j => ORIG_ORIGENS.map(o => {
+    const melhor = l.campo && j.melhor[l.campo] === o;
+    return `<td${melhor ? ' class="origMelhor"' : ''}>${e(l.fmt(j.r[o], o))}${melhor && l.conv ? ' <span class="origSelo">▲ maior</span>' : ''}</td>`;
+  }).join('')).join('')}</tr>`).join('');
+  return topo + `<div class="mlTabelaWrap"><table class="tbl origTab">${cab}<tbody>${corpo}</tbody></table></div><p class="bmLegenda" style="display:block">${e(ORIG_LEGENDA)}</p>`;
+}
 // "Atenção hoje": até 3 frases sobre o período, nesta ordem de prioridade (spec v2, seção 5).
 function bmAtencao(b, ctx){
   const q = Number(ctx.cfg.queda_alerta) || 0.30, doQuando = ctx.periodo.de === ctx.periodo.ate ? 'de ontem' : 'do período';
@@ -12948,6 +13063,7 @@ function bmMontar(d, ctx){
     numeros, ranking: blocos.ranking, mix: bmMix(soma), calor: bmCalor(d, ctx, ranking.ativos), mes: bmMetaMes(d, ctx),
     funil: { lista: ligP.lista, total: ligP.total, atendidas: ligP.atendidas, mediaPorConsultor: ligP.mediaPorConsultor }, porHora: blocos.porHora,
     leads, perdas,
+    origens: d.origens ? origComparativo(d.origens, per, bmFora) : null,   // §99
     saude: Object.assign({}, d.saude || {}, { semSync: !!ctx.semSync, falhas: d.falhas || [], semVinculo }),
     limites: BM_LIMITES,
   };
@@ -13003,6 +13119,7 @@ async function bmCarregar(ctx){
     leads: ppSeguro(() => fetchAllRows(() => sb.rpc('mesa_leads_relogio', { p_desde: ini(per.de) }))),
     leadsNomes: ppSeguro(() => fetchAllRows(() => sb.from('leads').select('id,aba,full_name').gte('criado_em_lead', ini(per.de)).lt('criado_em_lead', fim(per.ate)).order('id'))),
     perdas: ppSeguro(() => fetchAllRows(() => sb.rpc('vendas_perdidas', { p_de: per.de, p_ate: per.ate }))),
+    origens: ppSeguro(() => sb.rpc('lead_mailing_comparativo', origJanelaRpc(per))),   // §99
     metas: ppSeguro(() => sb.from('metas_consultor').select('profile_id,meta_receita').eq('mes', ym + '-01')),
     vinculos: ppSeguro(() => sb.from('consultor_neo').select('profile_id,neo_usuario_id')),
     neo: ppSeguro(() => fetchAllRows(() => sb.from('producao_pedidos_neo').select('id,usuario_id,usuario').gte('cadastro', ini(somaDiasStr(per.ate, -90))).order('id'))),
@@ -13039,7 +13156,7 @@ async function bmCarregar(ctx){
   return {
     vendas, ligacoes: dados('ligacoes'), ligacoesRef: dados('ligacoesRef'),
     leads: leads ? leads.map(l => Object.assign({}, l, { nome: nomesLead.get(l.aba + '|' + l.lead_id) || null })) : null,
-    perdas: dados('perdas'), metas: dados('metas') || [], vinculos: dados('vinculos') || [], neoNomes,
+    perdas: dados('perdas'), origens: ok('origens') && res.origens.data ? res.origens.data : null, metas: dados('metas') || [], vinculos: dados('vinculos') || [], neoNomes,
     saude: { producao: termino('syncProducao'), ligacoes: termino('syncLigacoes'), exportacao: termino('syncExportacao'),
       leadsErro: ok('leadsErro') && res.leadsErro.data ? String(res.leadsErro.data.valor || '') : '',
       leadsUltima: (ms => ms === null ? null : new Date(ms).toISOString())((leads || []).reduce((m, l) => { const t = vlMs(l.primeira_sync_em); return t !== null && (m === null || t > m) ? t : m; }, null)) },
@@ -13217,6 +13334,7 @@ function bmTelaHtml(b){
     <br>${(r.limites || []).map(e).join(' · ')}</div>`;
   return topo + numeros
     + `<div class="bmGrade bmG2">${atencao}${mes}</div>`
+    + (r.origens ? `<div class="bmGrade">${card('Lead × Mailing', 'de onde vieram as vendas e as perdas', origTabelaHtml(r.origens))}</div>` : '')   // §99
     + '<div class="bmSecao">Vendas</div>'
     + `<div class="bmGrade bmG2">${card('Quem vendeu', 'por valor (R$/mês)', ranking + '<h4 style="margin-top:var(--space-4)">Não venderam <small>' + rk.naoVenderam.length + ' da equipe ativa</small></h4>' + nv)}${card('Meta do mês por consultor', 'linha = parte do mês decorrida', metaCons)}</div>`
     + `<div class="bmGrade bmG2">${card('Últimos 5 dias úteis', 'vendas por dia', calor)}${card('O que foi vendido', '', mix)}</div>`
@@ -13279,6 +13397,29 @@ function bmPdf(b){
   titulo((BM_MESES[Number(String(m.mes || '').slice(5, 7)) - 1] || 'Mês') + ' até ontem');
   texto(m.meta ? `${fmtBRL(m.vendido)} vendidos de ${fmtBRL(m.meta)} de meta (${bmPct(m.pct)}) — ${m.decorridos} de ${m.diasMes} dias úteis decorridos (${bmPct(m.pctMes)}).` : `${fmtBRL(m.vendido)} vendidos no mês (sem meta cadastrada).`, 10);
   if(m.meta){ fill(COR.papel); doc.rect(M, y, L, 5, 'F'); fill(COR.sinal); doc.rect(M, y, Math.min(1, m.pct || 0) * L, 5, 'F'); fill(COR.grafite); doc.rect(M + (m.pctMes || 0) * L, y - 1.5, 0.7, 8, 'F'); y += 10; }
+  // §99 — Lead × Mailing na página 1 (cabe abaixo do mês; sem cliente nem CNPJ)
+  const og = r.origens;
+  if(og && og.janelas){
+    y += 2; titulo('Lead x Mailing', 'de onde vieram as vendas e as perdas');
+    texto(og.vencedor ? 'Maior conversão: ' + ORIG_ROTULO[og.vencedor].toUpperCase() + ' - ' + og.frase : og.frase, 9.5, 'bold', og.vencedor ? COR.ganho : COR.grafite);
+    const xs = [M + 92, M + 118, M + 152, W - M], cw2 = 26;
+    cor(COR.cinza); fonte('bold', 8);
+    og.janelas.forEach((j, i) => doc.text(T(j.rotulo + ' (' + j.sub + ')'), (xs[2 * i] + xs[2 * i + 1]) / 2 - cw2 / 2 + 2, y, { align: 'center' }));
+    y += 4.5;
+    og.janelas.forEach((j, i) => ORIG_ORIGENS.forEach((o, k) => doc.text(T(ORIG_ROTULO[o]), xs[2 * i + k], y, { align: 'right' })));
+    y += 1.5; fill(COR.linha); doc.rect(M, y, L, 0.3, 'F'); y += 4.2;
+    ORIG_LINHAS.forEach(l => {
+      cor(COR.grafite); fonte(l.conv ? 'bold' : 'normal', l.conv ? 9.5 : 8.5); doc.text(T(l.rotulo), M, y);
+      og.janelas.forEach((j, i) => ORIG_ORIGENS.forEach((o, k) => {
+        const melhor = l.campo && j.melhor[l.campo] === o;
+        if(melhor){ doc.setFillColor(227, 241, 232); doc.rect(xs[2 * i + k] - cw2 + 1, y - 3.4, cw2, 4.8, 'F'); }
+        cor(melhor ? COR.ganho : COR.grafite); fonte(melhor || l.conv ? 'bold' : 'normal', l.conv ? 9.5 : 8.5);
+        doc.text(T(l.fmt(j.r[o], o)), xs[2 * i + k] - 1, y, { align: 'right' });
+      }));
+      y += 5;
+    });
+    y += 1; texto(ORIG_LEGENDA, 7.5, 'normal', COR.cinza);
+  }
   // Página 2 — vendas
   doc.addPage(); cabecalho('Vendas');
   const rk = r.ranking || { lista: [], naoVenderam: [] }, maxV = Math.max(1, ...rk.lista.map(c => c.valor));
