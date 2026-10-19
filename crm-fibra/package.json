@@ -11,6 +11,7 @@
     "seed:admin": "tsx --env-file=.env.local db/seed.ts"
   },
   "dependencies": {
+    "@google/genai": "^2.24.0",
     "@radix-ui/react-avatar": "^1.2.6",
     "@radix-ui/react-dialog": "^1.1.23",
     "@radix-ui/react-separator": "^1.1.15",
