@@ -121,6 +121,70 @@ secao('Task 1', () => {
   assert(w.projHoje() === '2026-10-19', 'hoje em São Paulo (relógio controlado pelo teste)');
 });
 
+// ---------------- Task 2: núcleo do cálculo ----------------
+secao('Task 2', () => {
+  const w = montarDashboard();
+  const mp = (dados, opcoes) => w.montarProjecao(dados, opcoes);
+  const p = mp(FIX_APEX, { mes: '2026-10', hoje: '2026-10-19', operacao: 'apex' });
+  assert(p.linhas.length === 11, 'linhas com peso > 0 em outubro: 11 (sem Território, Negociação e setembro) — ' + p.linhas.length);
+  const cs = [...p.contratos.values()];
+  assert(cs.length === 9, '9 contratos (M1 = 1, convergência C1+C2 = 1) — ' + cs.length);
+  const m1 = cs.find(c => c.linhas.some(l => l.r.numero_pedido === 'M1'));
+  assert(m1 && m1.peso === 1 && m1.faixa.k === 'entrega' && m1.linhas.length === 2, 'pedido com 2 linhas: peso do contrato = maior peso, faixa Entrega');
+  const conv = cs.find(c => c.chave.indexOf('CONV_22222222000100') >= 0);
+  assert(conv && conv.peso === 1 && conv.faixa.k === 'concluido' && conv.linhas.length === 2, 'convergência vira 1 contrato, faixa Concluído');
+  assert(p.porOperacao.length === 1 && p.porOperacao[0].op === 'apex', 'uma operação');
+  const o = p.porOperacao[0];
+  assert(perto(o.realizado.valor, 440) && perto(o.realizado.contratos, 7), 'realizado até ontem: R$ 440 e 7 contratos (sábado 17/10 entra) — ' + JSON.stringify(o.realizado));
+  assert(perto(o.hoje.valor, 50) && perto(o.hoje.contratos, 1), 'hoje (parcial) fora do realizado: R$ 50');
+  assert(perto(o.ritmo.valor, 40) && perto(o.ritmo.contratos, 7 / 11), 'ritmo = 440 ÷ 11');
+  assert(perto(o.mes.valor, 840) && perto(o.mes.contratos, 7 / 11 * 21), 'mês = ritmo × 21');
+  assert(o.semana && o.semana.de === '2026-10-19' && o.semana.ate === '2026-10-25' && o.semana.uteis === 5 && perto(o.semana.valor, 200), 'semana (segunda) = ritmo × 5');
+  assert(perto(p.total.mes.valor, 840) && perto(p.total.ritmo.valor, 40) && perto(p.total.realizado.valor, 440) && perto(p.total.hoje.valor, 50), 'total = a operação');
+  assert(p.total.semana.de === '2026-10-19' && p.total.semana.uteis === 5, 'total da semana com datas');
+  assert(p.calendario.total === 21 && p.calendario.completos === 11 && p.fechado === false, 'calendário do mês');
+
+  // quarta-feira: a semana soma o que já entrou nela + ritmo × dias que faltam
+  const q = mp(FIX_APEX, { mes: '2026-10', hoje: '2026-10-21', operacao: 'apex' }).porOperacao[0];
+  assert(perto(q.realizado.valor, 490) && q.dias.completos === 13, 'quarta 21/10: 490 em 13 dias');
+  assert(perto(q.semana.valor, 50 + 490 / 13 * 3), 'semana na quarta = 50 já realizado + ritmo × 3 — ' + q.semana.valor);
+  // sábado: a semana seguinte, inteira projetada
+  const sab = mp(FIX_APEX, { mes: '2026-10', hoje: '2026-10-24', operacao: 'apex' }).porOperacao[0];
+  assert(sab.dias.completos === 16 && sab.semana.de === '2026-10-26' && perto(sab.semana.valor, 490 / 16 * 5), 'sábado: 16 dias completos, semana de 26/10 = ritmo × 5');
+  // semana que vira o mês: conta os úteis de dezembro com o ritmo de novembro
+  const nov = mp([ped({ numero_pedido: 'N1', cadastro: dia('2026-11-03'), valor: 190 })], { mes: '2026-11', hoje: '2026-11-30', operacao: 'apex' }).porOperacao[0];
+  assert(nov.dias.total === 19 && nov.dias.completos === 18, 'novembro: 18 de 19 completos em 30/11');
+  assert(nov.semana.de === '2026-11-30' && nov.semana.ate === '2026-12-06' && nov.semana.uteis === 5 && perto(nov.semana.valor, 190 / 18 * 5), 'semana 30/11–06/12 com 5 úteis');
+  assert(perto(nov.mes.valor, 190 / 18 * 19), 'novembro: mês = ritmo × 19');
+  // 1º dia útil: sem ritmo
+  const d1 = mp(FIX_APEX, { mes: '2026-10', hoje: '2026-10-01', operacao: 'apex' });
+  assert(d1.porOperacao[0].ritmo === null && d1.porOperacao[0].mes === null && d1.porOperacao[0].semana === null, '1º dia útil: sem ritmo, mês e semana');
+  assert(d1.total.ritmo === null && d1.total.mes === null && perto(d1.total.realizado.valor, 0) && perto(d1.total.hoje.valor, 100), '1º dia útil: total sem projeção, hoje = 100');
+  // mês fechado
+  const set = mp(FIX_APEX, { mes: '2026-09', hoje: '2026-10-19', operacao: 'apex' });
+  assert(set.fechado && set.semana === null && set.total.semana === null, 'setembro: mês fechado, sem semana');
+  assert(perto(set.total.mes.valor, 70) && perto(set.total.realizado.valor, 70) && perto(set.total.ritmo.valor, 70 / 21), 'mês fechado: projeção = realizado');
+
+  // Apex + Campinas: cada operação com o seu ritmo, total = soma
+  const tod = mp(FIX_APEX.concat(FIX_CAMP), { mes: '2026-10', hoje: '2026-10-19', operacao: 'todas' });
+  assert(JSON.stringify(tod.porOperacao.map(x => x.op)) === '["apex","campinas"]', 'duas operações');
+  const camp = tod.porOperacao[1];
+  assert(camp.dias.total === 18 && perto(camp.realizado.valor, 160) && perto(camp.ritmo.valor, 20) && perto(camp.mes.valor, 360), 'Campinas: 160 em 8 dias, mês 360');
+  assert(perto(camp.realizado.contratos, 2.5) && perto(camp.hoje.valor, 30), 'Campinas: 2,5 contratos, hoje 30');
+  assert(perto(tod.total.mes.valor, 1200) && perto(tod.total.ritmo.valor, 60) && perto(tod.total.hoje.valor, 80) && perto(tod.total.semana.valor, 300), 'total = 840 + 360');
+  const soCamp = mp(FIX_APEX.concat(FIX_CAMP), { mes: '2026-10', hoje: '2026-10-19', operacao: 'campinas' });
+  assert(soCamp.porOperacao.length === 1 && perto(soCamp.total.realizado.valor, 160) && soCamp.calendario.total === 18, 'só Campinas ignora linhas da Apex');
+  // Campinas ainda sem dia útil completo (06/10): a Apex continua projetando
+  const t6 = mp(FIX_APEX.concat(FIX_CAMP), { mes: '2026-10', hoje: '2026-10-06', operacao: 'todas' });
+  assert(t6.porOperacao[1].ritmo === null && perto(t6.porOperacao[0].ritmo.valor, 200 / 3), 'em 06/10 Campinas sem ritmo, Apex com 200 ÷ 3');
+  assert(perto(t6.total.ritmo.valor, 200 / 3) && perto(t6.total.mes.valor, 200 / 3 * 21), 'total só com a Apex');
+
+  // meses do seletor
+  assert(JSON.stringify(w.projMesesDisponiveis(FIX_APEX, 'apex', '2026-10-19')) === '["2026-10","2026-09"]', 'Apex: outubro e setembro');
+  assert(JSON.stringify(w.projMesesDisponiveis(FIX_CAMP, 'campinas', '2026-10-19')) === '["2026-10"]', 'Campinas: nada antes do início');
+  assert(JSON.stringify(w.projMesesDisponiveis([], 'apex', '2026-10-19')) === '["2026-10"]', 'sem dados: só o mês atual');
+});
+
 // ---------------- fim ----------------
 Promise.resolve().then(() => typeof testarExcel === 'function' ? testarExcel() : null)
   .catch(err => { fail++; console.log('FALHOU (exceção no teste do Excel):', err && err.stack || err); })
