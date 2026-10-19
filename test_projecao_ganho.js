@@ -376,6 +376,11 @@ async function testarExcel(){
   assert(m1 && m1.getCell(4).value === 'Linha Nova + Claro Monitor' && m1.getCell(5).value === 'ENTREGA + ANTIFRAUDE', 'M1: tipos e etapas juntos');
   assert(c1 && c1.getCell(12).value === '22222222000100' && c1.getCell(12).numFmt === '@' && c1.getCell(1).numFmt === '@', 'nº e CNPJ como texto');
   assert(a9 && a9.getCell(7).value === 'hoje (parcial)', 'pedido de hoje marcado como parcial');
+  // revisão final: coluna em R$ larga o bastante para "R$ 2.518,92" (o Excel mostraria ####)
+  [['Dia a dia', 4], ['Semana a semana', 4], ['Por etapa', 3], ['Por etapa', 5], ['Pedidos', 8], ['Resumo', 2]].forEach(([aba, col]) => {
+    const largura = wb.getWorksheet(aba).getColumn(col).width;
+    assert(largura >= 14, 'coluna em R$ com largura >= 14 em ' + aba + ' (coluna ' + col + '): ' + largura);
+  });
 
   const wt = montarDashboard({ operacao: 'todas', data: FIX_APEX.concat(FIX_CAMP) });
   wt.eval(bundle);
@@ -404,6 +409,24 @@ secao('Task 6', () => {
   assert(/filter\(r => daOperacao\(r\.usuario, op\)\)/.test(outerHtml), 'Fechamento usa daOperacao (aceita "todas")');
   assert(/if\(operacaoAtiva\(\) !== 'apex' && frame\)/.test(outerHtml), 'Boletim volta o Dashboard para a Apex também a partir de "Apex + Campinas"');
   assert((outerHtml.match(/data-operacao="todas">Apex \+ Campinas</g) || []).length === 2, 'botão "Apex + Campinas" nos dois seletores');
+});
+
+// ---------------- Revisão final: virada do mês com o painel aberto ----------------
+secao('Revisão: virada do mês', () => {
+  // painel aberto em 30/10 sem mexer no seletor: na atualização de 1 h de 02/11, a aba passa para novembro
+  const w = montarDashboard({ agora: Date.parse('2026-10-30T18:00:00-03:00') });
+  const d = w.document;
+  assert(d.getElementById('projMes').value === '2026-10', 'abre em outubro');
+  w.projAgora = () => Date.parse('2026-11-02T09:00:00-03:00');
+  w.atualizarDadosDashboard(FIX_APEX, '02/11/2026, 08:59:02');
+  assert(d.getElementById('projMes').value === '2026-11', 'quem estava no mês atual acompanha a virada — ' + d.getElementById('projMes').value);
+  // escolha explícita de outro mês continua valendo depois da virada
+  const w2 = montarDashboard({ agora: Date.parse('2026-10-30T18:00:00-03:00') });
+  w2.document.getElementById('projMes').value = '2026-09';
+  w2.renderProjecaoSeguro();
+  w2.projAgora = () => Date.parse('2026-11-02T09:00:00-03:00');
+  w2.atualizarDadosDashboard(FIX_APEX, '02/11/2026, 08:59:02');
+  assert(w2.document.getElementById('projMes').value === '2026-09', 'mês escolhido à mão continua');
 });
 
 // ---------------- fim ----------------
