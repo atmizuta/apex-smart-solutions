@@ -17,6 +17,7 @@ const planoEscalonado: PlanoCatalogo = {
   valor: 59.9,
   observacao: "Por 3 meses, depois R$99,90",
   ativo: true,
+  franquiaGb: null,
 };
 
 const planoSimples: PlanoCatalogo = {
@@ -26,6 +27,7 @@ const planoSimples: PlanoCatalogo = {
   valor: 5,
   observacao: null,
   ativo: true,
+  franquiaGb: null,
 };
 
 describe("descricaoDoPlano", () => {

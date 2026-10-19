@@ -23,6 +23,14 @@ export const ROTULO_CATEGORIA: Record<CategoriaCatalogo, string> = {
   adicional: "Adicionais",
 };
 
+// Só os Pós têm franquia em GB: é ela que a sugestão por consumo e o "consolidar
+// valores" usam. Banda larga, convergentes e adicionais não têm.
+export const CATEGORIAS_COM_FRANQUIA: readonly CategoriaCatalogo[] = ["pos_nacional", "pos_regional"];
+
+export function categoriaTemFranquia(categoria: CategoriaCatalogo): boolean {
+  return CATEGORIAS_COM_FRANQUIA.includes(categoria);
+}
+
 export interface PlanoCatalogo {
   id: string;
   categoria: CategoriaCatalogo;
@@ -30,6 +38,7 @@ export interface PlanoCatalogo {
   valor: number;
   observacao: string | null;
   ativo: boolean;
+  franquiaGb: number | null;
 }
 
 interface PlanoRow {
@@ -39,6 +48,7 @@ interface PlanoRow {
   valor: number;
   observacao: string | null;
   ativo: boolean;
+  franquia_gb?: number | null;
 }
 
 function toPlano(row: PlanoRow): PlanoCatalogo {
@@ -49,6 +59,7 @@ function toPlano(row: PlanoRow): PlanoCatalogo {
     valor: row.valor,
     observacao: row.observacao,
     ativo: row.ativo,
+    franquiaGb: row.franquia_gb ?? null,
   };
 }
 
@@ -93,7 +104,13 @@ export function agruparPorCategoria(planos: PlanoCatalogo[]): GrupoCatalogo[] {
 
 export async function criarPlano(
   client: SupabaseClient,
-  input: { categoria: CategoriaCatalogo; nome: string; valor: number; observacao?: string | null }
+  input: {
+    categoria: CategoriaCatalogo;
+    nome: string;
+    valor: number;
+    observacao?: string | null;
+    franquiaGb?: number | null;
+  }
 ): Promise<PlanoCatalogo> {
   const { data, error } = await client
     .schema("crm_fibra")
@@ -103,6 +120,7 @@ export async function criarPlano(
       nome: input.nome,
       valor: input.valor,
       observacao: input.observacao ?? null,
+      franquia_gb: input.franquiaGb ?? null,
     })
     .select()
     .single();

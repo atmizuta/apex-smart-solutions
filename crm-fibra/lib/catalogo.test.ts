@@ -6,6 +6,7 @@ import {
   criarPlano,
   atualizarPlano,
   definirPlanoAtivo,
+  categoriaTemFranquia,
   PlanoJaExisteError,
   CATEGORIAS_CATALOGO,
   type PlanoCatalogo,
@@ -42,6 +43,7 @@ const row = {
   valor: 79.9,
   observacao: "single/combinado/convergência",
   ativo: true,
+  franquia_gb: null,
 };
 
 const plano: PlanoCatalogo = {
@@ -51,6 +53,7 @@ const plano: PlanoCatalogo = {
   valor: 79.9,
   observacao: "single/combinado/convergência",
   ativo: true,
+  franquiaGb: null,
 };
 
 describe("listarCatalogo", () => {
@@ -119,6 +122,7 @@ describe("criarPlano", () => {
       nome: "400 Mega (G1 Padrão)",
       valor: 79.9,
       observacao: "single/combinado/convergência",
+      franquia_gb: null,
     });
     expect(criado).toEqual(plano);
   });
@@ -164,5 +168,48 @@ describe("definirPlanoAtivo", () => {
     await definirPlanoAtivo(client as unknown as SupabaseClient, "p1", false);
     expect(client.__updated).toEqual({ ativo: false });
     expect(client.calls).toContainEqual({ method: "eq", args: ["id", "p1"] });
+  });
+});
+
+describe("franquia dos planos Pós", () => {
+  const rowPos = { ...row, categoria: "pos_nacional", nome: "Pós 40GB", franquia_gb: 40 };
+
+  it("mapeia franquia_gb para franquiaGb", async () => {
+    const client = makeQueryFake({ data: [rowPos], error: null });
+    const [lido] = await listarCatalogo(client as unknown as SupabaseClient, { apenasAtivos: true });
+    expect(lido.franquiaGb).toBe(40);
+  });
+
+  it("linha sem franquia_gb (ou nula) vira franquiaGb nulo", async () => {
+    const { franquia_gb: _removida, ...semFranquia } = row;
+    const client = makeQueryFake({ data: [semFranquia], error: null });
+    const [lido] = await listarCatalogo(client as unknown as SupabaseClient, { apenasAtivos: true });
+    expect(lido.franquiaGb).toBeNull();
+  });
+
+  it("criarPlano grava franquia_gb quando informada", async () => {
+    const client = makeQueryFake({ data: rowPos, error: null });
+    const criado = await criarPlano(client as unknown as SupabaseClient, {
+      categoria: "pos_nacional",
+      nome: "Pós 40GB",
+      valor: 54.99,
+      franquiaGb: 40,
+    });
+    expect(client.__inserted.franquia_gb).toBe(40);
+    expect(criado.franquiaGb).toBe(40);
+  });
+
+  it("criarPlano grava franquia_gb nula quando omitida", async () => {
+    const client = makeQueryFake({ data: row, error: null });
+    await criarPlano(client as unknown as SupabaseClient, { categoria: "adicional", nome: "X", valor: 5 });
+    expect(client.__inserted.franquia_gb).toBeNull();
+  });
+
+  it("só as categorias Pós têm franquia", () => {
+    expect(categoriaTemFranquia("pos_nacional")).toBe(true);
+    expect(categoriaTemFranquia("pos_regional")).toBe(true);
+    for (const categoria of ["convergente", "banda_larga", "adicional"] as const) {
+      expect(categoriaTemFranquia(categoria)).toBe(false);
+    }
   });
 });

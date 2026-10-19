@@ -128,6 +128,46 @@ describe("criarPlanoAction", () => {
       nome: "Claro Monitor 2",
       valor: 149.9,
       observacao: null,
+      franquiaGb: null,
+    });
+  });
+
+  describe("franquia (GB)", () => {
+    const pos = { categoria: "pos_nacional", nome: "Pós 40GB", valor: "54,99", observacao: "" };
+
+    it("é obrigatória nos planos Pós", async () => {
+      logarComo(admin);
+      const resultado = await criarPlanoAction({}, formData(pos));
+      expect(resultado.erro).toMatch(/franquia/i);
+      expect(criarPlano).not.toHaveBeenCalled();
+    });
+
+    it.each(["abc", "0", "4,5", "-3", "1001", "40GB", " "])("recusa franquia %j", async (franquia) => {
+      logarComo(admin);
+      const resultado = await criarPlanoAction({}, formData({ ...pos, franquia }));
+      expect(resultado.erro).toMatch(/franquia/i);
+      expect(criarPlano).not.toHaveBeenCalled();
+    });
+
+    it("grava a franquia inteira (já sem espaços) nos planos Pós", async () => {
+      logarComo(admin);
+      criarPlano.mockResolvedValue({ id: "p1" });
+      const resultado = await criarPlanoAction({}, formData({ ...pos, franquia: " 40 " }));
+      expect(resultado).toEqual({ sucesso: true });
+      expect(criarPlano).toHaveBeenCalledWith({}, {
+        categoria: "pos_nacional",
+        nome: "Pós 40GB",
+        valor: 54.99,
+        observacao: null,
+        franquiaGb: 40,
+      });
+    });
+
+    it("ignora a franquia nas categorias que não têm", async () => {
+      logarComo(admin);
+      criarPlano.mockResolvedValue({ id: "p1" });
+      await criarPlanoAction({}, formData({ ...camposValidos, franquia: "99" }));
+      expect(criarPlano).toHaveBeenCalledWith({}, expect.objectContaining({ categoria: "adicional", franquiaGb: null }));
     });
   });
 
