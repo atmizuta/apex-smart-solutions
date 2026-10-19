@@ -180,3 +180,24 @@ on conflict (categoria, nome) do nothing;
 -- privileges only cover objects created by the same role).
 grant usage on schema crm_fibra to service_role;
 grant select, insert, update, delete on all tables in schema crm_fibra to service_role;
+
+-- AI sales approach (sub-project 3) — idempotent, safe to run again.
+
+create table if not exists crm_fibra.abordagens (
+  id uuid primary key default gen_random_uuid(),
+  cnpj_digits text not null,
+  consultor_id uuid not null references crm_fibra.consultores(id),
+  proposta_id uuid references crm_fibra.propostas(id) on delete set null,
+  etapas jsonb not null,
+  modelo text not null,
+  criado_em timestamptz not null default now()
+);
+
+create index if not exists idx_abordagens_cnpj_criado on crm_fibra.abordagens (cnpj_digits, criado_em desc);
+
+alter table crm_fibra.abordagens enable row level security;
+
+-- Re-grant after the new table exists (default privileges only cover objects
+-- created by the same role).
+grant usage on schema crm_fibra to service_role;
+grant select, insert, update, delete on all tables in schema crm_fibra to service_role;
