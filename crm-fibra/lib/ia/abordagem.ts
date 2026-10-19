@@ -2,7 +2,15 @@ import { rotuloCamadaRenovacao } from "../camadas";
 import { formatarBRL } from "../formato";
 import type { LeadSegmentado } from "../leads";
 import type { Proposta } from "../propostas";
-import { CHAVES_ETAPA, ETAPAS, LIMITE_SUGERIDO, REGRAS_GUIA_APEX } from "./guia-apex";
+import { IaRespostaInvalidaError } from "./erros";
+import {
+  CHAVES_ETAPA,
+  ETAPAS,
+  LIMITE_MENSAGEM,
+  LIMITE_SUGERIDO,
+  REGRAS_GUIA_APEX,
+  type EtapasAbordagem,
+} from "./guia-apex";
 
 // Só estes campos entram no pedido. O tipo já deixa CNPJ, telefones, e-mail e
 // ids de fora por construção: nada além do que está aqui pode ser lido.
@@ -94,4 +102,48 @@ function montarUsuario({ lead, proposta }: EntradaAbordagem): string {
 
 export function montarPedidoAbordagem(entrada: EntradaAbordagem): { sistema: string; usuario: string } {
   return { sistema: montarSistema(), usuario: montarUsuario(entrada) };
+}
+
+// O Gemini às vezes envolve o JSON em ```json ... ``` mesmo quando pedido só
+// o JSON. Qualquer desvio do formato vira erro: só resposta íntegra é salva.
+export function interpretarResposta(texto: string): EtapasAbordagem {
+  const limpo = texto
+    .replace(/^\s*```(?:json)?\s*/i, "")
+    .replace(/\s*```\s*$/i, "")
+    .trim();
+
+  let dados: unknown;
+  try {
+    dados = JSON.parse(limpo);
+  } catch {
+    throw new IaRespostaInvalidaError("não é JSON");
+  }
+  if (typeof dados !== "object" || dados === null || Array.isArray(dados)) {
+    throw new IaRespostaInvalidaError("não é um objeto");
+  }
+
+  const registro = dados as Record<string, unknown>;
+  const etapas = {} as EtapasAbordagem;
+  for (const chave of CHAVES_ETAPA) {
+    const valor = registro[chave];
+    if (typeof valor !== "string" || !valor.trim()) {
+      throw new IaRespostaInvalidaError(`etapa "${chave}" ausente ou vazia`);
+    }
+    const mensagem = valor.trim();
+    if (mensagem.length > LIMITE_MENSAGEM) {
+      throw new IaRespostaInvalidaError(`etapa "${chave}" passou de ${LIMITE_MENSAGEM} caracteres`);
+    }
+    etapas[chave] = mensagem;
+  }
+  return etapas;
+}
+
+// Compara ids, não datas: a abordagem "usou" uma proposta específica (ou
+// nenhuma). Se existe uma proposta que ela não usou, vale gerar de novo.
+export function abordagemDesatualizada(
+  abordagem: { propostaId: string | null } | null,
+  ultimaProposta: { id: string } | null
+): boolean {
+  if (!abordagem || !ultimaProposta) return false;
+  return abordagem.propostaId !== ultimaProposta.id;
 }

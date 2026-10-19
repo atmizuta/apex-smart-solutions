@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { montarPedidoAbordagem, type EntradaAbordagem } from "./abordagem";
-import { ETAPAS, REGRAS_GUIA_APEX } from "./guia-apex";
+import {
+  abordagemDesatualizada,
+  interpretarResposta,
+  montarPedidoAbordagem,
+  type EntradaAbordagem,
+} from "./abordagem";
+import { IaRespostaInvalidaError } from "./erros";
+import { CHAVES_ETAPA, ETAPAS, LIMITE_MENSAGEM, REGRAS_GUIA_APEX } from "./guia-apex";
 import type { LeadSegmentado } from "../leads";
 import type { Proposta } from "../propostas";
 
@@ -179,5 +185,89 @@ describe("montarPedidoAbordagem — privacidade e segurança", () => {
     const inicioDados = usuario.indexOf("DADOS DO CLIENTE");
     expect(inicioDados).toBeGreaterThan(-1);
     expect(usuario.indexOf(ordem)).toBeGreaterThan(inicioDados);
+  });
+});
+
+const completa = {
+  abordagem: "Olá! Aqui é da Apex, revenda Claro Empresas.",
+  sondagem: "Hoje quantas linhas a empresa usa?",
+  maleficios: "A renovação já está liberada e ainda não foi aproveitada.",
+  beneficios: "Com a proposta, a empresa passa para planos maiores.",
+  finalizacao: "Posso fechar hoje?",
+};
+
+describe("interpretarResposta", () => {
+  it("aceita o JSON limpo com as cinco etapas", () => {
+    expect(interpretarResposta(JSON.stringify(completa))).toEqual(completa);
+  });
+
+  it("aceita o JSON dentro de cerca de código (```json)", () => {
+    const texto = "```json\n" + JSON.stringify(completa) + "\n```";
+    expect(interpretarResposta(texto)).toEqual(completa);
+  });
+
+  it("aceita a cerca sem indicar a linguagem", () => {
+    const texto = "```\n" + JSON.stringify(completa) + "\n```";
+    expect(interpretarResposta(texto)).toEqual(completa);
+  });
+
+  it("ignora chaves extras", () => {
+    const texto = JSON.stringify({ ...completa, comentario: "texto a mais" });
+    expect(interpretarResposta(texto)).toEqual(completa);
+  });
+
+  it("apara os espaços nas pontas de cada mensagem", () => {
+    const texto = JSON.stringify({ ...completa, sondagem: "  Quantas linhas?  " });
+    expect(interpretarResposta(texto).sondagem).toBe("Quantas linhas?");
+  });
+
+  it.each(CHAVES_ETAPA)("recusa quando falta a etapa %s", (chave) => {
+    const { [chave]: _removida, ...resto } = completa;
+    expect(() => interpretarResposta(JSON.stringify(resto))).toThrow(IaRespostaInvalidaError);
+  });
+
+  it("recusa texto que não é JSON", () => {
+    expect(() => interpretarResposta("Claro! Aqui está o roteiro: ...")).toThrow(IaRespostaInvalidaError);
+  });
+
+  it.each(["[]", "null", '"texto"', "42"])("recusa JSON que não é um objeto (%s)", (texto) => {
+    expect(() => interpretarResposta(texto)).toThrow(IaRespostaInvalidaError);
+  });
+
+  it("recusa etapa vazia ou só com espaços", () => {
+    expect(() => interpretarResposta(JSON.stringify({ ...completa, beneficios: "   " }))).toThrow(
+      IaRespostaInvalidaError
+    );
+  });
+
+  it("recusa etapa que não é texto", () => {
+    expect(() => interpretarResposta(JSON.stringify({ ...completa, finalizacao: 123 }))).toThrow(
+      IaRespostaInvalidaError
+    );
+  });
+
+  it("recusa mensagem acima do limite duro", () => {
+    const longa = "x".repeat(LIMITE_MENSAGEM + 1);
+    expect(() => interpretarResposta(JSON.stringify({ ...completa, abordagem: longa }))).toThrow(
+      IaRespostaInvalidaError
+    );
+  });
+
+  it("aceita mensagem de exatamente o limite duro", () => {
+    const noLimite = "x".repeat(LIMITE_MENSAGEM);
+    expect(interpretarResposta(JSON.stringify({ ...completa, abordagem: noLimite })).abordagem).toBe(noLimite);
+  });
+});
+
+describe("abordagemDesatualizada", () => {
+  it.each([
+    ["não há abordagem nem proposta", null, null, false],
+    ["não há abordagem ainda, mesmo com proposta", null, { id: "p1" }, false],
+    ["a abordagem foi gerada sem proposta e não existe proposta", { propostaId: null }, null, false],
+    ["a abordagem foi gerada sem proposta e agora existe uma", { propostaId: null }, { id: "p1" }, true],
+    ["a abordagem usou a proposta mais recente", { propostaId: "p1" }, { id: "p1" }, false],
+    ["existe uma proposta mais nova que a usada", { propostaId: "p1" }, { id: "p2" }, true],
+  ])("quando %s", (_caso, abordagem, ultimaProposta, esperado) => {
+    expect(abordagemDesatualizada(abordagem, ultimaProposta)).toBe(esperado);
   });
 });
