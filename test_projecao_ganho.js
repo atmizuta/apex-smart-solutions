@@ -331,6 +331,70 @@ secao('Task 4', () => {
   assert(/Operação Campinas ainda sem dia útil completo/.test(w6.document.getElementById('projMsg').textContent), 'aviso de Campinas sem dia completo');
 });
 
+// ---------------- Task 5: Excel ----------------
+// ExcelJS do Node só pra RELER o arquivo. Quem GERA é o bundle de navegador (o mesmo do cdnjs) carregado no jsdom.
+async function testarExcel(){
+  const ExcelJS = require('exceljs');
+  const bundle = fs.readFileSync(require.resolve('exceljs/dist/exceljs.min.js'), 'utf8');
+  const baixar = async (w) => {
+    let baixado = null;
+    w.baixarArquivo = (buffer, nome) => { baixado = { buffer, nome }; };
+    await w.exportarProjecaoExcel();
+    const wb = new ExcelJS.Workbook();
+    if(baixado) await wb.xlsx.load(Buffer.from(baixado.buffer));
+    return { nome: baixado && baixado.nome, wb };
+  };
+  const w = montarDashboard();
+  w.eval(bundle);
+  const { nome, wb } = await baixar(w);
+  assert(nome === 'ProjecaoGanho_Apex_2026-10.xlsx', 'nome do arquivo: ' + nome);
+  assert(JSON.stringify(wb.worksheets.map(s => s.name)) === JSON.stringify(['Resumo', 'Dia a dia', 'Semana a semana', 'Por consultor', 'Por tipo de venda', 'Por etapa', 'Pedidos']), '7 abas');
+  const r = wb.getWorksheet('Resumo');
+  assert(String(r.getCell('A1').value) === 'Projeção de Ganho — Operação Apex — Outubro/2026', 'título: ' + r.getCell('A1').value);
+  assert(String(r.getCell('A2').value).indexOf('Base de 19/10/2026, 14:59:02') === 0, 'linha 2 com a base');
+  assert(r.getCell('A3').value === 'Indicador' && r.getCell('A3').fill.fgColor.argb === 'FF1D1F20' && r.getCell('A3').font.color.argb === 'FFFFFFFF', 'cabeçalho grafite');
+  assert(r.views[0] && r.views[0].state === 'frozen' && r.views[0].ySplit === 3, 'cabeçalho congelado');
+  assert(r.getCell('A4').value === 'Projeção do mês' && perto(r.getCell('B4').value, 840) && String(r.getCell('B4').numFmt).indexOf('R$') >= 0, 'projeção do mês em R$');
+  assert(perto(r.getCell('B5').value, 200) && perto(r.getCell('B6').value, 40) && perto(r.getCell('B7').value, 440) && perto(r.getCell('B8').value, 50), 'semana, dia, realizado e hoje');
+  assert(r.getCell('A9').value === 'Dias úteis do mês' && r.getCell('B9').value === 21 && r.getCell('B9').numFmt === '0', 'dias úteis como número');
+  const dd = wb.getWorksheet('Dia a dia');
+  assert(dd.actualRowCount === 3 + 23, '23 dias');
+  assert(dd.getCell('A4').value instanceof Date && dd.getCell('A4').value.getUTCDate() === 1 && dd.getCell('A4').numFmt === 'dd/mm/yyyy', 'data real do Excel');
+  let linhaProj = null;
+  dd.eachRow((row, n) => { if(n > 3 && row.getCell(3).value === 'projetado' && !linhaProj) linhaProj = row; });
+  assert(linhaProj && linhaProj.getCell(1).font && linhaProj.getCell(1).font.italic === true && perto(linhaProj.getCell(4).value, 40), 'dia projetado em itálico com o ritmo');
+  const ss = wb.getWorksheet('Semana a semana');
+  assert(ss.actualRowCount === 3 + 5 + 1 && ss.getCell('A9').value === 'Mês' && perto(ss.getCell('D9').value, 840), 'semanas + linha do mês');
+  const et = wb.getWorksheet('Por etapa');
+  assert(et.getCell('A4').value === 'Concluído' && et.getCell('D4').value === 1 && et.getCell('D4').numFmt === '0%' && et.getCell('D4').fill.fgColor.argb === 'FF1F7A45', 'peso 100% verde');
+  assert(et.getCell('D6').value === 0.5 && et.getCell('D6').fill.fgColor.argb === 'FFEAB308', 'peso 50% amarelo');
+  const pe = wb.getWorksheet('Pedidos');
+  assert(pe.actualRowCount === 3 + 10, '10 pedidos (M1 numa linha só, C1 e C2 separados)');
+  let m1 = null, c1 = null, a9 = null;
+  pe.eachRow((row, n) => { const v = row.getCell(1).value; if(v === 'M1') m1 = row; if(v === 'C1') c1 = row; if(v === 'A9') a9 = row; });
+  assert(m1 && perto(m1.getCell(8).value, 40) && m1.getCell(9).value === 1 && perto(m1.getCell(10).value, 35), 'M1: bruto 40, peso 100%, ponderado 35');
+  assert(m1 && m1.getCell(4).value === 'Linha Nova + Claro Monitor' && m1.getCell(5).value === 'ENTREGA + ANTIFRAUDE', 'M1: tipos e etapas juntos');
+  assert(c1 && c1.getCell(12).value === '22222222000100' && c1.getCell(12).numFmt === '@' && c1.getCell(1).numFmt === '@', 'nº e CNPJ como texto');
+  assert(a9 && a9.getCell(7).value === 'hoje (parcial)', 'pedido de hoje marcado como parcial');
+
+  const wt = montarDashboard({ operacao: 'todas', data: FIX_APEX.concat(FIX_CAMP) });
+  wt.eval(bundle);
+  const t = await baixar(wt);
+  assert(t.nome === 'ProjecaoGanho_ApexCampinas_2026-10.xlsx', 'arquivo das duas operações: ' + t.nome);
+  assert(t.wb.getWorksheet('Por consultor').getCell('B3').value === 'Operação', 'coluna Operação no Excel');
+  let campRow = null;
+  t.wb.getWorksheet('Resumo').eachRow(row => { if(row.getCell(1).value === 'Projeção do mês — Campinas') campRow = row; });
+  assert(campRow && perto(campRow.getCell(2).value, 360), 'Resumo com a projeção de cada operação');
+
+  // falha ao carregar a biblioteca: aviso e botão reabilitado
+  w.carregarExcelJS = () => Promise.reject(new Error('sem internet'));
+  const errOrig = w.console.error; w.console.error = () => {};
+  await w.exportarProjecaoExcel();
+  w.console.error = errOrig;
+  assert(/Não foi possível gerar o Excel/.test(w.document.getElementById('projMsg').textContent), 'aviso quando a ExcelJS não carrega');
+  assert(w.document.getElementById('projExportBtn').disabled === false, 'botão volta a ficar habilitado');
+}
+
 // ---------------- fim ----------------
 Promise.resolve().then(() => typeof testarExcel === 'function' ? testarExcel() : null)
   .catch(err => { fail++; console.log('FALHOU (exceção no teste do Excel):', err && err.stack || err); })
