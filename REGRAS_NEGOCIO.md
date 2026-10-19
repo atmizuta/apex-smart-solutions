@@ -3359,3 +3359,9 @@ Pedido do usuário: *"adicione uma aba nova no painel que é uma projeção de g
 ### 101.5 Testes e conferência
 - `test_projecao_ganho.js` (novo, 173 asserções: pesos, dias úteis, ritmo, semana, mês fechado, Campinas, soma das operações, contratos, quebras, tela, Excel) e `test_operacao_campinas.js` (atualizado: 3º botão, `todas`, Boletim, supervisor).
 - **Conferência com os dados reais (19/10/2026, 20:01):** os 279 pedidos ponderados de outubro rodados no dashboard de verdade bateram com o banco — realizado até ontem Apex R$ 6.315,74 e Campinas R$ 1.937,06 (diferença de meio centavo de arredondamento), hoje R$ 134,98 e R$ 389,94; 11 de 21 dias úteis completos na Apex e 8 de 18 em Campinas. Projeção de outubro nesse momento: **Apex R$ 12.057,32**, **Campinas R$ 4.358,37**, **Apex + Campinas R$ 16.415,70** (231,7 contratos).
+
+### 101.6 Publicado (19/10/2026, ~20:31 SP)
+- Antes de publicar, o painel no ar (`bceafb52…`) era idêntico ao da `oficial/main` fa943c6 (§100.1) — nada publicado por fora.
+- Publicado **`940f59dff0c818125215566ae0c625ae`** (gerado = servidor = site, com e sem `www`; HTTP 200, 1.598.369 bytes). Tela de login carregada no navegador sem erro no console.
+- Backup: `~/deploy_backups/painel_clientes_apex_20261019_233157_antes_projecao_ganho.html` (o horário do nome saiu em UTC; 20:31 em São Paulo).
+- **Reverter:** copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. Não há mudança de banco nem de função.
