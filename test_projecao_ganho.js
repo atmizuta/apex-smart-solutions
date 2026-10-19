@@ -395,6 +395,17 @@ async function testarExcel(){
   assert(w.document.getElementById('projExportBtn').disabled === false, 'botão volta a ficar habilitado');
 }
 
+// ---------------- Task 6: painel de fora ----------------
+secao('Task 6', () => {
+  const iOp = outerHtml.indexOf("tpl = tpl.replace('__OPERACAO__', () => JSON.stringify(operacaoAtiva()));");
+  const iData = outerHtml.indexOf("tpl = tpl.replace('__DATA__'");
+  assert(iOp > 0 && iData > iOp, 'loadProducaoDashboard preenche a operação antes dos pedidos');
+  assert(/"__OPERACAO__"/.test(fs.readFileSync('build_painel.py', 'utf8')), 'build_painel.py aceita o placeholder da operação');
+  assert(/filter\(r => daOperacao\(r\.usuario, op\)\)/.test(outerHtml), 'Fechamento usa daOperacao (aceita "todas")');
+  assert(/if\(operacaoAtiva\(\) !== 'apex' && frame\)/.test(outerHtml), 'Boletim volta o Dashboard para a Apex também a partir de "Apex + Campinas"');
+  assert((outerHtml.match(/data-operacao="todas">Apex \+ Campinas</g) || []).length === 2, 'botão "Apex + Campinas" nos dois seletores');
+});
+
 // ---------------- fim ----------------
 Promise.resolve().then(() => typeof testarExcel === 'function' ? testarExcel() : null)
   .catch(err => { fail++; console.log('FALHOU (exceção no teste do Excel):', err && err.stack || err); })

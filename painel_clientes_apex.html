@@ -1388,6 +1388,7 @@
       <div class="filterPills" data-operacao-seletor style="display:none;margin:0 0 14px">
         <button type="button" class="filterPill active" data-operacao="apex">Operação Apex</button>
         <button type="button" class="filterPill" data-operacao="campinas">Operação Campinas</button>
+        <button type="button" class="filterPill" data-operacao="todas">Apex + Campinas</button>
       </div>
       <!-- "Meu dia" (30/09/2026): resumo do consultor logado; só aparece para role=consultor (ppRenderMeuDia) -->
       <div class="dashFunil" id="meuDiaCard" style="display:none">
@@ -1696,6 +1697,7 @@
       <div class="filterPills" data-operacao-seletor style="display:none;margin:0 0 14px">
         <button type="button" class="filterPill active" data-operacao="apex">Operação Apex</button>
         <button type="button" class="filterPill" data-operacao="campinas">Operação Campinas</button>
+        <button type="button" class="filterPill" data-operacao="todas">Apex + Campinas</button>
       </div>
       <div class="card">
         <h3>Fechamento</h3>
@@ -8469,6 +8471,11 @@ function foraDoDashboard(nome){ const n = String(nome || '').trim().toUpperCase(
    consultor ficam presos na própria operação. O Boletim da Manhã é sempre da Apex (bmFora). Fase 1: filtro só de
    EXIBIÇÃO — o banco ainda entrega a produção inteira para qualquer login (como antes); a fase 2 leva a regra para o RLS. */
 const OPERACOES = { apex: 'Operação Apex', campinas: 'Operação Campinas' };
+// seção 101: "Apex + Campinas" — 3º botão do seletor, só para admin (Dashboard e Fechamento). Nunca é operação de perfil
+// nem de vendedor (OPERACOES continua só com as duas de verdade).
+const OPERACAO_TODAS = 'todas';
+function operacaoDoSeletorValida(op){ return !!OPERACOES[op] || op === OPERACAO_TODAS; }
+function daOperacao(nome, op){ return op === OPERACAO_TODAS || operacaoDoVendedor(nome) === op; }
 let vendedorOperacao = new Map();
 let operacaoSelecionada = 'apex'; // só vale para admin
 function definirVendedoresOperacao(linhas){
@@ -8491,13 +8498,19 @@ async function carregarVendedoresOperacao(){
 function operacaoDoVendedor(nome){ return vendedorOperacao.get(String(nome || '').trim().toUpperCase()) || 'apex'; }
 function minhaOperacao(){ return currentUser && OPERACOES[currentUser.operacao] ? currentUser.operacao : 'apex'; }
 function podeTrocarOperacao(){ return !!currentUser && currentUser.role === 'admin'; }
-function operacaoAtiva(){ return podeTrocarOperacao() && OPERACOES[operacaoSelecionada] ? operacaoSelecionada : minhaOperacao(); }
+function operacaoAtiva(){ return podeTrocarOperacao() && operacaoDoSeletorValida(operacaoSelecionada) ? operacaoSelecionada : minhaOperacao(); }
 // Mesa, Boletim, Digital e Usuários só têm dados/gestão da Apex por enquanto: escondidos para quem é de outra operação.
 function veAbasDaApex(){ return !currentUser || currentUser.role === 'admin' || minhaOperacao() === 'apex'; }
-function filtrarDashboardPedidos(rows, op){ const o = op || operacaoAtiva(); return (rows || []).filter(r => !foraDoDashboard(r.usuario) && operacaoDoVendedor(r.usuario) === o); }
-function filtrarDashboardEquipe(nomes, op){ const o = op || operacaoAtiva(); return (nomes || []).filter(n => !foraDoDashboard(n) && operacaoDoVendedor(n) === o); }
+// seção 101: cada pedido vai para o Dashboard marcado com a operação do vendedor (a Projeção de Ganho separa e soma por operação)
+function filtrarDashboardPedidos(rows, op){
+  const o = op || operacaoAtiva();
+  const out = (rows || []).filter(r => !foraDoDashboard(r.usuario) && daOperacao(r.usuario, o));
+  out.forEach(r => { r.operacao = operacaoDoVendedor(r.usuario); });
+  return out;
+}
+function filtrarDashboardEquipe(nomes, op){ const o = op || operacaoAtiva(); return (nomes || []).filter(n => !foraDoDashboard(n) && daOperacao(n, o)); }
 // null = erro na busca (o dashboard mostra o aviso); mantém null
-function filtrarDashboardPerdidas(linhas, op){ const o = op || operacaoAtiva(); return Array.isArray(linhas) ? linhas.filter(x => operacaoDoVendedor(x && x.usuario) === o) : linhas; }
+function filtrarDashboardPerdidas(linhas, op){ const o = op || operacaoAtiva(); return Array.isArray(linhas) ? linhas.filter(x => daOperacao(x && x.usuario, o)) : linhas; }
 // Funil: supervisor vê só as propostas de consultores da própria operação (perfil sem operação = Apex); admin vê tudo.
 function funilDaOperacao(propostas, perfisPorId){
   if(!currentUser || currentUser.role === 'admin') return propostas || [];
@@ -8512,7 +8525,7 @@ function opAtualizarSeletores(){
   });
 }
 function trocarOperacao(op){
-  if(!podeTrocarOperacao() || !OPERACOES[op] || op === operacaoSelecionada) return;
+  if(!podeTrocarOperacao() || !operacaoDoSeletorValida(op) || op === operacaoSelecionada) return;
   operacaoSelecionada = op;
   opAtualizarSeletores();
   loadProducaoDashboard().catch(err => console.error(err));
@@ -8580,6 +8593,7 @@ async function loadProducaoDashboard(){
   const tplBytes = Uint8Array.from(atob(PRODUCAO_DASHBOARD_TPL_B64), c => c.charCodeAt(0));
   let tpl = new TextDecoder('utf-8').decode(tplBytes);
   // antes de __DATA__: um texto dos pedidos igual ao nome de um placeholder não pode ser substituído no lugar dele
+  tpl = tpl.replace('__OPERACAO__', () => JSON.stringify(operacaoAtiva())); // seção 101: Projeção de Ganho (apex | campinas | todas)
   tpl = tpl.replace('__PERDIDAS_SYNC__', () => jsonParaScript(perdidasSync));
   tpl = tpl.replace('__PERDIDAS__', () => jsonParaScript(perdidas));
   tpl = tpl.replace('__DATA__', JSON.stringify(records));
@@ -9652,9 +9666,9 @@ async function loadFechamento(){
   const { data, error } = await sb.from('producao_pedidos')
     .select('numero_pedido,grupo,usuario,etapa,produto,cliente,cnpj,valor,data_portabilidade,data_instalacao');
   if(error){ console.error(error); info.textContent = 'Não foi possível carregar os dados agora.'; ApexMotion.limparSkeleton(document.getElementById('fechamentoResumoCards')); return; }
-  // seção 78: só a operação escolhida no seletor (Apex ou Campinas); Rafael e Isabelly continuam (comissão)
+  // seção 78: só a operação escolhida no seletor (Apex, Campinas ou as duas — seção 101); Rafael e Isabelly continuam (comissão)
   const op = operacaoAtiva();
-  fechamentoRegistrosCache = filtrarProducaoPedidos(data).filter(r => operacaoDoVendedor(r.usuario) === op);
+  fechamentoRegistrosCache = filtrarProducaoPedidos(data).filter(r => daOperacao(r.usuario, op));
   info.textContent = '';
   buscarFechamento();
 }

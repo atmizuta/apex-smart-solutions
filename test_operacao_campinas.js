@@ -121,7 +121,7 @@ try{
   const selDash = document.querySelector('#panel-producao [data-operacao-seletor]');
   const selFech = document.querySelector('#panel-fechamento [data-operacao-seletor]');
   assert(!!selDash && !!selFech, 'seletor existe no Dashboard e no Fechamento');
-  assert(selDash && selDash.querySelectorAll('button[data-operacao]').length === 2, 'duas opções');
+  assert(selDash && selDash.querySelectorAll('button[data-operacao]').length === 3, 'três opções (Apex, Campinas e Apex + Campinas)');
   assert(selDash && /Operação Apex/.test(selDash.textContent) && /Operação Campinas/.test(selDash.textContent), 'rótulos "Operação Apex" e "Operação Campinas"');
 
   let chamadas = [];
@@ -143,6 +143,36 @@ try{
   selDash.querySelector('button[data-operacao="campinas"]').click();
   await new Promise(r => setTimeout(r, 0));
   assert(chamadas.length === 0, 'clicar na operação que já está não recarrega');
+
+  // seção 101: "Apex + Campinas" (só admin) — as duas operações juntas no Dashboard e no Fechamento
+  assert(selDash.textContent.indexOf('Apex + Campinas') >= 0 && !!selFech.querySelector('button[data-operacao="todas"]'), 'botão "Apex + Campinas" no Dashboard e no Fechamento');
+  chamadas = [];
+  selDash.querySelector('button[data-operacao="todas"]').click();
+  await new Promise(r => setTimeout(r, 0));
+  assert(operacaoSelecionada === 'todas' && operacaoAtiva() === 'todas', 'admin escolhe Apex + Campinas');
+  assert(chamadas.indexOf('dash:todas') >= 0 && chamadas.indexOf('fech:todas') >= 0, 'recarrega Dashboard e Fechamento com as duas — chamadas: ' + chamadas.join(','));
+  assert(selFech.querySelector('button[data-operacao="todas"]').classList.contains('active'), 'o seletor do Fechamento acompanha (todas)');
+  const doisLados = filtrarDashboardPedidos(PEDIDOS.map(p => Object.assign({}, p)));
+  assert(ids(doisLados) === '1,2,3,4,5,6', 'Apex + Campinas: as duas operações, sem quem está fora — achou ' + ids(doisLados));
+  assert(doisLados.find(p => p.numero_pedido === '3').operacao === 'campinas' && doisLados.find(p => p.numero_pedido === '2').operacao === 'apex', 'cada pedido sai marcado com a operação do vendedor');
+  assert(filtrarDashboardPedidos([{ numero_pedido: '9', usuario: 'Caio Costa Santana' }], 'apex')[0].operacao === 'apex', 'marca também com operação explícita');
+  assert(filtrarDashboardEquipe(EQUIPE).length === 3, 'equipe ("quem zerou") das duas operações');
+  assert(filtrarDashboardPerdidas(PERD).length === 2, 'vendas perdidas das duas operações');
+  assert(daOperacao('JUAN DE MELO FERNANDES', 'todas') && !daOperacao('JUAN DE MELO FERNANDES', 'apex') && daOperacao('JUAN DE MELO FERNANDES', 'campinas'), 'daOperacao');
+  assert(bmFora('JUAN DE MELO FERNANDES'), 'boletim continua só Apex com "Apex + Campinas"');
+  currentUser = { id: 's1', role: 'supervisor', operacao: 'campinas' };
+  assert(operacaoAtiva() === 'campinas', 'supervisor ignora "todas" (fica na própria operação)');
+  currentUser = { id: 'a1', role: 'admin', operacao: 'apex' };
+  definirVendedoresOperacao([
+    { nome: 'CAIO COSTA SANTANA', operacao: 'apex' },
+    { nome: 'VITORIA PRISCILA DA SILVA SANTOS', operacao: 'campinas' },
+    { nome: 'BEATRIZ CRISTINA GERMANIA SILVA', operacao: 'campinas' },
+    { nome: 'RANNIELE DA SILVA VIEIRA COTRIM', operacao: 'campinas' },
+    { nome: 'JUAN DE MELO FERNANDES', operacao: 'campinas' },
+    { nome: 'FULANO TODAS', operacao: 'todas' },
+  ]);
+  assert(operacaoDoVendedor('FULANO TODAS') === 'apex', '"todas" nunca é operação de vendedor');
+  operacaoSelecionada = 'apex';
 
   currentUser = { id: 's1', role: 'supervisor', operacao: 'campinas' };
   opAtualizarSeletores();
