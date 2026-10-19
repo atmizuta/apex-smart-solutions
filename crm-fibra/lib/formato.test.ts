@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatarBRL, parseValorBRL, formatarDataHora } from "./formato";
+import { formatarBRL, parseValorBRL, formatarDataHora, formatarCnpj } from "./formato";
 
 const semNbsp = (texto: string) => texto.replace(/ /g, " ");
 
@@ -40,5 +40,20 @@ describe("formatarDataHora", () => {
 
   it("mostra 00:xx e não 24:xx à meia-noite de Brasília", () => {
     expect(formatarDataHora("2026-10-08T03:05:00Z")).toBe("08/10/2026 00:05");
+  });
+});
+
+describe("formatarCnpj", () => {
+  it("formata 14 dígitos como 00.000.000/0000-00", () => {
+    expect(formatarCnpj("11222333000181")).toBe("11.222.333/0001-81");
+  });
+
+  it("aceita o CNPJ já com pontuação", () => {
+    expect(formatarCnpj("11.222.333/0001-81")).toBe("11.222.333/0001-81");
+  });
+
+  it("devolve o texto como veio quando não tem 14 dígitos", () => {
+    expect(formatarCnpj("123")).toBe("123");
+    expect(formatarCnpj("")).toBe("");
   });
 });

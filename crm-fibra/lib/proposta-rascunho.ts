@@ -1,12 +1,19 @@
 import type { PlanoCatalogo } from "./catalogo";
 import { parseValorBRL } from "./formato";
-import { somarValores, type NovoItemProposta } from "./propostas";
+import {
+  LIMITE_QUANTIDADE_ITEM,
+  somarValores,
+  subtotalDaLinha,
+  type NovoItemProposta,
+} from "./propostas";
 
 export interface LinhaRascunho {
   chave: string;
   catalogoPlanoId: string | null;
   descricao: string;
-  valor: number;
+  quantidade: number;
+  franquiaGb: number | null;
+  valor: number; // subtotal: quantidade x valor unitário
 }
 
 export type Rascunho = LinhaRascunho[];
@@ -17,10 +24,30 @@ export function descricaoDoPlano(plano: Pick<PlanoCatalogo, "nome" | "observacao
   return plano.observacao ? `${plano.nome} — ${plano.observacao}` : plano.nome;
 }
 
-export function adicionarLinhaCatalogo(rascunho: Rascunho, plano: PlanoCatalogo, chave: string): Rascunho {
+// Quantidade digitada: só inteiro de 1 a 1000. "1,5", "1e2" e vazio são recusados.
+export function lerQuantidade(texto: string): number | null {
+  const limpo = texto.trim();
+  if (!/^\d{1,4}$/.test(limpo)) return null;
+  const quantidade = Number(limpo);
+  return quantidade >= 1 && quantidade <= LIMITE_QUANTIDADE_ITEM ? quantidade : null;
+}
+
+export function adicionarLinhaCatalogo(
+  rascunho: Rascunho,
+  plano: PlanoCatalogo,
+  chave: string,
+  quantidade = 1
+): Rascunho {
   return [
     ...rascunho,
-    { chave, catalogoPlanoId: plano.id, descricao: descricaoDoPlano(plano), valor: plano.valor },
+    {
+      chave,
+      catalogoPlanoId: plano.id,
+      descricao: descricaoDoPlano(plano),
+      quantidade,
+      franquiaGb: plano.franquiaGb,
+      valor: subtotalDaLinha(plano.valor, quantidade),
+    },
   ];
 }
 
@@ -28,18 +55,37 @@ export type ResultadoLinhaAvulsa =
   | { ok: true; rascunho: Rascunho }
   | { ok: false; erro: string };
 
+// O valor digitado é o UNITÁRIO; a linha guarda o subtotal (valor x quantidade).
 export function adicionarLinhaAvulsa(
   rascunho: Rascunho,
-  entrada: { descricao: string; valorTexto: string },
+  entrada: { descricao: string; valorTexto: string; quantidadeTexto?: string },
   chave: string
 ): ResultadoLinhaAvulsa {
   const descricao = entrada.descricao.trim();
   if (!descricao) return { ok: false, erro: "Descreva a oferta avulsa" };
 
-  const valor = parseValorBRL(entrada.valorTexto);
-  if (valor === null) return { ok: false, erro: "Informe um valor válido, por exemplo 149,90" };
+  const valorUnitario = parseValorBRL(entrada.valorTexto);
+  if (valorUnitario === null) return { ok: false, erro: "Informe um valor válido, por exemplo 149,90" };
 
-  return { ok: true, rascunho: [...rascunho, { chave, catalogoPlanoId: null, descricao, valor }] };
+  const quantidade = lerQuantidade(entrada.quantidadeTexto ?? "1");
+  if (quantidade === null) {
+    return { ok: false, erro: `Informe uma quantidade de 1 a ${LIMITE_QUANTIDADE_ITEM}` };
+  }
+
+  return {
+    ok: true,
+    rascunho: [
+      ...rascunho,
+      {
+        chave,
+        catalogoPlanoId: null,
+        descricao,
+        quantidade,
+        franquiaGb: null,
+        valor: subtotalDaLinha(valorUnitario, quantidade),
+      },
+    ],
+  };
 }
 
 export function removerLinha(rascunho: Rascunho, chave: string): Rascunho {
@@ -51,5 +97,11 @@ export function totalRascunho(rascunho: Rascunho): number {
 }
 
 export function itensParaSalvar(rascunho: Rascunho): NovoItemProposta[] {
-  return rascunho.map(({ catalogoPlanoId, descricao, valor }) => ({ catalogoPlanoId, descricao, valor }));
+  return rascunho.map(({ catalogoPlanoId, descricao, valor, quantidade, franquiaGb }) => ({
+    catalogoPlanoId,
+    descricao,
+    valor,
+    quantidade,
+    franquiaGb,
+  }));
 }
