@@ -131,11 +131,12 @@ só o nome). Modelo: `gemini-3.1-flash-lite`. A cota gratuita é **compartilhada
 prática (Apex Mind) enquanto os dois usarem a mesma chave; para separar, crie uma chave só do CRM
 e troque a variável, sem mexer no código.
 
-**Dados enviados ao Google:** razão social, cidade, cobertura de fibra, linhas fixas e de voz,
-valor do contrato, ARPU, segmentação e a proposta (descrição, valor e total). Nunca CNPJ,
-telefones, e-mail nem ids. O prompt proíbe afirmar economia em reais, descrever como parte da
-proposta o que não está nos itens e prometer recursos que não estejam nos dados. O texto é um
-rascunho: o consultor lê antes de colar no WhatsApp.
+**Dados enviados ao Google:** razão social (sem a raiz do CNPJ nem o CPF que MEIs costumam ter
+no nome), cidade, cobertura de fibra, linhas fixas e de voz, segmentação (fibra/renovação) e a
+proposta (descrição, valor e total). Nunca CNPJ, CPF, telefones, e-mail, ids, valor do contrato
+nem ARPU. O prompt proíbe afirmar economia em reais, descrever como parte da proposta o que não
+está nos itens e prometer recursos que não estejam nos dados; havendo proposta, ela é final (o
+modelo não sugere outros planos). O texto é um rascunho: o consultor lê antes de colar no WhatsApp.
 
 ### Checklist de verificação manual (Plano 4)
 

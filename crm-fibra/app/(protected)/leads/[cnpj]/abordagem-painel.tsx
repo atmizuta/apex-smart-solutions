@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { unstable_rethrow, useRouter } from "next/navigation";
 import { Check, Copy, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { chamarAcaoComSeguranca } from "@/lib/chamar-acao";
 import { ETAPAS, type ChaveEtapa, type EtapasAbordagem } from "@/lib/ia/guia-apex";
 import { gerarAbordagemAction } from "./actions";
 
@@ -27,7 +28,10 @@ export function AbordagemPainel({
   function gerar() {
     setErro(null);
     startTransition(async () => {
-      const resultado = await gerarAbordagemAction(cnpjDigits);
+      const resultado = await chamarAcaoComSeguranca(
+        () => gerarAbordagemAction(cnpjDigits),
+        unstable_rethrow
+      );
       if (resultado.erro) {
         setErro(resultado.erro);
         return;

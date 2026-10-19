@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   abordagemDesatualizada,
   interpretarResposta,
+  limparRazaoSocial,
   montarPedidoAbordagem,
   type EntradaAbordagem,
 } from "./abordagem";
@@ -16,8 +17,6 @@ const lead: EntradaAbordagem["lead"] = {
   cepCabeado: "CEP Cabeado",
   linhasFixas: 0,
   linhasVoz: 4,
-  valorContrato: 399.9,
-  arpu: 99.97,
   camadaFibra: "fibra_candidato",
   camadaRenovacao: "apto_agora",
 };
@@ -62,6 +61,17 @@ describe("montarPedidoAbordagem — instrução de sistema", () => {
     expect(sistema).toContain("prometer recursos, velocidades, prioridade, garantias ou serviços específicos");
   });
 
+  it("havendo proposta, ela é final; as regras de abertura do guia valem só quando não há proposta", () => {
+    expect(sistema).toContain("havendo proposta, ela é final");
+    expect(sistema).toContain("não sugira outros planos");
+    expect(sistema).toContain("não omita nem troque itens");
+    expect(sistema).toContain("regras 1 a 3 valem só quando não há proposta salva");
+  });
+
+  it("sem proposta, só os portes 100GB e 70GB do guia podem ser citados, nunca preço", () => {
+    expect(sistema).toContain("exceto os portes 100GB e 70GB do guia");
+  });
+
   it("limita a forma: 320 caracteres, sem markdown, no máximo um emoji", () => {
     expect(sistema).toContain("até 320 caracteres");
     expect(sistema).toContain("sem markdown");
@@ -87,8 +97,6 @@ describe("montarPedidoAbordagem — dados do cliente", () => {
     expect(usuario).toContain("Cobertura de fibra no endereço: sim");
     expect(usuario).toContain("Linhas fixas: 0");
     expect(usuario).toContain("Linhas de voz: 4");
-    expect(usuario).toContain("Valor do contrato atual: R$ 399,90");
-    expect(usuario).toContain("ARPU: R$ 99,97");
     expect(usuario).toContain("Candidato a fibra: sim");
     expect(usuario).toContain("Renovação: Apto agora");
   });
@@ -109,8 +117,6 @@ describe("montarPedidoAbordagem — dados do cliente", () => {
       cepCabeado: null,
       linhasFixas: null,
       linhasVoz: null,
-      valorContrato: null,
-      arpu: null,
       camadaFibra: null,
       camadaRenovacao: null,
     };
@@ -118,7 +124,6 @@ describe("montarPedidoAbordagem — dados do cliente", () => {
     expect(usuario).toContain("Razão social: não informada");
     expect(usuario).toContain("Cidade: não informada");
     expect(usuario).toContain("Linhas fixas: não informado");
-    expect(usuario).toContain("Valor do contrato atual: não informado");
     expect(usuario).toContain("Candidato a fibra: não");
     expect(usuario).toContain("Renovação: ainda sem janela de renovação");
     expect(usuario).not.toMatch(/null|undefined|NaN/);
@@ -144,9 +149,11 @@ describe("montarPedidoAbordagem — proposta", () => {
 });
 
 describe("montarPedidoAbordagem — privacidade e segurança", () => {
-  it("nunca envia CNPJ, telefones, e-mail nem ids, mesmo recebendo o lead completo", () => {
+  it("nunca envia CNPJ, telefones, e-mail, ids, valor do contrato nem ARPU, mesmo recebendo o lead completo", () => {
     const leadCompleto: LeadSegmentado = {
       ...lead,
+      valorContrato: 399.9,
+      arpu: 99.97,
       cnpjDigits: "11222333000181",
       ddd: "19",
       tel1: "1935737700",
@@ -177,6 +184,9 @@ describe("montarPedidoAbordagem — privacidade e segurança", () => {
       "consultor-xyz-123",
       "proposta-xyz-456",
       "respondeu",
+      "399,90",
+      "99,97",
+      "ARPU",
     ]) {
       expect(tudo).not.toContain(proibido);
     }
@@ -276,5 +286,53 @@ describe("abordagemDesatualizada", () => {
     ["existe uma proposta mais nova que a usada", { propostaId: "p1" }, { id: "p2" }, true],
   ])("quando %s", (_caso, abordagem, ultimaProposta, esperado) => {
     expect(abordagemDesatualizada(abordagem, ultimaProposta)).toBe(esperado);
+  });
+});
+
+describe("limparRazaoSocial", () => {
+  it.each([
+    ["raiz de CNPJ pontuada no começo (nome de MEI)", "12.345.678 FULANO DE TAL", "FULANO DE TAL"],
+    ["raiz de CNPJ sem pontuação", "12345678 FULANO DE TAL", "FULANO DE TAL"],
+    ["CPF colado no fim do nome", "FULANO DE TAL 12345678901", "FULANO DE TAL"],
+    ["CPF pontuado", "FULANO DE TAL 123.456.789-01", "FULANO DE TAL"],
+    ["CNPJ completo pontuado", "EMPRESA EXEMPLO 12.345.678/0001-90", "EMPRESA EXEMPLO"],
+    ["qualquer sequência longa de dígitos", "LOJA 1234567890123 CENTRO", "LOJA CENTRO"],
+  ])("tira %s", (_caso, entrada, esperado) => {
+    expect(limparRazaoSocial(entrada)).toBe(esperado);
+  });
+
+  it.each(["Loja 24 Horas Ltda", "Padaria 2 Irmãos", "Auto Peças 3A Ltda", "Padaria Pão Quente Ltda"])(
+    "mantém número curto que faz parte do nome (%s)",
+    (nome) => {
+      expect(limparRazaoSocial(nome)).toBe(nome);
+    }
+  );
+
+  it("nome só de dígitos vira vazio", () => {
+    expect(limparRazaoSocial("12.345.678")).toBe("");
+  });
+
+  it("junta os espaços que sobram depois de tirar os dígitos", () => {
+    expect(limparRazaoSocial("  12345678   FULANO    DE  TAL ")).toBe("FULANO DE TAL");
+  });
+});
+
+describe("montarPedidoAbordagem — razão social com documento", () => {
+  it("o pedido leva a razão social sem o CNPJ nem o CPF, que iriam para o Google e para a saudação", () => {
+    const { usuario } = montarPedidoAbordagem({
+      lead: { ...lead, razaoSocial: "12.345.678 FULANO DE TAL" },
+      proposta: null,
+    });
+    expect(usuario).toContain("Razão social: FULANO DE TAL");
+    expect(usuario).not.toContain("12.345.678");
+  });
+
+  it("razão social que era só documento vira 'não informada'", () => {
+    const { usuario } = montarPedidoAbordagem({
+      lead: { ...lead, razaoSocial: "12345678901" },
+      proposta: null,
+    });
+    expect(usuario).toContain("Razão social: não informada");
+    expect(usuario).not.toContain("12345678901");
   });
 });

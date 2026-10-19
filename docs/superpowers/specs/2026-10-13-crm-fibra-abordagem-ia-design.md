@@ -269,3 +269,20 @@ o que é externo.
 - Editar o texto gerado e salvar a versão editada; regenerar uma etapa só; histórico de roteiros
   anteriores na tela; limite de gerações por consultor.
 - Envio direto pelo WhatsApp a partir da aba (sub-projeto 5).
+
+## Ajustes decididos na execução e na revisão final
+
+Mudanças em relação ao desenho acima, feitas com o prompt e o código reais na mão:
+
+- **Menos dados enviados.** O valor do contrato e o ARPU **deixam de ir** ao Google: o motivo
+  declarado para enviá-los (comparar preços) caiu quando a economia em reais foi proibida, e a IA
+  podia citar o valor como fato ("hoje você paga…") sem saber se ele é mensal. A razão social vai
+  **sem a raiz do CNPJ e sem CPF** (cerca de 9% da base tem 8 ou mais dígitos no nome).
+- **Proposta é final.** Havendo proposta, o prompt manda descrevê-la só pelos itens e pelo total, sem
+  sugerir outros planos nem omitir ou trocar itens; as regras 1 a 3 do guia valem só sem proposta
+  (e então só os portes 100GB e 70GB podem ser citados, nunca preço).
+- **Repetição no Gemini.** Além do 503, repete em estouro de tempo (`AbortError`/`TimeoutError`) e em
+  qualquer 5xx (a chamada real mostrou os dois); 4xx e 429 não repetem.
+- **Falha de transporte no cliente.** Chamar a Server Action pode falhar antes de chegar ao código
+  dela (rede, 504, aba de um deploy antigo); isso vira mensagem na aba em vez de derrubar a página.
+- **SDK fixado em 2.24.0** (a versão verificada e usada em produção pelo app de prática).
