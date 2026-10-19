@@ -32,11 +32,22 @@ function criarCliente(): ClienteGemini {
 type Falha = "sobrecarga" | "cota" | "outra";
 
 // O ApiError do SDK traz `status`; o texto da mensagem é o plano B, como no
-// app de prática, caso o erro chegue embrulhado.
+// app de prática, caso o erro chegue embrulhado. Erro 5xx e estouro do tempo
+// da tentativa (AbortError) são transitórios no Gemini — a chamada real mostrou
+// os dois, além do 503 — e se tratam como sobrecarga. Erro 4xx não: o pedido em
+// si está errado e repetir só gastaria tempo e cota.
 function classificar(erro: unknown): Falha {
   const status = (erro as { status?: unknown } | null)?.status;
+  const nome = erro instanceof Error ? erro.name : "";
   const mensagem = erro instanceof Error ? erro.message : "";
-  if (status === 503 || /UNAVAILABLE|"code":\s*503/.test(mensagem)) return "sobrecarga";
+  if (
+    (typeof status === "number" && status >= 500) ||
+    /UNAVAILABLE|"code":\s*5\d\d/.test(mensagem) ||
+    nome === "AbortError" ||
+    nome === "TimeoutError"
+  ) {
+    return "sobrecarga";
+  }
   if (status === 429 || /RESOURCE_EXHAUSTED|"code":\s*429/.test(mensagem)) return "cota";
   return "outra";
 }

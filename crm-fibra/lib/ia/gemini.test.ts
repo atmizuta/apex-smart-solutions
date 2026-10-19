@@ -117,6 +117,31 @@ describe("gerarJson — falhas", () => {
     await expect(gerarJson(pedido, { cliente, esperar: esperaFalsa().esperar })).rejects.toThrow(esperado);
   });
 
+  it("estouro de tempo (AbortError) é tratado como sobrecarga: tenta de novo", async () => {
+    const abortada = Object.assign(new Error("This operation was aborted"), { name: "AbortError" });
+    const { cliente, chamadas } = makeCliente([abortada, { texto: '{"ok":true}' }]);
+    const { esperas, esperar } = esperaFalsa();
+
+    expect(await gerarJson(pedido, { cliente, esperar })).toBe('{"ok":true}');
+    expect(chamadas).toHaveLength(2);
+    expect(esperas).toEqual([1000]);
+  });
+
+  it.each([500, 502, 504])("erro %s do servidor do Gemini é transitório: tenta de novo", async (status) => {
+    const { cliente, chamadas } = makeCliente([erroHttp(status), { texto: '{"ok":true}' }]);
+
+    expect(await gerarJson(pedido, { cliente, esperar: esperaFalsa().esperar })).toBe('{"ok":true}');
+    expect(chamadas).toHaveLength(2);
+  });
+
+  it("erro do cliente (400) não repete: o pedido em si está errado", async () => {
+    const { cliente, chamadas } = makeCliente([erroHttp(400)]);
+    await expect(gerarJson(pedido, { cliente, esperar: esperaFalsa().esperar })).rejects.toMatchObject({
+      status: 400,
+    });
+    expect(chamadas).toHaveLength(1);
+  });
+
   it("propaga outros erros sem repetir", async () => {
     const { cliente, chamadas } = makeCliente([new Error("rede caiu")]);
     await expect(gerarJson(pedido, { cliente, esperar: esperaFalsa().esperar })).rejects.toThrow("rede caiu");
