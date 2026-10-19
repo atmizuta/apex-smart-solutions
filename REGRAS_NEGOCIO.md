@@ -3312,3 +3312,13 @@ Correções pedidas pelo Rafael para os pontos menores deixados nas revisões da
   - Publicado **`48781bc7eeeb227222ba4fe42ecf42f2`** (gerado = servidor = site; diff só da §99).
   - Backup: `~/deploy_backups/painel_clientes_apex_20261019_153857_antes_lead_mailing.html`.
   - **Reverter:** copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. A função pode ficar; se for preciso apagá-la, usar o rollback.
+
+## 100. Relatório de vendas das 21h (Visão Diária) — 19/10/2026
+
+Pedido do usuário: "da mesma forma que já tem o relatório das 17h, tenha o relatório das 21h, que faça as mesmas coisas; a única coisa que muda é o horário".
+
+- Botão novo **"Gerar relatório 21h"**, logo depois do "Gerar relatório 17h" na Visão Diária. Tudo igual à seção 56 (e às correções 16.17 e 76): só admin/supervisor, some no Modo TV, mesma janela com texto editável, **Copiar texto** e **Enviar pelo WhatsApp**, dia escolhido no campo "Dia", mesmas contas (`resumoDiaria`) e mesmo texto.
+- **Única diferença: o corte.** Conta os pedidos que entraram na sincronização até **20:59** (São Paulo); o texto diz "Posição das 21h (pedidos cadastrados até as 21:00)". Clicado antes das 21h no próprio dia, avisa que os números são parciais.
+- Código: `RELATORIO_CORTE_HORA_NOITE = 21`; `abrirRelatorio17h()` e `abrirRelatorio21h()` chamam a mesma `abrirRelatorio(corteHora)`.
+- **Sincronização à noite:** a última rodada antes das 21h é a das **20:50** (job `sync-producao-janela-noite-a`, 23:50 UTC); a seguinte é às 21:00. Pedido cadastrado no NEO entre 20:50 e 20:59 entra com hora ≥ 21:00 e fica para o dia seguinte do ponto de vista do corte (aparece nos cards da Visão Diária, não no relatório das 21h). Nada mudou no banco.
+- Testes: `test_relatorio_17h.js` (59) ganhou o bloco 4.1 (botão, corte das 21h, parcial, janela, consultor sem o botão).

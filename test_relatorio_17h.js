@@ -162,9 +162,28 @@ Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t =>
   assert(d.getElementById('relatorioTexto').value.includes('29/09/2026') && d.getElementById('relatorioTexto').value.includes('Portabilidade: 1') && d.getElementById('relatorioTexto').value.includes('Valor total: R$ 999,00'),
     'trocando o dia na Visão Diária o relatório acompanha: 29/09 tem 1 portabilidade e R$ 999,00');
 
+  // ---------------------------------------------------------------- 4.1) relatório das 21h (19/10/2026): igual ao das 17h, só muda o corte
+  const btn21 = d.getElementById('relatorio21Btn');
+  assert(!!btn21 && btn21.textContent.trim() === 'Gerar relatório 21h', 'existe o botão "Gerar relatório 21h"');
+  assert(btn21 && btn21.previousElementSibling === btn && btn21.classList.contains('rel-btn'), 'o botão das 21h fica logo depois do das 17h, com o mesmo estilo (some no Modo TV)');
+  assert(w.dadosRelatorioDia(DIA, 21).rows.length === 15, 'às 21h entram também os pedidos das 17:00 e 18:45 (15 no dia)');
+  assert(w.dadosRelatorioDia('2026-10-02', 21).rows.length === 3, 'às 21h o E-2 (entrou 18:10) passa a contar');
+  const txt21 = w.textoRelatorio(DIA, 21, { date: DIA, hora: '21:02' });
+  assert(txt21.split('\n')[1] === 'Posição das 21h (pedidos cadastrados até as 21:00)' && !txt21.includes('Obs.:'), 'texto explica o corte das 21h; depois das 21h sem aviso de parcial');
+  assert(w.textoRelatorio(DIA, 21, { date: DIA, hora: '19:15' }).endsWith('Obs.: relatório gerado às 19:15, antes das 21h — os números são parciais.'), 'antes das 21h no mesmo dia: avisa que é parcial');
+  d.getElementById('diariaDate').value = DIA;
+  btn21.click();
+  assert(d.getElementById('relatorioOverlay').classList.contains('open') && /21h \(30\/09\/2026\)/.test(d.getElementById('relatorioTitulo').textContent), 'clicar abre a mesma janela, com título das 21h');
+  assert(d.getElementById('relatorioTexto').value.includes('Posição das 21h') && d.getElementById('relatorioTexto').value.includes('Portabilidade: 3'), 'a janela vem com o texto das 21h (3 portabilidades com a das 17:00)');
+  d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape' }));
+  btn.click();
+  assert(d.getElementById('relatorioTexto').value.includes('Posição das 17h'), 'depois disso o botão das 17h continua gerando o das 17h');
+  d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape' }));
+
   // ---------------------------------------------------------------- 5) só admin/supervisor veem o botão
   const wConsultor = montarDashboard({ data: DADOS, adminMode: false });
   assert(!wConsultor.document.getElementById('relatorioBtn'), 'consultor não vê o botão do relatório');
+  assert(!wConsultor.document.getElementById('relatorio21Btn'), 'consultor não vê o botão do relatório das 21h');
 
   // Modo TV esconde o botão (só o Modo TV fica)
   const css = [...d.querySelectorAll('style')].map(s => s.textContent).join('\n');
