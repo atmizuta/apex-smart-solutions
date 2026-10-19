@@ -113,3 +113,39 @@ publicar o código — o código novo lê tabelas que só existem depois dela.
    valor antigo; desative um plano → ele some do seletor da aba Proposta; reative → ele volta.
 8. Como consultor comum, abra `/catalogo` → redireciona para `/dashboard`.
 9. Troque de aba no meio de uma proposta ainda não salva → as linhas continuam lá ao voltar.
+
+## Abordagem por IA (Plano 4)
+
+A ficha `/leads/[cnpj]` ganhou a aba **Abordagem**: o consultor clica em *Gerar abordagem* e o
+Gemini monta cinco mensagens de WhatsApp (abordagem, sondagem, malefícios, benefícios,
+finalização) com os dados do lead e a proposta mais recente. Cada geração fica salva em
+`crm_fibra.abordagens`; a aba mostra a mais recente.
+
+**Migração aplicada em produção (2026-10-19):** `db/schema.sql` (idempotente) criou
+`crm_fibra.abordagens`. `db/rollback-abordagens.sql` desfaz (e apaga os roteiros salvos).
+**Ordem:** aplicar a migração ANTES de publicar o código; para desfazer, republique antes o código
+anterior (a ficha lê essa tabela e quebraria sem ela).
+
+**Chave da IA:** variável `GEMINI_API_KEY` no projeto Vercel, só no servidor (`.env.example` traz
+só o nome). Modelo: `gemini-3.1-flash-lite`. A cota gratuita é **compartilhada** com o app de
+prática (Apex Mind) enquanto os dois usarem a mesma chave; para separar, crie uma chave só do CRM
+e troque a variável, sem mexer no código.
+
+**Dados enviados ao Google:** razão social, cidade, cobertura de fibra, linhas fixas e de voz,
+valor do contrato, ARPU, segmentação e a proposta (descrição, valor e total). Nunca CNPJ,
+telefones, e-mail nem ids. O prompt proíbe afirmar economia em reais, descrever como parte da
+proposta o que não está nos itens e prometer recursos que não estejam nos dados. O texto é um
+rascunho: o consultor lê antes de colar no WhatsApp.
+
+### Checklist de verificação manual (Plano 4)
+
+1. Abra um lead e a aba Abordagem → estado vazio com o botão "Gerar abordagem".
+2. Gere num lead sem proposta → 5 cartões de WhatsApp curtos, sem preço de plano, status "sem
+   proposta".
+3. Monte e salve uma proposta, volte à aba → aviso "Há uma proposta mais nova"; gere de novo →
+   status "com a proposta de …" e os benefícios citam os planos e o total.
+4. Clique em Copiar num cartão e cole no WhatsApp → o texto vem inteiro.
+5. Recarregue a página → o mesmo roteiro continua lá (sem nova chamada à IA).
+6. Troque de aba e volte → o roteiro continua na tela.
+7. Peça a outro consultor para gerar no mesmo lead → os dois conseguem; a aba mostra o mais
+   recente.
