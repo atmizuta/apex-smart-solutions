@@ -7,7 +7,16 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { verifySessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { buscarConsultorPorId } from "@/lib/consultores";
 import { atribuirLead, registrarMensagem, buscarLeadPorCnpj, LeadJaAtribuidoError } from "@/lib/leads";
-import { criarProposta, validarItensProposta, type NovoItemProposta } from "@/lib/propostas";
+import {
+  criarProposta,
+  listarPropostasPorCnpj,
+  validarItensProposta,
+  type NovoItemProposta,
+} from "@/lib/propostas";
+import { criarAbordagem } from "@/lib/abordagens";
+import { interpretarResposta, montarPedidoAbordagem } from "@/lib/ia/abordagem";
+import { mensagemDeErroIa } from "@/lib/ia/erros";
+import { gerarJson, MODELO_GEMINI } from "@/lib/ia/gemini";
 
 async function sessaoAtiva() {
   const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
@@ -91,6 +100,39 @@ export async function salvarPropostaAction(
   } catch (err) {
     console.error("salvarPropostaAction falhou", err);
     return { erro: "Não foi possível salvar a proposta agora. Tente de novo em instantes." };
+  }
+
+  revalidatePath(`/leads/${cnpjDigits}`);
+  return {};
+}
+
+export async function gerarAbordagemAction(cnpjDigits: string): Promise<{ erro?: string }> {
+  const consultor = await sessaoAtiva();
+
+  // Falha da IA ou do banco nunca estoura: no cliente isso derrubaria a página,
+  // e o roteiro anterior (que continua salvo) sumiria da tela.
+  try {
+    const admin = getSupabaseAdmin();
+
+    const lead = await buscarLeadPorCnpj(admin, cnpjDigits);
+    if (!lead) return { erro: "Lead não encontrado" };
+
+    const propostas = await listarPropostasPorCnpj(admin, cnpjDigits);
+    const proposta = propostas[0] ?? null;
+
+    const texto = await gerarJson(montarPedidoAbordagem({ lead, proposta }));
+    const etapas = interpretarResposta(texto);
+
+    await criarAbordagem(admin, {
+      cnpjDigits,
+      consultorId: consultor.id,
+      propostaId: proposta?.id ?? null,
+      etapas,
+      modelo: MODELO_GEMINI,
+    });
+  } catch (err) {
+    console.error("gerarAbordagemAction falhou", err);
+    return { erro: mensagemDeErroIa(err) };
   }
 
   revalidatePath(`/leads/${cnpjDigits}`);

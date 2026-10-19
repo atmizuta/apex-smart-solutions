@@ -7,16 +7,22 @@ import { buscarLeadPorCnpj, listarMensagens } from "@/lib/leads";
 import { listarCatalogo } from "@/lib/catalogo";
 import { listarConsultores } from "@/lib/consultores";
 import { listarPropostasPorCnpj } from "@/lib/propostas";
+import { buscarUltimaAbordagem } from "@/lib/abordagens";
 import { normalizarTelefone } from "@/lib/whatsapp";
 import { verifySessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AbaCliente } from "./aba-cliente";
 import { AbaLinhas } from "./aba-linhas";
 import { AbaProposta } from "./aba-proposta";
+import { AbaAbordagem } from "./aba-abordagem";
 
-// forceMount mantém as três abas montadas: o rascunho de proposta e os
+// forceMount mantém todas as abas montadas: o rascunho de proposta e os
 // formulários não podem perder o que foi digitado ao trocar de aba.
 const CONTEUDO_DA_ABA = "data-[state=inactive]:hidden";
+
+// Gerar a abordagem chama o Gemini, com até 3 tentativas: passa dos 10 s que a
+// função da Vercel tem por padrão. A Server Action herda o limite desta página.
+export const maxDuration = 60;
 
 export default async function LeadDetailPage({
   params,
@@ -29,11 +35,12 @@ export default async function LeadDetailPage({
   const lead = await buscarLeadPorCnpj(admin, cnpj);
   if (!lead) notFound();
 
-  const [mensagens, propostas, catalogo, consultores] = await Promise.all([
+  const [mensagens, propostas, catalogo, consultores, abordagem] = await Promise.all([
     listarMensagens(admin, cnpj),
     listarPropostasPorCnpj(admin, cnpj),
     listarCatalogo(admin, { apenasAtivos: true }),
     listarConsultores(admin),
+    buscarUltimaAbordagem(admin, cnpj),
   ]);
   const nomesConsultores = Object.fromEntries(consultores.map((c) => [c.id, c.nome]));
   const telefone = normalizarTelefone({
@@ -69,6 +76,7 @@ export default async function LeadDetailPage({
           <TabsTrigger value="cliente">Cliente</TabsTrigger>
           <TabsTrigger value="linhas">Linhas</TabsTrigger>
           <TabsTrigger value="proposta">Proposta</TabsTrigger>
+          <TabsTrigger value="abordagem">Abordagem</TabsTrigger>
         </TabsList>
         <TabsContent value="cliente" forceMount className={CONTEUDO_DA_ABA}>
           <AbaCliente lead={lead} mensagens={mensagens} telefone={telefone} souODono={souODono} />
@@ -80,6 +88,14 @@ export default async function LeadDetailPage({
           <AbaProposta
             cnpjDigits={lead.cnpjDigits}
             catalogo={catalogo}
+            propostas={propostas}
+            nomesConsultores={nomesConsultores}
+          />
+        </TabsContent>
+        <TabsContent value="abordagem" forceMount className={CONTEUDO_DA_ABA}>
+          <AbaAbordagem
+            cnpjDigits={lead.cnpjDigits}
+            abordagem={abordagem}
             propostas={propostas}
             nomesConsultores={nomesConsultores}
           />

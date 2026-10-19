@@ -23,11 +23,27 @@ vi.mock("@/lib/leads", async () => {
 });
 
 const criarProposta = vi.fn();
+const listarPropostasPorCnpj = vi.fn();
 vi.mock("@/lib/propostas", async () => {
   const actual = await vi.importActual<typeof import("@/lib/propostas")>("@/lib/propostas");
   return {
     ...actual,
     criarProposta: (...args: unknown[]) => criarProposta(...args),
+    listarPropostasPorCnpj: (...args: unknown[]) => listarPropostasPorCnpj(...args),
+  };
+});
+
+const criarAbordagem = vi.fn();
+vi.mock("@/lib/abordagens", () => ({
+  criarAbordagem: (...args: unknown[]) => criarAbordagem(...args),
+}));
+
+const gerarJson = vi.fn();
+vi.mock("@/lib/ia/gemini", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/ia/gemini")>("@/lib/ia/gemini");
+  return {
+    ...actual,
+    gerarJson: (...args: unknown[]) => gerarJson(...args),
   };
 });
 
@@ -52,7 +68,14 @@ vi.mock("next/cache", () => ({
   revalidatePath: () => {},
 }));
 
-import { atribuirLeadAction, registrarMensagemAction, salvarPropostaAction } from "./actions";
+import {
+  atribuirLeadAction,
+  gerarAbordagemAction,
+  registrarMensagemAction,
+  salvarPropostaAction,
+} from "./actions";
+import { IaCotaEsgotadaError, IaIndisponivelError, IaNaoConfiguradaError } from "@/lib/ia/erros";
+import { MODELO_GEMINI } from "@/lib/ia/gemini";
 import { LeadJaAtribuidoError } from "@/lib/leads";
 
 const consultorAtivo = {
@@ -71,6 +94,9 @@ beforeEach(() => {
   registrarMensagem.mockReset();
   buscarLeadPorCnpj.mockReset();
   criarProposta.mockReset();
+  listarPropostasPorCnpj.mockReset();
+  criarAbordagem.mockReset();
+  gerarJson.mockReset();
   cookieGet.mockReset();
   verifySessionToken.mockReset();
 });
@@ -239,5 +265,158 @@ describe("salvarPropostaAction", () => {
     expect(criarProposta).toHaveBeenCalledWith({}, expect.objectContaining({
       itens: [{ catalogoPlanoId: null, descricao: "Oferta", valor: 10 }],
     }));
+  });
+});
+
+describe("gerarAbordagemAction", () => {
+  const leadFicticio = {
+    cnpjDigits: "11222333000181",
+    razaoSocial: "Padaria Pão Quente Ltda",
+    cidade: "Campinas",
+    ddd: "19",
+    tel1: "1935737700",
+    tel2: "",
+    telefoneContato: "19991002213",
+    email: "contato@padaria.example",
+    cepCabeado: "CEP Cabeado",
+    linhasFixas: 0,
+    linhasVoz: 4,
+    valorContrato: 399.9,
+    arpu: 99.97,
+    camadaFibra: "fibra_candidato",
+    camadaRenovacao: "apto_agora",
+    donoConsultorId: null,
+  };
+
+  const propostaRecente = {
+    id: "prop-nova",
+    cnpjDigits: "11222333000181",
+    consultorId: "c1",
+    criadoEm: "2026-10-13T12:00:00Z",
+    total: 154.89,
+    itens: [
+      { id: "i1", catalogoPlanoId: null, descricao: "Pós 100GB — por linha", valor: 89.99, ordem: 0 },
+      { id: "i2", catalogoPlanoId: null, descricao: "Oferta avulsa combinada", valor: 64.9, ordem: 1 },
+    ],
+  };
+
+  const propostaAntiga = {
+    id: "prop-antiga",
+    cnpjDigits: "11222333000181",
+    consultorId: "c2",
+    criadoEm: "2026-10-01T12:00:00Z",
+    total: 39.99,
+    itens: [{ id: "i3", catalogoPlanoId: null, descricao: "Pós 12GB antigo", valor: 39.99, ordem: 0 }],
+  };
+
+  const etapas = {
+    abordagem: "Olá! Aqui é da Apex, revenda Claro Empresas.",
+    sondagem: "Hoje quantas linhas a empresa usa?",
+    maleficios: "A renovação já está liberada e ainda não foi aproveitada.",
+    beneficios: "Com a proposta, a empresa passa para planos maiores.",
+    finalizacao: "Posso fechar hoje?",
+  };
+  const respostaDoModelo = JSON.stringify(etapas);
+
+  function preparar(propostas: unknown[] = []) {
+    sessaoValida();
+    buscarLeadPorCnpj.mockResolvedValue(leadFicticio);
+    listarPropostasPorCnpj.mockResolvedValue(propostas);
+    gerarJson.mockResolvedValue(respostaDoModelo);
+    criarAbordagem.mockResolvedValue({ id: "a1" });
+  }
+
+  it("redireciona pra /login quando não há sessão, sem chamar a IA", async () => {
+    cookieGet.mockReturnValue(undefined);
+    await expect(gerarAbordagemAction("11222333000181")).rejects.toThrow("REDIRECT:/login");
+    expect(gerarJson).not.toHaveBeenCalled();
+  });
+
+  it("recusa CNPJ que não existe na base, sem chamar a IA", async () => {
+    sessaoValida();
+    buscarLeadPorCnpj.mockResolvedValue(null);
+    const resultado = await gerarAbordagemAction("99999999999999");
+    expect(resultado.erro).toMatch(/não encontrado/);
+    expect(gerarJson).not.toHaveBeenCalled();
+    expect(criarAbordagem).not.toHaveBeenCalled();
+  });
+
+  it("sem proposta: gera sem preços e grava proposta_id nulo com o consultor da sessão", async () => {
+    preparar([]);
+
+    const resultado = await gerarAbordagemAction("11222333000181");
+
+    expect(resultado).toEqual({});
+    expect(gerarJson).toHaveBeenCalledTimes(1);
+    expect(gerarJson.mock.calls[0][0].usuario).toContain("Não há proposta salva");
+    expect(criarAbordagem).toHaveBeenCalledWith({}, {
+      cnpjDigits: "11222333000181",
+      consultorId: "c1",
+      propostaId: null,
+      etapas,
+      modelo: MODELO_GEMINI,
+    });
+  });
+
+  it("com propostas: usa a mais recente no pedido e grava o id dela", async () => {
+    preparar([propostaRecente, propostaAntiga]);
+
+    await gerarAbordagemAction("11222333000181");
+
+    const { usuario } = gerarJson.mock.calls[0][0];
+    expect(usuario).toContain("Pós 100GB — por linha");
+    expect(usuario).not.toContain("Pós 12GB antigo");
+    expect(criarAbordagem).toHaveBeenCalledWith({}, expect.objectContaining({ propostaId: "prop-nova" }));
+  });
+
+  it("o pedido à IA não leva CNPJ, telefone nem e-mail do lead", async () => {
+    preparar([propostaRecente]);
+
+    await gerarAbordagemAction("11222333000181");
+
+    const pedido = JSON.stringify(gerarJson.mock.calls[0][0]);
+    for (const proibido of ["11222333000181", "1935737700", "19991002213", "contato@padaria.example"]) {
+      expect(pedido).not.toContain(proibido);
+    }
+  });
+
+  it.each([
+    ["chave ausente", new IaNaoConfiguradaError(), /não está configurada/],
+    ["cota esgotada", new IaCotaEsgotadaError(), /limite da IA/],
+    ["IA sobrecarregada", new IaIndisponivelError(), /sobrecarregada/],
+  ])("falha da IA (%s): mensagem amigável e nada é salvo", async (_nome, erro, esperado) => {
+    preparar([]);
+    gerarJson.mockRejectedValue(erro);
+    const erroNoLog = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const resultado = await gerarAbordagemAction("11222333000181");
+
+    expect(resultado.erro).toMatch(esperado);
+    expect(criarAbordagem).not.toHaveBeenCalled();
+    erroNoLog.mockRestore();
+  });
+
+  it("resposta fora do formato: mensagem amigável e nada é salvo", async () => {
+    preparar([]);
+    gerarJson.mockResolvedValue("isso não é JSON");
+    const erroNoLog = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const resultado = await gerarAbordagemAction("11222333000181");
+
+    expect(resultado.erro).toMatch(/roteiro utilizável/);
+    expect(criarAbordagem).not.toHaveBeenCalled();
+    erroNoLog.mockRestore();
+  });
+
+  it("erro do banco ao salvar: mensagem genérica e o erro real vai para o log do servidor", async () => {
+    preparar([]);
+    criarAbordagem.mockRejectedValue(new Error("banco fora do ar"));
+    const erroNoLog = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const resultado = await gerarAbordagemAction("11222333000181");
+
+    expect(resultado.erro).toMatch(/Não foi possível gerar a abordagem/);
+    expect(erroNoLog).toHaveBeenCalled();
+    erroNoLog.mockRestore();
   });
 });

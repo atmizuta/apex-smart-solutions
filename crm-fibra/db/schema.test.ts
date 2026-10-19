@@ -100,3 +100,46 @@ describe("db/rollback-lead-card.sql", () => {
     expect(view).toContain("c.tempo_contrato_voz > 15");
   });
 });
+
+function blocoDaTabela(sql: string, nome: string): string {
+  const inicio = sql.indexOf(`create table if not exists crm_fibra.${nome}`);
+  return sql.slice(inicio, sql.indexOf(");", inicio));
+}
+
+describe("db/schema.sql — abordagens por IA", () => {
+  it("cria a tabela abordagens", () => {
+    expect(ler("schema.sql")).toContain("create table if not exists crm_fibra.abordagens");
+  });
+
+  it("liga RLS em abordagens (sem policy: só o service role acessa)", () => {
+    expect(ler("schema.sql")).toContain("alter table crm_fibra.abordagens enable row level security;");
+  });
+
+  it("guarda as etapas em jsonb obrigatório e o modelo usado", () => {
+    const bloco = blocoDaTabela(ler("schema.sql"), "abordagens");
+    expect(bloco).toContain("etapas jsonb not null");
+    expect(bloco).toContain("modelo text not null");
+  });
+
+  it("deixa proposta_id nulo e solta o vínculo se a proposta for apagada", () => {
+    const bloco = blocoDaTabela(ler("schema.sql"), "abordagens");
+    const linha = bloco.split("\n").find((l) => l.includes("proposta_id")) ?? "";
+    expect(linha).toContain("references crm_fibra.propostas(id) on delete set null");
+    expect(linha).not.toContain("not null");
+  });
+
+  it("indexa por lead e data decrescente (a aba lê só a mais recente)", () => {
+    expect(ler("schema.sql")).toContain(
+      "create index if not exists idx_abordagens_cnpj_criado on crm_fibra.abordagens (cnpj_digits, criado_em desc);"
+    );
+  });
+});
+
+describe("db/rollback-abordagens.sql", () => {
+  it("derruba só a tabela abordagens", () => {
+    const sql = ler("rollback-abordagens.sql");
+    expect(sql).toContain("drop table if exists crm_fibra.abordagens;");
+    expect(sql).not.toContain("drop table if exists crm_fibra.propostas");
+    expect(sql).not.toContain("drop table if exists crm_fibra.catalogo_planos");
+  });
+});
