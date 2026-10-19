@@ -3322,3 +3322,9 @@ Pedido do usuário: "da mesma forma que já tem o relatório das 17h, tenha o re
 - Código: `RELATORIO_CORTE_HORA_NOITE = 21`; `abrirRelatorio17h()` e `abrirRelatorio21h()` chamam a mesma `abrirRelatorio(corteHora)`.
 - **Sincronização à noite:** a última rodada antes das 21h é a das **20:50** (job `sync-producao-janela-noite-a`, 23:50 UTC); a seguinte é às 21:00. Pedido cadastrado no NEO entre 20:50 e 20:59 entra com hora ≥ 21:00 e fica fora do relatório das 21h (aparece nos cards da Visão Diária do mesmo dia). Nada mudou no banco.
 - Testes: `test_relatorio_17h.js` (59) ganhou o bloco 4.1 (botão, corte das 21h, parcial, janela, consultor sem o botão).
+
+### 100.1 Publicado (19/10/2026, 17:34)
+- Antes de publicar, o painel no ar (`48781bc7…`) era idêntico ao da `oficial/main` 14529a7.
+- Publicado **`bceafb523c50b85ee8d7008d8291e55b`** (gerado = servidor = site; diff só da §100).
+- Backup: `~/deploy_backups/painel_clientes_apex_20261019_173349_antes_relatorio_21h.html`.
+- **Reverter:** copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. Não há mudança de banco nem de função.
