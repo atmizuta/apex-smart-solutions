@@ -55,6 +55,13 @@ describe("montarPedidoAbordagem — instrução de sistema", () => {
     expect(sistema).toContain("afirmar economia, desconto ou percentual");
   });
 
+  it("só descreve a proposta pelos itens listados e proíbe prometer o que não está nos dados", () => {
+    expect(sistema).toContain("use somente os itens listados e o total");
+    expect(sistema).toContain("descrever como incluído na proposta qualquer serviço que não esteja nos itens");
+    expect(sistema).toContain("o fato de o cliente ser candidato a fibra não coloca fibra na proposta");
+    expect(sistema).toContain("prometer recursos, velocidades, prioridade, garantias ou serviços específicos");
+  });
+
   it("limita a forma: 320 caracteres, sem markdown, no máximo um emoji", () => {
     expect(sistema).toContain("até 320 caracteres");
     expect(sistema).toContain("sem markdown");
