@@ -279,8 +279,9 @@ sem bloqueio de CORS). Razão social longa quebra linha em todos os formatos.
   ≤ 60; `quantidade` inteira 1 a 1000; `planoGb` nulo ou inteiro 1 a 1000; `valorUnitario` finito, > 0 e
   ≤ 1.000.000; `consumoMb` nulo ou finito ≥ 0; `origem` ∈ {fatura, digitada}; `faturasAnalisadas` 0 a 6;
   `proposto` nulo ou `{ descricao ≤ 300, valorUnitario > 0 }`; e **qualquer rótulo com 8 ou mais dígitos
-  seguidos é recusado** (origem fatura ou digitada), para que número completo nunca seja gravado, nem por
-  chamada forjada nem por digitação do consultor.
+  no total (ignorando espaços, parênteses e hífen) é recusado** (origem fatura ou digitada), para que
+  número completo nunca seja gravado, nem por chamada forjada nem por digitação do consultor. Contar o
+  total, e não só os seguidos, é o que barra `(17) 99219-9652`, que tem no máximo 5 dígitos seguidos.
 - **Cadastro do catálogo** (`/catalogo`, admin): o formulário de novo plano ganha "Franquia (GB)",
   obrigatório nas categorias Pós Nacional e Pós Regional (inteiro > 0) e ignorado nas demais; a criação
   valida isso no servidor. Editar plano existente continua mudando só valor e observação. Sem a franquia,
