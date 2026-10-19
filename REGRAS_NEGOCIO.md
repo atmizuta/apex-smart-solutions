@@ -3306,4 +3306,9 @@ Correções pedidas pelo Rafael para os pontos menores deixados nas revisões da
 - **Banco:** migration `20261019100000_lead_mailing_comparativo.sql` (security definer; admin/supervisor; período de até 31 dias; sem cliente/CNPJ na saída); rollback em `supabase/rollback/20261019100000_lead_mailing_comparativo_rollback.sql`.
 - **Código:** `origSomar`, `origMelhor`, `origJanelaRpc`, `origComparativo`, `ORIG_LINHAS`, `origTabelaHtml` (perto de `bmPerdas`), `mesaCarregarOrigens`, e os trechos em `bmCarregar`, `bmMontar`, `bmTelaHtml` e `bmPdf`. Testes: `test_lead_mailing.js` (novo, 31 ok); `test_boletim_manha.js` e `test_mesa_supervisor.js` seguem passando.
 - **Ordem de entrada no ar:** migration primeiro, depois o painel. Sem a função, o card da Mesa avisa "não foi possível carregar" e o boletim sai sem a tabela.
-- **Status:** ainda não publicado.
+- **Entrada no ar (19/10/2026, ~15:39, horário de SP):**
+  - a função `lead_mailing_comparativo` foi criada via `execute_sql`, com ok do Rafael. Teste como admin numa transação desfeita, para 12 a 18/10, antes do filtro de pessoas do painel: lead com 51 vendas e 31 perdidas; mailing com 49 vendas e 7 perdidas; base de 161 leads e 2.354 atendidas.
+  - Antes de publicar, o painel no ar (`c31fc994…`) era idêntico ao da `oficial/main` a7405a1.
+  - Publicado **`48781bc7eeeb227222ba4fe42ecf42f2`** (gerado = servidor = site; diff só da §99).
+  - Backup: `~/deploy_backups/painel_clientes_apex_20261019_153857_antes_lead_mailing.html`.
+  - **Reverter:** copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. A função pode ficar; se for preciso apagá-la, usar o rollback.
