@@ -82,8 +82,11 @@ seletor de operação (só admin). Regras de negócio: `REGRAS_NEGOCIO.md` §101
 - **Ritmo diário** = R ÷ Dc (e contratos ÷ Dc). Se Dc = 0 (1º dia útil do mês ou da operação), não há
   ritmo: os cards mostram "—" e o texto "a projeção começa no 2º dia útil".
 - **Projeção mensal** = ritmo × D (= R + ritmo × restantes).
-- **Projeção semanal** = ritmo × dias úteis da semana atual (seg–sex que contém hoje; no sábado e no
-  domingo, a semana seguinte). Conta a semana inteira, mesmo que passe para o outro mês.
+- **Projeção semanal** = realizado ponderado da semana até ontem + ritmo × dias úteis que faltam na semana
+  (com hoje). Semana de segunda a domingo; no sábado e no domingo vale a semana seguinte (inteira projetada).
+  Conta a semana inteira, mesmo que passe para o outro mês. Na segunda-feira é igual a ritmo × dias úteis da
+  semana; no meio da semana bate com a linha "atual" da tabela "Semana a semana". (Ajuste confirmado pelo
+  usuário na revisão do plano, 19/10/2026.)
 - **Projeção diária** = o próprio ritmo.
 - **Mês fechado** (mês anterior ao atual): Dc = D, então a projeção é igual ao realizado; selo "mês
   fechado", e o card da semana mostra "—".

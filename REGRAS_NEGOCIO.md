@@ -3328,3 +3328,34 @@ Pedido do usuário: "da mesma forma que já tem o relatório das 17h, tenha o re
 - Publicado **`bceafb523c50b85ee8d7008d8291e55b`** (gerado = servidor = site; diff só da §100).
 - Backup: `~/deploy_backups/painel_clientes_apex_20261019_173349_antes_relatorio_21h.html`.
 - **Reverter:** copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. Não há mudança de banco nem de função.
+
+## 101. Projeção de Ganho (Dashboard de Produção) e botão "Apex + Campinas" (19/10/2026)
+
+Pedido do usuário: *"adicione uma aba nova no painel que é uma projeção de ganho, que vai pegar: 100% concluido, 100% entrega, 50% antifraude, 50% biometria e APENAS NESSE CASO de projeção de ganho, deixe 100 da validação e sim dentro do 100 entrega, conte apenas os dias uteis do mes [...] tenha opção de baixar excel, e que seja uma projeção mensal, diaria semanal"*; e depois: *"separado de APEX e CAMPINAS, mas também uma opção pra ver a projeção das duas juntas, mas isso apenas para admin, e adicionar isso pro perfil do jaime também, essa projeção apenas de campinas"*. Spec: `docs/superpowers/specs/2026-10-19-projecao-ganho-design.md`; plano: `docs/superpowers/plans/2026-10-19-projecao-ganho.md`.
+
+### 101.1 Regra
+- **Pesos (só nesta aba — Ganho/Andamento do resto do painel não muda):** `CONCLUIDO` 100% · `ENTREGA` 100% · `VALIDAÇÃO ESIM` 100% (somada na faixa "Entrega + Validação eSIM") · `ANTIFRAUDE` 50% · `BIOMETRIA` 50% · **todas as outras etapas 0%** (inclusive Território, Faturamento e Portabilidade em Andamento — decisão do usuário: "só as que eu disse"). Constante `PROJ_FAIXAS`.
+- **Ganho = receita e contratos.** Receita ponderada = Σ valor × peso, linha a linha. Contrato = `pedidoKey` da Visão Diária (pedido distinto; convergência fibra + móvel do mesmo CNPJ no dia = 1), com o **maior peso** entre as linhas dele.
+- **Mês pela data de cadastro** (dia de São Paulo); vale a etapa atual. Todos os grupos entram (a barra de filtros do Dashboard não vale aqui).
+- **Dias úteis:** seg–sex sem feriados nacionais (o calendário do Dashboard). **Ritmo = realizado ponderado até ontem ÷ dias úteis completos.** O que entrou **hoje** aparece como "hoje (parcial)" e só entra no ritmo amanhã. Venda de sábado/domingo/feriado entra no realizado sem contar dia.
+- **Projeções:** mês = ritmo × dias úteis do mês; semana (seg–dom; no fim de semana, a seguinte) = realizado da semana até ontem + ritmo × dias úteis que faltam nela (com hoje) — bate com a linha da semana na tabela; diária = o ritmo. 1º dia útil do mês: sem projeção ("a projeção começa no 2º dia útil"). Mês anterior escolhido no seletor: "mês fechado", projeção = realizado.
+- **Campinas começa em 06/10/2026** (`OPERACAO_INICIO`): no mês de início, os dias úteis contam a partir dessa data (outubro: 18). A Apex conta sempre do dia 1º. Operação nova = acrescentar a data nessa constante.
+- **Apex + Campinas = soma das duas projeções**, cada uma com o próprio ritmo e início. Operação ainda sem dia útil completo fica fora (a tela avisa).
+
+### 101.2 Quem vê e onde
+- Sub-aba **"Projeção de Ganho"** do Dashboard de Produção, logo depois de Vendas Perdidas; **só admin e supervisor** (o consultor não tem o botão). O **Jaime** (supervisor de Campinas) vê só Campinas; supervisores da Apex, só a Apex.
+- **Seletor de operação do admin ganhou o 3º botão "Apex + Campinas"** (Dashboard e Fechamento, que andam juntos): com ele, **todas as sub-abas do Dashboard e o Fechamento** mostram as duas operações somadas. O Boletim da Manhã continua sempre Apex. `'todas'` nunca é operação de perfil nem de vendedor (`OPERACAO_TODAS`, `daOperacao`).
+- Cada pedido vai para o Dashboard marcado com a operação do vendedor (`filtrarDashboardPedidos` preenche `operacao`) e a operação escolhida entra pelo placeholder `__OPERACAO__` (liberado no `build_painel.py`).
+
+### 101.3 Tela e Excel
+- Cards: Projeção do mês (destaque), da semana, diária e Realizado (até ontem + hoje parcial), em R$ e contratos; barra de progresso; gráfico dia a dia (realizado, hoje hachurado, projetado tracejado, linha do ritmo, feriados); semana a semana; por etapa (bruto × peso); por operação (só em Apex + Campinas); por consultor; por tipo de venda (rótulos da Visão Diária, grupo novo aparece pelo nome). Clique abre o analítico. Atualiza junto com a atualização de 1 h, mantendo o mês escolhido.
+- **Baixar Excel** (ExcelJS, como os Pedidos em Alerta): `ProjecaoGanho_<Apex|Campinas|ApexCampinas>_<AAAA-MM>.xlsx`, 7 abas — Resumo, Dia a dia, Semana a semana, Por consultor, Por tipo de venda, Por etapa e Pedidos (um por nº de pedido, com peso, valor ponderado, cliente e CNPJ; só admin/supervisor baixam).
+
+### 101.4 Limitações
+- Consultor que começou no meio do mês fica subestimado no 1º mês (o ritmo dele divide pelos dias úteis da operação).
+- Feriados só nacionais. A separação por operação continua só de exibição (§78).
+- **Bug antigo encontrado, fora desta entrega:** o calendário do Dashboard marca a terça de Carnaval e a Quarta de Cinzas (Páscoa −47/−46) em vez de segunda e terça (−48/−47). Afeta Cadastro Diário, Pedidos em Alerta e esta projeção em fevereiro.
+
+### 101.5 Testes e conferência
+- `test_projecao_ganho.js` (novo, 173 asserções: pesos, dias úteis, ritmo, semana, mês fechado, Campinas, soma das operações, contratos, quebras, tela, Excel) e `test_operacao_campinas.js` (atualizado: 3º botão, `todas`, Boletim, supervisor).
+- **Conferência com os dados reais (19/10/2026, 20:01):** os 279 pedidos ponderados de outubro rodados no dashboard de verdade bateram com o banco — realizado até ontem Apex R$ 6.315,74 e Campinas R$ 1.937,06 (diferença de meio centavo de arredondamento), hoje R$ 134,98 e R$ 389,94; 11 de 21 dias úteis completos na Apex e 8 de 18 em Campinas. Projeção de outubro nesse momento: **Apex R$ 12.057,32**, **Campinas R$ 4.358,37**, **Apex + Campinas R$ 16.415,70** (231,7 contratos).
