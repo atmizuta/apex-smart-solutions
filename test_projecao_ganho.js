@@ -185,6 +185,66 @@ secao('Task 2', () => {
   assert(JSON.stringify(w.projMesesDisponiveis([], 'apex', '2026-10-19')) === '["2026-10"]', 'sem dados: só o mês atual');
 });
 
+// ---------------- Task 3: quebras ----------------
+secao('Task 3', () => {
+  const w = montarDashboard();
+  const p = w.montarProjecao(FIX_APEX, { mes: '2026-10', hoje: '2026-10-19', operacao: 'apex' });
+  const dd = d => p.dias.find(x => x.data === d);
+  assert(p.dias.length === 23, '21 úteis + feriado 12/10 + sábado com venda 17/10 — ' + p.dias.length);
+  assert(dd('2026-10-12').tipo === 'feriado' && dd('2026-10-17').tipo === 'naoUtil' && perto(dd('2026-10-17').valor, 35), 'feriado e sábado com venda');
+  assert(!dd('2026-10-18'), 'domingo sem venda não aparece');
+  assert(dd('2026-10-19').tipo === 'hoje' && perto(dd('2026-10-19').valor, 50), 'hoje parcial');
+  assert(dd('2026-10-20').tipo === 'projetado' && perto(dd('2026-10-20').valor, 40) && perto(dd('2026-10-20').contratos, 7 / 11), 'dia futuro = ritmo');
+  assert(dd('2026-10-08').tipo === 'realizado' && perto(dd('2026-10-08').valor, 0), 'dia útil só com Território = 0');
+  assert(perto(dd('2026-10-01').valor, 100) && perto(dd('2026-10-01').contratos, 1) && dd('2026-10-01').linhas.length === 1, 'dia com 1 pedido');
+  assert(dd('2026-10-14').linhas.length === 2 && perto(dd('2026-10-14').contratos, 1), 'convergência: 2 linhas, 1 contrato');
+
+  const sem = p.semanas;
+  assert(sem.length === 5, '5 semanas — ' + sem.length);
+  const esperado = [
+    ['2026-10-01', '2026-10-04', 2, 'fechada', 160, 2], ['2026-10-05', '2026-10-11', 5, 'fechada', 90, 2],
+    ['2026-10-12', '2026-10-18', 4, 'fechada', 190, 3], ['2026-10-19', '2026-10-25', 5, 'atual', 200, 7 / 11 * 5],
+    ['2026-10-26', '2026-10-31', 5, 'futura', 200, 7 / 11 * 5],
+  ];
+  esperado.forEach((e, i) => {
+    const s = sem[i];
+    assert(s && s.de === e[0] && s.ate === e[1] && s.diasUteis === e[2] && s.tipo === e[3] && perto(s.valor, e[4]) && perto(s.contratos, e[5]),
+      'semana ' + i + ': ' + JSON.stringify(s && { de: s.de, ate: s.ate, diasUteis: s.diasUteis, tipo: s.tipo, valor: s.valor, contratos: s.contratos }));
+  });
+  assert(perto(sem.reduce((a, s) => a + s.valor, 0), 840), 'a soma das semanas é a projeção do mês');
+
+  const c = p.consultores;
+  assert(c.length === 2 && c[0].usuario === 'BRUNO TESTE' && c[1].usuario === 'ANA TESTE', 'maior projeção primeiro');
+  assert(perto(c[0].valor, 235) && perto(c[0].contratos, 3.5) && perto(c[0].ritmo, 235 / 11) && perto(c[0].projMes, 235 / 11 * 21) && perto(c[0].projContratos, 3.5 / 11 * 21), 'Bruno');
+  assert(c[0].linhas.length === 5 && c[0].operacao === 'apex', 'Bruno: 5 linhas até ontem');
+  assert(perto(c[1].valor, 205) && c[1].linhas.length === 5, 'Ana: 205 (hoje fora)');
+
+  const t = g => p.tipos.find(x => x.grupo === g);
+  assert(p.tipos.length === 6 && p.tipos[0].grupo === 'VOZ - Novo', '6 tipos, Linha Nova primeiro');
+  assert(t('VOZ - Novo').label === 'Linha Nova' && perto(t('VOZ - Novo').valor, 245) && t('VOZ - Novo').pedidos === 5, 'Linha Nova: 245 em 5 pedidos');
+  assert(perto(t('VOZ - Novo').pct, 245 / 440) && perto(t('VOZ - Novo').projMes, 245 / 11 * 21), 'Linha Nova: % e projeção');
+  assert(t('SVA MÓVEL').label === 'Claro Monitor' && perto(t('SVA MÓVEL').valor, 5), 'SVA Móvel com o rótulo da Visão Diária');
+  assert(t('GRUPO NOVO X').label === 'GRUPO NOVO X' && perto(t('GRUPO NOVO X').valor, 10), 'grupo novo aparece pelo nome');
+  assert(perto(p.tipos.reduce((a, x) => a + x.valor, 0), 440), 'tipos somam o realizado');
+
+  const e = k => p.etapas.find(x => x.k === k);
+  assert(JSON.stringify(p.etapas.map(x => x.k)) === '["concluido","entrega","antifraude","biometria"]', 'etapas na ordem');
+  assert(e('concluido').contratos === 3 && perto(e('concluido').bruto, 235) && perto(e('concluido').valor, 235), 'Concluído: A1, A8 e a convergência');
+  assert(e('entrega').contratos === 3 && perto(e('entrega').valor, 130), 'Entrega + eSIM: A2, A3 e M1');
+  assert(e('antifraude').contratos === 1 && perto(e('antifraude').bruto, 90) && perto(e('antifraude').valor, 45), 'Antifraude: bruto 90, ponderado 45');
+  assert(e('biometria').contratos === 1 && perto(e('biometria').bruto, 60) && perto(e('biometria').valor, 30), 'Biometria: bruto 60, ponderado 30');
+  assert(perto(p.etapas.reduce((a, x) => a + x.valor, 0), 440) && p.etapas.reduce((a, x) => a + x.contratos, 0) === 8, 'etapas somam 440 e 8 contratos');
+
+  const camp = w.montarProjecao(FIX_CAMP, { mes: '2026-10', hoje: '2026-10-19', operacao: 'campinas' });
+  assert(camp.dias[0].data === '2026-10-06', 'Campinas: gráfico começa em 06/10');
+  assert(camp.semanas.length === 4 && camp.semanas[0].de === '2026-10-05' && camp.semanas[0].diasUteis === 4, 'Campinas: 4 semanas, a 1ª com 4 úteis');
+  assert(perto(camp.semanas.reduce((a, s) => a + s.valor, 0), 360), 'Campinas: semanas somam 360');
+  const tod = w.montarProjecao(FIX_APEX.concat(FIX_CAMP), { mes: '2026-10', hoje: '2026-10-19', operacao: 'todas' });
+  const carla = tod.consultores.find(x => x.usuario === 'CARLA CAMPINAS');
+  assert(tod.consultores.length === 3 && carla.operacao === 'campinas' && perto(carla.projMes, 360), 'Apex + Campinas: Carla com os dias de Campinas');
+  assert(perto(tod.semanas.reduce((a, s) => a + s.valor, 0), 1200), 'Apex + Campinas: semanas somam 1200');
+});
+
 // ---------------- fim ----------------
 Promise.resolve().then(() => typeof testarExcel === 'function' ? testarExcel() : null)
   .catch(err => { fail++; console.log('FALHOU (exceção no teste do Excel):', err && err.stack || err); })
