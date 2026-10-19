@@ -245,6 +245,92 @@ secao('Task 3', () => {
   assert(perto(tod.semanas.reduce((a, s) => a + s.valor, 0), 1200), 'Apex + Campinas: semanas somam 1200');
 });
 
+// ---------------- Task 4: tela ----------------
+secao('Task 4', () => {
+  const w = montarDashboard();
+  const d = w.document;
+  const btn = d.querySelector('.tabs [data-tab="projecao"]');
+  assert(!!btn && btn.textContent === 'Projeção de Ganho', 'botão da sub-aba para admin/supervisor');
+  assert(btn && btn.previousElementSibling && btn.previousElementSibling.dataset.tab === 'perdidas', 'logo depois de Vendas Perdidas');
+  w.switchTab('projecao');
+  assert(d.getElementById('tabProjecao').classList.contains('active') && d.body.classList.contains('tab-projecao'), 'switchTab abre a sub-aba e esconde os filtros');
+  assert(txt(d.getElementById('projTitulo').textContent) === 'Projeção de Ganho · Operação Apex', 'título com a operação');
+  const opts = [...d.querySelectorAll('#projMes option')].map(o => o.value);
+  assert(JSON.stringify(opts) === '["2026-10","2026-09"]' && d.getElementById('projMes').value === '2026-10', 'seletor de mês abre no mês atual');
+  assert(/Antifraude 50%/.test(txt(d.getElementById('projRegra').textContent)) && /Demais etapas 0%/.test(txt(d.getElementById('projRegra').textContent)), 'selos da regra');
+
+  const cards = [...d.querySelectorAll('#projCards .card')];
+  const lab = i => txt(cards[i].querySelector('.label').textContent), val = i => txt(cards[i].querySelector('.value').textContent), sub = i => txt(cards[i].querySelector('.proj-card-sub').textContent);
+  assert(cards.length === 4, '4 cards');
+  assert(lab(0) === 'Projeção do mês · 21 dias úteis' && val(0) === 'R$ 840,00' && cards[0].classList.contains('proj-hero'), 'card do mês: ' + lab(0) + ' / ' + val(0));
+  assert(lab(1) === 'Projeção da semana · 19/10 a 23/10' && val(1) === 'R$ 200,00' && /5 dias úteis/.test(sub(1)), 'card da semana: ' + lab(1) + ' / ' + val(1));
+  assert(val(2) === 'R$ 40,00' && /contratos por dia/.test(sub(2)), 'card diário');
+  assert(val(3) === 'R$ 440,00' && /7,0 contratos até ontem/.test(sub(3)) && /hoje \(parcial\): R\$ 50,00/.test(sub(3)), 'card realizado: ' + sub(3));
+  const prog = txt(d.getElementById('projProgresso').textContent);
+  assert(/52,4% da projeção do mês já realizado/.test(prog) && /11 de 21 dias úteis completos · faltam 10 \(com hoje\)/.test(prog), 'barra de progresso: ' + prog);
+
+  assert(d.querySelectorAll('#projDias .proj-col').length === 23, '23 barras');
+  assert(d.querySelectorAll('#projDias .proj-hoje').length === 1 && d.querySelectorAll('#projDias .proj-projetado').length === 9, 'hoje + 9 projetadas');
+  assert(d.querySelectorAll('#projDias .proj-feriado').length === 1 && d.querySelectorAll('#projDias .proj-naoUtil').length === 1, 'feriado e sábado');
+  assert(/ritmo R\$ 40,00/.test(txt(d.querySelector('#projDias .proj-ritmo').textContent)), 'linha do ritmo');
+
+  const semRows = d.querySelectorAll('#projSemanas tbody tr');
+  assert(semRows.length === 6 && /01\/10–04\/10/.test(txt(semRows[0].textContent)) && /R\$ 160,00/.test(txt(semRows[0].textContent)), 'semanas + total');
+  assert(semRows[3].classList.contains('proj-atual') && /R\$ 840,00/.test(txt(semRows[5].textContent)), 'semana atual marcada e total do mês');
+  const etRows = d.querySelectorAll('#projEtapas tbody tr');
+  assert(etRows.length === 5 && /Concluído/.test(etRows[0].textContent) && /R\$ 235,00/.test(txt(etRows[0].textContent)) && /100%/.test(etRows[0].textContent), 'etapas: Concluído');
+  assert(/Antifraude/.test(etRows[2].textContent) && /50%/.test(etRows[2].textContent) && /R\$ 45,00/.test(txt(etRows[2].textContent)), 'etapas: Antifraude');
+  const coRows = d.querySelectorAll('#projConsultores tbody tr');
+  assert(!/Operação/.test(d.querySelector('#projConsultores thead').textContent), 'sem coluna Operação numa operação só');
+  assert(coRows.length === 2 && /BRUNO TESTE/.test(coRows[0].textContent) && /R\$ 448,64/.test(txt(coRows[0].textContent)), 'consultores: Bruno primeiro');
+  const tiRows = d.querySelectorAll('#projTipos tbody tr');
+  assert(tiRows.length === 6 && /Linha Nova/.test(tiRows[0].textContent) && /Claro Monitor/.test(d.getElementById('projTipos').textContent), 'tipos de venda');
+  assert(d.getElementById('projOperacoesBloco').style.display === 'none', 'quadro Por operação escondido numa operação só');
+
+  // clique abre o analítico com os pedidos por trás do número (o texto do analítico diz quantas linhas)
+  coRows[0].dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  assert(d.getElementById('drilldownTitle').textContent === 'Projeção — BRUNO TESTE' && /^5 linha\(s\)/.test(d.getElementById('drilldownSub').textContent), 'analítico do consultor');
+  d.querySelector('#projDias [data-proj="dia:2026-10-14"]').dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  assert(/^2 linha\(s\)/.test(d.getElementById('drilldownSub').textContent), 'analítico do dia 14/10');
+
+  // mês fechado
+  d.getElementById('projMes').value = '2026-09';
+  w.renderProjecaoSeguro();
+  const c2 = [...d.querySelectorAll('#projCards .card')];
+  assert(txt(c2[0].querySelector('.label').textContent) === 'Mês fechado · 21 dias úteis' && txt(c2[0].querySelector('.value').textContent) === 'R$ 70,00', 'setembro fechado');
+  assert(txt(c2[1].querySelector('.value').textContent) === '—', 'sem semana em mês fechado');
+  // atualização de 1 h mantém o mês escolhido
+  w.atualizarDadosDashboard(FIX_APEX.concat([ped({ numero_pedido: 'A11', cadastro: dia('2026-10-16'), valor: 110 })]), '19/10/2026, 15:59:02');
+  assert(d.getElementById('projMes').value === '2026-09', 'atualização de 1 h não troca o mês escolhido');
+  d.getElementById('projMes').value = '2026-10';
+  w.renderProjecaoSeguro();
+  assert(txt(d.querySelector('#projCards .card .value').textContent) === 'R$ 1.050,00', 'dados novos entram na projeção (550 ÷ 11 × 21)');
+
+  // Apex + Campinas
+  const wt = montarDashboard({ operacao: 'todas', data: FIX_APEX.concat(FIX_CAMP) });
+  const dt = wt.document;
+  assert(txt(dt.getElementById('projTitulo').textContent) === 'Projeção de Ganho · Apex + Campinas', 'título Apex + Campinas');
+  assert(txt(dt.querySelector('#projCards .card .value').textContent) === 'R$ 1.200,00', 'mês das duas = 1.200');
+  assert(dt.getElementById('projOperacoesBloco').style.display === '' && dt.querySelectorAll('#projOperacoes tbody tr').length === 2, 'quadro Por operação');
+  const linhaCamp = txt(dt.querySelectorAll('#projOperacoes tbody tr')[1].textContent);
+  assert(/Campinas/.test(linhaCamp) && /desde 06\/10/.test(linhaCamp) && /R\$ 360,00/.test(linhaCamp), 'linha de Campinas: ' + linhaCamp);
+  assert(/Operação/.test(dt.querySelector('#projConsultores thead').textContent) && dt.querySelectorAll('#projConsultores tbody tr').length === 3, 'consultores com a coluna Operação');
+  // Jaime: só Campinas
+  const wc = montarDashboard({ operacao: 'campinas', data: FIX_CAMP });
+  const cc = wc.document.querySelector('#projCards .card');
+  assert(txt(cc.querySelector('.value').textContent) === 'R$ 360,00' && /18 dias úteis/.test(cc.querySelector('.label').textContent), 'Campinas: 360 em 18 dias úteis');
+  assert(JSON.stringify([...wc.document.querySelectorAll('#projMes option')].map(o => o.value)) === '["2026-10"]', 'Campinas: sem meses antes do início');
+  // consultor: a sub-aba não existe
+  const wn = montarDashboard({ adminMode: false });
+  assert(!wn.document.getElementById('tabProjecao') && !wn.document.querySelector('[data-tab="projecao"]'), 'consultor não vê a sub-aba');
+  // 1º dia útil e Campinas sem dia completo
+  const w1 = montarDashboard({ agora: Date.parse('2026-10-01T10:00:00-03:00') });
+  const k1 = w1.document.querySelector('#projCards .card');
+  assert(txt(k1.querySelector('.value').textContent) === '—' && /a projeção começa no 2º dia útil/.test(k1.textContent), '1º dia útil sem projeção');
+  const w6 = montarDashboard({ operacao: 'todas', data: FIX_APEX.concat(FIX_CAMP), agora: Date.parse('2026-10-06T10:00:00-03:00') });
+  assert(/Operação Campinas ainda sem dia útil completo/.test(w6.document.getElementById('projMsg').textContent), 'aviso de Campinas sem dia completo');
+});
+
 // ---------------- fim ----------------
 Promise.resolve().then(() => typeof testarExcel === 'function' ? testarExcel() : null)
   .catch(err => { fail++; console.log('FALHOU (exceção no teste do Excel):', err && err.stack || err); })
