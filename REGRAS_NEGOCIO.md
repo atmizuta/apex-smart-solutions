@@ -3377,3 +3377,9 @@ Pedido do usuário: *"precisaria de uma projeção de ganho de cada tipo de vend
 - **Código:** `projQuebraTipos`, `projTotalTipos`, `projTiposHtml`, `projTiposSubTexto` no dashboard embutido; `montarProjecao` passou a guardar `linhasSemana` e `semana.restantes` de cada operação.
 - **Testes:** `test_projecao_ganho.js` com 223 asserções (seção nova "Tipos de venda": linhas com peso, rótulos, zerados, grupo novo, quarta-feira, semana que começa em novembro, 1º dia útil, mês fechado, Apex + Campinas, total = cards; tela e Excel). Suíte inteira: só as 3 falhas que já existiam no `oficial/main` (`test_pedidos_alerta.js` 2, `test_redesign_shell.js` 1).
 - **Conferência com os dados reais (20/10/2026, sem cliente/CNPJ):** os 327 registros com peso de outubro rodados no dashboard de verdade bateram com o banco tipo a tipo (diferença de 1 centavo de arredondamento). Apex: Linha Nova R$ 5.944,52 (110,3 linhas), Portabilidade R$ 4.295,34 (91,0), Migração R$ 1.714,63 (36,8), Banda Larga R$ 1.188,43 (15,8), Renovação R$ 691,09 (15,8), Claro Monitor R$ 393,75 (78,8) — total R$ 14.227,76 = card do mês. Campinas: Migração R$ 3.699,34 (66,0 linhas) de R$ 4.344,04. Apex + Campinas: R$ 18.571,80.
+
+### 101.8 Publicado (20/10/2026, ~19:06 SP)
+- Antes de publicar, o painel no ar (`940f59df…`) era idêntico ao da `oficial/main` 34259df (§101.6) — nada publicado por fora.
+- Publicado **`93953bde53e42a27d6664cfd278d29f9`** (gerado = servidor = site, com e sem `www`; HTTP 200, 1.604.301 bytes). Tela de login carregada no navegador sem erro no console.
+- Backup: `~/deploy_backups/painel_clientes_apex_20261020_190602_antes_projecao_tipos.html` (MD5 `940f59df…`).
+- **Reverter:** copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. Não há mudança de banco nem de função.
