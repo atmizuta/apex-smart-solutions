@@ -2,10 +2,13 @@ import { describe, it, expect } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   somarValores,
+  subtotalDaLinha,
+  valorUnitarioDoItem,
   validarItensProposta,
   criarProposta,
   listarPropostasPorCnpj,
   LIMITE_DESCRICAO,
+  LIMITE_QUANTIDADE_ITEM,
   type NovoItemProposta,
 } from "./propostas";
 
@@ -78,9 +81,9 @@ const propostaRow = {
 };
 
 const itensEntrada: NovoItemProposta[] = [
-  { catalogoPlanoId: "p1", descricao: "400 Mega (G1 Padrão) — single/combinado/convergência", valor: 79.9 },
-  { catalogoPlanoId: null, descricao: "Oferta avulsa combinada por telefone", valor: 59.9 },
-  { catalogoPlanoId: "p9", descricao: "Claro Monitor", valor: 5 },
+  { catalogoPlanoId: "p1", descricao: "400 Mega (G1 Padrão) — single/combinado/convergência", valor: 79.9, quantidade: 1, franquiaGb: null },
+  { catalogoPlanoId: null, descricao: "Oferta avulsa combinada por telefone", valor: 59.9, quantidade: 1, franquiaGb: null },
+  { catalogoPlanoId: "p9", descricao: "Claro Monitor", valor: 5, quantidade: 1, franquiaGb: null },
 ];
 
 function bancoQueAceitaTudo() {
@@ -106,7 +109,7 @@ describe("somarValores", () => {
 });
 
 describe("validarItensProposta", () => {
-  const ok: NovoItemProposta = { catalogoPlanoId: null, descricao: "Oferta", valor: 10 };
+  const ok: NovoItemProposta = { catalogoPlanoId: null, descricao: "Oferta", valor: 10, quantidade: 1, franquiaGb: null };
 
   it("aceita uma lista válida", () => {
     expect(validarItensProposta([ok])).toBeNull();
@@ -147,9 +150,9 @@ describe("criarProposta", () => {
       payload: { cnpj_digits: "00005087000190", consultor_id: "c1" },
     });
     expect(itens.payload).toEqual([
-      { proposta_id: "prop1", catalogo_plano_id: "p1", descricao: "400 Mega (G1 Padrão) — single/combinado/convergência", valor: 79.9, ordem: 0 },
-      { proposta_id: "prop1", catalogo_plano_id: null, descricao: "Oferta avulsa combinada por telefone", valor: 59.9, ordem: 1 },
-      { proposta_id: "prop1", catalogo_plano_id: "p9", descricao: "Claro Monitor", valor: 5, ordem: 2 },
+      { proposta_id: "prop1", catalogo_plano_id: "p1", descricao: "400 Mega (G1 Padrão) — single/combinado/convergência", valor: 79.9, quantidade: 1, franquia_gb: null, ordem: 0 },
+      { proposta_id: "prop1", catalogo_plano_id: null, descricao: "Oferta avulsa combinada por telefone", valor: 59.9, quantidade: 1, franquia_gb: null, ordem: 1 },
+      { proposta_id: "prop1", catalogo_plano_id: "p9", descricao: "Claro Monitor", valor: 5, quantidade: 1, franquia_gb: null, ordem: 2 },
     ]);
     expect(proposta.id).toBe("prop1");
     expect(proposta.total).toBe(144.8);
@@ -280,5 +283,121 @@ describe("listarPropostasPorCnpj", () => {
     await expect(
       listarPropostasPorCnpj(client as unknown as SupabaseClient, "00005087000190")
     ).rejects.toMatchObject({ message: "boom" });
+  });
+});
+
+describe("subtotalDaLinha / valorUnitarioDoItem", () => {
+  it("multiplica em centavos inteiros, sem erro de ponto flutuante", () => {
+    expect(subtotalDaLinha(39.99, 7)).toBe(279.93);
+    expect(subtotalDaLinha(0.1, 3)).toBe(0.3);
+    expect(subtotalDaLinha(149.9, 1)).toBe(149.9);
+  });
+
+  it("o unitário é o subtotal dividido pela quantidade, em centavos", () => {
+    expect(valorUnitarioDoItem({ valor: 279.93, quantidade: 7 })).toBe(39.99);
+    expect(valorUnitarioDoItem({ valor: 5, quantidade: 1 })).toBe(5);
+  });
+});
+
+describe("validarItensProposta — quantidade e franquia", () => {
+  const ok: NovoItemProposta = { catalogoPlanoId: null, descricao: "Oferta", valor: 10, quantidade: 1, franquiaGb: null };
+
+  it.each([0, -1, 1.5, Number.NaN, LIMITE_QUANTIDADE_ITEM + 1])("recusa quantidade %s", (quantidade) => {
+    expect(validarItensProposta([{ ...ok, quantidade }])).toMatch(/quantidade/);
+  });
+
+  it("aceita os extremos de quantidade", () => {
+    expect(validarItensProposta([{ ...ok, quantidade: 1 }])).toBeNull();
+    expect(validarItensProposta([{ ...ok, quantidade: LIMITE_QUANTIDADE_ITEM }])).toBeNull();
+  });
+
+  it.each([0, -3, 2.5, 1001])("recusa franquia %s", (franquiaGb) => {
+    expect(validarItensProposta([{ ...ok, franquiaGb }])).toMatch(/franquia/);
+  });
+
+  it("aceita franquia nula ou inteira", () => {
+    expect(validarItensProposta([{ ...ok, franquiaGb: null }])).toBeNull();
+    expect(validarItensProposta([{ ...ok, franquiaGb: 40 }])).toBeNull();
+  });
+});
+
+describe("criarProposta — quantidade, franquia e situação atual", () => {
+  const situacao = {
+    faturasAnalisadas: 1,
+    linhas: [
+      { rotulo: "(17) ••••• 0001", quantidade: 1, planoGb: 10, valorUnitario: 48.49, consumoMb: 1000, origem: "fatura" as const, proposto: null },
+    ],
+  };
+
+  it("grava quantidade e franquia_gb dos itens, e o total soma os subtotais", async () => {
+    const client = bancoQueAceitaTudo();
+    const proposta = await criarProposta(client as unknown as SupabaseClient, {
+      cnpjDigits: "00005087000190",
+      consultorId: "c1",
+      itens: [
+        { catalogoPlanoId: "p12", descricao: "Pós 12GB — por linha", valor: 279.93, quantidade: 7, franquiaGb: 12 },
+        { catalogoPlanoId: "p9", descricao: "Claro Monitor", valor: 35, quantidade: 7, franquiaGb: null },
+      ],
+    });
+    const itens = client.operacoes.find((op: Operacao) => op.tabela === "proposta_itens");
+    expect(itens.payload).toEqual([
+      expect.objectContaining({ valor: 279.93, quantidade: 7, franquia_gb: 12, ordem: 0 }),
+      expect.objectContaining({ valor: 35, quantidade: 7, franquia_gb: null, ordem: 1 }),
+    ]);
+    expect(proposta.total).toBe(314.93);
+    expect(proposta.itens.map((i) => [i.quantidade, i.franquiaGb])).toEqual([
+      [7, 12],
+      [7, null],
+    ]);
+  });
+
+  it("grava a situação atual no cabeçalho (e nulo quando não há fatura)", async () => {
+    const comFatura = bancoQueAceitaTudo();
+    await criarProposta(comFatura as unknown as SupabaseClient, {
+      cnpjDigits: "00005087000190",
+      consultorId: "c1",
+      itens: itensEntrada,
+      situacaoAtual: situacao,
+    });
+    expect(comFatura.operacoes[0].payload.situacao_atual).toEqual(situacao);
+
+    const semFatura = bancoQueAceitaTudo();
+    await criarProposta(semFatura as unknown as SupabaseClient, {
+      cnpjDigits: "00005087000190",
+      consultorId: "c1",
+      itens: itensEntrada,
+    });
+    expect(semFatura.operacoes[0].payload.situacao_atual).toBeNull();
+  });
+});
+
+describe("listarPropostasPorCnpj — campos novos", () => {
+  it("devolve quantidade, franquia e situação atual; linha antiga (sem as colunas) vira 1, nulo e nulo", async () => {
+    const situacao = { faturasAnalisadas: 1, linhas: [] };
+    const client = makeClientFake((op) => {
+      if (op.tabela === "propostas") {
+        return {
+          data: [
+            { id: "nova", cnpj_digits: "00005087000190", consultor_id: "c1", criado_em: "2026-10-08T17:32:00Z", situacao_atual: situacao },
+            { id: "antiga", cnpj_digits: "00005087000190", consultor_id: "c1", criado_em: "2026-10-01T12:00:00Z" },
+          ],
+          error: null,
+        };
+      }
+      return {
+        data: [
+          { id: "i1", proposta_id: "nova", catalogo_plano_id: "p12", descricao: "A", valor: 279.93, ordem: 0, quantidade: 7, franquia_gb: 12 },
+          { id: "i2", proposta_id: "antiga", catalogo_plano_id: null, descricao: "B", valor: 10, ordem: 0 },
+        ],
+        error: null,
+      };
+    });
+
+    const [nova, antiga] = await listarPropostasPorCnpj(client as unknown as SupabaseClient, "00005087000190");
+
+    expect(nova.situacaoAtual).toEqual(situacao);
+    expect(nova.itens[0]).toMatchObject({ quantidade: 7, franquiaGb: 12 });
+    expect(antiga.situacaoAtual).toBeNull();
+    expect(antiga.itens[0]).toMatchObject({ quantidade: 1, franquiaGb: null });
   });
 });

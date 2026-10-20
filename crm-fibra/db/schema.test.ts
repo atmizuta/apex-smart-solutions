@@ -143,3 +143,69 @@ describe("db/rollback-abordagens.sql", () => {
     expect(sql).not.toContain("drop table if exists crm_fibra.catalogo_planos");
   });
 });
+
+const MARCADOR_FATURA = "-- Proposta com fatura (sub-projeto 5)";
+
+function blocoDaFatura(sql: string): string {
+  const inicio = sql.indexOf(MARCADOR_FATURA);
+  return inicio === -1 ? "" : sql.slice(inicio);
+}
+
+describe("db/schema.sql — proposta com fatura", () => {
+  it("tem o bloco do sub-projeto 5", () => {
+    expect(blocoDaFatura(ler("schema.sql"))).not.toBe("");
+  });
+
+  it("dá franquia_gb ao catálogo, nula ou positiva", () => {
+    const bloco = blocoDaFatura(ler("schema.sql"));
+    expect(bloco).toContain("alter table crm_fibra.catalogo_planos");
+    expect(bloco).toMatch(/add column if not exists franquia_gb integer check \(franquia_gb is null or franquia_gb > 0\)/);
+  });
+
+  it("preenche a franquia dos Pós a partir do nome, sem sobrescrever o que já existe", () => {
+    const bloco = blocoDaFatura(ler("schema.sql"));
+    expect(bloco).toContain("update crm_fibra.catalogo_planos");
+    expect(bloco).toContain("substring(nome from '^Pós ([0-9]+)GB')");
+    expect(bloco).toContain("categoria in ('pos_nacional', 'pos_regional')");
+    expect(bloco).toContain("franquia_gb is null");
+  });
+
+  it("dá quantidade (1 a 1000, padrão 1) e franquia_gb aos itens da proposta", () => {
+    const bloco = blocoDaFatura(ler("schema.sql"));
+    expect(bloco).toContain("alter table crm_fibra.proposta_itens");
+    expect(bloco).toMatch(
+      /add column if not exists quantidade integer not null default 1 check \(quantidade between 1 and 1000\)/
+    );
+    expect(bloco).toMatch(/add column if not exists franquia_gb integer check \(franquia_gb is null or franquia_gb > 0\)/);
+  });
+
+  it("guarda a situação atual em jsonb opcional", () => {
+    const bloco = blocoDaFatura(ler("schema.sql"));
+    expect(bloco).toContain("alter table crm_fibra.propostas add column if not exists situacao_atual jsonb;");
+  });
+
+  it("é idempotente: toda coluna nova usa if not exists", () => {
+    const bloco = blocoDaFatura(ler("schema.sql"));
+    const todas = bloco.match(/add column/g) ?? [];
+    const seguras = bloco.match(/add column if not exists/g) ?? [];
+    expect(todas.length).toBe(4);
+    expect(seguras.length).toBe(todas.length);
+  });
+
+  it("não cria policy nem mexe nos 22 planos semeados", () => {
+    const sql = ler("schema.sql");
+    expect(sql).not.toMatch(/create policy/i);
+    expect(linhasDoSeed(sql)).toHaveLength(22);
+  });
+});
+
+describe("db/rollback-proposta-fatura.sql", () => {
+  it("remove as quatro colunas e só elas", () => {
+    const sql = ler("rollback-proposta-fatura.sql");
+    expect(sql).toContain("alter table crm_fibra.propostas drop column if exists situacao_atual;");
+    expect(sql).toContain("alter table crm_fibra.proposta_itens drop column if exists franquia_gb;");
+    expect(sql).toContain("alter table crm_fibra.proposta_itens drop column if exists quantidade;");
+    expect(sql).toContain("alter table crm_fibra.catalogo_planos drop column if exists franquia_gb;");
+    expect(sql).not.toMatch(/drop table/i);
+  });
+});

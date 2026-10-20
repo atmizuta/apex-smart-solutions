@@ -10,13 +10,16 @@ import {
 } from "@/components/ui/table";
 import { formatarBRL, formatarDataHora } from "@/lib/formato";
 import type { Proposta } from "@/lib/propostas";
+import { ExportarSalva } from "./exportar-salva";
 
 export function PropostasSalvas({
   propostas,
   nomesConsultores,
+  cliente,
 }: {
   propostas: Proposta[];
   nomesConsultores: Record<string, string>;
+  cliente: { razaoSocial: string; cnpjDigits: string };
 }) {
   if (propostas.length === 0) {
     return (
@@ -43,13 +46,15 @@ export function PropostasSalvas({
               <TableHeader>
                 <TableRow>
                   <TableHead>Descrição</TableHead>
-                  <TableHead className="w-32 text-right">Valor</TableHead>
+                  <TableHead className="w-20 text-right">Qtd</TableHead>
+                  <TableHead className="w-32 text-right">Subtotal</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {proposta.itens.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="whitespace-normal">{item.descricao}</TableCell>
+                    <TableCell className="text-right">{item.quantidade}</TableCell>
                     <TableCell className="text-right">{formatarBRL(item.valor)}</TableCell>
                   </TableRow>
                 ))}
@@ -58,6 +63,11 @@ export function PropostasSalvas({
             <p className="mt-3 text-right text-sm font-semibold">
               Total: {formatarBRL(proposta.total)}
             </p>
+            <ExportarSalva
+              proposta={proposta}
+              nomeConsultor={nomesConsultores[proposta.consultorId] ?? "Consultor"}
+              cliente={cliente}
+            />
           </CardContent>
         </Card>
       ))}

@@ -50,6 +50,19 @@ export function NovoPlanoForm() {
         />
       </div>
       <div className="space-y-1">
+        <label htmlFor="novo-plano-franquia" className="text-xs text-muted-foreground">
+          Franquia (GB)
+        </label>
+        <Input
+          id="novo-plano-franquia"
+          name="franquia"
+          inputMode="numeric"
+          placeholder="40"
+          className="w-24"
+        />
+        <p className="text-[11px] text-muted-foreground">Obrigatória nos planos Pós</p>
+      </div>
+      <div className="space-y-1">
         <label htmlFor="novo-plano-observacao" className="text-xs text-muted-foreground">
           Observação
         </label>

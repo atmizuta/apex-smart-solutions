@@ -13,6 +13,7 @@ import {
   validarItensProposta,
   type NovoItemProposta,
 } from "@/lib/propostas";
+import { validarSituacaoAtual, type SituacaoAtual } from "@/lib/fatura/tipos";
 import { criarAbordagem } from "@/lib/abordagens";
 import { interpretarResposta, montarPedidoAbordagem } from "@/lib/ia/abordagem";
 import { mensagemDeErroIa } from "@/lib/ia/erros";
@@ -26,6 +27,17 @@ async function sessaoAtiva() {
   const consultor = await buscarConsultorPorId(getSupabaseAdmin(), session.consultorId);
   if (!consultor || !consultor.ativo) redirect("/login");
   return consultor;
+}
+
+// O erro do Supabase traz `details` com a linha que falhou (aí iria a situação
+// atual do cliente): no log do servidor vão só a mensagem e o código.
+// Função privada: arquivo "use server" só pode exportar funções assíncronas.
+function resumoDoErro(err: unknown): { message: string; code?: string } {
+  const bruto = (err ?? {}) as { message?: unknown; code?: unknown };
+  return {
+    message: typeof bruto.message === "string" ? bruto.message : "erro desconhecido",
+    ...(typeof bruto.code === "string" ? { code: bruto.code } : {}),
+  };
 }
 
 export async function atribuirLeadAction(cnpjDigits: string): Promise<{ erro?: string }> {
@@ -72,7 +84,8 @@ export async function registrarMensagemAction(
 
 export async function salvarPropostaAction(
   cnpjDigits: string,
-  itens: NovoItemProposta[]
+  itens: NovoItemProposta[],
+  situacaoAtual: SituacaoAtual | null = null
 ): Promise<{ erro?: string }> {
   const consultor = await sessaoAtiva();
 
@@ -81,10 +94,15 @@ export async function salvarPropostaAction(
     catalogoPlanoId: typeof item?.catalogoPlanoId === "string" ? item.catalogoPlanoId : null,
     descricao: String(item?.descricao ?? "").trim(),
     valor: Number(item?.valor),
+    quantidade: Number(item?.quantidade),
+    franquiaGb: item?.franquiaGb === null || item?.franquiaGb === undefined ? null : Number(item.franquiaGb),
   }));
 
   const erro = validarItensProposta(itensLimpos);
   if (erro) return { erro };
+
+  const situacao = validarSituacaoAtual(situacaoAtual);
+  if (!situacao.ok) return { erro: situacao.erro };
 
   // Um erro do banco aqui não pode estourar: no cliente isso derruba a página
   // inteira e o consultor perde o rascunho da proposta que ele montou.
@@ -96,9 +114,10 @@ export async function salvarPropostaAction(
       cnpjDigits,
       consultorId: consultor.id,
       itens: itensLimpos,
+      situacaoAtual: situacao.valor,
     });
   } catch (err) {
-    console.error("salvarPropostaAction falhou", err);
+    console.error("salvarPropostaAction falhou", resumoDoErro(err));
     return { erro: "Não foi possível salvar a proposta agora. Tente de novo em instantes." };
   }
 

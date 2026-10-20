@@ -10,6 +10,7 @@ import {
   CATEGORIAS_CATALOGO,
   PlanoJaExisteError,
   atualizarPlano,
+  categoriaTemFranquia,
   criarPlano,
   definirPlanoAtivo,
   type CategoriaCatalogo,
@@ -29,6 +30,16 @@ async function exigirAdmin() {
 }
 
 const ERRO_VALOR = "Informe um valor válido, por exemplo 149,90";
+const ERRO_FRANQUIA = "Informe a franquia em GB (número inteiro de 1 a 1000)";
+
+// Funções privadas: arquivo "use server" só pode exportar funções assíncronas.
+function lerFranquia(categoria: CategoriaCatalogo, texto: string): number | null | "erro" {
+  if (!categoriaTemFranquia(categoria)) return null;
+  const limpo = texto.trim();
+  if (!/^\d{1,4}$/.test(limpo)) return "erro";
+  const numero = Number(limpo);
+  return numero >= 1 && numero <= 1000 ? numero : "erro";
+}
 
 export type CriarPlanoState = { erro?: string; sucesso?: boolean };
 
@@ -48,6 +59,8 @@ export async function criarPlanoAction(
   }
   if (!nome) return { erro: "Informe o nome do plano" };
   if (valor === null) return { erro: ERRO_VALOR };
+  const franquiaGb = lerFranquia(categoria as CategoriaCatalogo, String(formData.get("franquia") ?? ""));
+  if (franquiaGb === "erro") return { erro: ERRO_FRANQUIA };
 
   try {
     await criarPlano(getSupabaseAdmin(), {
@@ -55,6 +68,7 @@ export async function criarPlanoAction(
       nome,
       valor,
       observacao,
+      franquiaGb,
     });
   } catch (err) {
     if (err instanceof PlanoJaExisteError) {

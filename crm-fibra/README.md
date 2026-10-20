@@ -150,3 +150,59 @@ modelo não sugere outros planos). O texto é um rascunho: o consultor lê antes
 6. Troque de aba e volte → o roteiro continua na tela.
 7. Peça a outro consultor para gerar no mesmo lead → os dois conseguem; a aba mostra o mais
    recente.
+
+## Proposta com fatura, comparativo e exportação (Plano 5)
+
+A aba **Proposta** da ficha `/leads/[cnpj]` virou o gerador de proposta do painel (aba *Gerar
+Proposta* + *Analisar Fatura*), com a fatura como porta de entrada: o consultor anexa a fatura
+Claro em PDF (ou digita as linhas), vê o plano sugerido para cada linha pelo consumo, compara o que
+o cliente paga com a nova proposta e exporta **Word, PDF do consultor, PDF do cliente e PNG**, com
+envio por WhatsApp.
+
+**Migração (a aplicar em produção antes de publicar o código):** `db/schema.sql` (idempotente)
+acrescentou `catalogo_planos.franquia_gb`, `proposta_itens.quantidade`, `proposta_itens.franquia_gb`
+e `propostas.situacao_atual`. `db/rollback-proposta-fatura.sql` desfaz (e apaga o que essas colunas
+guardam). **Ordem:** aplicar a migração ANTES de publicar o código; para desfazer, republique antes o
+código anterior (a ficha lê essas colunas e quebraria sem elas).
+
+**Privacidade:** a fatura é lida **no navegador** (pdf.js) e nunca é enviada ao servidor nem a
+terceiros (nada de IA). O telefone de cada linha vira `(DD) ••••• NNNN` assim que sai do leitor; só
+isso aparece na tela, no banco e nos documentos. Um nome de linha com 8 ou mais dígitos é recusado.
+
+**Leitura da fatura:** só PDF com texto, no formato da fatura Claro Empresas com detalhamento por
+linha (o mesmo leitor do painel, validado com dois modelos). PDF escaneado ou de outro layout não é
+lido: a tela avisa e o consultor digita as linhas. Com 2 a 6 faturas vale a média de consumo e de valor
+por linha. Sugestão por consumo: a partir de 90% da franquia sugere upgrade; até 40% sugere downgrade
+(o plano novo precisa cobrir o consumo com 20% de folga); no meio, mantém. Só o Pós Nacional entra na
+sugestão automática; o regional é escolha manual.
+
+**Catálogo:** o formulário de `/catalogo` ganhou "Franquia (GB)", obrigatória nos planos Pós (sem ela, o
+plano não entra na sugestão por consumo).
+
+**WhatsApp:** só para o dono do lead. A mensagem é um modelo fixo e editável, que nunca fala em
+economia. O WhatsApp não aceita anexo por link: clique em *Copiar imagem* (ou baixe o PNG), depois em
+*Enviar pelo WhatsApp* e cole a imagem na conversa.
+
+### Checklist de verificação manual (Plano 5)
+
+Use uma **fatura Claro real** (o PDF não vai para o repositório).
+
+1. Abra um lead → aba Proposta: os cartões "Situação atual", "Nova proposta", "Comparativo" e
+   "Exportar e enviar".
+2. Anexe a fatura em PDF → uma linha por celular, com telefone mascarado, plano (GB), mensalidade e
+   consumo; nenhum telefone completo na tela.
+3. Anexe 2 ou 3 faturas do mesmo cliente → consumo e valor viram média, com aviso quando uma linha
+   falta em alguma fatura ou o plano mudou.
+4. Anexe um PDF escaneado (sem texto) → mensagem "não tem texto" e a tabela continua para digitar.
+5. Clique em "Adicionar linha" e digite "5 linhas × 10GB × R$ 50" → entra na situação atual.
+6. No cartão 2, cada linha já vem com o plano sugerido e o selo (upgrade/downgrade/manter); troque o
+   plano de uma linha → itens e total mudam na hora.
+7. Marque "Consolidar valores" → os documentos trazem uma linha só para os planos.
+8. Baixe Word, PDF consultor, PDF cliente e PNG: abrem certos, com os dois logos, valores, validade de
+   1 dia e o Claro Monitor (se houver) como benefício, não como linha.
+9. "Copiar imagem" e "Enviar pelo WhatsApp" → a conversa abre no telefone do lead com a mensagem; cole
+   a imagem. A mensagem fica no histórico do cliente (aba Cliente).
+10. "Salvar proposta" → aparece em "Propostas salvas" com quantidade e subtotal; os botões de exportar
+    dela geram os mesmos arquivos.
+11. Gere a abordagem depois → o texto cita os planos com a quantidade ("10× Pós 12GB") e o total.
+12. Entre como outro consultor que não é dono do lead → sem telefone e sem botão de WhatsApp (só o aviso).
