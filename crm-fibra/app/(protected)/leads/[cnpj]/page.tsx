@@ -87,9 +87,13 @@ export default async function LeadDetailPage({
         <TabsContent value="proposta" forceMount className={CONTEUDO_DA_ABA}>
           <AbaProposta
             cnpjDigits={lead.cnpjDigits}
+            cliente={{ razaoSocial: lead.razaoSocial || lead.cnpjDigits, cnpjDigits: lead.cnpjDigits }}
             catalogo={catalogo}
             propostas={propostas}
             nomesConsultores={nomesConsultores}
+            nomeConsultor={session ? (nomesConsultores[session.consultorId] ?? "") : ""}
+            telefone={souODono ? telefone : null}
+            souODono={souODono}
           />
         </TabsContent>
         <TabsContent value="abordagem" forceMount className={CONTEUDO_DA_ABA}>
