@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { FaturaIlegivelError, LIMITE_ARQUIVOS } from "./pdf-texto";
-import { processarFaturas } from "./processar";
+import { FaturaIlegivelError, LIMITE_ARQUIVOS, LeitorPdfIndisponivelError } from "./pdf-texto";
+import { avisoDaLeitura, processarFaturas, type ResultadoArquivo } from "./processar";
 
 const pdf = (name: string, size = 1000) => ({ name, size, type: "application/pdf" });
 
@@ -68,6 +68,16 @@ describe("processarFaturas", () => {
     expect(resultado.mescladas[0].totalFaturas).toBe(2);
   });
 
+it("falha do leitor mostra a mensagem do leitor (navegador), não a genérica do arquivo", async () => {
+    const lerTexto = async () => {
+      throw new LeitorPdfIndisponivelError("x.pdf");
+    };
+    const resultado = await processarFaturas([pdf("x.pdf")], lerTexto);
+    expect(resultado.arquivos[0].status).toBe("ilegivel");
+    expect(resultado.arquivos[0].mensagem).toMatch(/neste navegador/i);
+    expect(resultado.arquivos[0].mensagem).toMatch(/adicionar linha/i);
+  });
+
   it("erro inesperado vira mensagem genérica com o nome do arquivo, sem vazar o detalhe", async () => {
     const lerTexto = async () => {
       throw new Error("falha interna com 17900000001");
@@ -103,5 +113,28 @@ describe("processarFaturas", () => {
     expect((await processarFaturas([pdf("g.pdf", 11 * 1024 * 1024)], lerTexto)).erro).toMatch(/10 MB/);
     expect((await processarFaturas([pdf("v.pdf", 0)], lerTexto)).erro).toMatch(/vazio/);
     expect(lerTexto).not.toHaveBeenCalled();
+  });
+});
+
+describe("avisoDaLeitura", () => {
+  const r = (nome: string, status: ResultadoArquivo["status"]): ResultadoArquivo => ({ nome, status, linhas: status === "ok" ? 3 : 0, mensagem: null });
+
+  it("com 2 ou mais faturas lidas diz a média de N faturas, cita só as lidas e avisa que anexar de novo substitui", () => {
+    const aviso = avisoDaLeitura([r("a.pdf", "ok"), r("b.pdf", "ok"), r("c.pdf", "sem_texto")]);
+    expect(aviso).toContain("Média de 2 faturas");
+    expect(aviso).toContain("a.pdf, b.pdf");
+    expect(aviso).not.toContain("c.pdf");
+    expect(aviso).toMatch(/substitui/i);
+  });
+
+  it("com uma fatura lida diz isso e orienta a anexar todas de uma vez para tirar a média", () => {
+    const aviso = avisoDaLeitura([r("a.pdf", "ok")]);
+    expect(aviso).toContain("Lida 1 fatura (a.pdf)");
+    expect(aviso).toMatch(/todas as faturas de uma vez/i);
+  });
+
+  it("sem nenhuma fatura lida não há aviso", () => {
+    expect(avisoDaLeitura([r("a.pdf", "sem_linhas")])).toBeNull();
+    expect(avisoDaLeitura([])).toBeNull();
   });
 });

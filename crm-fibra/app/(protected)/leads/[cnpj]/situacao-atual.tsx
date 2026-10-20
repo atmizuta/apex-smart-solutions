@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { PlanoCatalogo } from "@/lib/catalogo";
 import { LIMITE_ARQUIVOS, lerTextoDoArquivo } from "@/lib/fatura/pdf-texto";
-import { processarFaturas, type ResultadoArquivo } from "@/lib/fatura/processar";
+import { avisoDaLeitura, processarFaturas, type ResultadoArquivo } from "@/lib/fatura/processar";
 import { LIMITE_FRANQUIA_GB, LIMITE_LINHAS, LIMITE_ROTULO } from "@/lib/fatura/tipos";
 import { parseValorBRL } from "@/lib/formato";
 import { lerQuantidade } from "@/lib/proposta-rascunho";
@@ -77,7 +77,10 @@ export function SituacaoAtualCard({
   const [progresso, setProgresso] = useState<string | null>(null);
   const [resultados, setResultados] = useState<ResultadoArquivo[]>([]);
   const [erro, setErro] = useState<string | null>(null);
+  // Do último lote que gerou linhas; some quando o consultor remove as linhas da fatura.
+  const [avisoMedia, setAvisoMedia] = useState<string | null>(null);
   const lendo = progresso !== null;
+  const aviso = linhas.some((linha) => linha.origem === "fatura") ? avisoMedia : null;
 
   async function lerFaturas(arquivos: File[]) {
     if (arquivos.length === 0) return;
@@ -98,9 +101,10 @@ export function SituacaoAtualCard({
         // Atualização funcional: o que o consultor digitou enquanto a leitura rodava não se perde.
         setLinhas((atuais) => substituirLinhasDaFatura(atuais, novas));
         aoLerFaturas(resultado.faturasLidas);
+        setAvisoMedia(avisoDaLeitura(resultado.arquivos));
       }
     } catch {
-      setErro("Não foi possível ler as faturas agora. Digite as linhas na tabela abaixo.");
+      setErro("Não foi possível ler as faturas agora. Clique em Adicionar linha e digite as linhas.");
     } finally {
       setProgresso(null);
     }
@@ -167,6 +171,11 @@ export function SituacaoAtualCard({
               </li>
             ))}
           </ul>
+        )}
+        {aviso && (
+          <p className="text-sm text-muted-foreground" role="status">
+            {aviso}
+          </p>
         )}
 
         {linhas.length === 0 ? (

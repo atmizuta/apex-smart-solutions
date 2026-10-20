@@ -30,8 +30,30 @@ export class FaturaIlegivelError extends Error {
   }
 }
 
-// O recorte de pdfjs-dist que usamos. Os testes injetam a build "legacy" (que
-// roda em Node); o navegador injeta a build normal.
+// A falha é do leitor (navegador antigo sem uma API que o pdf.js usa, worker que
+// não carregou), não do arquivo: a tela não pode culpar o PDF do cliente.
+export class LeitorPdfIndisponivelError extends Error {
+  constructor(public readonly arquivo: string) {
+    super(
+      `Não foi possível ler "${arquivo}" neste navegador. Clique em Adicionar linha e digite as linhas, ou tente outro navegador.`
+    );
+    this.name = "LeitorPdfIndisponivelError";
+  }
+}
+
+// Erros que o pdf.js lança por causa do DOCUMENTO (senha, PDF inválido ou corrompido).
+const ERROS_DE_DOCUMENTO = new Set([
+  "PasswordException",
+  "InvalidPDFException",
+  "MissingPDFException",
+  "FormatError",
+  "XRefParseException",
+  "XRefEntryException",
+  "ParserEOFException",
+]);
+
+// O recorte de pdfjs-dist que usamos. Os testes e o navegador usam a mesma build
+// "legacy", que traz polyfills e roda em Node e em navegadores mais antigos.
 export interface PdfjsMinimo {
   getDocument(opcoes: { data: Uint8Array } & Record<string, unknown>): {
     promise: Promise<{
@@ -62,17 +84,19 @@ export async function extrairTextoDePaginas(
     }
     await pdf.destroy?.();
     return paginas.join("\n");
-  } catch {
-    throw new FaturaIlegivelError(nomeArquivo);
+  } catch (err) {
+    if (err instanceof Error && ERROS_DE_DOCUMENTO.has(err.name)) throw new FaturaIlegivelError(nomeArquivo);
+    throw new LeitorPdfIndisponivelError(nomeArquivo);
   }
 }
 
-// Só no navegador.
+// Só no navegador. Build "legacy": a moderna usa APIs muito novas (Map.getOrInsertComputed,
+// Math.sumPrecise) sem polyfill e falharia em navegadores de consultores com versão antiga.
 export async function lerTextoDoArquivo(arquivo: File): Promise<string> {
-  const pdfjs = await import("pdfjs-dist");
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   if (!pdfjs.GlobalWorkerOptions.workerSrc) {
     pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-      "pdfjs-dist/build/pdf.worker.min.mjs",
+      "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
       import.meta.url
     ).toString();
   }

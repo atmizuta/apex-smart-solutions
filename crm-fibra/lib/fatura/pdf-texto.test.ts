@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, sep } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -8,6 +9,7 @@ import {
   FaturaIlegivelError,
   LIMITE_ARQUIVOS,
   LIMITE_BYTES,
+  LeitorPdfIndisponivelError,
   extrairTextoDePaginas,
   validarArquivos,
   type PdfjsMinimo,
@@ -59,6 +61,32 @@ describe("extrairTextoDePaginas", () => {
     const promessa = extrairTextoDePaginas(pdfjsReal, new Uint8Array([1, 2, 3]), "quebrado.pdf", OPCOES);
     await expect(promessa).rejects.toBeInstanceOf(FaturaIlegivelError);
     await expect(promessa).rejects.toMatchObject({ arquivo: "quebrado.pdf" });
+  });
+
+  it("falha do próprio leitor (não do PDF) vira LeitorPdfIndisponivelError, sem culpar o arquivo", async () => {
+    const quebrado: PdfjsMinimo = {
+      getDocument: () => ({ promise: Promise.reject(new TypeError("x.getOrInsertComputed is not a function")) }),
+    };
+    await expect(extrairTextoDePaginas(quebrado, new Uint8Array([1]), "fatura.pdf")).rejects.toBeInstanceOf(
+      LeitorPdfIndisponivelError
+    );
+  });
+
+  it("erro de documento do pdf.js (senha, PDF inválido) continua sendo FaturaIlegivelError", async () => {
+    for (const nome of ["PasswordException", "InvalidPDFException", "FormatError"]) {
+      const erro = Object.assign(new Error("x"), { name: nome });
+      const falso: PdfjsMinimo = { getDocument: () => ({ promise: Promise.reject(erro) }) };
+      await expect(extrairTextoDePaginas(falso, new Uint8Array([1]), "a.pdf")).rejects.toBeInstanceOf(
+        FaturaIlegivelError
+      );
+    }
+  });
+
+  it("o navegador carrega a build legacy do pdf.js e o worker da mesma build (a moderna exige navegador novo)", () => {
+    const fonte = readFileSync(new URL("./pdf-texto.ts", import.meta.url), "utf8");
+    expect(fonte).toContain('import("pdfjs-dist/legacy/build/pdf.mjs")');
+    expect(fonte).toContain('"pdfjs-dist/legacy/build/pdf.worker.min.mjs"');
+    expect(fonte).not.toContain("pdfjs-dist/build/");
   });
 
   it("não consome o buffer que o chamador passou (o pdf.js destrói o que recebe)", async () => {

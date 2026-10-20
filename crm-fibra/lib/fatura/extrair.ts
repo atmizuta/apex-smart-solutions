@@ -90,7 +90,7 @@ export function mensagemDeLeitura(
   leitura: { tipo: "sem_texto" } | { tipo: "sem_linhas" }
 ): string {
   if (leitura.tipo === "sem_texto") {
-    return `"${nomeArquivo}" não tem texto (parece escaneado ou foto). Digite as linhas na tabela abaixo.`;
+    return `"${nomeArquivo}" não tem texto (parece escaneado ou foto). Clique em Adicionar linha e digite as linhas.`;
   }
-  return `Não encontrei linhas de celular em "${nomeArquivo}". O leitor só conhece a fatura Claro com detalhamento por linha; digite as linhas na tabela abaixo.`;
+  return `Não encontrei linhas de celular em "${nomeArquivo}". O leitor só conhece a fatura Claro com detalhamento por linha; clique em Adicionar linha e digite as linhas.`;
 }

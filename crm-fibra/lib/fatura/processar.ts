@@ -4,7 +4,12 @@
 // navegador é lerTextoDoArquivo; nos testes, um texto pronto.
 import { interpretarLeitura, mensagemDeLeitura, type LinhaLida } from "./extrair";
 import { mesclarFaturas, type LinhaMesclada } from "./mesclar";
-import { FaturaIlegivelError, validarArquivos, type ArquivoInfo } from "./pdf-texto";
+import {
+  FaturaIlegivelError,
+  LeitorPdfIndisponivelError,
+  validarArquivos,
+  type ArquivoInfo,
+} from "./pdf-texto";
 
 export type StatusArquivo = "ok" | "sem_texto" | "sem_linhas" | "ilegivel";
 
@@ -56,10 +61,25 @@ export async function processarFaturas<A extends ArquivoInfo>(
         status: "ilegivel",
         linhas: 0,
         // Só a mensagem do nosso próprio erro; qualquer outro detalhe pode ter dado do cliente.
-        mensagem: err instanceof FaturaIlegivelError ? err.message : `Não foi possível ler "${arquivo.name}".`,
+        mensagem:
+          err instanceof FaturaIlegivelError || err instanceof LeitorPdfIndisponivelError
+            ? err.message
+            : `Não foi possível ler "${arquivo.name}".`,
       });
     }
   }
 
   return { arquivos: resultados, mescladas: mesclarFaturas(listas), faturasLidas: listas.length, erro: null };
+}
+
+// Aviso que fica na tela enquanto as linhas da fatura estão nela: quantas faturas
+// entraram na média e o que acontece se o consultor anexar de novo (as linhas lidas
+// são substituídas, não somadas).
+export function avisoDaLeitura(arquivos: ResultadoArquivo[]): string | null {
+  const lidos = arquivos.filter((arquivo) => arquivo.status === "ok").map((arquivo) => arquivo.nome);
+  if (lidos.length === 0) return null;
+  const regra = "Anexar de novo substitui as linhas lidas: para a média, selecione todas as faturas de uma vez.";
+  return lidos.length === 1
+    ? `Lida 1 fatura (${lidos[0]}). ${regra}`
+    : `Média de ${lidos.length} faturas (${lidos.join(", ")}). ${regra}`;
 }

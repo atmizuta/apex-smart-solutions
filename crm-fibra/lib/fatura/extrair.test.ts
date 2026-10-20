@@ -133,4 +133,12 @@ describe("mensagemDeLeitura", () => {
     expect(mensagemDeLeitura("fatura.pdf", { tipo: "sem_texto" })).toMatch(/fatura\.pdf.*escaneado/i);
     expect(mensagemDeLeitura("fatura.pdf", { tipo: "sem_linhas" })).toMatch(/fatura\.pdf.*digite/i);
   });
+
+  it("aponta o botão que existe (Adicionar linha), não uma tabela que ainda não está na tela", () => {
+    for (const tipo of ["sem_texto", "sem_linhas"] as const) {
+      const mensagem = mensagemDeLeitura("fatura.pdf", { tipo });
+      expect(mensagem).toMatch(/adicionar linha/i);
+      expect(mensagem).not.toMatch(/tabela abaixo/i);
+    }
+  });
 });
