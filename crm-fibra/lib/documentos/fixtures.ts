@@ -91,3 +91,26 @@ export async function textoDoDocx(bytes: Uint8Array): Promise<{ xml: string; ima
   const imagens = Object.values(zip.files).filter((entrada) => !entrada.dir && entrada.name.startsWith("word/media/")).length;
   return { xml, imagens };
 }
+
+// Cada trecho de texto do PDF com a posição horizontal e a largura (em pontos):
+// permite conferir que dois textos não se sobrepõem, o que o texto puro não mostra.
+export async function itensDoPdf(bytes: Uint8Array): Promise<Array<{ str: string; x: number; largura: number }>> {
+  const pdf = await (
+    pdfjs as unknown as {
+      getDocument: (opcoes: object) => {
+        promise: Promise<{
+          numPages: number;
+          getPage: (n: number) => Promise<{
+            getTextContent: () => Promise<{ items: Array<{ str: string; transform: number[]; width: number }> }>;
+          }>;
+        }>;
+      };
+    }
+  ).getDocument({ data: bytes.slice(), isEvalSupported: false, ...OPCOES_PDFJS }).promise;
+  const itens: Array<{ str: string; x: number; largura: number }> = [];
+  for (let numero = 1; numero <= pdf.numPages; numero++) {
+    const conteudo = await (await pdf.getPage(numero)).getTextContent();
+    for (const item of conteudo.items) itens.push({ str: item.str, x: item.transform[4], largura: item.width });
+  }
+  return itens;
+}
