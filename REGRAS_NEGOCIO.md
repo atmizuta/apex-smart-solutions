@@ -3482,3 +3482,20 @@ Afetava todos os consultores e todos os períodos.
 
 ### 103.3 Publicação
 21/10/2026 às 16:55 (SP). MD5 do painel: `f80ed1a0968294e2df373b007cc9e244`. Backup: `~/deploy_backups/painel_clientes_apex_20261021_165510_antes_fechamento_paginacao.html`. Antes de publicar, o painel no ar era idêntico à oficial/main (MD5 `17972cc9…`).
+
+## 104. Fechamento em ranking, total da operação, ganhos sem data e exportação para Excel (21/10/2026)
+
+Pedido do Rafael: exportar para Excel e conferir com o fechamento da Claro; trocar os cards por um ranking; mostrar quantas linhas e fibras a operação fez no total; e listar os pedidos em etapa de ganho que não têm data de ativação.
+
+### 104.1 Regras
+- **Ranking:** tabela no lugar dos cards. A ordem é pela **receita** das ativações; no empate, por linhas móveis; depois pelo nome. Clicar na linha abre o detalhamento do consultor, como antes.
+- **Contagem por item** (decisão do Rafael): cada item `VOZ - *` é 1 **linha móvel**, cada `BANDA LARGA*` é 1 **fibra** e o resto (aparelho etc. com Portabilidade preenchida) entra em **outros**. A coluna **Pedidos** conta `numero_pedido` distinto. Os contratos (seção 16.14) continuam calculados para o "Meu placar".
+- **Total da operação:** numa frase acima do ranking e na linha "Total da operação" no pé da tabela. Respeita o seletor de operação (Apex, Campinas ou as duas).
+- **Ganhos sem data de ativação:** etapa de ganho, VOZ ou BANDA LARGA (SVA, aparelho etc. ficam de fora, decisão do Rafael), sem a data que o Fechamento usa (Portabilidade; na fibra, também sem Data de instalação). Entra na tabela pelo **cadastro do pedido** dentro do período (piso de 01/08 também pelo cadastro). Esses itens **não entram no ranking nem na receita**.
+- **Excel:** "Exportar Excel" do ranking gera `fechamento_<de>_a_<até>.xlsx` com três abas: *Ranking* (com a linha TOTAL DA OPERAÇÃO), *Ativações* (um item por linha: consultor, pedido, cliente, CNPJ, tipo, grupo, produto, etapa, data de ativação, data do pedido, valor) e *Sem data de ativação*. O botão da tabela de pendentes gera `fechamento_sem_data_<de>_a_<até>.xlsx`. Números saem como número e datas em dd/mm/aaaa. Usa o mesmo SheetJS do painel (`mlBaixarXlsx`).
+
+### 104.2 Onde fica
+`_template.html`: `agruparFechamentoPorConsultor` (contagem por item e nova ordem), `totalFechamentoOperacao`, `filtrarSemDataFechamento`, `fechamentoLinhasRanking/Ativacoes/SemData`, `renderFechamentoSemData`, `exportarFechamentoExcel` e `exportarFechamentoSemDataExcel`. A consulta passou a trazer também `cadastro`. Testes em `test_fechamento.js` (77 asserções).
+
+### 104.3 Publicação
+21/10/2026 às 19:03 (SP), com ok do Rafael depois da prévia com dados reais. MD5 do painel: `c1970ce98f532660a2e22b581689b031`. Backup: `~/deploy_backups/painel_clientes_apex_20261021_190357_antes_fechamento_ranking.html`. Antes de publicar, o painel no ar era idêntico à oficial/main (MD5 `fdf58eb0…`).

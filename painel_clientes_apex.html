@@ -1798,11 +1798,30 @@
         <p class="desc" id="fechamentoEmptyMsg">Nenhuma ativação qualificada encontrada no período selecionado.</p>
       </div>
 
+      <!-- seção 104 (21/10/2026): ranking em tabela (saíram os cards), total da operação e exportação para Excel -->
       <div class="card" id="fechamentoResumoCard" style="display:none">
-        <h3>Resumo por consultor</h3>
-        <p class="desc">Clique num consultor pra ver a lista de ativações que compõem o total. A receita soma o valor de cada produto ativado no período (mesma origem do "Valor por etapa" do Dashboard de Produção) — não é o valor da comissão, só a receita bruta das ativações.</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <h3 style="margin:0">Ranking por consultor</h3>
+          <button class="btn btn-sm btn-outline" type="button" id="btnFechamentoExportar" style="width:auto">Exportar Excel</button>
+        </div>
+        <p class="desc">Ordem pela receita das ativações do período. Linhas móveis, fibras e outros contam item a item (cada linha do pedido); "Pedidos" conta pedidos distintos. Clique num consultor pra ver as ativações que compõem o total. A receita é a bruta das ativações, não o valor da comissão. O Excel traz o ranking, todas as ativações (uma por linha, pra conferir com o fechamento da Claro) e os ganhos sem data de ativação.</p>
         <div id="fechamentoReceitaTotal" style="font-size:14px;margin-top:6px"></div>
-        <div class="kpiGrid" id="fechamentoResumoCards" style="margin-top:10px"></div>
+        <div id="fechamentoRanking" style="margin-top:10px;overflow-x:auto"></div>
+      </div>
+
+      <div class="card" id="fechamentoSemDataCard" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <h3 style="margin:0">Ganhos sem data de ativação</h3>
+          <button class="btn btn-sm btn-outline" type="button" id="btnFechamentoSemDataExportar" style="width:auto">Exportar Excel</button>
+        </div>
+        <p class="desc">Pedidos de linha móvel ou fibra em etapa de ganho (Concluído, Entrega, Faturamento, Portabilidade em andamento, Validação eSIM), cadastrados no período, mas sem a data de ativação no NeoCRM (coluna Portabilidade; na fibra, também sem Data de instalação). <strong>Eles não entram no ranking nem na receita</strong> até essa data ser preenchida.</p>
+        <div id="fechamentoSemDataInfo" style="font-size:14px;margin-top:6px"></div>
+        <div style="margin-top:10px;overflow-x:auto">
+          <table class="tbl">
+            <thead><tr><th>Consultor</th><th>Pedido</th><th>Cliente</th><th>CNPJ</th><th>Tipo</th><th>Produto</th><th>Etapa</th><th>Data do pedido</th><th>Valor</th></tr></thead>
+            <tbody id="fechamentoSemDataTbody"></tbody>
+          </table>
+        </div>
       </div>
 
       <div class="overlay" id="fechamentoDrilldownOverlay">
@@ -9705,35 +9724,112 @@ function filtrarRegistrosFechamento(records, de, ate){
   });
 }
 
-// agruparFechamentoPorConsultor(registrosFiltrados): resumo por consultor — CONTRATOS distintos
-// (numero_pedido, não linhas — mesma lógica de pedidoKey() da Visão Diária, ver seção 16.13),
-// separado por Voz / Banda Larga / Outros. "Outros" existe porque, desde a regra de 18/09/2026
-// (dataAtivacaoFechamento), QUALQUER grupo pode qualificar via Portabilidade preenchida — não só
-// VOZ - * — então o total precisa somar os 3 baldes, nunca só voz+bandaLarga (senão um Aparelho
-// qualificado desapareceria do total mesmo aparecendo no drilldown). Receita (18/09/2026, a pedido
-// do usuário): soma o `valor` de TODA linha qualificada (não deduplicado por pedido — cada produto
-// tem seu próprio valor, diferente da contagem de contratos) — é receita bruta das ativações, não o
-// valor da comissão (que a aba explicitamente não calcula).
+/// agruparFechamentoPorConsultor(registrosFiltrados): resumo por consultor. Dois jeitos de contar, lado a lado:
+// - CONTRATOS distintos (numero_pedido — mesma lógica de pedidoKey() da Visão Diária, seção 16.13) em voz/bandaLarga/
+//   outros/total. "Outros" existe porque QUALQUER grupo pode qualificar via Portabilidade (18/09/2026). O "Meu placar"
+//   (ppPlacar) usa o total de contratos.
+// - seção 104 (21/10/2026): ITENS, pra conferir com a Claro, que conta por linha — linhasVoz (cada item VOZ - * = 1 linha
+//   móvel), fibras (cada BANDA LARGA = 1 fibra), itensOutros — e pedidos (numero_pedido distinto, qualquer grupo).
+// Receita: soma o `valor` de TODA linha qualificada (receita bruta das ativações, não a comissão).
+// Ordem (seção 104, ranking): maior receita primeiro; empate → mais linhas móveis; depois nome.
 function agruparFechamentoPorConsultor(registrosFiltrados){
   const byUsuario = {};
   (registrosFiltrados || []).forEach((r, i) => {
     const usuario = r.usuario || '(Sem usuário)';
-    if(!byUsuario[usuario]) byUsuario[usuario] = { usuario, vozSet: new Set(), blSet: new Set(), outrosSet: new Set(), valor: 0, linhas: [] };
-    const grupo = String(r.grupo || '');
-    const key = (r.numero_pedido && String(r.numero_pedido).trim() !== '') ? String(r.numero_pedido) : ('__semnp_' + i);
-    if(grupo.indexOf('VOZ -') === 0) byUsuario[usuario].vozSet.add(key);
-    else if(grupo.indexOf('BANDA LARGA') === 0) byUsuario[usuario].blSet.add(key);
-    else byUsuario[usuario].outrosSet.add(key);
-    byUsuario[usuario].valor += (r.valor || 0);
-    byUsuario[usuario].linhas.push(r);
+    if(!byUsuario[usuario]) byUsuario[usuario] = { usuario, vozSet: new Set(), blSet: new Set(), outrosSet: new Set(), linhasVoz: 0, fibras: 0, itensOutros: 0, valor: 0, linhas: [] };
+    const o = byUsuario[usuario];
+    const key = fechamentoChavePedido(r, i);
+    const tipo = fechamentoTipo(r);
+    if(tipo === 'voz'){ o.vozSet.add(key); o.linhasVoz++; }
+    else if(tipo === 'fibra'){ o.blSet.add(key); o.fibras++; }
+    else { o.outrosSet.add(key); o.itensOutros++; }
+    o.valor += (r.valor || 0);
+    o.linhas.push(r);
   });
   return Object.values(byUsuario)
-    .map(o => ({ usuario: o.usuario, voz: o.vozSet.size, bandaLarga: o.blSet.size, outros: o.outrosSet.size, total: o.vozSet.size + o.blSet.size + o.outrosSet.size, valor: o.valor, linhas: o.linhas }))
-    .sort((a, b) => b.total - a.total);
+    .map(o => ({
+      usuario: o.usuario, voz: o.vozSet.size, bandaLarga: o.blSet.size, outros: o.outrosSet.size,
+      total: o.vozSet.size + o.blSet.size + o.outrosSet.size,
+      linhasVoz: o.linhasVoz, fibras: o.fibras, itensOutros: o.itensOutros,
+      pedidos: new Set([...o.vozSet, ...o.blSet, ...o.outrosSet]).size,
+      valor: fechamentoR2(o.valor), linhas: o.linhas,
+    }))
+    .sort((a, b) => (b.valor - a.valor) || (b.linhasVoz - a.linhasVoz) || a.usuario.localeCompare(b.usuario, 'pt-BR'));
+}
+
+function fechamentoChavePedido(r, i){ return (r.numero_pedido && String(r.numero_pedido).trim() !== '') ? String(r.numero_pedido) : ('__semnp_' + i); }
+function fechamentoTipo(r){
+  const grupo = String(r.grupo || '');
+  if(grupo.indexOf('VOZ -') === 0) return 'voz';
+  if(grupo.indexOf('BANDA LARGA') === 0) return 'fibra';
+  return 'outros';
+}
+function fechamentoTipoTexto(r){ const t = fechamentoTipo(r); return t === 'voz' ? 'Linha móvel' : (t === 'fibra' ? 'Fibra' : String(r.grupo || '—')); }
+function fechamentoR2(v){ return Math.round((Number(v) || 0) * 100) / 100; }
+// data ISO → dd/mm/aaaa no fuso de São Paulo ('' sem data)
+function fechamentoDataBR(iso){ const d = leadDateSP(iso); return d ? d.split('-').reverse().join('/') : ''; }
+function fechamentoEtapaTexto(e){ return String(e || '').replace(/\s*\(NEOCRM\)\s*$/, ''); }
+
+// seção 104: total da operação no período (mesmas contagens do ranking, somando todo mundo; pedidos distintos no geral)
+function totalFechamentoOperacao(registrosFiltrados){
+  const t = { linhasVoz: 0, fibras: 0, itensOutros: 0, pedidos: 0, valor: 0 };
+  const pedidos = new Set();
+  (registrosFiltrados || []).forEach((r, i) => {
+    const tipo = fechamentoTipo(r);
+    if(tipo === 'voz') t.linhasVoz++; else if(tipo === 'fibra') t.fibras++; else t.itensOutros++;
+    pedidos.add(fechamentoChavePedido(r, i));
+    t.valor += (r.valor || 0);
+  });
+  t.pedidos = pedidos.size;
+  t.valor = fechamentoR2(t.valor);
+  return t;
+}
+
+// seção 104: ganhos SEM data de ativação — etapa de ganho, linha móvel ou fibra (SVA, aparelho etc. ficam de fora,
+// decisão do Rafael), sem a data que o Fechamento usa (dataAtivacaoFechamento = null) e com o CADASTRO do pedido
+// dentro do período (piso de 01/08 também pelo cadastro). Não entram no ranking nem na receita.
+function filtrarSemDataFechamento(records, de, ate){
+  const deEfetivo = (de && de > FECHAMENTO_PISO) ? de : FECHAMENTO_PISO;
+  return (records || []).filter(r => {
+    if(producaoEtapaCategoria(r.etapa) !== 'ganho') return false;
+    if(fechamentoTipo(r) === 'outros') return false;
+    if(dataAtivacaoFechamento(r)) return false;
+    const diaCad = leadDateSP(r.cadastro);
+    if(!diaCad || diaCad < deEfetivo) return false;
+    if(ate && diaCad > ate) return false;
+    return true;
+  }).sort((a, b) => String(a.usuario || '').localeCompare(String(b.usuario || ''), 'pt-BR') || String(a.cadastro || '').localeCompare(String(b.cadastro || '')));
+}
+
+// seção 104: linhas das abas do Excel (valores numéricos como número, datas em dd/mm/aaaa)
+function fechamentoLinhasRanking(resumo, total){
+  const linhas = (resumo || []).map((r, i) => ({
+    'Posição': i + 1, 'Consultor': r.usuario, 'Linhas móveis': r.linhasVoz, 'Fibras': r.fibras,
+    'Outros': r.itensOutros, 'Pedidos': r.pedidos, 'Receita': r.valor,
+  }));
+  if(total) linhas.push({ 'Posição': '', 'Consultor': 'TOTAL DA OPERAÇÃO', 'Linhas móveis': total.linhasVoz, 'Fibras': total.fibras,
+    'Outros': total.itensOutros, 'Pedidos': total.pedidos, 'Receita': total.valor });
+  return linhas;
+}
+function fechamentoLinhasAtivacoes(registros){
+  return (registros || []).map(r => ({
+    'Consultor': r.usuario || '', 'Pedido': r.numero_pedido || '', 'Cliente': r.cliente || '', 'CNPJ': r.cnpj || '',
+    'Tipo': fechamentoTipoTexto(r), 'Grupo': r.grupo || '', 'Produto': r.produto || '', 'Etapa': fechamentoEtapaTexto(r.etapa),
+    'Data de ativação': fechamentoDataBR(dataAtivacaoFechamento(r)), 'Data do pedido': fechamentoDataBR(r.cadastro),
+    'Valor': fechamentoR2(r.valor),
+  })).sort((a, b) => a['Consultor'].localeCompare(b['Consultor'], 'pt-BR') || String(a['Pedido']).localeCompare(String(b['Pedido'])));
+}
+function fechamentoLinhasSemData(registros){
+  return (registros || []).map(r => ({
+    'Consultor': r.usuario || '', 'Pedido': r.numero_pedido || '', 'Cliente': r.cliente || '', 'CNPJ': r.cnpj || '',
+    'Tipo': fechamentoTipoTexto(r), 'Grupo': r.grupo || '', 'Produto': r.produto || '', 'Etapa': fechamentoEtapaTexto(r.etapa),
+    'Data do pedido': fechamentoDataBR(r.cadastro), 'Valor': fechamentoR2(r.valor),
+  }));
 }
 
 let fechamentoRegistrosCache = []; // todos os producao_pedidos, sem filtro de data — refiltrado em memória a cada Buscar
 let fechamentoResumoCache = []; // último resumo por consultor renderizado — usado pelo drilldown
+let fechamentoAtual = { de: null, ate: null, filtrados: [], resumo: [], total: null, semData: [] }; // o que está na tela — base da exportação
 
 async function loadFechamento(){
   if(!canSeeFechamento()) return;
@@ -9749,12 +9845,13 @@ async function loadFechamento(){
     ateInput.value = hoje;
   }
   info.textContent = 'Carregando...';
-  ApexMotion.skeleton(document.getElementById('fechamentoResumoCards'), 'tabela');
+  ApexMotion.skeleton(document.getElementById('fechamentoRanking'), 'tabela');
   // seção 103: paginado (fetchAllRows) — sem isso o Supabase entregava só 1.000 das ~1.900 linhas e o Fechamento
   // somava um pedaço aleatório da produção (Rafael em setembro: R$ 309,94 na tela × R$ 1.879,66 no banco).
+  // seção 104: + cadastro (data do pedido), usado pela tabela de ganhos sem data de ativação.
   const { data, error } = await fetchAllRows(() => sb.from('producao_pedidos')
-    .select('numero_pedido,grupo,usuario,etapa,produto,cliente,cnpj,valor,data_portabilidade,data_instalacao'));
-  if(error){ console.error(error); info.textContent = 'Não foi possível carregar os dados agora.'; ApexMotion.limparSkeleton(document.getElementById('fechamentoResumoCards')); return; }
+    .select('numero_pedido,grupo,usuario,etapa,produto,cliente,cnpj,valor,data_portabilidade,data_instalacao,cadastro'));
+  if(error){ console.error(error); info.textContent = 'Não foi possível carregar os dados agora.'; ApexMotion.limparSkeleton(document.getElementById('fechamentoRanking')); return; }
   // seção 78: só a operação escolhida no seletor (Apex, Campinas ou as duas — seção 101); Rafael e Isabelly continuam (comissão)
   const op = operacaoAtiva();
   fechamentoRegistrosCache = filtrarProducaoPedidos(data).filter(r => daOperacao(r.usuario, op));
@@ -9772,43 +9869,92 @@ function buscarFechamento(){
     info.textContent = '';
   }
   const filtrados = filtrarRegistrosFechamento(fechamentoRegistrosCache, de, ate);
-  renderFechamentoFiltrado(filtrados);
+  const semData = filtrarSemDataFechamento(fechamentoRegistrosCache, de, ate);
+  renderFechamentoFiltrado(filtrados, de, ate);
+  renderFechamentoSemData(semData);
+  fechamentoAtual.semData = semData;
 }
 
-function renderFechamentoFiltrado(filtrados){
+const fechamentoQtd = n => (n || 0).toLocaleString('pt-BR');
+const fechamentoPlural = (n, um, varios) => fechamentoQtd(n) + ' ' + (n === 1 ? um : varios);
+
+function renderFechamentoFiltrado(filtrados, de, ate){
   const emptyCard = document.getElementById('fechamentoEmptyCard');
   const resumoCard = document.getElementById('fechamentoResumoCard');
+  const resumo = agruparFechamentoPorConsultor(filtrados);
+  const total = totalFechamentoOperacao(filtrados);
+  fechamentoResumoCache = resumo;
+  fechamentoAtual = { de: de || null, ate: ate || null, filtrados, resumo, total, semData: [] };
   if(!filtrados.length){
     emptyCard.style.display = 'block';
     resumoCard.style.display = 'none';
     document.getElementById('fechamentoReceitaTotal').innerHTML = '';
+    document.getElementById('fechamentoRanking').innerHTML = '';
     return;
   }
   emptyCard.style.display = 'none';
   resumoCard.style.display = 'block';
 
-  const resumo = agruparFechamentoPorConsultor(filtrados);
-  fechamentoResumoCache = resumo;
+  // seção 104: total da operação (respeita o seletor de operação, porque o cache já vem filtrado)
+  document.getElementById('fechamentoReceitaTotal').innerHTML = `<strong>Operação no período:</strong> ${fechamentoPlural(total.linhasVoz, 'linha móvel', 'linhas móveis')} · ${fechamentoPlural(total.fibras, 'fibra', 'fibras')}${total.itensOutros ? ' · ' + fechamentoPlural(total.itensOutros, 'outro', 'outros') : ''} · ${fechamentoPlural(total.pedidos, 'pedido', 'pedidos')} · <strong>Receita ${fmtBRL(total.valor)}</strong>`;
 
-  const receitaTotal = resumo.reduce((s, r) => s + (r.valor || 0), 0);
-  document.getElementById('fechamentoReceitaTotal').innerHTML = `<strong>Receita total no período:</strong> ${fmtBRL(receitaTotal)}`;
+  const num = 'style="text-align:right"';
+  document.getElementById('fechamentoRanking').innerHTML = `
+    <table class="tbl">
+      <thead><tr><th>Posição</th><th>Consultor</th><th ${num}>Linhas móveis</th><th ${num}>Fibras</th><th ${num}>Outros</th><th ${num}>Pedidos</th><th ${num}>Receita</th></tr></thead>
+      <tbody>${resumo.map((r, i) => `
+        <tr data-usuario="${escapeHtml(r.usuario)}" style="cursor:pointer">
+          <td>${i < 3 ? '<strong>' + (i + 1) + 'º</strong>' : (i + 1) + 'º'}</td>
+          <td>${escapeHtml(r.usuario)}</td>
+          <td ${num}>${fechamentoQtd(r.linhasVoz)}</td>
+          <td ${num}>${fechamentoQtd(r.fibras)}</td>
+          <td ${num}>${fechamentoQtd(r.itensOutros)}</td>
+          <td ${num}>${fechamentoQtd(r.pedidos)}</td>
+          <td ${num}>${fmtBRL(r.valor)}</td>
+        </tr>`).join('')}
+      </tbody>
+      <tfoot><tr style="font-weight:700">
+        <td></td><td>Total da operação</td>
+        <td ${num}>${fechamentoQtd(total.linhasVoz)}</td><td ${num}>${fechamentoQtd(total.fibras)}</td><td ${num}>${fechamentoQtd(total.itensOutros)}</td>
+        <td ${num}>${fechamentoQtd(total.pedidos)}</td><td ${num}>${fmtBRL(total.valor)}</td>
+      </tr></tfoot>
+    </table>`;
+}
 
-  const cores = ['var(--accent)', 'var(--green)', 'var(--amber)', 'var(--red)', 'var(--muted)'];
-  document.getElementById('fechamentoResumoCards').innerHTML = resumo.map((r, i) => `
-    <div class="kpiCard" style="--kpi-color:${cores[i % cores.length]};cursor:pointer" data-usuario="${escapeHtml(r.usuario)}">
-      <div class="kpiLabel">${escapeHtml(r.usuario)}</div>
-      <div class="kpiValue">${r.total.toLocaleString('pt-BR')}</div>
-      <div class="kpiSub">${r.voz} voz · ${r.bandaLarga} banda larga${r.outros ? ' · ' + r.outros + ' outros' : ''}</div>
-      <div class="kpiSub">${fmtBRL(r.valor)}</div>
-    </div>
-  `).join('');
+// seção 104: tabela de ganhos sem data de ativação (aparece sempre que a aba carrega, mesmo sem ativação no período)
+function renderFechamentoSemData(semData){
+  document.getElementById('fechamentoSemDataCard').style.display = 'block';
+  const valor = fechamentoR2(semData.reduce((s, r) => s + (r.valor || 0), 0));
+  const pedidos = new Set(semData.map(fechamentoChavePedido)).size;
+  document.getElementById('fechamentoSemDataInfo').innerHTML = semData.length
+    ? `<strong>${fechamentoPlural(semData.length, 'item', 'itens')}</strong> em ${fechamentoPlural(pedidos, 'pedido', 'pedidos')} · ${fmtBRL(valor)} fora do ranking`
+    : '';
+  document.getElementById('fechamentoSemDataTbody').innerHTML = semData.length
+    ? semData.map(r => `<tr><td>${escapeHtml(r.usuario || '—')}</td><td>${escapeHtml(r.numero_pedido || '—')}</td><td>${escapeHtml(r.cliente || '—')}</td><td>${escapeHtml(r.cnpj || '—')}</td><td>${escapeHtml(fechamentoTipoTexto(r))}</td><td>${escapeHtml(r.produto || '—')}</td><td>${escapeHtml(fechamentoEtapaTexto(r.etapa))}</td><td>${fechamentoDataBR(r.cadastro) || '—'}</td><td style="text-align:right">${fmtBRL(r.valor || 0)}</td></tr>`).join('')
+    : '<tr><td colspan="9" style="text-align:center;color:var(--muted)">Nenhum ganho sem data de ativação no período.</td></tr>';
+}
+
+// seção 104: exportação (SheetJS, via mlBaixarXlsx). O nome leva o período que está na tela.
+function fechamentoSufixoArquivo(){ return (fechamentoAtual.de || FECHAMENTO_PISO) + '_a_' + (fechamentoAtual.ate || hojeSP()); }
+function exportarFechamentoExcel(){
+  const a = fechamentoAtual;
+  if(!a.filtrados.length && !a.semData.length){ mostrarAviso('Nada para exportar no período.', 'info'); return; }
+  mlBaixarXlsx('fechamento_' + fechamentoSufixoArquivo() + '.xlsx', [
+    { nome: 'Ranking', linhas: a.filtrados.length ? fechamentoLinhasRanking(a.resumo, a.total) : [] },
+    { nome: 'Ativações', linhas: fechamentoLinhasAtivacoes(a.filtrados) },
+    { nome: 'Sem data de ativação', linhas: fechamentoLinhasSemData(a.semData) },
+  ]);
+}
+function exportarFechamentoSemDataExcel(){
+  if(!fechamentoAtual.semData.length){ mostrarAviso('Nenhum ganho sem data de ativação no período.', 'info'); return; }
+  mlBaixarXlsx('fechamento_sem_data_' + fechamentoSufixoArquivo() + '.xlsx', [
+    { nome: 'Sem data de ativação', linhas: fechamentoLinhasSemData(fechamentoAtual.semData) },
+  ]);
 }
 
 function linhaFechamentoHtml(r){
-  const grupo = String(r.grupo || '');
-  const tipo = grupo.indexOf('VOZ -') === 0 ? 'Voz' : (grupo.indexOf('BANDA LARGA') === 0 ? 'Banda larga' : grupo);
-  const dataAtiv = leadDateSP(dataAtivacaoFechamento(r)) || '—';
-  return `<tr><td>${r.numero_pedido || '—'}</td><td>${escapeHtml(tipo)}</td><td>${escapeHtml(r.produto || '—')}</td><td>${escapeHtml(r.cliente || '—')}</td><td>${escapeHtml(r.cnpj || '—')}</td><td>${dataAtiv}</td><td>${fmtBRL(r.valor || 0)}</td></tr>`;
+  const dataAtiv = fechamentoDataBR(dataAtivacaoFechamento(r)) || '—';
+  return `<tr><td>${escapeHtml(r.numero_pedido || '—')}</td><td>${escapeHtml(fechamentoTipoTexto(r))}</td><td>${escapeHtml(r.produto || '—')}</td><td>${escapeHtml(r.cliente || '—')}</td><td>${escapeHtml(r.cnpj || '—')}</td><td>${dataAtiv}</td><td>${fmtBRL(r.valor || 0)}</td></tr>`;
 }
 
 function abrirDrilldownFechamento(usuario){
@@ -9823,7 +9969,9 @@ function abrirDrilldownFechamento(usuario){
 }
 
 document.getElementById('btnFechamentoBuscar').addEventListener('click', buscarFechamento);
-document.getElementById('fechamentoResumoCards').addEventListener('click', function(e){
+document.getElementById('btnFechamentoExportar').addEventListener('click', exportarFechamentoExcel);
+document.getElementById('btnFechamentoSemDataExportar').addEventListener('click', exportarFechamentoSemDataExcel);
+document.getElementById('fechamentoRanking').addEventListener('click', function(e){
   const el = e.target.closest('[data-usuario]');
   if(!el) return;
   abrirDrilldownFechamento(el.dataset.usuario);

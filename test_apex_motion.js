@@ -130,7 +130,7 @@ const M = w.ApexMotion;
     };`);
   const lancou = await w2.__rodarErros();
   const d2 = w2.document;
-  ['conversaoResumoCards', 'fechamentoResumoCards'].forEach(id => {
+  ['conversaoResumoCards', 'fechamentoRanking'].forEach(id => {
     const el = d2.getElementById(id);
     assert(el && !el.querySelector('.apxSkel') && el.getAttribute('aria-busy') !== 'true', `esqueleto de #${id} some quando a consulta falha`);
   });
