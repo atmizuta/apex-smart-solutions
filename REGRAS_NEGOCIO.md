@@ -3441,6 +3441,18 @@ Antes dos ajustes, contar levava de 23 a 85 s e escolher 100 mil levava 95 s: a 
 ### 102.5 Publicação
 21/10/2026 às 16:33 (SP). MD5 do painel: `17972cc9fca51d230712ef858c205296`. Backup: `~/deploy_backups/painel_clientes_apex_20261021_163351_antes_mailing.html`. Antes de publicar, o painel no ar era idêntico à oficial/main (MD5 `93953bde…`).
 
+
+### 102.6 Filtros em botão com caixa de marcar (21/10/2026, pedido do Rafael)
+- **O que mudou:** os filtros de várias opções (UF, Cidade, DDD, Situação, Porte, Classe, Operadora e CNAE) deixaram de ser listas com rolagem.
+  - Cada um virou **um botão** que mostra "Todas", o nome da opção escolhida ou "N selecionadas".
+  - Ao clicar, abre **uma caixa com opções para marcar**; dá para marcar várias.
+  - Cidade, DDD e CNAE têm busca dentro da caixa, que mostra até 300 itens por vez.
+  - Cada caixa tem "Limpar". Clicar fora ou apertar Esc fecha a caixa.
+- **Esconder filtros:** um botão no cartão esconde e mostra os filtros. Escondidos, aparece o resumo do que está escolhido, e o botão "Contar" continua à vista.
+- **Saíram da tela:** Tipo e Origem, porque a base só tem celular do mailing; e Operadora "Sem operadora". A API ainda aceita os dois primeiros.
+- **Como funciona por trás:** a lista nativa (`<select multiple>`) continua escondida e é dela que a contagem e a exportação leem o que foi escolhido.
+- **Publicação:** 21/10/2026 às 17:21 (SP), MD5 `fdf58eb0737170811f4a5017db1c39c2`. Backup: `~/deploy_backups/painel_clientes_apex_20261021_172132_antes_filtros_mailing.html`. Antes de publicar, o painel no ar era idêntico à oficial dc8735d (§103 do Fechamento), que foi juntada antes.
+
 ## 103. Fechamento carregava só 1.000 pedidos (21/10/2026)
 
 ### 103.1 O problema
