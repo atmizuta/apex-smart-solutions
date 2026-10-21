@@ -1803,7 +1803,7 @@ def ler_url():
     url = os.environ.get('APEX_DB_URL')
     arq = os.path.join(os.path.expanduser('~'), '.apex', 'db_url.txt')
     if not url and os.path.exists(arq):
-        url = open(arq, encoding='utf-8').read().strip()
+        url = open(arq, encoding='utf-8-sig').read().strip()  # -sig: aceita o arquivo salvo pelo Bloco de Notas com BOM
     if not url:
         raise SystemExit('Conexao nao configurada: crie %USERPROFILE%\\.apex\\db_url.txt (ver plano, Tarefa 7).')
     return url
