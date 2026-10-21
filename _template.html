@@ -13575,6 +13575,82 @@ const DC_MIN_ATENDIDAS_DESTAQUE = 20;  // destaque de consultor só com amostra 
 const dcEstado = { geracao: 0, chave: 'hoje', de: null, ate: null, operacao: 'apex', raiox: null, raioxGer: 0, consultores: null, janelaVenda: 30, pausaMin: 15 };
 const DC_OPERACOES = { apex: 'Apex', campinas: 'Campinas', todas: 'Todas as operações' };
 // §89: supervisor de qualquer operação vê a aba; o banco devolve só a operação dele (admin escolhe no seletor)
+// ===================== BASE DE MAILING (20/10/2026, seção 102) =====================
+// Spec: docs/superpowers/specs/2026-10-20-base-mailing-design.md. Só admin/supervisor (qualquer operação).
+// A base fica no schema `mailing` (fechado à API); o painel fala só com a Edge Function mailing-api.
+// O CSV é montado aqui, no layout de importação do ProContact: 20 colunas, ';', CRLF, Windows-1252.
+const MB_MAX_QTD = 100000;
+const MB_CABECALHO = ['nome', 'descricao', 'documento1', 'documento2', 'fone1', 'fone2', 'fone3', 'fone4', 'fone5', 'fone6',
+  'fone7', 'fone8', 'fone9', 'fone10', 'campo1', 'campo2', 'campo3', 'obs', 'integra1', 'integra2'];
+// Windows-1252: 0x00–0x7F e 0xA0–0xFF são iguais ao Unicode; 0x80–0x9F têm estes caracteres próprios.
+const MB_CP1252 = { 0x20AC: 0x80, 0x201A: 0x82, 0x0192: 0x83, 0x201E: 0x84, 0x2026: 0x85, 0x2020: 0x86, 0x2021: 0x87,
+  0x02C6: 0x88, 0x2030: 0x89, 0x0160: 0x8A, 0x2039: 0x8B, 0x0152: 0x8C, 0x017D: 0x8E, 0x2018: 0x91, 0x2019: 0x92,
+  0x201C: 0x93, 0x201D: 0x94, 0x2022: 0x95, 0x2013: 0x96, 0x2014: 0x97, 0x02DC: 0x98, 0x2122: 0x99, 0x0161: 0x9A,
+  0x203A: 0x9B, 0x0153: 0x9C, 0x017E: 0x9E, 0x0178: 0x9F };
+const MB_ROTULO_OPERADORA = { VIVO: 'Vivo', CLARO: 'Claro', TIM: 'TIM', OUTRAS: 'Outras', SEM: 'Sem operadora' };
+function canSeeMailing(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
+function mbFiltrosPadrao(){ return { situacao: ['ATIVA'], excluir_obito: true, tipo: 'CELULAR', origem: 'MAILING' }; }
+function mbFmtNum(n){ return (Number(n) || 0).toLocaleString('pt-BR'); }
+function mbCampoCsv(v){
+  const s = v === null || v === undefined ? '' : String(v);
+  return /[;"\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+// colunas/linhas vêm da mailing-api (8 colunas nomeadas); cada uma vai para a sua posição nas 20 do ProContact
+function mbMontarCsv(colunas, linhas){
+  const idx = {};
+  (colunas || []).forEach((c, i) => { idx[c] = i; });
+  const saida = [MB_CABECALHO.join(';')];
+  for(const l of (linhas || [])) saida.push(MB_CABECALHO.map(c => mbCampoCsv(c in idx ? l[idx[c]] : '')).join(';'));
+  return saida.join('\r\n') + '\r\n';
+}
+function mbParaCp1252(texto){
+  const s = String(texto);
+  const out = new Uint8Array(s.length);
+  let n = 0;
+  for(const ch of s){
+    const c = ch.codePointAt(0);
+    out[n++] = (c < 0x80 || (c >= 0xA0 && c <= 0xFF)) ? c : (MB_CP1252[c] !== undefined ? MB_CP1252[c] : 0x3F);
+  }
+  return out.subarray(0, n);
+}
+function mbValidarQuantidade(v){
+  const s = String(v === null || v === undefined ? '' : v).trim().replace(/\./g, '');
+  if(!/^\d+$/.test(s)) return null;
+  const n = Number(s);
+  return n >= 1 && n <= MB_MAX_QTD ? n : null;
+}
+function mbResumoFiltros(f){
+  const p = [], j = a => a.join(', ');
+  const SIN = { deixou_mei: 'deixou de ser MEI', virou_mei: 'virou MEI', porte_mudou: 'porte mudou' };
+  if(f.uf && f.uf.length) p.push('UF ' + j(f.uf));
+  if(f.municipio && f.municipio.length) p.push(f.municipio.length === 1 ? '1 cidade' : f.municipio.length + ' cidades');
+  if(f.ddd && f.ddd.length) p.push('DDD ' + j(f.ddd));
+  if(f.situacao && f.situacao.length) p.push(j(f.situacao));
+  if(f.porte && f.porte.length) p.push(j(f.porte));
+  if(f.mei) p.push('MEI: ' + (f.mei === 'sim' ? 'sim' : 'não'));
+  if(f.cnae && f.cnae.length) p.push(f.cnae.length === 1 ? '1 CNAE' : f.cnae.length + ' CNAEs');
+  if(f.abertura_de || f.abertura_ate) p.push('abertura ' + (f.abertura_de || '…') + ' a ' + (f.abertura_ate || '…'));
+  (f.sinais || []).forEach(s => p.push(SIN[s] || s));
+  if(f.classe && f.classe.length) p.push('classe ' + j(f.classe));
+  if(f.excluir_obito) p.push('sem óbito');
+  if(f.tipo) p.push(f.tipo === 'CELULAR' ? 'celular' : 'fixo');
+  if(f.operadora && f.operadora.length) p.push(j(f.operadora));
+  if(f.portado) p.push('portado: ' + (f.portado === 'sim' ? 'sim' : 'não'));
+  if(f.whatsapp) p.push('WhatsApp: ' + (f.whatsapp === 'sim' ? 'sim' : 'não'));
+  if(f.procon) p.push(f.procon === 'com' ? 'com flag Procon' : 'sem flag Procon');
+  if(f.origem) p.push(f.origem === 'MAILING' ? 'só mailing' : 'só Receita');
+  if(f.nunca_extraida) p.push('nunca extraídos');
+  else if(f.sem_extracao_dias) p.push('sem extração há ' + f.sem_extracao_dias + ' dias');
+  return p.length ? p.join(' · ') : 'sem filtros';
+}
+function mbTextoCarga(c){
+  if(!c) return 'Base ainda não carregada.';
+  const p = [];
+  if(c.receita_mes) p.push('Receita de ' + c.receita_mes);
+  if(c.neo_ate){ const [a, m, d] = String(c.neo_ate).slice(0, 10).split('-'); p.push('operadora do NEO até ' + d + '/' + m + '/' + a); }
+  if(c.carregado_em) p.push('carregado em ' + new Date(c.carregado_em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }));
+  return p.join(' · ');
+}
 function canSeeDiscador(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
 function dcOperacaoPedida(){ return currentUser && currentUser.role === 'admin' ? dcEstado.operacao : null; }
 function dcPeriodo(chave, hoje, de, ate){
