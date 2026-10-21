@@ -1419,7 +1419,8 @@
         <div class="mbGrade">
           <div class="field"><label id="mbUfRotulo">UF</label><div class="mbMulti" data-alvo="mbUf" data-vazio="Todas"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbUfRotulo mbUfTexto"><span class="mbMultiTexto" id="mbUfTexto">Todas</span></button><div class="mbMultiCaixa" hidden><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbUf" multiple hidden></select></div></div>
           <div class="field"><label id="mbMunicipioRotulo">Cidade</label><div class="mbMulti" data-alvo="mbMunicipio" data-vazio="Todas"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbMunicipioRotulo mbMunicipioTexto"><span class="mbMultiTexto" id="mbMunicipioTexto">Todas</span></button><div class="mbMultiCaixa" hidden><input type="search" class="mbMultiBusca" placeholder="Buscar cidade" aria-label="Buscar cidade"><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbMunicipio" multiple hidden></select></div></div>
-          <div class="field"><label id="mbDddRotulo">DDD do telefone</label><div class="mbMulti" data-alvo="mbDdd" data-vazio="Todos"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbDddRotulo mbDddTexto"><span class="mbMultiTexto" id="mbDddTexto">Todos</span></button><div class="mbMultiCaixa" hidden><input type="search" class="mbMultiBusca" placeholder="Buscar DDD" aria-label="Buscar DDD"><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbDdd" multiple hidden></select></div></div>
+          <div class="field"><label id="mbDddRotulo">DDD da cidade</label><div class="mbMulti" data-alvo="mbDdd" data-vazio="Todos"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbDddRotulo mbDddTexto"><span class="mbMultiTexto" id="mbDddTexto">Todos</span></button><div class="mbMultiCaixa" hidden><input type="search" class="mbMultiBusca" placeholder="Buscar DDD" aria-label="Buscar DDD"><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbDdd" multiple hidden></select></div></div>
+          <div class="field"><label id="mbPosicaoRotulo">Telefone da planilha</label><div class="mbMulti" data-alvo="mbPosicao" data-vazio="Todos"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbPosicaoRotulo mbPosicaoTexto"><span class="mbMultiTexto" id="mbPosicaoTexto">Todos</span></button><div class="mbMultiCaixa" hidden><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbPosicao" multiple hidden></select></div></div>
           <div class="field"><label id="mbSituacaoRotulo">Situação na Receita</label><div class="mbMulti" data-alvo="mbSituacao" data-vazio="Todas"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbSituacaoRotulo mbSituacaoTexto"><span class="mbMultiTexto" id="mbSituacaoTexto">Todas</span></button><div class="mbMultiCaixa" hidden><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbSituacao" multiple hidden></select></div></div>
           <div class="field"><label id="mbPorteRotulo">Porte atual</label><div class="mbMulti" data-alvo="mbPorte" data-vazio="Todos"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbPorteRotulo mbPorteTexto"><span class="mbMultiTexto" id="mbPorteTexto">Todos</span></button><div class="mbMultiCaixa" hidden><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbPorte" multiple hidden></select></div></div>
           <div class="field"><label id="mbClasseRotulo">Classe econômica</label><div class="mbMulti" data-alvo="mbClasse" data-vazio="Todas"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbClasseRotulo mbClasseTexto"><span class="mbMultiTexto" id="mbClasseTexto">Todas</span></button><div class="mbMultiCaixa" hidden><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbClasse" multiple hidden></select></div></div>
@@ -13863,6 +13864,8 @@ function mbResumoFiltros(f){
   if(f.uf && f.uf.length) p.push('UF ' + j(f.uf));
   if(f.municipio && f.municipio.length) p.push(f.municipio.length === 1 ? '1 cidade' : f.municipio.length + ' cidades');
   if(f.ddd && f.ddd.length) p.push('DDD ' + j(f.ddd));
+  if(f.ddd_cidade && f.ddd_cidade.length) p.push('DDD da cidade ' + j(f.ddd_cidade));
+  if(f.posicao && f.posicao.length) p.push('telefone ' + j(f.posicao));
   if(f.situacao && f.situacao.length) p.push(j(f.situacao));
   if(f.porte && f.porte.length) p.push(j(f.porte));
   if(f.mei) p.push('MEI: ' + (f.mei === 'sim' ? 'sim' : 'não'));
@@ -13980,7 +13983,8 @@ function mbAlternarFiltros(){
 }
 function mbPreencherOpcoes(){
   mbPreencherSelect('mbUf', mbOpcoesDo('uf'));
-  mbPreencherSelect('mbDdd', mbOpcoesDo('ddd'));
+  mbPreencherSelect('mbDdd', mbOpcoesDo('ddd_cidade')); // 21/10: DDD da cidade da empresa, não do telefone
+  mbPreencherSelect('mbPosicao', mbOpcoesDo('posicao'));
   mbPreencherSelect('mbSituacao', mbOpcoesDo('situacao'), ['ATIVA']);
   mbPreencherSelect('mbPorte', mbOpcoesDo('porte'));
   mbPreencherSelect('mbClasse', mbOpcoesDo('classe'));
@@ -13997,7 +14001,7 @@ function mbLerFiltros(){
     ['sexo', 'mbSexo'], ['geracao', 'mbGeracao'], ['risco', 'mbRisco']]){
     const v = mbSelecionados(id); if(v.length) f[k] = v;
   }
-  for(const [k, id] of [['municipio', 'mbMunicipio'], ['ddd', 'mbDdd'], ['cnae', 'mbCnae']]){
+  for(const [k, id] of [['municipio', 'mbMunicipio'], ['ddd_cidade', 'mbDdd'], ['posicao', 'mbPosicao'], ['cnae', 'mbCnae']]){
     const v = mbSelecionados(id, true); if(v.length) f[k] = v;
   }
   const val = id => document.getElementById(id).value;
@@ -14016,7 +14020,7 @@ function mbLerFiltros(){
   return f;
 }
 function mbLimpar(){
-  ['mbUf', 'mbMunicipio', 'mbDdd', 'mbPorte', 'mbClasse', 'mbOperadora', 'mbCnae', 'mbSexo', 'mbGeracao', 'mbRisco']
+  ['mbUf', 'mbMunicipio', 'mbDdd', 'mbPosicao', 'mbPorte', 'mbClasse', 'mbOperadora', 'mbCnae', 'mbSexo', 'mbGeracao', 'mbRisco']
     .forEach(id => Array.from(document.getElementById(id).options).forEach(o => { o.selected = false; }));
   Array.from(document.getElementById('mbSituacao').options).forEach(o => { o.selected = o.value === 'ATIVA'; });
   ['mbMei', 'mbPortado', 'mbWhatsapp', 'mbProcon', 'mbUso', 'mbAberturaDe', 'mbAberturaAte', 'mbCnaeBusca']

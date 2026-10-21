@@ -61,5 +61,11 @@ for (const t of ['linha', 'amostra']) {
 const nomesFiltSoc = new Set(filtSoc.replace(/--.*$/gm, '').match(/[a-z_][a-z0-9_]*/g));
 for (const p of trechosProibidos) assert(![...nomesFiltSoc].some(n => n.includes(p)), `filtros do sócio sem coluna proibida: ${p}`);
 assert(rbFiltSoc.includes('alter table mailing.linha drop column if exists sexo'), 'rollback dos filtros do sócio');
+// 21/10: posição do telefone na planilha (linha e amostra) e DDD da cidade na amostra
+const posDdd = ler('supabase/migrations/20261021090400_mailing_posicao_ddd_cidade.sql');
+const rbPosDdd = ler('supabase/rollback/20261021090400_mailing_posicao_ddd_cidade_rollback.sql');
+assert(posDdd.includes('alter table mailing.linha add column posicao smallint;'), 'linha: posição do telefone');
+assert(posDdd.includes('alter table mailing.amostra\n  add column posicao smallint,\n  add column rf_ddd_cidade smallint;'), 'amostra: posição e DDD da cidade');
+assert(rbPosDdd.includes('alter table mailing.linha drop column if exists posicao'), 'rollback da posição');
 console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
 process.exit(fail > 0 ? 1 : 0);

@@ -25,13 +25,14 @@ export type Filtros = {
   classe?: string[]; excluir_obito?: boolean; tipo?: "CELULAR" | "FIXO"; operadora?: string[]; portado?: SimNao;
   whatsapp?: SimNao; procon?: "com" | "sem"; origem?: "MAILING" | "RECEITA"; nunca_extraida?: boolean;
   sem_extracao_dias?: number; sexo?: string[]; geracao?: string[]; risco?: string[]; extraida_antes_de?: string;
+  ddd_cidade?: number[]; posicao?: number[];
 };
 export type SqlParte = { sql: string; params: unknown[] };
 export type Validacao = { ok: true; filtros: Filtros } | { ok: false; erro: string };
 
 const CHAVES = new Set(["uf", "municipio", "ddd", "situacao", "porte", "mei", "cnae", "abertura_de", "abertura_ate", "sinais",
   "classe", "excluir_obito", "tipo", "operadora", "portado", "whatsapp", "procon", "origem", "nunca_extraida", "sem_extracao_dias",
-  "sexo", "geracao", "risco", "extraida_antes_de"]);
+  "sexo", "geracao", "risco", "extraida_antes_de", "ddd_cidade", "posicao"]);
 
 export function filtrosPadrao(): Filtros {
   return { situacao: ["ATIVA"], excluir_obito: true, tipo: "CELULAR", origem: "MAILING" };
@@ -50,6 +51,8 @@ const LISTAS: [keyof Filtros, (x: unknown) => boolean][] = [
   ["porte", naLista(PORTES)], ["cnae", ehInt(100000, 9999999)], ["classe", naLista(CLASSES)],
   ["operadora", naLista(OPERADORAS)], ["sinais", (x) => typeof x === "string" && Object.hasOwn(SINAIS, x)],
   ["sexo", naLista(SEXOS)], ["geracao", naLista(GERACOES)], ["risco", naLista(RISCOS)],
+  // 21/10: DDD da cidade da empresa (Receita) e posição do telefone na planilha comprada (1 = o de mais contato)
+  ["ddd_cidade", ehInt(11, 99)], ["posicao", ehInt(1, 10)],
 ];
 const OPCOES: [keyof Filtros, unknown[]][] = [
   ["mei", ["sim", "nao"]], ["tipo", ["CELULAR", "FIXO"]], ["portado", ["sim", "nao"]], ["whatsapp", ["sim", "nao"]],
@@ -113,6 +116,7 @@ export function montarWhere(f: Filtros): SqlParte {
   if (f.uf?.length) conds.push(`l.rf_uf = any(${p(f.uf)}::text[])`);
   if (f.municipio?.length) conds.push(`l.rf_municipio = any(${p(f.municipio)}::int[])`);
   if (f.ddd?.length) conds.push(`l.ddd = any(${p(f.ddd)}::smallint[])`);
+  if (f.ddd_cidade?.length) conds.push(`l.rf_ddd_cidade = any(${p(f.ddd_cidade)}::smallint[])`);
   if (f.situacao?.length) conds.push(`l.rf_situacao = any(${p(f.situacao)}::text[])`);
   if (f.porte?.length) conds.push(`l.rf_porte_atual = any(${p(f.porte)}::text[])`);
   if (f.mei) conds.push(f.mei === "sim" ? "l.rf_mei" : "not coalesce(l.rf_mei, false)");
@@ -124,6 +128,7 @@ export function montarWhere(f: Filtros): SqlParte {
   if (f.sexo?.length) conds.push(`l.sexo = any(${p(f.sexo)}::text[])`);
   if (f.geracao?.length) conds.push(`l.geracao = any(${p(f.geracao)}::text[])`);
   if (f.risco?.length) conds.push(`l.faixa_risco = any(${p(f.risco)}::text[])`);
+  if (f.posicao?.length) conds.push(`l.posicao = any(${p(f.posicao)}::smallint[])`);
   if (f.excluir_obito) conds.push("not l.socio_obito");
   if (f.tipo) conds.push(f.tipo === "CELULAR" ? "l.celular" : "not l.celular");
   if (f.operadora?.length) {

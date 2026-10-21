@@ -101,7 +101,8 @@ try{
   window.__fnRespostas.opcoes = { data: { opcoes: [
     { tipo: 'uf', valor: 'SP', rotulo: 'SP', uf: null }, { tipo: 'uf', valor: 'RJ', rotulo: 'RJ', uf: null },
     { tipo: 'municipio', valor: '7107', rotulo: 'SAO PAULO', uf: 'SP' }, { tipo: 'municipio', valor: '6001', rotulo: 'RIO DE JANEIRO', uf: 'RJ' },
-    { tipo: 'ddd', valor: '11', rotulo: '11', uf: null },
+    { tipo: 'ddd_cidade', valor: '11', rotulo: '11', uf: null }, { tipo: 'ddd_cidade', valor: '19', rotulo: '19', uf: null },
+    { tipo: 'posicao', valor: '1', rotulo: 'Telefone 1', uf: null }, { tipo: 'posicao', valor: '2', rotulo: 'Telefone 2', uf: null },
     { tipo: 'situacao', valor: 'ATIVA', rotulo: 'ATIVA', uf: null }, { tipo: 'situacao', valor: 'BAIXADA', rotulo: 'BAIXADA', uf: null },
     { tipo: 'porte', valor: 'MEI', rotulo: 'MEI', uf: null }, { tipo: 'classe', valor: 'B', rotulo: 'B', uf: null },
     { tipo: 'cnae', valor: '9602501', rotulo: '9602501 — Cabeleireiros, manicure e pedicure', uf: null },
@@ -131,7 +132,7 @@ try{
   const itens = id => Array.from(multi(id).querySelectorAll('.mbMultiItem input')).map(i => i.value);
   const marcar = (id, valor) => { const cb = Array.from(multi(id).querySelectorAll('.mbMultiItem input')).find(i => i.value === valor);
     cb.checked = !cb.checked; cb.dispatchEvent(new window.Event('change', { bubbles: true })); };
-  for (const id of ['mbUf', 'mbMunicipio', 'mbDdd', 'mbSituacao', 'mbPorte', 'mbClasse', 'mbOperadora', 'mbCnae', 'mbSexo', 'mbGeracao', 'mbRisco']) {
+  for (const id of ['mbUf', 'mbMunicipio', 'mbDdd', 'mbPosicao', 'mbSituacao', 'mbPorte', 'mbClasse', 'mbOperadora', 'mbCnae', 'mbSexo', 'mbGeracao', 'mbRisco']) {
     assert(multi(id) && document.getElementById(id).hidden && caixa(id).hidden, 'filtro ' + id + ': botão com caixa fechada e lista nativa escondida');
   }
   eq([texto('mbUf'), texto('mbSituacao')], ['Todas', 'ATIVA'], 'botão mostra "Todas" sem escolha e o nome com uma escolha');
@@ -164,11 +165,19 @@ try{
   multi('mbRisco').querySelector('.mbMultiBotao').click(); marcar('mbRisco', 'BAIXO');
   document.body.click();
   eq([texto('mbSexo'), texto('mbGeracao'), texto('mbRisco')], ['Feminino', '2 selecionadas', 'Baixo'], 'filtros de sexo, geração e risco');
+  // 21/10: DDD da cidade (não do telefone) e posição do telefone na planilha
+  eq(document.getElementById('mbDddRotulo').textContent, 'DDD da cidade', 'o filtro de DDD é o da cidade da empresa');
+  eq(itens('mbDdd').length ? itens('mbDdd') : (multi('mbDdd').querySelector('.mbMultiBotao').click(), itens('mbDdd')), ['11', '19'], 'DDDs das cidades');
+  marcar('mbDdd', '11');
+  multi('mbPosicao').querySelector('.mbMultiBotao').click(); marcar('mbPosicao', '1');
+  document.body.click();
+  eq([document.getElementById('mbPosicaoRotulo').textContent, texto('mbPosicao')], ['Telefone da planilha', 'Telefone 1'], 'filtro da posição do telefone');
   document.getElementById('mbUso').value = 'dias'; document.getElementById('mbUso').dispatchEvent(new window.Event('change'));
   eq(document.getElementById('mbUsoDias').style.display, '', 'escolher "não extraídos há…" mostra o campo de dias');
   document.getElementById('mbUsoDias').value = '45';
-  eq(mbLerFiltros(), { uf: ['RJ'], situacao: ['ATIVA'], operadora: ['VIVO'], sexo: ['F'], geracao: ['Y', 'Z'], risco: ['BAIXO'], cnae: [9602501], excluir_obito: true, sem_extracao_dias: 45 }, 'filtros lidos da tela');
+  eq(mbLerFiltros(), { uf: ['RJ'], situacao: ['ATIVA'], operadora: ['VIVO'], sexo: ['F'], geracao: ['Y', 'Z'], risco: ['BAIXO'], ddd_cidade: [11], posicao: [1], cnae: [9602501], excluir_obito: true, sem_extracao_dias: 45 }, 'filtros lidos da tela');
   eq(mbResumoFiltros({ sexo: ['F'], geracao: ['Y', 'Z'], risco: ['BAIXO'] }), 'sexo F · geração Y, Z · risco BAIXO', 'resumo com os filtros do sócio');
+  eq(mbResumoFiltros({ ddd_cidade: [11, 19], posicao: [1] }), 'DDD da cidade 11, 19 · telefone 1', 'resumo com DDD da cidade e posição');
   assert(!document.getElementById('mbTipo') && !document.getElementById('mbOrigem'), 'sem filtros de tipo e origem (sempre dariam zero)');
   const btnFiltros = document.getElementById('btnMbFiltros');
   btnFiltros.click();

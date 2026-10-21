@@ -185,3 +185,14 @@ test("extraida_antes_de: só linhas não extraídas desde o início do pedido", 
     sql: "l.ultima_extracao is null and (l.ultima_extracao is null or l.ultima_extracao < $1::timestamptz)", params: [iso],
   });
 });
+
+// 21/10 (pedido do Rafael): DDD da cidade da empresa (não do telefone) e posição do telefone na planilha (1 = mais contato)
+test("DDD da cidade e posição do telefone na planilha", () => {
+  assert.deepEqual(validarFiltros({ ddd_cidade: [11, 19], posicao: [1] }), { ok: true, filtros: { ddd_cidade: [11, 19], posicao: [1] } });
+  for (const ruim of [{ ddd_cidade: [5] }, { posicao: [0] }, { posicao: ["1"] }, { posicao: [11] }]) {
+    assert.equal(validarFiltros(ruim).ok, false, JSON.stringify(ruim));
+  }
+  assert.deepEqual(montarWhere({ ddd_cidade: [11], posicao: [1, 2] }), {
+    sql: "l.rf_ddd_cidade = any($1::smallint[]) and l.posicao = any($2::smallint[])", params: [[11], [1, 2]],
+  });
+});
