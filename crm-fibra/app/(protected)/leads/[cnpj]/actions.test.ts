@@ -173,9 +173,23 @@ describe("registrarMensagemAction", () => {
 
 describe("salvarPropostaAction", () => {
   const itensValidos = [
-    { catalogoPlanoId: "p1", descricao: "  400 Mega (G1 Padrão)  ", valor: 79.9 },
-    { catalogoPlanoId: null, descricao: "Oferta avulsa", valor: 59.9 },
+    { catalogoPlanoId: "p12", descricao: "  Pós 12GB — por linha  ", valor: 279.93, quantidade: 7, franquiaGb: 12 },
+    { catalogoPlanoId: null, descricao: "Oferta avulsa", valor: 59.9, quantidade: 1, franquiaGb: null },
   ];
+  const situacaoValida = {
+    faturasAnalisadas: 1,
+    linhas: [
+      {
+        rotulo: "(17) ••••• 0001",
+        quantidade: 1,
+        planoGb: 10,
+        valorUnitario: 48.49,
+        consumoMb: 1000,
+        origem: "fatura" as const,
+        proposto: { descricao: "Pós 12GB — por linha", valorUnitario: 39.99 },
+      },
+    ],
+  };
 
   it("redireciona pra /login quando não há sessão", async () => {
     cookieGet.mockReturnValue(undefined);
@@ -191,10 +205,14 @@ describe("salvarPropostaAction", () => {
   });
 
   it.each([
-    ["descrição em branco", { catalogoPlanoId: null, descricao: "   ", valor: 10 }],
-    ["valor zero", { catalogoPlanoId: null, descricao: "Oferta", valor: 0 }],
-    ["valor NaN", { catalogoPlanoId: null, descricao: "Oferta", valor: Number.NaN }],
-    ["valor que não é número", { catalogoPlanoId: null, descricao: "Oferta", valor: "abc" as unknown as number }],
+    ["descrição em branco", { catalogoPlanoId: null, descricao: "   ", valor: 10, quantidade: 1, franquiaGb: null }],
+    ["valor zero", { catalogoPlanoId: null, descricao: "Oferta", valor: 0, quantidade: 1, franquiaGb: null }],
+    ["valor NaN", { catalogoPlanoId: null, descricao: "Oferta", valor: Number.NaN, quantidade: 1, franquiaGb: null }],
+    ["valor que não é número", { catalogoPlanoId: null, descricao: "Oferta", valor: "abc" as unknown as number, quantidade: 1, franquiaGb: null }],
+    ["quantidade zero", { catalogoPlanoId: null, descricao: "Oferta", valor: 10, quantidade: 0, franquiaGb: null }],
+    ["quantidade fracionada", { catalogoPlanoId: null, descricao: "Oferta", valor: 10, quantidade: 1.5, franquiaGb: null }],
+    ["quantidade ausente", { catalogoPlanoId: null, descricao: "Oferta", valor: 10 } as unknown as (typeof itensValidos)[number]],
+    ["franquia inválida", { catalogoPlanoId: null, descricao: "Oferta", valor: 10, quantidade: 1, franquiaGb: 0 }],
   ])("recusa linha inválida (%s) sem gravar nada", async (_nome, item) => {
     sessaoValida();
     const resultado = await salvarPropostaAction("00005087000190", [item]);
@@ -210,7 +228,7 @@ describe("salvarPropostaAction", () => {
     expect(criarProposta).not.toHaveBeenCalled();
   });
 
-  it("usa o consultor da sessão e permite salvar em lead de outro consultor", async () => {
+  it("usa o consultor da sessão, normaliza os itens e permite salvar em lead de outro consultor", async () => {
     sessaoValida();
     buscarLeadPorCnpj.mockResolvedValue({ cnpjDigits: "00005087000190", donoConsultorId: "outro-consultor" });
     criarProposta.mockResolvedValue({ id: "prop1" });
@@ -222,10 +240,55 @@ describe("salvarPropostaAction", () => {
       cnpjDigits: "00005087000190",
       consultorId: "c1",
       itens: [
-        { catalogoPlanoId: "p1", descricao: "400 Mega (G1 Padrão)", valor: 79.9 },
-        { catalogoPlanoId: null, descricao: "Oferta avulsa", valor: 59.9 },
+        { catalogoPlanoId: "p12", descricao: "Pós 12GB — por linha", valor: 279.93, quantidade: 7, franquiaGb: 12 },
+        { catalogoPlanoId: null, descricao: "Oferta avulsa", valor: 59.9, quantidade: 1, franquiaGb: null },
       ],
+      situacaoAtual: null,
     });
+  });
+
+  it("grava a situação atual validada junto da proposta", async () => {
+    sessaoValida();
+    buscarLeadPorCnpj.mockResolvedValue({ cnpjDigits: "00005087000190", donoConsultorId: null });
+    criarProposta.mockResolvedValue({ id: "prop1" });
+
+    const resultado = await salvarPropostaAction("00005087000190", itensValidos, situacaoValida);
+
+    expect(resultado).toEqual({});
+    expect(criarProposta).toHaveBeenCalledWith({}, expect.objectContaining({ situacaoAtual: situacaoValida }));
+  });
+
+  it("recusa situação atual inválida (telefone completo no nome da linha) sem gravar nada", async () => {
+    sessaoValida();
+    const forjada = { ...situacaoValida, linhas: [{ ...situacaoValida.linhas[0], rotulo: "(17) 90000-0001" }] };
+    const resultado = await salvarPropostaAction("00005087000190", itensValidos, forjada);
+    expect(resultado.erro).toMatch(/número completo/);
+    expect(criarProposta).not.toHaveBeenCalled();
+  });
+
+  it("recusa situação atual sem linhas e linha sem mensalidade", async () => {
+    sessaoValida();
+    const semLinhas = await salvarPropostaAction("00005087000190", itensValidos, { faturasAnalisadas: 0, linhas: [] });
+    expect(semLinhas.erro).toMatch(/pelo menos uma linha/);
+
+    const semValor = await salvarPropostaAction("00005087000190", itensValidos, {
+      ...situacaoValida,
+      linhas: [{ ...situacaoValida.linhas[0], valorUnitario: 0 }],
+    });
+    expect(semValor.erro).toMatch(/mensalidade/);
+    expect(criarProposta).not.toHaveBeenCalled();
+  });
+
+  it("descarta campos extras da situação atual antes de gravar", async () => {
+    sessaoValida();
+    buscarLeadPorCnpj.mockResolvedValue({ cnpjDigits: "00005087000190", donoConsultorId: null });
+    criarProposta.mockResolvedValue({ id: "prop1" });
+    const comExtra = { ...situacaoValida, linhas: [{ ...situacaoValida.linhas[0], telefoneCompleto: "17900000001" }] };
+
+    await salvarPropostaAction("00005087000190", itensValidos, comExtra);
+
+    const gravada = criarProposta.mock.calls[0][1].situacaoAtual;
+    expect(JSON.stringify(gravada)).not.toContain("17900000001");
   });
 
   it("quando gravar falha, devolve mensagem amigável em vez de estourar (o rascunho do consultor não pode sumir)", async () => {
@@ -238,6 +301,27 @@ describe("salvarPropostaAction", () => {
 
     expect(resultado.erro).toMatch(/Não foi possível salvar/);
     expect(erroNoLog).toHaveBeenCalled();
+    erroNoLog.mockRestore();
+  });
+
+  it("o log de erro leva só mensagem e código: nunca a situação atual nem os detalhes do banco", async () => {
+    sessaoValida();
+    buscarLeadPorCnpj.mockResolvedValue({ cnpjDigits: "00005087000190", donoConsultorId: null });
+    criarProposta.mockRejectedValue({
+      message: "violação de restrição",
+      code: "23514",
+      details: "Failing row contains ((17) ••••• 0001, Pós 12GB)",
+    });
+    const erroNoLog = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const resultado = await salvarPropostaAction("00005087000190", itensValidos, situacaoValida);
+
+    expect(resultado.erro).toMatch(/Não foi possível salvar/);
+    const logado = JSON.stringify(erroNoLog.mock.calls);
+    expect(logado).toContain("23514");
+    expect(logado).toContain("violação de restrição");
+    expect(logado).not.toContain("Failing row");
+    expect(logado).not.toContain("••••• 0001");
     erroNoLog.mockRestore();
   });
 
@@ -259,11 +343,11 @@ describe("salvarPropostaAction", () => {
     criarProposta.mockResolvedValue({ id: "prop1" });
 
     await salvarPropostaAction("00005087000190", [
-      { catalogoPlanoId: 123 as unknown as string, descricao: "Oferta", valor: 10 },
+      { catalogoPlanoId: 123 as unknown as string, descricao: "Oferta", valor: 10, quantidade: 1, franquiaGb: null },
     ]);
 
     expect(criarProposta).toHaveBeenCalledWith({}, expect.objectContaining({
-      itens: [{ catalogoPlanoId: null, descricao: "Oferta", valor: 10 }],
+      itens: [{ catalogoPlanoId: null, descricao: "Oferta", valor: 10, quantidade: 1, franquiaGb: null }],
     }));
   });
 });

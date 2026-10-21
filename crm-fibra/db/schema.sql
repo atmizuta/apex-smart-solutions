@@ -201,3 +201,28 @@ alter table crm_fibra.abordagens enable row level security;
 -- created by the same role).
 grant usage on schema crm_fibra to service_role;
 grant select, insert, update, delete on all tables in schema crm_fibra to service_role;
+
+-- Proposta com fatura (sub-projeto 5) — idempotente, seguro para rodar de novo.
+-- Ordem: aplicar esta migração ANTES de publicar o código novo.
+
+-- Franquia em GB dos planos Pós: hoje só existe dentro do nome ("Pós 40GB").
+-- A sugestão por consumo e o "consolidar valores" dependem do número.
+alter table crm_fibra.catalogo_planos
+  add column if not exists franquia_gb integer check (franquia_gb is null or franquia_gb > 0);
+
+update crm_fibra.catalogo_planos
+   set franquia_gb = (substring(nome from '^Pós ([0-9]+)GB'))::int
+ where categoria in ('pos_nacional', 'pos_regional')
+   and franquia_gb is null
+   and nome ~ '^Pós [0-9]+GB';
+
+-- `valor` do item continua sendo o subtotal da linha (quantidade x unitário):
+-- o total da proposta segue sendo a soma de `valor`. `franquia_gb` é a cópia
+-- que a proposta guarda, como já faz com descrição e valor.
+alter table crm_fibra.proposta_itens
+  add column if not exists quantidade integer not null default 1 check (quantidade between 1 and 1000),
+  add column if not exists franquia_gb integer check (franquia_gb is null or franquia_gb > 0);
+
+-- Retrato da situação atual do cliente ({ faturasAnalisadas, linhas[] }), com o
+-- telefone das linhas já mascarado pelo navegador; nulo = proposta sem fatura.
+alter table crm_fibra.propostas add column if not exists situacao_atual jsonb;

@@ -27,9 +27,10 @@ const proposta: Proposta = {
   consultorId: "c1",
   criadoEm: "2026-10-13T12:00:00Z",
   total: 154.89,
+  situacaoAtual: null,
   itens: [
-    { id: "i1", catalogoPlanoId: "p1", descricao: "Pós 100GB — por linha", valor: 89.99, ordem: 0 },
-    { id: "i2", catalogoPlanoId: null, descricao: "Oferta avulsa combinada", valor: 64.9, ordem: 1 },
+    { id: "i1", catalogoPlanoId: "p1", descricao: "Pós 100GB — por linha", valor: 89.99, quantidade: 1, franquiaGb: 100, ordem: 0 },
+    { id: "i2", catalogoPlanoId: null, descricao: "Oferta avulsa combinada", valor: 64.9, quantidade: 1, franquiaGb: null, ordem: 1 },
   ],
 };
 
@@ -138,6 +139,35 @@ describe("montarPedidoAbordagem — proposta", () => {
     expect(usuario).toContain("- Oferta avulsa combinada: R$ 64,90");
     expect(usuario).toContain("Total da proposta: R$ 154,89");
     expect(usuario).not.toContain("Não há proposta salva");
+  });
+
+  it("item com quantidade maior que 1 mostra a quantidade e deixa claro que o valor é o total das linhas", () => {
+    const comQuantidade: Proposta = {
+      ...proposta,
+      itens: [
+        { id: "i1", catalogoPlanoId: "p1", descricao: "Pós 100GB — por linha", valor: 899.9, quantidade: 10, franquiaGb: 100, ordem: 0 },
+      ],
+      total: 899.9,
+    };
+    const { usuario } = montarPedidoAbordagem({ lead, proposta: comQuantidade });
+    expect(usuario).toContain("- 10× Pós 100GB — por linha: R$ 899,90 no total");
+    expect(usuario).toContain("Total da proposta: R$ 899,90");
+  });
+
+  it("a situação atual da fatura nunca vai para a IA", () => {
+    const comSituacao: Proposta = {
+      ...proposta,
+      situacaoAtual: {
+        faturasAnalisadas: 1,
+        linhas: [
+          { rotulo: "(17) ••••• 0001", quantidade: 1, planoGb: 10, valorUnitario: 48.49, consumoMb: 1000, origem: "fatura", proposto: null },
+        ],
+      },
+    };
+    const { sistema, usuario } = montarPedidoAbordagem({ lead, proposta: comSituacao });
+    const tudo = `${sistema}\n${usuario}`;
+    expect(tudo).not.toContain("0001");
+    expect(tudo).not.toContain("48,49");
   });
 
   it("sem proposta, avisa que não há e não monta bloco de proposta nem total", () => {

@@ -41,3 +41,11 @@ export function formatarDataHora(iso: string): string {
   );
   return `${partes.day}/${partes.month}/${partes.year} ${partes.hour}:${partes.minute}`;
 }
+
+// 14 dígitos viram 00.000.000/0000-00; qualquer outra coisa volta como veio
+// (um documento incompleto não deve sumir da tela).
+export function formatarCnpj(digitos: string): string {
+  const d = digitos.replace(/\D/g, "");
+  if (d.length !== 14) return digitos;
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+}
