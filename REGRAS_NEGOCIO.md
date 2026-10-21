@@ -3477,6 +3477,10 @@ Antes dos ajustes, contar levava de 23 a 85 s e escolher 100 mil levava 95 s: a 
 - **Telefone da planilha:** filtro novo, de 1 a 4, que é **em que coluna de telefone o número estava na planilha comprada**. O telefone 1 é o de mais contato.
   - Base: 1 → 6,03 milhões; 2 → 3,42 milhões; 3 → 1,86 milhão; 4 → 0,99 milhão.
 - **Banco:** coluna `posicao` em `mailing.linha` e `mailing.amostra`; `rf_ddd_cidade` também na amostra. Migration `20261021090400`.
+- **Recarga e publicação:**
+  - A base foi recarregada às ~19:45, com a cota de disco do Supabase já baixa, a pedido do Rafael. O CRM respondeu em ~0,3 s durante a recarga.
+  - As contagens conferem com as do PC. ATIVA + DDD da cidade 11 + telefone 1 ≈ 2,78 milhões de linhas.
+  - Função `mailing-api` v4. Painel publicado às 19:59 (SP), MD5 `89ad1d58555b40a70c94ebd730f525d2`; antes, o ar era igual à oficial a15bec2 (§105).
 
 ## 103. Fechamento carregava só 1.000 pedidos (21/10/2026)
 
