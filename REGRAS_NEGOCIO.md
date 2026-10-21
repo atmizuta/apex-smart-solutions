@@ -3483,3 +3483,6 @@ Pedido do Rafael: exportar para Excel e conferir com o fechamento da Claro; troc
 
 ### 104.2 Onde fica
 `_template.html`: `agruparFechamentoPorConsultor` (contagem por item e nova ordem), `totalFechamentoOperacao`, `filtrarSemDataFechamento`, `fechamentoLinhasRanking/Ativacoes/SemData`, `renderFechamentoSemData`, `exportarFechamentoExcel` e `exportarFechamentoSemDataExcel`. A consulta passou a trazer também `cadastro`. Testes em `test_fechamento.js` (77 asserções).
+
+### 104.3 Publicação
+21/10/2026 às 19:03 (SP), com ok do Rafael depois da prévia com dados reais. MD5 do painel: `c1970ce98f532660a2e22b581689b031`. Backup: `~/deploy_backups/painel_clientes_apex_20261021_190357_antes_fechamento_ranking.html`. Antes de publicar, o painel no ar era idêntico à oficial/main (MD5 `fdf58eb0…`).
