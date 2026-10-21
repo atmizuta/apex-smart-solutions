@@ -119,19 +119,52 @@ try{
   await mbCarregar(); await espera(30);
   eq(chamadas.map(c => c.body.acao), ['historico'], 'reabrir a aba só atualiza o histórico');
 
-  document.getElementById('mbUf').options[1].selected = true;
-  document.getElementById('mbUf').dispatchEvent(new window.Event('change'));
+  // 21/10 (pedido do Rafael): cada filtro de várias opções é um botão que abre uma caixa com opções para marcar
+  const multi = id => document.querySelector('.mbMulti[data-alvo="' + id + '"]');
+  const caixa = id => multi(id).querySelector('.mbMultiCaixa');
+  const texto = id => multi(id).querySelector('.mbMultiTexto').textContent;
+  const itens = id => Array.from(multi(id).querySelectorAll('.mbMultiItem input')).map(i => i.value);
+  const marcar = (id, valor) => { const cb = Array.from(multi(id).querySelectorAll('.mbMultiItem input')).find(i => i.value === valor);
+    cb.checked = !cb.checked; cb.dispatchEvent(new window.Event('change', { bubbles: true })); };
+  for (const id of ['mbUf', 'mbMunicipio', 'mbDdd', 'mbSituacao', 'mbPorte', 'mbClasse', 'mbOperadora', 'mbCnae']) {
+    assert(multi(id) && document.getElementById(id).hidden && caixa(id).hidden, 'filtro ' + id + ': botão com caixa fechada e lista nativa escondida');
+  }
+  eq([texto('mbUf'), texto('mbSituacao')], ['Todas', 'ATIVA'], 'botão mostra "Todas" sem escolha e o nome com uma escolha');
+  multi('mbUf').querySelector('.mbMultiBotao').click();
+  eq([caixa('mbUf').hidden, multi('mbUf').querySelector('.mbMultiBotao').getAttribute('aria-expanded')], [false, 'true'], 'clicar no botão abre a caixa');
+  eq(itens('mbUf'), ['SP', 'RJ'], 'caixa lista as opções para marcar');
+  marcar('mbUf', 'RJ');
+  eq(sel('mbUf'), ['RJ'], 'marcar na caixa escolhe a opção');
   eq(opts('mbMunicipio'), ['6001'], 'cidades só da UF escolhida');
+  eq(caixa('mbUf').hidden, false, 'a caixa continua aberta para marcar mais de uma');
+  multi('mbCnae').querySelector('.mbMultiBotao').click();
+  eq([caixa('mbUf').hidden, caixa('mbCnae').hidden], [true, false], 'abrir outro filtro fecha o anterior');
   const busca = document.getElementById('mbCnaeBusca');
-  busca.value = 'cabel'; busca.dispatchEvent(new window.Event('input'));
-  eq(opts('mbCnae'), ['9602501'], 'busca de CNAE pela descrição');
-  document.getElementById('mbCnae').options[0].selected = true;
-  document.getElementById('mbOperadora').options[0].selected = true;
+  assert(caixa('mbCnae').contains(busca), 'a busca do CNAE fica dentro da caixa');
+  busca.value = 'cabel'; busca.dispatchEvent(new window.Event('input', { bubbles: true }));
+  eq(itens('mbCnae'), ['9602501'], 'busca de CNAE pela descrição');
+  marcar('mbCnae', '9602501');
+  eq(texto('mbCnae'), '9602501 — Cabeleireiros, manicure e pedicure', 'botão mostra a opção escolhida');
+  document.body.click();
+  eq(caixa('mbCnae').hidden, true, 'clicar fora fecha a caixa');
+  multi('mbOperadora').querySelector('.mbMultiBotao').click();
+  marcar('mbOperadora', 'VIVO'); marcar('mbOperadora', 'SEM');
+  eq(texto('mbOperadora'), '2 selecionadas', 'várias escolhas viram contagem');
+  marcar('mbOperadora', 'SEM');
+  document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape' }));
+  eq(caixa('mbOperadora').hidden, true, 'Esc fecha a caixa');
   document.getElementById('mbUso').value = 'dias'; document.getElementById('mbUso').dispatchEvent(new window.Event('change'));
   eq(document.getElementById('mbUsoDias').style.display, '', 'escolher "não extraídos há…" mostra o campo de dias');
   document.getElementById('mbUsoDias').value = '45';
   eq(mbLerFiltros(), { uf: ['RJ'], situacao: ['ATIVA'], operadora: ['VIVO'], cnae: [9602501], excluir_obito: true, sem_extracao_dias: 45 }, 'filtros lidos da tela');
   assert(!document.getElementById('mbTipo') && !document.getElementById('mbOrigem'), 'sem filtros de tipo e origem (sempre dariam zero)');
+  const btnFiltros = document.getElementById('btnMbFiltros');
+  btnFiltros.click();
+  eq([document.getElementById('mbFiltrosCorpo').hidden, btnFiltros.textContent.trim(), btnFiltros.getAttribute('aria-expanded')], [true, 'Mostrar filtros', 'false'], 'esconder os filtros');
+  assert(!document.getElementById('mbFiltrosResumo').hidden && document.getElementById('mbFiltrosResumo').textContent.includes('UF RJ'), 'filtros escondidos mostram o resumo do que está escolhido');
+  assert(document.getElementById('btnMbContar').offsetParent !== undefined && !document.getElementById('btnMbContar').closest('[hidden]'), 'Contar continua à vista com os filtros escondidos');
+  btnFiltros.click();
+  eq([document.getElementById('mbFiltrosCorpo').hidden, document.getElementById('mbFiltrosResumo').hidden, btnFiltros.textContent.trim()], [false, true, 'Esconder filtros'], 'mostrar os filtros de novo');
 
   window.__fnRespostas.contar = { data: { linhas: 1234567, empresas: 400000, telefones: 1200000,
     por_operadora: [{ operadora: 'VIVO', linhas: 700000 }, { operadora: 'SEM', linhas: 1000 }] }, error: null };
@@ -181,6 +214,7 @@ try{
 
   document.getElementById('btnMbLimpar').click();
   eq(mbLerFiltros(), mbFiltrosPadrao(), 'limpar volta ao padrão');
+  eq([texto('mbUf'), texto('mbOperadora'), texto('mbCnae'), texto('mbSituacao')], ['Todas', 'Todas', 'Todos', 'ATIVA'], 'limpar volta os botões');
   currentUser = { id: 'a1', nome: 'Admin Teste', username: 'adm', role: 'admin', operacao: 'apex' };
   mbAplicarPermissao();
   eq([document.getElementById('mbResultado').innerHTML, mbEstado.opcoes], ['', null], 'trocar de usuário limpa a tela e as opções');

@@ -768,8 +768,22 @@
   @media (max-width:720px){ .agSemana,.agGrade{display:none;} .agLista{display:block;} .anCardTopo{flex-direction:column;align-items:flex-start;} }
   /* Base de Mailing (seção 102) */
   .mbGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:var(--space-3);}
-  .mbGrade select[multiple]{min-height:96px;}
-  .mbGrade input[type=search]{margin-bottom:var(--space-2);}
+  .mbFiltrosTopo{display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);margin-bottom:var(--space-3);}
+  /* filtro de várias opções: botão que abre uma caixa com opções para marcar (21/10) */
+  .mbMulti{position:relative;}
+  .mbMultiBotao{width:100%;display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);padding:10px 12px;border:1px solid var(--c-linha-forte);border-radius:var(--radius);background:var(--c-branco);color:var(--text);font:inherit;font-size:var(--fs-base);text-align:left;cursor:pointer;}
+  .mbMultiBotao:hover{border-color:var(--c-cinza);}
+  .mbMultiBotao:focus-visible,.mbMultiBotao[aria-expanded="true"]{outline:none;border-color:var(--c-sinal);}
+  .mbMultiBotao::after{content:'';flex:none;width:6px;height:6px;margin-top:-3px;border:solid currentColor;border-width:0 2px 2px 0;transform:rotate(45deg);opacity:.6;}
+  .mbMultiTexto{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .mbMultiCaixa{position:absolute;z-index:40;top:calc(100% + 4px);left:0;width:max(100%,260px);max-width:calc(100vw - 32px);background:var(--c-branco);border:1px solid var(--c-linha-forte);border-radius:var(--radius);box-shadow:var(--shadow-md);padding:var(--space-2);}
+  .mbMultiCaixa .mbMultiBusca{margin-bottom:var(--space-2);}
+  .mbMultiLista{max-height:240px;overflow:auto;}
+  .mbMulti .mbMultiItem{display:flex;align-items:center;gap:var(--space-2);margin:0;padding:6px var(--space-2);border-radius:var(--radius-sm);cursor:pointer;font-size:var(--fs-sm);font-weight:400;text-transform:none;letter-spacing:0;color:var(--text);}
+  .mbMulti .mbMultiItem:hover{background:var(--c-papel);}
+  .mbMulti .mbMultiItem input{width:auto;flex:none;margin:0;padding:0;}
+  .mbMultiNota{margin:var(--space-2);}
+  .mbMultiRodape{display:flex;justify-content:flex-end;margin-top:var(--space-2);padding-top:var(--space-2);border-top:1px solid var(--c-linha);}
   .mbChecks{display:flex;gap:var(--space-4);flex-wrap:wrap;margin-top:var(--space-3);font-size:var(--fs-sm);}
   .mbAcoes{display:flex;gap:var(--space-3);flex-wrap:wrap;margin-top:var(--space-3);}
 </style>
@@ -1395,16 +1409,21 @@
         <p class="desc" id="mbStatus" style="margin:4px 0 0"></p>
       </div>
       <div class="card">
-        <h3 style="margin:0 0 var(--space-3)">Filtros</h3>
+        <div class="mbFiltrosTopo">
+          <h3 style="margin:0">Filtros</h3>
+          <button type="button" class="btn btn-sm btn-outline" id="btnMbFiltros" aria-expanded="true" aria-controls="mbFiltrosCorpo" style="width:auto">Esconder filtros</button>
+        </div>
+        <p class="desc" id="mbFiltrosResumo" hidden></p>
+        <div id="mbFiltrosCorpo">
         <div class="mbGrade">
-          <div class="field"><label for="mbUf">UF</label><select id="mbUf" multiple size="4"></select></div>
-          <div class="field"><label for="mbMunicipio">Cidade</label><select id="mbMunicipio" multiple size="4"></select></div>
-          <div class="field"><label for="mbDdd">DDD do telefone</label><select id="mbDdd" multiple size="4"></select></div>
-          <div class="field"><label for="mbSituacao">Situação na Receita</label><select id="mbSituacao" multiple size="4"></select></div>
-          <div class="field"><label for="mbPorte">Porte atual</label><select id="mbPorte" multiple size="4"></select></div>
-          <div class="field"><label for="mbClasse">Classe econômica</label><select id="mbClasse" multiple size="4"></select></div>
-          <div class="field"><label for="mbOperadora">Operadora</label><select id="mbOperadora" multiple size="4"></select></div>
-          <div class="field"><label for="mbCnaeBusca">CNAE</label><input type="search" id="mbCnaeBusca" placeholder="Código ou descrição"><select id="mbCnae" multiple size="4"></select></div>
+          <div class="field"><label id="mbUfRotulo">UF</label><div class="mbMulti" data-alvo="mbUf" data-vazio="Todas"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbUfRotulo mbUfTexto"><span class="mbMultiTexto" id="mbUfTexto">Todas</span></button><div class="mbMultiCaixa" hidden><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbUf" multiple hidden></select></div></div>
+          <div class="field"><label id="mbMunicipioRotulo">Cidade</label><div class="mbMulti" data-alvo="mbMunicipio" data-vazio="Todas"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbMunicipioRotulo mbMunicipioTexto"><span class="mbMultiTexto" id="mbMunicipioTexto">Todas</span></button><div class="mbMultiCaixa" hidden><input type="search" class="mbMultiBusca" placeholder="Buscar cidade" aria-label="Buscar cidade"><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbMunicipio" multiple hidden></select></div></div>
+          <div class="field"><label id="mbDddRotulo">DDD do telefone</label><div class="mbMulti" data-alvo="mbDdd" data-vazio="Todos"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbDddRotulo mbDddTexto"><span class="mbMultiTexto" id="mbDddTexto">Todos</span></button><div class="mbMultiCaixa" hidden><input type="search" class="mbMultiBusca" placeholder="Buscar DDD" aria-label="Buscar DDD"><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbDdd" multiple hidden></select></div></div>
+          <div class="field"><label id="mbSituacaoRotulo">Situação na Receita</label><div class="mbMulti" data-alvo="mbSituacao" data-vazio="Todas"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbSituacaoRotulo mbSituacaoTexto"><span class="mbMultiTexto" id="mbSituacaoTexto">Todas</span></button><div class="mbMultiCaixa" hidden><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbSituacao" multiple hidden></select></div></div>
+          <div class="field"><label id="mbPorteRotulo">Porte atual</label><div class="mbMulti" data-alvo="mbPorte" data-vazio="Todos"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbPorteRotulo mbPorteTexto"><span class="mbMultiTexto" id="mbPorteTexto">Todos</span></button><div class="mbMultiCaixa" hidden><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbPorte" multiple hidden></select></div></div>
+          <div class="field"><label id="mbClasseRotulo">Classe econômica</label><div class="mbMulti" data-alvo="mbClasse" data-vazio="Todas"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbClasseRotulo mbClasseTexto"><span class="mbMultiTexto" id="mbClasseTexto">Todas</span></button><div class="mbMultiCaixa" hidden><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbClasse" multiple hidden></select></div></div>
+          <div class="field"><label id="mbOperadoraRotulo">Operadora</label><div class="mbMulti" data-alvo="mbOperadora" data-vazio="Todas"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbOperadoraRotulo mbOperadoraTexto"><span class="mbMultiTexto" id="mbOperadoraTexto">Todas</span></button><div class="mbMultiCaixa" hidden><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbOperadora" multiple hidden></select></div></div>
+          <div class="field"><label id="mbCnaeRotulo">CNAE</label><div class="mbMulti" data-alvo="mbCnae" data-vazio="Todos"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbCnaeRotulo mbCnaeTexto"><span class="mbMultiTexto" id="mbCnaeTexto">Todos</span></button><div class="mbMultiCaixa" hidden><input type="search" class="mbMultiBusca" id="mbCnaeBusca" placeholder="Código ou descrição" aria-label="Código ou descrição"><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbCnae" multiple hidden></select></div></div>
           <div class="field"><label for="mbMei">MEI</label><select id="mbMei"><option value="">Todos</option><option value="sim">Sim</option><option value="nao">Não</option></select></div>
           <div class="field"><label for="mbAberturaDe">Abertura de</label><input type="date" id="mbAberturaDe"></div>
           <div class="field"><label for="mbAberturaAte">Abertura até</label><input type="date" id="mbAberturaAte"></div>
@@ -1418,6 +1437,7 @@
           <label><input type="checkbox" id="mbSinalDeixouMei"> Deixou de ser MEI</label>
           <label><input type="checkbox" id="mbSinalVirouMei"> Virou MEI</label>
           <label><input type="checkbox" id="mbSinalPorteMudou"> Porte mudou</label>
+        </div>
         </div>
         <div class="mbAcoes">
           <button type="button" class="btn btn-sm" id="btnMbContar" style="width:auto">Contar</button>
@@ -13742,16 +13762,63 @@ function mbPreencherSelect(id, itens, marcados){
   const el = document.getElementById(id);
   const sel = new Set(marcados || Array.from(el.selectedOptions).map(o => o.value));
   el.innerHTML = itens.map(o => `<option value="${escapeHtml(String(o.valor))}"${sel.has(String(o.valor)) ? ' selected' : ''}>${escapeHtml(String(o.rotulo))}</option>`).join('');
+  mbMultiDesenhar(id);
 }
 function mbFiltrarMunicipios(){
   const ufs = new Set(mbSelecionados('mbUf'));
   mbPreencherSelect('mbMunicipio', mbOpcoesDo('municipio').filter(o => !ufs.size || ufs.has(o.uf)));
 }
-function mbFiltrarCnae(){
-  const q = (document.getElementById('mbCnaeBusca').value || '').trim().toLowerCase();
-  const sel = new Set(mbSelecionados('mbCnae'));
-  const itens = mbOpcoesDo('cnae').filter(o => sel.has(String(o.valor)) || !q || String(o.rotulo).toLowerCase().includes(q));
-  mbPreencherSelect('mbCnae', itens.slice(0, 300)); // ~1.300 CNAEs: sem busca, mostra os 300 primeiros
+// Filtros de várias opções (21/10, pedido do Rafael): botão que abre uma caixa com opções para marcar, no lugar da
+// lista com rolagem. O <select multiple> escondido continua sendo a fonte do que foi escolhido (mbLerFiltros lê dele).
+const MB_MULTI_MAX = 300; // itens desenhados por vez (cidades e CNAEs passam de mil): a busca refina
+function mbMultiEl(id){ return document.querySelector('#panel-mailing .mbMulti[data-alvo="' + id + '"]'); }
+function mbMultiTexto(id){
+  const vazio = mbMultiEl(id).dataset.vazio || 'Todos';
+  const sel = Array.from(document.getElementById(id).selectedOptions);
+  if(!sel.length) return vazio;
+  if(sel.length === 1) return sel[0].textContent;
+  return sel.length + (vazio === 'Todas' ? ' selecionadas' : ' selecionados');
+}
+function mbMultiDesenhar(id){
+  const w = mbMultiEl(id);
+  if(!w) return;
+  w.querySelector('.mbMultiTexto').textContent = mbMultiTexto(id);
+  if(w.querySelector('.mbMultiCaixa').hidden) return;
+  const busca = w.querySelector('.mbMultiBusca');
+  const q = busca ? busca.value.trim().toLowerCase() : '';
+  const achados = Array.from(document.getElementById(id).options).filter(o => o.selected || !q || o.textContent.toLowerCase().includes(q));
+  const e = escapeHtml;
+  w.querySelector('.mbMultiLista').innerHTML = achados.slice(0, MB_MULTI_MAX)
+    .map(o => `<label class="mbMultiItem"><input type="checkbox" value="${e(o.value)}"${o.selected ? ' checked' : ''}><span>${e(o.textContent)}</span></label>`).join('')
+    + (achados.length > MB_MULTI_MAX ? `<p class="desc mbMultiNota">Mostrando ${MB_MULTI_MAX} de ${e(mbFmtNum(achados.length))}. Digite para refinar.</p>` : '')
+    + (achados.length ? '' : '<p class="desc mbMultiNota">Nada encontrado.</p>');
+}
+function mbMultiFechar(exceto){
+  document.querySelectorAll('#panel-mailing .mbMulti').forEach(w => {
+    if(w.dataset.alvo === exceto) return;
+    w.querySelector('.mbMultiCaixa').hidden = true;
+    w.querySelector('.mbMultiBotao').setAttribute('aria-expanded', 'false');
+  });
+}
+function mbMultiAbrir(id, abrir){
+  mbMultiFechar(id);
+  const w = mbMultiEl(id);
+  w.querySelector('.mbMultiCaixa').hidden = !abrir;
+  w.querySelector('.mbMultiBotao').setAttribute('aria-expanded', String(abrir));
+  if(!abrir) return;
+  mbMultiDesenhar(id);
+  const busca = w.querySelector('.mbMultiBusca');
+  if(busca) busca.focus();
+}
+function mbMultiAtualizarTodos(){ document.querySelectorAll('#panel-mailing .mbMulti').forEach(w => mbMultiDesenhar(w.dataset.alvo)); }
+function mbAlternarFiltros(){
+  const corpo = document.getElementById('mbFiltrosCorpo'), btn = document.getElementById('btnMbFiltros'), resumo = document.getElementById('mbFiltrosResumo');
+  const esconder = !corpo.hidden;
+  corpo.hidden = esconder;
+  resumo.hidden = !esconder;
+  btn.textContent = esconder ? 'Mostrar filtros' : 'Esconder filtros';
+  btn.setAttribute('aria-expanded', String(!esconder));
+  if(esconder){ mbMultiFechar(); resumo.textContent = 'Filtros: ' + mbResumoFiltros(mbLerFiltros()); }
 }
 function mbPreencherOpcoes(){
   mbPreencherSelect('mbUf', mbOpcoesDo('uf'));
@@ -13760,7 +13827,8 @@ function mbPreencherOpcoes(){
   mbPreencherSelect('mbPorte', mbOpcoesDo('porte'));
   mbPreencherSelect('mbClasse', mbOpcoesDo('classe'));
   mbPreencherSelect('mbOperadora', mbOpcoesDo('operadora'));
-  mbFiltrarMunicipios(); mbFiltrarCnae();
+  mbPreencherSelect('mbCnae', mbOpcoesDo('cnae'));
+  mbFiltrarMunicipios();
 }
 function mbLerFiltros(){
   const f = {};
@@ -13795,7 +13863,10 @@ function mbLimpar(){
   document.getElementById('mbUsoDias').style.display = 'none';
   ['mbSinalDeixouMei', 'mbSinalVirouMei', 'mbSinalPorteMudou'].forEach(id => { document.getElementById(id).checked = false; });
   document.getElementById('mbExcluirObito').checked = true;
-  mbFiltrarMunicipios(); mbFiltrarCnae();
+  mbFiltrarMunicipios();
+  mbMultiFechar();
+  document.querySelectorAll('#panel-mailing .mbMultiBusca').forEach(b => { b.value = ''; });
+  mbMultiAtualizarTodos();
 }
 function mbRenderResultado(d){
   const e = escapeHtml;
@@ -13860,8 +13931,34 @@ async function mbExportar(){
 document.getElementById('btnMbContar').addEventListener('click', () => { mbContar(); });
 document.getElementById('btnMbExportar').addEventListener('click', () => { mbExportar(); });
 document.getElementById('btnMbLimpar').addEventListener('click', () => { mbLimpar(); });
+document.getElementById('btnMbFiltros').addEventListener('click', () => { mbAlternarFiltros(); });
+document.addEventListener('click', (ev) => {
+  const alvo = ev.target && ev.target.closest ? ev.target : null;
+  const botao = alvo && alvo.closest('#panel-mailing .mbMultiBotao');
+  if(botao){ const w = botao.closest('.mbMulti'); mbMultiAbrir(w.dataset.alvo, w.querySelector('.mbMultiCaixa').hidden); return; }
+  const limpar = alvo && alvo.closest('#panel-mailing .mbMultiLimpar');
+  if(limpar){
+    const id = limpar.closest('.mbMulti').dataset.alvo;
+    Array.from(document.getElementById(id).options).forEach(o => { o.selected = false; });
+    document.getElementById(id).dispatchEvent(new Event('change'));
+    mbMultiDesenhar(id);
+    return;
+  }
+  if(!(alvo && alvo.closest('#panel-mailing .mbMulti'))) mbMultiFechar();
+});
+document.addEventListener('keydown', (ev) => { if(ev.key === 'Escape') mbMultiFechar(); });
+document.getElementById('panel-mailing').addEventListener('change', (ev) => {
+  if(!ev.target.matches('.mbMultiItem input')) return;
+  const id = ev.target.closest('.mbMulti').dataset.alvo;
+  const op = Array.from(document.getElementById(id).options).find(o => o.value === ev.target.value);
+  if(op) op.selected = ev.target.checked;
+  document.getElementById(id).dispatchEvent(new Event('change'));
+  mbMultiDesenhar(id);
+});
+document.getElementById('panel-mailing').addEventListener('input', (ev) => {
+  if(ev.target.matches('.mbMultiBusca')) mbMultiDesenhar(ev.target.closest('.mbMulti').dataset.alvo);
+});
 document.getElementById('mbUf').addEventListener('change', () => { mbFiltrarMunicipios(); });
-document.getElementById('mbCnaeBusca').addEventListener('input', () => { mbFiltrarCnae(); });
 document.getElementById('mbUso').addEventListener('change', () => {
   document.getElementById('mbUsoDias').style.display = document.getElementById('mbUso').value === 'dias' ? '' : 'none';
 });
