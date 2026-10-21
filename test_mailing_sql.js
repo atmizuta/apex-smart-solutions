@@ -32,5 +32,19 @@ assert(indices.includes('analyze mailing.linha'), 'analyze depois dos índices')
 assert(rbSchema.includes('drop schema if exists mailing cascade'), 'rollback do schema');
 assert(rbIndices.includes('drop index if exists mailing.linha_padrao_prioridade'), 'rollback dos índices');
 
+// 21/10: desempenho no servidor Micro — amostra fixa para contar e dados de exportação na própria linha
+const desemp = ler('supabase/migrations/20261021090200_mailing_desempenho.sql');
+const rbDesemp = ler('supabase/rollback/20261021090200_mailing_desempenho_rollback.sql');
+assert(desemp.includes('create table mailing.amostra ('), 'tabela mailing.amostra');
+assert(desemp.includes('linha_id bigint primary key'), 'amostra aponta para a linha');
+for (const c of ['add column socio_nome text', 'add column razao_social text', 'add column primeira_da_empresa boolean not null default false',
+  'add column primeira_do_fone boolean not null default false']) assert(desemp.includes(c), `linha: ${c}`);
+assert(desemp.includes('revoke all on mailing.amostra from public, anon, authenticated'), 'amostra fechada para a API');
+const nomesDesemp = new Set(desemp.replace(/--.*$/gm, '').match(/[a-z_][a-z0-9_]*/g));
+for (const p of trechosProibidos) assert(![...nomesDesemp].some(n => n.includes(p)), `migration de desempenho sem coluna proibida: ${p}`);
+assert(rbDesemp.includes('drop table if exists mailing.amostra'), 'rollback da amostra');
+assert(rbDesemp.includes('drop column if exists socio_nome'), 'rollback das colunas da linha');
+assert(!indices.includes('linha_operadora_ddd'), 'índice de operadora/ddd só entra se a medição provar ganho');
+
 console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
 process.exit(fail > 0 ? 1 : 0);

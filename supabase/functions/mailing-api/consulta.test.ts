@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  filtrosPadrao, validarFiltros, montarWhere, sqlTotais, sqlExtrair, validarQuantidade, sanitizarCarga, nomeArquivo,
+  filtrosPadrao, validarFiltros, montarWhere, sqlTotais, sqlPorOperadora, sqlTotalFiltro, sqlExtrair, validarQuantidade, sanitizarCarga, nomeArquivo,
   MAX_ITENS,
 } from "./consulta.ts";
 
@@ -110,13 +110,32 @@ test("montarWhere: nunca_extraida vence sem_extracao_dias", () => {
 
 test("sqlTotais e sqlExtrair usam o where e o próximo parâmetro para o limite", () => {
   const w = { sql: "l.ddd = any($1::smallint[])", params: [[11]] };
-  assert.match(sqlTotais(w), /from mailing\.linha l where l\.ddd = any\(\$1::smallint\[\]\)/);
   const x = sqlExtrair(w);
   assert.match(x, /where l\.ddd = any\(\$1::smallint\[\]\)/);
   assert.match(x, /order by l\.ultima_extracao asc nulls first, l\.sorteio/);
   assert.match(x, /limit \$2::int/);
   assert.match(x, /for update of l skip locked/);
   assert.match(x, /set ultima_extracao = now\(\), vezes_extraida = l\.vezes_extraida \+ 1/);
+});
+
+// 21/10: no servidor Micro, contar a base inteira levou 23–85 s e buscar empresa/sócio para 100 mil linhas passou de 5 min
+test("contagens vêm da amostra fixa, escaladas pelo fator da última carga", () => {
+  const w = { sql: "l.ddd = any($1::smallint[])", params: [[11]] };
+  for (const sql of [sqlTotais(w), sqlPorOperadora(w), sqlTotalFiltro(w)]) {
+    assert.match(sql, /from mailing\.amostra l where l\.ddd = any\(\$1::smallint\[\]\)/);
+    assert.doesNotMatch(sql, /mailing\.linha/);
+    assert.match(sql, /contagens->>'amostra_fator'/);
+  }
+  assert.match(sqlTotais(w), /count\(\*\) filter \(where l\.primeira_da_empresa\)/);
+  assert.match(sqlTotais(w), /count\(\*\) filter \(where l\.primeira_do_fone\)/);
+});
+
+test("extração não busca empresa nem sócio e marca o uso também na amostra", () => {
+  const x = sqlExtrair({ sql: "true", params: [] });
+  assert.doesNotMatch(x, /mailing\.empresa|mailing\.socio/);
+  assert.match(x, /coalesce\(m\.socio_nome, ''\) as nome/);
+  assert.match(x, /coalesce\(m\.razao_social, ''\) as descricao/);
+  assert.match(x, /update mailing\.amostra a set ultima_extracao = now\(\) from alvo where a\.linha_id = alvo\.id/);
 });
 
 test("validarQuantidade: inteiro de 1 a 100.000", () => {

@@ -128,19 +128,27 @@ export function montarWhere(f: Filtros): SqlParte {
   return { sql: conds.length ? conds.join(" and ") : "true", params };
 }
 
+// Contagem pela amostra fixa (~2%, mailing.amostra), que cabe na memória do servidor Micro. A base inteira levava de
+// 23 a 85 s para contar (21/10). Escala pelo fator da última carga. empresas e telefones contam uma linha marcada por
+// empresa/telefone: é exato em expectativa com filtros de empresa e aproximado com filtros de telefone. A extração é exata.
+const FATOR = `(select coalesce((contagens->>'amostra_fator')::numeric, 1) from mailing.carga order by carregado_em desc limit 1)`;
 export function sqlTotais(w: SqlParte): string {
-  return `select count(*)::bigint as linhas, count(distinct l.cnpj)::bigint as empresas, count(distinct l.fone)::bigint as telefones
-  from mailing.linha l where ${w.sql}`;
+  return `select round(count(*) * ${FATOR})::bigint as linhas,
+  round(count(*) filter (where l.primeira_da_empresa) * ${FATOR})::bigint as empresas,
+  round(count(*) filter (where l.primeira_do_fone) * ${FATOR})::bigint as telefones
+  from mailing.amostra l where ${w.sql}`;
 }
 export function sqlPorOperadora(w: SqlParte): string {
-  return `select coalesce(l.operadora, 'SEM') as operadora, count(*)::bigint as linhas
-  from mailing.linha l where ${w.sql} group by 1 order by 2 desc`;
+  return `select coalesce(l.operadora, 'SEM') as operadora, round(count(*) * ${FATOR})::bigint as linhas
+  from mailing.amostra l where ${w.sql} group by 1 order by 2 desc`;
 }
 export function sqlTotalFiltro(w: SqlParte): string {
-  return `select count(*)::bigint as n from mailing.linha l where ${w.sql}`;
+  return `select round(count(*) * ${FATOR})::bigint as n from mailing.amostra l where ${w.sql}`;
 }
 // Menos usados primeiro (nunca extraídos, depois os mais antigos; sorteio fixo entre iguais). "skip locked" faz duas
-// extrações simultâneas pegarem linhas diferentes. Marca o uso e devolve só as 8 colunas que o ProContact usa.
+// extrações simultâneas pegarem linhas diferentes. Marca o uso (também na amostra, para o filtro de uso contar certo)
+// e devolve só as 8 colunas que o ProContact usa. Nome do sócio e razão social já estão na linha: buscar empresa e
+// sócio para 100 mil linhas passava de 5 min no servidor Micro (21/10).
 export function sqlExtrair(w: SqlParte): string {
   const q = `$${w.params.length + 1}`;
   return `with alvo as (
@@ -148,17 +156,17 @@ export function sqlExtrair(w: SqlParte): string {
   order by l.ultima_extracao asc nulls first, l.sorteio
   limit ${q}::int
   for update of l skip locked
+), na_amostra as (
+  update mailing.amostra a set ultima_extracao = now() from alvo where a.linha_id = alvo.id
 ), marcadas as (
   update mailing.linha l set ultima_extracao = now(), vezes_extraida = l.vezes_extraida + 1
     from alvo where l.id = alvo.id
-  returning l.cnpj, l.cpf, l.fone, l.operadora_nome_id, l.rf_porte_atual, l.rf_municipio
+  returning l.cnpj, l.cpf, l.fone, l.socio_nome, l.razao_social, l.operadora_nome_id, l.rf_porte_atual, l.rf_municipio
 )
-select coalesce(s.nome, '') as nome, coalesce(e.razao_social, '') as descricao, coalesce(m.cpf, '') as documento1,
+select coalesce(m.socio_nome, '') as nome, coalesce(m.razao_social, '') as descricao, coalesce(m.cpf, '') as documento1,
        m.cnpj as documento2, m.fone as fone1, coalesce(o.nome, '') as campo1, coalesce(m.rf_porte_atual, '') as campo2,
        coalesce(mu.nome, '') as campo3
   from marcadas m
-  join mailing.empresa e on e.cnpj = m.cnpj
-  left join mailing.socio s on s.cnpj = m.cnpj and s.cpf = m.cpf
   left join mailing.operadora_nome o on o.id = m.operadora_nome_id
   left join mailing.municipio mu on mu.codigo = m.rf_municipio
  order by m.cnpj, m.fone`;

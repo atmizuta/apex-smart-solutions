@@ -13802,13 +13802,14 @@ function mbLimpar(){
 }
 function mbRenderResultado(d){
   const e = escapeHtml;
-  const ops = (d.por_operadora || []).map(o => `<tr><td>${e(MB_ROTULO_OPERADORA[o.operadora] || o.operadora)}</td><td style="text-align:right">${e(mbFmtNum(o.linhas))}</td></tr>`).join('');
+  const ops = (d.por_operadora || []).map(o => `<tr><td>${e(MB_ROTULO_OPERADORA[o.operadora] || o.operadora)}</td><td style="text-align:right">≈ ${e(mbFmtNum(o.linhas))}</td></tr>`).join('');
   document.getElementById('mbResultado').innerHTML = `<div class="card"><h3 style="margin:0 0 var(--space-3)">Resultado do filtro</h3>
     <div class="kpiGrid">
-      <div class="kpiCard"><div class="kpiLabel">Linhas (empresa + telefone)</div><div class="kpiValue">${e(mbFmtNum(d.linhas))}</div></div>
-      <div class="kpiCard"><div class="kpiLabel">Empresas</div><div class="kpiValue">${e(mbFmtNum(d.empresas))}</div></div>
-      <div class="kpiCard"><div class="kpiLabel">Telefones distintos</div><div class="kpiValue">${e(mbFmtNum(d.telefones))}</div></div>
+      <div class="kpiCard"><div class="kpiLabel">Linhas (empresa + telefone)</div><div class="kpiValue">≈ ${e(mbFmtNum(d.linhas))}</div></div>
+      <div class="kpiCard"><div class="kpiLabel">Empresas</div><div class="kpiValue">≈ ${e(mbFmtNum(d.empresas))}</div></div>
+      <div class="kpiCard"><div class="kpiLabel">Telefones distintos</div><div class="kpiValue">≈ ${e(mbFmtNum(d.telefones))}</div></div>
     </div>
+    <p class="desc" style="margin:var(--space-2) 0 0">Estimativa por amostra de 2% da base, para responder na hora. A exportação entrega o número exato.</p>
     ${ops ? `<table class="tbl" style="margin-top:var(--space-3)"><thead><tr><th>Operadora</th><th style="text-align:right">Linhas</th></tr></thead><tbody>${ops}</tbody></table>` : ''}
   </div>`;
 }
@@ -13855,7 +13856,7 @@ async function mbExportar(){
   if(!d.quantidade_entregue){ mostrarAviso('Nenhuma linha com esses filtros. Nada foi exportado.', 'info'); return; }
   const bytes = mbParaCp1252(mbMontarCsv(d.colunas, d.linhas));
   downloadBlob(new Blob([bytes], { type: 'text/csv;charset=windows-1252' }), d.nome_arquivo);
-  mostrarAviso(mbFmtNum(d.quantidade_entregue) + ' linhas exportadas (' + mbFmtNum(d.total_no_filtro) + ' no filtro).', 'ok');
+  mostrarAviso(mbFmtNum(d.quantidade_entregue) + ' linhas exportadas (≈ ' + mbFmtNum(d.total_no_filtro) + ' no filtro).', 'ok');
   const h = await mbChamar('historico');
   if(!h.erro) mbRenderHistorico(h.data.extracoes || []);
 }

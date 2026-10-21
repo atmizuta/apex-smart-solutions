@@ -137,7 +137,8 @@ try{
   chamadas.length = 0;
   document.getElementById('btnMbContar').click(); await espera(40);
   eq([chamadas[0] && chamadas[0].body.acao, chamadas[0] && chamadas[0].body.filtros.sem_extracao_dias], ['contar', 45], 'contar manda os filtros da tela');
-  assert(document.getElementById('mbResultado').innerHTML.includes('1.234.567'), 'mostra o total de linhas');
+  assert(document.getElementById('mbResultado').innerHTML.includes('≈ 1.234.567'), 'mostra o total de linhas como estimativa');
+  assert(document.getElementById('mbResultado').innerHTML.includes('amostra de 2%'), 'explica que a contagem é por amostra');
   assert(document.getElementById('mbResultado').innerHTML.includes('Sem operadora'), 'operadora SEM com rótulo');
 
   const baixados = [];
