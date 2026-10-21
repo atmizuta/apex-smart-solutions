@@ -3465,6 +3465,12 @@ Antes dos ajustes, contar levava de 23 a 85 s e escolher 100 mil levava 95 s: a 
   - O botão **"Parar"** termina a parte em andamento e não pede a próxima.
   - Cada parte fica registrada no histórico. O navegador pode pedir para permitir vários downloads.
 - **Teste zerado:** a exportação "TESTE" de 100 mil do Guilherme (21/10 às 17:44) foi zerada a pedido do Rafael. As linhas voltaram a ser "nunca extraídas" e o registro saiu do histórico.
+- **Recarga:** a tabela de linhas foi recarregada com as colunas novas, e as contagens conferem com as do PC. Uma contagem com os três filtros responde em 0,3 s. A primeira tentativa foi interrompida por falta de memória no PC; o envio agora usa 600 MB.
+- **Publicação:**
+  - Função `mailing-api` v3.
+  - Painel publicado às 19:08 (SP) por cima do "Fechamento em ranking" (§104), que outra frente tinha publicado às 19:03. A conferência do ar tinha sido feita 20 minutos antes.
+  - Corrigido às 19:09:40: a oficial 5685789 foi juntada e o painel republicado. MD5 `177b132d52dde2798fd505b98646edbb`. Backups: `…_20261021_190842_antes_filtros_socio.html` (o ranking) e `…_20261021_190940_antes_merge_ranking.html`.
+  - **Regra:** conferir o MD5 do ar imediatamente antes de cada envio, não minutos antes.
 
 ## 103. Fechamento carregava só 1.000 pedidos (21/10/2026)
 
