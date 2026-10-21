@@ -3440,3 +3440,20 @@ Antes dos ajustes, contar levava de 23 a 85 s e escolher 100 mil levava 95 s: a 
 
 ### 102.5 Publicação
 21/10/2026 às 16:33 (SP). MD5 do painel: `17972cc9fca51d230712ef858c205296`. Backup: `~/deploy_backups/painel_clientes_apex_20261021_163351_antes_mailing.html`. Antes de publicar, o painel no ar era idêntico à oficial/main (MD5 `93953bde…`).
+
+## 103. Fechamento carregava só 1.000 pedidos (21/10/2026)
+
+### 103.1 O problema
+O Rafael viu o próprio Fechamento de setembro muito abaixo do esperado (quase R$ 1.700). A causa não era data nem regra: o `loadFechamento()` buscava `producao_pedidos` numa consulta só, **sem paginação**, e o Supabase entrega no máximo **1.000 linhas** por consulta, sem avisar. Com ~1.900 linhas na view, a aba somava só um pedaço, e qual pedaço mudava com a sincronização de hora em hora. Era a única leitura de `producao_pedidos` no painel que não usava `fetchAllRows()`.
+
+Medido no banco com o mesmo perfil do navegador (Rafael, setembro, regra da seção 16.14):
+- o que a tela recebia (primeiras 1.000 linhas): **R$ 309,94**;
+- o que existe: **R$ 1.879,66** (21 pedidos, 34 linhas; R$ 304,93 disso são pedidos cadastrados em agosto e ativados em setembro).
+
+Afetava todos os consultores e todos os períodos.
+
+### 103.2 Correção
+`loadFechamento()` passou a usar `fetchAllRows(() => sb.from('producao_pedidos').select(...))`. A regra do relatório não mudou. `test_fechamento.js` ganhou uma asserção que exige a paginação (49 asserções).
+
+### 103.3 Publicação
+21/10/2026 às 16:55 (SP). MD5 do painel: `f80ed1a0968294e2df373b007cc9e244`. Backup: `~/deploy_backups/painel_clientes_apex_20261021_165510_antes_fechamento_paginacao.html`. Antes de publicar, o painel no ar era idêntico à oficial/main (MD5 `17972cc9…`).

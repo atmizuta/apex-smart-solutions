@@ -9725,8 +9725,10 @@ async function loadFechamento(){
   }
   info.textContent = 'Carregando...';
   ApexMotion.skeleton(document.getElementById('fechamentoResumoCards'), 'tabela');
-  const { data, error } = await sb.from('producao_pedidos')
-    .select('numero_pedido,grupo,usuario,etapa,produto,cliente,cnpj,valor,data_portabilidade,data_instalacao');
+  // seção 103: paginado (fetchAllRows) — sem isso o Supabase entregava só 1.000 das ~1.900 linhas e o Fechamento
+  // somava um pedaço aleatório da produção (Rafael em setembro: R$ 309,94 na tela × R$ 1.879,66 no banco).
+  const { data, error } = await fetchAllRows(() => sb.from('producao_pedidos')
+    .select('numero_pedido,grupo,usuario,etapa,produto,cliente,cnpj,valor,data_portabilidade,data_instalacao'));
   if(error){ console.error(error); info.textContent = 'Não foi possível carregar os dados agora.'; ApexMotion.limparSkeleton(document.getElementById('fechamentoResumoCards')); return; }
   // seção 78: só a operação escolhida no seletor (Apex, Campinas ou as duas — seção 101); Rafael e Isabelly continuam (comissão)
   const op = operacaoAtiva();
