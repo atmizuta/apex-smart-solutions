@@ -83,6 +83,105 @@ try{
   eq(mbTextoCarga(null), 'Base ainda não carregada.', 'sem carga');
   eq(mbFmtNum(1234567), '1.234.567', 'milhar pt-BR');
 
+  // ==== TASK 5: aba ====
+  const chamadas = window.__fnCalls;
+  const sel = id => Array.from(document.getElementById(id).selectedOptions).map(o => o.value);
+  const opts = id => Array.from(document.getElementById(id).options).map(o => o.value);
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor', operacao: 'apex' };
+  mbAplicarPermissao();
+  eq(document.getElementById('tabBtnMailing').style.display, 'none', 'consultor não vê a aba');
+  chamadas.length = 0; await mbCarregar(); await espera(20);
+  eq(chamadas.length, 0, 'consultor não chama a função');
+  currentUser = { id: 's2', nome: 'Sup Campinas', username: 'supc', role: 'supervisor', operacao: 'campinas' };
+  mbAplicarPermissao();
+  eq(document.getElementById('tabBtnMailing').style.display, 'inline-block', 'supervisor de qualquer operação vê a aba');
+
+  window.__fnRespostas.opcoes = { data: { opcoes: [
+    { tipo: 'uf', valor: 'SP', rotulo: 'SP', uf: null }, { tipo: 'uf', valor: 'RJ', rotulo: 'RJ', uf: null },
+    { tipo: 'municipio', valor: '7107', rotulo: 'SAO PAULO', uf: 'SP' }, { tipo: 'municipio', valor: '6001', rotulo: 'RIO DE JANEIRO', uf: 'RJ' },
+    { tipo: 'ddd', valor: '11', rotulo: '11', uf: null },
+    { tipo: 'situacao', valor: 'ATIVA', rotulo: 'ATIVA', uf: null }, { tipo: 'situacao', valor: 'BAIXADA', rotulo: 'BAIXADA', uf: null },
+    { tipo: 'porte', valor: 'MEI', rotulo: 'MEI', uf: null }, { tipo: 'classe', valor: 'B', rotulo: 'B', uf: null },
+    { tipo: 'cnae', valor: '9602501', rotulo: '9602501 — Cabeleireiros, manicure e pedicure', uf: null },
+    { tipo: 'cnae', valor: '4781400', rotulo: '4781400 — Comércio varejista de vestuário', uf: null },
+    { tipo: 'operadora', valor: 'VIVO', rotulo: 'Vivo', uf: null }, { tipo: 'operadora', valor: 'SEM', rotulo: 'Sem operadora', uf: null },
+  ], carga: { receita_mes: '2026-09', neo_ate: '2026-10-19', carregado_em: '2026-10-21T12:00:00Z' } }, error: null };
+  window.__fnRespostas.historico = { data: { extracoes: [ { criado_em: '2026-10-21T13:00:00Z', username: 'adm', role: 'admin', operacao: 'apex',
+    nome_carga: 'TESTE-1', filtros: { situacao: ['ATIVA'] }, total_no_filtro: 5000, quantidade_pedida: 100, quantidade_entregue: 100 } ] }, error: null };
+  chamadas.length = 0;
+  await mbCarregar(); await espera(30);
+  eq(chamadas.map(c => c.nome + ':' + c.body.acao).sort(), ['mailing-api:historico', 'mailing-api:opcoes'], 'abrir a aba busca opções e histórico');
+  assert(document.getElementById('mbStatus').textContent.includes('Receita de 2026-09'), 'status mostra a data da carga');
+  eq(opts('mbUf'), ['SP', 'RJ'], 'UFs preenchidas');
+  eq(sel('mbSituacao'), ['ATIVA'], 'situação padrão ATIVA');
+  assert(document.getElementById('mbHistorico').innerHTML.includes('TESTE-1'), 'histórico listado');
+  chamadas.length = 0;
+  await mbCarregar(); await espera(30);
+  eq(chamadas.map(c => c.body.acao), ['historico'], 'reabrir a aba só atualiza o histórico');
+
+  document.getElementById('mbUf').options[1].selected = true;
+  document.getElementById('mbUf').dispatchEvent(new window.Event('change'));
+  eq(opts('mbMunicipio'), ['6001'], 'cidades só da UF escolhida');
+  const busca = document.getElementById('mbCnaeBusca');
+  busca.value = 'cabel'; busca.dispatchEvent(new window.Event('input'));
+  eq(opts('mbCnae'), ['9602501'], 'busca de CNAE pela descrição');
+  document.getElementById('mbCnae').options[0].selected = true;
+  document.getElementById('mbOperadora').options[0].selected = true;
+  document.getElementById('mbUso').value = 'dias'; document.getElementById('mbUso').dispatchEvent(new window.Event('change'));
+  eq(document.getElementById('mbUsoDias').style.display, '', 'escolher "não extraídos há…" mostra o campo de dias');
+  document.getElementById('mbUsoDias').value = '45';
+  eq(mbLerFiltros(), { uf: ['RJ'], situacao: ['ATIVA'], operadora: ['VIVO'], cnae: [9602501], excluir_obito: true, tipo: 'CELULAR', origem: 'MAILING', sem_extracao_dias: 45 }, 'filtros lidos da tela');
+
+  window.__fnRespostas.contar = { data: { linhas: 1234567, empresas: 400000, telefones: 1200000,
+    por_operadora: [{ operadora: 'VIVO', linhas: 700000 }, { operadora: 'SEM', linhas: 1000 }] }, error: null };
+  chamadas.length = 0;
+  document.getElementById('btnMbContar').click(); await espera(40);
+  eq([chamadas[0] && chamadas[0].body.acao, chamadas[0] && chamadas[0].body.filtros.sem_extracao_dias], ['contar', 45], 'contar manda os filtros da tela');
+  assert(document.getElementById('mbResultado').innerHTML.includes('1.234.567'), 'mostra o total de linhas');
+  assert(document.getElementById('mbResultado').innerHTML.includes('Sem operadora'), 'operadora SEM com rótulo');
+
+  const baixados = [];
+  downloadBlob = (blob, nome) => baixados.push({ blob, nome });
+  avisos.length = 0; chamadas.length = 0;
+  document.getElementById('mbCarga').value = ''; document.getElementById('mbQtd').value = '100';
+  document.getElementById('btnMbExportar').click(); await espera(20);
+  eq([chamadas.length, avisos[0] && avisos[0][0]], [0, 'erro'], 'sem nome da carga: aviso e nada é chamado');
+  avisos.length = 0;
+  document.getElementById('mbCarga').value = 'TESTE'; document.getElementById('mbQtd').value = '100001';
+  document.getElementById('btnMbExportar').click(); await espera(20);
+  eq([chamadas.length, avisos[0] && avisos[0][0]], [0, 'erro'], 'quantidade acima de 100 mil: aviso');
+
+  const colsExp = ['nome', 'descricao', 'documento1', 'documento2', 'fone1', 'campo1', 'campo2', 'campo3'];
+  const linhasExp = [['FULANO DE TAL', 'EMPRESA; TESTE "LTDA"', '00000000191', '00000000000191', '11900000001', 'CLARO S.A.', 'MEI', 'SÃO PAULO']];
+  window.__fnRespostas.extrair = { data: { colunas: colsExp, linhas: linhasExp, total_no_filtro: 5000, quantidade_entregue: 1, nome_arquivo: 'TESTE_2026-10-21.csv' }, error: null };
+  avisos.length = 0; chamadas.length = 0;
+  document.getElementById('mbQtd').value = '1';
+  document.getElementById('btnMbExportar').click(); await espera(60);
+  eq(chamadas[0] && chamadas[0].body, { acao: 'extrair', filtros: mbLerFiltros(), quantidade: 1, nome_carga: 'TESTE' }, 'extrair manda filtros, quantidade e carga');
+  eq(baixados.map(b => b.nome), ['TESTE_2026-10-21.csv'], 'baixou um arquivo com o nome vindo da função');
+  eq(baixados[0] && baixados[0].blob.size, mbParaCp1252(mbMontarCsv(colsExp, linhasExp)).length, 'arquivo em Windows-1252 com o tamanho certo');
+  eq(avisos[0] && avisos[0][0], 'ok', 'aviso de sucesso');
+  assert(chamadas.some(c => c.body.acao === 'historico'), 'recarrega o histórico depois de exportar');
+
+  window.__fnRespostas.extrair = { data: { colunas: colsExp, linhas: [], total_no_filtro: 0, quantidade_entregue: 0, nome_arquivo: 'TESTE_2026-10-21.csv' }, error: null };
+  baixados.length = 0; avisos.length = 0;
+  document.getElementById('btnMbExportar').click(); await espera(40);
+  eq([baixados.length, avisos[0] && avisos[0][0]], [0, 'info'], 'filtro vazio: aviso e nenhum arquivo');
+
+  window.__fnRespostas.contar = { data: null, error: { context: { json: async () => ({ erro: 'A consulta demorou demais. Refine os filtros e tente de novo.' }) } } };
+  avisos.length = 0;
+  document.getElementById('btnMbContar').click(); await espera(40);
+  eq(avisos[0], ['erro', 'A consulta demorou demais. Refine os filtros e tente de novo.'], 'erro da função vira aviso com a mensagem dela');
+  window.__fnRespostas.contar = { data: null, error: { message: 'Failed to fetch' } };
+  avisos.length = 0;
+  document.getElementById('btnMbContar').click(); await espera(40);
+  eq(avisos[0], ['erro', 'Não foi possível falar com a base de mailing.'], 'falha de rede: mensagem genérica');
+
+  document.getElementById('btnMbLimpar').click();
+  eq(mbLerFiltros(), mbFiltrosPadrao(), 'limpar volta ao padrão');
+  currentUser = { id: 'a1', nome: 'Admin Teste', username: 'adm', role: 'admin', operacao: 'apex' };
+  mbAplicarPermissao();
+  eq([document.getElementById('mbResultado').innerHTML, mbEstado.opcoes], ['', null], 'trocar de usuário limpa a tela e as opções');
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
