@@ -3482,6 +3482,30 @@ Antes dos ajustes, contar levava de 23 a 85 s e escolher 100 mil levava 95 s: a 
   - As contagens conferem com as do PC. ATIVA + DDD da cidade 11 + telefone 1 ≈ 2,78 milhões de linhas.
   - Função `mailing-api` v4. Painel publicado às 19:59 (SP), MD5 `89ad1d58555b40a70c94ebd730f525d2`; antes, o ar era igual à oficial a15bec2 (§105).
 
+### 102.9 Contagem certa com filtro de telefone (21/10/2026, revisão do Rafael)
+- **O erro:** com "Telefone 1" marcado, a tela mostrava ~2,5 milhões de empresas, mas o certo é **~4,0 milhões**: praticamente toda empresa tem telefone 1.
+  - **Causa:** para estimar empresas distintas, a contagem marcava uma linha por empresa (ao acaso). Com filtro de telefone (posição, operadora, WhatsApp, portado, Procon), a empresa sumia da conta quando a linha marcada não passava.
+  - As **linhas** e a **exportação** sempre estiveram certas.
+- **Correção:** a amostra agora junta duas.
+  - Todas as linhas de ~2% das **empresas** contam linhas e empresas.
+  - Todas as linhas de ~2% dos **números** contam telefones distintos.
+  - Os fatores (total ÷ amostrado) ficam em `mailing.carga.contagens`: `fator_linhas`, `fator_empresas` e `fator_fones`.
+  - A amostra é montada no PC e sobe sozinha (`--so amostra`, ~490 mil linhas); a base não precisa ser recarregada.
+  - O uso da amostra passa a ser marcado pelo par CNPJ + telefone. Migration `20261021090500`.
+- **Conferência** (estimativa da tela × exato, filtro padrão + …):
+
+| Filtro | Exato | Tela |
+|---|---|---|
+| Telefone 1 — empresas | 3.996.062 | 3.997.256 |
+| Vivo — empresas | 2.426.649 | 2.417.181 |
+| DDD da cidade 11 + telefone 1 — empresas | 2.194.461 | 2.192.102 |
+| Telefone 1 — linhas | 5.091.840 | 5.086.643 |
+
+Diferença sempre abaixo de 0,5%. Função `mailing-api` v5; o painel não mudou.
+- **Por que há menos telefones que linhas:** o mesmo número pode estar ligado a mais de uma empresa. No padrão são 10,44 milhões de linhas e 9,11 milhões de números:
+  - 664 mil números estão em 2 empresas, 167 mil em 3 a 5 e 24 mil em mais de 5 (um número chega a estar em 1.415 empresas, quase sempre de contador);
+  - 603 mil repetições são do mesmo sócio com várias empresas.
+
 ## 103. Fechamento carregava só 1.000 pedidos (21/10/2026)
 
 ### 103.1 O problema

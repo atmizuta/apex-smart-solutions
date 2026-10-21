@@ -67,5 +67,12 @@ const rbPosDdd = ler('supabase/rollback/20261021090400_mailing_posicao_ddd_cidad
 assert(posDdd.includes('alter table mailing.linha add column posicao smallint;'), 'linha: posição do telefone');
 assert(posDdd.includes('alter table mailing.amostra\n  add column posicao smallint,\n  add column rf_ddd_cidade smallint;'), 'amostra: posição e DDD da cidade');
 assert(rbPosDdd.includes('alter table mailing.linha drop column if exists posicao'), 'rollback da posição');
+// 21/10: amostra por empresa e por telefone (contagem certa com filtro de telefone); sem depender do id da linha
+const amEmp = ler('supabase/migrations/20261021090500_mailing_amostra_por_empresa.sql');
+const rbAmEmp = ler('supabase/rollback/20261021090500_mailing_amostra_por_empresa_rollback.sql');
+for (const c of ['alter table mailing.amostra drop constraint amostra_pkey;', 'alter table mailing.amostra alter column linha_id drop not null;',
+  'add column na_empresa boolean not null default false', 'add column no_fone boolean not null default false',
+  'alter table mailing.amostra add primary key (cnpj, fone);']) assert(amEmp.includes(c), `amostra por empresa: ${c}`);
+assert(rbAmEmp.includes('drop column if exists na_empresa'), 'rollback da amostra por empresa');
 console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
 process.exit(fail > 0 ? 1 : 0);

@@ -119,15 +119,24 @@ test("sqlTotais e sqlExtrair usam o where e o próximo parâmetro para o limite"
 });
 
 // 21/10: no servidor Micro, contar a base inteira levou 23–85 s e buscar empresa/sócio para 100 mil linhas passou de 5 min
-test("contagens vêm da amostra fixa, escaladas pelo fator da última carga", () => {
-  const w = { sql: "l.ddd = any($1::smallint[])", params: [[11]] };
-  for (const sql of [sqlTotais(w), sqlPorOperadora(w), sqlTotalFiltro(w)]) {
-    assert.match(sql, /from mailing\.amostra l where l\.ddd = any\(\$1::smallint\[\]\)/);
-    assert.doesNotMatch(sql, /mailing\.linha/);
-    assert.match(sql, /contagens->>'amostra_fator'/);
+// 21/10 (revisão do Rafael): marcar 1 linha por empresa subestimava empresas com filtro de telefone (telefone 1 dava
+// 2,5 mi em vez de 4,0 mi). Agora: amostra POR EMPRESA (todas as linhas de 2% das empresas) para linhas e empresas,
+// e amostra POR TELEFONE (todas as linhas de 2% dos números) para telefones distintos.
+test("contagens vêm da amostra por empresa (linhas, empresas) e por telefone (telefones)", () => {
+  const w = { sql: "l.ddd = any($1::smallint[]) or l.posicao = 1", params: [[11]] };
+  const t = sqlTotais(w);
+  assert.match(t, /from mailing\.amostra l where \(l\.ddd = any\(\$1::smallint\[\]\) or l\.posicao = 1\)/);
+  assert.match(t, /count\(\*\) filter \(where l\.na_empresa\)/);
+  assert.match(t, /count\(distinct l\.cnpj\) filter \(where l\.na_empresa\)/);
+  assert.match(t, /count\(distinct l\.fone\) filter \(where l\.no_fone\)/);
+  for (const k of ["fator_linhas", "fator_empresas", "fator_fones"]) assert.match(t, new RegExp(`contagens->>'${k}'`));
+  for (const sql of [sqlPorOperadora(w), sqlTotalFiltro(w)]) {
+    assert.match(sql, /from mailing\.amostra l where l\.na_empresa and \(l\.ddd = any\(\$1::smallint\[\]\) or l\.posicao = 1\)/);
+    assert.match(sql, /contagens->>'fator_linhas'/);
   }
-  assert.match(sqlTotais(w), /count\(\*\) filter \(where l\.primeira_da_empresa\)/);
-  assert.match(sqlTotais(w), /count\(\*\) filter \(where l\.primeira_do_fone\)/);
+  for (const sql of [t, sqlPorOperadora(w), sqlTotalFiltro(w)]) {
+    assert.doesNotMatch(sql, /mailing\.linha|primeira_d/);
+  }
 });
 
 test("extração não busca empresa nem sócio e marca o uso também na amostra", () => {
@@ -135,7 +144,9 @@ test("extração não busca empresa nem sócio e marca o uso também na amostra"
   assert.doesNotMatch(x, /mailing\.empresa|mailing\.socio/);
   assert.match(x, /coalesce\(m\.socio_nome, ''\) as nome/);
   assert.match(x, /coalesce\(m\.razao_social, ''\) as descricao/);
-  assert.match(x, /update mailing\.amostra a set ultima_extracao = now\(\) from alvo where a\.linha_id = alvo\.id/);
+  // a amostra não depende mais do id da linha: marca o uso pelo par CNPJ + telefone que saiu
+  assert.match(x, /update mailing\.amostra a set ultima_extracao = now\(\) from marcadas m where a\.cnpj = m\.cnpj and a\.fone = m\.fone/);
+  assert.ok(x.indexOf("marcadas as (") < x.indexOf("na_amostra as ("), "na_amostra vem depois de marcadas");
 });
 
 test("validarQuantidade: inteiro de 1 a 100.000", () => {
