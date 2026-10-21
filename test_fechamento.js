@@ -52,7 +52,7 @@ function mockQueryBuilder(table){
     eq: () => builder,
     order: () => builder,
     limit: () => builder,
-    range: () => builder, // usado por fetchAllRows() (paginação, 24/09/2026) — mock não pagina de verdade, sempre devolve tudo numa página só
+    range: () => { if(table === 'producao_pedidos') window.__rangeProducao = (window.__rangeProducao || 0) + 1; return builder; }, // usado por fetchAllRows() (paginação, 24/09/2026) — mock não pagina de verdade, sempre devolve tudo numa página só
     maybeSingle: async () => ({ data: null }),
     then: (resolve) => resolve(table === 'producao_pedidos' ? { data: window.__mockProducaoPedidos, error: null } : { data: [], error: null }),
   };
@@ -151,9 +151,13 @@ try{
   // --- 5) fluxo completo: loadFechamento() busca do Supabase e renderiza os cards ---
   currentUser = { id:'u3', nome:'Admin', username:'admin', role:'admin' };
   enterApp();
+  await new Promise(r => setTimeout(r, 0));
+  window.__rangeProducao = 0;
   document.querySelector('#tabsNav button[data-tab="fechamento"]').click();
   await new Promise(r => setTimeout(r, 0));
   await new Promise(r => setTimeout(r, 0));
+  // seção 103: sem paginação o Supabase corta em 1.000 linhas e o Fechamento soma só um pedaço da produção
+  assert(window.__rangeProducao > 0, 'loadFechamento() pagina producao_pedidos com fetchAllRows (range) — seção 103');
   document.getElementById('fechamentoDe').value = '2026-08-01';
   document.getElementById('fechamentoAte').value = '2026-08-31';
   document.getElementById('btnFechamentoBuscar').click();
