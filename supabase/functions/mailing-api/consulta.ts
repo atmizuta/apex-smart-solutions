@@ -10,6 +10,10 @@ export const SITUACOES = ["ATIVA", "BAIXADA", "INAPTA", "SUSPENSA", "NULA"];
 export const PORTES = ["MEI", "MICRO", "PEQUENA", "DEMAIS", "NAO INFORMADO"];
 export const OPERADORAS = ["VIVO", "CLARO", "TIM", "OUTRAS", "SEM"];
 export const CLASSES = ["A", "B", "C", "D", "E", "X"];
+// filtros do sócio (21/10, pedido do Rafael): só filtram, não vão no arquivo
+export const SEXOS = ["M", "F", "I"];
+export const GERACOES = ["Z", "Y", "X", "BOOMER", "VETERANO"];
+export const RISCOS = ["MUITO BAIXO", "BAIXO", "MEDIO", "ALTO", "MUITO ALTO"];
 const SINAIS: Record<string, string> = {
   deixou_mei: "l.sinal_deixou_mei", virou_mei: "l.sinal_virou_mei", porte_mudou: "l.sinal_porte_mudou",
 };
@@ -20,13 +24,14 @@ export type Filtros = {
   cnae?: number[]; abertura_de?: string; abertura_ate?: string; sinais?: ("deixou_mei" | "virou_mei" | "porte_mudou")[];
   classe?: string[]; excluir_obito?: boolean; tipo?: "CELULAR" | "FIXO"; operadora?: string[]; portado?: SimNao;
   whatsapp?: SimNao; procon?: "com" | "sem"; origem?: "MAILING" | "RECEITA"; nunca_extraida?: boolean;
-  sem_extracao_dias?: number;
+  sem_extracao_dias?: number; sexo?: string[]; geracao?: string[]; risco?: string[]; extraida_antes_de?: string;
 };
 export type SqlParte = { sql: string; params: unknown[] };
 export type Validacao = { ok: true; filtros: Filtros } | { ok: false; erro: string };
 
 const CHAVES = new Set(["uf", "municipio", "ddd", "situacao", "porte", "mei", "cnae", "abertura_de", "abertura_ate", "sinais",
-  "classe", "excluir_obito", "tipo", "operadora", "portado", "whatsapp", "procon", "origem", "nunca_extraida", "sem_extracao_dias"]);
+  "classe", "excluir_obito", "tipo", "operadora", "portado", "whatsapp", "procon", "origem", "nunca_extraida", "sem_extracao_dias",
+  "sexo", "geracao", "risco", "extraida_antes_de"]);
 
 export function filtrosPadrao(): Filtros {
   return { situacao: ["ATIVA"], excluir_obito: true, tipo: "CELULAR", origem: "MAILING" };
@@ -44,6 +49,7 @@ const LISTAS: [keyof Filtros, (x: unknown) => boolean][] = [
   ["uf", naLista(UFS)], ["municipio", ehInt(1, 99999)], ["ddd", ehInt(11, 99)], ["situacao", naLista(SITUACOES)],
   ["porte", naLista(PORTES)], ["cnae", ehInt(100000, 9999999)], ["classe", naLista(CLASSES)],
   ["operadora", naLista(OPERADORAS)], ["sinais", (x) => typeof x === "string" && Object.hasOwn(SINAIS, x)],
+  ["sexo", naLista(SEXOS)], ["geracao", naLista(GERACOES)], ["risco", naLista(RISCOS)],
 ];
 const OPCOES: [keyof Filtros, unknown[]][] = [
   ["mei", ["sim", "nao"]], ["tipo", ["CELULAR", "FIXO"]], ["portado", ["sim", "nao"]], ["whatsapp", ["sim", "nao"]],
@@ -90,6 +96,13 @@ export function validarFiltros(raw: unknown): Validacao {
     if (!ehInt(1, 3650)(dias)) return { ok: false, erro: "sem_extracao_dias: de 1 a 3650" };
     f.sem_extracao_dias = dias;
   }
+  // pedido em várias partes: data/hora (ISO, do navegador) do início do pedido
+  const antes = r.extraida_antes_de;
+  if (antes !== undefined && antes !== null) {
+    const d = typeof antes === "string" ? new Date(antes) : null;
+    if (!d || Number.isNaN(d.getTime()) || d.toISOString() !== antes) return { ok: false, erro: "extraida_antes_de: data/hora inválida" };
+    f.extraida_antes_de = antes;
+  }
   return { ok: true, filtros: f as Filtros };
 }
 
@@ -108,6 +121,9 @@ export function montarWhere(f: Filtros): SqlParte {
   if (f.abertura_ate) conds.push(`l.rf_data_abertura <= ${p(f.abertura_ate)}::date`);
   for (const s of f.sinais ?? []) conds.push(SINAIS[s]);
   if (f.classe?.length) conds.push(`l.classe_economica = any(${p(f.classe)}::text[])`);
+  if (f.sexo?.length) conds.push(`l.sexo = any(${p(f.sexo)}::text[])`);
+  if (f.geracao?.length) conds.push(`l.geracao = any(${p(f.geracao)}::text[])`);
+  if (f.risco?.length) conds.push(`l.faixa_risco = any(${p(f.risco)}::text[])`);
   if (f.excluir_obito) conds.push("not l.socio_obito");
   if (f.tipo) conds.push(f.tipo === "CELULAR" ? "l.celular" : "not l.celular");
   if (f.operadora?.length) {
@@ -125,6 +141,8 @@ export function montarWhere(f: Filtros): SqlParte {
   else if (f.sem_extracao_dias) {
     conds.push(`(l.ultima_extracao is null or l.ultima_extracao < now() - make_interval(days => ${p(f.sem_extracao_dias)}::int))`);
   }
+  // pedido em várias partes: não repete o que saiu nas partes anteriores do mesmo pedido
+  if (f.extraida_antes_de) conds.push(`(l.ultima_extracao is null or l.ultima_extracao < ${p(f.extraida_antes_de)}::timestamptz)`);
   return { sql: conds.length ? conds.join(" and ") : "true", params };
 }
 

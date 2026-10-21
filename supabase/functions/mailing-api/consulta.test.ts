@@ -157,3 +157,31 @@ test("sanitizarCarga: maiúsculas, sem acento, só A-Z 0-9 - _", () => {
 test("nomeArquivo: carga + data", () => {
   assert.equal(nomeArquivo("TESTE-1", "2026-10-21"), "TESTE-1_2026-10-21.csv");
 });
+
+// 21/10 (pedido do Rafael): filtros do sócio — sexo, geração e faixa de risco do score (só filtro, não vão no arquivo)
+test("filtros do sócio: sexo, geração e faixa de risco", () => {
+  const v = validarFiltros({ sexo: ["F"], geracao: ["Y", "Z"], risco: ["BAIXO", "MUITO BAIXO"] });
+  assert.deepEqual(v, { ok: true, filtros: { sexo: ["F"], geracao: ["Y", "Z"], risco: ["BAIXO", "MUITO BAIXO"] } });
+  const casos: [Record<string, unknown>, RegExp][] = [[{ sexo: ["X"] }, /sexo/], [{ geracao: ["MILLENNIAL"] }, /geracao/], [{ risco: ["MEDIO ALTO"] }, /risco/]];
+  for (const [f, msg] of casos) {
+    const r = validarFiltros(f);
+    assert.equal(r.ok, false, JSON.stringify(f));
+    assert.match((r as { erro: string }).erro, msg);
+  }
+  assert.deepEqual(montarWhere({ sexo: ["F"], geracao: ["Y"], risco: ["ALTO"] }), {
+    sql: "l.sexo = any($1::text[]) and l.geracao = any($2::text[]) and l.faixa_risco = any($3::text[])",
+    params: [["F"], ["Y"], ["ALTO"]],
+  });
+});
+
+// 21/10: pedido acima de 100 mil sai em várias partes; cada parte não pode repetir o que saiu nas anteriores
+test("extraida_antes_de: só linhas não extraídas desde o início do pedido", () => {
+  const iso = "2026-10-21T20:00:00.000Z";
+  assert.deepEqual(validarFiltros({ extraida_antes_de: iso }), { ok: true, filtros: { extraida_antes_de: iso } });
+  for (const ruim of ["ontem", "2026-10-21", "2026-13-01T00:00:00.000Z", 5]) {
+    assert.equal(validarFiltros({ extraida_antes_de: ruim }).ok, false, String(ruim));
+  }
+  assert.deepEqual(montarWhere({ nunca_extraida: true, extraida_antes_de: iso }), {
+    sql: "l.ultima_extracao is null and (l.ultima_extracao is null or l.ultima_extracao < $1::timestamptz)", params: [iso],
+  });
+});

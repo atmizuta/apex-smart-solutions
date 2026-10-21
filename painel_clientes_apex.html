@@ -768,6 +768,7 @@
   @media (max-width:720px){ .agSemana,.agGrade{display:none;} .agLista{display:block;} .anCardTopo{flex-direction:column;align-items:flex-start;} }
   /* Base de Mailing (seção 102) */
   .mbGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:var(--space-3);}
+  .mbProgresso{display:flex;align-items:center;gap:var(--space-3);margin:var(--space-3) 0 0;}
   .mbFiltrosTopo{display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);margin-bottom:var(--space-3);}
   /* filtro de várias opções: botão que abre uma caixa com opções para marcar (21/10) */
   .mbMulti{position:relative;}
@@ -1422,6 +1423,9 @@
           <div class="field"><label id="mbSituacaoRotulo">Situação na Receita</label><div class="mbMulti" data-alvo="mbSituacao" data-vazio="Todas"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbSituacaoRotulo mbSituacaoTexto"><span class="mbMultiTexto" id="mbSituacaoTexto">Todas</span></button><div class="mbMultiCaixa" hidden><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbSituacao" multiple hidden></select></div></div>
           <div class="field"><label id="mbPorteRotulo">Porte atual</label><div class="mbMulti" data-alvo="mbPorte" data-vazio="Todos"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbPorteRotulo mbPorteTexto"><span class="mbMultiTexto" id="mbPorteTexto">Todos</span></button><div class="mbMultiCaixa" hidden><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbPorte" multiple hidden></select></div></div>
           <div class="field"><label id="mbClasseRotulo">Classe econômica</label><div class="mbMulti" data-alvo="mbClasse" data-vazio="Todas"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbClasseRotulo mbClasseTexto"><span class="mbMultiTexto" id="mbClasseTexto">Todas</span></button><div class="mbMultiCaixa" hidden><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbClasse" multiple hidden></select></div></div>
+          <div class="field"><label id="mbSexoRotulo">Sexo do sócio</label><div class="mbMulti" data-alvo="mbSexo" data-vazio="Todos"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbSexoRotulo mbSexoTexto"><span class="mbMultiTexto" id="mbSexoTexto">Todos</span></button><div class="mbMultiCaixa" hidden><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbSexo" multiple hidden></select></div></div>
+          <div class="field"><label id="mbGeracaoRotulo">Geração do sócio</label><div class="mbMulti" data-alvo="mbGeracao" data-vazio="Todas"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbGeracaoRotulo mbGeracaoTexto"><span class="mbMultiTexto" id="mbGeracaoTexto">Todas</span></button><div class="mbMultiCaixa" hidden><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbGeracao" multiple hidden></select></div></div>
+          <div class="field"><label id="mbRiscoRotulo">Faixa de risco (score)</label><div class="mbMulti" data-alvo="mbRisco" data-vazio="Todas"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbRiscoRotulo mbRiscoTexto"><span class="mbMultiTexto" id="mbRiscoTexto">Todas</span></button><div class="mbMultiCaixa" hidden><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbRisco" multiple hidden></select></div></div>
           <div class="field"><label id="mbOperadoraRotulo">Operadora</label><div class="mbMulti" data-alvo="mbOperadora" data-vazio="Todas"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbOperadoraRotulo mbOperadoraTexto"><span class="mbMultiTexto" id="mbOperadoraTexto">Todas</span></button><div class="mbMultiCaixa" hidden><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbOperadora" multiple hidden></select></div></div>
           <div class="field"><label id="mbCnaeRotulo">CNAE</label><div class="mbMulti" data-alvo="mbCnae" data-vazio="Todos"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbCnaeRotulo mbCnaeTexto"><span class="mbMultiTexto" id="mbCnaeTexto">Todos</span></button><div class="mbMultiCaixa" hidden><input type="search" class="mbMultiBusca" id="mbCnaeBusca" placeholder="Código ou descrição" aria-label="Código ou descrição"><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbCnae" multiple hidden></select></div></div>
           <div class="field"><label for="mbMei">MEI</label><select id="mbMei"><option value="">Todos</option><option value="sim">Sim</option><option value="nao">Não</option></select></div>
@@ -1449,10 +1453,11 @@
         <h3 style="margin:0 0 var(--space-3)">Exportar para o ProContact</h3>
         <div class="mbAcoes" style="align-items:flex-end">
           <div class="field" style="margin:0"><label for="mbCarga">Nome da carga</label><input type="text" id="mbCarga" maxlength="60" placeholder="ex.: ICP-D-MEI-VIVO-APEX"></div>
-          <div class="field" style="margin:0"><label for="mbQtd">Quantidade (até 100.000)</label><input type="text" inputmode="numeric" id="mbQtd" placeholder="ex.: 20000"></div>
+          <div class="field" style="margin:0"><label for="mbQtd">Quantidade</label><input type="text" inputmode="numeric" id="mbQtd" placeholder="ex.: 20000 ou 700000"></div>
           <button type="button" class="btn btn-sm" id="btnMbExportar" style="width:auto">Exportar CSV</button>
         </div>
-        <p class="desc" style="margin:var(--space-2) 0 0">Saem primeiro os números nunca extraídos; depois, os extraídos há mais tempo. O arquivo já vem no layout de importação do ProContact.</p>
+        <p class="desc mbProgresso" id="mbProgresso" hidden><span id="mbProgressoTexto"></span> <button type="button" class="btn btn-sm btn-outline" id="btnMbParar" style="width:auto">Parar</button></p>
+        <p class="desc" style="margin:var(--space-2) 0 0">Saem primeiro os números nunca extraídos; depois, os extraídos há mais tempo. Acima de 100.000, o pedido sai em vários arquivos de até 100.000 (o navegador pode pedir para permitir vários downloads). O arquivo já vem no layout de importação do ProContact.</p>
       </div>
       <div class="card">
         <h3 style="margin:0 0 var(--space-3)">Histórico de extrações</h3>
@@ -13856,7 +13861,7 @@ function mbValidarQuantidade(v){
   const s = String(v === null || v === undefined ? '' : v).trim().replace(/\./g, '');
   if(!/^\d+$/.test(s)) return null;
   const n = Number(s);
-  return n >= 1 && n <= MB_MAX_QTD ? n : null;
+  return n >= 1 && Number.isSafeInteger(n) ? n : null; // sem teto: acima de MB_MAX_QTD sai em várias partes (21/10)
 }
 function mbResumoFiltros(f){
   const p = [], j = a => a.join(', ');
@@ -13871,6 +13876,9 @@ function mbResumoFiltros(f){
   if(f.abertura_de || f.abertura_ate) p.push('abertura ' + (f.abertura_de || '…') + ' a ' + (f.abertura_ate || '…'));
   (f.sinais || []).forEach(s => p.push(SIN[s] || s));
   if(f.classe && f.classe.length) p.push('classe ' + j(f.classe));
+  if(f.sexo && f.sexo.length) p.push('sexo ' + j(f.sexo));
+  if(f.geracao && f.geracao.length) p.push('geração ' + j(f.geracao));
+  if(f.risco && f.risco.length) p.push('risco ' + j(f.risco));
   if(f.excluir_obito) p.push('sem óbito');
   if(f.tipo) p.push(f.tipo === 'CELULAR' ? 'celular' : 'fixo');
   if(f.operadora && f.operadora.length) p.push(j(f.operadora));
@@ -13983,12 +13991,16 @@ function mbPreencherOpcoes(){
   mbPreencherSelect('mbPorte', mbOpcoesDo('porte'));
   mbPreencherSelect('mbClasse', mbOpcoesDo('classe'));
   mbPreencherSelect('mbOperadora', mbOpcoesDo('operadora'));
+  mbPreencherSelect('mbSexo', mbOpcoesDo('sexo'));
+  mbPreencherSelect('mbGeracao', mbOpcoesDo('geracao'));
+  mbPreencherSelect('mbRisco', mbOpcoesDo('risco'));
   mbPreencherSelect('mbCnae', mbOpcoesDo('cnae'));
   mbFiltrarMunicipios();
 }
 function mbLerFiltros(){
   const f = {};
-  for(const [k, id] of [['uf', 'mbUf'], ['situacao', 'mbSituacao'], ['porte', 'mbPorte'], ['classe', 'mbClasse'], ['operadora', 'mbOperadora']]){
+  for(const [k, id] of [['uf', 'mbUf'], ['situacao', 'mbSituacao'], ['porte', 'mbPorte'], ['classe', 'mbClasse'], ['operadora', 'mbOperadora'],
+    ['sexo', 'mbSexo'], ['geracao', 'mbGeracao'], ['risco', 'mbRisco']]){
     const v = mbSelecionados(id); if(v.length) f[k] = v;
   }
   for(const [k, id] of [['municipio', 'mbMunicipio'], ['ddd', 'mbDdd'], ['cnae', 'mbCnae']]){
@@ -14010,7 +14022,7 @@ function mbLerFiltros(){
   return f;
 }
 function mbLimpar(){
-  ['mbUf', 'mbMunicipio', 'mbDdd', 'mbPorte', 'mbClasse', 'mbOperadora', 'mbCnae']
+  ['mbUf', 'mbMunicipio', 'mbDdd', 'mbPorte', 'mbClasse', 'mbOperadora', 'mbCnae', 'mbSexo', 'mbGeracao', 'mbRisco']
     .forEach(id => Array.from(document.getElementById(id).options).forEach(o => { o.selected = false; }));
   Array.from(document.getElementById('mbSituacao').options).forEach(o => { o.selected = o.value === 'ATIVA'; });
   ['mbMei', 'mbPortado', 'mbWhatsapp', 'mbProcon', 'mbUso', 'mbAberturaDe', 'mbAberturaAte', 'mbCnaeBusca']
@@ -14068,22 +14080,68 @@ async function mbContar(){
   if(r.erro){ mostrarAviso(r.erro, 'erro'); return; }
   mbRenderResultado(r.data);
 }
+function mbBaixarCsv(d, nome){
+  const bytes = mbParaCp1252(mbMontarCsv(d.colunas, d.linhas));
+  downloadBlob(new Blob([bytes], { type: 'text/csv;charset=windows-1252' }), nome);
+}
+// Pedido acima de 100 mil (21/10, pedido do Rafael): sai em várias partes de até MB_MAX_QTD, um arquivo por parte.
+function mbNomeParte(nome, i, n){ return n > 1 ? String(nome).replace(/(\.csv)?$/i, '_parte' + i + 'de' + n + '$1') : nome; }
 async function mbExportar(){
-  if(!canSeeMailing()) return;
+  if(!canSeeMailing() || mbEstado.exportando) return;
   const carga = document.getElementById('mbCarga').value.trim();
   if(!carga){ mostrarAviso('Informe o nome da carga (ex.: ICP-D-MEI-VIVO-APEX).', 'erro'); return; }
   const quantidade = mbValidarQuantidade(document.getElementById('mbQtd').value);
-  if(!quantidade){ mostrarAviso('Quantidade deve ser um número inteiro de 1 a 100.000.', 'erro'); return; }
-  const r = await ApexMotion.comCarregador('Gerando mailing', () => mbChamar('extrair', { filtros: mbLerFiltros(), quantidade, nome_carga: carga }));
-  if(r.erro){ mostrarAviso(r.erro, 'erro'); return; }
-  const d = r.data;
-  if(!d.quantidade_entregue){ mostrarAviso('Nenhuma linha com esses filtros. Nada foi exportado.', 'info'); return; }
-  const bytes = mbParaCp1252(mbMontarCsv(d.colunas, d.linhas));
-  downloadBlob(new Blob([bytes], { type: 'text/csv;charset=windows-1252' }), d.nome_arquivo);
-  mostrarAviso(mbFmtNum(d.quantidade_entregue) + ' linhas exportadas (≈ ' + mbFmtNum(d.total_no_filtro) + ' no filtro).', 'ok');
+  if(!quantidade){ mostrarAviso('Quantidade deve ser um número inteiro a partir de 1.', 'erro'); return; }
+  if(quantidade > MB_MAX_QTD) await mbExportarPartes(carga, quantidade, mbLerFiltros());
+  else {
+    const r = await ApexMotion.comCarregador('Gerando mailing', () => mbChamar('extrair', { filtros: mbLerFiltros(), quantidade, nome_carga: carga }));
+    if(r.erro){ mostrarAviso(r.erro, 'erro'); return; }
+    const d = r.data;
+    if(!d.quantidade_entregue){ mostrarAviso('Nenhuma linha com esses filtros. Nada foi exportado.', 'info'); return; }
+    mbBaixarCsv(d, d.nome_arquivo);
+    mostrarAviso(mbFmtNum(d.quantidade_entregue) + ' linhas exportadas (≈ ' + mbFmtNum(d.total_no_filtro) + ' no filtro).', 'ok');
+  }
   const h = await mbChamar('historico');
   if(!h.erro) mbRenderHistorico(h.data.extracoes || []);
 }
+// Uma chamada por parte. Todas levam a hora do início do pedido (extraida_antes_de): o que saiu numa parte não volta
+// na seguinte, e o pedido para quando o filtro acaba. "Parar" termina a parte em andamento e não pede a próxima.
+async function mbExportarPartes(carga, total, filtros){
+  const n = Math.ceil(total / MB_MAX_QTD);
+  const f = Object.assign({}, filtros, { extraida_antes_de: new Date().toISOString() });
+  const prog = document.getElementById('mbProgresso'), txt = document.getElementById('mbProgressoTexto'), btn = document.getElementById('btnMbExportar');
+  mbEstado.exportando = true; mbEstado.parar = false;
+  prog.hidden = false; btn.disabled = true;
+  let entregue = 0, arquivos = 0, erro = null;
+  try{
+    for(let i = 1; i <= n && !mbEstado.parar; i++){
+      const pedir = Math.min(MB_MAX_QTD, total - entregue);
+      txt.textContent = 'Gerando parte ' + i + ' de ' + n + '… ' + mbFmtNum(entregue) + ' linhas até agora.';
+      const r = await mbChamar('extrair', { filtros: f, quantidade: pedir, nome_carga: carga });
+      if(r.erro){ erro = 'Parte ' + i + ': ' + r.erro; break; }
+      const d = r.data;
+      if(!d.quantidade_entregue) break;
+      mbBaixarCsv(d, mbNomeParte(d.nome_arquivo, i, n));
+      entregue += d.quantidade_entregue; arquivos++;
+      if(d.quantidade_entregue < pedir) break; // o filtro acabou
+    }
+  } finally {
+    mbEstado.exportando = false;
+    prog.hidden = true; btn.disabled = false;
+  }
+  const parou = mbEstado.parar;
+  mbEstado.parar = false;
+  const feito = mbFmtNum(entregue) + ' linhas em ' + arquivos + (arquivos === 1 ? ' arquivo' : ' arquivos');
+  if(erro) mostrarAviso(erro + (arquivos ? ' Já baixados: ' + feito + '.' : ''), 'erro');
+  else if(!entregue) mostrarAviso('Nenhuma linha com esses filtros. Nada foi exportado.', 'info');
+  else if(parou) mostrarAviso(feito + ' — parou a seu pedido.', 'ok');
+  else if(entregue < total) mostrarAviso(feito + ' — o filtro acabou antes dos ' + mbFmtNum(total) + ' pedidos.', 'ok');
+  else mostrarAviso(feito + '.', 'ok');
+}
+document.getElementById('btnMbParar').addEventListener('click', () => {
+  mbEstado.parar = true;
+  document.getElementById('mbProgressoTexto').textContent = 'Parando depois desta parte…';
+});
 document.getElementById('btnMbContar').addEventListener('click', () => { mbContar(); });
 document.getElementById('btnMbExportar').addEventListener('click', () => { mbExportar(); });
 document.getElementById('btnMbLimpar').addEventListener('click', () => { mbLimpar(); });

@@ -20,7 +20,8 @@ assert(schema.includes('socio_obito boolean not null default false'), 'socio_obi
 assert(!/create index/.test(schema), 'índices de filtro ficam na migration de índices (carga rápida)');
 // compara nomes (identificadores) do SQL sem comentários — trecho solto pegaria "quantidade"/"cidade" por causa de "idade"
 const nomes = new Set(schema.replace(/--.*$/gm, '').match(/[a-z_][a-z0-9_]*/g));
-const trechosProibidos = ['nome_mae', 'sexo', 'nascimento', 'renda', 'score', 'persona', 'propensao', 'presumido', 'geracao',
+// 21/10: sexo e geração liberados pelo Rafael só como filtro (§102.7); o resto continua proibido
+const trechosProibidos = ['nome_mae', 'nascimento', 'renda', 'score', 'persona', 'propensao', 'presumido',
   'demografica', 'profissao', 'bolsa', 'fgts', 'veiculo', 'imovel', 'saque', 'email', 'logradouro', 'complemento', 'bairro',
   'latitude', 'longitude', 'area_risco'];
 const nomesProibidos = ['idade', 'end_cep', 'end_numero', 'end_cidade', 'end_uf'];
@@ -48,5 +49,17 @@ assert(rbDesemp.includes('drop table if exists mailing.amostra'), 'rollback da a
 assert(rbDesemp.includes('drop column if exists socio_nome'), 'rollback das colunas da linha');
 assert(!indices.includes('linha_operadora_ddd'), 'índice de operadora/ddd só entra se a medição provar ganho');
 
+// 21/10: filtros do sócio (sexo, geração, faixa de risco) na linha e na amostra
+const filtSoc = ler('supabase/migrations/20261021090300_mailing_filtros_socio.sql');
+const rbFiltSoc = ler('supabase/rollback/20261021090300_mailing_filtros_socio_rollback.sql');
+for (const t of ['linha', 'amostra']) {
+  assert(filtSoc.includes(`alter table mailing.${t}
+  add column sexo text,
+  add column geracao text,
+  add column faixa_risco text;`), `${t}: sexo, geração e faixa de risco`);
+}
+const nomesFiltSoc = new Set(filtSoc.replace(/--.*$/gm, '').match(/[a-z_][a-z0-9_]*/g));
+for (const p of trechosProibidos) assert(![...nomesFiltSoc].some(n => n.includes(p)), `filtros do sócio sem coluna proibida: ${p}`);
+assert(rbFiltSoc.includes('alter table mailing.linha drop column if exists sexo'), 'rollback dos filtros do sócio');
 console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
 process.exit(fail > 0 ? 1 : 0);

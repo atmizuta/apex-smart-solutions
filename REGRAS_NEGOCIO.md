@@ -3453,6 +3453,25 @@ Antes dos ajustes, contar levava de 23 a 85 s e escolher 100 mil levava 95 s: a 
 - **Como funciona por trás:** a lista nativa (`<select multiple>`) continua escondida e é dela que a contagem e a exportação leem o que foi escolhido.
 - **Publicação:** 21/10/2026 às 17:21 (SP), MD5 `fdf58eb0737170811f4a5017db1c39c2`. Backup: `~/deploy_backups/painel_clientes_apex_20261021_172132_antes_filtros_mailing.html`. Antes de publicar, o painel no ar era idêntico à oficial dc8735d (§103 do Fechamento), que foi juntada antes.
 
+### 102.7 Filtros do sócio e pedido acima de 100 mil (21/10/2026, pedido do Rafael)
+- **Filtros novos:**
+  - **sexo do sócio:** M, F, I;
+  - **geração:** Z, Y, X, Baby Boomer, Veteranos;
+  - **faixa de risco do score:** muito baixo, baixo, médio, alto, muito alto.
+- **Só filtram, não vão no arquivo do ProContact.** Os três estavam na lista do que não subia (LGPD). O Rafael liberou só como filtro em 21/10. Vêm do sócio da linha (o do telefone ou, sem ele, o principal), em código curto. Valor fora da lista vira vazio.
+- **Banco:** colunas `sexo`, `geracao` e `faixa_risco` em `mailing.linha` e `mailing.amostra`, pela migration `20261021090300`.
+- **Pedido acima de 100.000:** a quantidade não tem mais teto. Acima de 100 mil, o pedido sai em **várias partes de até 100 mil, um arquivo por parte** (`<CARGA>_<data>_parteXdeN.csv`).
+  - Todas as partes levam a hora do início do pedido (`extraida_antes_de`), então o que saiu numa parte não volta na seguinte. Se o filtro acabar antes, o pedido para e avisa.
+  - O botão **"Parar"** termina a parte em andamento e não pede a próxima.
+  - Cada parte fica registrada no histórico. O navegador pode pedir para permitir vários downloads.
+- **Teste zerado:** a exportação "TESTE" de 100 mil do Guilherme (21/10 às 17:44) foi zerada a pedido do Rafael. As linhas voltaram a ser "nunca extraídas" e o registro saiu do histórico.
+- **Recarga:** a tabela de linhas foi recarregada com as colunas novas, e as contagens conferem com as do PC. Uma contagem com os três filtros responde em 0,3 s. A primeira tentativa foi interrompida por falta de memória no PC; o envio agora usa 600 MB.
+- **Publicação:**
+  - Função `mailing-api` v3.
+  - Painel publicado às 19:08 (SP) por cima do "Fechamento em ranking" (§104), que outra frente tinha publicado às 19:03. A conferência do ar tinha sido feita 20 minutos antes.
+  - Corrigido às 19:09:40: a oficial 5685789 foi juntada e o painel republicado. MD5 `177b132d52dde2798fd505b98646edbb`. Backups: `…_20261021_190842_antes_filtros_socio.html` (o ranking) e `…_20261021_190940_antes_merge_ranking.html`.
+  - **Regra:** conferir o MD5 do ar imediatamente antes de cada envio, não minutos antes.
+
 ## 103. Fechamento carregava só 1.000 pedidos (21/10/2026)
 
 ### 103.1 O problema

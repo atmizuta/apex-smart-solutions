@@ -53,7 +53,7 @@ try{
 
   // ==== TASK 4: funções puras ====
   eq(mbFiltrosPadrao(), { situacao: ['ATIVA'], excluir_obito: true }, 'filtros padrão (a base só tem celular do mailing: tipo e origem não entram)');
-  eq(MB_MAX_QTD, 100000, 'limite de 100 mil');
+  eq(MB_MAX_QTD, 100000, 'cada arquivo tem até 100 mil');
   const cab = 'nome;descricao;documento1;documento2;fone1;fone2;fone3;fone4;fone5;fone6;fone7;fone8;fone9;fone10;campo1;campo2;campo3;obs;integra1;integra2';
   const cols = ['nome','descricao','documento1','documento2','fone1','campo1','campo2','campo3'];
   eq(mbMontarCsv(cols, []), cab + '\\r\\n', 'só o cabeçalho, terminando em CRLF');
@@ -72,8 +72,10 @@ try{
   eq(Array.from(mbParaCp1252('\\r\\n')), [0x0D, 0x0A], 'CRLF preservado');
   eq(mbValidarQuantidade('20000'), 20000, 'quantidade simples');
   eq(mbValidarQuantidade('50.000'), 50000, 'aceita milhar com ponto');
-  eq(mbValidarQuantidade('100000'), 100000, 'limite exato');
-  for(const v of ['100001', '0', '12,5', 'abc', '', null]) eq(mbValidarQuantidade(v), null, 'quantidade inválida: ' + v);
+  eq(mbValidarQuantidade('100000'), 100000, 'cem mil');
+  eq([mbValidarQuantidade('100001'), mbValidarQuantidade('700.000'), mbValidarQuantidade('12000000')], [100001, 700000, 12000000], 'acima de 100 mil vale (sai em vários arquivos)');
+  for(const v of ['0', '12,5', 'abc', '', null]) eq(mbValidarQuantidade(v), null, 'quantidade inválida: ' + v);
+  eq([mbNomeParte('LOTE_2026-10-21.csv', 3, 7), mbNomeParte('LOTE_2026-10-21.csv', 1, 1)], ['LOTE_2026-10-21_parte3de7.csv', 'LOTE_2026-10-21.csv'], 'nome do arquivo de cada parte');
   eq(mbResumoFiltros({ situacao: ['ATIVA'], tipo: 'CELULAR', operadora: ['VIVO', 'TIM'], ddd: [11], excluir_obito: true, origem: 'MAILING' }),
      'DDD 11 · ATIVA · sem óbito · celular · VIVO, TIM · só mailing', 'resumo dos filtros');
   eq(mbResumoFiltros({}), 'sem filtros', 'resumo vazio');
@@ -105,6 +107,9 @@ try{
     { tipo: 'cnae', valor: '9602501', rotulo: '9602501 — Cabeleireiros, manicure e pedicure', uf: null },
     { tipo: 'cnae', valor: '4781400', rotulo: '4781400 — Comércio varejista de vestuário', uf: null },
     { tipo: 'operadora', valor: 'VIVO', rotulo: 'Vivo', uf: null }, { tipo: 'operadora', valor: 'SEM', rotulo: 'Sem operadora', uf: null },
+    { tipo: 'sexo', valor: 'F', rotulo: 'Feminino', uf: null }, { tipo: 'sexo', valor: 'M', rotulo: 'Masculino', uf: null },
+    { tipo: 'geracao', valor: 'Y', rotulo: 'Geração Y', uf: null }, { tipo: 'geracao', valor: 'Z', rotulo: 'Geração Z', uf: null },
+    { tipo: 'risco', valor: 'BAIXO', rotulo: 'Baixo', uf: null }, { tipo: 'risco', valor: 'ALTO', rotulo: 'Alto', uf: null },
   ], carga: { receita_mes: '2026-09', neo_ate: '2026-10-19', carregado_em: '2026-10-21T12:00:00Z' } }, error: null };
   window.__fnRespostas.historico = { data: { extracoes: [ { criado_em: '2026-10-21T13:00:00Z', username: 'adm', role: 'admin', operacao: 'apex',
     nome_carga: 'TESTE-1', filtros: { situacao: ['ATIVA'] }, total_no_filtro: 5000, quantidade_pedida: 100, quantidade_entregue: 100 } ] }, error: null };
@@ -126,7 +131,7 @@ try{
   const itens = id => Array.from(multi(id).querySelectorAll('.mbMultiItem input')).map(i => i.value);
   const marcar = (id, valor) => { const cb = Array.from(multi(id).querySelectorAll('.mbMultiItem input')).find(i => i.value === valor);
     cb.checked = !cb.checked; cb.dispatchEvent(new window.Event('change', { bubbles: true })); };
-  for (const id of ['mbUf', 'mbMunicipio', 'mbDdd', 'mbSituacao', 'mbPorte', 'mbClasse', 'mbOperadora', 'mbCnae']) {
+  for (const id of ['mbUf', 'mbMunicipio', 'mbDdd', 'mbSituacao', 'mbPorte', 'mbClasse', 'mbOperadora', 'mbCnae', 'mbSexo', 'mbGeracao', 'mbRisco']) {
     assert(multi(id) && document.getElementById(id).hidden && caixa(id).hidden, 'filtro ' + id + ': botão com caixa fechada e lista nativa escondida');
   }
   eq([texto('mbUf'), texto('mbSituacao')], ['Todas', 'ATIVA'], 'botão mostra "Todas" sem escolha e o nome com uma escolha');
@@ -153,10 +158,17 @@ try{
   marcar('mbOperadora', 'SEM');
   document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape' }));
   eq(caixa('mbOperadora').hidden, true, 'Esc fecha a caixa');
+  // 21/10: filtros do sócio
+  multi('mbSexo').querySelector('.mbMultiBotao').click(); marcar('mbSexo', 'F');
+  multi('mbGeracao').querySelector('.mbMultiBotao').click(); marcar('mbGeracao', 'Y'); marcar('mbGeracao', 'Z');
+  multi('mbRisco').querySelector('.mbMultiBotao').click(); marcar('mbRisco', 'BAIXO');
+  document.body.click();
+  eq([texto('mbSexo'), texto('mbGeracao'), texto('mbRisco')], ['Feminino', '2 selecionadas', 'Baixo'], 'filtros de sexo, geração e risco');
   document.getElementById('mbUso').value = 'dias'; document.getElementById('mbUso').dispatchEvent(new window.Event('change'));
   eq(document.getElementById('mbUsoDias').style.display, '', 'escolher "não extraídos há…" mostra o campo de dias');
   document.getElementById('mbUsoDias').value = '45';
-  eq(mbLerFiltros(), { uf: ['RJ'], situacao: ['ATIVA'], operadora: ['VIVO'], cnae: [9602501], excluir_obito: true, sem_extracao_dias: 45 }, 'filtros lidos da tela');
+  eq(mbLerFiltros(), { uf: ['RJ'], situacao: ['ATIVA'], operadora: ['VIVO'], sexo: ['F'], geracao: ['Y', 'Z'], risco: ['BAIXO'], cnae: [9602501], excluir_obito: true, sem_extracao_dias: 45 }, 'filtros lidos da tela');
+  eq(mbResumoFiltros({ sexo: ['F'], geracao: ['Y', 'Z'], risco: ['BAIXO'] }), 'sexo F · geração Y, Z · risco BAIXO', 'resumo com os filtros do sócio');
   assert(!document.getElementById('mbTipo') && !document.getElementById('mbOrigem'), 'sem filtros de tipo e origem (sempre dariam zero)');
   const btnFiltros = document.getElementById('btnMbFiltros');
   btnFiltros.click();
@@ -182,9 +194,9 @@ try{
   document.getElementById('btnMbExportar').click(); await espera(20);
   eq([chamadas.length, avisos[0] && avisos[0][0]], [0, 'erro'], 'sem nome da carga: aviso e nada é chamado');
   avisos.length = 0;
-  document.getElementById('mbCarga').value = 'TESTE'; document.getElementById('mbQtd').value = '100001';
+  document.getElementById('mbCarga').value = 'TESTE'; document.getElementById('mbQtd').value = '0';
   document.getElementById('btnMbExportar').click(); await espera(20);
-  eq([chamadas.length, avisos[0] && avisos[0][0]], [0, 'erro'], 'quantidade acima de 100 mil: aviso');
+  eq([chamadas.length, avisos[0] && avisos[0][0]], [0, 'erro'], 'quantidade inválida: aviso');
 
   const colsExp = ['nome', 'descricao', 'documento1', 'documento2', 'fone1', 'campo1', 'campo2', 'campo3'];
   const linhasExp = [['FULANO DE TAL', 'EMPRESA; TESTE "LTDA"', '00000000191', '00000000000191', '11900000001', 'CLARO S.A.', 'MEI', 'SÃO PAULO']];
@@ -202,6 +214,33 @@ try{
   baixados.length = 0; avisos.length = 0;
   document.getElementById('btnMbExportar').click(); await espera(40);
   eq([baixados.length, avisos[0] && avisos[0][0]], [0, 'info'], 'filtro vazio: aviso e nenhum arquivo');
+
+  // 21/10: pedido acima de 100 mil sai em vários arquivos de até 100 mil
+  let disponivel = 230000;
+  window.__fnRespostas.extrair = (body) => {
+    const n = Math.min(body.quantidade, disponivel); disponivel -= n;
+    return { data: { colunas: colsExp, linhas: n ? linhasExp : [], total_no_filtro: 230000, quantidade_entregue: n, nome_arquivo: 'LOTE_2026-10-21.csv' }, error: null };
+  };
+  baixados.length = 0; avisos.length = 0; chamadas.length = 0;
+  document.getElementById('mbCarga').value = 'LOTE'; document.getElementById('mbQtd').value = '300.000';
+  document.getElementById('btnMbExportar').click(); await espera(120);
+  const partes = chamadas.filter(c => c.body.acao === 'extrair').map(c => c.body);
+  eq(partes.map(b => b.quantidade), [100000, 100000, 100000], 'pede em partes de 100 mil');
+  assert(partes.every(b => b.filtros.extraida_antes_de && b.filtros.extraida_antes_de === partes[0].filtros.extraida_antes_de), 'todas as partes excluem o que saiu desde o início do pedido');
+  eq(baixados.map(b => b.nome), ['LOTE_2026-10-21_parte1de3.csv', 'LOTE_2026-10-21_parte2de3.csv', 'LOTE_2026-10-21_parte3de3.csv'], 'um arquivo por parte');
+  assert(avisos[0] && avisos[0][0] === 'ok' && avisos[0][1].includes('230.000') && avisos[0][1].includes('3 arquivos'), 'aviso com o total entregue e o número de arquivos');
+  eq(document.getElementById('mbProgresso').hidden, true, 'barra de progresso some no fim');
+
+  let partesPedidas = 0;
+  window.__fnRespostas.extrair = (body) => {
+    if (partesPedidas++ === 0) document.getElementById('btnMbParar').click();
+    return { data: { colunas: colsExp, linhas: linhasExp, total_no_filtro: 9000000, quantidade_entregue: body.quantidade, nome_arquivo: 'LOTE_2026-10-21.csv' }, error: null };
+  };
+  baixados.length = 0; avisos.length = 0;
+  document.getElementById('mbQtd').value = '700000';
+  document.getElementById('btnMbExportar').click(); await espera(150);
+  eq(baixados.map(b => b.nome), ['LOTE_2026-10-21_parte1de7.csv'], 'Parar: termina a parte em andamento e não pede a próxima');
+  assert(avisos[0] && avisos[0][1].includes('parou'), 'aviso diz que parou a pedido');
 
   window.__fnRespostas.contar = { data: null, error: { context: { json: async () => ({ erro: 'A consulta demorou demais. Refine os filtros e tente de novo.' }) } } };
   avisos.length = 0;
