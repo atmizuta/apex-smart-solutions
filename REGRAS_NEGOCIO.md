@@ -3383,3 +3383,60 @@ Pedido do usuário: *"precisaria de uma projeção de ganho de cada tipo de vend
 - Publicado **`93953bde53e42a27d6664cfd278d29f9`** (gerado = servidor = site, com e sem `www`; HTTP 200, 1.604.301 bytes). Tela de login carregada no navegador sem erro no console.
 - Backup: `~/deploy_backups/painel_clientes_apex_20261020_190602_antes_projecao_tipos.html` (MD5 `940f59df…`).
 - **Reverter:** copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. Não há mudança de banco nem de função.
+
+## 102. Base de Mailing — aba "Mailing" com exportação no layout do ProContact (21/10/2026)
+
+Pedido do Guilherme, pelo Rafael: colocar no banco os mailings comprados, já atualizados pela Receita e com a operadora do NEO, e criar no painel uma aba só para admin e supervisor que filtra, conta e exporta no layout de importação do ProContact. Spec: `docs/superpowers/specs/2026-10-20-base-mailing-design.md`. Plano: `docs/superpowers/plans/2026-10-20-base-mailing.md`.
+
+### 102.1 Regra
+- **Quem vê:** admin e supervisor de qualquer operação; a base é uma só para Apex e Campinas. O consultor não tem o botão, e a função responde 403 para ele.
+- **Quais telefones entram** (decisão do Rafael, 21/10): **só celulares das planilhas compradas, com a operadora do NEO**. Telefones da Receita e fixos ficam de fora. Ficam 12.303.623 linhas (empresa + telefone), 4.769.143 empresas e 10.695.503 celulares.
+- **Filtro padrão:** empresa ATIVA na Receita e sócio sem óbito, o que dá cerca de 10,44 milhões de linhas. Outros filtros:
+  - UF, cidade e DDD;
+  - porte atual, MEI, CNAE e data de abertura;
+  - sinais (deixou de ser MEI, virou MEI, porte mudou) e classe econômica;
+  - operadora (Vivo, Claro, TIM, Outras), portado, WhatsApp e flag Procon. **A flag Procon não impede ligar**: é só um filtro.
+  - uso: nunca extraídos, ou não extraídos há N dias.
+- **Contagem:** é uma **estimativa (≈) por amostra fixa de 2%** e responde em menos de 1 s. Medida: ≈ 10.448.926 linhas contra 10.443.927 reais. Empresas e telefones distintos também são estimados.
+- **Exportação:**
+  - até **100.000 linhas** por vez, na quantidade escolhida;
+  - **saem primeiro os nunca extraídos**, depois os extraídos há mais tempo, com sorteio fixo entre iguais;
+  - "já extraído" **só registra**, não bloqueia;
+  - duas pessoas exportando ao mesmo tempo recebem lotes diferentes (`for update skip locked`);
+  - toda extração fica em `mailing.extracao`: quem, quando, filtros, nome da carga, quantidade pedida e entregue. Filtro que rende zero não baixa arquivo nem registra.
+- **Arquivo:**
+  - CSV com `;`, Windows-1252 e CRLF, nas 20 colunas do ProContact;
+  - `nome` = sócio, `descricao` = razão social, `documento1` = CPF, `documento2` = CNPJ, `fone1` = celular;
+  - `campo1` = operadora (texto do NEO), `campo2` = porte atual (Receita), `campo3` = cidade (Receita);
+  - nome do arquivo: `<CARGA>_<data>.csv`.
+
+### 102.2 Onde fica
+- **Schema `mailing`** no projeto `apex`, **fechado à API**: anon e authenticated não enxergam. Tabelas:
+  - `linha`: a unidade de exportação, gravada na ordem do sorteio e já com nome do sócio e razão social;
+  - `amostra`, `empresa`, `socio`, `municipio`, `operadora_nome`, `opcao`, `extracao` e `carga`.
+  - Migrations: `20261021090000/090100/090200`, com rollbacks em `supabase/rollback/`.
+- **Edge Function `mailing-api`:**
+  - ações `opcoes`, `contar`, `extrair` e `historico`;
+  - `verify_jwt` ligado e token validado com `auth.getUser`;
+  - conexão direta ao banco, com limite de 30 s para contar e 120 s para extrair.
+- **Carga:** pelo pipeline local `Documents\apex-mailing\pipeline\09_carga_supabase.py`, que fica **fora do repositório**. Envia em pedaços de 250 mil linhas, tem trava de espaço em disco e só mostra contagens.
+
+### 102.3 Medição (servidor Micro, 21/10)
+| Consulta | Tempo |
+|---|---|
+| Contar o filtro padrão | 0,98 s |
+| Contar Vivo + DDD 11 | 0,10 s |
+| Extrair 100 mil, filtro padrão | 13,5 s |
+| Extrair 100 mil, com óbito | 9,5 s |
+| Extrair 50 mil, ativa + baixada, MEI | 7,9 s |
+| Extrair 5 mil, São Paulo + Vivo | 0,7 s |
+
+Antes dos ajustes, contar levava de 23 a 85 s e escolher 100 mil levava 95 s: a tabela não cabe na memória do Micro, e buscar empresa e sócio para cada linha passava de 5 minutos. O banco ficou com **5,49 GB**, em disco de 8 GB.
+
+### 102.4 Incidente da carga (21/10, ~14:26–14:39)
+- **O que aconteceu:** a primeira tentativa de carga encheu o **disco real do projeto**, que era bem menor que os 8 GB do Pro. O Supabase pôs o banco em **somente leitura** por cerca de 13 minutos. Nesse intervalo, ~110 requisições do painel deram erro; o Discador não perdeu importação.
+- **Como resolveu:** esvaziar as tabelas da carga liberou espaço e o Supabase destravou sozinho. O Rafael aumentou o disco para 8 GB; o próximo passo é 12 GB.
+- **Regra a partir daqui:** antes de qualquer carga grande, conferir o tamanho do disco (Project Settings → Compute and Disk).
+
+### 102.5 Publicação
+21/10/2026 às 16:33 (SP). MD5 do painel: `17972cc9fca51d230712ef858c205296`. Backup: `~/deploy_backups/painel_clientes_apex_20261021_163351_antes_mailing.html`. Antes de publicar, o painel no ar era idêntico à oficial/main (MD5 `93953bde…`).
