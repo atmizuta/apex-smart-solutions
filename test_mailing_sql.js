@@ -26,11 +26,13 @@ const trechosProibidos = ['nome_mae', 'sexo', 'nascimento', 'renda', 'score', 'p
 const nomesProibidos = ['idade', 'end_cep', 'end_numero', 'end_cidade', 'end_uf'];
 for (const p of trechosProibidos) assert(![...nomes].some(n => n.includes(p)), `coluna proibida pela LGPD ausente: ${p}`);
 for (const p of nomesProibidos) assert(!nomes.has(p), `coluna proibida pela LGPD ausente: ${p}`);
-assert(indices.includes('create index if not exists linha_padrao_prioridade on mailing.linha (ultima_extracao nulls first, sorteio)'), 'índice de prioridade');
-assert(indices.includes("where rf_situacao = 'ativa' and not socio_obito and celular and do_mailing"), 'índice parcial no filtro padrão');
+// 21/10 (revisão final): índice sem condição — com o parcial, qualquer filtro fora do padrão lia a tabela inteira
+assert(indices.includes('create index if not exists linha_prioridade on mailing.linha (ultima_extracao nulls first, sorteio);'), 'índice de prioridade para qualquer filtro');
+assert(!/linha_prioridade[^;]*where/.test(indices), 'índice de prioridade sem condição');
+assert(indices.includes('drop index if exists mailing.linha_padrao_prioridade'), 'remove o índice parcial antigo');
 assert(indices.includes('analyze mailing.linha'), 'analyze depois dos índices');
 assert(rbSchema.includes('drop schema if exists mailing cascade'), 'rollback do schema');
-assert(rbIndices.includes('drop index if exists mailing.linha_padrao_prioridade'), 'rollback dos índices');
+assert(rbIndices.includes('drop index if exists mailing.linha_prioridade'), 'rollback dos índices');
 
 // 21/10: desempenho no servidor Micro — amostra fixa para contar e dados de exportação na própria linha
 const desemp = ler('supabase/migrations/20261021090200_mailing_desempenho.sql');

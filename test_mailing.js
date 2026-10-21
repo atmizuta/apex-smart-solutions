@@ -52,7 +52,7 @@ try{
   mostrarAviso = (msg, tipo) => avisos.push([tipo, String(msg)]);
 
   // ==== TASK 4: funções puras ====
-  eq(mbFiltrosPadrao(), { situacao: ['ATIVA'], excluir_obito: true, tipo: 'CELULAR', origem: 'MAILING' }, 'filtros padrão');
+  eq(mbFiltrosPadrao(), { situacao: ['ATIVA'], excluir_obito: true }, 'filtros padrão (a base só tem celular do mailing: tipo e origem não entram)');
   eq(MB_MAX_QTD, 100000, 'limite de 100 mil');
   const cab = 'nome;descricao;documento1;documento2;fone1;fone2;fone3;fone4;fone5;fone6;fone7;fone8;fone9;fone10;campo1;campo2;campo3;obs;integra1;integra2';
   const cols = ['nome','descricao','documento1','documento2','fone1','campo1','campo2','campo3'];
@@ -130,7 +130,8 @@ try{
   document.getElementById('mbUso').value = 'dias'; document.getElementById('mbUso').dispatchEvent(new window.Event('change'));
   eq(document.getElementById('mbUsoDias').style.display, '', 'escolher "não extraídos há…" mostra o campo de dias');
   document.getElementById('mbUsoDias').value = '45';
-  eq(mbLerFiltros(), { uf: ['RJ'], situacao: ['ATIVA'], operadora: ['VIVO'], cnae: [9602501], excluir_obito: true, tipo: 'CELULAR', origem: 'MAILING', sem_extracao_dias: 45 }, 'filtros lidos da tela');
+  eq(mbLerFiltros(), { uf: ['RJ'], situacao: ['ATIVA'], operadora: ['VIVO'], cnae: [9602501], excluir_obito: true, sem_extracao_dias: 45 }, 'filtros lidos da tela');
+  assert(!document.getElementById('mbTipo') && !document.getElementById('mbOrigem'), 'sem filtros de tipo e origem (sempre dariam zero)');
 
   window.__fnRespostas.contar = { data: { linhas: 1234567, empresas: 400000, telefones: 1200000,
     por_operadora: [{ operadora: 'VIVO', linhas: 700000 }, { operadora: 'SEM', linhas: 1000 }] }, error: null };

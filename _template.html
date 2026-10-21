@@ -1408,11 +1408,9 @@
           <div class="field"><label for="mbMei">MEI</label><select id="mbMei"><option value="">Todos</option><option value="sim">Sim</option><option value="nao">Não</option></select></div>
           <div class="field"><label for="mbAberturaDe">Abertura de</label><input type="date" id="mbAberturaDe"></div>
           <div class="field"><label for="mbAberturaAte">Abertura até</label><input type="date" id="mbAberturaAte"></div>
-          <div class="field"><label for="mbTipo">Tipo de telefone</label><select id="mbTipo"><option value="CELULAR">Celular</option><option value="FIXO">Fixo</option><option value="">Todos</option></select></div>
           <div class="field"><label for="mbPortado">Portado</label><select id="mbPortado"><option value="">Todos</option><option value="sim">Sim</option><option value="nao">Não</option></select></div>
           <div class="field"><label for="mbWhatsapp">WhatsApp</label><select id="mbWhatsapp"><option value="">Todos</option><option value="sim">Sim</option><option value="nao">Não</option></select></div>
           <div class="field"><label for="mbProcon">Flag Procon</label><select id="mbProcon"><option value="">Todos</option><option value="sem">Sem flag</option><option value="com">Com flag</option></select></div>
-          <div class="field"><label for="mbOrigem">Origem do telefone</label><select id="mbOrigem"><option value="MAILING">Só do mailing</option><option value="RECEITA">Só da Receita</option><option value="">Todos</option></select></div>
           <div class="field"><label for="mbUso">Uso</label><select id="mbUso"><option value="">Todos</option><option value="nunca">Nunca extraídos</option><option value="dias">Não extraídos há…</option></select><input type="number" id="mbUsoDias" min="1" max="3650" value="30" aria-label="Dias sem extração" style="display:none"></div>
         </div>
         <div class="mbChecks">
@@ -13653,7 +13651,8 @@ const MB_CP1252 = { 0x20AC: 0x80, 0x201A: 0x82, 0x0192: 0x83, 0x201E: 0x84, 0x20
   0x203A: 0x9B, 0x0153: 0x9C, 0x017E: 0x9E, 0x0178: 0x9F };
 const MB_ROTULO_OPERADORA = { VIVO: 'Vivo', CLARO: 'Claro', TIM: 'TIM', OUTRAS: 'Outras', SEM: 'Sem operadora' };
 function canSeeMailing(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
-function mbFiltrosPadrao(){ return { situacao: ['ATIVA'], excluir_obito: true, tipo: 'CELULAR', origem: 'MAILING' }; }
+// a base só tem celular do mailing (regra de 21/10): tipo e origem ficam fora da tela; a API ainda aceita os dois
+function mbFiltrosPadrao(){ return { situacao: ['ATIVA'], excluir_obito: true }; }
 function mbFmtNum(n){ return (Number(n) || 0).toLocaleString('pt-BR'); }
 function mbCampoCsv(v){
   const s = v === null || v === undefined ? '' : String(v);
@@ -13779,7 +13778,7 @@ function mbLerFiltros(){
     .filter(([, id]) => document.getElementById(id).checked).map(([s]) => s);
   if(sinais.length) f.sinais = sinais;
   if(document.getElementById('mbExcluirObito').checked) f.excluir_obito = true;
-  for(const [k, id] of [['tipo', 'mbTipo'], ['portado', 'mbPortado'], ['whatsapp', 'mbWhatsapp'], ['procon', 'mbProcon'], ['origem', 'mbOrigem']]){
+  for(const [k, id] of [['portado', 'mbPortado'], ['whatsapp', 'mbWhatsapp'], ['procon', 'mbProcon']]){
     if(val(id)) f[k] = val(id);
   }
   if(val('mbUso') === 'nunca') f.nunca_extraida = true;
@@ -13792,8 +13791,6 @@ function mbLimpar(){
   Array.from(document.getElementById('mbSituacao').options).forEach(o => { o.selected = o.value === 'ATIVA'; });
   ['mbMei', 'mbPortado', 'mbWhatsapp', 'mbProcon', 'mbUso', 'mbAberturaDe', 'mbAberturaAte', 'mbCnaeBusca']
     .forEach(id => { document.getElementById(id).value = ''; });
-  document.getElementById('mbTipo').value = 'CELULAR';
-  document.getElementById('mbOrigem').value = 'MAILING';
   document.getElementById('mbUsoDias').value = '30';
   document.getElementById('mbUsoDias').style.display = 'none';
   ['mbSinalDeixouMei', 'mbSinalVirouMei', 'mbSinalPorteMudou'].forEach(id => { document.getElementById(id).checked = false; });

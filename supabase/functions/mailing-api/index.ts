@@ -3,6 +3,7 @@
 // Conexão direta ao banco (SUPABASE_DB_URL, disponível em toda Edge Function): o PostgREST corta em 8 s e 1.000 linhas.
 // Log: só status e código de erro — nunca CPF, nome, telefone ou filtros.
 import postgres from "npm:postgres@3.4.5";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { processar } from "./api.ts";
 import type { DepsApi, LinhaExport, RegistroExtracao, Usuario } from "./api.ts";
 import {
@@ -17,17 +18,14 @@ const corsHeaders = {
 function json(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
-// verify_jwt = true: o gateway já validou a assinatura; aqui só lemos o "sub" (id do usuário).
-function subDoJwt(auth: string | null): string | null {
-  const partes = (auth ?? "").replace(/^Bearer\s+/i, "").split(".");
-  if (partes.length !== 3) return null;
-  try {
-    const b64 = partes[1].replace(/-/g, "+").replace(/_/g, "/");
-    const payload = JSON.parse(atob(b64 + "=".repeat((4 - (b64.length % 4)) % 4)));
-    return typeof payload.sub === "string" ? payload.sub : null;
-  } catch {
-    return null;
-  }
+// O token é validado no Auth do Supabase, além do verify_jwt do gateway. Só ler o "sub" não basta: se o verify_jwt
+// fosse desligado um dia, um "sub" forjado de admin exportaria a base inteira (revisão final, 21/10).
+async function idDoUsuario(auth: string | null): Promise<string | null> {
+  const jwt = (auth ?? "").replace(/^Bearer\s+/i, "").trim();
+  if (!jwt) return null;
+  const sb = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_ANON_KEY") ?? "", { auth: { persistSession: false } });
+  const { data, error } = await sb.auth.getUser(jwt);
+  return error || !data?.user ? null : data.user.id;
 }
 function hojeSP(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" })
@@ -74,9 +72,9 @@ function criarDeps(sql: postgres.Sql): DepsApi {
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ erro: "Use POST." }, 405);
-  const sub = subDoJwt(req.headers.get("Authorization"));
   const sql = postgres(Deno.env.get("SUPABASE_DB_URL") ?? "", { max: 1, prepare: false, idle_timeout: 5, connect_timeout: 10 });
   try {
+    const sub = await idDoUsuario(req.headers.get("Authorization"));
     let usuario: Usuario | null = null;
     if (sub) {
       const [perfil] = await sql.unsafe(SQL_USUARIO, [sub]);
