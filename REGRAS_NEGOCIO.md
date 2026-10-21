@@ -3486,3 +3486,13 @@ Pedido do Rafael: exportar para Excel e conferir com o fechamento da Claro; troc
 
 ### 104.3 Publicação
 21/10/2026 às 19:03 (SP), com ok do Rafael depois da prévia com dados reais. MD5 do painel: `c1970ce98f532660a2e22b581689b031`. Backup: `~/deploy_backups/painel_clientes_apex_20261021_190357_antes_fechamento_ranking.html`. Antes de publicar, o painel no ar era idêntico à oficial/main (MD5 `fdf58eb0…`).
+
+## 105. Fechamento conta só a etapa CONCLUIDO (21/10/2026)
+
+Pedido do Rafael: "a aba FECHAMENTO tem que contar apenas os pedidos que estão na etapa CONCLUIDO [...] para o ranking e também para os ganhos sem ativação".
+
+- **Aba Fechamento** (ranking, total da operação, detalhamento, Excel e a tabela de sem data): só pedidos com etapa `CONCLUIDO (NEOCRM)`. Entrega, Faturamento, Portabilidade em andamento e Validação eSIM ficam de fora, mesmo com data de ativação. A regra da data de ativação (seção 16.14) e o piso de 01/08 não mudam.
+- A tabela de pendentes passou a se chamar **"Concluídos sem data de ativação"**.
+- **"Meu placar" não mudou:** `ppPlacar` chama `filtrarRegistrosFechamento` sem o 4º argumento e continua contando todas as etapas de ganho.
+- Código: `FECHAMENTO_ETAPA`, `filtrarRegistrosFechamento(records, de, ate, apenasConcluido)` e `filtrarSemDataFechamento`. Testes em `test_fechamento.js` (79 asserções).
+- Efeito medido na Operação Apex: setembro foi de R$ 6.483,58 para **R$ 5.853,67** (102 linhas móveis, 3 fibras, 76 pedidos); outubro até 21/10 foi de R$ 7.532,66 para **R$ 3.938,41**, porque boa parte de outubro ainda está em Entrega.

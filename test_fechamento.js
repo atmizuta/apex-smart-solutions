@@ -51,6 +51,10 @@ window.__mockProducaoPedidos = [
   ped({ numero_pedido: 'S3', usuario: 'Caio', grupo: 'SVA MÓVEL', valor: 999, cadastro: '2026-08-11T10:00:00-03:00' }),   // SVA: fora da lista
   ped({ numero_pedido: 'S4', usuario: 'Caio', grupo: 'VOZ - Novo', etapa: 'VENDA PERDIDA (NEOCRM)', valor: 999, cadastro: '2026-08-12T10:00:00-03:00' }), // não é ganho
   ped({ numero_pedido: 'S5', usuario: 'Caio', grupo: 'VOZ - Novo', valor: 999, cadastro: '2026-07-20T10:00:00-03:00' }), // antes do piso
+  // seção 105: a aba conta só CONCLUIDO — ENTREGA com data em agosto fica fora do ranking (mas segue no "Meu placar")
+  ped({ numero_pedido: 'E1', usuario: 'Caio', grupo: 'VOZ - Novo', etapa: 'ENTREGA (NEOCRM)', valor: 999, data_portabilidade: '2026-08-21T10:00:00-03:00' }),
+  // seção 105: CONCLUIDO sem data em setembro — esse sim vai para a tabela "sem data"
+  ped({ numero_pedido: 'S6', usuario: 'Giovanna', grupo: 'BANDA LARGA - Novo', valor: 999, cadastro: '2026-09-08T10:00:00-03:00' }),
 ];
 
 function mockQueryBuilder(table){
@@ -127,7 +131,7 @@ try{
 
   // --- 3) filtrarRegistrosFechamento(): piso 01/08, só etapa ganho, só produtos com data de ativação ---
   const todos = window.__mockProducaoPedidos;
-  const filtradoAgosto = filtrarRegistrosFechamento(todos, '2026-08-01', '2026-08-31');
+  const filtradoAgosto = filtrarRegistrosFechamento(todos, '2026-08-01', '2026-08-31', true);
   assert(filtradoAgosto.length === 4, 'agosto inteiro: 4 linhas qualificadas (2 do pedido C1 + C2 + C3, o Aparelho com portabilidade) — achou ' + filtradoAgosto.length);
   assert(filtradoAgosto.filter(r => r.numero_pedido === 'C1').length === 2, 'as 2 linhas do pedido C1 (mesma venda) aparecem no filtro');
   assert(filtradoAgosto.some(r => r.numero_pedido === 'C3'), 'C3 (Aparelho avulso com data_portabilidade preenchida) entra no filtro');
@@ -136,13 +140,17 @@ try{
   assert(!filtradoAgosto.some(r => r.numero_pedido === 'A1'), 'Aparelho sem nenhuma data preenchida não entra');
   assert(!filtradoAgosto.some(r => r.numero_pedido === 'BL2'), 'banda larga sem data_portabilidade nem data_instalacao preenchida não entra');
 
-  const filtradoComDeAntesDoPiso = filtrarRegistrosFechamento(todos, '2026-06-01', '2026-12-31');
+  // seção 105: a aba conta só CONCLUIDO; o "Meu placar" (chamada sem o 4º argumento) continua com todas as etapas de ganho
+  assert(!filtradoAgosto.some(r => r.numero_pedido === 'E1'), 'aba Fechamento: ENTREGA (E1) com data em agosto não entra — só CONCLUIDO');
+  assert(filtrarRegistrosFechamento(todos, '2026-08-01', '2026-08-31').some(r => r.numero_pedido === 'E1'), 'Meu placar (sem o 4º argumento) continua contando ENTREGA como ganho');
+
+  const filtradoComDeAntesDoPiso =filtrarRegistrosFechamento(todos, '2026-06-01', '2026-12-31', true);
   assert(!filtradoComDeAntesDoPiso.some(r => r.numero_pedido === 'G0'), 'mesmo pedindo "de" 01/06, o piso de 01/08 continua valendo (G0, de julho, não entra)');
 
-  const filtradoSetembro = filtrarRegistrosFechamento(todos, '2026-09-01', '2026-09-30');
+  const filtradoSetembro = filtrarRegistrosFechamento(todos, '2026-09-01', '2026-09-30', true);
   assert(filtradoSetembro.length === 1 && filtradoSetembro[0].numero_pedido === 'G1', 'setembro: só o pedido G1 (Giovanna, Renovação)');
 
-  const filtradoSemLimites = filtrarRegistrosFechamento(todos, null, null);
+  const filtradoSemLimites = filtrarRegistrosFechamento(todos, null, null, true);
   assert(filtradoSemLimites.length === 5, 'sem "de"/"até": ainda respeita o piso de 01/08 (C1x2 + C2 + C3 + G1 = 5) — achou ' + filtradoSemLimites.length);
 
   // --- 4) agruparFechamentoPorConsultor(): CONTRATOS distintos (numero_pedido), não linhas, com
@@ -186,7 +194,7 @@ try{
   const semAgo = filtrarSemDataFechamento(todos, '2026-08-01', '2026-08-31').map(r => r.numero_pedido).sort().join(',');
   assert(semAgo === 'BL2,S1', 'sem data em agosto: BL2 (fibra) e S1 (voz) — sem A1 (aparelho), S3 (SVA), S4 (perdido), S5 (julho) — achou ' + semAgo);
   const semSet = filtrarSemDataFechamento(todos, '2026-09-01', '2026-09-30').map(r => r.numero_pedido).join(',');
-  assert(semSet === 'S2', 'sem data em setembro: só S2 (ENTREGA também é ganho) — achou ' + semSet);
+  assert(semSet === 'S6', 'sem data em setembro: só S6 (CONCLUIDO); S2 está em ENTREGA e fica fora (seção 105) — achou ' + semSet);
   const semPiso = filtrarSemDataFechamento(todos, '2026-06-01', null).map(r => r.numero_pedido);
   assert(!semPiso.includes('S5'), 'sem data: piso de 01/08 vale pelo cadastro (S5 é de julho)');
 
