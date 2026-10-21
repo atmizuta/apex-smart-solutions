@@ -20,9 +20,10 @@ function ped(over){
   return Object.assign({
     numero_pedido: 'P', grupo: 'VOZ - Novo', usuario: 'Caio', etapa: 'CONCLUIDO (NEOCRM)',
     produto: 'Plano X', cliente: 'Cliente X', cnpj: '11222333000144', valor: 0,
-    data_portabilidade: null, data_instalacao: null,
+    data_portabilidade: null, data_instalacao: null, cadastro: null,
   }, over);
 }
+window.ped = ped; // usado também dentro do testScript (ranking com dados próprios)
 window.__mockProducaoPedidos = [
   // Caio: 1 contrato de voz (2 linhas, mesmo numero_pedido — não pode contar como 2) + 1 banda larga.
   // Valores (18/09/2026, receita pedida pelo usuário): 50 + 700 (C1) + 100 (C2) + 300 (C3) = 1150.
@@ -43,7 +44,13 @@ window.__mockProducaoPedidos = [
   // — DEVE contar, mesmo não sendo um produto de voz.
   ped({ numero_pedido: 'C3', usuario: 'Caio', grupo: 'APARELHO', produto: 'Aparelho avulso', valor: 300, data_portabilidade: '2026-08-18T16:00:00-03:00' }),
   // banda larga sem data de instalação preenchida ainda — não deve contar
-  ped({ numero_pedido: 'BL2', usuario: 'Caio', grupo: 'BANDA LARGA - Novo', valor: 999 }),
+  ped({ numero_pedido: 'BL2', usuario: 'Caio', grupo: 'BANDA LARGA - Novo', valor: 999, cadastro: '2026-08-25T11:00:00-03:00' }),
+  // seção 104: ganhos SEM data de ativação — não entram no ranking, vão para a tabela "sem data" pelo CADASTRO
+  ped({ numero_pedido: 'S1', usuario: 'Caio', grupo: 'VOZ - Novo', produto: 'Plano S1', cliente: 'Cliente S1', valor: 999, cadastro: '2026-08-10T10:00:00-03:00' }),
+  ped({ numero_pedido: 'S2', usuario: 'Giovanna', grupo: 'VOZ - Portabilidade', etapa: 'ENTREGA (NEOCRM)', valor: 999, cadastro: '2026-09-05T10:00:00-03:00' }),
+  ped({ numero_pedido: 'S3', usuario: 'Caio', grupo: 'SVA MÓVEL', valor: 999, cadastro: '2026-08-11T10:00:00-03:00' }),   // SVA: fora da lista
+  ped({ numero_pedido: 'S4', usuario: 'Caio', grupo: 'VOZ - Novo', etapa: 'VENDA PERDIDA (NEOCRM)', valor: 999, cadastro: '2026-08-12T10:00:00-03:00' }), // não é ganho
+  ped({ numero_pedido: 'S5', usuario: 'Caio', grupo: 'VOZ - Novo', valor: 999, cadastro: '2026-07-20T10:00:00-03:00' }), // antes do piso
 ];
 
 function mockQueryBuilder(table){
@@ -73,6 +80,13 @@ window.Chart = function(ctx, cfg){ this.config = cfg; this.destroy = function(){
 // por padrão). Não é o que este teste quer exercitar, só precisa não quebrar — usa o TextDecoder de
 // verdade do Node.
 window.TextDecoder = TextDecoder;
+// SheetJS não carrega no jsdom (vem do CDN): mock que guarda o que seria gravado
+window.__xlsx = [];
+window.XLSX = { utils: {
+  book_new: () => ({ abas: [] }),
+  json_to_sheet: (linhas) => ({ linhas }),
+  book_append_sheet: (wb, ws, nome) => { wb.abas.push({ nome, linhas: ws.linhas }); },
+}, writeFile: (wb, nome) => { window.__xlsx.push({ nome, abas: wb.abas }); } };
 window.process = process; // pra poder forcar process.exit() de dentro do testScript (ver nota abaixo)
 
 const testScript = `
@@ -148,7 +162,35 @@ try{
   // Os valores 999 de G0/G2/A1/BL2 (excluídos do filtro) não podem vazar pra essa soma.
   assert(caio.valor === 1150, 'receita do Caio em agosto é R$1150 (50+700+100+300) — achou ' + caio.valor);
 
-  // --- 5) fluxo completo: loadFechamento() busca do Supabase e renderiza os cards ---
+  // --- 4.2) seção 104: contagem POR ITEM (linhas móveis / fibras / outros) + pedidos distintos ---
+  assert(caio.linhasVoz === 2, 'Caio: 2 linhas móveis (os 2 itens de VOZ do C1 contam separado) — achou ' + caio.linhasVoz);
+  assert(caio.fibras === 1, 'Caio: 1 fibra (C2) — achou ' + caio.fibras);
+  assert(caio.itensOutros === 1, 'Caio: 1 item "outros" (C3) — achou ' + caio.itensOutros);
+  assert(caio.pedidos === 3, 'Caio: 3 pedidos distintos (C1, C2, C3) — achou ' + caio.pedidos);
+
+  // --- 4.3) ranking: ordem pela receita, empate desempata por linhas móveis ---
+  const rk = agruparFechamentoPorConsultor([
+    ped({ numero_pedido: 'X1', usuario: 'Ana',  valor: 10, data_portabilidade: '2026-08-02T10:00:00-03:00' }),
+    ped({ numero_pedido: 'X1', usuario: 'Ana',  valor: 10, data_portabilidade: '2026-08-02T10:00:00-03:00' }),
+    ped({ numero_pedido: 'X2', usuario: 'Bia',  valor: 50, data_portabilidade: '2026-08-02T10:00:00-03:00' }),
+    ped({ numero_pedido: 'X3', usuario: 'Cris', valor: 20, data_portabilidade: '2026-08-02T10:00:00-03:00' }),
+  ]);
+  assert(rk.map(r => r.usuario).join(',') === 'Bia,Ana,Cris', 'ranking: maior receita primeiro; Ana (R$20, 2 linhas) passa Cris (R$20, 1 linha) — achou ' + rk.map(r => r.usuario).join(','));
+
+  // --- 4.4) total da operação ---
+  const tot = totalFechamentoOperacao(filtradoAgosto);
+  assert(tot.linhasVoz === 2 && tot.fibras === 1 && tot.itensOutros === 1, 'total agosto: 2 linhas móveis, 1 fibra, 1 outros — achou ' + JSON.stringify(tot));
+  assert(tot.pedidos === 3 && tot.valor === 1150, 'total agosto: 3 pedidos e R$1150 — achou ' + JSON.stringify(tot));
+
+  // --- 4.5) ganhos SEM data de ativação: etapa ganho, VOZ/BANDA LARGA, sem data, cadastro no período (piso 01/08) ---
+  const semAgo = filtrarSemDataFechamento(todos, '2026-08-01', '2026-08-31').map(r => r.numero_pedido).sort().join(',');
+  assert(semAgo === 'BL2,S1', 'sem data em agosto: BL2 (fibra) e S1 (voz) — sem A1 (aparelho), S3 (SVA), S4 (perdido), S5 (julho) — achou ' + semAgo);
+  const semSet = filtrarSemDataFechamento(todos, '2026-09-01', '2026-09-30').map(r => r.numero_pedido).join(',');
+  assert(semSet === 'S2', 'sem data em setembro: só S2 (ENTREGA também é ganho) — achou ' + semSet);
+  const semPiso = filtrarSemDataFechamento(todos, '2026-06-01', null).map(r => r.numero_pedido);
+  assert(!semPiso.includes('S5'), 'sem data: piso de 01/08 vale pelo cadastro (S5 é de julho)');
+
+  // --- 5) fluxo completo: loadFechamento() busca do Supabase e renderiza o ranking ---
   currentUser = { id:'u3', nome:'Admin', username:'admin', role:'admin' };
   enterApp();
   await new Promise(r => setTimeout(r, 0));
@@ -166,20 +208,61 @@ try{
   // NBSP de verdade entre "R$" e o número, e o innerHTML do jsdom serializa esse caractere de volta
   // pra entidade "&nbsp;" (texto literal), o que faria o .includes(fmtBRL(...)) falhar mesmo com o
   // valor certo na tela. .textContent decodifica a entidade de volta pro mesmo caractere que fmtBRL() gera.
-  const resumoHtml = document.getElementById('fechamentoResumoCards').innerHTML;
-  const resumoText = document.getElementById('fechamentoResumoCards').textContent;
-  assert(resumoHtml.includes('Caio'), 'card do Caio aparece no resumo renderizado');
-  assert(resumoHtml.includes('outros'), 'card do Caio menciona o balde "outros" (C3, Aparelho com portabilidade preenchida)');
-  assert(resumoText.includes(fmtBRL(1150)), 'card do Caio mostra a receita formatada (R$1150) — achou: ' + resumoText);
+  const rankingEl = document.getElementById('fechamentoRanking');
+  const resumoHtml = rankingEl.innerHTML;
+  const resumoText = rankingEl.textContent;
+  assert(!rankingEl.querySelector('.kpiCard'), 'seção 104: ranking em tabela, sem os cards (quadradinhos)');
+  const caioTr = rankingEl.querySelector('tbody tr[data-usuario="Caio"]');
+  assert(!!caioTr, 'linha do Caio aparece no ranking');
+  const caioTds = caioTr ? Array.from(caioTr.querySelectorAll('td')).map(td => td.textContent.trim()) : [];
+  assert(caioTds[0] === '1º' && caioTds[1] === 'Caio', 'Caio em 1º lugar — achou ' + caioTds.slice(0, 2).join(' | '));
+  assert(caioTds.slice(2, 6).join('|') === '2|1|1|3', 'Caio: 2 linhas móveis, 1 fibra, 1 outros, 3 pedidos — achou ' + caioTds.slice(2, 6).join('|'));
+  assert(resumoText.includes(fmtBRL(1150)), 'ranking mostra a receita formatada (R$1150) — achou: ' + resumoText);
   assert(!resumoHtml.includes('Giovanna'), 'Giovanna não aparece (sem ativação qualificada em agosto)');
+  const tfoot = rankingEl.querySelector('tfoot');
+  assert(!!tfoot && /total/i.test(tfoot.textContent) && tfoot.textContent.includes(fmtBRL(1150)), 'linha TOTAL da operação no pé do ranking');
   assert(document.getElementById('fechamentoResumoCard').style.display === 'block', 'card de resumo fica visível quando há dados');
   assert(document.getElementById('fechamentoEmptyCard').style.display === 'none', 'card de "vazio" fica escondido quando há dados');
   const receitaTotalText = document.getElementById('fechamentoReceitaTotal').textContent;
   assert(receitaTotalText.includes(fmtBRL(1150)), '"Receita total no período" mostra R$1150 (só o Caio qualificou em agosto) — ' + receitaTotalText);
+  assert(/2 linhas móveis/.test(receitaTotalText) && /1 fibra(?!s)/.test(receitaTotalText), 'resumo da operação mostra linhas móveis e fibras — ' + receitaTotalText);
+
+  // --- 5.1) tabela "Ganhos sem data de ativação" ---
+  assert(document.getElementById('fechamentoSemDataCard').style.display === 'block', 'card "sem data de ativação" aparece');
+  const semTrs = Array.from(document.querySelectorAll('#fechamentoSemDataTbody tr'));
+  const semTxt = document.getElementById('fechamentoSemDataTbody').textContent;
+  assert(semTrs.length === 2 && semTxt.includes('S1') && semTxt.includes('BL2'), 'tabela sem data em agosto: S1 e BL2 — achou ' + semTrs.length + ' linhas');
+  assert(!semTxt.includes('S3') && !semTxt.includes('A1'), 'tabela sem data não lista SVA nem aparelho');
+  assert(semTxt.includes('10/08/2026'), 'tabela sem data mostra a data do pedido em dd/mm/aaaa');
+
+  // --- 5.2) exportar Excel: ranking (3 abas) e só os sem data ---
+  window.__xlsx.length = 0;
+  document.getElementById('btnFechamentoExportar').click();
+  const arq = window.__xlsx[0];
+  assert(!!arq && arq.nome === 'fechamento_2026-08-01_a_2026-08-31.xlsx', 'nome do arquivo leva o período — achou ' + (arq && arq.nome));
+  assert(!!arq && arq.abas.map(a => a.nome).join('|') === 'Ranking|Ativações|Sem data de ativação', 'Excel com 3 abas — achou ' + (arq && arq.abas.map(a => a.nome).join('|')));
+  if(arq){
+    const rkx = arq.abas[0].linhas;
+    assert(rkx[0]['Posição'] === 1 && rkx[0]['Consultor'] === 'Caio' && rkx[0]['Linhas móveis'] === 2 && rkx[0]['Fibras'] === 1 && rkx[0]['Receita'] === 1150, 'aba Ranking: Caio em 1º com números (não texto) — achou ' + JSON.stringify(rkx[0]));
+    assert(rkx[rkx.length - 1]['Consultor'] === 'TOTAL DA OPERAÇÃO' && rkx[rkx.length - 1]['Receita'] === 1150, 'aba Ranking termina com o total da operação');
+    const atx = arq.abas[1].linhas;
+    assert(atx.length === 4, 'aba Ativações: 1 linha por item (4) — achou ' + atx.length);
+    const chip = atx.find(l => l['Produto'] === 'Chip');
+    assert(!!chip && chip['Data de ativação'] === '15/08/2026' && chip['Pedido'] === 'C1' && chip['Valor'] === 50 && chip['Tipo'] === 'Linha móvel', 'aba Ativações traz pedido, tipo, data dd/mm/aaaa e valor numérico — achou ' + JSON.stringify(chip));
+    assert(arq.abas[2].linhas.length === 2, 'aba Sem data de ativação: 2 itens em agosto');
+  }
+  window.__xlsx.length = 0;
+  document.getElementById('btnFechamentoSemDataExportar').click();
+  const arq2 = window.__xlsx[0];
+  assert(!!arq2 && arq2.nome === 'fechamento_sem_data_2026-08-01_a_2026-08-31.xlsx' && arq2.abas.length === 1 && arq2.abas[0].linhas.length === 2, 'exportar só os sem data: 1 aba com 2 itens — achou ' + JSON.stringify(arq2 && { nome: arq2.nome, abas: arq2.abas.length }));
+  if(arq2){
+    const s1 = arq2.abas[0].linhas.find(l => l['Pedido'] === 'S1');
+    assert(!!s1 && s1['Data do pedido'] === '10/08/2026' && s1['Etapa'] === 'CONCLUIDO' && s1['Consultor'] === 'Caio', 'linha do S1 no Excel: consultor, etapa sem "(NEOCRM)" e data do pedido — achou ' + JSON.stringify(s1));
+  }
 
   // --- 6) drilldown: clicar no card do Caio mostra as 4 linhas (2 de C1 + C2 + C3) ---
-  const caioCard = Array.from(document.querySelectorAll('#fechamentoResumoCards [data-usuario]')).find(el => el.dataset.usuario === 'Caio');
-  assert(!!caioCard, 'card clicável do Caio existe (data-usuario="Caio")');
+  const caioCard = Array.from(document.querySelectorAll('#fechamentoRanking [data-usuario]')).find(el => el.dataset.usuario === 'Caio');
+  assert(!!caioCard, 'linha clicável do Caio existe (data-usuario="Caio")');
   caioCard.click();
   assert(document.getElementById('fechamentoDrilldownOverlay').classList.contains('active'), 'clicar no card abre o modal de drilldown');
   assert(document.getElementById('fechamentoDrilldownTitulo').textContent === 'Caio', 'título do drilldown mostra o nome do consultor');
@@ -197,6 +280,7 @@ try{
   document.getElementById('btnFechamentoBuscar').click();
   assert(document.getElementById('fechamentoEmptyCard').style.display === 'block', 'período sem nenhuma ativação qualificada mostra o card de "vazio"');
   assert(document.getElementById('fechamentoResumoCard').style.display === 'none', 'card de resumo some quando não há dados');
+  assert(document.getElementById('fechamentoSemDataCard').style.display === 'block' && /nenhum/i.test(document.getElementById('fechamentoSemDataTbody').textContent), 'sem data: período vazio mostra "nenhum" (o card continua visível)');
 
   // --- 8) aviso quando "De" é anterior ao piso de dados (01/08/2026) ---
   document.getElementById('fechamentoDe').value = '2026-06-01';
