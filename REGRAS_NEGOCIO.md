@@ -3472,6 +3472,12 @@ Antes dos ajustes, contar levava de 23 a 85 s e escolher 100 mil levava 95 s: a 
   - Corrigido às 19:09:40: a oficial 5685789 foi juntada e o painel republicado. MD5 `177b132d52dde2798fd505b98646edbb`. Backups: `…_20261021_190842_antes_filtros_socio.html` (o ranking) e `…_20261021_190940_antes_merge_ranking.html`.
   - **Regra:** conferir o MD5 do ar imediatamente antes de cada envio, não minutos antes.
 
+### 102.8 DDD da cidade e telefone da planilha (21/10/2026, pedido do Rafael)
+- **DDD da cidade:** o filtro de DDD da aba passa a ser o **da cidade da empresa** (Receita), e não o do telefone. Na base, quase tudo é de 11 a 19. A API ainda aceita o DDD do telefone (`ddd`), mas a tela não mostra mais.
+- **Telefone da planilha:** filtro novo, de 1 a 4, que é **em que coluna de telefone o número estava na planilha comprada**. O telefone 1 é o de mais contato.
+  - Base: 1 → 6,03 milhões; 2 → 3,42 milhões; 3 → 1,86 milhão; 4 → 0,99 milhão.
+- **Banco:** coluna `posicao` em `mailing.linha` e `mailing.amostra`; `rf_ddd_cidade` também na amostra. Migration `20261021090400`.
+
 ## 103. Fechamento carregava só 1.000 pedidos (21/10/2026)
 
 ### 103.1 O problema
