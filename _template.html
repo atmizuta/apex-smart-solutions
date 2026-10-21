@@ -1786,7 +1786,7 @@
       </div>
       <div class="card">
         <h3>Fechamento</h3>
-        <p class="desc">Relatório de ativações pra comissionamento do consultor. Considera a data de ativação de cada produto: qualquer produto com a coluna Portabilidade preenchida (linha nova, renovação, titularidade, portabilidade — ou qualquer outro produto vendido junto) conta como ativação; banda larga sem Portabilidade preenchida usa a Data de instalação. Só entram pedidos dentro do período selecionado. Esse dado só começou a ser preenchido pelo NeoCRM a partir de 01/08/2026, então o relatório nunca considera pedidos anteriores a essa data, mesmo que "De" seja preenchido com uma data mais antiga. Não calcula valor de comissão — só lista as ativações qualificadas; o cálculo do comissionamento fica por conta de quem gera o relatório.</p>
+        <p class="desc">Relatório de ativações pra comissionamento do consultor. <strong>Conta só pedidos na etapa Concluído</strong> (Entrega, Faturamento, Portabilidade em andamento e Validação eSIM ficam de fora). Considera a data de ativação de cada produto: qualquer produto com a coluna Portabilidade preenchida (linha nova, renovação, titularidade, portabilidade — ou qualquer outro produto vendido junto) conta como ativação; banda larga sem Portabilidade preenchida usa a Data de instalação. Só entram pedidos dentro do período selecionado. Esse dado só começou a ser preenchido pelo NeoCRM a partir de 01/08/2026, então o relatório nunca considera pedidos anteriores a essa data, mesmo que "De" seja preenchido com uma data mais antiga. Não calcula valor de comissão — só lista as ativações qualificadas; o cálculo do comissionamento fica por conta de quem gera o relatório.</p>
         <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-top:10px">
           <div class="field" style="margin:0;width:170px"><label>De</label><input type="date" id="fechamentoDe" min="2026-08-01"></div>
           <div class="field" style="margin:0;width:170px"><label>Até</label><input type="date" id="fechamentoAte" min="2026-08-01"></div>
@@ -1812,10 +1812,10 @@
 
       <div class="card" id="fechamentoSemDataCard" style="display:none">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-          <h3 style="margin:0">Ganhos sem data de ativação</h3>
+          <h3 style="margin:0">Concluídos sem data de ativação</h3>
           <button class="btn btn-sm btn-outline" type="button" id="btnFechamentoSemDataExportar" style="width:auto">Exportar Excel</button>
         </div>
-        <p class="desc">Pedidos de linha móvel ou fibra em etapa de ganho (Concluído, Entrega, Faturamento, Portabilidade em andamento, Validação eSIM), cadastrados no período, mas sem a data de ativação no NeoCRM (coluna Portabilidade; na fibra, também sem Data de instalação). <strong>Eles não entram no ranking nem na receita</strong> até essa data ser preenchida.</p>
+        <p class="desc">Pedidos de linha móvel ou fibra na etapa <strong>Concluído</strong>, cadastrados no período, mas sem a data de ativação no NeoCRM (coluna Portabilidade; na fibra, também sem Data de instalação). <strong>Eles não entram no ranking nem na receita</strong> até essa data ser preenchida.</p>
         <div id="fechamentoSemDataInfo" style="font-size:14px;margin-top:6px"></div>
         <div style="margin-top:10px;overflow-x:auto">
           <table class="tbl">
@@ -9708,13 +9708,19 @@ function dataAtivacaoFechamento(r){
   return null;
 }
 
-// filtrarRegistrosFechamento(records, de, ate): registros "ganho" com data de ativação relevante
-// dentro de [de, ate] (strings 'YYYY-MM-DD', fuso de São Paulo), respeitando o piso de 01/08/2026.
-// de/ate null = sem limite naquele lado (mas o piso sempre se aplica do lado "de").
-function filtrarRegistrosFechamento(records, de, ate){
+// seção 105 (21/10/2026, pedido do Rafael): a ABA Fechamento conta só pedidos na etapa CONCLUIDO — ranking, total,
+// Excel e a tabela de sem data. As outras etapas de ganho (Entrega, Faturamento, Portabilidade em andamento,
+// Validação eSIM) ficam de fora. O "Meu placar" (ppPlacar) continua com todas as etapas de ganho.
+const FECHAMENTO_ETAPA = 'CONCLUIDO (NEOCRM)';
+
+// filtrarRegistrosFechamento(records, de, ate, apenasConcluido): registros com data de ativação relevante dentro de
+// [de, ate] (strings 'YYYY-MM-DD', fuso de São Paulo), respeitando o piso de 01/08/2026. de/ate null = sem limite
+// naquele lado (mas o piso sempre se aplica do lado "de"). Etapa: apenasConcluido = só CONCLUIDO (aba Fechamento,
+// seção 105); sem ele, qualquer etapa de ganho (Meu placar).
+function filtrarRegistrosFechamento(records, de, ate, apenasConcluido){
   const deEfetivo = (de && de > FECHAMENTO_PISO) ? de : FECHAMENTO_PISO;
   return (records || []).filter(r => {
-    if(producaoEtapaCategoria(r.etapa) !== 'ganho') return false;
+    if(apenasConcluido ? r.etapa !== FECHAMENTO_ETAPA : producaoEtapaCategoria(r.etapa) !== 'ganho') return false;
     const dataAtiv = dataAtivacaoFechamento(r);
     if(!dataAtiv) return false;
     const diaSP = leadDateSP(dataAtiv);
@@ -9725,7 +9731,7 @@ function filtrarRegistrosFechamento(records, de, ate){
   });
 }
 
-/// agruparFechamentoPorConsultor(registrosFiltrados): resumo por consultor. Dois jeitos de contar, lado a lado:
+// agruparFechamentoPorConsultor(registrosFiltrados): resumo por consultor. Dois jeitos de contar, lado a lado:
 // - CONTRATOS distintos (numero_pedido — mesma lógica de pedidoKey() da Visão Diária, seção 16.13) em voz/bandaLarga/
 //   outros/total. "Outros" existe porque QUALQUER grupo pode qualificar via Portabilidade (18/09/2026). O "Meu placar"
 //   (ppPlacar) usa o total de contratos.
@@ -9786,13 +9792,13 @@ function totalFechamentoOperacao(registrosFiltrados){
   return t;
 }
 
-// seção 104: ganhos SEM data de ativação — etapa de ganho, linha móvel ou fibra (SVA, aparelho etc. ficam de fora,
-// decisão do Rafael), sem a data que o Fechamento usa (dataAtivacaoFechamento = null) e com o CADASTRO do pedido
-// dentro do período (piso de 01/08 também pelo cadastro). Não entram no ranking nem na receita.
+// seção 104: pedidos SEM data de ativação — linha móvel ou fibra (SVA, aparelho etc. ficam de fora, decisão do Rafael),
+// sem a data que o Fechamento usa (dataAtivacaoFechamento = null) e com o CADASTRO do pedido dentro do período (piso
+// de 01/08 também pelo cadastro). Não entram no ranking nem na receita. Seção 105: só etapa CONCLUIDO.
 function filtrarSemDataFechamento(records, de, ate){
   const deEfetivo = (de && de > FECHAMENTO_PISO) ? de : FECHAMENTO_PISO;
   return (records || []).filter(r => {
-    if(producaoEtapaCategoria(r.etapa) !== 'ganho') return false;
+    if(r.etapa !== FECHAMENTO_ETAPA) return false;
     if(fechamentoTipo(r) === 'outros') return false;
     if(dataAtivacaoFechamento(r)) return false;
     const diaCad = leadDateSP(r.cadastro);
@@ -9869,7 +9875,7 @@ function buscarFechamento(){
   } else {
     info.textContent = '';
   }
-  const filtrados = filtrarRegistrosFechamento(fechamentoRegistrosCache, de, ate);
+  const filtrados = filtrarRegistrosFechamento(fechamentoRegistrosCache, de, ate, true); // seção 105: só CONCLUIDO
   const semData = filtrarSemDataFechamento(fechamentoRegistrosCache, de, ate);
   renderFechamentoFiltrado(filtrados, de, ate);
   renderFechamentoSemData(semData);
@@ -9932,7 +9938,7 @@ function renderFechamentoSemData(semData){
     : '';
   document.getElementById('fechamentoSemDataTbody').innerHTML = semData.length
     ? semData.map(r => `<tr><td>${escapeHtml(r.usuario || '—')}</td><td>${escapeHtml(r.numero_pedido || '—')}</td><td>${escapeHtml(r.cliente || '—')}</td><td>${escapeHtml(r.cnpj || '—')}</td><td>${escapeHtml(fechamentoTipoTexto(r))}</td><td>${escapeHtml(r.produto || '—')}</td><td>${escapeHtml(fechamentoEtapaTexto(r.etapa))}</td><td>${fechamentoDataBR(r.cadastro) || '—'}</td><td style="text-align:right">${fmtBRL(r.valor || 0)}</td></tr>`).join('')
-    : '<tr><td colspan="9" style="text-align:center;color:var(--muted)">Nenhum ganho sem data de ativação no período.</td></tr>';
+    : '<tr><td colspan="9" style="text-align:center;color:var(--muted)">Nenhum pedido concluído sem data de ativação no período.</td></tr>';
 }
 
 // seção 104: exportação (SheetJS, via mlBaixarXlsx). O nome leva o período que está na tela.
@@ -9947,7 +9953,7 @@ function exportarFechamentoExcel(){
   ]);
 }
 function exportarFechamentoSemDataExcel(){
-  if(!fechamentoAtual.semData.length){ mostrarAviso('Nenhum ganho sem data de ativação no período.', 'info'); return; }
+  if(!fechamentoAtual.semData.length){ mostrarAviso('Nenhum pedido concluído sem data de ativação no período.', 'info'); return; }
   mlBaixarXlsx('fechamento_sem_data_' + fechamentoSufixoArquivo() + '.xlsx', [
     { nome: 'Sem data de ativação', linhas: fechamentoLinhasSemData(fechamentoAtual.semData) },
   ]);

@@ -1419,7 +1419,8 @@
         <div class="mbGrade">
           <div class="field"><label id="mbUfRotulo">UF</label><div class="mbMulti" data-alvo="mbUf" data-vazio="Todas"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbUfRotulo mbUfTexto"><span class="mbMultiTexto" id="mbUfTexto">Todas</span></button><div class="mbMultiCaixa" hidden><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbUf" multiple hidden></select></div></div>
           <div class="field"><label id="mbMunicipioRotulo">Cidade</label><div class="mbMulti" data-alvo="mbMunicipio" data-vazio="Todas"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbMunicipioRotulo mbMunicipioTexto"><span class="mbMultiTexto" id="mbMunicipioTexto">Todas</span></button><div class="mbMultiCaixa" hidden><input type="search" class="mbMultiBusca" placeholder="Buscar cidade" aria-label="Buscar cidade"><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbMunicipio" multiple hidden></select></div></div>
-          <div class="field"><label id="mbDddRotulo">DDD do telefone</label><div class="mbMulti" data-alvo="mbDdd" data-vazio="Todos"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbDddRotulo mbDddTexto"><span class="mbMultiTexto" id="mbDddTexto">Todos</span></button><div class="mbMultiCaixa" hidden><input type="search" class="mbMultiBusca" placeholder="Buscar DDD" aria-label="Buscar DDD"><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbDdd" multiple hidden></select></div></div>
+          <div class="field"><label id="mbDddRotulo">DDD da cidade</label><div class="mbMulti" data-alvo="mbDdd" data-vazio="Todos"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbDddRotulo mbDddTexto"><span class="mbMultiTexto" id="mbDddTexto">Todos</span></button><div class="mbMultiCaixa" hidden><input type="search" class="mbMultiBusca" placeholder="Buscar DDD" aria-label="Buscar DDD"><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbDdd" multiple hidden></select></div></div>
+          <div class="field"><label id="mbPosicaoRotulo">Telefone da planilha</label><div class="mbMulti" data-alvo="mbPosicao" data-vazio="Todos"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbPosicaoRotulo mbPosicaoTexto"><span class="mbMultiTexto" id="mbPosicaoTexto">Todos</span></button><div class="mbMultiCaixa" hidden><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbPosicao" multiple hidden></select></div></div>
           <div class="field"><label id="mbSituacaoRotulo">Situação na Receita</label><div class="mbMulti" data-alvo="mbSituacao" data-vazio="Todas"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbSituacaoRotulo mbSituacaoTexto"><span class="mbMultiTexto" id="mbSituacaoTexto">Todas</span></button><div class="mbMultiCaixa" hidden><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbSituacao" multiple hidden></select></div></div>
           <div class="field"><label id="mbPorteRotulo">Porte atual</label><div class="mbMulti" data-alvo="mbPorte" data-vazio="Todos"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbPorteRotulo mbPorteTexto"><span class="mbMultiTexto" id="mbPorteTexto">Todos</span></button><div class="mbMultiCaixa" hidden><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbPorte" multiple hidden></select></div></div>
           <div class="field"><label id="mbClasseRotulo">Classe econômica</label><div class="mbMulti" data-alvo="mbClasse" data-vazio="Todas"><button type="button" class="mbMultiBotao" aria-haspopup="true" aria-expanded="false" aria-labelledby="mbClasseRotulo mbClasseTexto"><span class="mbMultiTexto" id="mbClasseTexto">Todas</span></button><div class="mbMultiCaixa" hidden><div class="mbMultiLista"></div><div class="mbMultiRodape"><button type="button" class="btn btn-sm btn-outline mbMultiLimpar" style="width:auto">Limpar</button></div></div><select id="mbClasse" multiple hidden></select></div></div>
@@ -1785,7 +1786,7 @@
       </div>
       <div class="card">
         <h3>Fechamento</h3>
-        <p class="desc">Relatório de ativações pra comissionamento do consultor. Considera a data de ativação de cada produto: qualquer produto com a coluna Portabilidade preenchida (linha nova, renovação, titularidade, portabilidade — ou qualquer outro produto vendido junto) conta como ativação; banda larga sem Portabilidade preenchida usa a Data de instalação. Só entram pedidos dentro do período selecionado. Esse dado só começou a ser preenchido pelo NeoCRM a partir de 01/08/2026, então o relatório nunca considera pedidos anteriores a essa data, mesmo que "De" seja preenchido com uma data mais antiga. Não calcula valor de comissão — só lista as ativações qualificadas; o cálculo do comissionamento fica por conta de quem gera o relatório.</p>
+        <p class="desc">Relatório de ativações pra comissionamento do consultor. <strong>Conta só pedidos na etapa Concluído</strong> (Entrega, Faturamento, Portabilidade em andamento e Validação eSIM ficam de fora). Considera a data de ativação de cada produto: qualquer produto com a coluna Portabilidade preenchida (linha nova, renovação, titularidade, portabilidade — ou qualquer outro produto vendido junto) conta como ativação; banda larga sem Portabilidade preenchida usa a Data de instalação. Só entram pedidos dentro do período selecionado. Esse dado só começou a ser preenchido pelo NeoCRM a partir de 01/08/2026, então o relatório nunca considera pedidos anteriores a essa data, mesmo que "De" seja preenchido com uma data mais antiga. Não calcula valor de comissão — só lista as ativações qualificadas; o cálculo do comissionamento fica por conta de quem gera o relatório.</p>
         <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-top:10px">
           <div class="field" style="margin:0;width:170px"><label>De</label><input type="date" id="fechamentoDe" min="2026-08-01"></div>
           <div class="field" style="margin:0;width:170px"><label>Até</label><input type="date" id="fechamentoAte" min="2026-08-01"></div>
@@ -1811,10 +1812,10 @@
 
       <div class="card" id="fechamentoSemDataCard" style="display:none">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-          <h3 style="margin:0">Ganhos sem data de ativação</h3>
+          <h3 style="margin:0">Concluídos sem data de ativação</h3>
           <button class="btn btn-sm btn-outline" type="button" id="btnFechamentoSemDataExportar" style="width:auto">Exportar Excel</button>
         </div>
-        <p class="desc">Pedidos de linha móvel ou fibra em etapa de ganho (Concluído, Entrega, Faturamento, Portabilidade em andamento, Validação eSIM), cadastrados no período, mas sem a data de ativação no NeoCRM (coluna Portabilidade; na fibra, também sem Data de instalação). <strong>Eles não entram no ranking nem na receita</strong> até essa data ser preenchida.</p>
+        <p class="desc">Pedidos de linha móvel ou fibra na etapa <strong>Concluído</strong>, cadastrados no período, mas sem a data de ativação no NeoCRM (coluna Portabilidade; na fibra, também sem Data de instalação). <strong>Eles não entram no ranking nem na receita</strong> até essa data ser preenchida.</p>
         <div id="fechamentoSemDataInfo" style="font-size:14px;margin-top:6px"></div>
         <div style="margin-top:10px;overflow-x:auto">
           <table class="tbl">
@@ -9707,13 +9708,19 @@ function dataAtivacaoFechamento(r){
   return null;
 }
 
-// filtrarRegistrosFechamento(records, de, ate): registros "ganho" com data de ativação relevante
-// dentro de [de, ate] (strings 'YYYY-MM-DD', fuso de São Paulo), respeitando o piso de 01/08/2026.
-// de/ate null = sem limite naquele lado (mas o piso sempre se aplica do lado "de").
-function filtrarRegistrosFechamento(records, de, ate){
+// seção 105 (21/10/2026, pedido do Rafael): a ABA Fechamento conta só pedidos na etapa CONCLUIDO — ranking, total,
+// Excel e a tabela de sem data. As outras etapas de ganho (Entrega, Faturamento, Portabilidade em andamento,
+// Validação eSIM) ficam de fora. O "Meu placar" (ppPlacar) continua com todas as etapas de ganho.
+const FECHAMENTO_ETAPA = 'CONCLUIDO (NEOCRM)';
+
+// filtrarRegistrosFechamento(records, de, ate, apenasConcluido): registros com data de ativação relevante dentro de
+// [de, ate] (strings 'YYYY-MM-DD', fuso de São Paulo), respeitando o piso de 01/08/2026. de/ate null = sem limite
+// naquele lado (mas o piso sempre se aplica do lado "de"). Etapa: apenasConcluido = só CONCLUIDO (aba Fechamento,
+// seção 105); sem ele, qualquer etapa de ganho (Meu placar).
+function filtrarRegistrosFechamento(records, de, ate, apenasConcluido){
   const deEfetivo = (de && de > FECHAMENTO_PISO) ? de : FECHAMENTO_PISO;
   return (records || []).filter(r => {
-    if(producaoEtapaCategoria(r.etapa) !== 'ganho') return false;
+    if(apenasConcluido ? r.etapa !== FECHAMENTO_ETAPA : producaoEtapaCategoria(r.etapa) !== 'ganho') return false;
     const dataAtiv = dataAtivacaoFechamento(r);
     if(!dataAtiv) return false;
     const diaSP = leadDateSP(dataAtiv);
@@ -9724,7 +9731,7 @@ function filtrarRegistrosFechamento(records, de, ate){
   });
 }
 
-/// agruparFechamentoPorConsultor(registrosFiltrados): resumo por consultor. Dois jeitos de contar, lado a lado:
+// agruparFechamentoPorConsultor(registrosFiltrados): resumo por consultor. Dois jeitos de contar, lado a lado:
 // - CONTRATOS distintos (numero_pedido — mesma lógica de pedidoKey() da Visão Diária, seção 16.13) em voz/bandaLarga/
 //   outros/total. "Outros" existe porque QUALQUER grupo pode qualificar via Portabilidade (18/09/2026). O "Meu placar"
 //   (ppPlacar) usa o total de contratos.
@@ -9785,13 +9792,13 @@ function totalFechamentoOperacao(registrosFiltrados){
   return t;
 }
 
-// seção 104: ganhos SEM data de ativação — etapa de ganho, linha móvel ou fibra (SVA, aparelho etc. ficam de fora,
-// decisão do Rafael), sem a data que o Fechamento usa (dataAtivacaoFechamento = null) e com o CADASTRO do pedido
-// dentro do período (piso de 01/08 também pelo cadastro). Não entram no ranking nem na receita.
+// seção 104: pedidos SEM data de ativação — linha móvel ou fibra (SVA, aparelho etc. ficam de fora, decisão do Rafael),
+// sem a data que o Fechamento usa (dataAtivacaoFechamento = null) e com o CADASTRO do pedido dentro do período (piso
+// de 01/08 também pelo cadastro). Não entram no ranking nem na receita. Seção 105: só etapa CONCLUIDO.
 function filtrarSemDataFechamento(records, de, ate){
   const deEfetivo = (de && de > FECHAMENTO_PISO) ? de : FECHAMENTO_PISO;
   return (records || []).filter(r => {
-    if(producaoEtapaCategoria(r.etapa) !== 'ganho') return false;
+    if(r.etapa !== FECHAMENTO_ETAPA) return false;
     if(fechamentoTipo(r) === 'outros') return false;
     if(dataAtivacaoFechamento(r)) return false;
     const diaCad = leadDateSP(r.cadastro);
@@ -9868,7 +9875,7 @@ function buscarFechamento(){
   } else {
     info.textContent = '';
   }
-  const filtrados = filtrarRegistrosFechamento(fechamentoRegistrosCache, de, ate);
+  const filtrados = filtrarRegistrosFechamento(fechamentoRegistrosCache, de, ate, true); // seção 105: só CONCLUIDO
   const semData = filtrarSemDataFechamento(fechamentoRegistrosCache, de, ate);
   renderFechamentoFiltrado(filtrados, de, ate);
   renderFechamentoSemData(semData);
@@ -9931,7 +9938,7 @@ function renderFechamentoSemData(semData){
     : '';
   document.getElementById('fechamentoSemDataTbody').innerHTML = semData.length
     ? semData.map(r => `<tr><td>${escapeHtml(r.usuario || '—')}</td><td>${escapeHtml(r.numero_pedido || '—')}</td><td>${escapeHtml(r.cliente || '—')}</td><td>${escapeHtml(r.cnpj || '—')}</td><td>${escapeHtml(fechamentoTipoTexto(r))}</td><td>${escapeHtml(r.produto || '—')}</td><td>${escapeHtml(fechamentoEtapaTexto(r.etapa))}</td><td>${fechamentoDataBR(r.cadastro) || '—'}</td><td style="text-align:right">${fmtBRL(r.valor || 0)}</td></tr>`).join('')
-    : '<tr><td colspan="9" style="text-align:center;color:var(--muted)">Nenhum ganho sem data de ativação no período.</td></tr>';
+    : '<tr><td colspan="9" style="text-align:center;color:var(--muted)">Nenhum pedido concluído sem data de ativação no período.</td></tr>';
 }
 
 // seção 104: exportação (SheetJS, via mlBaixarXlsx). O nome leva o período que está na tela.
@@ -9946,7 +9953,7 @@ function exportarFechamentoExcel(){
   ]);
 }
 function exportarFechamentoSemDataExcel(){
-  if(!fechamentoAtual.semData.length){ mostrarAviso('Nenhum ganho sem data de ativação no período.', 'info'); return; }
+  if(!fechamentoAtual.semData.length){ mostrarAviso('Nenhum pedido concluído sem data de ativação no período.', 'info'); return; }
   mlBaixarXlsx('fechamento_sem_data_' + fechamentoSufixoArquivo() + '.xlsx', [
     { nome: 'Sem data de ativação', linhas: fechamentoLinhasSemData(fechamentoAtual.semData) },
   ]);
@@ -13863,6 +13870,8 @@ function mbResumoFiltros(f){
   if(f.uf && f.uf.length) p.push('UF ' + j(f.uf));
   if(f.municipio && f.municipio.length) p.push(f.municipio.length === 1 ? '1 cidade' : f.municipio.length + ' cidades');
   if(f.ddd && f.ddd.length) p.push('DDD ' + j(f.ddd));
+  if(f.ddd_cidade && f.ddd_cidade.length) p.push('DDD da cidade ' + j(f.ddd_cidade));
+  if(f.posicao && f.posicao.length) p.push('telefone ' + j(f.posicao));
   if(f.situacao && f.situacao.length) p.push(j(f.situacao));
   if(f.porte && f.porte.length) p.push(j(f.porte));
   if(f.mei) p.push('MEI: ' + (f.mei === 'sim' ? 'sim' : 'não'));
@@ -13980,7 +13989,8 @@ function mbAlternarFiltros(){
 }
 function mbPreencherOpcoes(){
   mbPreencherSelect('mbUf', mbOpcoesDo('uf'));
-  mbPreencherSelect('mbDdd', mbOpcoesDo('ddd'));
+  mbPreencherSelect('mbDdd', mbOpcoesDo('ddd_cidade')); // 21/10: DDD da cidade da empresa, não do telefone
+  mbPreencherSelect('mbPosicao', mbOpcoesDo('posicao'));
   mbPreencherSelect('mbSituacao', mbOpcoesDo('situacao'), ['ATIVA']);
   mbPreencherSelect('mbPorte', mbOpcoesDo('porte'));
   mbPreencherSelect('mbClasse', mbOpcoesDo('classe'));
@@ -13997,7 +14007,7 @@ function mbLerFiltros(){
     ['sexo', 'mbSexo'], ['geracao', 'mbGeracao'], ['risco', 'mbRisco']]){
     const v = mbSelecionados(id); if(v.length) f[k] = v;
   }
-  for(const [k, id] of [['municipio', 'mbMunicipio'], ['ddd', 'mbDdd'], ['cnae', 'mbCnae']]){
+  for(const [k, id] of [['municipio', 'mbMunicipio'], ['ddd_cidade', 'mbDdd'], ['posicao', 'mbPosicao'], ['cnae', 'mbCnae']]){
     const v = mbSelecionados(id, true); if(v.length) f[k] = v;
   }
   const val = id => document.getElementById(id).value;
@@ -14016,7 +14026,7 @@ function mbLerFiltros(){
   return f;
 }
 function mbLimpar(){
-  ['mbUf', 'mbMunicipio', 'mbDdd', 'mbPorte', 'mbClasse', 'mbOperadora', 'mbCnae', 'mbSexo', 'mbGeracao', 'mbRisco']
+  ['mbUf', 'mbMunicipio', 'mbDdd', 'mbPosicao', 'mbPorte', 'mbClasse', 'mbOperadora', 'mbCnae', 'mbSexo', 'mbGeracao', 'mbRisco']
     .forEach(id => Array.from(document.getElementById(id).options).forEach(o => { o.selected = false; }));
   Array.from(document.getElementById('mbSituacao').options).forEach(o => { o.selected = o.value === 'ATIVA'; });
   ['mbMei', 'mbPortado', 'mbWhatsapp', 'mbProcon', 'mbUso', 'mbAberturaDe', 'mbAberturaAte', 'mbCnaeBusca']
