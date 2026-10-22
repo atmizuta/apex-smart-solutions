@@ -1293,8 +1293,11 @@
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
             <span id="mesaStatus" style="font-size:12px;color:var(--muted)"></span>
             <button type="button" class="btn btn-sm btn-outline" id="btnMesaAtualizar" style="width:auto">Atualizar</button>
+            <!-- seção 106: puxa a produção do NeoCRM na hora (mesma sincronização do minuto 59) -->
+            <button type="button" class="btn btn-sm" data-sync-agora style="width:auto">Atualizar dashboard agora</button>
           </div>
         </div>
+        <div data-sync-agora-status style="font-size:12px;color:var(--muted);text-align:right;margin-top:6px"></div>
         <div class="filterPills" id="mesaSubPills" style="margin-top:10px">
           <button type="button" class="filterPill active" data-mesa-sub="equipe">Equipe</button>
           <button type="button" class="filterPill" data-mesa-sub="bio">Biometria</button>
@@ -1494,6 +1497,11 @@
         <div class="dfHead"><h3 id="meuDiaTitulo">Meu dia</h3><a data-tab="pedidosparados" id="meuDiaLink">Abrir Pedidos Parados →</a></div>
         <div class="dfRow" id="meuDiaStats"></div>
         <div class="dfAlert" id="meuDiaAlerta" data-tab="pedidosparados" style="display:none"></div>
+      </div>
+      <!-- seção 106: "Atualizar dashboard agora" (só admin/supervisor; syncAgoraMostrar) -->
+      <div data-sync-agora-barra style="display:none;justify-content:flex-end;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px">
+        <span data-sync-agora-status style="font-size:12px;color:var(--muted)"></span>
+        <button type="button" class="btn btn-sm" data-sync-agora style="width:auto">Atualizar dashboard agora</button>
       </div>
       <div class="card" id="producaoEmptyCard" style="display:none">
         <h3>Dashboard de Produção</h3>
@@ -8566,10 +8574,11 @@ function jsonParaScript(v){ return JSON.stringify(v).replace(/</g, '\\u003c'); }
 // Gabriel Macedo Martins (06/10/2026) também tem usuário no painel, mesma observação.
 // 09/10/2026 (seção 78): Ranniele, Vitória Priscila, Juan e Beatriz SAÍRAM desta lista — são da Operação Campinas
 // e aparecem na visão de Campinas (ver "OPERAÇÃO CAMPINAS" abaixo).
+// 22/10/2026 (seção 106): Danilo Morais Araujo e Gabriel Macedo Martins SAÍRAM desta lista e foram para
+// PRODUCAO_FORA_DO_DASHBOARD — os pedidos deles voltam no Fechamento (setembro) e seguem fora do Dashboard e do
+// Boletim, até o Rafael pedir para tirar de novo.
 const PRODUCAO_USUARIOS_EXCLUIDOS = new Set([
   'VITOR QUEIROZ CAVALCANTE',
-  'DANILO MORAIS ARAUJO',
-  'GABRIEL MACEDO MARTINS',
 ]);
 function filtrarProducaoPedidos(rows){
   return (rows || []).filter(r => !PRODUCAO_USUARIOS_EXCLUIDOS.has(String(r.usuario || '').trim().toUpperCase()));
@@ -8582,6 +8591,8 @@ function filtrarProducaoEquipe(nomes){
 const PRODUCAO_FORA_DO_DASHBOARD = new Set([
   'RAFAEL SANTIAGO ANGELÃO',
   'ISABELLY FONSECA BATISTA DA SILVA',
+  'DANILO MORAIS ARAUJO',     // seção 106: só no Fechamento
+  'GABRIEL MACEDO MARTINS',   // seção 106: só no Fechamento
 ]);
 function foraDoDashboard(nome){ const n = String(nome || '').trim().toUpperCase(); return PRODUCAO_USUARIOS_EXCLUIDOS.has(n) || PRODUCAO_FORA_DO_DASHBOARD.has(n); }
 
@@ -8671,13 +8682,14 @@ async function loadProducaoDashboard(){
   const frame = document.getElementById('producaoFrame');
   const geracao = ++producaoGeracao;
   opAtualizarSeletores();
+  syncAgoraMostrar();
 
   const adminMode = producaoAdminMode();
   const cols = producaoColunas(adminMode);
 
   const [{ data: recordsRaw, error }, { data: cfg }, equipeRes, [perdidasRes, perdidasSyncRes]] = await Promise.all([
     fetchAllRows(() => sb.from('producao_pedidos').select(cols)),
-    sb.from('config').select('valor').eq('chave', 'producao_neo_atualizado_em').maybeSingle(),
+    sb.from('config').select('valor,atualizado_em').eq('chave', 'producao_neo_atualizado_em').maybeSingle(),
     // 01/10/2026 (seção 66): todos os consultores da Apex (nomes do NeoCRM) para o Cadastro Diário mostrar quem zerou
     ppSeguro(() => sb.rpc('equipe_vendedores')),
     // 05/10/2026 (seção 70): vendas perdidas por categoria — só admin/supervisor
@@ -8754,32 +8766,123 @@ async function loadProducaoDashboard(){
   };
 
   // Visão Diária (aba dentro do Dashboard de Produção, pensada pra ficar ligada numa TV da
-  // operação) precisa dos dados sempre frescos, hora a hora, sem depender de alguém recarregar a
-  // página. Em vez de recriar o iframe inteiro (o que perderia o Modo TV/tela cheia e o dia
-  // selecionado), busca os pedidos de novo a cada 1h e empurra pro iframe via uma função exposta
-  // (atualizarDadosDashboard) que atualiza os dados no lugar. Ver REGRAS_NEGOCIO.md seção 16.11.
+  // operação) precisa dos dados sempre frescos sem depender de alguém recarregar a página. Em vez de recriar o iframe
+  // inteiro (o que perderia o Modo TV/tela cheia e o dia selecionado), os dados são empurrados para o iframe via
+  // atualizarDadosDashboard. Ver REGRAS_NEGOCIO.md seção 16.11.
+  // 22/10/2026 (seção 106): antes era 1h depois de abrir a tela (podia ficar ~2h atrasada); agora confere a cada 2 min se
+  // a sincronização trouxe dado novo (carimbo producao_neo_atualizado_em) e só busca os pedidos quando trouxe — assim o
+  // minuto 59 e o botão "Atualizar dashboard agora" chegam a todas as telas abertas (TV inclusive). Sem novidade, recarrega
+  // de 1 em 1h como antes (as Vendas Perdidas têm sincronização própria, no minuto 41).
+  producaoUltimaCarga = { stamp: (cfg && cfg.atualizado_em) || null, ms: Date.now() };
   if(producaoAutoRefreshTimer) clearInterval(producaoAutoRefreshTimer);
-  producaoAutoRefreshTimer = setInterval(async () => {
-    verificarAlertaSyncProducao();
-    try{
-      const [{ data: novosRaw, error: errAuto }, { data: cfgAuto }, [perdAuto, perdSyncAuto]] = await Promise.all([
-        fetchAllRows(() => sb.from('producao_pedidos').select(cols)),
-        sb.from('config').select('valor').eq('chave', 'producao_neo_atualizado_em').maybeSingle(),
-        buscarVendasPerdidasDashboard(adminMode),
-      ]);
-      const novos = filtrarDashboardPedidos(novosRaw);
-      const win = frame.contentWindow;
-      // 2º argumento: data da base, referência dos Pedidos em Alerta (REGRAS_NEGOCIO.md seção 48)
-      if(!errAuto && novos && novos.length > 0 && win && typeof win.atualizarDadosDashboard === 'function') win.atualizarDadosDashboard(novos, (cfgAuto && cfgAuto.valor) || null);
-      // seção 70: Vendas Perdidas também acompanham a hora, depois da produção e isoladas (um erro aqui não afeta o resto);
-      // falha na busca mantém o que já está na tela
-      try{
-        const linhasPerd = adminMode ? filtrarDashboardPerdidas(vendasPerdidasLinhas(perdAuto)) : null;
-        if(linhasPerd && win && typeof win.atualizarVendasPerdidas === 'function') win.atualizarVendasPerdidas(linhasPerd, vendasPerdidasSyncOk(perdSyncAuto));
-      }catch(errPerd){ console.error('Erro ao atualizar as Vendas Perdidas do Dashboard:', errPerd); }
-    }catch(err){ console.error('Erro ao atualizar automaticamente o Dashboard de Produção:', err); }
-  }, 3600000);
+  producaoAutoRefreshTimer = setInterval(() => { producaoChecarNovidade(false).catch(err => console.error(err)); }, PRODUCAO_CHECAGEM_MS);
 }
+const PRODUCAO_CHECAGEM_MS = 120000;
+let producaoUltimaCarga = { stamp: null, ms: 0 };
+let producaoChecando = null;
+// forcar = true: busca os pedidos mesmo sem carimbo novo (fim do "Atualizar dashboard agora"). Devolve true se empurrou.
+function producaoChecarNovidade(forcar){
+  if(producaoChecando) return producaoChecando.then(() => forcar ? producaoChecarNovidade(true) : false);
+  producaoChecando = producaoChecarNovidadeAgora(forcar).finally(() => { producaoChecando = null; });
+  return producaoChecando;
+}
+async function producaoChecarNovidadeAgora(forcar){
+  const frame = document.getElementById('producaoFrame');
+  const win = frame && frame.contentWindow;
+  if(!currentUser || !win || typeof win.atualizarDadosDashboard !== 'function') return false;
+  const cfgR = await ppSeguro(() => sb.from('config').select('valor,atualizado_em').eq('chave', 'producao_neo_atualizado_em').maybeSingle());
+  const cfg = cfgR && !cfgR.error ? cfgR.data : null;
+  const stamp = (cfg && cfg.atualizado_em) || null;
+  const mudou = !!stamp && stamp !== producaoUltimaCarga.stamp;
+  const venceu = Date.now() - producaoUltimaCarga.ms >= 3600000;
+  if(!forcar && !mudou && !venceu) return false;
+  if(venceu) verificarAlertaSyncProducao();
+  const adminMode = producaoAdminMode();
+  const geracao = producaoGeracao;
+  try{
+    const [{ data: novosRaw, error: errAuto }, [perdAuto, perdSyncAuto]] = await Promise.all([
+      fetchAllRows(() => sb.from('producao_pedidos').select(producaoColunas(adminMode))),
+      buscarVendasPerdidasDashboard(adminMode),
+    ]);
+    if(geracao !== producaoGeracao) return false; // trocaram de operação no meio: a carga nova já cuida
+    const novos = filtrarDashboardPedidos(novosRaw);
+    if(errAuto || !novos || novos.length === 0) return false;
+    // 2º argumento: data da base, referência dos Pedidos em Alerta (REGRAS_NEGOCIO.md seção 48)
+    win.atualizarDadosDashboard(novos, (cfg && cfg.valor) || null);
+    producaoUltimaCarga = { stamp: stamp || producaoUltimaCarga.stamp, ms: Date.now() };
+    // seção 70: Vendas Perdidas acompanham, depois da produção e isoladas (um erro aqui não afeta o resto);
+    // falha na busca mantém o que já está na tela
+    try{
+      const linhasPerd = adminMode ? filtrarDashboardPerdidas(vendasPerdidasLinhas(perdAuto)) : null;
+      if(linhasPerd && typeof win.atualizarVendasPerdidas === 'function') win.atualizarVendasPerdidas(linhasPerd, vendasPerdidasSyncOk(perdSyncAuto));
+    }catch(errPerd){ console.error('Erro ao atualizar as Vendas Perdidas do Dashboard:', errPerd); }
+    return true;
+  }catch(err){ console.error('Erro ao atualizar automaticamente o Dashboard de Produção:', err); return false; }
+}
+
+/* ============ "Atualizar dashboard agora" (22/10/2026, seção 106) — admin/supervisor, Dashboard e Mesa ============ */
+// Dispara na hora a mesma sincronização do minuto 59 (RPC producao_sync_agora -> Edge Function sync-producao). O banco
+// recusa perto das automáticas e se já houve consulta nos últimos 3 min (a NeoSales só aceita uma a cada ~2 min).
+// Depois acompanha producao_sync_log até a execução terminar e empurra os pedidos para o dashboard desta tela; as outras
+// telas abertas pegam pelo carimbo em até 2 min (producaoChecarNovidade). Textos vindos do banco entram por textContent.
+const SYNC_AGORA_POLL_MS = 5000, SYNC_AGORA_LIMITE_MS = 180000;
+const syncAgoraEstado = { rodando: false };
+let syncAgoraDormir = ms => new Promise(r => setTimeout(r, ms)); // os testes trocam
+function syncAgoraMensagemRecusa(r){
+  if(r && r.motivo === 'noite') return 'Entre 20:30 e 21:30 a produção já se atualiza sozinha a cada 10 minutos.';
+  if(r && r.motivo === 'automatica') return 'A atualização automática está rodando agora. Tente de novo em uns 3 minutos.';
+  if(r && r.motivo === 'recente'){
+    const min = Math.max(1, Math.ceil((Number(r.espera_seg) || 0) / 60));
+    return 'Acabou de atualizar. O NeoCRM só aceita uma consulta a cada 2 minutos: tente de novo em ' + min + ' min.';
+  }
+  return 'Não foi possível atualizar agora. Tente de novo em instantes.';
+}
+function syncAgoraStatus(texto, cor){
+  document.querySelectorAll('[data-sync-agora-status]').forEach(el => { el.textContent = texto; el.style.color = cor || 'var(--muted)'; });
+}
+function syncAgoraBotoes(rodando){
+  document.querySelectorAll('[data-sync-agora]').forEach(b => { b.disabled = rodando; b.textContent = rodando ? 'Atualizando…' : 'Atualizar dashboard agora'; });
+}
+function syncAgoraMostrar(){
+  const ve = !!currentUser && producaoAdminMode();
+  document.querySelectorAll('[data-sync-agora-barra]').forEach(el => { el.style.display = ve ? 'flex' : 'none'; });
+}
+async function syncAgoraEsperar(pedidoEm){
+  const desde = new Date(new Date(pedidoEm).getTime() - 5000).toISOString();
+  const fim = Date.now() + SYNC_AGORA_LIMITE_MS;
+  while(Date.now() < fim){
+    await syncAgoraDormir(SYNC_AGORA_POLL_MS);
+    const r = await ppSeguro(() => sb.from('producao_sync_log').select('ok,gravadas,erro,terminou_em')
+      .gte('iniciou_em', desde).not('terminou_em', 'is', null).order('id', { ascending: false }).limit(1).maybeSingle());
+    if(r && !r.error && r.data) return r.data;
+  }
+  return null;
+}
+async function syncAgora(){
+  if(syncAgoraEstado.rodando || !currentUser || !producaoAdminMode()) return;
+  syncAgoraEstado.rodando = true;
+  syncAgoraBotoes(true);
+  syncAgoraStatus('Buscando no NeoCRM… leva cerca de 1 minuto.');
+  const erro = 'var(--st-perdido)';
+  try{
+    const r = await ppSeguro(() => sb.rpc('producao_sync_agora'));
+    if(!r || r.error || !r.data){ if(r && r.error) console.error('producao_sync_agora:', r.error); syncAgoraStatus(syncAgoraMensagemRecusa(null), erro); return; }
+    if(!r.data.ok){ syncAgoraStatus(syncAgoraMensagemRecusa(r.data), erro); return; }
+    const log = await syncAgoraEsperar(r.data.pedido_em);
+    if(!log){ syncAgoraStatus('O NeoCRM está demorando para responder. O dashboard se atualiza sozinho quando os dados chegarem.', erro); return; }
+    if(!log.ok){ syncAgoraStatus('O NeoCRM recusou a consulta agora (' + (log.erro || 'erro desconhecido') + '). A próxima atualização automática é no minuto 59.', erro); return; }
+    await producaoChecarNovidade(true);
+    const mesa = document.getElementById('panel-mesa');
+    if(mesa && mesa.classList.contains('active') && typeof loadMesa === 'function') loadMesa(true).catch(err => console.error(err));
+    const hora = new Date(log.terminou_em).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+    const n = Number(log.gravadas) || 0;
+    syncAgoraStatus('Atualizado às ' + hora + ' — ' + n + (n === 1 ? ' pedido novo ou alterado.' : ' pedidos novos ou alterados.'));
+  }finally{
+    syncAgoraEstado.rodando = false;
+    syncAgoraBotoes(false);
+  }
+}
+document.querySelectorAll('[data-sync-agora]').forEach(b => b.addEventListener('click', () => { syncAgora().catch(err => console.error(err)); }));
 
 /* ============ Status da sincronização automática da produção (NeoSales) — aba Upload Dash ============ */
 // A produção é espelhada sozinha pela Edge Function sync-producao (pg_cron, de hora em hora, ver

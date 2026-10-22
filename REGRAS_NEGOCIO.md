@@ -3592,3 +3592,18 @@ Pedido do Rafael: "a aba FECHAMENTO tem que contar apenas os pedidos que estão 
 - Código: `FECHAMENTO_ETAPA`, `filtrarRegistrosFechamento(records, de, ate, apenasConcluido)` e `filtrarSemDataFechamento`. Testes em `test_fechamento.js` (79 asserções).
 - Efeito medido na Operação Apex: setembro foi de R$ 6.483,58 para **R$ 5.853,67** (102 linhas móveis, 3 fibras, 76 pedidos); outubro até 21/10 foi de R$ 7.532,66 para **R$ 3.938,41**, porque boa parte de outubro ainda está em Entrega.
 - **Publicação:** 21/10/2026 às 19:45 (SP), com ok do Rafael. MD5 do painel: `71e436f2b054accccf2523c4c0d4a2dc`. Backup: `~/deploy_backups/painel_clientes_apex_20261021_194544_antes_fechamento_concluido.html`. Antes de publicar, a oficial/main (com a §102.7 do Mailing) foi juntada a este branch; o painel no ar era idêntico a ela (MD5 `177b132d…`).
+
+## 106. Botão "Atualizar dashboard agora" e Danilo/Gabriel Macedo de volta no Fechamento (22/10/2026)
+
+Pedido do Rafael: um botão para a Mesa do Supervisor que atualize o dashboard na hora, sem esperar o minuto 59. E "que apareça novamente o Danilo e o Gabriel Macedo [...] porque os pedidos deles precisam aparecer no fechamento de setembro. Pode deixar eles até quando eu falar para tirar de novo."
+
+**Botão (admin/supervisor), no topo do Dashboard de Produção e no cabeçalho da Mesa do Supervisor:**
+- Chama a RPC `producao_sync_agora()` (migration `20261022200000_producao_sync_agora.sql`, `security definer`, só admin/supervisor), que dispara a mesma sincronização do minuto 59 (Edge Function `sync-producao`, modo `horario`, segredo `sync_producao_cron_secret` do Vault). A consulta ao NeoCRM leva poucos segundos; o painel acompanha `producao_sync_log` de 5 em 5 s (até 3 min), empurra os pedidos para o dashboard e mostra "Atualizado às HH:MM — N pedidos novos ou alterados".
+- **Travas no banco** (a NeoSales só aceita uma consulta a cada ~2 min, seção 50): recusa se houve execução ou clique nos últimos 3 min (carimbo `config.producao_sync_agora_em`, com trava contra dois cliques ao mesmo tempo), nos minutos 57–59 (automática do 59) e 39–42 (sync-exportacao do 41, que divide o limite na API nova da seção 81), e entre 20:28 e 21:31 (os jobs da noite já rodam de 10 em 10 min). Cada recusa vira uma frase na tela.
+- Se o NeoCRM recusar, a frase traz o erro (como texto) e a próxima tentativa segue sendo a automática.
+
+**Todas as telas abertas acompanham (TV inclusive):** antes o dashboard recarregava 1 h depois de a tela ser aberta, sem relação com o minuto 59 (podia ficar ~2 h atrasado). Agora confere a cada 2 min o carimbo `config.producao_neo_atualizado_em` (`atualizado_em`) e só busca os pedidos quando ele mudou; sem novidade, recarrega de 1 em 1 h como antes. Código: `producaoChecarNovidade`, `syncAgora`, `PRODUCAO_CHECAGEM_MS`.
+
+**Danilo Morais Araujo e Gabriel Macedo Martins** saíram de `PRODUCAO_USUARIOS_EXCLUIDOS` (seções 16.18/16.20) e foram para `PRODUCAO_FORA_DO_DASHBOARD` (seção 77): aparecem no **Fechamento** e continuam fora do Dashboard e do Boletim — até o Rafael pedir para tirar de novo. No banco, em CONCLUIDO: Danilo 3 pedidos (R$ 314,95, 16–24/09); Gabriel 30 pedidos (R$ 2.359,54, 24/08–01/10). Vitor Queiroz Cavalcante continua fora de tudo.
+
+Testes: `test_sync_agora.js` (32 asserções); `test_operacao_campinas.js` e `test_visao_diaria.js` ajustados à lista nova e à checagem de 2 min.

@@ -59,7 +59,7 @@ try{
 
   // os 4 de Campinas saíram da lista de escondidos; Vitor, Danilo e Gabriel continuam
   assert(ids(filtrarProducaoPedidos(PEDIDOS)) === '1,2,3,4,5,6,8', 'filtrarProducaoPedidos não esconde mais Campinas, só o Vitor — achou ' + ids(filtrarProducaoPedidos(PEDIDOS)));
-  assert(!PRODUCAO_USUARIOS_EXCLUIDOS.has('JUAN DE MELO FERNANDES') && PRODUCAO_USUARIOS_EXCLUIDOS.has('DANILO MORAIS ARAUJO'), 'lista de escondidos sem Campinas, com Danilo');
+  assert(!PRODUCAO_USUARIOS_EXCLUIDOS.has('JUAN DE MELO FERNANDES') && PRODUCAO_USUARIOS_EXCLUIDOS.has('VITOR QUEIROZ CAVALCANTE') && PRODUCAO_FORA_DO_DASHBOARD.has('DANILO MORAIS ARAUJO'), 'lista de escondidos sem Campinas; Danilo só fora do Dashboard (seção 106)');
 
   // admin: seletor, abre na Apex
   currentUser = { id: 'a1', role: 'admin', operacao: 'apex' };
