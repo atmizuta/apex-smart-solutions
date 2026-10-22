@@ -469,6 +469,25 @@ try{
   eq([baixados.length, avisos[0] && avisos[0][0]], [0, 'erro'], 'sem a lista do NeoSales a limpeza não sai');
   window.__fnRespostas.neo = { data: { empresas: [empresaNeo] }, error: null };
 
+  // 22/10 (revisão, menores): 55 na frente, UTF-8 sem marca, CNPJ estragado pelo Excel, arquivo grande, trecho pelo que fica
+  eq([mbChaveFone('5511912345678'), mbChaveFone('11912345678'), mbChaveFone('551132345678'), mbChaveFone('(11) 91234-5678')],
+    ['11912345678', '11912345678', '1132345678', '11912345678'], 'telefone com 55 na frente é o mesmo número');
+  const k55 = mbClassificar(colsC, [L('00000000000272', '11912345678'), L('00000000000353', '5511912345678')], { neo: null, duplicados: true }, { vistos: new Map() });
+  eq(k55.removidos.map(r => r.motivo), ['Telefone repetido'], 'repetido mesmo com 55 na frente');
+  eq(mbDecodificar(new Uint8Array([0x41, 0xC3, 0x81]).buffer), 'AÁ', 'CSV UTF-8 sem marca');
+  baixados.length = 0; avisos.length = 0;
+  await mbLimparArquivos([arq('E.csv', cp(csvA.replace('00000000000272', '2,72E+02')))], 'neo');
+  eq([baixados.length, avisos[0] && avisos[0][0]], [0, 'erro'], 'CNPJ em notação científica: nada sai');
+  assert(avisos[0] && avisos[0][1].includes('E.csv') && avisos[0][1].includes('Excel'), 'aviso explica que o Excel estragou o arquivo');
+  avisos.length = 0;
+  await mbLimparArquivos([{ name: 'G.csv', size: 300 * 1024 * 1024, arrayBuffer: async () => { throw new Error('não devia ler'); } }], 'duplicados');
+  assert(avisos[0] && avisos[0][0] === 'erro' && avisos[0][1].includes('G.csv') && avisos[0][1].includes('grande demais'), 'arquivo grande recusado antes de ler');
+  window.__fnRespostas.extrair = extrairNeo(respostasNeo(), 'NEO_2026-10-22.csv');
+  chamadas.length = 0; baixados.length = 0;
+  document.getElementById('mbCarga').value = 'NEO'; document.getElementById('mbQtd').value = '6';
+  document.getElementById('btnMbExportar').click(); await ateTerminar();
+  eq(extrairChamadas()[1] && extrairChamadas()[1].trecho.paginas, 5120, 'tamanho do próximo trecho conta só as linhas que ficaram');
+
   window.__fnRespostas.contar = { data: null, error: { context: { json: async () => ({ erro: 'A consulta demorou demais. Refine os filtros e tente de novo.' }) } } };
   avisos.length = 0;
   document.getElementById('btnMbContar').click(); await espera(40);

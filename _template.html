@@ -14236,6 +14236,11 @@ const MB_MOTIVO_NEO = 'Pedido no NeoSales', MB_MOTIVO_REPETIDO = 'Telefone repet
 const MB_CAB_REMOVIDOS = ['motivo', 'detalhe', 'socio', 'razao_social', 'cnpj', 'telefone', 'operadora', 'porte', 'cidade'];
 const MB_LIMPAR_MAX = 1000000;
 function mbSoDigitos(v){ return String(v === null || v === undefined ? '' : v).replace(/\D/g, ''); }
+// arquivo antigo pode trazer o 55 do Brasil na frente: é o mesmo número
+function mbChaveFone(v){ const d = mbSoDigitos(v); return d.length >= 12 && d.startsWith('55') ? d.slice(2) : d; }
+const MB_LIMPAR_MAX_MB = 200;
+// o Excel mostra CNPJ e telefone como "1,23457E+13" e salva assim: o número se perde
+const MB_RE_CIENTIFICO = /^\s*\d+([.,]\d+)?e\+?\d+\s*$/i;
 // o Excel tira o zero da frente do CNPJ: completa até 14 dígitos para cruzar
 function mbChaveCnpj(v){ const d = mbSoDigitos(v); return d ? d.padStart(14, '0') : ''; }
 function mbFmtCnpj(v){
@@ -14261,7 +14266,7 @@ function mbClassificar(colunas, linhas, opcoes, estado){
   const v = (l, c) => (c in idx && l[idx[c]] !== null && l[idx[c]] !== undefined ? String(l[idx[c]]) : '');
   const ficam = [], removidos = [];
   for(const l of (linhas || [])){
-    const cnpj = mbChaveCnpj(v(l, 'documento2')), fone = mbSoDigitos(v(l, 'fone1'));
+    const cnpj = mbChaveCnpj(v(l, 'documento2')), fone = mbChaveFone(v(l, 'fone1'));
     let motivo = '', detalhe = '';
     const p = opcoes.neo && cnpj ? opcoes.neo.get(cnpj) : null;
     if(p){ motivo = MB_MOTIVO_NEO; detalhe = mbDetalheNeo(p); }
@@ -14302,11 +14307,13 @@ function mbLerCsv(texto){
   if(campo !== '' || linha.length){ linha.push(campo); linhas.push(linha); }
   return linhas;
 }
-// o painel gera Windows-1252; o Excel pode salvar "CSV UTF-8", que começa com a marca EF BB BF
+// o painel gera Windows-1252; o Excel pode salvar "CSV UTF-8", que começa com a marca EF BB BF. Sem a marca, tenta UTF-8
+// estrito primeiro: Windows-1252 com acento quase nunca é UTF-8 válido, então cai no Windows-1252.
 function mbDecodificar(buffer){
   const b = new Uint8Array(buffer);
   if(b.length >= 3 && b[0] === 0xEF && b[1] === 0xBB && b[2] === 0xBF) return new TextDecoder('utf-8').decode(b.subarray(3));
-  return new TextDecoder('windows-1252').decode(b);
+  try{ return new TextDecoder('utf-8', { fatal: true }).decode(b); }
+  catch(_){ return new TextDecoder('windows-1252').decode(b); }
 }
 async function mbExportar(){
   if(!canSeeMailing() || mbEstado.exportando) return;
@@ -14380,7 +14387,7 @@ async function mbExportarPedido(carga, total, filtros, opcoes){
       const c = mbClassificar(colunas, linhas, { neo, duplicados: op.duplicados }, estado);
       for(const l of c.ficam) buf.push(l); // sem push(...): 100 mil argumentos estouram a pilha em alguns navegadores
       for(const x of c.removidos){ removidos.push(x); if(x.motivo === MB_MOTIVO_NEO) parteNeo++; else parteRep++; }
-      if(t.fase === 1){ lidas += d.paginas_lidas || 0; achadas += linhas.length; }
+      if(t.fase === 1){ lidas += d.paginas_lidas || 0; achadas += c.ficam.length; } // o que falta conta só o que fica
       if(buf.length >= MB_MAX_QTD) await fecharArquivo();
       if(!d.proxima){ acabou = true; break; }
       trecho = d.proxima;
@@ -14431,12 +14438,18 @@ async function mbLimparArquivos(arquivos, modo){
   try{
     const lidos = [];
     for(const a of lista){
+      if(Number(a.size) > MB_LIMPAR_MAX_MB * 1024 * 1024){ mostrarAviso('O arquivo ' + a.name + ' é grande demais (mais de ' + MB_LIMPAR_MAX_MB + ' MB).', 'erro'); return; }
       let tab;
       try{ tab = mbLerCsv(mbDecodificar(await mbLerArquivo(a))); }
       catch(_){ mostrarAviso('Não foi possível ler o arquivo ' + a.name + '.', 'erro'); return; }
       const cab = (tab[0] || []).map(c => String(c).trim().toLowerCase());
       if(!cab.includes('documento2') || !cab.includes('fone1')){ mostrarAviso('O arquivo ' + a.name + ' não está no layout do ProContact.', 'erro'); return; }
       if(tab.length - 1 > MB_LIMPAR_MAX){ mostrarAviso('O arquivo ' + a.name + ' é grande demais (mais de 1 milhão de linhas).', 'erro'); return; }
+      const iC = cab.indexOf('documento2'), iF = cab.indexOf('fone1');
+      if(tab.slice(1).some(l => MB_RE_CIENTIFICO.test(l[iC] || '') || MB_RE_CIENTIFICO.test(l[iF] || ''))){
+        mostrarAviso('O arquivo ' + a.name + ' foi salvo pelo Excel e perdeu CNPJ ou telefone (aparecem como 1,23E+13). Use o arquivo original baixado do painel.', 'erro');
+        return;
+      }
       lidos.push({ nome: a.name, cab, linhas: tab.slice(1) });
     }
     let neo = null;

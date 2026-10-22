@@ -354,7 +354,7 @@ export const SQL_REGISTRAR_PARTE = `insert into mailing.extracao
 export const SQL_NEO = `with p as (
   select regexp_replace(cnpj, '[^0-9]', '', 'g') as cnpj, numero_pedido, etapa, usuario, cadastro from public.producao_pedidos_neo
 )
-select cnpj, count(*)::int as pedidos,
+select cnpj, count(distinct numero_pedido)::int as pedidos,
   (array_agg(numero_pedido order by cadastro desc nulls last))[1] as numero_pedido,
   (array_agg(etapa order by cadastro desc nulls last))[1] as etapa,
   (array_agg(usuario order by cadastro desc nulls last))[1] as consultor,

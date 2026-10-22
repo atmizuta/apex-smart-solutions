@@ -332,6 +332,8 @@ test("SQL_NEO: um registro por CNPJ de 14 dígitos com o último pedido, em qual
   assert.match(s, /\(array_agg\(etapa order by cadastro desc nulls last\)\)\[1\] as etapa/);
   assert.match(s, /\(array_agg\(usuario order by cadastro desc nulls last\)\)\[1\] as consultor/);
   assert.doesNotMatch(s, /etapa\s*(=|in|not in|<>)/i);
+  // conta pedidos, não itens (a tabela tem uma linha por item do pedido)
+  assert.match(s, /count\(distinct numero_pedido\)::int as pedidos/);
 });
 
 test("SQL_FECHAR_PARTE grava só no registro do próprio usuário; histórico traz os removidos", () => {
