@@ -14229,18 +14229,23 @@ async function mbCarregarNeo(){
 // não conta na quantidade e é registrado na parte (fechar_parte).
 async function mbExportarPedido(carga, total, filtros, opcoes){
   const op = opcoes || { neo: false, duplicados: false };
+  const prog = document.getElementById('mbProgresso'), txt = document.getElementById('mbProgressoTexto'), btn = document.getElementById('btnMbExportar');
+  // trava antes de esperar a lista do NeoSales: clique duplo não abre dois pedidos (revisão final, 22/10)
+  mbEstado.exportando = true; mbEstado.parar = false;
+  btn.disabled = true;
   let neo = null;
   if(op.neo){
     const r = await mbCarregarNeo();
-    if(r.erro){ mostrarAviso('Não foi possível carregar os pedidos do NeoSales. Tente de novo ou desmarque Cruzar com o NEO.', 'erro'); return; }
+    if(r.erro){
+      mbEstado.exportando = false; btn.disabled = false;
+      mostrarAviso('Não foi possível carregar os pedidos do NeoSales. Tente de novo ou desmarque Cruzar com o NEO.', 'erro'); return;
+    }
     neo = r.mapa;
   }
   const n = Math.ceil(total / MB_MAX_QTD);
   const pedido = mbNovoPedido();
   const f = Object.assign({}, filtros, { extraida_antes_de: new Date().toISOString() });
-  const prog = document.getElementById('mbProgresso'), txt = document.getElementById('mbProgressoTexto'), btn = document.getElementById('btnMbExportar');
-  mbEstado.exportando = true; mbEstado.parar = false;
-  prog.hidden = false; btn.disabled = true;
+  prog.hidden = false;
   txt.textContent = 'Procurando na base…';
   const estado = { vistos: new Map() }, removidos = [];
   let entregue = 0, arquivos = 0, erro = null, acabou = false, lidas = 0, achadas = 0, semHistorico = false;

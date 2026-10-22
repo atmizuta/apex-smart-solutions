@@ -407,6 +407,36 @@ try{
     removidos_neo: 1, removidos_repetidos: 2 }]);
   assert(document.getElementById('mbHistorico').innerHTML.includes('6 (+3 removidas)'), 'histórico mostra o que foi para o arquivo e as removidas');
 
+  // revisão final: clique duplo enquanto a lista do NeoSales carrega não pode abrir dois pedidos
+  window.__fnRespostas.neo = () => new Promise(r => setTimeout(() => r({ data: { empresas: [empresaNeo] }, error: null }), 30));
+  window.__fnRespostas.extrair = extrairNeo(respostasNeo(), 'NEO_2026-10-22.csv');
+  baixados.length = 0; avisos.length = 0; chamadas.length = 0;
+  document.getElementById('btnMbExportar').click(); document.getElementById('btnMbExportar').click();
+  await espera(50); await ateTerminar();
+  eq([chamadas.filter(c => c.body.acao === 'neo').length, new Set(extrairChamadas().map(b => b.pedido)).size], [1, 1], 'clique duplo: um pedido só');
+  window.__fnRespostas.neo = { data: { empresas: [empresaNeo] }, error: null };
+
+  // revisão final: removidos na virada de 100 mil — repetido da parte 1 sai da parte 2, contagem por parte certa
+  let nChamada = 0, seq = 0;
+  const uni = () => { seq++; return L(String(10000000 + seq).padStart(14, '0'), '119' + String(seq).padStart(8, '0')); };
+  window.__fnRespostas.extrair = (body) => {
+    nChamada++;
+    let linhas = [];
+    if(nChamada === 1) linhas.push(L('00000000000191', '11800000000'));
+    if(nChamada === 2) linhas.push(L('00000000009999', '11900000005'));
+    if(nChamada === 4) linhas.push(L('00000000009998', '11900000007'));
+    while(linhas.length < body.quantidade && nChamada !== 2) linhas.push(uni());
+    return { data: { colunas: colsExp, linhas, quantidade_entregue: linhas.length, nome_arquivo: 'GRANDE_2026-10-22.csv',
+      proxima: { fase: 1, pagina: body.trecho.pagina + body.trecho.paginas }, paginas_total: 380000, paginas_lidas: body.trecho.paginas }, error: null };
+  };
+  baixados.length = 0; avisos.length = 0; chamadas.length = 0;
+  document.getElementById('mbCarga').value = 'GRANDE'; document.getElementById('mbQtd').value = '200000';
+  document.getElementById('btnMbExportar').click(); await ateTerminar();
+  eq(extrairChamadas().map(b => [b.quantidade, b.parte]), [[100000, 1], [1, 1], [1, 1], [100000, 2], [1, 2]], 'pede de novo o que foi removido, na parte certa');
+  eq(baixados.map(b => b.nome), ['GRANDE_2026-10-22_parte1de2.csv', 'GRANDE_2026-10-22_parte2de2.csv', 'GRANDE_2026-10-22_REMOVIDOS.csv'], 'dois arquivos de 100 mil e o REMOVIDOS');
+  eq(chamadas.filter(c => c.body.acao === 'fechar_parte').map(c => [c.body.parte, c.body.neo, c.body.repetidos]), [[1, 1, 1], [2, 0, 1]], 'removidas registradas em cada parte');
+  assert(avisos[0] && avisos[0][1].includes('200.000 linhas em 2 arquivos'), 'aviso com as 200 mil linhas');
+
   // 22/10 (seção 102.12): limpar arquivo já gerado
   assert(document.getElementById('btnMbRemoverDuplicados') && document.getElementById('btnMbCruzarNeo') && document.getElementById('mbArquivosLimpar'),
     'caixa de limpar arquivo com os dois botões');
