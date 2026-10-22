@@ -3545,6 +3545,8 @@ Diferença sempre abaixo de 0,5%. Função `mailing-api` v5; o painel não mudou
   - Se a lista do NeoSales não vier, o pedido não começa.
 - **Limpar arquivo já gerado** (cartão próprio): botões **Remover duplicados** e **Cruzar com o NEO** sobre um ou mais CSVs do ProContact. Sai um `_LIMPO.csv` por arquivo e um `REMOVIDOS_<data>.csv`. Não mexe na base.
 - **Fica de fora:** telefone repetido entre pedidos de dias diferentes (exigiria índice por telefone na base); para isso vale "Nunca extraídos".
+- **Revisão final:** um clique duplo em "Exportar CSV" abria dois pedidos enquanto a lista do NeoSales carregava. Corrigido: o botão trava antes.
+- **Publicação (22/10, ok do Rafael):** migration `20261022100000` aplicada; função `mailing-api` v8 (fumaça 401/403); painel no ar às 19:16:46, MD5 `4b59c956…`. Antes, o ar estava igual ao último publicado (`7f030293…`). Backup `painel_clientes_apex_20261022_191645_antes_mailing_removidos.html`.
 
 ## 103. Fechamento carregava só 1.000 pedidos (21/10/2026)
 
