@@ -156,12 +156,16 @@ export function montarWhere(f: Filtros): SqlParte {
 // NÚMEROS (no_fone). Linhas e empresas vêm da primeira, telefones distintos da segunda — certo com qualquer filtro,
 // inclusive de telefone (antes, 1 linha marcada por empresa fazia "telefone 1" mostrar 2,5 mi empresas em vez de 4,0 mi).
 // Os fatores (total / amostrado) vêm da última carga. A extração não usa amostra: é exata.
+// 22/10: telefones = linhas × (telefones ÷ linhas na amostra de números). Antes era a amostra de números sozinha × fator:
+// com erros independentes de ±2–3% nas duas amostras, saiu ≈ 94.693 telefones para ≈ 93.194 linhas (impossível; o arquivo
+// tinha 92.313 números). A proporção vem de uma amostra só, então telefones nunca passam das linhas.
 const FATOR = (k: string) =>
   `(select coalesce((contagens->>'${k}')::numeric, (contagens->>'amostra_fator')::numeric, 1) from mailing.carga order by carregado_em desc limit 1)`;
 export function sqlTotais(w: SqlParte): string {
   return `select round(count(*) filter (where l.na_empresa) * ${FATOR("fator_linhas")})::bigint as linhas,
   round(count(distinct l.cnpj) filter (where l.na_empresa) * ${FATOR("fator_empresas")})::bigint as empresas,
-  round(count(distinct l.fone) filter (where l.no_fone) * ${FATOR("fator_fones")})::bigint as telefones
+  round(count(*) filter (where l.na_empresa) * ${FATOR("fator_linhas")}
+    * coalesce(count(distinct l.fone) filter (where l.no_fone)::numeric / nullif(count(*) filter (where l.no_fone), 0), 1))::bigint as telefones
   from mailing.amostra l where (${w.sql})`;
 }
 export function sqlPorOperadora(w: SqlParte): string {

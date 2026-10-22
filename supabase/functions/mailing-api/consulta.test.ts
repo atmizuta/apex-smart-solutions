@@ -130,7 +130,7 @@ test("contagens vêm da amostra por empresa (linhas, empresas) e por telefone (t
   assert.match(t, /count\(\*\) filter \(where l\.na_empresa\)/);
   assert.match(t, /count\(distinct l\.cnpj\) filter \(where l\.na_empresa\)/);
   assert.match(t, /count\(distinct l\.fone\) filter \(where l\.no_fone\)/);
-  for (const k of ["fator_linhas", "fator_empresas", "fator_fones"]) assert.match(t, new RegExp(`contagens->>'${k}'`));
+  for (const k of ["fator_linhas", "fator_empresas"]) assert.match(t, new RegExp(`contagens->>'${k}'`));
   for (const sql of [sqlPorOperadora(w), sqlTotalFiltro(w)]) {
     assert.match(sql, /from mailing\.amostra l where l\.na_empresa and \(l\.ddd = any\(\$1::smallint\[\]\) or l\.posicao = 1\)/);
     assert.match(sql, /contagens->>'fator_linhas'/);
@@ -138,6 +138,17 @@ test("contagens vêm da amostra por empresa (linhas, empresas) e por telefone (t
   for (const sql of [t, sqlPorOperadora(w), sqlTotalFiltro(w)]) {
     assert.doesNotMatch(sql, /mailing\.linha|primeira_d/);
   }
+});
+
+// 22/10 (Rafael): a tela mostrou ≈ 94.693 telefones distintos e ≈ 93.194 linhas — impossível. Linhas vinham da amostra
+// de empresas e telefones da amostra de números, com erros independentes de ±2–3%; com ~1% de telefone repetido, a ordem
+// se inverteu. Agora telefones = linhas × (telefones ÷ linhas na amostra de números): nunca passa das linhas.
+test("telefones distintos = linhas × proporção da amostra de números (nunca acima das linhas)", () => {
+  const t = sqlTotais({ sql: "true", params: [] }).replace(/\s+/g, " ");
+  const fatorLinhas = "(select coalesce((contagens->>'fator_linhas')::numeric, (contagens->>'amostra_fator')::numeric, 1) from mailing.carga order by carregado_em desc limit 1)";
+  assert.ok(t.includes("round(count(*) filter (where l.na_empresa) * " + fatorLinhas
+    + " * coalesce(count(distinct l.fone) filter (where l.no_fone)::numeric / nullif(count(*) filter (where l.no_fone), 0), 1))::bigint as telefones"), t);
+  assert.doesNotMatch(t, /fator_fones/);
 });
 
 test("extração não busca empresa nem sócio e marca o uso também na amostra", () => {
