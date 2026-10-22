@@ -407,6 +407,38 @@ try{
     removidos_neo: 1, removidos_repetidos: 2 }]);
   assert(document.getElementById('mbHistorico').innerHTML.includes('6 (+3 removidas)'), 'histórico mostra o que foi para o arquivo e as removidas');
 
+  // 22/10 (seção 102.12): limpar arquivo já gerado
+  assert(document.getElementById('btnMbRemoverDuplicados') && document.getElementById('btnMbCruzarNeo') && document.getElementById('mbArquivosLimpar'),
+    'caixa de limpar arquivo com os dois botões');
+  const csvA = mbMontarCsv(colsExp, [L('00000000000191', '11900000001'), L('00000000000272', '11900000002')]);
+  const csvB = mbMontarCsv(colsExp, [L('00000000000353', '11900000002'), L('00000000000434', '11900000003')]);
+  const arq = (name, buf) => ({ name, arrayBuffer: async () => buf });
+  const cp = t => mbParaCp1252(t).slice().buffer;
+  const comMarca = t => { const b = mbParaCp1252(t); const u = new Uint8Array(b.length + 3); u.set([0xEF, 0xBB, 0xBF]); u.set(b, 3); return u.buffer; };
+  const hojeSP = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+  baixados.length = 0; avisos.length = 0;
+  await mbLimparArquivos([arq('A.csv', cp(csvA)), arq('B.csv', comMarca(csvB.replace('documento2', 'DOCUMENTO2')))], 'duplicados');
+  eq(baixados.map(b => b.nome), ['A_LIMPO.csv', 'B_LIMPO.csv', 'REMOVIDOS_' + hojeSP + '.csv'], 'um LIMPO por arquivo e um REMOVIDOS');
+  eq(baixados[1] && baixados[1].blob.size, mbParaCp1252(mbMontarCsv(colsExp, [L('00000000000434', '11900000003')])).length,
+    'repetido entre arquivos sai do segundo (UTF-8 com marca e cabeçalho em maiúsculas lidos certo)');
+  assert(avisos[0] && avisos[0][0] === 'ok' && avisos[0][1].includes('2 arquivos limpos') && avisos[0][1].includes('removidas: 1'), 'aviso da limpeza');
+  baixados.length = 0; avisos.length = 0;
+  await mbLimparArquivos([arq('A.csv', cp(csvA))], 'neo');
+  eq(baixados.map(b => b.nome), ['A_LIMPO.csv', 'REMOVIDOS_' + hojeSP + '.csv'], 'Cruzar com o NEO num arquivo antigo');
+  eq(baixados[0] && baixados[0].blob.size, mbParaCp1252(mbMontarCsv(colsExp, [L('00000000000272', '11900000002')])).length, 'tirou a empresa com pedido');
+  baixados.length = 0; avisos.length = 0;
+  await mbLimparArquivos([arq('X.csv', cp('a;b\\r\\n1;2\\r\\n'))], 'duplicados');
+  eq([baixados.length, avisos[0] && avisos[0][0]], [0, 'erro'], 'arquivo fora do layout: nada sai');
+  assert(avisos[0] && avisos[0][1].includes('X.csv não está no layout do ProContact'), 'aviso diz qual arquivo');
+  avisos.length = 0;
+  await mbLimparArquivos([], 'duplicados');
+  assert(avisos[0] && avisos[0][0] === 'erro' && avisos[0][1].includes('Escolha'), 'sem arquivo: aviso');
+  window.__fnRespostas.neo = { data: null, error: { message: 'Failed to fetch' } };
+  baixados.length = 0; avisos.length = 0;
+  await mbLimparArquivos([arq('A.csv', cp(csvA))], 'neo');
+  eq([baixados.length, avisos[0] && avisos[0][0]], [0, 'erro'], 'sem a lista do NeoSales a limpeza não sai');
+  window.__fnRespostas.neo = { data: { empresas: [empresaNeo] }, error: null };
+
   window.__fnRespostas.contar = { data: null, error: { context: { json: async () => ({ erro: 'A consulta demorou demais. Refine os filtros e tente de novo.' }) } } };
   avisos.length = 0;
   document.getElementById('btnMbContar').click(); await espera(40);

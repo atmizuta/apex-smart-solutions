@@ -74,7 +74,7 @@ Pedido do Rafael:
 
 ### 3.4 Limpar arquivo já gerado
 
-- **Caixa no mesmo cartão:** "Limpar arquivo já gerado".
+- **Cartão logo abaixo da exportação:** "Limpar arquivo já gerado".
   - escolher um ou mais CSVs no layout do ProContact;
   - dois botões: **[Remover duplicados]** e **[Cruzar com o NEO]**.
 - **Leitura:** Windows-1252, separador `;`, campos entre aspas como o painel gera. O cabeçalho precisa ter `documento2` e `fone1`. Senão aparece: "O arquivo X não está no layout do ProContact".

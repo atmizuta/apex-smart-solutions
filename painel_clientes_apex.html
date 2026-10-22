@@ -1458,8 +1458,21 @@
           <div class="field" style="margin:0"><label for="mbQtd">Quantidade</label><input type="text" inputmode="numeric" id="mbQtd" placeholder="ex.: 20000 ou 700000"></div>
           <button type="button" class="btn btn-sm" id="btnMbExportar" style="width:auto">Exportar CSV</button>
         </div>
+        <div class="mbChecks">
+          <label><input type="checkbox" id="mbCruzarNeo" checked> Cruzar com o NEO (tira empresas com pedido no NeoSales)</label>
+          <label><input type="checkbox" id="mbRemoverDuplicados" checked> Remover duplicados (cada telefone sai uma vez)</label>
+        </div>
         <p class="desc mbProgresso" id="mbProgresso" hidden><span id="mbProgressoTexto"></span> <button type="button" class="btn btn-sm btn-outline" id="btnMbParar" style="width:auto">Parar</button></p>
-        <p class="desc" style="margin:var(--space-2) 0 0">Saem primeiro os números nunca extraídos; depois, os extraídos há mais tempo. Acima de 100.000, o pedido sai em vários arquivos de até 100.000 (o navegador pode pedir para permitir vários downloads). Com filtro bem fechado a busca percorre a base inteira e pode levar alguns minutos — a barra mostra o andamento. O arquivo já vem no layout de importação do ProContact.</p>
+        <p class="desc" style="margin:var(--space-2) 0 0">Saem primeiro os números nunca extraídos; depois, os extraídos há mais tempo. Acima de 100.000, o pedido sai em vários arquivos de até 100.000 (o navegador pode pedir para permitir vários downloads). Com filtro bem fechado a busca percorre a base inteira e pode levar alguns minutos — a barra mostra o andamento. As linhas removidas (empresa com pedido no NeoSales ou telefone repetido) saem num arquivo REMOVIDOS, com o motivo, e a quantidade é completada com outras. O arquivo já vem no layout de importação do ProContact.</p>
+      </div>
+      <div class="card">
+        <h3 style="margin:0 0 var(--space-3)">Limpar arquivo já gerado</h3>
+        <div class="mbAcoes" style="align-items:flex-end">
+          <div class="field" style="margin:0"><label for="mbArquivosLimpar">Arquivos CSV do ProContact</label><input type="file" id="mbArquivosLimpar" accept=".csv,text/csv" multiple></div>
+          <button type="button" class="btn btn-sm btn-outline" id="btnMbRemoverDuplicados" style="width:auto">Remover duplicados</button>
+          <button type="button" class="btn btn-sm btn-outline" id="btnMbCruzarNeo" style="width:auto">Cruzar com o NEO</button>
+        </div>
+        <p class="desc" style="margin:var(--space-2) 0 0">Sai um arquivo _LIMPO para cada arquivo escolhido e um REMOVIDOS com o que saiu e o motivo. Com vários arquivos, um telefone que já apareceu num arquivo sai dos seguintes. Não muda nada na base.</p>
       </div>
       <div class="card">
         <h3 style="margin:0 0 var(--space-3)">Histórico de extrações</h3>
@@ -14054,6 +14067,11 @@ function mbRenderResultado(d){
     ${ops ? `<table class="tbl" style="margin-top:var(--space-3)"><thead><tr><th>Operadora</th><th style="text-align:right">Linhas</th></tr></thead><tbody>${ops}</tbody></table>` : ''}
   </div>`;
 }
+// 22/10 (seção 102.12): "Linhas" = o que foi para o arquivo; as removidas (NEO e repetidos) aparecem ao lado
+function mbLinhasHistorico(x){
+  const rem = (Number(x.removidos_neo) || 0) + (Number(x.removidos_repetidos) || 0);
+  return mbFmtNum((Number(x.quantidade_entregue) || 0) - rem) + (rem ? ' (+' + mbFmtNum(rem) + ' removidas)' : '');
+}
 function mbRenderHistorico(lista){
   const el = document.getElementById('mbHistorico');
   if(lista === null){ el.innerHTML = '<p class="desc">Não foi possível carregar o histórico.</p>'; return; }
@@ -14061,7 +14079,7 @@ function mbRenderHistorico(lista){
   const e = escapeHtml;
   const quando = s => new Date(s).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   el.innerHTML = `<table class="tbl"><thead><tr><th>Quando</th><th>Quem</th><th>Carga</th><th>Filtros</th><th style="text-align:right">Linhas</th></tr></thead><tbody>`
-    + lista.map(x => `<tr><td>${e(quando(x.criado_em))}</td><td>${e(x.username || '')}</td><td>${e(x.nome_carga || '')}</td><td>${e(mbResumoFiltros(x.filtros || {}))}</td><td style="text-align:right">${e(mbFmtNum(x.quantidade_entregue))}</td></tr>`).join('')
+    + lista.map(x => `<tr><td>${e(quando(x.criado_em))}</td><td>${e(x.username || '')}</td><td>${e(x.nome_carga || '')}</td><td>${e(mbResumoFiltros(x.filtros || {}))}</td><td style="text-align:right">${e(mbLinhasHistorico(x))}</td></tr>`).join('')
     + '</tbody></table>';
 }
 async function mbCarregar(){
@@ -14109,19 +14127,114 @@ function mbNovoPedido(){
   const h = Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
   return h.slice(0, 8) + '-' + h.slice(8, 12) + '-' + h.slice(12, 16) + '-' + h.slice(16, 20) + '-' + h.slice(20);
 }
+// ===== 22/10 (seção 102.12, pedido do Rafael): remover duplicados e cruzar com o NEO =====
+// Spec: docs/superpowers/specs/2026-10-22-mailing-removidos-design.md. NEO = CNPJ com pedido no NeoSales, em qualquer etapa.
+const MB_MOTIVO_NEO = 'Pedido no NeoSales', MB_MOTIVO_REPETIDO = 'Telefone repetido';
+const MB_CAB_REMOVIDOS = ['motivo', 'detalhe', 'socio', 'razao_social', 'cnpj', 'telefone', 'operadora', 'porte', 'cidade'];
+const MB_LIMPAR_MAX = 1000000;
+function mbSoDigitos(v){ return String(v === null || v === undefined ? '' : v).replace(/\D/g, ''); }
+// o Excel tira o zero da frente do CNPJ: completa até 14 dígitos para cruzar
+function mbChaveCnpj(v){ const d = mbSoDigitos(v); return d ? d.padStart(14, '0') : ''; }
+function mbFmtCnpj(v){
+  const d = mbChaveCnpj(v);
+  return d.length === 14 ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : String(v === null || v === undefined ? '' : v);
+}
+function mbFmtFone(v){
+  const d = mbSoDigitos(v);
+  if(d.length === 11) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7);
+  if(d.length === 10) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 6) + '-' + d.slice(6);
+  return String(v === null || v === undefined ? '' : v);
+}
+function mbDetalheNeo(p){
+  const data = p.cadastro ? new Date(p.cadastro).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '';
+  return ['pedido ' + (p.numero_pedido || '—'), String(p.etapa || '').replace(/\s*\(NEOCRM\)\s*$/i, ''), p.consultor || '', data]
+    .filter(Boolean).join(' · ');
+}
+// Separa o que vai para o arquivo e o que sai. Primeiro o CNPJ com pedido no NeoSales; depois o telefone já visto
+// (estado.vistos: telefone → CNPJ que ficou, vale para o pedido inteiro ou para todos os arquivos da limpeza).
+function mbClassificar(colunas, linhas, opcoes, estado){
+  const idx = {};
+  (colunas || []).forEach((c, i) => { idx[String(c).trim().toLowerCase()] = i; });
+  const v = (l, c) => (c in idx && l[idx[c]] !== null && l[idx[c]] !== undefined ? String(l[idx[c]]) : '');
+  const ficam = [], removidos = [];
+  for(const l of (linhas || [])){
+    const cnpj = mbChaveCnpj(v(l, 'documento2')), fone = mbSoDigitos(v(l, 'fone1'));
+    let motivo = '', detalhe = '';
+    const p = opcoes.neo && cnpj ? opcoes.neo.get(cnpj) : null;
+    if(p){ motivo = MB_MOTIVO_NEO; detalhe = mbDetalheNeo(p); }
+    else if(opcoes.duplicados && fone){
+      if(estado.vistos.has(fone)){ motivo = MB_MOTIVO_REPETIDO; detalhe = 'ficou no CNPJ ' + mbFmtCnpj(estado.vistos.get(fone)); }
+      else estado.vistos.set(fone, cnpj);
+    }
+    if(!motivo){ ficam.push(l); continue; }
+    removidos.push({ motivo, detalhe, socio: v(l, 'nome'), razao_social: v(l, 'descricao'), cnpj: mbFmtCnpj(v(l, 'documento2')),
+      telefone: mbFmtFone(v(l, 'fone1')), operadora: v(l, 'campo1'), porte: v(l, 'campo2'), cidade: v(l, 'campo3') });
+  }
+  return { ficam, removidos };
+}
+function mbMontarRemovidos(removidos, comArquivo){
+  const cab = (comArquivo ? ['arquivo'] : []).concat(MB_CAB_REMOVIDOS);
+  const saida = [cab.join(';')];
+  for(const r of (removidos || [])) saida.push(cab.map(c => mbCampoCsv(r[c])).join(';'));
+  return saida.join('\r\n') + '\r\n';
+}
+// Lê o CSV que o painel gera (';', campos entre aspas, CRLF ou LF). Devolve listas; a primeira é o cabeçalho.
+function mbLerCsv(texto){
+  const s = String(texto || ''), linhas = [];
+  let campo = '', linha = [], aspas = false;
+  for(let i = 0; i < s.length; i++){
+    const ch = s[i];
+    if(aspas){
+      if(ch === '"'){ if(s[i + 1] === '"'){ campo += '"'; i++; } else aspas = false; }
+      else campo += ch;
+    } else if(ch === '"') aspas = true;
+    else if(ch === ';'){ linha.push(campo); campo = ''; }
+    else if(ch === '\n' || ch === '\r'){
+      if(ch === '\r' && s[i + 1] === '\n') i++;
+      linha.push(campo); campo = '';
+      if(linha.length > 1 || linha[0] !== '') linhas.push(linha);
+      linha = [];
+    } else campo += ch;
+  }
+  if(campo !== '' || linha.length){ linha.push(campo); linhas.push(linha); }
+  return linhas;
+}
+// o painel gera Windows-1252; o Excel pode salvar "CSV UTF-8", que começa com a marca EF BB BF
+function mbDecodificar(buffer){
+  const b = new Uint8Array(buffer);
+  if(b.length >= 3 && b[0] === 0xEF && b[1] === 0xBB && b[2] === 0xBF) return new TextDecoder('utf-8').decode(b.subarray(3));
+  return new TextDecoder('windows-1252').decode(b);
+}
 async function mbExportar(){
   if(!canSeeMailing() || mbEstado.exportando) return;
   const carga = document.getElementById('mbCarga').value.trim();
   if(!carga){ mostrarAviso('Informe o nome da carga (ex.: ICP-D-MEI-VIVO-APEX).', 'erro'); return; }
   const quantidade = mbValidarQuantidade(document.getElementById('mbQtd').value);
   if(!quantidade){ mostrarAviso('Quantidade deve ser um número inteiro a partir de 1.', 'erro'); return; }
-  await mbExportarPedido(carga, quantidade, mbLerFiltros());
+  const opcoes = { neo: document.getElementById('mbCruzarNeo').checked, duplicados: document.getElementById('mbRemoverDuplicados').checked };
+  await mbExportarPedido(carga, quantidade, mbLerFiltros(), opcoes);
   const h = await mbChamar('historico');
   if(!h.erro) mbRenderHistorico(h.data.extracoes || []);
 }
+async function mbCarregarNeo(){
+  const r = await mbChamar('neo');
+  if(r.erro) return { erro: r.erro };
+  const mapa = new Map();
+  for(const p of (r.data.empresas || [])){ const k = mbChaveCnpj(p.cnpj); if(k) mapa.set(k, p); }
+  return { mapa };
+}
 // Todas as chamadas levam a hora do início do pedido (extraida_antes_de): o que já saiu não volta. As linhas se juntam em
 // arquivos de até MB_MAX_QTD; cada arquivo é uma "parte" no histórico. "Parar" e erro baixam o que já saiu (já está marcado).
-async function mbExportarPedido(carga, total, filtros){
+// 22/10 (seção 102.12): com as opções, o que é removido (pedido no NeoSales, telefone repetido) vai para o arquivo REMOVIDOS,
+// não conta na quantidade e é registrado na parte (fechar_parte).
+async function mbExportarPedido(carga, total, filtros, opcoes){
+  const op = opcoes || { neo: false, duplicados: false };
+  let neo = null;
+  if(op.neo){
+    const r = await mbCarregarNeo();
+    if(r.erro){ mostrarAviso('Não foi possível carregar os pedidos do NeoSales. Tente de novo ou desmarque Cruzar com o NEO.', 'erro'); return; }
+    neo = r.mapa;
+  }
   const n = Math.ceil(total / MB_MAX_QTD);
   const pedido = mbNovoPedido();
   const f = Object.assign({}, filtros, { extraida_antes_de: new Date().toISOString() });
@@ -14129,13 +14242,22 @@ async function mbExportarPedido(carga, total, filtros){
   mbEstado.exportando = true; mbEstado.parar = false;
   prog.hidden = false; btn.disabled = true;
   txt.textContent = 'Procurando na base…';
-  let entregue = 0, arquivos = 0, erro = null, acabou = false, lidas = 0, achadas = 0;
+  const estado = { vistos: new Map() }, removidos = [];
+  let entregue = 0, arquivos = 0, erro = null, acabou = false, lidas = 0, achadas = 0, semHistorico = false;
   let buf = [], colunas = null, nome = null, trecho = { fase: 1, pagina: 0 };
-  const baixar = () => {
-    if(!buf.length) return;
-    arquivos++;
-    mbBaixarCsv({ colunas, linhas: buf }, mbNomeParte(nome, arquivos, n));
-    entregue += buf.length; buf = [];
+  let parteNeo = 0, parteRep = 0, parteUsada = false;
+  const fecharArquivo = async () => {
+    const numero = arquivos + 1;
+    if(buf.length){
+      arquivos++;
+      mbBaixarCsv({ colunas, linhas: buf }, mbNomeParte(nome, arquivos, n));
+      entregue += buf.length; buf = [];
+    }
+    if(parteUsada && (op.neo || op.duplicados)){
+      const r = await mbChamar('fechar_parte', { pedido, parte: numero, neo: parteNeo, repetidos: parteRep });
+      if(r.erro) semHistorico = true;
+    }
+    parteNeo = 0; parteRep = 0; parteUsada = false;
   };
   try{
     while(!mbEstado.parar){
@@ -14146,30 +14268,99 @@ async function mbExportarPedido(carga, total, filtros){
       if(r.erro){ erro = r.erro; break; }
       const d = r.data, linhas = d.linhas || [];
       colunas = d.colunas; nome = d.nome_arquivo;
-      for(const l of linhas) buf.push(l); // sem push(...linhas): 100 mil argumentos estouram a pilha em alguns navegadores
+      if(linhas.length) parteUsada = true;
+      const c = mbClassificar(colunas, linhas, { neo, duplicados: op.duplicados }, estado);
+      for(const l of c.ficam) buf.push(l); // sem push(...): 100 mil argumentos estouram a pilha em alguns navegadores
+      for(const x of c.removidos){ removidos.push(x); if(x.motivo === MB_MOTIVO_NEO) parteNeo++; else parteRep++; }
       if(t.fase === 1){ lidas += d.paginas_lidas || 0; achadas += linhas.length; }
-      if(buf.length >= MB_MAX_QTD) baixar();
+      if(buf.length >= MB_MAX_QTD) await fecharArquivo();
       if(!d.proxima){ acabou = true; break; }
       trecho = d.proxima;
-      const ate = mbFmtNum(entregue + buf.length) + ' de ' + mbFmtNum(total) + ' linhas';
+      const ate = mbFmtNum(entregue + buf.length) + ' de ' + mbFmtNum(total) + ' linhas'
+        + (removidos.length ? ' · ' + mbFmtNum(removidos.length) + ' removidas' : '');
       txt.textContent = trecho.fase === 1 && d.paginas_total
         ? 'Procurando na base… ' + Math.min(99, Math.floor(100 * trecho.pagina / d.paginas_total)) + '% lida · ' + ate + '.'
         : 'Conferindo os números já usados há mais tempo… · ' + ate + '.';
     }
   } finally {
-    baixar();
-    mbEstado.exportando = false;
-    prog.hidden = true; btn.disabled = false;
+    try{
+      await fecharArquivo();
+      if(removidos.length){
+        downloadBlob(new Blob([mbParaCp1252(mbMontarRemovidos(removidos))], { type: 'text/csv;charset=windows-1252' }),
+          String(nome || carga + '.csv').replace(/(\.csv)?$/i, '_REMOVIDOS.csv'));
+      }
+    } finally {
+      mbEstado.exportando = false;
+      prog.hidden = true; btn.disabled = false;
+    }
   }
   const parou = mbEstado.parar;
   mbEstado.parar = false;
-  const feito = mbFmtNum(entregue) + ' linhas em ' + arquivos + (arquivos === 1 ? ' arquivo' : ' arquivos');
-  if(erro) mostrarAviso(erro + (entregue ? ' Já baixados: ' + feito + '.' : ''), 'erro');
-  else if(!entregue) mostrarAviso('Nenhuma linha com esses filtros. Nada foi exportado.', 'info');
-  else if(parou) mostrarAviso(feito + ' — parou a seu pedido.', 'ok');
-  else if(acabou && entregue < total) mostrarAviso(feito + ' — são todas as linhas do filtro. A contagem (≈) é estimativa; este é o número exato.', 'ok');
-  else mostrarAviso(feito + '.', 'ok');
+  const nNeo = removidos.filter(x => x.motivo === MB_MOTIVO_NEO).length, nRep = removidos.length - nNeo;
+  const rem = removidos.length ? ' · removidas: ' + [nNeo ? mbFmtNum(nNeo) + ' com pedido no NeoSales' : '', nRep ? mbFmtNum(nRep) + ' telefones repetidos' : '']
+    .filter(Boolean).join(' e ') + ' (arquivo REMOVIDOS)' : '';
+  const extra = (semHistorico ? ' O histórico não registrou as removidas.' : '') + (neo && !neo.size ? ' A lista do NeoSales veio vazia.' : '');
+  const feito = mbFmtNum(entregue) + ' linhas em ' + arquivos + (arquivos === 1 ? ' arquivo' : ' arquivos') + rem;
+  if(erro) mostrarAviso(erro + (entregue || removidos.length ? ' Já baixados: ' + feito + '.' : '') + extra, 'erro');
+  else if(!entregue && removidos.length) mostrarAviso('Nenhuma linha ficou: as ' + mbFmtNum(removidos.length) + ' encontradas foram removidas (arquivo REMOVIDOS).' + extra, 'info');
+  else if(!entregue) mostrarAviso('Nenhuma linha com esses filtros. Nada foi exportado.' + extra, 'info');
+  else if(parou) mostrarAviso(feito + ' — parou a seu pedido.' + extra, 'ok');
+  else if(acabou && entregue < total) mostrarAviso(feito + ' — são todas as linhas do filtro. A contagem (≈) é estimativa; este é o número exato.' + extra, 'ok');
+  else mostrarAviso(feito + '.' + extra, 'ok');
 }
+function mbLerArquivo(a){
+  if(a && typeof a.arrayBuffer === 'function') return a.arrayBuffer();
+  return new Promise((ok, ko) => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.onerror = () => ko(fr.error); fr.readAsArrayBuffer(a); });
+}
+// 22/10 (seção 102.12): limpa CSVs já gerados, sem mexer na base. Lê todos antes (layout errado não baixa nada pela metade).
+async function mbLimparArquivos(arquivos, modo){
+  if(!canSeeMailing() || mbEstado.limpando) return;
+  const lista = Array.from(arquivos || []);
+  if(!lista.length){ mostrarAviso('Escolha um ou mais arquivos CSV.', 'erro'); return; }
+  const botoes = ['btnMbRemoverDuplicados', 'btnMbCruzarNeo'].map(id => document.getElementById(id));
+  mbEstado.limpando = true;
+  botoes.forEach(b => { b.disabled = true; });
+  try{
+    const lidos = [];
+    for(const a of lista){
+      let tab;
+      try{ tab = mbLerCsv(mbDecodificar(await mbLerArquivo(a))); }
+      catch(_){ mostrarAviso('Não foi possível ler o arquivo ' + a.name + '.', 'erro'); return; }
+      const cab = (tab[0] || []).map(c => String(c).trim().toLowerCase());
+      if(!cab.includes('documento2') || !cab.includes('fone1')){ mostrarAviso('O arquivo ' + a.name + ' não está no layout do ProContact.', 'erro'); return; }
+      if(tab.length - 1 > MB_LIMPAR_MAX){ mostrarAviso('O arquivo ' + a.name + ' é grande demais (mais de 1 milhão de linhas).', 'erro'); return; }
+      lidos.push({ nome: a.name, cab, linhas: tab.slice(1) });
+    }
+    let neo = null;
+    if(modo === 'neo'){
+      const r = await mbCarregarNeo();
+      if(r.erro){ mostrarAviso('Não foi possível carregar os pedidos do NeoSales. Tente de novo.', 'erro'); return; }
+      neo = r.mapa;
+    }
+    const estado = { vistos: new Map() }, removidos = [];
+    let ficaram = 0;
+    for(const f of lidos){
+      const c = mbClassificar(f.cab, f.linhas, { neo, duplicados: modo === 'duplicados' }, estado);
+      c.removidos.forEach(x => { x.arquivo = f.nome; removidos.push(x); });
+      downloadBlob(new Blob([mbParaCp1252(mbMontarCsv(f.cab, c.ficam))], { type: 'text/csv;charset=windows-1252' }),
+        String(f.nome).replace(/(\.csv)?$/i, '_LIMPO.csv'));
+      ficaram += c.ficam.length;
+    }
+    const hoje = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    if(removidos.length){
+      downloadBlob(new Blob([mbParaCp1252(mbMontarRemovidos(removidos, true))], { type: 'text/csv;charset=windows-1252' }), 'REMOVIDOS_' + hoje + '.csv');
+    }
+    const qual = modo === 'neo' ? 'empresas com pedido no NeoSales' : 'telefones repetidos';
+    mostrarAviso(lidos.length + (lidos.length === 1 ? ' arquivo limpo: ' : ' arquivos limpos: ') + mbFmtNum(ficaram) + ' linhas ficaram · '
+      + (removidos.length ? 'removidas: ' + mbFmtNum(removidos.length) + ' (' + qual + ', arquivo REMOVIDOS).' : 'nada a remover (' + qual + ').')
+      + (neo && !neo.size ? ' A lista do NeoSales veio vazia.' : ''), 'ok');
+  } finally {
+    mbEstado.limpando = false;
+    botoes.forEach(b => { b.disabled = false; });
+  }
+}
+document.getElementById('btnMbRemoverDuplicados').addEventListener('click', () => { mbLimparArquivos(document.getElementById('mbArquivosLimpar').files, 'duplicados'); });
+document.getElementById('btnMbCruzarNeo').addEventListener('click', () => { mbLimparArquivos(document.getElementById('mbArquivosLimpar').files, 'neo'); });
 document.getElementById('btnMbParar').addEventListener('click', () => {
   mbEstado.parar = true;
   document.getElementById('mbProgressoTexto').textContent = 'Parando… o que já saiu será baixado.';

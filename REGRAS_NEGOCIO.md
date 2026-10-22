@@ -3535,6 +3535,17 @@ Diferença sempre abaixo de 0,5%. Função `mailing-api` v5; o painel não mudou
   - Mesmo filtro: ≈ 92.366. No filtro padrão, a diferença para o cálculo antigo é de 0,7% (9.053.905 × 9.114.656).
   - Função `mailing-api` v7 (fumaça 401/403). O painel não mudou.
 
+### 102.12 Remover duplicados e cruzar com o NEO (22/10/2026, pedido do Rafael)
+- **Exportação:** duas caixas, marcadas por padrão.
+  - **Cruzar com o NEO:** tira as empresas (CNPJ) com pedido da Apex no NeoSales, em qualquer etapa. Eram 1.110 empresas em 22/10.
+  - **Remover duplicados:** cada telefone sai uma vez, na primeira empresa em que aparecer, dentro do pedido.
+  - As linhas removidas não contam na quantidade: o painel busca outras até completar.
+  - As removidas ficam marcadas como usadas na base e saem num arquivo **`<CARGA>_<data>_REMOVIDOS.csv`** com motivo e detalhe (pedido, etapa, consultor, data; ou "ficou no CNPJ tal").
+  - O histórico mostra as linhas do arquivo e "(+N removidas)". Colunas `removidos_neo` e `removidos_repetidos` em `mailing.extracao` (migration `20261022100000`), gravadas pela ação `fechar_parte`.
+  - Se a lista do NeoSales não vier, o pedido não começa.
+- **Limpar arquivo já gerado** (cartão próprio): botões **Remover duplicados** e **Cruzar com o NEO** sobre um ou mais CSVs do ProContact. Sai um `_LIMPO.csv` por arquivo e um `REMOVIDOS_<data>.csv`. Não mexe na base.
+- **Fica de fora:** telefone repetido entre pedidos de dias diferentes (exigiria índice por telefone na base); para isso vale "Nunca extraídos".
+
 ## 103. Fechamento carregava só 1.000 pedidos (21/10/2026)
 
 ### 103.1 O problema
