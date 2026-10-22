@@ -3527,6 +3527,14 @@ Diferença sempre abaixo de 0,5%. Função `mailing-api` v5; o painel não mudou
 - **Custo:** com filtro fino, cada pedido ainda lê a base inteira (~3 GB) e gasta a cota diária de disco do servidor Micro. Repetir o mesmo pedido várias vezes deixa o CRM lento para todos. Só um servidor maior resolve de vez.
 - **Publicação (22/10, ok do Rafael):** migration `20261022090000` aplicada; função `mailing-api` v6 (fumaça: 401 sem token, 403 sem perfil); painel no ar às 14:43:43, MD5 `7f030293…`. Antes, o ar estava igual à oficial (`89ad1d58…`). Backup `painel_clientes_apex_20261022_144342_antes_mailing_trechos.html`.
 
+### 102.11 Telefones distintos acima das linhas (22/10/2026, Rafael)
+- **O erro:** o filtro da carga "ICP-1-CLARO-MIGRACAO-1" mostrou ≈ 93.194 linhas e ≈ **94.693** telefones distintos. Isso é impossível: cada telefone está em pelo menos uma linha.
+  - **Causa:** linhas e empresas vinham da amostra de empresas; telefones vinham da amostra de números. Cada uma erra ±2–3%, de forma independente. Neste filtro só ~1% dos telefones se repete, então o erro inverteu a ordem.
+  - O arquivo exportado (93.194 linhas) tinha 86.457 empresas e **92.313** números. A exportação estava certa; só a estimativa da tela errou.
+- **Correção:** telefones = linhas × (telefones ÷ linhas na amostra de números). A proporção vem de uma amostra só, então telefones nunca passam das linhas.
+  - Mesmo filtro: ≈ 92.366. No filtro padrão, a diferença para o cálculo antigo é de 0,7% (9.053.905 × 9.114.656).
+  - Função `mailing-api` v7 (fumaça 401/403). O painel não mudou.
+
 ## 103. Fechamento carregava só 1.000 pedidos (21/10/2026)
 
 ### 103.1 O problema
