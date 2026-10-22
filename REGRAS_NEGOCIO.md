@@ -3607,3 +3607,5 @@ Pedido do Rafael: um botão para a Mesa do Supervisor que atualize o dashboard n
 **Danilo Morais Araujo e Gabriel Macedo Martins** saíram de `PRODUCAO_USUARIOS_EXCLUIDOS` (seções 16.18/16.20) e foram para `PRODUCAO_FORA_DO_DASHBOARD` (seção 77): aparecem no **Fechamento** e continuam fora do Dashboard e do Boletim — até o Rafael pedir para tirar de novo. No banco, em CONCLUIDO: Danilo 3 pedidos (R$ 314,95, 16–24/09); Gabriel 30 pedidos (R$ 2.359,54, 24/08–01/10). Vitor Queiroz Cavalcante continua fora de tudo.
 
 Testes: `test_sync_agora.js` (32 asserções); `test_operacao_campinas.js` e `test_visao_diaria.js` ajustados à lista nova e à checagem de 2 min.
+
+- **Publicação:** 22/10/2026 ~19:40 (SP), com ok do Rafael. RPC `producao_sync_agora` criada no banco (anon sem acesso; sem perfil admin/supervisor recusa). MD5 do painel: `6f7ab3e143e057811ab8b9f1d33d1f54`. Backup: `~/deploy_backups/painel_clientes_apex_20261022_223956_antes_sync_agora.html`. O painel no ar era idêntico à oficial/main (MD5 `4b59c956…`).
