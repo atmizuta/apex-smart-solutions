@@ -14109,6 +14109,84 @@ function mbNovoPedido(){
   const h = Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
   return h.slice(0, 8) + '-' + h.slice(8, 12) + '-' + h.slice(12, 16) + '-' + h.slice(16, 20) + '-' + h.slice(20);
 }
+// ===== 22/10 (seção 102.12, pedido do Rafael): remover duplicados e cruzar com o NEO =====
+// Spec: docs/superpowers/specs/2026-10-22-mailing-removidos-design.md. NEO = CNPJ com pedido no NeoSales, em qualquer etapa.
+const MB_MOTIVO_NEO = 'Pedido no NeoSales', MB_MOTIVO_REPETIDO = 'Telefone repetido';
+const MB_CAB_REMOVIDOS = ['motivo', 'detalhe', 'socio', 'razao_social', 'cnpj', 'telefone', 'operadora', 'porte', 'cidade'];
+const MB_LIMPAR_MAX = 1000000;
+function mbSoDigitos(v){ return String(v === null || v === undefined ? '' : v).replace(/\D/g, ''); }
+// o Excel tira o zero da frente do CNPJ: completa até 14 dígitos para cruzar
+function mbChaveCnpj(v){ const d = mbSoDigitos(v); return d ? d.padStart(14, '0') : ''; }
+function mbFmtCnpj(v){
+  const d = mbChaveCnpj(v);
+  return d.length === 14 ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : String(v === null || v === undefined ? '' : v);
+}
+function mbFmtFone(v){
+  const d = mbSoDigitos(v);
+  if(d.length === 11) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7);
+  if(d.length === 10) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 6) + '-' + d.slice(6);
+  return String(v === null || v === undefined ? '' : v);
+}
+function mbDetalheNeo(p){
+  const data = p.cadastro ? new Date(p.cadastro).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '';
+  return ['pedido ' + (p.numero_pedido || '—'), String(p.etapa || '').replace(/\s*\(NEOCRM\)\s*$/i, ''), p.consultor || '', data]
+    .filter(Boolean).join(' · ');
+}
+// Separa o que vai para o arquivo e o que sai. Primeiro o CNPJ com pedido no NeoSales; depois o telefone já visto
+// (estado.vistos: telefone → CNPJ que ficou, vale para o pedido inteiro ou para todos os arquivos da limpeza).
+function mbClassificar(colunas, linhas, opcoes, estado){
+  const idx = {};
+  (colunas || []).forEach((c, i) => { idx[String(c).trim().toLowerCase()] = i; });
+  const v = (l, c) => (c in idx && l[idx[c]] !== null && l[idx[c]] !== undefined ? String(l[idx[c]]) : '');
+  const ficam = [], removidos = [];
+  for(const l of (linhas || [])){
+    const cnpj = mbChaveCnpj(v(l, 'documento2')), fone = mbSoDigitos(v(l, 'fone1'));
+    let motivo = '', detalhe = '';
+    const p = opcoes.neo && cnpj ? opcoes.neo.get(cnpj) : null;
+    if(p){ motivo = MB_MOTIVO_NEO; detalhe = mbDetalheNeo(p); }
+    else if(opcoes.duplicados && fone){
+      if(estado.vistos.has(fone)){ motivo = MB_MOTIVO_REPETIDO; detalhe = 'ficou no CNPJ ' + mbFmtCnpj(estado.vistos.get(fone)); }
+      else estado.vistos.set(fone, cnpj);
+    }
+    if(!motivo){ ficam.push(l); continue; }
+    removidos.push({ motivo, detalhe, socio: v(l, 'nome'), razao_social: v(l, 'descricao'), cnpj: mbFmtCnpj(v(l, 'documento2')),
+      telefone: mbFmtFone(v(l, 'fone1')), operadora: v(l, 'campo1'), porte: v(l, 'campo2'), cidade: v(l, 'campo3') });
+  }
+  return { ficam, removidos };
+}
+function mbMontarRemovidos(removidos, comArquivo){
+  const cab = (comArquivo ? ['arquivo'] : []).concat(MB_CAB_REMOVIDOS);
+  const saida = [cab.join(';')];
+  for(const r of (removidos || [])) saida.push(cab.map(c => mbCampoCsv(r[c])).join(';'));
+  return saida.join('\r\n') + '\r\n';
+}
+// Lê o CSV que o painel gera (';', campos entre aspas, CRLF ou LF). Devolve listas; a primeira é o cabeçalho.
+function mbLerCsv(texto){
+  const s = String(texto || ''), linhas = [];
+  let campo = '', linha = [], aspas = false;
+  for(let i = 0; i < s.length; i++){
+    const ch = s[i];
+    if(aspas){
+      if(ch === '"'){ if(s[i + 1] === '"'){ campo += '"'; i++; } else aspas = false; }
+      else campo += ch;
+    } else if(ch === '"') aspas = true;
+    else if(ch === ';'){ linha.push(campo); campo = ''; }
+    else if(ch === '\n' || ch === '\r'){
+      if(ch === '\r' && s[i + 1] === '\n') i++;
+      linha.push(campo); campo = '';
+      if(linha.length > 1 || linha[0] !== '') linhas.push(linha);
+      linha = [];
+    } else campo += ch;
+  }
+  if(campo !== '' || linha.length){ linha.push(campo); linhas.push(linha); }
+  return linhas;
+}
+// o painel gera Windows-1252; o Excel pode salvar "CSV UTF-8", que começa com a marca EF BB BF
+function mbDecodificar(buffer){
+  const b = new Uint8Array(buffer);
+  if(b.length >= 3 && b[0] === 0xEF && b[1] === 0xBB && b[2] === 0xBF) return new TextDecoder('utf-8').decode(b.subarray(3));
+  return new TextDecoder('windows-1252').decode(b);
+}
 async function mbExportar(){
   if(!canSeeMailing() || mbEstado.exportando) return;
   const carga = document.getElementById('mbCarga').value.trim();

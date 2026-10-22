@@ -208,6 +208,36 @@ try{
   document.getElementById('btnMbExportar').click(); await espera(20);
   eq([chamadas.length, avisos[0] && avisos[0][0]], [0, 'erro'], 'quantidade inválida: aviso');
 
+  // ==== 22/10 (seção 102.12): remover duplicados e cruzar com o NEO — funções puras ====
+  eq(mbChaveCnpj('1.234.567/0001-90'), '01234567000190', 'CNPJ sem o zero da frente (Excel) volta a 14 dígitos');
+  eq(mbChaveCnpj(''), '', 'CNPJ vazio');
+  eq(mbFmtCnpj('00000000000191'), '00.000.000/0001-91', 'CNPJ formatado no REMOVIDOS');
+  eq([mbFmtFone('11912345678'), mbFmtFone('1132345678'), mbFmtFone('123')], ['(11) 91234-5678', '(11) 3234-5678', '123'], 'telefone formatado');
+  eq(mbDetalheNeo({ numero_pedido: '123', etapa: 'CONCLUIDO (NEOCRM)', consultor: 'fulano', cadastro: '2026-10-10T15:00:00Z' }),
+    'pedido 123 · CONCLUIDO · fulano · 10/10/2026', 'detalhe do pedido, sem o (NEOCRM)');
+  const colsC = ['nome', 'descricao', 'documento1', 'documento2', 'fone1', 'campo1', 'campo2', 'campo3'];
+  const L = (cnpj, fone) => ['SOCIO TESTE', 'EMPRESA TESTE', '00000000191', cnpj, fone, 'CLARO S.A.', 'MEI', 'SAO PAULO'];
+  const neoMapa = new Map([['00000000000191', { numero_pedido: '9', etapa: 'VENDA PERDIDA (NEOCRM)', consultor: 'ciclano', cadastro: null }]]);
+  const est = { vistos: new Map() };
+  const k1 = mbClassificar(colsC, [L('00000000000191', '11900000001'), L('00000000000272', '11900000002'), L('00000000000353', '11900000002'),
+    L('00000000000434', ''), L('00000000000515', '11900000001')], { neo: neoMapa, duplicados: true }, est);
+  eq(k1.ficam.map(l => l[3]), ['00000000000272', '00000000000434', '00000000000515'], 'fica o primeiro de cada telefone, quem não tem telefone e o telefone de empresa do NEO');
+  eq(k1.removidos.map(r => [r.motivo, r.detalhe]), [['Pedido no NeoSales', 'pedido 9 · VENDA PERDIDA · ciclano'],
+    ['Telefone repetido', 'ficou no CNPJ 00.000.000/0002-72']], 'removidos com motivo e detalhe (NEO antes de repetido)');
+  eq([k1.removidos[1].cnpj, k1.removidos[1].telefone, k1.removidos[1].socio], ['00.000.000/0003-53', '(11) 90000-0002', 'SOCIO TESTE'], 'CNPJ e telefone formatados no removido');
+  const k2 = mbClassificar(colsC, [L('00000000000596', '(11) 90000-0002')], { neo: null, duplicados: true }, est);
+  eq(k2.removidos.length, 1, 'repetido vale entre trechos/arquivos e com telefone escrito com máscara');
+  const k3 = mbClassificar(colsC, [L('00000000000191', '11900000009')], { neo: null, duplicados: false }, { vistos: new Map() });
+  eq([k3.ficam.length, k3.removidos.length], [1, 0], 'opções desmarcadas: nada sai');
+  eq(mbMontarRemovidos(k1.removidos).split('\\r\\n')[0], 'motivo;detalhe;socio;razao_social;cnpj;telefone;operadora;porte;cidade', 'cabeçalho do REMOVIDOS');
+  eq(mbMontarRemovidos([Object.assign({ arquivo: 'A.csv' }, k1.removidos[0])], true).split('\\r\\n')[1].split(';').slice(0, 3),
+    ['A.csv', 'Pedido no NeoSales', 'pedido 9 · VENDA PERDIDA · ciclano'], 'REMOVIDOS da limpeza leva o arquivo de origem');
+  eq(mbLerCsv('a;b\\r\\n"x;1";"di ""oi"""\\r\\n"l1\\nl2";z'), [['a', 'b'], ['x;1', 'di "oi"'], ['l1\\nl2', 'z']], 'lê aspas, ; e quebra de linha dentro do campo');
+  eq(mbLerCsv('a;b\\n1;2\\n'), [['a', 'b'], ['1', '2']], 'aceita só LF e linha final vazia');
+  eq(mbLerCsv(mbMontarCsv(colsC, [L('00000000000191', '11900000001')]))[1].length, 20, 'lê de volta o CSV que o painel gera (20 colunas)');
+  eq(mbDecodificar(new Uint8Array([0xEF, 0xBB, 0xBF, 0x41, 0xC3, 0xA7]).buffer), 'Aç', 'CSV UTF-8 do Excel (com marca)');
+  eq(mbDecodificar(new Uint8Array([0x41, 0xE7]).buffer), 'Aç', 'CSV Windows-1252 do painel');
+
   const colsExp = ['nome', 'descricao', 'documento1', 'documento2', 'fone1', 'campo1', 'campo2', 'campo3'];
   const linhasExp = [['FULANO DE TAL', 'EMPRESA; TESTE "LTDA"', '00000000191', '00000000000191', '11900000001', 'CLARO S.A.', 'MEI', 'SÃO PAULO']];
   const ateTerminar = async () => { await espera(10); for(let i = 0; i < 3000 && mbEstado.exportando; i++) await espera(10); await espera(30); };
