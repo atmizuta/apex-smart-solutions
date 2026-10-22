@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   filtrosPadrao, validarFiltros, montarWhere, sqlTotais, sqlPorOperadora, sqlTotalFiltro, sqlExtrair, validarQuantidade, sanitizarCarga, nomeArquivo,
   MAX_ITENS, validarTrecho, sqlTrechoNovos, sqlJanelaUsadas, sqlTrechoUsadas, proximoTrecho, TRECHO_PAGINAS_MIN, TRECHO_PAGINAS_MAX,
-  TRECHO_USADAS, ultimaPagina, ultimoTomado,
+  TRECHO_USADAS, ultimaPagina, ultimoTomado, SQL_NEO, SQL_FECHAR_PARTE, SQL_HISTORICO,
 } from "./consulta.ts";
 
 test("filtrosPadrao: ativa, sem óbito, celular, só mailing", () => {
@@ -321,4 +321,21 @@ test("proximoTrecho fase 2: continua do último que saiu, da ponta da janela ou 
     { fase: 2, apos: fimJanela });
   assert.equal(proximoTrecho({ fase: 2, tomadas: 2, ultimo, janela: { n: 50, fim: fimJanela } }, 10, false), null);
   assert.equal(proximoTrecho({ fase: 2, tomadas: 0, ultimo: null, janela: { n: 0, fim: null } }, 10, false), null);
+});
+
+// 22/10 (seção 102.12): cruzar com o NEO = CNPJ com pedido no NeoSales em qualquer etapa; removidos no histórico
+test("SQL_NEO: um registro por CNPJ de 14 dígitos com o último pedido, em qualquer etapa", () => {
+  const s = SQL_NEO.replace(/\s+/g, " ");
+  assert.match(s, /from public\.producao_pedidos_neo/);
+  assert.match(s, /regexp_replace\(cnpj, '\[\^0-9\]', '', 'g'\) as cnpj/);
+  assert.match(s, /where length\(cnpj\) = 14 group by cnpj/);
+  assert.match(s, /\(array_agg\(etapa order by cadastro desc nulls last\)\)\[1\] as etapa/);
+  assert.match(s, /\(array_agg\(usuario order by cadastro desc nulls last\)\)\[1\] as consultor/);
+  assert.doesNotMatch(s, /etapa\s*(=|in|not in|<>)/i);
+});
+
+test("SQL_FECHAR_PARTE grava só no registro do próprio usuário; histórico traz os removidos", () => {
+  assert.match(SQL_FECHAR_PARTE, /set removidos_neo = \$4, removidos_repetidos = \$5/);
+  assert.match(SQL_FECHAR_PARTE, /where pedido = \$1::uuid and parte = \$2 and user_id = \$3::uuid returning id/);
+  assert.match(SQL_HISTORICO, /removidos_neo, removidos_repetidos/);
 });

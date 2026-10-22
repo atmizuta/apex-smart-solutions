@@ -10,6 +10,8 @@ const LINHA = {
   nome: "FULANO DE TAL", descricao: "EMPRESA TESTE LTDA", documento1: "00000000191", documento2: "00000000000191",
   fone1: "11900000001", campo1: "CLARO S.A.", campo2: "MEI", campo3: "SAO PAULO",
 };
+const EMPRESA_NEO = { cnpj: "00000000000191", pedidos: 2, numero_pedido: "1", etapa: "CONCLUIDO (NEOCRM)", consultor: "fulano",
+  cadastro: "2026-10-01T12:00:00.000Z" };
 
 function criar(over: Partial<DepsApi> = {}) {
   const chamadas: unknown[][] = [];
@@ -22,6 +24,8 @@ function criar(over: Partial<DepsApi> = {}) {
       chamadas.push(["extrairTrecho", w, ped, reg]);
       return { linhas: [], resultado: { fase: 1, tomadas: 0, ultima_pagina: null, ate: 2048, paginas_total: 2048 } };
     },
+    async neo() { chamadas.push(["neo"]); return [EMPRESA_NEO]; },
+    async fecharParte(...a) { chamadas.push(["fecharParte", ...a]); return true; },
     hojeISO: () => "2026-10-21",
     ...over,
   };
@@ -176,4 +180,33 @@ test("erros do banco: 57014 = 504 com orientação; outros = 500", async () => {
   const r2 = await processar({ acao: "historico" }, admin, quebrado.deps);
   assert.equal(r2.status, 500);
   assert.equal(String(r2.body.erro).includes("conexão caiu"), false);
+});
+
+// 22/10 (seção 102.12): lista do NeoSales para cruzar; removidos de cada arquivo no histórico
+test("neo: lista das empresas com pedido no NeoSales (só admin e supervisor)", async () => {
+  const { deps, chamadas } = criar();
+  assert.deepEqual(await processar({ acao: "neo" }, supCampinas, deps), { status: 200, body: { empresas: [EMPRESA_NEO] } });
+  assert.deepEqual(chamadas.at(-1), ["neo"]);
+  assert.equal((await processar({ acao: "neo" }, consultor, deps)).status, 403);
+});
+
+test("fechar_parte: valida e grava os removidos da parte do próprio usuário", async () => {
+  const { deps, chamadas } = criar();
+  const base = { acao: "fechar_parte", pedido: PEDIDO, parte: 2, neo: 3, repetidos: 40 };
+  const casos: [Record<string, unknown>, RegExp][] = [
+    [{ pedido: "x" }, /pedido/], [{ parte: 0 }, /parte/], [{ neo: -1 }, /removidos/], [{ repetidos: 1.5 }, /removidos/],
+    [{ neo: "3" }, /removidos/],
+  ];
+  for (const [over, msg] of casos) {
+    const r = await processar({ ...base, ...over }, admin, deps);
+    assert.equal(r.status, 400, JSON.stringify(over));
+    assert.match(String(r.body.erro), msg);
+  }
+  assert.equal(chamadas.length, 0);
+  assert.deepEqual(await processar(base, admin, deps), { status: 200, body: { ok: true } });
+  assert.deepEqual(chamadas.at(-1), ["fecharParte", PEDIDO, 2, admin.id, 3, 40]);
+  const nao = criar({ async fecharParte() { return false; } });
+  const r404 = await processar(base, admin, nao.deps);
+  assert.equal(r404.status, 404);
+  assert.match(String(r404.body.erro), /não encontrada/);
 });

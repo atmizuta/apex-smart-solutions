@@ -82,5 +82,11 @@ assert(porParte.includes('create unique index extracao_pedido_parte on mailing.e
 assert(!/mailing\.linha/.test(porParte.replace(/--.*$/gm, '')), 'não mexe na base de 12 mi');
 assert(rbPorParte.includes('drop index if exists mailing.extracao_pedido_parte'), 'rollback do índice por parte');
 assert(rbPorParte.includes('drop column if exists pedido'), 'rollback das colunas por parte');
+// 22/10: removidos (pedido no NeoSales e telefone repetido) por arquivo, no histórico
+const remov = ler('supabase/migrations/20261022100000_mailing_extracao_removidos.sql');
+const rbRemov = ler('supabase/rollback/20261022100000_mailing_extracao_removidos_rollback.sql');
+assert(remov.includes('alter table mailing.extracao\n  add column removidos_neo integer not null default 0,\n  add column removidos_repetidos integer not null default 0;'), 'extracao: removidos por motivo');
+assert(!/mailing\.linha/.test(remov.replace(/--.*$/gm, '')), 'removidos não mexe na base de 12 mi');
+assert(rbRemov.includes('drop column if exists removidos_neo'), 'rollback dos removidos');
 console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
 process.exit(fail > 0 ? 1 : 0);

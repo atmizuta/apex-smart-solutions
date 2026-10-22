@@ -349,6 +349,20 @@ export const SQL_SOMAR_PARTE = `update mailing.extracao set quantidade_entregue 
 export const SQL_REGISTRAR_PARTE = `insert into mailing.extracao
   (user_id, username, role, operacao, nome_carga, filtros, total_no_filtro, quantidade_pedida, quantidade_entregue, pedido, parte)
   values ($1::uuid, $2, $3, $4, $5, $6::text::jsonb, $7, $8, $9, $10::uuid, $11)`;
+// 22/10 (seção 102.12): empresas com pedido da Apex no NeoSales, em qualquer etapa — uma linha por CNPJ, com o último
+// pedido. Só CNPJ de 14 dígitos: os pedidos não têm telefone, e os poucos feitos com CPF ficam de fora.
+export const SQL_NEO = `with p as (
+  select regexp_replace(cnpj, '[^0-9]', '', 'g') as cnpj, numero_pedido, etapa, usuario, cadastro from public.producao_pedidos_neo
+)
+select cnpj, count(*)::int as pedidos,
+  (array_agg(numero_pedido order by cadastro desc nulls last))[1] as numero_pedido,
+  (array_agg(etapa order by cadastro desc nulls last))[1] as etapa,
+  (array_agg(usuario order by cadastro desc nulls last))[1] as consultor,
+  max(cadastro) as cadastro
+  from p where length(cnpj) = 14 group by cnpj`;
+// Ao fechar cada arquivo, o painel grava quantas linhas daquela parte removeu (só no registro do próprio usuário).
+export const SQL_FECHAR_PARTE = `update mailing.extracao set removidos_neo = $4, removidos_repetidos = $5
+  where pedido = $1::uuid and parte = $2 and user_id = $3::uuid returning id`;
 
 export const SQL_REGISTRAR = `insert into mailing.extracao
   (user_id, username, role, operacao, nome_carga, filtros, total_no_filtro, quantidade_pedida, quantidade_entregue)
@@ -356,7 +370,7 @@ export const SQL_REGISTRAR = `insert into mailing.extracao
 export const SQL_OPCOES = `select tipo, valor, rotulo, uf from mailing.opcao order by tipo, ordem, rotulo`;
 export const SQL_CARGA = `select carregado_em, receita_mes, neo_ate, tabela_prefixos from mailing.carga order by carregado_em desc limit 1`;
 export const SQL_HISTORICO = `select criado_em, username, role, operacao, nome_carga, filtros, total_no_filtro, quantidade_pedida,
-  quantidade_entregue from mailing.extracao order by criado_em desc limit 100`;
+  quantidade_entregue, removidos_neo, removidos_repetidos from mailing.extracao order by criado_em desc limit 100`;
 export const SQL_USUARIO = `select role, operacao, username from public.profiles where id = $1::uuid`;
 
 export function validarQuantidade(v: unknown): number | null {

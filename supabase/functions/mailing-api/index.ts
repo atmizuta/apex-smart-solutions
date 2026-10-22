@@ -9,7 +9,7 @@ import type { DepsApi, LinhaExport, RegistroExtracao, Usuario } from "./api.ts";
 import {
   sqlTotais, sqlPorOperadora, sqlTotalFiltro, sqlExtrair, SQL_REGISTRAR, SQL_OPCOES, SQL_CARGA, SQL_HISTORICO, SQL_USUARIO,
   sqlTrechoNovos, sqlJanelaUsadas, sqlTrechoUsadas, ultimaPagina, ultimoTomado, SQL_PAGINAS, SQL_PARTE, SQL_SOMAR_PARTE,
-  SQL_REGISTRAR_PARTE,
+  SQL_REGISTRAR_PARTE, SQL_NEO, SQL_FECHAR_PARTE,
 } from "./consulta.ts";
 import type { SqlParte, ResultadoTrecho } from "./consulta.ts";
 
@@ -105,6 +105,12 @@ function criarDeps(sql: postgres.Sql): DepsApi {
         }
         return { linhas, resultado };
       });
+    },
+    async neo() {
+      return [...(await sql.unsafe(SQL_NEO))];
+    },
+    async fecharParte(pedido, parte, userId, neo, repetidos) {
+      return (await sql.unsafe(SQL_FECHAR_PARTE, [pedido, parte, userId, neo, repetidos] as never[])).length > 0;
     },
     hojeISO: hojeSP,
   };

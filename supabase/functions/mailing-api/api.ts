@@ -20,6 +20,8 @@ export type DepsApi = {
   contar(w: SqlParte): Promise<Contagem>;
   extrair(w: SqlParte, quantidade: number, registro: RegistroExtracao): Promise<{ linhas: LinhaExport[]; total_no_filtro: number }>;
   extrairTrecho(w: SqlParte, pedido: PedidoTrecho, registro: RegistroParte): Promise<{ linhas: LinhaExport[]; resultado: ResultadoTrecho }>;
+  neo(): Promise<unknown[]>;
+  fecharParte(pedido: string, parte: number, userId: string, neo: number, repetidos: number): Promise<boolean>;
   hojeISO(): string;
 };
 export type Resposta = { status: number; body: Record<string, unknown> };
@@ -27,6 +29,12 @@ export type Resposta = { status: number; body: Record<string, unknown> };
 export const COLUNAS_EXPORT = ["nome", "descricao", "documento1", "documento2", "fone1", "campo1", "campo2", "campo3"] as const;
 const PAPEIS = new Set(["admin", "supervisor"]);
 const RE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function validarPedidoParte(c: Record<string, unknown>): { ok: true; pedido: string; parte: number } | { ok: false; erro: string } {
+  if (typeof c.pedido !== "string" || !RE_UUID.test(c.pedido)) return { ok: false, erro: "pedido inválido" };
+  if (!Number.isInteger(c.parte) || (c.parte as number) < 1 || (c.parte as number) > 1000) return { ok: false, erro: "parte inválida" };
+  return { ok: true, pedido: c.pedido.toLowerCase(), parte: c.parte as number };
+}
+const ehContagem = (x: unknown) => Number.isInteger(x) && (x as number) >= 0 && (x as number) <= 10_000_000;
 
 function erroBanco(e: unknown): Resposta {
   if ((e as { code?: string } | null)?.code === "57014") {
@@ -42,6 +50,15 @@ export async function processar(corpo: unknown, usuario: Usuario | null, deps: D
   try {
     if (acao === "opcoes") return { status: 200, body: await deps.opcoes() };
     if (acao === "historico") return { status: 200, body: { extracoes: await deps.historico() } };
+    // 22/10 (seção 102.12): lista do NeoSales para cruzar; removidos de cada arquivo no histórico
+    if (acao === "neo") return { status: 200, body: { empresas: await deps.neo() } };
+    if (acao === "fechar_parte") {
+      const pp = validarPedidoParte(c);
+      if (!pp.ok) return { status: 400, body: { erro: pp.erro } };
+      if (!ehContagem(c.neo) || !ehContagem(c.repetidos)) return { status: 400, body: { erro: "removidos: use números inteiros a partir de 0" } };
+      const gravou = await deps.fecharParte(pp.pedido, pp.parte, usuario.id, c.neo as number, c.repetidos as number);
+      return gravou ? { status: 200, body: { ok: true } } : { status: 404, body: { erro: "Parte do pedido não encontrada." } };
+    }
     if (acao !== "contar" && acao !== "extrair") return { status: 400, body: { erro: "Ação inválida." } };
     const v = validarFiltros(c.filtros);
     if (!v.ok) return { status: 400, body: { erro: v.erro } };
@@ -60,14 +77,12 @@ export async function processar(corpo: unknown, usuario: Usuario | null, deps: D
     if (c.trecho !== undefined) {
       const t = validarTrecho(c.trecho);
       if (!t.ok) return { status: 400, body: { erro: t.erro } };
-      if (typeof c.pedido !== "string" || !RE_UUID.test(c.pedido)) return { status: 400, body: { erro: "pedido inválido" } };
-      if (!Number.isInteger(c.parte) || (c.parte as number) < 1 || (c.parte as number) > 1000) {
-        return { status: 400, body: { erro: "parte inválida" } };
-      }
+      const pp = validarPedidoParte(c);
+      if (!pp.ok) return { status: 400, body: { erro: pp.erro } };
       const inicio = v.filtros.extraida_antes_de;
       if (!inicio) return { status: 400, body: { erro: "Falta o início do pedido (extraida_antes_de)." } };
       const ped: PedidoTrecho = { trecho: t.trecho, quantidade, inicio, nunca_extraida: !!v.filtros.nunca_extraida };
-      const r = await deps.extrairTrecho(w, ped, { ...registro, pedido: c.pedido.toLowerCase(), parte: c.parte as number });
+      const r = await deps.extrairTrecho(w, ped, { ...registro, pedido: pp.pedido, parte: pp.parte });
       const body: Record<string, unknown> = {
         colunas: [...COLUNAS_EXPORT],
         linhas: r.linhas.map(linhaEmLista),
