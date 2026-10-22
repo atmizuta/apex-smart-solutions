@@ -3525,6 +3525,7 @@ Diferença sempre abaixo de 0,5%. Função `mailing-api` v5; o painel não mudou
   - Das 97.223 linhas, 95.947 são números distintos: 1.276 números aparecem em mais de uma empresa.
 - **Também:** o botão "Parar" aparecia o tempo todo, porque o `display:flex` vencia o `hidden`. Corrigido com `.mbProgresso[hidden]{display:none}`.
 - **Custo:** com filtro fino, cada pedido ainda lê a base inteira (~3 GB) e gasta a cota diária de disco do servidor Micro. Repetir o mesmo pedido várias vezes deixa o CRM lento para todos. Só um servidor maior resolve de vez.
+- **Publicação (22/10, ok do Rafael):** migration `20261022090000` aplicada; função `mailing-api` v6 (fumaça: 401 sem token, 403 sem perfil); painel no ar às 14:43:43, MD5 `7f030293…`. Antes, o ar estava igual à oficial (`89ad1d58…`). Backup `painel_clientes_apex_20261022_144342_antes_mailing_trechos.html`.
 
 ## 103. Fechamento carregava só 1.000 pedidos (21/10/2026)
 
