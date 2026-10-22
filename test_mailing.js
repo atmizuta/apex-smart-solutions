@@ -253,6 +253,9 @@ try{
     };
   }
   const extrairChamadas = () => chamadas.filter(c => c.body.acao === 'extrair').map(c => c.body);
+  eq([document.getElementById('mbCruzarNeo').checked, document.getElementById('mbRemoverDuplicados').checked], [true, true], 'as duas caixas vêm marcadas');
+  // os testes de exportação abaixo são do comportamento sem as opções (o mesmo de antes de 22/10)
+  document.getElementById('mbCruzarNeo').checked = false; document.getElementById('mbRemoverDuplicados').checked = false;
 
   eq(mbPaginasTrecho(100000, 0, 0), MB_TRECHO_INICIAL, 'primeiro trecho: tamanho inicial');
   eq(mbPaginasTrecho(99500, 2048, 500), MB_TRECHO_MAX, 'filtro fino (0,25 linha por página): trecho máximo');
@@ -342,6 +345,67 @@ try{
   document.getElementById('btnMbExportar').click(); await ateTerminar();
   eq(baixados.length, 1, 'erro no meio: baixa as linhas que já saíram');
   assert(avisos[0] && avisos[0][0] === 'erro' && avisos[0][1].includes('Falha ao consultar') && avisos[0][1].includes('500 linhas'), 'aviso de erro com o que já foi baixado');
+
+  // 22/10 (seção 102.12): exportar tirando empresas com pedido no NeoSales e telefones repetidos, completando a quantidade
+  document.getElementById('mbCruzarNeo').checked = true; document.getElementById('mbRemoverDuplicados').checked = true;
+  const empresaNeo = { cnpj: '00000000000191', pedidos: 1, numero_pedido: '9', etapa: 'CONCLUIDO (NEOCRM)', consultor: 'ciclano', cadastro: null };
+  const respostasNeo = () => [
+    [L('00000000000191', '11900000001'), L('00000000000272', '11900000002'), L('00000000000353', '11900000002'), L('00000000000434', '11900000003')],
+    [L('00000000000515', '11900000003'), L('00000000000596', '11900000004'), L('00000000000677', '11900000005'), L('00000000000758', '11900000006')],
+    [L('00000000000839', '11900000007')],
+  ];
+  const extrairNeo = (fila, nomeArq) => (body) => {
+    const linhas = (fila.shift() || []).slice(0, body.quantidade);
+    return { data: { colunas: colsExp, linhas, quantidade_entregue: linhas.length, nome_arquivo: nomeArq,
+      proxima: fila.length ? { fase: 1, pagina: body.trecho.pagina + body.trecho.paginas } : null, paginas_total: 380000, paginas_lidas: body.trecho.paginas }, error: null };
+  };
+  window.__fnRespostas.neo = { data: { empresas: [empresaNeo] }, error: null };
+  window.__fnRespostas.fechar_parte = { data: { ok: true }, error: null };
+  window.__fnRespostas.extrair = extrairNeo(respostasNeo(), 'NEO_2026-10-22.csv');
+  baixados.length = 0; avisos.length = 0; chamadas.length = 0;
+  document.getElementById('mbCarga').value = 'NEO'; document.getElementById('mbQtd').value = '6';
+  document.getElementById('btnMbExportar').click(); await ateTerminar();
+  eq(chamadas.map(c => c.body.acao).slice(0, 2), ['neo', 'extrair'], 'busca a lista do NeoSales antes de extrair');
+  eq(extrairChamadas().map(b => b.quantidade), [6, 4, 1], 'removidos não contam: pede de novo até completar');
+  eq(baixados.map(b => b.nome), ['NEO_2026-10-22.csv', 'NEO_2026-10-22_REMOVIDOS.csv'], 'mailing e REMOVIDOS');
+  const ficamEsperado = [L('00000000000272', '11900000002'), L('00000000000434', '11900000003'), L('00000000000596', '11900000004'),
+    L('00000000000677', '11900000005'), L('00000000000758', '11900000006'), L('00000000000839', '11900000007')];
+  eq(baixados[0] && baixados[0].blob.size, mbParaCp1252(mbMontarCsv(colsExp, ficamEsperado)).length, 'mailing com as 6 linhas que ficaram');
+  const remEsperado = mbClassificar(colsExp, respostasNeo().flat(), { neo: new Map([['00000000000191', empresaNeo]]), duplicados: true }, { vistos: new Map() }).removidos;
+  eq(remEsperado.map(r => r.motivo), ['Pedido no NeoSales', 'Telefone repetido', 'Telefone repetido'], 'repetido entre trechos também sai');
+  eq(baixados[1] && baixados[1].blob.size, mbParaCp1252(mbMontarRemovidos(remEsperado)).length, 'REMOVIDOS com as 3 linhas');
+  eq(chamadas.filter(c => c.body.acao === 'fechar_parte').map(c => [c.body.parte, c.body.neo, c.body.repetidos]), [[1, 1, 2]], 'histórico recebe as removidas da parte');
+  assert(avisos[0] && avisos[0][0] === 'ok' && avisos[0][1].includes('6 linhas') && avisos[0][1].includes('1 com pedido no NeoSales')
+    && avisos[0][1].includes('2 telefones repetidos'), 'aviso com as removidas por motivo');
+
+  // tudo removido num trecho e o filtro acaba: não trava e baixa só o REMOVIDOS
+  window.__fnRespostas.extrair = extrairNeo([[L('00000000000191', '11900000001')]], 'SO_2026-10-22.csv');
+  baixados.length = 0; avisos.length = 0; chamadas.length = 0;
+  document.getElementById('btnMbExportar').click(); await ateTerminar();
+  eq(baixados.map(b => b.nome), ['SO_2026-10-22_REMOVIDOS.csv'], 'tudo removido: só o arquivo REMOVIDOS');
+  assert(avisos[0] && avisos[0][0] === 'info' && avisos[0][1].includes('Nenhuma linha ficou'), 'aviso de que nada ficou');
+  eq(chamadas.filter(c => c.body.acao === 'fechar_parte').map(c => [c.body.parte, c.body.neo, c.body.repetidos]), [[1, 1, 0]], 'histórico recebe as removidas mesmo sem arquivo');
+
+  // fechar_parte falha: os arquivos saem e o aviso diz que o histórico não registrou
+  window.__fnRespostas.fechar_parte = { data: null, error: { message: 'Failed to fetch' } };
+  window.__fnRespostas.extrair = extrairNeo(respostasNeo(), 'NEO_2026-10-22.csv');
+  baixados.length = 0; avisos.length = 0;
+  document.getElementById('btnMbExportar').click(); await ateTerminar();
+  assert(baixados.length === 2 && avisos[0] && avisos[0][0] === 'ok' && avisos[0][1].includes('histórico não registrou'), 'falha no histórico não perde os arquivos');
+  window.__fnRespostas.fechar_parte = { data: { ok: true }, error: null };
+
+  // sem a lista do NeoSales o pedido não começa
+  window.__fnRespostas.neo = { data: null, error: { message: 'Failed to fetch' } };
+  baixados.length = 0; avisos.length = 0; chamadas.length = 0;
+  document.getElementById('btnMbExportar').click(); await ateTerminar();
+  eq([extrairChamadas().length, baixados.length, avisos[0] && avisos[0][0]], [0, 0, 'erro'], 'sem a lista do NeoSales nada é extraído');
+  assert(avisos[0] && avisos[0][1].includes('desmarque Cruzar com o NEO'), 'aviso explica como seguir');
+  window.__fnRespostas.neo = { data: { empresas: [empresaNeo] }, error: null };
+
+  // histórico: linhas do arquivo e removidas
+  mbRenderHistorico([{ criado_em: '2026-10-22T20:00:00Z', username: 'adm', nome_carga: 'NEO', filtros: {}, quantidade_entregue: 9,
+    removidos_neo: 1, removidos_repetidos: 2 }]);
+  assert(document.getElementById('mbHistorico').innerHTML.includes('6 (+3 removidas)'), 'histórico mostra o que foi para o arquivo e as removidas');
 
   window.__fnRespostas.contar = { data: null, error: { context: { json: async () => ({ erro: 'A consulta demorou demais. Refine os filtros e tente de novo.' }) } } };
   avisos.length = 0;

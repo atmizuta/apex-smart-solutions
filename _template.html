@@ -1458,8 +1458,12 @@
           <div class="field" style="margin:0"><label for="mbQtd">Quantidade</label><input type="text" inputmode="numeric" id="mbQtd" placeholder="ex.: 20000 ou 700000"></div>
           <button type="button" class="btn btn-sm" id="btnMbExportar" style="width:auto">Exportar CSV</button>
         </div>
+        <div class="mbChecks">
+          <label><input type="checkbox" id="mbCruzarNeo" checked> Cruzar com o NEO (tira empresas com pedido no NeoSales)</label>
+          <label><input type="checkbox" id="mbRemoverDuplicados" checked> Remover duplicados (cada telefone sai uma vez)</label>
+        </div>
         <p class="desc mbProgresso" id="mbProgresso" hidden><span id="mbProgressoTexto"></span> <button type="button" class="btn btn-sm btn-outline" id="btnMbParar" style="width:auto">Parar</button></p>
-        <p class="desc" style="margin:var(--space-2) 0 0">Saem primeiro os números nunca extraídos; depois, os extraídos há mais tempo. Acima de 100.000, o pedido sai em vários arquivos de até 100.000 (o navegador pode pedir para permitir vários downloads). Com filtro bem fechado a busca percorre a base inteira e pode levar alguns minutos — a barra mostra o andamento. O arquivo já vem no layout de importação do ProContact.</p>
+        <p class="desc" style="margin:var(--space-2) 0 0">Saem primeiro os números nunca extraídos; depois, os extraídos há mais tempo. Acima de 100.000, o pedido sai em vários arquivos de até 100.000 (o navegador pode pedir para permitir vários downloads). Com filtro bem fechado a busca percorre a base inteira e pode levar alguns minutos — a barra mostra o andamento. As linhas removidas (empresa com pedido no NeoSales ou telefone repetido) saem num arquivo REMOVIDOS, com o motivo, e a quantidade é completada com outras. O arquivo já vem no layout de importação do ProContact.</p>
       </div>
       <div class="card">
         <h3 style="margin:0 0 var(--space-3)">Histórico de extrações</h3>
@@ -14054,6 +14058,11 @@ function mbRenderResultado(d){
     ${ops ? `<table class="tbl" style="margin-top:var(--space-3)"><thead><tr><th>Operadora</th><th style="text-align:right">Linhas</th></tr></thead><tbody>${ops}</tbody></table>` : ''}
   </div>`;
 }
+// 22/10 (seção 102.12): "Linhas" = o que foi para o arquivo; as removidas (NEO e repetidos) aparecem ao lado
+function mbLinhasHistorico(x){
+  const rem = (Number(x.removidos_neo) || 0) + (Number(x.removidos_repetidos) || 0);
+  return mbFmtNum((Number(x.quantidade_entregue) || 0) - rem) + (rem ? ' (+' + mbFmtNum(rem) + ' removidas)' : '');
+}
 function mbRenderHistorico(lista){
   const el = document.getElementById('mbHistorico');
   if(lista === null){ el.innerHTML = '<p class="desc">Não foi possível carregar o histórico.</p>'; return; }
@@ -14061,7 +14070,7 @@ function mbRenderHistorico(lista){
   const e = escapeHtml;
   const quando = s => new Date(s).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   el.innerHTML = `<table class="tbl"><thead><tr><th>Quando</th><th>Quem</th><th>Carga</th><th>Filtros</th><th style="text-align:right">Linhas</th></tr></thead><tbody>`
-    + lista.map(x => `<tr><td>${e(quando(x.criado_em))}</td><td>${e(x.username || '')}</td><td>${e(x.nome_carga || '')}</td><td>${e(mbResumoFiltros(x.filtros || {}))}</td><td style="text-align:right">${e(mbFmtNum(x.quantidade_entregue))}</td></tr>`).join('')
+    + lista.map(x => `<tr><td>${e(quando(x.criado_em))}</td><td>${e(x.username || '')}</td><td>${e(x.nome_carga || '')}</td><td>${e(mbResumoFiltros(x.filtros || {}))}</td><td style="text-align:right">${e(mbLinhasHistorico(x))}</td></tr>`).join('')
     + '</tbody></table>';
 }
 async function mbCarregar(){
@@ -14193,13 +14202,30 @@ async function mbExportar(){
   if(!carga){ mostrarAviso('Informe o nome da carga (ex.: ICP-D-MEI-VIVO-APEX).', 'erro'); return; }
   const quantidade = mbValidarQuantidade(document.getElementById('mbQtd').value);
   if(!quantidade){ mostrarAviso('Quantidade deve ser um número inteiro a partir de 1.', 'erro'); return; }
-  await mbExportarPedido(carga, quantidade, mbLerFiltros());
+  const opcoes = { neo: document.getElementById('mbCruzarNeo').checked, duplicados: document.getElementById('mbRemoverDuplicados').checked };
+  await mbExportarPedido(carga, quantidade, mbLerFiltros(), opcoes);
   const h = await mbChamar('historico');
   if(!h.erro) mbRenderHistorico(h.data.extracoes || []);
 }
+async function mbCarregarNeo(){
+  const r = await mbChamar('neo');
+  if(r.erro) return { erro: r.erro };
+  const mapa = new Map();
+  for(const p of (r.data.empresas || [])){ const k = mbChaveCnpj(p.cnpj); if(k) mapa.set(k, p); }
+  return { mapa };
+}
 // Todas as chamadas levam a hora do início do pedido (extraida_antes_de): o que já saiu não volta. As linhas se juntam em
 // arquivos de até MB_MAX_QTD; cada arquivo é uma "parte" no histórico. "Parar" e erro baixam o que já saiu (já está marcado).
-async function mbExportarPedido(carga, total, filtros){
+// 22/10 (seção 102.12): com as opções, o que é removido (pedido no NeoSales, telefone repetido) vai para o arquivo REMOVIDOS,
+// não conta na quantidade e é registrado na parte (fechar_parte).
+async function mbExportarPedido(carga, total, filtros, opcoes){
+  const op = opcoes || { neo: false, duplicados: false };
+  let neo = null;
+  if(op.neo){
+    const r = await mbCarregarNeo();
+    if(r.erro){ mostrarAviso('Não foi possível carregar os pedidos do NeoSales. Tente de novo ou desmarque Cruzar com o NEO.', 'erro'); return; }
+    neo = r.mapa;
+  }
   const n = Math.ceil(total / MB_MAX_QTD);
   const pedido = mbNovoPedido();
   const f = Object.assign({}, filtros, { extraida_antes_de: new Date().toISOString() });
@@ -14207,13 +14233,22 @@ async function mbExportarPedido(carga, total, filtros){
   mbEstado.exportando = true; mbEstado.parar = false;
   prog.hidden = false; btn.disabled = true;
   txt.textContent = 'Procurando na base…';
-  let entregue = 0, arquivos = 0, erro = null, acabou = false, lidas = 0, achadas = 0;
+  const estado = { vistos: new Map() }, removidos = [];
+  let entregue = 0, arquivos = 0, erro = null, acabou = false, lidas = 0, achadas = 0, semHistorico = false;
   let buf = [], colunas = null, nome = null, trecho = { fase: 1, pagina: 0 };
-  const baixar = () => {
-    if(!buf.length) return;
-    arquivos++;
-    mbBaixarCsv({ colunas, linhas: buf }, mbNomeParte(nome, arquivos, n));
-    entregue += buf.length; buf = [];
+  let parteNeo = 0, parteRep = 0, parteUsada = false;
+  const fecharArquivo = async () => {
+    const numero = arquivos + 1;
+    if(buf.length){
+      arquivos++;
+      mbBaixarCsv({ colunas, linhas: buf }, mbNomeParte(nome, arquivos, n));
+      entregue += buf.length; buf = [];
+    }
+    if(parteUsada && (op.neo || op.duplicados)){
+      const r = await mbChamar('fechar_parte', { pedido, parte: numero, neo: parteNeo, repetidos: parteRep });
+      if(r.erro) semHistorico = true;
+    }
+    parteNeo = 0; parteRep = 0; parteUsada = false;
   };
   try{
     while(!mbEstado.parar){
@@ -14224,29 +14259,45 @@ async function mbExportarPedido(carga, total, filtros){
       if(r.erro){ erro = r.erro; break; }
       const d = r.data, linhas = d.linhas || [];
       colunas = d.colunas; nome = d.nome_arquivo;
-      for(const l of linhas) buf.push(l); // sem push(...linhas): 100 mil argumentos estouram a pilha em alguns navegadores
+      if(linhas.length) parteUsada = true;
+      const c = mbClassificar(colunas, linhas, { neo, duplicados: op.duplicados }, estado);
+      for(const l of c.ficam) buf.push(l); // sem push(...): 100 mil argumentos estouram a pilha em alguns navegadores
+      for(const x of c.removidos){ removidos.push(x); if(x.motivo === MB_MOTIVO_NEO) parteNeo++; else parteRep++; }
       if(t.fase === 1){ lidas += d.paginas_lidas || 0; achadas += linhas.length; }
-      if(buf.length >= MB_MAX_QTD) baixar();
+      if(buf.length >= MB_MAX_QTD) await fecharArquivo();
       if(!d.proxima){ acabou = true; break; }
       trecho = d.proxima;
-      const ate = mbFmtNum(entregue + buf.length) + ' de ' + mbFmtNum(total) + ' linhas';
+      const ate = mbFmtNum(entregue + buf.length) + ' de ' + mbFmtNum(total) + ' linhas'
+        + (removidos.length ? ' · ' + mbFmtNum(removidos.length) + ' removidas' : '');
       txt.textContent = trecho.fase === 1 && d.paginas_total
         ? 'Procurando na base… ' + Math.min(99, Math.floor(100 * trecho.pagina / d.paginas_total)) + '% lida · ' + ate + '.'
         : 'Conferindo os números já usados há mais tempo… · ' + ate + '.';
     }
   } finally {
-    baixar();
-    mbEstado.exportando = false;
-    prog.hidden = true; btn.disabled = false;
+    try{
+      await fecharArquivo();
+      if(removidos.length){
+        downloadBlob(new Blob([mbParaCp1252(mbMontarRemovidos(removidos))], { type: 'text/csv;charset=windows-1252' }),
+          String(nome || carga + '.csv').replace(/(\.csv)?$/i, '_REMOVIDOS.csv'));
+      }
+    } finally {
+      mbEstado.exportando = false;
+      prog.hidden = true; btn.disabled = false;
+    }
   }
   const parou = mbEstado.parar;
   mbEstado.parar = false;
-  const feito = mbFmtNum(entregue) + ' linhas em ' + arquivos + (arquivos === 1 ? ' arquivo' : ' arquivos');
-  if(erro) mostrarAviso(erro + (entregue ? ' Já baixados: ' + feito + '.' : ''), 'erro');
-  else if(!entregue) mostrarAviso('Nenhuma linha com esses filtros. Nada foi exportado.', 'info');
-  else if(parou) mostrarAviso(feito + ' — parou a seu pedido.', 'ok');
-  else if(acabou && entregue < total) mostrarAviso(feito + ' — são todas as linhas do filtro. A contagem (≈) é estimativa; este é o número exato.', 'ok');
-  else mostrarAviso(feito + '.', 'ok');
+  const nNeo = removidos.filter(x => x.motivo === MB_MOTIVO_NEO).length, nRep = removidos.length - nNeo;
+  const rem = removidos.length ? ' · removidas: ' + [nNeo ? mbFmtNum(nNeo) + ' com pedido no NeoSales' : '', nRep ? mbFmtNum(nRep) + ' telefones repetidos' : '']
+    .filter(Boolean).join(' e ') + ' (arquivo REMOVIDOS)' : '';
+  const extra = (semHistorico ? ' O histórico não registrou as removidas.' : '') + (neo && !neo.size ? ' A lista do NeoSales veio vazia.' : '');
+  const feito = mbFmtNum(entregue) + ' linhas em ' + arquivos + (arquivos === 1 ? ' arquivo' : ' arquivos') + rem;
+  if(erro) mostrarAviso(erro + (entregue || removidos.length ? ' Já baixados: ' + feito + '.' : '') + extra, 'erro');
+  else if(!entregue && removidos.length) mostrarAviso('Nenhuma linha ficou: as ' + mbFmtNum(removidos.length) + ' encontradas foram removidas (arquivo REMOVIDOS).' + extra, 'info');
+  else if(!entregue) mostrarAviso('Nenhuma linha com esses filtros. Nada foi exportado.' + extra, 'info');
+  else if(parou) mostrarAviso(feito + ' — parou a seu pedido.' + extra, 'ok');
+  else if(acabou && entregue < total) mostrarAviso(feito + ' — são todas as linhas do filtro. A contagem (≈) é estimativa; este é o número exato.' + extra, 'ok');
+  else mostrarAviso(feito + '.' + extra, 'ok');
 }
 document.getElementById('btnMbParar').addEventListener('click', () => {
   mbEstado.parar = true;
