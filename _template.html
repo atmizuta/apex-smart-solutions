@@ -769,6 +769,7 @@
   /* Base de Mailing (seção 102) */
   .mbGrade{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:var(--space-3);}
   .mbProgresso{display:flex;align-items:center;gap:var(--space-3);margin:var(--space-3) 0 0;}
+  .mbProgresso[hidden]{display:none;} /* 22/10: o display:flex acima vencia o "hidden" e o Parar ficava sempre à vista */
   .mbFiltrosTopo{display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);margin-bottom:var(--space-3);}
   /* filtro de várias opções: botão que abre uma caixa com opções para marcar (21/10) */
   .mbMulti{position:relative;}
@@ -1458,7 +1459,7 @@
           <button type="button" class="btn btn-sm" id="btnMbExportar" style="width:auto">Exportar CSV</button>
         </div>
         <p class="desc mbProgresso" id="mbProgresso" hidden><span id="mbProgressoTexto"></span> <button type="button" class="btn btn-sm btn-outline" id="btnMbParar" style="width:auto">Parar</button></p>
-        <p class="desc" style="margin:var(--space-2) 0 0">Saem primeiro os números nunca extraídos; depois, os extraídos há mais tempo. Acima de 100.000, o pedido sai em vários arquivos de até 100.000 (o navegador pode pedir para permitir vários downloads). O arquivo já vem no layout de importação do ProContact.</p>
+        <p class="desc" style="margin:var(--space-2) 0 0">Saem primeiro os números nunca extraídos; depois, os extraídos há mais tempo. Acima de 100.000, o pedido sai em vários arquivos de até 100.000 (o navegador pode pedir para permitir vários downloads). Com filtro bem fechado a busca percorre a base inteira e pode levar alguns minutos — a barra mostra o andamento. O arquivo já vem no layout de importação do ProContact.</p>
       </div>
       <div class="card">
         <h3 style="margin:0 0 var(--space-3)">Histórico de extrações</h3>
@@ -14049,7 +14050,7 @@ function mbRenderResultado(d){
       <div class="kpiCard"><div class="kpiLabel">Empresas</div><div class="kpiValue">≈ ${e(mbFmtNum(d.empresas))}</div></div>
       <div class="kpiCard"><div class="kpiLabel">Telefones distintos</div><div class="kpiValue">≈ ${e(mbFmtNum(d.telefones))}</div></div>
     </div>
-    <p class="desc" style="margin:var(--space-2) 0 0">Estimativa por amostra de 2% da base, para responder na hora. A exportação entrega o número exato.</p>
+    <p class="desc" style="margin:var(--space-2) 0 0">Estimativa por amostra de 2% da base, para responder na hora. Em filtros de até 100 mil, o número real pode ficar uns 5% acima ou abaixo. A exportação entrega o número exato.</p>
     ${ops ? `<table class="tbl" style="margin-top:var(--space-3)"><thead><tr><th>Operadora</th><th style="text-align:right">Linhas</th></tr></thead><tbody>${ops}</tbody></table>` : ''}
   </div>`;
 }
@@ -14088,63 +14089,90 @@ function mbBaixarCsv(d, nome){
   const bytes = mbParaCp1252(mbMontarCsv(d.colunas, d.linhas));
   downloadBlob(new Blob([bytes], { type: 'text/csv;charset=windows-1252' }), nome);
 }
-// Pedido acima de 100 mil (21/10, pedido do Rafael): sai em várias partes de até MB_MAX_QTD, um arquivo por parte.
+// Pedido acima de 100 mil (21/10, pedido do Rafael): sai em vários arquivos de até MB_MAX_QTD.
 function mbNomeParte(nome, i, n){ return n > 1 ? String(nome).replace(/(\.csv)?$/i, '_parte' + i + 'de' + n + '$1') : nome; }
+// 22/10 (seção 102.10, erro do Guilherme): com filtro fino a busca lia a base inteira (~3 GB) numa chamada só e passava de
+// 2 minutos. Agora cada chamada lê um trecho da base (até 32.768 páginas, ~20 s no pior caso) e devolve de onde continuar.
+// O tamanho do trecho acompanha quantas linhas por página o filtro vem achando: filtro largo pede pouco, filtro fino pede o máximo.
+const MB_TRECHO_MIN = 1024, MB_TRECHO_INICIAL = 2048, MB_TRECHO_MAX = 32768;
+function mbPaginasTrecho(faltam, lidas, achadas){
+  if(!lidas) return MB_TRECHO_INICIAL;
+  if(!achadas) return MB_TRECHO_MAX;
+  return Math.max(MB_TRECHO_MIN, Math.min(MB_TRECHO_MAX, Math.ceil(faltam / (achadas / lidas) * 1.25)));
+}
+function mbNovoPedido(){
+  const c = window.crypto;
+  if(c && typeof c.randomUUID === 'function') return c.randomUUID();
+  const b = new Uint8Array(16);
+  if(c && typeof c.getRandomValues === 'function') c.getRandomValues(b); else for(let i = 0; i < 16; i++) b[i] = Math.floor(Math.random() * 256);
+  b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+  const h = Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
+  return h.slice(0, 8) + '-' + h.slice(8, 12) + '-' + h.slice(12, 16) + '-' + h.slice(16, 20) + '-' + h.slice(20);
+}
 async function mbExportar(){
   if(!canSeeMailing() || mbEstado.exportando) return;
   const carga = document.getElementById('mbCarga').value.trim();
   if(!carga){ mostrarAviso('Informe o nome da carga (ex.: ICP-D-MEI-VIVO-APEX).', 'erro'); return; }
   const quantidade = mbValidarQuantidade(document.getElementById('mbQtd').value);
   if(!quantidade){ mostrarAviso('Quantidade deve ser um número inteiro a partir de 1.', 'erro'); return; }
-  if(quantidade > MB_MAX_QTD) await mbExportarPartes(carga, quantidade, mbLerFiltros());
-  else {
-    const r = await ApexMotion.comCarregador('Gerando mailing', () => mbChamar('extrair', { filtros: mbLerFiltros(), quantidade, nome_carga: carga }));
-    if(r.erro){ mostrarAviso(r.erro, 'erro'); return; }
-    const d = r.data;
-    if(!d.quantidade_entregue){ mostrarAviso('Nenhuma linha com esses filtros. Nada foi exportado.', 'info'); return; }
-    mbBaixarCsv(d, d.nome_arquivo);
-    mostrarAviso(mbFmtNum(d.quantidade_entregue) + ' linhas exportadas (≈ ' + mbFmtNum(d.total_no_filtro) + ' no filtro).', 'ok');
-  }
+  await mbExportarPedido(carga, quantidade, mbLerFiltros());
   const h = await mbChamar('historico');
   if(!h.erro) mbRenderHistorico(h.data.extracoes || []);
 }
-// Uma chamada por parte. Todas levam a hora do início do pedido (extraida_antes_de): o que saiu numa parte não volta
-// na seguinte, e o pedido para quando o filtro acaba. "Parar" termina a parte em andamento e não pede a próxima.
-async function mbExportarPartes(carga, total, filtros){
+// Todas as chamadas levam a hora do início do pedido (extraida_antes_de): o que já saiu não volta. As linhas se juntam em
+// arquivos de até MB_MAX_QTD; cada arquivo é uma "parte" no histórico. "Parar" e erro baixam o que já saiu (já está marcado).
+async function mbExportarPedido(carga, total, filtros){
   const n = Math.ceil(total / MB_MAX_QTD);
+  const pedido = mbNovoPedido();
   const f = Object.assign({}, filtros, { extraida_antes_de: new Date().toISOString() });
   const prog = document.getElementById('mbProgresso'), txt = document.getElementById('mbProgressoTexto'), btn = document.getElementById('btnMbExportar');
   mbEstado.exportando = true; mbEstado.parar = false;
   prog.hidden = false; btn.disabled = true;
-  let entregue = 0, arquivos = 0, erro = null;
+  txt.textContent = 'Procurando na base…';
+  let entregue = 0, arquivos = 0, erro = null, acabou = false, lidas = 0, achadas = 0;
+  let buf = [], colunas = null, nome = null, trecho = { fase: 1, pagina: 0 };
+  const baixar = () => {
+    if(!buf.length) return;
+    arquivos++;
+    mbBaixarCsv({ colunas, linhas: buf }, mbNomeParte(nome, arquivos, n));
+    entregue += buf.length; buf = [];
+  };
   try{
-    for(let i = 1; i <= n && !mbEstado.parar; i++){
-      const pedir = Math.min(MB_MAX_QTD, total - entregue);
-      txt.textContent = 'Gerando parte ' + i + ' de ' + n + '… ' + mbFmtNum(entregue) + ' linhas até agora.';
-      const r = await mbChamar('extrair', { filtros: f, quantidade: pedir, nome_carga: carga });
-      if(r.erro){ erro = 'Parte ' + i + ': ' + r.erro; break; }
-      const d = r.data;
-      if(!d.quantidade_entregue) break;
-      mbBaixarCsv(d, mbNomeParte(d.nome_arquivo, i, n));
-      entregue += d.quantidade_entregue; arquivos++;
-      if(d.quantidade_entregue < pedir) break; // o filtro acabou
+    while(!mbEstado.parar){
+      const faltam = Math.min(MB_MAX_QTD - buf.length, total - entregue - buf.length);
+      if(faltam <= 0) break;
+      const t = trecho.fase === 1 ? { fase: 1, pagina: trecho.pagina, paginas: mbPaginasTrecho(faltam, lidas, achadas) } : trecho;
+      const r = await mbChamar('extrair', { filtros: f, quantidade: faltam, nome_carga: carga, pedido, parte: arquivos + 1, trecho: t });
+      if(r.erro){ erro = r.erro; break; }
+      const d = r.data, linhas = d.linhas || [];
+      colunas = d.colunas; nome = d.nome_arquivo;
+      for(const l of linhas) buf.push(l); // sem push(...linhas): 100 mil argumentos estouram a pilha em alguns navegadores
+      if(t.fase === 1){ lidas += d.paginas_lidas || 0; achadas += linhas.length; }
+      if(buf.length >= MB_MAX_QTD) baixar();
+      if(!d.proxima){ acabou = true; break; }
+      trecho = d.proxima;
+      const ate = mbFmtNum(entregue + buf.length) + ' de ' + mbFmtNum(total) + ' linhas';
+      txt.textContent = trecho.fase === 1 && d.paginas_total
+        ? 'Procurando na base… ' + Math.min(99, Math.floor(100 * trecho.pagina / d.paginas_total)) + '% lida · ' + ate + '.'
+        : 'Conferindo os números já usados há mais tempo… · ' + ate + '.';
     }
   } finally {
+    baixar();
     mbEstado.exportando = false;
     prog.hidden = true; btn.disabled = false;
   }
   const parou = mbEstado.parar;
   mbEstado.parar = false;
   const feito = mbFmtNum(entregue) + ' linhas em ' + arquivos + (arquivos === 1 ? ' arquivo' : ' arquivos');
-  if(erro) mostrarAviso(erro + (arquivos ? ' Já baixados: ' + feito + '.' : ''), 'erro');
+  if(erro) mostrarAviso(erro + (entregue ? ' Já baixados: ' + feito + '.' : ''), 'erro');
   else if(!entregue) mostrarAviso('Nenhuma linha com esses filtros. Nada foi exportado.', 'info');
   else if(parou) mostrarAviso(feito + ' — parou a seu pedido.', 'ok');
-  else if(entregue < total) mostrarAviso(feito + ' — o filtro acabou antes dos ' + mbFmtNum(total) + ' pedidos.', 'ok');
+  else if(acabou && entregue < total) mostrarAviso(feito + ' — são todas as linhas do filtro. A contagem (≈) é estimativa; este é o número exato.', 'ok');
   else mostrarAviso(feito + '.', 'ok');
 }
 document.getElementById('btnMbParar').addEventListener('click', () => {
   mbEstado.parar = true;
-  document.getElementById('mbProgressoTexto').textContent = 'Parando depois desta parte…';
+  document.getElementById('mbProgressoTexto').textContent = 'Parando… o que já saiu será baixado.';
 });
 document.getElementById('btnMbContar').addEventListener('click', () => { mbContar(); });
 document.getElementById('btnMbExportar').addEventListener('click', () => { mbExportar(); });

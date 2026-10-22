@@ -74,5 +74,13 @@ for (const c of ['alter table mailing.amostra drop constraint amostra_pkey;', 'a
   'add column na_empresa boolean not null default false', 'add column no_fone boolean not null default false',
   'alter table mailing.amostra add primary key (cnpj, fone);']) assert(amEmp.includes(c), `amostra por empresa: ${c}`);
 assert(rbAmEmp.includes('drop column if exists na_empresa'), 'rollback da amostra por empresa');
+// 22/10: extração em trechos — histórico com uma linha por arquivo (pedido + parte)
+const porParte = ler('supabase/migrations/20261022090000_mailing_extracao_por_parte.sql');
+const rbPorParte = ler('supabase/rollback/20261022090000_mailing_extracao_por_parte_rollback.sql');
+assert(porParte.includes('alter table mailing.extracao\n  add column pedido uuid,\n  add column parte smallint;'), 'extracao: pedido e parte');
+assert(porParte.includes('create unique index extracao_pedido_parte on mailing.extracao (pedido, parte);'), 'um registro por arquivo do pedido');
+assert(!/mailing\.linha/.test(porParte.replace(/--.*$/gm, '')), 'não mexe na base de 12 mi');
+assert(rbPorParte.includes('drop index if exists mailing.extracao_pedido_parte'), 'rollback do índice por parte');
+assert(rbPorParte.includes('drop column if exists pedido'), 'rollback das colunas por parte');
 console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
 process.exit(fail > 0 ? 1 : 0);

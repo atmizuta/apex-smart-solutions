@@ -1,7 +1,7 @@
 // Orquestração pura da Edge Function mailing-api (REGRAS_NEGOCIO.md seção 102): permissão, ações e respostas.
 // O acesso ao banco vem injetado (DepsApi) — o index.ts implementa com a conexão direta; os testes, com falsos.
-import { validarFiltros, montarWhere, validarQuantidade, sanitizarCarga, nomeArquivo } from "./consulta.ts";
-import type { Filtros, SqlParte } from "./consulta.ts";
+import { validarFiltros, montarWhere, validarQuantidade, sanitizarCarga, nomeArquivo, validarTrecho, proximoTrecho } from "./consulta.ts";
+import type { Filtros, SqlParte, Trecho, ResultadoTrecho } from "./consulta.ts";
 
 export type Usuario = { id: string; role: string; operacao: string | null; username: string | null };
 export type LinhaExport = {
@@ -11,18 +11,22 @@ export type RegistroExtracao = {
   user_id: string; username: string | null; role: string; operacao: string | null; nome_carga: string; filtros: Filtros;
   quantidade_pedida: number;
 };
+export type RegistroParte = RegistroExtracao & { pedido: string; parte: number };
+export type PedidoTrecho = { trecho: Trecho; quantidade: number; inicio: string; nunca_extraida: boolean };
 export type Contagem = { linhas: number; empresas: number; telefones: number; por_operadora: { operadora: string; linhas: number }[] };
 export type DepsApi = {
   opcoes(): Promise<{ opcoes: unknown[]; carga: unknown }>;
   historico(): Promise<unknown[]>;
   contar(w: SqlParte): Promise<Contagem>;
   extrair(w: SqlParte, quantidade: number, registro: RegistroExtracao): Promise<{ linhas: LinhaExport[]; total_no_filtro: number }>;
+  extrairTrecho(w: SqlParte, pedido: PedidoTrecho, registro: RegistroParte): Promise<{ linhas: LinhaExport[]; resultado: ResultadoTrecho }>;
   hojeISO(): string;
 };
 export type Resposta = { status: number; body: Record<string, unknown> };
 
 export const COLUNAS_EXPORT = ["nome", "descricao", "documento1", "documento2", "fone1", "campo1", "campo2", "campo3"] as const;
 const PAPEIS = new Set(["admin", "supervisor"]);
+const RE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function erroBanco(e: unknown): Resposta {
   if ((e as { code?: string } | null)?.code === "57014") {
@@ -51,12 +55,38 @@ export async function processar(corpo: unknown, usuario: Usuario | null, deps: D
       user_id: usuario.id, username: usuario.username, role: usuario.role, operacao: usuario.operacao,
       nome_carga: carga, filtros: v.filtros, quantidade_pedida: quantidade,
     };
+    const linhaEmLista = (l: LinhaExport) => COLUNAS_EXPORT.map((k) => l[k] ?? "");
+    // 22/10 (seção 102.10): o painel novo manda "trecho" e repete as chamadas; sem "trecho" é o painel antigo (aba aberta)
+    if (c.trecho !== undefined) {
+      const t = validarTrecho(c.trecho);
+      if (!t.ok) return { status: 400, body: { erro: t.erro } };
+      if (typeof c.pedido !== "string" || !RE_UUID.test(c.pedido)) return { status: 400, body: { erro: "pedido inválido" } };
+      if (!Number.isInteger(c.parte) || (c.parte as number) < 1 || (c.parte as number) > 1000) {
+        return { status: 400, body: { erro: "parte inválida" } };
+      }
+      const inicio = v.filtros.extraida_antes_de;
+      if (!inicio) return { status: 400, body: { erro: "Falta o início do pedido (extraida_antes_de)." } };
+      const ped: PedidoTrecho = { trecho: t.trecho, quantidade, inicio, nunca_extraida: !!v.filtros.nunca_extraida };
+      const r = await deps.extrairTrecho(w, ped, { ...registro, pedido: c.pedido.toLowerCase(), parte: c.parte as number });
+      const body: Record<string, unknown> = {
+        colunas: [...COLUNAS_EXPORT],
+        linhas: r.linhas.map(linhaEmLista),
+        quantidade_entregue: r.linhas.length,
+        nome_arquivo: nomeArquivo(carga, deps.hojeISO()),
+        proxima: proximoTrecho(r.resultado, quantidade, ped.nunca_extraida),
+      };
+      if (r.resultado.fase === 1 && t.trecho.fase === 1) {
+        body.paginas_total = r.resultado.paginas_total;
+        body.paginas_lidas = Math.max(0, r.resultado.ate - t.trecho.pagina);
+      }
+      return { status: 200, body };
+    }
     const r = await deps.extrair(w, quantidade, registro);
     return {
       status: 200,
       body: {
         colunas: [...COLUNAS_EXPORT],
-        linhas: r.linhas.map((l) => COLUNAS_EXPORT.map((k) => l[k] ?? "")),
+        linhas: r.linhas.map(linhaEmLista),
         total_no_filtro: r.total_no_filtro,
         quantidade_entregue: r.linhas.length,
         nome_arquivo: nomeArquivo(carga, deps.hojeISO()),

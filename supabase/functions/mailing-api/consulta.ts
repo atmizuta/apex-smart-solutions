@@ -198,6 +198,154 @@ select coalesce(m.socio_nome, '') as nome, coalesce(m.razao_social, '') as descr
  order by m.cnpj, m.fone`;
 }
 
+// Extração em trechos (22/10, seção 102.10). Com filtro fino (0,8% da base), a consulta única acima lia a tabela inteira
+// (~3 GB): 74–107 s quando dava certo, e 5 erros de 120 s no dia. No servidor Micro o disco cai para ~13 MB/s quando a cota
+// diária acaba (medido 22/10: 256 MB em 19 s). Agora cada chamada lê um trecho limitado e o painel repete até completar.
+// Fase 1: os nunca extraídos, por faixa de páginas da tabela. A carga grava a tabela na ordem do sorteio e uma linha só muda
+// de lugar quando é extraída, então a ordem física dos nunca extraídos é a ordem do sorteio (correlação 1,0 em 22/10).
+// Fase 2: os extraídos antes do início do pedido, do mais antigo para o mais novo, por janelas do índice de uso.
+// Mesmo resultado da consulta única: menos usados primeiro, sorteio fixo entre iguais.
+export const TRECHO_PAGINAS_MIN = 1024;
+export const TRECHO_PAGINAS_MAX = 32768; // ~256 MB: ~19 s com o disco no mínimo
+export const TRECHO_USADAS = 250_000; // linhas do índice de uso por chamada na fase 2
+const MAX_PAGINA = 100_000_000;
+
+export type Cursor = { ue: string; so: number };
+export type Trecho = { fase: 1; pagina: number; paginas: number } | { fase: 2; apos: Cursor | null };
+export type ProximoTrecho = { fase: 1; pagina: number } | { fase: 2; apos: Cursor | null };
+export type ResultadoTrecho =
+  | { fase: 1; tomadas: number; ultima_pagina: number | null; ate: number; paginas_total: number }
+  | { fase: 2; tomadas: number; ultimo: Cursor | null; janela: { n: number; fim: Cursor | null } };
+
+// timestamptz como o Postgres escreve em texto (com microssegundos): o cursor volta exatamente como saiu do banco
+const RE_TS = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d{1,6})?[+-]\d{2}(:\d{2})?$/;
+function ehCursor(x: unknown): x is Cursor {
+  if (!x || typeof x !== "object" || Array.isArray(x)) return false;
+  const c = x as Record<string, unknown>;
+  return typeof c.ue === "string" && RE_TS.test(c.ue) && Number.isInteger(c.so);
+}
+
+export function validarTrecho(raw: unknown): { ok: true; trecho: Trecho } | { ok: false; erro: string } {
+  const r = raw && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : null;
+  if (r?.fase === 1 && ehInt(0, MAX_PAGINA)(r.pagina) && ehInt(TRECHO_PAGINAS_MIN, TRECHO_PAGINAS_MAX)(r.paginas)) {
+    return { ok: true, trecho: { fase: 1, pagina: r.pagina as number, paginas: r.paginas as number } };
+  }
+  if (r?.fase === 2 && (r.apos === null || ehCursor(r.apos))) {
+    const a = r.apos as Cursor | null;
+    return { ok: true, trecho: { fase: 2, apos: a ? { ue: a.ue, so: a.so } : null } };
+  }
+  return { ok: false, erro: "trecho inválido" };
+}
+
+// Marca o uso pelo ctid: a linha está travada pelo "for update" e não muda de lugar até o fim da transação.
+// O cursor sai do próprio update (colunas de "alvo" no returning): juntar "alvo" de novo no fim virava laço de
+// 100 mil × 100 mil quando o banco estimava 1 linha (EXPLAIN de 22/10).
+function marcarEExportar(alvo: string, cursorAlvo: string[]): string {
+  return `with alvo as (
+  ${alvo}
+), marcadas as (
+  update mailing.linha l set ultima_extracao = now(), vezes_extraida = l.vezes_extraida + 1
+    from alvo where l.ctid = alvo.t
+  returning l.id, l.cnpj, l.cpf, l.fone, l.socio_nome, l.razao_social, l.operadora_nome_id, l.rf_porte_atual, l.rf_municipio,
+    ${cursorAlvo.map((c) => `alvo.${c}`).join(", ")}
+), na_amostra as (
+  update mailing.amostra a set ultima_extracao = now() from marcadas m where a.cnpj = m.cnpj and a.fone = m.fone
+)
+select coalesce(m.socio_nome, '') as nome, coalesce(m.razao_social, '') as descricao, coalesce(m.cpf, '') as documento1,
+       m.cnpj as documento2, m.fone as fone1, coalesce(o.nome, '') as campo1, coalesce(m.rf_porte_atual, '') as campo2,
+       coalesce(mu.nome, '') as campo3, ${cursorAlvo.map((c) => `m.${c.split(" as ").pop()}`).join(", ")}
+  from marcadas m
+  left join mailing.operadora_nome o on o.id = m.operadora_nome_id
+  left join mailing.municipio mu on mu.codigo = m.rf_municipio
+ order by m.cnpj, m.fone`;
+}
+
+export function sqlTrechoNovos(w: SqlParte, de: number, ate: number, quantidade: number): SqlParte {
+  const n = w.params.length;
+  return {
+    sql: marcarEExportar(`select l.id, l.ctid as t, (l.ctid::text::point)[0]::int as pagina from mailing.linha l
+  where l.ctid >= $${n + 1}::text::tid and l.ctid < $${n + 2}::text::tid and l.ultima_extracao is null and (${w.sql})
+  order by l.ctid
+  limit $${n + 3}::int
+  for update of l skip locked`, ["pagina"]),
+    params: [...w.params, `(${de},0)`, `(${ate},0)`, quantidade],
+  };
+}
+
+// Limites da janela da fase 2: quantas linhas tem e qual é a última (só o índice de uso, sem filtro).
+export function sqlJanelaUsadas(inicio: string, apos: Cursor | null): SqlParte {
+  const params: unknown[] = [inicio];
+  let depois = "";
+  if (apos) { params.push(apos.ue, apos.so); depois = " and (l.ultima_extracao, l.sorteio) > ($2::timestamptz, $3::int)"; }
+  params.push(TRECHO_USADAS);
+  return {
+    sql: `with j as (
+  select l.ultima_extracao as ue, l.sorteio as so from mailing.linha l
+  where l.ultima_extracao is not null and l.ultima_extracao < $1::timestamptz${depois}
+  order by l.ultima_extracao nulls first, l.sorteio
+  limit $${params.length}::int
+)
+select ue::text as ue, so, (count(*) over ())::int as n from j order by j.ue desc, j.so desc limit 1`,
+    params,
+  };
+}
+
+export function sqlTrechoUsadas(w: SqlParte, inicio: string, apos: Cursor | null, fim: Cursor, quantidade: number): SqlParte {
+  const n = w.params.length;
+  const params: unknown[] = [...w.params, inicio, fim.ue, fim.so];
+  let depois = "";
+  if (apos) { params.push(apos.ue, apos.so); depois = `\n    and (l.ultima_extracao, l.sorteio) > ($${n + 4}::timestamptz, $${n + 5}::int)`; }
+  params.push(quantidade);
+  return {
+    sql: marcarEExportar(`select l.id, l.ctid as t, l.ultima_extracao::text as ue, l.sorteio as so,
+         extract(epoch from l.ultima_extracao)::float8 as ordem from mailing.linha l
+  where l.ultima_extracao is not null and l.ultima_extracao < $${n + 1}::timestamptz
+    and (l.ultima_extracao, l.sorteio) <= ($${n + 2}::timestamptz, $${n + 3}::int)${depois}
+    and (${w.sql})
+  order by l.ultima_extracao nulls first, l.sorteio
+  limit $${params.length}::int
+  for update of l skip locked`, ["ue as cursor_ue", "so as cursor_so", "ordem as cursor_ordem"]),
+    params,
+  };
+}
+
+// De onde a próxima chamada continua; null = o filtro acabou. Completou a quantidade: continua de onde parou (o que saiu
+// não volta: na fase 1 deixou de ser "nunca extraído", na fase 2 ficou com data depois do início do pedido).
+export function proximoTrecho(r: ResultadoTrecho, quantidade: number, nuncaExtraida: boolean): ProximoTrecho | null {
+  if (r.fase === 1) {
+    if (r.tomadas >= quantidade && r.ultima_pagina !== null) return { fase: 1, pagina: r.ultima_pagina };
+    if (r.ate < r.paginas_total) return { fase: 1, pagina: r.ate };
+    return nuncaExtraida ? null : { fase: 2, apos: null };
+  }
+  if (r.tomadas >= quantidade && r.ultimo) return { fase: 2, apos: r.ultimo };
+  if (r.janela.n >= TRECHO_USADAS && r.janela.fim) return { fase: 2, apos: r.janela.fim };
+  return null;
+}
+
+// A saída vem na ordem do arquivo (CNPJ, telefone); o cursor é a linha que saiu por último na ordem de prioridade.
+type ComCursor = { pagina?: unknown; cursor_ue?: unknown; cursor_so?: unknown; cursor_ordem?: unknown };
+export function ultimaPagina(linhas: ComCursor[]): number | null {
+  let m: number | null = null;
+  for (const l of linhas) { const p = Number(l.pagina); if (m === null || p > m) m = p; }
+  return m;
+}
+export function ultimoTomado(linhas: ComCursor[]): Cursor | null {
+  let m: ComCursor | null = null;
+  for (const l of linhas) {
+    if (!m || Number(l.cursor_ordem) > Number(m.cursor_ordem)
+      || (Number(l.cursor_ordem) === Number(m.cursor_ordem) && Number(l.cursor_so) > Number(m.cursor_so))) m = l;
+  }
+  return m ? { ue: String(m.cursor_ue), so: Number(m.cursor_so) } : null;
+}
+
+export const SQL_PAGINAS = `select (pg_relation_size('mailing.linha') / current_setting('block_size')::int)::int as n`;
+// Um registro por arquivo do pedido (pedido + parte), somado a cada trecho — não um por chamada.
+export const SQL_PARTE = `select id from mailing.extracao where pedido = $1::uuid and parte = $2 and user_id = $3::uuid`;
+export const SQL_SOMAR_PARTE = `update mailing.extracao set quantidade_entregue = quantidade_entregue + $2 where id = $1`;
+export const SQL_REGISTRAR_PARTE = `insert into mailing.extracao
+  (user_id, username, role, operacao, nome_carga, filtros, total_no_filtro, quantidade_pedida, quantidade_entregue, pedido, parte)
+  values ($1::uuid, $2, $3, $4, $5, $6::text::jsonb, $7, $8, $9, $10::uuid, $11)`;
+
 export const SQL_REGISTRAR = `insert into mailing.extracao
   (user_id, username, role, operacao, nome_carga, filtros, total_no_filtro, quantidade_pedida, quantidade_entregue)
   values ($1::uuid, $2, $3, $4, $5, $6::text::jsonb, $7, $8, $9)`; // $6 já vem como texto JSON (sem dupla codificação)

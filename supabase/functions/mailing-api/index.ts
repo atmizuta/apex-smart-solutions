@@ -8,8 +8,10 @@ import { processar } from "./api.ts";
 import type { DepsApi, LinhaExport, RegistroExtracao, Usuario } from "./api.ts";
 import {
   sqlTotais, sqlPorOperadora, sqlTotalFiltro, sqlExtrair, SQL_REGISTRAR, SQL_OPCOES, SQL_CARGA, SQL_HISTORICO, SQL_USUARIO,
+  sqlTrechoNovos, sqlJanelaUsadas, sqlTrechoUsadas, ultimaPagina, ultimoTomado, SQL_PAGINAS, SQL_PARTE, SQL_SOMAR_PARTE,
+  SQL_REGISTRAR_PARTE,
 } from "./consulta.ts";
-import type { SqlParte } from "./consulta.ts";
+import type { SqlParte, ResultadoTrecho } from "./consulta.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -63,6 +65,45 @@ function criarDeps(sql: postgres.Sql): DepsApi {
             JSON.stringify(reg.filtros), Number(t.n), reg.quantidade_pedida, linhas.length] as never[]);
         }
         return { linhas, total_no_filtro: Number(t.n) };
+      });
+    },
+    // 22/10 (seção 102.10): um trecho limitado por chamada; o painel repete até completar o pedido
+    async extrairTrecho(w, ped, reg) {
+      return await sql.begin(async (tx) => {
+        await tx.unsafe("set local statement_timeout = '100s'");
+        await tx.unsafe("set local work_mem = '64MB'");
+        // um trecho por vez: o seguinte já enxerga o que o anterior marcou
+        await tx.unsafe("select pg_advisory_xact_lock(hashtext('mailing.extracao'))");
+        const [parte] = await tx.unsafe(SQL_PARTE, [reg.pedido, reg.parte, reg.user_id] as never[]);
+        // estimativa do registro: antes de marcar, como na extração de uma vez
+        const total = parte ? 0 : Number((await tx.unsafe(sqlTotalFiltro(w), p(w)))[0].n);
+        let linhas: (LinhaExport & Record<string, unknown>)[] = [];
+        let resultado: ResultadoTrecho;
+        if (ped.trecho.fase === 1) {
+          const [pg] = await tx.unsafe(SQL_PAGINAS);
+          const paginas = Number(pg.n), de = ped.trecho.pagina;
+          const ate = Math.max(de, Math.min(de + ped.trecho.paginas, paginas));
+          if (de < ate) {
+            const q = sqlTrechoNovos(w, de, ate, ped.quantidade);
+            linhas = [...(await tx.unsafe(q.sql, q.params as never[]))] as unknown as typeof linhas;
+          }
+          resultado = { fase: 1, tomadas: linhas.length, ultima_pagina: ultimaPagina(linhas), ate, paginas_total: paginas };
+        } else {
+          const j = sqlJanelaUsadas(ped.inicio, ped.trecho.apos);
+          const [jan] = await tx.unsafe(j.sql, j.params as never[]);
+          const fim = jan ? { ue: String(jan.ue), so: Number(jan.so) } : null;
+          if (fim) {
+            const q = sqlTrechoUsadas(w, ped.inicio, ped.trecho.apos, fim, ped.quantidade);
+            linhas = [...(await tx.unsafe(q.sql, q.params as never[]))] as unknown as typeof linhas;
+          }
+          resultado = { fase: 2, tomadas: linhas.length, ultimo: ultimoTomado(linhas), janela: { n: jan ? Number(jan.n) : 0, fim } };
+        }
+        if (linhas.length && parte) await tx.unsafe(SQL_SOMAR_PARTE, [parte.id, linhas.length] as never[]);
+        else if (linhas.length) {
+          await tx.unsafe(SQL_REGISTRAR_PARTE, [reg.user_id, reg.username, reg.role, reg.operacao, reg.nome_carga,
+            JSON.stringify(reg.filtros), total, reg.quantidade_pedida, linhas.length, reg.pedido, reg.parte] as never[]);
+        }
+        return { linhas, resultado };
       });
     },
     hojeISO: hojeSP,

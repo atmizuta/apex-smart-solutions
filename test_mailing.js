@@ -14,6 +14,7 @@ const jsCode = scriptMatch[1];
 const dom = new JSDOM(htmlNoScript, { runScripts: 'outside-only', url: 'http://localhost/' });
 const { window } = dom;
 window.__fnCalls = [];
+window.__html = html;
 window.__fnRespostas = {};
 function builder(){
   const b = {
@@ -209,47 +210,108 @@ try{
 
   const colsExp = ['nome', 'descricao', 'documento1', 'documento2', 'fone1', 'campo1', 'campo2', 'campo3'];
   const linhasExp = [['FULANO DE TAL', 'EMPRESA; TESTE "LTDA"', '00000000191', '00000000000191', '11900000001', 'CLARO S.A.', 'MEI', 'SÃO PAULO']];
-  window.__fnRespostas.extrair = { data: { colunas: colsExp, linhas: linhasExp, total_no_filtro: 5000, quantidade_entregue: 1, nome_arquivo: 'TESTE_2026-10-21.csv' }, error: null };
-  avisos.length = 0; chamadas.length = 0;
+  const ateTerminar = async () => { await espera(10); for(let i = 0; i < 3000 && mbEstado.exportando; i++) await espera(10); await espera(30); };
+  // 22/10 (seção 102.10): base falsa que responde por trechos — 'porTrecho' linhas por chamada, 'total' no filtro
+  function baseFalsa(total, porTrecho, nomeArq){
+    let resta = total;
+    return (body) => {
+      const t = body.trecho;
+      const n = Math.min(body.quantidade, porTrecho, resta); resta -= n;
+      const proxima = resta <= 0 ? null : (n === body.quantidade ? { fase: 1, pagina: t.pagina } : { fase: 1, pagina: t.pagina + t.paginas });
+      return { data: { colunas: colsExp, linhas: Array.from({ length: n }, () => linhasExp[0]), quantidade_entregue: n,
+        nome_arquivo: nomeArq || 'LOTE_2026-10-22.csv', proxima, paginas_total: 380000, paginas_lidas: t.paginas }, error: null };
+    };
+  }
+  const extrairChamadas = () => chamadas.filter(c => c.body.acao === 'extrair').map(c => c.body);
+
+  eq(mbPaginasTrecho(100000, 0, 0), MB_TRECHO_INICIAL, 'primeiro trecho: tamanho inicial');
+  eq(mbPaginasTrecho(99500, 2048, 500), MB_TRECHO_MAX, 'filtro fino (0,25 linha por página): trecho máximo');
+  eq(mbPaginasTrecho(1000, 2048, 50000), MB_TRECHO_MIN, 'filtro largo: trecho mínimo');
+  eq(mbPaginasTrecho(50000, 2048, 0), MB_TRECHO_MAX, 'nada achado ainda: trecho máximo');
+  eq(mbPaginasTrecho(10000, 4096, 2048), 25000, 'meio-termo: o que falta dividido pelas linhas por página, com folga de 25%');
+  assert(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(mbNovoPedido()), 'pedido é um uuid');
+  assert(window.__html.includes('.mbProgresso[hidden]{display:none;}'), 'barra de progresso (com o Parar) escondida de verdade fora da exportação');
+
+  window.__fnRespostas.extrair = baseFalsa(5000, 5000, 'TESTE_2026-10-21.csv');
+  avisos.length = 0; chamadas.length = 0; baixados.length = 0;
   document.getElementById('mbQtd').value = '1';
-  document.getElementById('btnMbExportar').click(); await espera(60);
-  eq(chamadas[0] && chamadas[0].body, { acao: 'extrair', filtros: mbLerFiltros(), quantidade: 1, nome_carga: 'TESTE' }, 'extrair manda filtros, quantidade e carga');
+  document.getElementById('btnMbExportar').click(); await ateTerminar();
+  const c1 = extrairChamadas()[0] || {};
+  eq(Object.keys(c1).sort(), ['acao', 'filtros', 'nome_carga', 'parte', 'pedido', 'quantidade', 'trecho'], 'extrair manda filtros, quantidade, carga, pedido, parte e trecho');
+  eq([c1.quantidade, c1.nome_carga, c1.parte, c1.trecho], [1, 'TESTE', 1, { fase: 1, pagina: 0, paginas: MB_TRECHO_INICIAL }], 'primeiro trecho do começo da base');
+  eq(Object.assign({}, c1.filtros, { extraida_antes_de: 0 }), Object.assign({}, mbLerFiltros(), { extraida_antes_de: 0 }), 'filtros da tela');
+  assert(!isNaN(Date.parse(c1.filtros && c1.filtros.extraida_antes_de)), 'leva a hora do início do pedido');
+  eq(extrairChamadas().length, 1, 'completou a quantidade: não pede outro trecho');
   eq(baixados.map(b => b.nome), ['TESTE_2026-10-21.csv'], 'baixou um arquivo com o nome vindo da função');
   eq(baixados[0] && baixados[0].blob.size, mbParaCp1252(mbMontarCsv(colsExp, linhasExp)).length, 'arquivo em Windows-1252 com o tamanho certo');
-  eq(avisos[0] && avisos[0][0], 'ok', 'aviso de sucesso');
+  eq(avisos[0], ['ok', '1 linhas em 1 arquivo.'], 'aviso de sucesso');
   assert(chamadas.some(c => c.body.acao === 'historico'), 'recarrega o histórico depois de exportar');
 
-  window.__fnRespostas.extrair = { data: { colunas: colsExp, linhas: [], total_no_filtro: 0, quantidade_entregue: 0, nome_arquivo: 'TESTE_2026-10-21.csv' }, error: null };
+  window.__fnRespostas.extrair = baseFalsa(0, 0, 'TESTE_2026-10-21.csv');
   baixados.length = 0; avisos.length = 0;
-  document.getElementById('btnMbExportar').click(); await espera(40);
+  document.getElementById('btnMbExportar').click(); await ateTerminar();
   eq([baixados.length, avisos[0] && avisos[0][0]], [0, 'info'], 'filtro vazio: aviso e nenhum arquivo');
 
-  // 21/10: pedido acima de 100 mil sai em vários arquivos de até 100 mil
-  let disponivel = 230000;
-  window.__fnRespostas.extrair = (body) => {
-    const n = Math.min(body.quantidade, disponivel); disponivel -= n;
-    return { data: { colunas: colsExp, linhas: n ? linhasExp : [], total_no_filtro: 230000, quantidade_entregue: n, nome_arquivo: 'LOTE_2026-10-21.csv' }, error: null };
-  };
+  // o caso do Guilherme: filtro fino — poucas linhas por trecho, junta tudo num arquivo e avisa que é o número exato
+  window.__fnRespostas.extrair = baseFalsa(2500, 800);
   baixados.length = 0; avisos.length = 0; chamadas.length = 0;
-  document.getElementById('mbCarga').value = 'LOTE'; document.getElementById('mbQtd').value = '300.000';
-  document.getElementById('btnMbExportar').click(); await espera(120);
-  const partes = chamadas.filter(c => c.body.acao === 'extrair').map(c => c.body);
-  eq(partes.map(b => b.quantidade), [100000, 100000, 100000], 'pede em partes de 100 mil');
-  assert(partes.every(b => b.filtros.extraida_antes_de && b.filtros.extraida_antes_de === partes[0].filtros.extraida_antes_de), 'todas as partes excluem o que saiu desde o início do pedido');
-  eq(baixados.map(b => b.nome), ['LOTE_2026-10-21_parte1de3.csv', 'LOTE_2026-10-21_parte2de3.csv', 'LOTE_2026-10-21_parte3de3.csv'], 'um arquivo por parte');
-  assert(avisos[0] && avisos[0][0] === 'ok' && avisos[0][1].includes('230.000') && avisos[0][1].includes('3 arquivos'), 'aviso com o total entregue e o número de arquivos');
+  document.getElementById('mbCarga').value = 'ICP-1'; document.getElementById('mbQtd').value = '100000';
+  document.getElementById('btnMbExportar').click(); await ateTerminar();
+  const fino = extrairChamadas();
+  const pags = fino.map(b => b.trecho.paginas);
+  eq(fino.map(b => b.trecho.pagina), [0, pags[0], pags[0] + pags[1], pags[0] + pags[1] + pags[2]], 'cada trecho continua de onde o anterior parou');
+  eq(fino.map(b => b.quantidade), [100000, 99200, 98400, 97600], 'pede só o que falta');
+  assert(pags[1] > pags[0], 'filtro fino: o trecho cresce');
+  assert(fino.every(b => b.pedido === fino[0].pedido && b.parte === 1 && b.filtros.extraida_antes_de === fino[0].filtros.extraida_antes_de), 'mesmo pedido, mesma parte, mesmo início');
+  eq(baixados.map(b => b.nome), ['LOTE_2026-10-22.csv'], 'um arquivo só');
+  eq(baixados[0] && baixados[0].blob.size, mbParaCp1252(mbMontarCsv(colsExp, Array.from({ length: 2500 }, () => linhasExp[0]))).length, 'arquivo com as 2.500 linhas');
+  assert(avisos[0] && avisos[0][0] === 'ok' && avisos[0][1].includes('2.500') && avisos[0][1].includes('todas as linhas do filtro') && avisos[0][1].includes('número exato'), 'avisa que saiu tudo e que esse é o número exato');
   eq(document.getElementById('mbProgresso').hidden, true, 'barra de progresso some no fim');
 
-  let partesPedidas = 0;
+  // passa para os já usados quando acabam os nunca extraídos
+  let fase = 0;
   window.__fnRespostas.extrair = (body) => {
-    if (partesPedidas++ === 0) document.getElementById('btnMbParar').click();
-    return { data: { colunas: colsExp, linhas: linhasExp, total_no_filtro: 9000000, quantidade_entregue: body.quantidade, nome_arquivo: 'LOTE_2026-10-21.csv' }, error: null };
+    fase++;
+    const linhas = fase === 1 ? [linhasExp[0]] : [linhasExp[0], linhasExp[0]];
+    return { data: { colunas: colsExp, linhas, quantidade_entregue: linhas.length, nome_arquivo: 'X_2026-10-22.csv',
+      proxima: fase === 1 ? { fase: 2, apos: null } : null, paginas_total: 380000, paginas_lidas: 2048 }, error: null };
   };
-  baixados.length = 0; avisos.length = 0;
+  chamadas.length = 0; baixados.length = 0;
+  document.getElementById('mbQtd').value = '10';
+  document.getElementById('btnMbExportar').click(); await ateTerminar();
+  eq(extrairChamadas().map(b => b.trecho), [{ fase: 1, pagina: 0, paginas: MB_TRECHO_INICIAL }, { fase: 2, apos: null }], 'fase 2 vai com o cursor que a função devolveu');
+  eq(baixados.length, 1, 'fase 1 e fase 2 no mesmo arquivo');
+
+  // 21/10: pedido acima de 100 mil sai em vários arquivos de até 100 mil
+  window.__fnRespostas.extrair = baseFalsa(230000, 100000);
+  baixados.length = 0; avisos.length = 0; chamadas.length = 0;
+  document.getElementById('mbCarga').value = 'LOTE'; document.getElementById('mbQtd').value = '300.000';
+  document.getElementById('btnMbExportar').click(); await ateTerminar();
+  const partes = extrairChamadas();
+  eq(partes.map(b => [b.quantidade, b.parte]), [[100000, 1], [100000, 2], [100000, 3]], 'pede em partes de 100 mil, uma parte por arquivo');
+  assert(partes.every(b => b.filtros.extraida_antes_de && b.filtros.extraida_antes_de === partes[0].filtros.extraida_antes_de), 'todas as partes excluem o que saiu desde o início do pedido');
+  eq(baixados.map(b => b.nome), ['LOTE_2026-10-22_parte1de3.csv', 'LOTE_2026-10-22_parte2de3.csv', 'LOTE_2026-10-22_parte3de3.csv'], 'um arquivo por parte');
+  assert(avisos[0] && avisos[0][0] === 'ok' && avisos[0][1].includes('230.000') && avisos[0][1].includes('3 arquivos'), 'aviso com o total entregue e o número de arquivos');
+
+  let pedidos = 0;
+  const base = baseFalsa(9000000, 1000);
+  window.__fnRespostas.extrair = (body) => { if (pedidos++ === 0) document.getElementById('btnMbParar').click(); return base(body); };
+  baixados.length = 0; avisos.length = 0; chamadas.length = 0;
   document.getElementById('mbQtd').value = '700000';
-  document.getElementById('btnMbExportar').click(); await espera(150);
-  eq(baixados.map(b => b.nome), ['LOTE_2026-10-21_parte1de7.csv'], 'Parar: termina a parte em andamento e não pede a próxima');
-  assert(avisos[0] && avisos[0][1].includes('parou'), 'aviso diz que parou a pedido');
+  document.getElementById('btnMbExportar').click(); await ateTerminar();
+  eq([extrairChamadas().length, baixados.map(b => b.nome)], [1, ['LOTE_2026-10-22_parte1de7.csv']], 'Parar: termina o trecho em andamento, baixa o que saiu e não pede o próximo');
+  assert(avisos[0] && avisos[0][1].includes('1.000') && avisos[0][1].includes('parou'), 'aviso diz quanto saiu e que parou a pedido');
+
+  // erro no meio: o que já saiu está marcado no banco — baixa mesmo assim e avisa
+  pedidos = 0;
+  const base2 = baseFalsa(9000, 500);
+  window.__fnRespostas.extrair = (body) => pedidos++ === 0 ? base2(body)
+    : { data: null, error: { context: { json: async () => ({ erro: 'Falha ao consultar a base de mailing.' }) } } };
+  baixados.length = 0; avisos.length = 0;
+  document.getElementById('mbQtd').value = '5000';
+  document.getElementById('btnMbExportar').click(); await ateTerminar();
+  eq(baixados.length, 1, 'erro no meio: baixa as linhas que já saíram');
+  assert(avisos[0] && avisos[0][0] === 'erro' && avisos[0][1].includes('Falha ao consultar') && avisos[0][1].includes('500 linhas'), 'aviso de erro com o que já foi baixado');
 
   window.__fnRespostas.contar = { data: null, error: { context: { json: async () => ({ erro: 'A consulta demorou demais. Refine os filtros e tente de novo.' }) } } };
   avisos.length = 0;

@@ -18,6 +18,10 @@ function criar(over: Partial<DepsApi> = {}) {
     async historico() { chamadas.push(["historico"]); return []; },
     async contar(w) { chamadas.push(["contar", w]); return { linhas: 10, empresas: 5, telefones: 9, por_operadora: [] }; },
     async extrair(w, q, reg) { chamadas.push(["extrair", w, q, reg]); return { linhas: [LINHA], total_no_filtro: 50 }; },
+    async extrairTrecho(w, ped, reg) {
+      chamadas.push(["extrairTrecho", w, ped, reg]);
+      return { linhas: [], resultado: { fase: 1, tomadas: 0, ultima_pagina: null, ate: 2048, paginas_total: 2048 } };
+    },
     hojeISO: () => "2026-10-21",
     ...over,
   };
@@ -98,6 +102,69 @@ test("extrair sem linhas: 200 com zero entregues", async () => {
   assert.equal(r.status, 200);
   assert.equal(r.body.quantidade_entregue, 0);
   assert.deepEqual(r.body.linhas, []);
+});
+
+// 22/10: extração em trechos (seção 102.10) — cada chamada lê um pedaço limitado da base
+const PEDIDO = "3f2a6c1e-8b4d-4e2a-9c1f-0a1b2c3d4e5f";
+const INICIO = "2026-10-22T14:00:00.000Z";
+function corpoTrecho(over: Record<string, unknown> = {}) {
+  return {
+    acao: "extrair", filtros: { operadora: ["CLARO"], extraida_antes_de: INICIO }, quantidade: 100, nome_carga: "icp 1",
+    pedido: PEDIDO, parte: 1, trecho: { fase: 1, pagina: 0, paginas: 2048 }, ...over,
+  };
+}
+
+test("extrair em trechos: valida trecho, pedido, parte e início do pedido antes de consultar", async () => {
+  const { deps, chamadas } = criar();
+  const casos: [Record<string, unknown>, RegExp][] = [
+    [{ trecho: { fase: 1, pagina: 0, paginas: 5 } }, /trecho/],
+    [{ pedido: "abc" }, /pedido/],
+    [{ parte: 0 }, /parte/],
+    [{ filtros: { operadora: ["CLARO"] } }, /início do pedido/],
+  ];
+  for (const [over, msg] of casos) {
+    const r = await processar(corpoTrecho(over), admin, deps);
+    assert.equal(r.status, 400, JSON.stringify(over));
+    assert.match(String(r.body.erro), msg);
+  }
+  assert.equal(chamadas.length, 0);
+});
+
+test("extrair em trechos fase 1: passa o pedido para o banco e devolve de onde continuar", async () => {
+  const { deps, chamadas } = criar({
+    async extrairTrecho(w, ped, reg) {
+      chamadas.push(["extrairTrecho", w, ped, reg]);
+      return { linhas: [{ ...LINHA, pagina: 900 }], resultado: { fase: 1, tomadas: 1, ultima_pagina: 900, ate: 2048, paginas_total: 380000 } };
+    },
+  });
+  const r = await processar(corpoTrecho(), supCampinas, deps);
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body, {
+    colunas: [...COLUNAS_EXPORT],
+    linhas: [["FULANO DE TAL", "EMPRESA TESTE LTDA", "00000000191", "00000000000191", "11900000001", "CLARO S.A.", "MEI", "SAO PAULO"]],
+    quantidade_entregue: 1, nome_arquivo: "ICP-1_2026-10-21.csv",
+    proxima: { fase: 1, pagina: 2048 }, paginas_total: 380000, paginas_lidas: 2048,
+  });
+  const [, w, ped, reg] = chamadas.at(-1) as [string, { sql: string }, Record<string, unknown>, Record<string, unknown>];
+  assert.match(w.sql, /l\.operadora = any/);
+  assert.deepEqual(ped, { trecho: { fase: 1, pagina: 0, paginas: 2048 }, quantidade: 100, inicio: INICIO, nunca_extraida: false });
+  assert.deepEqual(reg, {
+    user_id: supCampinas.id, username: "supc", role: "supervisor", operacao: "campinas", nome_carga: "ICP-1",
+    filtros: { operadora: ["CLARO"], extraida_antes_de: INICIO }, quantidade_pedida: 100, pedido: PEDIDO, parte: 1,
+  });
+});
+
+test("extrair em trechos fase 2: o filtro acabou = proxima nula", async () => {
+  const { deps } = criar({
+    async extrairTrecho() {
+      return { linhas: [], resultado: { fase: 2, tomadas: 0, ultimo: null, janela: { n: 10, fim: { ue: "2026-10-22 11:00:00+00", so: 3 } } } };
+    },
+  });
+  const r = await processar(corpoTrecho({ trecho: { fase: 2, apos: null } }), admin, deps);
+  assert.equal(r.status, 200);
+  assert.equal(r.body.proxima, null);
+  assert.equal(r.body.quantidade_entregue, 0);
+  assert.equal("paginas_total" in r.body, false);
 });
 
 test("erros do banco: 57014 = 504 com orientação; outros = 500", async () => {

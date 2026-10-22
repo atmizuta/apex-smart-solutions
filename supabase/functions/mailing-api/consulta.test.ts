@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   filtrosPadrao, validarFiltros, montarWhere, sqlTotais, sqlPorOperadora, sqlTotalFiltro, sqlExtrair, validarQuantidade, sanitizarCarga, nomeArquivo,
-  MAX_ITENS,
+  MAX_ITENS, validarTrecho, sqlTrechoNovos, sqlJanelaUsadas, sqlTrechoUsadas, proximoTrecho, TRECHO_PAGINAS_MIN, TRECHO_PAGINAS_MAX,
+  TRECHO_USADAS, ultimaPagina, ultimoTomado,
 } from "./consulta.ts";
 
 test("filtrosPadrao: ativa, sem óbito, celular, só mailing", () => {
@@ -206,4 +207,107 @@ test("DDD da cidade e posição do telefone na planilha", () => {
   assert.deepEqual(montarWhere({ ddd_cidade: [11], posicao: [1, 2] }), {
     sql: "l.rf_ddd_cidade = any($1::smallint[]) and l.posicao = any($2::smallint[])", params: [[11], [1, 2]],
   });
+});
+
+// 22/10 (Guilherme): com filtro fino (CLARO + portado + telefone 1 + classe + risco = 0,8% da base) a extração lia a tabela
+// inteira (~3 GB) numa consulta só: 74–107 s quando dava certo e 5 erros de 120 s. Agora cada chamada lê um TRECHO limitado.
+// Fase 1: os nunca extraídos, por faixa de páginas da tabela (que está na ordem do sorteio). Fase 2: os já extraídos antes
+// do pedido, do mais antigo para o mais novo, por janelas do índice de uso.
+test("validarTrecho: fase 1 com página e tamanho; fase 2 com cursor ou do começo", () => {
+  assert.deepEqual(validarTrecho({ fase: 1, pagina: 0, paginas: 2048 }), { ok: true, trecho: { fase: 1, pagina: 0, paginas: 2048 } });
+  assert.deepEqual(validarTrecho({ fase: 2, apos: null }), { ok: true, trecho: { fase: 2, apos: null } });
+  const ue = "2026-10-22 14:29:07.821456+00";
+  assert.deepEqual(validarTrecho({ fase: 2, apos: { ue, so: 6358 } }), { ok: true, trecho: { fase: 2, apos: { ue, so: 6358 } } });
+  const ruins = [
+    "x", [], { fase: 3 }, { fase: 1, pagina: -1, paginas: 2048 }, { fase: 1, pagina: 1.5, paginas: 2048 },
+    { fase: 1, pagina: 0, paginas: TRECHO_PAGINAS_MIN - 1 }, { fase: 1, pagina: 0, paginas: TRECHO_PAGINAS_MAX + 1 },
+    { fase: 1, pagina: "0", paginas: 2048 }, { fase: 2 }, { fase: 2, apos: { ue: "ontem", so: 1 } },
+    { fase: 2, apos: { ue, so: "1" } }, { fase: 2, apos: { ue: ue + "'; drop", so: 1 } },
+  ];
+  for (const r of ruins) assert.equal(validarTrecho(r).ok, false, JSON.stringify(r));
+});
+
+test("sqlTrechoNovos: só a faixa de páginas, só nunca extraídos, na ordem física, com limite e trava", () => {
+  const w = { sql: "l.operadora = any($1::text[]) and l.portado", params: [["CLARO"]] };
+  const q = sqlTrechoNovos(w, 2048, 4096, 500);
+  assert.deepEqual(q.params, [["CLARO"], "(2048,0)", "(4096,0)", 500]);
+  assert.match(q.sql, /l\.ctid >= \$2::text::tid and l\.ctid < \$3::text::tid and l\.ultima_extracao is null/);
+  assert.match(q.sql, /and \(l\.operadora = any\(\$1::text\[\]\) and l\.portado\)/);
+  assert.match(q.sql, /order by l\.ctid\s+limit \$4::int\s+for update of l skip locked/);
+  assert.match(q.sql, /\(l\.ctid::text::point\)\[0\]::int as pagina/);
+  // marca pelo ctid (a linha está travada): o update não procura a linha pelo id em 264 MB de índice
+  assert.match(q.sql, /set ultima_extracao = now\(\), vezes_extraida = l\.vezes_extraida \+ 1\s+from alvo where l\.ctid = alvo\.t/);
+  assert.match(q.sql, /update mailing\.amostra a set ultima_extracao = now\(\) from marcadas m where a\.cnpj = m\.cnpj and a\.fone = m\.fone/);
+  assert.match(q.sql, /coalesce\(m\.socio_nome, ''\) as nome/);
+  // o cursor sai do próprio update: juntar com "alvo" de novo virava laço de 100 mil × 100 mil (estimativa de 1 linha)
+  assert.match(q.sql, /returning l\.id, [^)]*,\s*alvo\.pagina\s*\)/);
+  assert.match(q.sql, /m\.pagina/);
+  assert.doesNotMatch(q.sql, /join alvo/);
+  assert.doesNotMatch(q.sql, /mailing\.empresa|mailing\.socio/);
+});
+
+test("sqlJanelaUsadas: até TRECHO_USADAS linhas do índice de uso, antes do início do pedido, depois do cursor", () => {
+  const sem = sqlJanelaUsadas("2026-10-22T14:00:00.000Z", null);
+  assert.deepEqual(sem.params, ["2026-10-22T14:00:00.000Z", TRECHO_USADAS]);
+  assert.match(sem.sql, /l\.ultima_extracao is not null and l\.ultima_extracao < \$1::timestamptz/);
+  assert.match(sem.sql, /order by l\.ultima_extracao nulls first, l\.sorteio\s+limit \$2::int/);
+  assert.doesNotMatch(sem.sql, /> \(/);
+  // o cursor volta como texto (microssegundos): com milissegundos do JavaScript a janela não andaria
+  assert.match(sem.sql, /ue::text as ue/);
+  const com = sqlJanelaUsadas("2026-10-22T14:00:00.000Z", { ue: "2026-10-22 14:29:07.821456+00", so: 77 });
+  assert.deepEqual(com.params, ["2026-10-22T14:00:00.000Z", "2026-10-22 14:29:07.821456+00", 77, TRECHO_USADAS]);
+  assert.match(com.sql, /\(l\.ultima_extracao, l\.sorteio\) > \(\$2::timestamptz, \$3::int\)/);
+  assert.match(com.sql, /limit \$4::int/);
+});
+
+test("sqlTrechoUsadas: dentro da janela, com filtro, do mais antigo para o mais novo", () => {
+  const w = { sql: "l.portado", params: [] };
+  const fim = { ue: "2026-10-22 14:29:07.821456+00", so: 999 };
+  const q = sqlTrechoUsadas(w, "2026-10-22T15:00:00.000Z", null, fim, 100);
+  assert.deepEqual(q.params, ["2026-10-22T15:00:00.000Z", fim.ue, 999, 100]);
+  assert.match(q.sql, /l\.ultima_extracao is not null and l\.ultima_extracao < \$1::timestamptz/);
+  assert.match(q.sql, /\(l\.ultima_extracao, l\.sorteio\) <= \(\$2::timestamptz, \$3::int\)/);
+  assert.match(q.sql, /and \(l\.portado\)/);
+  assert.match(q.sql, /order by l\.ultima_extracao nulls first, l\.sorteio\s+limit \$4::int\s+for update of l skip locked/);
+  assert.match(q.sql, /alvo\.ue as cursor_ue, alvo\.so as cursor_so, alvo\.ordem as cursor_ordem\s*\)/);
+  assert.match(q.sql, /m\.cursor_ue, m\.cursor_so, m\.cursor_ordem/);
+  assert.doesNotMatch(q.sql, /join alvo/);
+  const com = sqlTrechoUsadas({ sql: "true", params: [] }, "2026-10-22T15:00:00.000Z", { ue: "2026-10-22 10:00:00+00", so: 5 }, fim, 100);
+  assert.deepEqual(com.params, ["2026-10-22T15:00:00.000Z", fim.ue, 999, "2026-10-22 10:00:00+00", 5, 100]);
+  assert.match(com.sql, /\(l\.ultima_extracao, l\.sorteio\) > \(\$4::timestamptz, \$5::int\)/);
+  assert.match(com.sql, /limit \$6::int/);
+});
+
+test("proximoTrecho fase 1: continua da página da última linha, avança a faixa ou passa para os já usados", () => {
+  // completou a quantidade: volta à página da última linha (as que saíram já não são "nunca extraídas")
+  assert.deepEqual(proximoTrecho({ fase: 1, tomadas: 10, ultima_pagina: 3000, ate: 4096, paginas_total: 380000 }, 10, false),
+    { fase: 1, pagina: 3000 });
+  assert.deepEqual(proximoTrecho({ fase: 1, tomadas: 3, ultima_pagina: 3000, ate: 4096, paginas_total: 380000 }, 10, false),
+    { fase: 1, pagina: 4096 });
+  assert.deepEqual(proximoTrecho({ fase: 1, tomadas: 3, ultima_pagina: 3000, ate: 380000, paginas_total: 380000 }, 10, false),
+    { fase: 2, apos: null });
+  // "nunca extraídas": não há fase 2
+  assert.equal(proximoTrecho({ fase: 1, tomadas: 0, ultima_pagina: null, ate: 380000, paginas_total: 380000 }, 10, true), null);
+});
+
+test("cursor: maior página da fase 1; na fase 2, a última na ordem de uso (data, depois sorteio)", () => {
+  assert.equal(ultimaPagina([]), null);
+  assert.equal(ultimaPagina([{ pagina: 7 }, { pagina: 30 }, { pagina: 12 }]), 30);
+  assert.equal(ultimoTomado([]), null);
+  const linhas = [
+    { cursor_ue: "2026-10-22 11:00:00.5+00", cursor_so: 900, cursor_ordem: 1761130800.5 },
+    { cursor_ue: "2026-10-22 11:00:00.5+00", cursor_so: 950, cursor_ordem: 1761130800.5 },
+    { cursor_ue: "2026-10-22 10:00:00+00", cursor_so: 99999, cursor_ordem: 1761127200 },
+  ];
+  assert.deepEqual(ultimoTomado(linhas), { ue: "2026-10-22 11:00:00.5+00", so: 950 });
+});
+
+test("proximoTrecho fase 2: continua do último que saiu, da ponta da janela ou acaba", () => {
+  const ultimo = { ue: "2026-10-22 10:00:00+00", so: 5 }, fimJanela = { ue: "2026-10-22 11:00:00+00", so: 9 };
+  assert.deepEqual(proximoTrecho({ fase: 2, tomadas: 10, ultimo, janela: { n: TRECHO_USADAS, fim: fimJanela } }, 10, false),
+    { fase: 2, apos: ultimo });
+  assert.deepEqual(proximoTrecho({ fase: 2, tomadas: 2, ultimo, janela: { n: TRECHO_USADAS, fim: fimJanela } }, 10, false),
+    { fase: 2, apos: fimJanela });
+  assert.equal(proximoTrecho({ fase: 2, tomadas: 2, ultimo, janela: { n: 50, fim: fimJanela } }, 10, false), null);
+  assert.equal(proximoTrecho({ fase: 2, tomadas: 0, ultimo: null, janela: { n: 0, fim: null } }, 10, false), null);
 });

@@ -3506,6 +3506,26 @@ Diferença sempre abaixo de 0,5%. Função `mailing-api` v5; o painel não mudou
   - 664 mil números estão em 2 empresas, 167 mil em 3 a 5 e 24 mil em mais de 5 (um número chega a estar em 1.415 empresas, quase sempre de contador);
   - 603 mil repetições são do mesmo sócio com várias empresas.
 
+### 102.10 Extração em trechos (22/10/2026, erro do Guilherme)
+- **O erro:** com filtro fino (Claro + portado + telefone 1 + classe C/D/E/X + risco médio/alto, ~97 mil linhas = 0,8% da base), "Exportar" de 100 mil dava "A consulta demorou demais" — **5 erros** entre 11:06 e 11:20.
+  - **Causa:** a extração era uma consulta só. Com filtro fino, ela lê a tabela inteira (~3 GB) para achar as linhas. Levou de 74 a 107 s quando deu certo; passou dos 120 s nas 5 vezes.
+  - No servidor Micro, quando a cota diária de disco acaba, a leitura cai para **~13 MB/s** (medido 22/10: 256 MB em 19 s). A base inteira levaria ~4 min.
+  - A medição de 21/10 (100 mil em 9–14 s) foi com o filtro padrão, que acha as linhas logo no começo.
+- **Correção:** cada chamada da função lê um **trecho** limitado da base e devolve de onde continuar; o painel repete até completar.
+  - **Fase 1 — nunca extraídos:** faixa de páginas da tabela (até 32.768 páginas, ~256 MB, ~20 s no pior caso). A tabela está gravada na ordem do sorteio e a linha só muda de lugar quando é extraída, então a ordem continua a mesma de antes.
+  - **Fase 2 — já extraídos antes do pedido:** do mais antigo para o mais novo, em janelas de 250 mil do índice de uso.
+  - O tamanho do trecho acompanha o filtro: filtro largo lê pouco; filtro fino lê o máximo.
+  - Uma extração por vez no banco (trava `pg_advisory_xact_lock`); o trecho seguinte já enxerga o que o anterior marcou.
+  - O histórico continua com **uma linha por arquivo**: colunas `pedido` + `parte` em `mailing.extracao`, somando os trechos. Migration `20261022090000`.
+  - O painel mostra o andamento ("Procurando na base… 42% lida · 38.512 de 100.000 linhas"). "Parar" e erro **baixam o que já saiu**, porque essas linhas já ficaram marcadas como usadas.
+  - Aba aberta com o painel antigo continua funcionando do jeito antigo, porque a função aceita os dois formatos.
+- **Número diferente:** a contagem (≈ 98.377) é estimativa pela amostra de 2%. O exato era 97.223 (−1,2%). Em filtros de até 100 mil a estimativa pode errar uns 5%. Agora:
+  - o painel diz isso na contagem;
+  - quando o filtro acaba antes da quantidade pedida, o aviso final diz que saíram **todas** as linhas do filtro e que esse é o número exato.
+  - Das 97.223 linhas, 95.947 são números distintos: 1.276 números aparecem em mais de uma empresa.
+- **Também:** o botão "Parar" aparecia o tempo todo, porque o `display:flex` vencia o `hidden`. Corrigido com `.mbProgresso[hidden]{display:none}`.
+- **Custo:** com filtro fino, cada pedido ainda lê a base inteira (~3 GB) e gasta a cota diária de disco do servidor Micro. Repetir o mesmo pedido várias vezes deixa o CRM lento para todos. Só um servidor maior resolve de vez.
+
 ## 103. Fechamento carregava só 1.000 pedidos (21/10/2026)
 
 ### 103.1 O problema
