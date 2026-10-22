@@ -3547,6 +3547,14 @@ Diferença sempre abaixo de 0,5%. Função `mailing-api` v5; o painel não mudou
 - **Fica de fora:** telefone repetido entre pedidos de dias diferentes (exigiria índice por telefone na base); para isso vale "Nunca extraídos".
 - **Revisão final:** um clique duplo em "Exportar CSV" abria dois pedidos enquanto a lista do NeoSales carregava. Corrigido: o botão trava antes.
 - **Publicação (22/10, ok do Rafael):** migration `20261022100000` aplicada; função `mailing-api` v8 (fumaça 401/403); painel no ar às 19:16:46, MD5 `4b59c956…`. Antes, o ar estava igual ao último publicado (`7f030293…`). Backup `painel_clientes_apex_20261022_191645_antes_mailing_removidos.html`.
+- **Ajustes da revisão (22/10 20:11, ok do Rafael):**
+  - telefone com 55 na frente é o mesmo número;
+  - CSV em UTF-8 sem marca é lido certo;
+  - arquivo que o Excel salvou com CNPJ ou telefone em notação científica (1,23E+13) é recusado com aviso;
+  - arquivo acima de 200 MB é recusado antes de ler;
+  - o tamanho do trecho conta só as linhas que ficam;
+  - a lista do NEO conta pedidos, não itens.
+  - Função `mailing-api` v9; painel MD5 `ad9dddc6…`. Antes, o ar estava igual à oficial da §106 (`6f7ab3e1…`). Backup `painel_clientes_apex_20261022_201059_antes_mailing_menores.html`.
 
 ## 103. Fechamento carregava só 1.000 pedidos (21/10/2026)
 
