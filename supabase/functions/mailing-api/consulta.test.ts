@@ -333,7 +333,17 @@ test("SQL_NEO: um registro por CNPJ de 14 dígitos com o último pedido, em qual
   assert.match(s, /\(array_agg\(usuario order by cadastro desc nulls last\)\)\[1\] as consultor/);
   assert.doesNotMatch(s, /etapa\s*(=|in|not in|<>)/i);
   // conta pedidos, não itens (a tabela tem uma linha por item do pedido)
-  assert.match(s, /count\(distinct numero_pedido\)::int as pedidos/);
+  assert.match(s, /count\(distinct origem \|\| ':' \|\| numero_pedido\)::int as pedidos/);
+});
+
+// 23/10 (seção 108): Eagle entra só aqui, com a origem de cada CNPJ e do último pedido
+test("SQL_NEO: junta Apex e Eagle (mailing.neo_eagle) e diz a origem", () => {
+  const s = SQL_NEO.replace(/\s+/g, " ");
+  assert.match(s, /'Apex' as origem from public\.producao_pedidos_neo union all/);
+  assert.match(s, /'Eagle' from mailing\.neo_eagle \)/);
+  assert.match(s, /\(cadastro \+ time '12:00'\) at time zone 'America\/Sao_Paulo'/);
+  assert.match(s, /string_agg\(distinct origem, ' \+ ' order by origem\) as origem/);
+  assert.match(s, /\(array_agg\(origem order by cadastro desc nulls last\)\)\[1\] as origem_pedido/);
 });
 
 test("SQL_FECHAR_PARTE grava só no registro do próprio usuário; histórico traz os removidos", () => {

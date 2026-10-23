@@ -351,14 +351,23 @@ export const SQL_REGISTRAR_PARTE = `insert into mailing.extracao
   values ($1::uuid, $2, $3, $4, $5, $6::text::jsonb, $7, $8, $9, $10::uuid, $11)`;
 // 22/10 (seção 102.12): empresas com pedido da Apex no NeoSales, em qualquer etapa — uma linha por CNPJ, com o último
 // pedido. Só CNPJ de 14 dígitos: os pedidos não têm telefone, e os poucos feitos com CPF ficam de fora.
+// 23/10 (seção 108): soma os pedidos da Eagle (mailing.neo_eagle, últimos 150 dias), só aqui — nunca no Dashboard.
+// "origem" = Apex, Eagle ou "Apex + Eagle"; "origem_pedido" = de quem é o último pedido. A data da Eagle é só dia:
+// vira meio-dia de SP para não cair no dia anterior no navegador.
 export const SQL_NEO = `with p as (
-  select regexp_replace(cnpj, '[^0-9]', '', 'g') as cnpj, numero_pedido, etapa, usuario, cadastro from public.producao_pedidos_neo
+  select regexp_replace(cnpj, '[^0-9]', '', 'g') as cnpj, numero_pedido, etapa, usuario, cadastro, 'Apex' as origem
+    from public.producao_pedidos_neo
+  union all
+  select cnpj, numero_pedido, etapa, consultor, (cadastro + time '12:00') at time zone 'America/Sao_Paulo', 'Eagle'
+    from mailing.neo_eagle
 )
-select cnpj, count(distinct numero_pedido)::int as pedidos,
+select cnpj, count(distinct origem || ':' || numero_pedido)::int as pedidos,
   (array_agg(numero_pedido order by cadastro desc nulls last))[1] as numero_pedido,
   (array_agg(etapa order by cadastro desc nulls last))[1] as etapa,
   (array_agg(usuario order by cadastro desc nulls last))[1] as consultor,
-  max(cadastro) as cadastro
+  max(cadastro) as cadastro,
+  string_agg(distinct origem, ' + ' order by origem) as origem,
+  (array_agg(origem order by cadastro desc nulls last))[1] as origem_pedido
   from p where length(cnpj) = 14 group by cnpj`;
 // Ao fechar cada arquivo, o painel grava quantas linhas daquela parte removeu (só no registro do próprio usuário).
 export const SQL_FECHAR_PARTE = `update mailing.extracao set removidos_neo = $4, removidos_repetidos = $5

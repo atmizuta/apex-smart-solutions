@@ -10,6 +10,8 @@ const htmlNoScript = html.replace(/<script>[\s\S]*?<\/script>/g, '');
 const scriptMatch = html.match(/<script>([\s\S]*?)<\/script>\s*<\/body>/);
 if(!scriptMatch){ console.error('script nao encontrado'); process.exit(1); }
 const jsCode = scriptMatch[1];
+// 23/10 (seção 108): a Eagle só existe para a Base de Mailing — nenhuma tela do painel lê mailing.neo_eagle direto
+if(/neo_eagle/.test(html)){ console.error('FALHA: o painel não pode ler mailing.neo_eagle (seção 108)'); process.exit(1); }
 
 const dom = new JSDOM(htmlNoScript, { runScripts: 'outside-only', url: 'http://localhost/' });
 const { window } = dom;
@@ -215,6 +217,11 @@ try{
   eq([mbFmtFone('11912345678'), mbFmtFone('1132345678'), mbFmtFone('123')], ['(11) 91234-5678', '(11) 3234-5678', '123'], 'telefone formatado');
   eq(mbDetalheNeo({ numero_pedido: '123', etapa: 'CONCLUIDO (NEOCRM)', consultor: 'fulano', cadastro: '2026-10-10T15:00:00Z' }),
     'pedido 123 · CONCLUIDO · fulano · 10/10/2026', 'detalhe do pedido, sem o (NEOCRM)');
+  // 23/10 (seção 108): origem do pedido (Apex/Eagle); com as duas, de quem é o pedido mostrado
+  eq(mbDetalheNeo({ numero_pedido: '77', etapa: 'DEVOLVIDO (NEOCRM)', consultor: 'beltrano', cadastro: '2026-10-10T15:00:00Z', origem: 'Eagle', origem_pedido: 'Eagle' }),
+    'Eagle · pedido 77 · DEVOLVIDO · beltrano · 10/10/2026', 'pedido da Eagle');
+  eq(mbDetalheNeo({ numero_pedido: '77', etapa: 'PEDIDO (NEOCRM)', consultor: 'beltrano', cadastro: null, origem: 'Apex + Eagle', origem_pedido: 'Eagle' }),
+    'Apex + Eagle · pedido 77 (Eagle) · PEDIDO · beltrano', 'CNPJ com pedido nas duas');
   const colsC = ['nome', 'descricao', 'documento1', 'documento2', 'fone1', 'campo1', 'campo2', 'campo3'];
   const L = (cnpj, fone) => ['SOCIO TESTE', 'EMPRESA TESTE', '00000000191', cnpj, fone, 'CLARO S.A.', 'MEI', 'SAO PAULO'];
   const neoMapa = new Map([['00000000000191', { numero_pedido: '9', etapa: 'VENDA PERDIDA (NEOCRM)', consultor: 'ciclano', cadastro: null }]]);

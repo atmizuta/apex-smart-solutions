@@ -1462,7 +1462,7 @@
           <button type="button" class="btn btn-sm" id="btnMbExportar" style="width:auto">Exportar CSV</button>
         </div>
         <div class="mbChecks">
-          <label><input type="checkbox" id="mbCruzarNeo" checked> Cruzar com o NEO (tira empresas com pedido no NeoSales)</label>
+          <label><input type="checkbox" id="mbCruzarNeo" checked> Cruzar com o NEO (tira empresas com pedido no NeoSales da Apex ou da Eagle)</label>
           <label><input type="checkbox" id="mbRemoverDuplicados" checked> Remover duplicados (cada telefone sai uma vez)</label>
         </div>
         <p class="desc mbProgresso" id="mbProgresso" hidden><span id="mbProgressoTexto"></span> <button type="button" class="btn btn-sm btn-outline" id="btnMbParar" style="width:auto">Parar</button></p>
@@ -14253,9 +14253,11 @@ function mbFmtFone(v){
   if(d.length === 10) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 6) + '-' + d.slice(6);
   return String(v === null || v === undefined ? '' : v);
 }
+// 23/10 (seção 108): origem = Apex, Eagle ou "Apex + Eagle"; com as duas, diz de quem é o pedido mostrado
 function mbDetalheNeo(p){
   const data = p.cadastro ? new Date(p.cadastro).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '';
-  return ['pedido ' + (p.numero_pedido || '—'), String(p.etapa || '').replace(/\s*\(NEOCRM\)\s*$/i, ''), p.consultor || '', data]
+  const deQuem = String(p.origem || '').includes('+') && p.origem_pedido ? ' (' + p.origem_pedido + ')' : '';
+  return [p.origem || '', 'pedido ' + (p.numero_pedido || '—') + deQuem, String(p.etapa || '').replace(/\s*\(NEOCRM\)\s*$/i, ''), p.consultor || '', data]
     .filter(Boolean).join(' · ');
 }
 // Separa o que vai para o arquivo e o que sai. Primeiro o CNPJ com pedido no NeoSales; depois o telefone já visto
