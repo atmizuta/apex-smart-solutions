@@ -3696,3 +3696,13 @@ Pedido do Rafael: "precisamos da contagem completa, não de estimativa — mesmo
   - O `total_no_filtro` gravado no histórico da extração continua vindo da amostra. Ele não aparece na tela.
   - `mailing.amostra` continua no banco (e a extração ainda marca o uso nela).
 - **Banco:** migration `20261023200000_mailing_contagem_exata.sql`, rollback em `supabase/rollback/`.
+- **Publicação (23/10/2026, com ok do Rafael):**
+  - **Medição antes:** com o filtro padrão (ativa, sem óbito), a contagem otimizada levou 38 s e gravou ~650 MB de temporário. O limite de disco ficou em 6,8 GB.
+  - **Banco:** migration aplicada ~19:00 (SP), com a tabela, a função e os jobs `mailing-contagem` e `mailing-contagem-limpeza`.
+  - **Teste no banco** com os SQL da função:
+    - a contagem real deu 10.443.927 linhas, 3.996.152 empresas e 9.112.230 telefones distintos, em ~40 s;
+    - por operadora: Vivo 4.689.166, Claro 4.009.707, TIM 1.681.592 e Outras 63.462, que somam as linhas;
+    - o reaproveitamento funcionou, o Parar cancelou a contagem em andamento e outro usuário não conseguiu parar.
+    - As linhas de teste foram apagadas.
+  - **`mailing-api` v12** publicada, com `verify_jwt` e fumaça 401/403 ok. A v11 do ar era igual à oficial.
+  - **Painel** publicado às 19:43 (SP), MD5 `d9ba0467f3c91078ac126a75c06e1afb`. Backup: `~/deploy_backups/painel_clientes_apex_20261023_224314_antes_contagem_exata.html`. Antes, o painel no ar era idêntico à oficial/main (MD5 `c2371da7…`).
