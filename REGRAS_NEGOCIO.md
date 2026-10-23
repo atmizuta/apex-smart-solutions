@@ -3630,3 +3630,4 @@ Pedido do Rafael: "por que o dash atualiza de hora em hora sendo que a gente tem
 - As telas abertas já conferem dado novo a cada 2 min (seção 106): o dashboard fica no máximo ~12 min atrás do NeoCRM durante o dia.
 - **Botão "Atualizar dashboard agora"** (seção 106): passa a recusar nos 3 min antes de cada rodada (minutos terminados em 7, 8 e 9), além de 39–42, da janela da noite e dos 3 min depois da última execução.
 - Textos do painel que diziam "de hora em hora" (Upload Dash, estado vazio do Dashboard, rodapé de Pedidos Parados) passaram a dizer "a cada 10 minutos durante o dia".
+- **Publicação:** agendamento aplicado no banco em 22/10/2026 ~20:30 (SP); painel publicado em 23/10/2026 ~13:53 (SP), com ok do Rafael. MD5 do painel: `92c0ac7ca866be16ff40aa0f7ce8403e`. Backup: `~/deploy_backups/painel_clientes_apex_20261023_165317_antes_sync_10min.html`. O painel no ar era idêntico à oficial/main (MD5 `ad9dddc6…`).
