@@ -31,7 +31,8 @@ revoke all on all sequences in schema mailing from public, anon, authenticated;
 -- Conta o pedido mais antigo da fila. Tudo numa transação: enquanto conta, segura pg_advisory_xact_lock(110, id), que é
 -- como a mailing-api sabe que está "contando" (e acha o pid para o Parar). Parar e o limite de 20 min do job chegam
 -- como query_canceled e viram "cancelada"; outro erro vira "erro" com o código.
--- Telefone e CNPJ contados como número (bigint): em texto, o count distinct gravou 1,6 GB de temporário no disco.
+-- Telefone e CNPJ contados como número (bigint) e work_mem de 64 MB: em texto, o count distinct gravou 1,6 GB de temporário
+-- e levou 126 s; assim, 38 s e ~650 MB (filtro padrão, 23/10).
 create or replace function mailing.contar_proxima() returns text
 language plpgsql
 as $$
@@ -45,9 +46,10 @@ begin
    where estado = 'fila' and (visto_em < now() - interval '1 minute' or criado_em < now() - interval '30 minutes');
   select * into c from mailing.contagem where estado = 'fila' order by id limit 1 for update skip locked;
   if not found then return 'vazia'; end if;
-  -- o temporário da contagem vai para o mesmo disco: perto do limite, o banco entra em somente-leitura e trava o CRM
+  -- o temporário da contagem (~650 MB medidos em 23/10) vai para o mesmo disco: perto de 95% o banco entra em
+  -- somente-leitura e trava o CRM. 6,8 GB + 0,65 GB fica abaixo de 95% de um disco de 8 GB.
   ocupado := pg_database_size(current_database()) + coalesce((select sum(size) from pg_ls_waldir()), 0);
-  if ocupado > 7168::bigint * 1024 * 1024 then
+  if ocupado > 6963::bigint * 1024 * 1024 then
     update mailing.contagem set estado = 'erro', terminado_em = now(), erro = 'disco' where id = c.id;
     return 'disco';
   end if;

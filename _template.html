@@ -14172,7 +14172,7 @@ function mbRenderResultado(d){
     ${ops ? `<table class="tbl" style="margin-top:var(--space-3)"><thead><tr><th>Operadora</th><th style="text-align:right">Linhas</th></tr></thead><tbody>${ops}</tbody></table>` : ''}
   </div>`;
 }
-// A função põe o pedido numa fila e o banco conta a base inteira (~2 min, um pedido por vez); o painel pergunta o
+// A função põe o pedido numa fila e o banco conta a base inteira (~40 s, um pedido por vez); o painel pergunta o
 // andamento a cada MB_CONTAGEM.intervalo até sair o número. Aba fechada: o pedido sai da fila sozinho em 1 min.
 const MB_CONTAGEM = { intervalo: 3000, falhas: 5 }; // objeto: o teste encurta o intervalo
 function mbFmtDuracao(seg){
@@ -14189,7 +14189,7 @@ function mbRenderContando(d){
   if(texto){ texto.textContent = mbTextoContando(d); return; }
   document.getElementById('mbResultado').innerHTML = `<div class="card"><h3 style="margin:0 0 var(--space-3)">Resultado do filtro</h3>
     <p class="desc" id="mbContagemTexto" style="margin:0" aria-live="polite">${escapeHtml(mbTextoContando(d))}</p>
-    <p class="desc" style="margin:var(--space-2) 0 var(--space-3)">A contagem completa lê a base inteira e costuma levar uns 2 minutos. Dá para continuar usando o painel.</p>
+    <p class="desc" style="margin:var(--space-2) 0 var(--space-3)">A contagem completa lê a base inteira e costuma levar menos de 1 minuto (mais, se houver outra na frente). Dá para continuar usando o painel.</p>
     <button type="button" class="btn btn-sm btn-outline" id="btnMbPararContagem" style="width:auto">Parar</button>
   </div>`;
   document.getElementById('btnMbPararContagem').addEventListener('click', () => { mbPararContagem(); });

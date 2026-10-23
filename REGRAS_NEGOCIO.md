@@ -3686,10 +3686,10 @@ Pedido do Rafael: "precisamos da contagem completa, não de estimativa — mesmo
 - **Proteções:**
   - Uma contagem por vez, para não juntar duas leituras de 3 GB com o CRM.
   - Aba fechada: o pedido sai da fila em 1 min (`visto_em`). Pedido com mais de 30 min na fila também sai.
-  - Antes de contar, se banco + WAL passarem de **7 GB**, a contagem não roda e a tela pede para avisar o Rafael. O temporário vai para o mesmo disco, e disco cheio põe o banco em somente-leitura (21/10).
-  - Telefone e CNPJ são contados como número (`::bigint`), para gravar menos temporário que em texto.
+  - Antes de contar, se banco + WAL passarem de **6,8 GB**, a contagem não roda e a tela pede para avisar o Rafael. O temporário (~650 MB) vai para o mesmo disco, e disco perto de cheio põe o banco em somente-leitura (21/10). 6,8 + 0,65 GB fica abaixo de 95% de um disco de 8 GB; se o disco aumentar, subir o limite em `mailing.contar_proxima()`. Em 23/10, banco + WAL = 6,0 GB.
+  - Telefone e CNPJ são contados como número (`::bigint`), com `work_mem` de 64 MB. Medido em 23/10 com o filtro padrão: **38 s e ~650 MB** de temporário, contra 126 s e 1,6 GB em texto.
   - Parar e o limite de 20 min viram "cancelada"; outro erro vira "erro" com o código.
-- **Custo:** cada contagem leva ~2 min e lê o disco enquanto roda, então o CRM pode ficar um pouco mais lento nesse tempo.
+- **Custo:** cada contagem leva ~40 s (até alguns minutos com a cota de disco do dia esgotada) e lê os 3 GB do disco enquanto roda, então o CRM pode ficar um pouco mais lento nesse tempo.
 - **Limpeza:** o job `mailing-contagem-limpeza` roda às 04:10 SP e apaga o log do job de 10 s com mais de 1 dia e as contagens com mais de 30 dias.
 - **Ficou como estava:**
   - Aba aberta antes da publicação (chamada `contar` sem `completa`) continua na contagem antiga até recarregar.
