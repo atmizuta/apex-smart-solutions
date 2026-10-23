@@ -190,13 +190,34 @@ try{
   btnFiltros.click();
   eq([document.getElementById('mbFiltrosCorpo').hidden, document.getElementById('mbFiltrosResumo').hidden, btnFiltros.textContent.trim()], [false, true, 'Esconder filtros'], 'mostrar os filtros de novo');
 
-  window.__fnRespostas.contar = { data: { linhas: 1234567, empresas: 400000, telefones: 1200000,
-    por_operadora: [{ operadora: 'VIVO', linhas: 700000 }, { operadora: 'SEM', linhas: 1000 }] }, error: null };
+  // 23/10 (seção 110): contagem completa — a função põe na fila e o painel acompanha até o número exato (sem ≈)
+  MB_CONTAGEM.intervalo = 5;
+  const PRONTA = { contagem: 7, estado: 'pronta', linhas: 1234567, empresas: 400000, telefones: 1200000, contado_em: '2026-10-23T18:05:00.000Z',
+    por_operadora: [{ operadora: 'VIVO', linhas: 700000 }, { operadora: 'SEM', linhas: 1000 }] };
+  let vezesContagem = 0;
+  window.__fnRespostas.contar = { data: { contagem: 7, estado: 'fila', na_frente: 1 }, error: null };
+  window.__fnRespostas.contagem = () => {
+    vezesContagem++;
+    if(vezesContagem === 1) return { data: { contagem: 7, estado: 'contando', segundos: 75 }, error: null };
+    if(vezesContagem === 2) return { data: null, error: { message: 'Failed to fetch' } }; // uma falha de rede não para
+    return { data: PRONTA, error: null };
+  };
   chamadas.length = 0;
-  document.getElementById('btnMbContar').click(); await espera(40);
-  eq([chamadas[0] && chamadas[0].body.acao, chamadas[0] && chamadas[0].body.filtros.sem_extracao_dias], ['contar', 45], 'contar manda os filtros da tela');
-  assert(document.getElementById('mbResultado').innerHTML.includes('≈ 1.234.567'), 'mostra o total de linhas como estimativa');
-  assert(document.getElementById('mbResultado').innerHTML.includes('amostra de 2%'), 'explica que a contagem é por amostra');
+  document.getElementById('btnMbContar').click(); await espera(2);
+  eq([chamadas[0] && chamadas[0].body.acao, chamadas[0] && chamadas[0].body.completa, chamadas[0] && chamadas[0].body.filtros.sem_extracao_dias], ['contar', true, 45], 'contar pede a contagem completa com os filtros da tela');
+  assert(document.getElementById('mbResultado').textContent.includes('Na fila: 1 contagem na frente.'), 'mostra a fila');
+  assert(document.getElementById('btnMbPararContagem'), 'botão Parar enquanto conta');
+  for(let i = 0; i < 40 && !document.getElementById('mbResultado').textContent.includes('Contando'); i++) await espera(1);
+  assert(document.getElementById('mbResultado').textContent.includes('Contando a base inteira… 1 min 15 s'), 'mostra há quanto tempo está contando');
+  for(let i = 0; i < 100 && vezesContagem < 3; i++) await espera(2);
+  await espera(10);
+  eq(chamadas.filter(c => c.body.acao === 'contagem').map(c => c.body.contagem), [7, 7, 7], 'pergunta o andamento da mesma contagem');
+  assert(document.getElementById('mbResultado').innerHTML.includes('1.234.567'), 'mostra o total de linhas exato');
+  assert(!document.getElementById('mbResultado').innerHTML.includes('≈'), 'sem ≈');
+  assert(!document.getElementById('mbResultado').innerHTML.includes('amostra'), 'sem texto de amostra');
+  assert(document.getElementById('mbResultado').textContent.includes('Contagem completa da base inteira, feita em 23/10'), 'diz que é a contagem completa e quando');
+  await espera(30);
+  eq(vezesContagem, 3, 'pronta: para de perguntar');
   assert(document.getElementById('mbResultado').innerHTML.includes('Sem operadora'), 'operadora SEM com rótulo');
 
   const baixados = [];
@@ -503,6 +524,48 @@ try{
   avisos.length = 0;
   document.getElementById('btnMbContar').click(); await espera(40);
   eq(avisos[0], ['erro', 'Não foi possível falar com a base de mailing.'], 'falha de rede: mensagem genérica');
+
+  // 23/10 (seção 110): Parar, mesmo filtro de novo, erro do job e perda de contato
+  window.__fnRespostas.contar = { data: { contagem: 8, estado: 'contando', segundos: 3 }, error: null };
+  window.__fnRespostas.contagem = { data: { contagem: 8, estado: 'contando', segundos: 6 }, error: null };
+  window.__fnRespostas.parar_contagem = { data: { ok: true }, error: null };
+  chamadas.length = 0; avisos.length = 0;
+  document.getElementById('btnMbContar').click(); await espera(20);
+  document.getElementById('btnMbContar').click(); await espera(20);
+  eq(chamadas.filter(c => c.body.acao === 'contar').length, 1, 'mesmo filtro contando: não pede de novo');
+  eq(avisos[0], ['info', 'Esse filtro já está sendo contado.'], 'avisa que já está contando');
+  document.getElementById('btnMbPararContagem').click(); await espera(20);
+  eq(chamadas.filter(c => c.body.acao === 'parar_contagem').map(c => c.body.contagem), [8], 'Parar manda o id da contagem');
+  assert(document.getElementById('mbResultado').textContent.includes('Contagem parada.'), 'mostra que parou');
+  const depois = chamadas.filter(c => c.body.acao === 'contagem').length;
+  await espera(30);
+  eq(chamadas.filter(c => c.body.acao === 'contagem').length, depois, 'parou: não pergunta mais o andamento');
+
+  chamadas.length = 0;
+  document.getElementById('btnMbContar').click(); await espera(20);
+  document.getElementById('mbUso').value = 'nunca'; document.getElementById('mbUso').dispatchEvent(new window.Event('change'));
+  window.__fnRespostas.contar = { data: { contagem: 9, estado: 'fila', na_frente: 0 }, error: null };
+  window.__fnRespostas.contagem = { data: { contagem: 9, estado: 'fila', na_frente: 0 }, error: null };
+  document.getElementById('btnMbContar').click(); await espera(20);
+  eq(chamadas.filter(c => c.body.acao === 'parar_contagem').map(c => c.body.contagem), [8], 'outro filtro: larga a contagem anterior');
+  eq(chamadas.filter(c => c.body.acao === 'contar').length, 2, 'e pede a nova');
+  assert(document.getElementById('mbResultado').textContent.includes('Na fila, começando…'), 'nova contagem na fila');
+
+  window.__fnRespostas.contagem = { data: { contagem: 9, estado: 'erro', erro: 'O disco do banco está quase cheio: a contagem completa não rodou para não travar o CRM. Avise o Rafael.' }, error: null };
+  avisos.length = 0;
+  await espera(40);
+  assert(document.getElementById('mbResultado').textContent.includes('disco do banco está quase cheio'), 'erro do job aparece no resultado');
+  eq(avisos[0] && avisos[0][0], 'erro', 'e vira aviso de erro');
+
+  window.__fnRespostas.contar = { data: { contagem: 10, estado: 'fila', na_frente: 0 }, error: null };
+  window.__fnRespostas.contagem = { data: null, error: { message: 'Failed to fetch' } };
+  document.getElementById('mbUso').value = ''; document.getElementById('mbUso').dispatchEvent(new window.Event('change'));
+  chamadas.length = 0;
+  document.getElementById('btnMbContar').click();
+  for(let i = 0; i < 100 && !document.getElementById('mbResultado').textContent.includes('Perdi o contato'); i++) await espera(2);
+  eq(chamadas.filter(c => c.body.acao === 'contagem').length, MB_CONTAGEM.falhas, 'desiste depois de algumas falhas seguidas');
+  assert(document.getElementById('mbResultado').textContent.includes('Perdi o contato com a base durante a contagem'), 'avisa que perdeu o contato');
+  delete window.__fnRespostas.contagem;
 
   document.getElementById('btnMbLimpar').click();
   eq(mbLerFiltros(), mbFiltrosPadrao(), 'limpar volta ao padrão');

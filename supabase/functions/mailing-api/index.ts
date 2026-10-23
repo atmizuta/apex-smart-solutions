@@ -1,15 +1,17 @@
 // Edge Function: mailing-api (REGRAS_NEGOCIO.md seção 102) — opções, contagem, extração no layout do ProContact e histórico.
+// 23/10 (seção 110): contagem completa em segundo plano (fila mailing.contagem + job contar_proxima).
 // Spec: docs/superpowers/specs/2026-10-20-base-mailing-design.md (seção 5). Publicar com verify_jwt = true.
 // Conexão direta ao banco (SUPABASE_DB_URL, disponível em toda Edge Function): o PostgREST corta em 8 s e 1.000 linhas.
 // Log: só status e código de erro — nunca CPF, nome, telefone ou filtros.
 import postgres from "npm:postgres@3.4.5";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { processar } from "./api.ts";
-import type { DepsApi, LinhaExport, RegistroExtracao, Usuario } from "./api.ts";
+import type { DepsApi, LinhaContagem, LinhaExport, RegistroExtracao, Usuario } from "./api.ts";
 import {
   sqlTotais, sqlPorOperadora, sqlTotalFiltro, sqlExtrair, SQL_REGISTRAR, SQL_OPCOES, SQL_CARGA, SQL_HISTORICO, SQL_USUARIO,
   sqlTrechoNovos, sqlJanelaUsadas, sqlTrechoUsadas, ultimaPagina, ultimoTomado, SQL_PAGINAS, SQL_PARTE, SQL_SOMAR_PARTE,
-  SQL_REGISTRAR_PARTE, SQL_NEO, SQL_FECHAR_PARTE,
+  SQL_REGISTRAR_PARTE, SQL_NEO, SQL_FECHAR_PARTE, SQL_CONTAGEM_EXISTENTE, SQL_CONTAGEM_NOVA, SQL_CONTAGEM_VISTA, SQL_CONTAGEM_VER,
+  SQL_CONTAGEM_PARAR,
 } from "./consulta.ts";
 import type { SqlParte, ResultadoTrecho } from "./consulta.ts";
 
@@ -105,6 +107,29 @@ function criarDeps(sql: postgres.Sql): DepsApi {
         }
         return { linhas, resultado };
       });
+    },
+    // 23/10 (seção 110): a contagem completa roda no job do banco; aqui só a fila e o andamento (consultas curtas)
+    async pedirContagem(chave, fila, reaproveitar, u) {
+      return await sql.begin(async (tx) => {
+        await tx.unsafe("set local statement_timeout = '15s'");
+        const [ja] = await tx.unsafe(SQL_CONTAGEM_EXISTENTE, [chave, reaproveitar] as never[]);
+        if (ja) return Number(ja.id);
+        const [nova] = await tx.unsafe(SQL_CONTAGEM_NOVA,
+          [chave, fila.where_sql, JSON.stringify(fila.params), u.id, u.username] as never[]);
+        return Number(nova.id);
+      });
+    },
+    async verContagem(id) {
+      return await sql.begin(async (tx) => {
+        await tx.unsafe("set local statement_timeout = '15s'");
+        await tx.unsafe(SQL_CONTAGEM_VISTA, [id] as never[]);
+        const [c] = await tx.unsafe(SQL_CONTAGEM_VER, [id] as never[]);
+        return (c ?? null) as LinhaContagem | null;
+      });
+    },
+    async pararContagem(id, userId) {
+      const [r] = await sql.unsafe(SQL_CONTAGEM_PARAR, [id, userId] as never[]);
+      return Number(r?.achou) > 0;
     },
     async neo() {
       return [...(await sql.unsafe(SQL_NEO))];

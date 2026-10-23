@@ -88,5 +88,23 @@ const rbRemov = ler('supabase/rollback/20261022100000_mailing_extracao_removidos
 assert(remov.includes('alter table mailing.extracao\n  add column removidos_neo integer not null default 0,\n  add column removidos_repetidos integer not null default 0;'), 'extracao: removidos por motivo');
 assert(!/mailing\.linha/.test(remov.replace(/--.*$/gm, '')), 'removidos não mexe na base de 12 mi');
 assert(rbRemov.includes('drop column if exists removidos_neo'), 'rollback dos removidos');
+// 23/10 (seção 110): contagem completa em segundo plano — fila fechada, um por vez, sem o corte de 120 s, sem texto no distinct
+const cont = ler('supabase/migrations/20261023200000_mailing_contagem_exata.sql');
+const rbCont = ler('supabase/rollback/20261023200000_mailing_contagem_exata_rollback.sql');
+const contSql = cont.replace(/--.*$/gm, '');
+assert(cont.includes('create table mailing.contagem ('), 'tabela da fila de contagem');
+assert(cont.includes('revoke all on mailing.contagem from public, anon, authenticated'), 'fila fechada para anon/authenticated');
+assert(cont.includes('revoke all on function mailing.contar_proxima() from public, anon, authenticated'), 'job fechado para anon/authenticated');
+assert(cont.includes('pg_try_advisory_xact_lock(110, 0)'), 'uma contagem por vez');
+assert(cont.includes('pg_advisory_xact_lock(110, c.id::int)'), 'trava 110 + id = contando (a mailing-api lê em pg_locks)');
+assert(cont.includes('count(distinct l.cnpj::bigint)') && cont.includes('count(distinct l.fone::bigint)'), 'distinct em número (texto gravou 1,6 gb de temporário)');
+assert(!/count\(distinct l\.(cnpj|fone)\)/.test(contSql), 'nenhum distinct em texto');
+assert(cont.includes('into r using c.params'), 'valores só como parâmetro do execute');
+assert(cont.includes("$$set statement_timeout = '20min'; select mailing.contar_proxima();$$"), 'job sem o corte de 120 s do banco');
+assert(cont.includes("cron.schedule('mailing-contagem', '10 seconds'"), 'job a cada 10 s');
+assert(cont.includes('when query_canceled then'), 'parar/tempo viram cancelada');
+assert(cont.includes('pg_database_size(current_database())'), 'confere o disco antes de contar');
+assert(!/update mailing\.linha|delete from mailing\.linha/.test(contSql), 'contagem não mexe na base');
+assert(rbCont.includes("cron.unschedule('mailing-contagem')") && rbCont.includes('drop table if exists mailing.contagem'), 'rollback da contagem');
 console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
 process.exit(fail > 0 ? 1 : 0);

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { processar, COLUNAS_EXPORT } from "./api.ts";
-import type { DepsApi, Usuario } from "./api.ts";
+import { processar, COLUNAS_EXPORT, situacaoContagem } from "./api.ts";
+import type { DepsApi, LinhaContagem, Usuario } from "./api.ts";
 
 const admin: Usuario = { id: "00000000-0000-0000-0000-000000000001", role: "admin", operacao: "apex", username: "adm" };
 const supCampinas: Usuario = { id: "00000000-0000-0000-0000-000000000002", role: "supervisor", operacao: "campinas", username: "supc" };
@@ -12,6 +12,9 @@ const LINHA = {
 };
 const EMPRESA_NEO = { cnpj: "00000000000191", pedidos: 2, numero_pedido: "1", etapa: "CONCLUIDO (NEOCRM)", consultor: "fulano",
   cadastro: "2026-10-01T12:00:00.000Z" };
+
+const FILA: LinhaContagem = { estado: "fila", linhas: null, empresas: null, telefones: null, por_operadora: null, erro: null,
+  terminado_em: null, pid: null, segundos: null, na_frente: 0 };
 
 function criar(over: Partial<DepsApi> = {}) {
   const chamadas: unknown[][] = [];
@@ -24,6 +27,9 @@ function criar(over: Partial<DepsApi> = {}) {
       chamadas.push(["extrairTrecho", w, ped, reg]);
       return { linhas: [], resultado: { fase: 1, tomadas: 0, ultima_pagina: null, ate: 2048, paginas_total: 2048 } };
     },
+    async pedirContagem(...a) { chamadas.push(["pedirContagem", ...a]); return 7; },
+    async verContagem(id) { chamadas.push(["verContagem", id]); return { ...FILA, na_frente: 1 }; },
+    async pararContagem(...a) { chamadas.push(["pararContagem", ...a]); return true; },
     async neo() { chamadas.push(["neo"]); return [EMPRESA_NEO]; },
     async fecharParte(...a) { chamadas.push(["fecharParte", ...a]); return true; },
     hojeISO: () => "2026-10-21",
@@ -209,4 +215,70 @@ test("fechar_parte: valida e grava os removidos da parte do próprio usuário", 
   const r404 = await processar(base, admin, nao.deps);
   assert.equal(r404.status, 404);
   assert.match(String(r404.body.erro), /não encontrada/);
+});
+
+// ===== 23/10 (seção 110): contagem completa em segundo plano =====
+test("contar completa: põe na fila com chave canônica e where do jsonb; devolve o andamento", async () => {
+  const { deps, chamadas } = criar();
+  const r = await processar({ acao: "contar", completa: true, filtros: { ddd: [19, 11], uf: ["SP"] } }, admin, deps);
+  assert.deepEqual(r, { status: 200, body: { contagem: 7, estado: "fila", na_frente: 1 } });
+  const [nome, chave, fila, reaproveitar, u] = chamadas[0] as [string, string, { where_sql: string; params: unknown[] }, boolean, Usuario];
+  assert.equal(nome, "pedirContagem");
+  assert.equal(chave, JSON.stringify({ ddd: [11, 19], uf: ["SP"] }));
+  assert.match(fila.where_sql, /jsonb_array_elements_text\(\$1->0\)/);
+  assert.deepEqual(fila.params, [["SP"], [19, 11]]);
+  assert.equal(reaproveitar, true);
+  assert.equal(u, admin);
+  assert.deepEqual(chamadas[1], ["verContagem", 7]);
+  assert.ok(!chamadas.some((c) => c[0] === "contar"), "não usa a amostra");
+});
+
+test("contar completa: 'não extraídos há N dias' não reaproveita; início de pedido não entra", async () => {
+  const { deps, chamadas } = criar();
+  await processar({ acao: "contar", completa: true, filtros: { sem_extracao_dias: 30, extraida_antes_de: "2026-10-23T12:00:00.000Z" } },
+    admin, deps);
+  const [, chave, fila, reaproveitar] = chamadas[0] as [string, string, { where_sql: string }, boolean];
+  assert.equal(reaproveitar, false);
+  assert.equal(chave, JSON.stringify({ sem_extracao_dias: 30 }));
+  assert.ok(!fila.where_sql.includes("timestamptz"), "extraida_antes_de fora do where");
+});
+
+test("contar sem 'completa' (aba aberta antes da seção 110): contagem antiga", async () => {
+  const { deps, chamadas } = criar();
+  const r = await processar({ acao: "contar", filtros: {} }, admin, deps);
+  assert.equal(r.status, 200);
+  assert.equal(chamadas[0][0], "contar");
+});
+
+test("contagem e parar_contagem: id inteiro positivo; 404 se não achar; consultor 403", async () => {
+  const { deps, chamadas } = criar();
+  for (const id of [undefined, 0, -1, 1.5, "7"]) {
+    assert.equal((await processar({ acao: "contagem", contagem: id }, admin, deps)).status, 400);
+    assert.equal((await processar({ acao: "parar_contagem", contagem: id }, admin, deps)).status, 400);
+  }
+  assert.equal(chamadas.length, 0);
+  assert.deepEqual(await processar({ acao: "contagem", contagem: 7 }, supCampinas, deps),
+    { status: 200, body: { contagem: 7, estado: "fila", na_frente: 1 } });
+  assert.deepEqual(await processar({ acao: "parar_contagem", contagem: 7 }, supCampinas, deps), { status: 200, body: { ok: true } });
+  assert.deepEqual(chamadas.at(-1), ["pararContagem", 7, supCampinas.id]);
+  const nada = criar({ async verContagem() { return null; }, async pararContagem() { return false; } }).deps;
+  assert.equal((await processar({ acao: "contagem", contagem: 9 }, admin, nada)).status, 404);
+  assert.equal((await processar({ acao: "parar_contagem", contagem: 9 }, admin, nada)).status, 404);
+  assert.equal((await processar({ acao: "contagem", contagem: 7 }, consultor, deps)).status, 403);
+});
+
+test("situacaoContagem: fila, contando, pronta (números exatos) e motivos", () => {
+  assert.deepEqual(situacaoContagem(3, { ...FILA, na_frente: 2 }), { contagem: 3, estado: "fila", na_frente: 2 });
+  assert.deepEqual(situacaoContagem(3, { ...FILA, pid: 123, segundos: 75 }), { contagem: 3, estado: "contando", segundos: 75 });
+  const fim = new Date("2026-10-23T18:00:00.000Z");
+  assert.deepEqual(situacaoContagem(3, { ...FILA, estado: "pronta", linhas: "9092479", empresas: "3987960", telefones: "9000000",
+    por_operadora: [{ operadora: "VIVO", linhas: 5 }], terminado_em: fim }), {
+    contagem: 3, estado: "pronta", linhas: 9092479, empresas: 3987960, telefones: 9000000,
+    por_operadora: [{ operadora: "VIVO", linhas: 5 }], contado_em: "2026-10-23T18:00:00.000Z",
+  });
+  assert.deepEqual(situacaoContagem(3, { ...FILA, estado: "cancelada", erro: "parada" }), { contagem: 3, estado: "cancelada", erro: "Contagem parada." });
+  assert.match(String(situacaoContagem(3, { ...FILA, estado: "erro", erro: "disco" }).erro), /disco do banco está quase cheio/);
+  assert.match(String(situacaoContagem(3, { ...FILA, estado: "cancelada", erro: "tempo" }).erro), /20 minutos/);
+  assert.deepEqual(situacaoContagem(3, { ...FILA, estado: "erro", erro: "53100" }),
+    { contagem: 3, estado: "erro", erro: "A contagem falhou (código 53100). Tente de novo." });
 });

@@ -1,6 +1,8 @@
 // Orquestração pura da Edge Function mailing-api (REGRAS_NEGOCIO.md seção 102): permissão, ações e respostas.
 // O acesso ao banco vem injetado (DepsApi) — o index.ts implementa com a conexão direta; os testes, com falsos.
-import { validarFiltros, montarWhere, validarQuantidade, sanitizarCarga, nomeArquivo, validarTrecho, proximoTrecho } from "./consulta.ts";
+import {
+  validarFiltros, montarWhere, validarQuantidade, sanitizarCarga, nomeArquivo, validarTrecho, proximoTrecho, whereParaFila, chaveContagem,
+} from "./consulta.ts";
 import type { Filtros, SqlParte, Trecho, ResultadoTrecho } from "./consulta.ts";
 
 export type Usuario = { id: string; role: string; operacao: string | null; username: string | null };
@@ -14,12 +16,20 @@ export type RegistroExtracao = {
 export type RegistroParte = RegistroExtracao & { pedido: string; parte: number };
 export type PedidoTrecho = { trecho: Trecho; quantidade: number; inicio: string; nunca_extraida: boolean };
 export type Contagem = { linhas: number; empresas: number; telefones: number; por_operadora: { operadora: string; linhas: number }[] };
+// 23/10 (seção 110): linha de mailing.contagem com a trava do job (pid) e quanto tempo ele está contando
+export type LinhaContagem = {
+  estado: string; linhas: unknown; empresas: unknown; telefones: unknown; por_operadora: unknown; erro: string | null;
+  terminado_em: unknown; pid: unknown; segundos: unknown; na_frente: unknown;
+};
 export type DepsApi = {
   opcoes(): Promise<{ opcoes: unknown[]; carga: unknown }>;
   historico(): Promise<unknown[]>;
   contar(w: SqlParte): Promise<Contagem>;
   extrair(w: SqlParte, quantidade: number, registro: RegistroExtracao): Promise<{ linhas: LinhaExport[]; total_no_filtro: number }>;
   extrairTrecho(w: SqlParte, pedido: PedidoTrecho, registro: RegistroParte): Promise<{ linhas: LinhaExport[]; resultado: ResultadoTrecho }>;
+  pedirContagem(chave: string, fila: { where_sql: string; params: unknown[] }, reaproveitar: boolean, usuario: Usuario): Promise<number>;
+  verContagem(id: number): Promise<LinhaContagem | null>;
+  pararContagem(id: number, userId: string): Promise<boolean>;
   neo(): Promise<unknown[]>;
   fecharParte(pedido: string, parte: number, userId: string, neo: number, repetidos: number): Promise<boolean>;
   hojeISO(): string;
@@ -35,6 +45,33 @@ function validarPedidoParte(c: Record<string, unknown>): { ok: true; pedido: str
   return { ok: true, pedido: c.pedido.toLowerCase(), parte: c.parte as number };
 }
 const ehContagem = (x: unknown) => Number.isInteger(x) && (x as number) >= 0 && (x as number) <= 10_000_000;
+
+const ehIdContagem = (x: unknown) => Number.isInteger(x) && (x as number) >= 1;
+const ERROS_CONTAGEM: Record<string, string> = {
+  parada: "Contagem parada.",
+  abandonada: "Contagem cancelada: a tela parou de acompanhar.",
+  tempo: "A contagem passou de 20 minutos e foi interrompida. Tente de novo mais tarde.",
+  disco: "O disco do banco está quase cheio: a contagem completa não rodou para não travar o CRM. Avise o Rafael.",
+};
+// O que o painel recebe: na fila (quantos na frente), contando (há quantos segundos), pronta (os números exatos) ou o motivo.
+export function situacaoContagem(id: number, c: LinhaContagem): Record<string, unknown> {
+  if (c.estado === "pronta") {
+    const ops = Array.isArray(c.por_operadora) ? c.por_operadora as { operadora: unknown; linhas: unknown }[] : [];
+    return {
+      contagem: id, estado: "pronta", linhas: Number(c.linhas), empresas: Number(c.empresas), telefones: Number(c.telefones),
+      por_operadora: ops.map((o) => ({ operadora: String(o.operadora), linhas: Number(o.linhas) })),
+      contado_em: c.terminado_em instanceof Date ? c.terminado_em.toISOString() : c.terminado_em,
+    };
+  }
+  if (c.estado === "fila") {
+    return c.pid !== null && c.pid !== undefined
+      ? { contagem: id, estado: "contando", segundos: Math.max(0, Number(c.segundos) || 0) }
+      : { contagem: id, estado: "fila", na_frente: Number(c.na_frente) || 0 };
+  }
+  const motivo = c.erro ?? "";
+  return { contagem: id, estado: c.estado === "cancelada" ? "cancelada" : "erro",
+    erro: ERROS_CONTAGEM[motivo] ?? `A contagem falhou (código ${motivo || "desconhecido"}). Tente de novo.` };
+}
 
 function erroBanco(e: unknown): Resposta {
   if ((e as { code?: string } | null)?.code === "57014") {
@@ -59,10 +96,29 @@ export async function processar(corpo: unknown, usuario: Usuario | null, deps: D
       const gravou = await deps.fecharParte(pp.pedido, pp.parte, usuario.id, c.neo as number, c.repetidos as number);
       return gravou ? { status: 200, body: { ok: true } } : { status: 404, body: { erro: "Parte do pedido não encontrada." } };
     }
+    // 23/10 (seção 110): andamento da contagem completa e o botão Parar
+    if (acao === "contagem" || acao === "parar_contagem") {
+      if (!ehIdContagem(c.contagem)) return { status: 400, body: { erro: "contagem inválida" } };
+      const id = c.contagem as number;
+      if (acao === "parar_contagem") {
+        const achou = await deps.pararContagem(id, usuario.id);
+        return achou ? { status: 200, body: { ok: true } } : { status: 404, body: { erro: "Contagem não encontrada." } };
+      }
+      const linha = await deps.verContagem(id);
+      return linha ? { status: 200, body: situacaoContagem(id, linha) } : { status: 404, body: { erro: "Contagem não encontrada." } };
+    }
     if (acao !== "contar" && acao !== "extrair") return { status: 400, body: { erro: "Ação inválida." } };
     const v = validarFiltros(c.filtros);
     if (!v.ok) return { status: 400, body: { erro: v.erro } };
+    if (acao === "contar" && c.completa === true) {
+      // a contagem é da base como está agora: o início de um pedido de extração não entra
+      const { extraida_antes_de: _inicio, ...f } = v.filtros;
+      const id = await deps.pedirContagem(chaveContagem(f), whereParaFila(montarWhere(f)), !f.sem_extracao_dias, usuario);
+      const linha = await deps.verContagem(id);
+      return linha ? { status: 200, body: situacaoContagem(id, linha) } : { status: 500, body: { erro: "Falha ao consultar a base de mailing." } };
+    }
     const w = montarWhere(v.filtros);
+    // aba aberta antes da seção 110 (sem "completa"): contagem antiga, pela amostra
     if (acao === "contar") return { status: 200, body: { ...(await deps.contar(w)) } };
     const quantidade = validarQuantidade(c.quantidade);
     if (quantidade === null) return { status: 400, body: { erro: "Quantidade deve ser um número inteiro de 1 a 100.000." } };

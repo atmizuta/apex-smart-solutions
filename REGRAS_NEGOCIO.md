@@ -3664,3 +3664,35 @@ Rafael conversou com a equipe do NEO, e eles passaram a mandar a etapa TERRITORI
 - **Log:** `exportacao_sync_log.territorio` = número de itens passados para TERRITORIO naquela execução.
 - **Banco:** migration `20261023173000_territorio_da_exportacao.sql` (security definer, sem grant para anon/authenticated).
 - **Aplicado (23/10/2026, com ok do Rafael):** função criada às ~17:29 (SP); `sync-exportacao` v12 publicada (a v10 do ar + a chamada); função rodada à mão sobre a exportação das 16:41 → **41 itens de 16 pedidos** passaram para TERRITORIO. Antes estavam em ANTIFRAUDE (8 pedidos), NEGOCIACAO (6), BIOMETRIA (1) e CHAMADOS (1). Ficaram de fora 1 pedido inteiro e 2 itens de outro, que estão em DEVOLVIDO, e 4 pedidos que não estão em `producao_pedidos_neo`. Total no dashboard: **17 pedidos / 50 itens** em TERRITORIO. A partir das 17:41 roda sozinha a cada exportação (minuto 41).
+
+## 110. Base de Mailing: contagem completa, não estimativa (23/10/2026)
+
+Pedido do Rafael: "precisamos da contagem completa, não de estimativa — mesmo que demore, precisa ser CONTAGEM COMPLETA".
+
+- **Antes:** o botão Contar lia a amostra de 2% (`mailing.amostra`, §102.9/§102.11) e a tela mostrava "≈". A extração sempre foi exata.
+- **Por que não conta direto:** contar a base inteira (`mailing.linha`, 12,3 mi linhas, 3 GB) levou **126 s** em 23/10 com o filtro padrão. Leu os 3 GB do disco, e o `count(distinct)` em texto gravou **1,6 GB de temporário**. Isso passa dos 120 s da conexão, e o servidor Micro (1 GB de memória) não guarda a tabela em cache.
+- **Como funciona agora:**
+  - O painel chama `contar` com `completa: true`. A `mailing-api` põe o pedido na fila `mailing.contagem` e devolve na hora.
+  - O job `mailing-contagem` (pg_cron, a cada 10 s, `statement_timeout` de 20 min só na sessão dele) chama `mailing.contar_proxima()`. A função conta **um pedido por vez**, a base inteira, com o mesmo filtro da extração.
+  - O resultado é exato: linhas, empresas distintas, telefones distintos e linhas por operadora.
+  - O painel pergunta o andamento a cada 3 s (ação `contagem`) e mostra "Na fila: N na frente" ou "Contando a base inteira… 1 min 15 s", com o botão **Parar** (ação `parar_contagem`, só quem pediu).
+  - No fim aparecem os números **sem "≈"** e com "Contagem completa da base inteira, feita em …".
+- **Filtro na fila:** a `mailing-api` monta o where com `montarWhere` (só texto fixo) e troca cada `$n` pelo item do jsonb de valores (`$1` no `execute … using` do job). Nenhum texto do navegador entra no SQL.
+- **"Contando":** a função segura `pg_advisory_xact_lock(110, id)` enquanto conta. A `mailing-api` lê essa trava em `pg_locks` para saber o pid, há quanto tempo está contando e quem cancelar no Parar. A linha só muda no fim, numa transação só.
+- **Reaproveita:**
+  - Mesmo filtro (chave = md5 do filtro com chaves e listas em ordem) já na fila com alguém olhando: entra na mesma contagem.
+  - Mesmo filtro já contado: devolve na hora, se nada foi extraído (`max(ultima_extracao)`, com folga de 3 min) nem carregado depois que a contagem começou.
+  - "Não extraídos há N dias" muda com o relógio e nunca reaproveita.
+- **Proteções:**
+  - Uma contagem por vez, para não juntar duas leituras de 3 GB com o CRM.
+  - Aba fechada: o pedido sai da fila em 1 min (`visto_em`). Pedido com mais de 30 min na fila também sai.
+  - Antes de contar, se banco + WAL passarem de **7 GB**, a contagem não roda e a tela pede para avisar o Rafael. O temporário vai para o mesmo disco, e disco cheio põe o banco em somente-leitura (21/10).
+  - Telefone e CNPJ são contados como número (`::bigint`), para gravar menos temporário que em texto.
+  - Parar e o limite de 20 min viram "cancelada"; outro erro vira "erro" com o código.
+- **Custo:** cada contagem leva ~2 min e lê o disco enquanto roda, então o CRM pode ficar um pouco mais lento nesse tempo.
+- **Limpeza:** o job `mailing-contagem-limpeza` roda às 04:10 SP e apaga o log do job de 10 s com mais de 1 dia e as contagens com mais de 30 dias.
+- **Ficou como estava:**
+  - Aba aberta antes da publicação (chamada `contar` sem `completa`) continua na contagem antiga até recarregar.
+  - O `total_no_filtro` gravado no histórico da extração continua vindo da amostra. Ele não aparece na tela.
+  - `mailing.amostra` continua no banco (e a extração ainda marca o uso nela).
+- **Banco:** migration `20261023200000_mailing_contagem_exata.sql`, rollback em `supabase/rollback/`.

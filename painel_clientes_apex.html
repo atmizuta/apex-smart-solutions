@@ -14018,9 +14018,9 @@ function mbTextoCarga(c){
   if(c.carregado_em) p.push('carregado em ' + new Date(c.carregado_em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }));
   return p.join(' · ');
 }
-const mbEstado = { geracao: 0, opcoes: null };
+const mbEstado = { geracao: 0, opcoes: null, contagem: null, contagemVez: 0, contagemFiltros: null };
 function mbResetar(){
-  mbEstado.geracao++; mbEstado.opcoes = null;
+  mbEstado.geracao++; mbEstado.opcoes = null; mbEstado.contagem = null; mbEstado.contagemFiltros = null;
   ['mbResultado', 'mbHistorico'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = ''; });
   const st = document.getElementById('mbStatus'); if(st) st.textContent = '';
 }
@@ -14157,18 +14157,81 @@ function mbLimpar(){
   document.querySelectorAll('#panel-mailing .mbMultiBusca').forEach(b => { b.value = ''; });
   mbMultiAtualizarTodos();
 }
+// 23/10 (seção 110, pedido do Rafael): contagem COMPLETA da base, não estimativa. Sem "≈": só aparece o número exato.
 function mbRenderResultado(d){
   const e = escapeHtml;
-  const ops = (d.por_operadora || []).map(o => `<tr><td>${e(MB_ROTULO_OPERADORA[o.operadora] || o.operadora)}</td><td style="text-align:right">≈ ${e(mbFmtNum(o.linhas))}</td></tr>`).join('');
+  const ops = (d.por_operadora || []).map(o => `<tr><td>${e(MB_ROTULO_OPERADORA[o.operadora] || o.operadora)}</td><td style="text-align:right">${e(mbFmtNum(o.linhas))}</td></tr>`).join('');
+  const quando = d.contado_em ? new Date(d.contado_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
   document.getElementById('mbResultado').innerHTML = `<div class="card"><h3 style="margin:0 0 var(--space-3)">Resultado do filtro</h3>
     <div class="kpiGrid">
-      <div class="kpiCard"><div class="kpiLabel">Linhas (empresa + telefone)</div><div class="kpiValue">≈ ${e(mbFmtNum(d.linhas))}</div></div>
-      <div class="kpiCard"><div class="kpiLabel">Empresas</div><div class="kpiValue">≈ ${e(mbFmtNum(d.empresas))}</div></div>
-      <div class="kpiCard"><div class="kpiLabel">Telefones distintos</div><div class="kpiValue">≈ ${e(mbFmtNum(d.telefones))}</div></div>
+      <div class="kpiCard"><div class="kpiLabel">Linhas (empresa + telefone)</div><div class="kpiValue">${e(mbFmtNum(d.linhas))}</div></div>
+      <div class="kpiCard"><div class="kpiLabel">Empresas</div><div class="kpiValue">${e(mbFmtNum(d.empresas))}</div></div>
+      <div class="kpiCard"><div class="kpiLabel">Telefones distintos</div><div class="kpiValue">${e(mbFmtNum(d.telefones))}</div></div>
     </div>
-    <p class="desc" style="margin:var(--space-2) 0 0">Estimativa por amostra de 2% da base, para responder na hora. Em filtros de até 100 mil, o número real pode ficar uns 5% acima ou abaixo. A exportação entrega o número exato.</p>
+    <p class="desc" style="margin:var(--space-2) 0 0">Contagem completa da base inteira${quando ? ', feita em ' + e(quando) : ''}.</p>
     ${ops ? `<table class="tbl" style="margin-top:var(--space-3)"><thead><tr><th>Operadora</th><th style="text-align:right">Linhas</th></tr></thead><tbody>${ops}</tbody></table>` : ''}
   </div>`;
+}
+// A função põe o pedido numa fila e o banco conta a base inteira (~2 min, um pedido por vez); o painel pergunta o
+// andamento a cada MB_CONTAGEM.intervalo até sair o número. Aba fechada: o pedido sai da fila sozinho em 1 min.
+const MB_CONTAGEM = { intervalo: 3000, falhas: 5 }; // objeto: o teste encurta o intervalo
+function mbFmtDuracao(seg){
+  const s = Math.max(0, Math.round(Number(seg) || 0));
+  return s < 60 ? s + ' s' : Math.floor(s / 60) + ' min ' + String(s % 60).padStart(2, '0') + ' s';
+}
+function mbTextoContando(d){
+  if(d.estado === 'contando') return 'Contando a base inteira… ' + mbFmtDuracao(d.segundos);
+  const n = Number(d.na_frente) || 0;
+  return n ? 'Na fila: ' + n + (n === 1 ? ' contagem' : ' contagens') + ' na frente.' : 'Na fila, começando…';
+}
+function mbRenderContando(d){
+  const texto = document.getElementById('mbContagemTexto');
+  if(texto){ texto.textContent = mbTextoContando(d); return; }
+  document.getElementById('mbResultado').innerHTML = `<div class="card"><h3 style="margin:0 0 var(--space-3)">Resultado do filtro</h3>
+    <p class="desc" id="mbContagemTexto" style="margin:0" aria-live="polite">${escapeHtml(mbTextoContando(d))}</p>
+    <p class="desc" style="margin:var(--space-2) 0 var(--space-3)">A contagem completa lê a base inteira e costuma levar uns 2 minutos. Dá para continuar usando o painel.</p>
+    <button type="button" class="btn btn-sm btn-outline" id="btnMbPararContagem" style="width:auto">Parar</button>
+  </div>`;
+  document.getElementById('btnMbPararContagem').addEventListener('click', () => { mbPararContagem(); });
+}
+function mbRenderContagemParou(msg){
+  document.getElementById('mbResultado').innerHTML = `<div class="card"><h3 style="margin:0 0 var(--space-3)">Resultado do filtro</h3>
+    <p class="desc" style="margin:0">${escapeHtml(msg)}</p></div>`;
+}
+async function mbAcompanharContagem(d, ger){
+  const vez = ++mbEstado.contagemVez;
+  mbEstado.contagem = d.contagem;
+  let falhas = 0;
+  for(;;){
+    if(ger !== mbEstado.geracao || vez !== mbEstado.contagemVez) return; // trocou de usuário, parou ou contou outro filtro
+    if(d.estado === 'pronta'){ mbEstado.contagem = null; mbRenderResultado(d); return; }
+    if(d.estado === 'erro' || d.estado === 'cancelada'){
+      mbEstado.contagem = null;
+      mbRenderContagemParou(d.erro || 'A contagem não terminou. Tente de novo.');
+      if(d.estado === 'erro') mostrarAviso(d.erro || 'A contagem falhou.', 'erro');
+      return;
+    }
+    mbRenderContando(d);
+    await new Promise(res => setTimeout(res, MB_CONTAGEM.intervalo));
+    if(ger !== mbEstado.geracao || vez !== mbEstado.contagemVez) return;
+    const r = await mbChamar('contagem', { contagem: d.contagem });
+    if(r.erro){
+      if(++falhas >= MB_CONTAGEM.falhas){
+        mbEstado.contagem = null;
+        mbRenderContagemParou('Perdi o contato com a base durante a contagem. Clique em Contar de novo.');
+        return;
+      }
+      continue;
+    }
+    falhas = 0; d = r.data;
+  }
+}
+async function mbPararContagem(semAviso){
+  const id = mbEstado.contagem;
+  mbEstado.contagemVez++; mbEstado.contagem = null; mbEstado.contagemFiltros = null;
+  if(!id) return;
+  if(!semAviso) mbRenderContagemParou('Contagem parada.');
+  await mbChamar('parar_contagem', { contagem: id });
 }
 // 22/10 (seção 102.12): "Linhas" = o que foi para o arquivo; as removidas (NEO e repetidos) aparecem ao lado
 function mbLinhasHistorico(x){
@@ -14202,9 +14265,16 @@ async function mbCarregar(){
 }
 async function mbContar(){
   if(!canSeeMailing()) return;
-  const r = await ApexMotion.comCarregador('Contando', () => mbChamar('contar', { filtros: mbLerFiltros() }));
+  const filtros = mbLerFiltros(), chave = JSON.stringify(filtros);
+  // o mesmo filtro já contando: segue acompanhando (parar e pedir de novo cairia na contagem que está sendo cancelada)
+  if(mbEstado.contagem && mbEstado.contagemFiltros === chave){ mostrarAviso('Esse filtro já está sendo contado.', 'info'); return; }
+  await mbPararContagem(true); // um pedido por vez: outro filtro larga o anterior
+  const ger = mbEstado.geracao;
+  const r = await ApexMotion.comCarregador('Contando', () => mbChamar('contar', { filtros, completa: true }));
+  if(ger !== mbEstado.geracao) return;
   if(r.erro){ mostrarAviso(r.erro, 'erro'); return; }
-  mbRenderResultado(r.data);
+  mbEstado.contagemFiltros = chave;
+  mbAcompanharContagem(r.data, ger);
 }
 function mbBaixarCsv(d, nome){
   const bytes = mbParaCp1252(mbMontarCsv(d.colunas, d.linhas));

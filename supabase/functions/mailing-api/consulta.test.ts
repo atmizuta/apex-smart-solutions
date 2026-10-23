@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import {
   filtrosPadrao, validarFiltros, montarWhere, sqlTotais, sqlPorOperadora, sqlTotalFiltro, sqlExtrair, validarQuantidade, sanitizarCarga, nomeArquivo,
   MAX_ITENS, validarTrecho, sqlTrechoNovos, sqlJanelaUsadas, sqlTrechoUsadas, proximoTrecho, TRECHO_PAGINAS_MIN, TRECHO_PAGINAS_MAX,
-  TRECHO_USADAS, ultimaPagina, ultimoTomado, SQL_NEO, SQL_FECHAR_PARTE, SQL_HISTORICO,
+  TRECHO_USADAS, ultimaPagina, ultimoTomado, SQL_NEO, SQL_FECHAR_PARTE, SQL_HISTORICO, whereParaFila, chaveContagem,
+  SQL_CONTAGEM_EXISTENTE, SQL_CONTAGEM_NOVA, SQL_CONTAGEM_VISTA, SQL_CONTAGEM_VER, SQL_CONTAGEM_PARAR,
 } from "./consulta.ts";
 
 test("filtrosPadrao: ativa, sem óbito, celular, só mailing", () => {
@@ -350,4 +351,55 @@ test("SQL_FECHAR_PARTE grava só no registro do próprio usuário; histórico tr
   assert.match(SQL_FECHAR_PARTE, /set removidos_neo = \$4, removidos_repetidos = \$5/);
   assert.match(SQL_FECHAR_PARTE, /where pedido = \$1::uuid and parte = \$2 and user_id = \$3::uuid returning id/);
   assert.match(SQL_HISTORICO, /removidos_neo, removidos_repetidos/);
+});
+
+// ===== 23/10 (seção 110): contagem completa em segundo plano =====
+test("whereParaFila: $n vira item do jsonb ($1 do job); lista vira text[] e mantém o cast de montarWhere", () => {
+  const w = montarWhere({ uf: ["SP"], ddd: [11, 19], abertura_de: "2020-01-01", sem_extracao_dias: 30, mei: "sim" });
+  const f = whereParaFila(w);
+  assert.equal(f.where_sql, "l.rf_uf = any(array(select jsonb_array_elements_text($1->0))::text[])"
+    + " and l.ddd = any(array(select jsonb_array_elements_text($1->1))::smallint[])"
+    + " and l.rf_mei and l.rf_data_abertura >= ($1->>2)::date"
+    + " and (l.ultima_extracao is null or l.ultima_extracao < now() - make_interval(days => ($1->>3)::int))");
+  assert.deepEqual(f.params, [["SP"], [11, 19], "2020-01-01", 30]);
+  assert.ok(!/\$[2-9]/.test(f.where_sql), "só existe o $1 (o jsonb)");
+});
+
+test("whereParaFila: $10 e $11 não viram $1 seguido de 0", () => {
+  const w = { sql: "a = $1 and b = any($10::int[]) and c = $11::int", params: [1, 2, 3, 4, 5, 6, 7, 8, 9, [10], 11] };
+  assert.equal(whereParaFila(w).where_sql,
+    "a = ($1->>0) and b = any(array(select jsonb_array_elements_text($1->9))::int[]) and c = ($1->>10)::int");
+});
+
+test("whereParaFila: sem filtro fica true", () => {
+  assert.deepEqual(whereParaFila(montarWhere({})), { where_sql: "true", params: [] });
+});
+
+test("chaveContagem: mesma chave com chaves e listas em outra ordem", () => {
+  const a = chaveContagem({ uf: ["SP", "RJ"], ddd: [19, 11], situacao: ["ATIVA"] });
+  const b = chaveContagem({ situacao: ["ATIVA"], ddd: [11, 19], uf: ["RJ", "SP"] });
+  assert.equal(a, b);
+  assert.notEqual(a, chaveContagem({ uf: ["SP"], ddd: [11, 19], situacao: ["ATIVA"] }));
+  assert.equal(chaveContagem({}), "{}");
+});
+
+test("SQL da contagem: trava 110 = contando; vista e parar não esperam a linha do job", () => {
+  for (const q of [SQL_CONTAGEM_VER, SQL_CONTAGEM_PARAR]) {
+    assert.match(q, /a\.locktype = 'advisory' and a\.classid = 110::oid/);
+    assert.match(q, /a\.objsubid = 2 and a\.granted/);
+  }
+  assert.match(SQL_CONTAGEM_VISTA, /estado = 'fila' for update skip locked/);
+  assert.match(SQL_CONTAGEM_PARAR, /for update of x skip locked/);
+  assert.match(SQL_CONTAGEM_PARAR, /user_id = \$2::uuid/, "só quem pediu para");
+  assert.match(SQL_CONTAGEM_PARAR, /pg_cancel_backend/);
+  assert.match(SQL_CONTAGEM_NOVA, /values \(md5\(\$1\), \$1::text::jsonb, \$2, \$3::text::jsonb, \$4::uuid, \$5\)/);
+});
+
+test("SQL_CONTAGEM_EXISTENTE: reaproveita só sem extração/carga depois (folga de 3 min) e se $2", () => {
+  const q = SQL_CONTAGEM_EXISTENTE.replace(/\s+/g, " ");
+  assert.match(q, /c\.chave = md5\(\$1\)/);
+  assert.match(q, /c\.estado = 'fila' and c\.visto_em > now\(\) - interval '1 minute'/);
+  assert.match(q, /c\.estado = 'pronta' and \$2::boolean/);
+  assert.match(q, /max\(l\.ultima_extracao\) from mailing\.linha l\), '-infinity'::timestamptz\) \+ interval '3 minutes'/);
+  assert.match(q, /max\(g\.carregado_em\) from mailing\.carga g/);
 });

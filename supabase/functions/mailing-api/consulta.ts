@@ -151,6 +151,8 @@ export function montarWhere(f: Filtros): SqlParte {
   return { sql: conds.length ? conds.join(" and ") : "true", params };
 }
 
+// 23/10 (seção 110): a tela agora pede a contagem completa (fila + job, no fim deste arquivo). Esta, pela amostra, fica só
+// para a aba aberta antes da publicação (chamada "contar" sem "completa") e para o total do registro da extração.
 // Contagem pela amostra (mailing.amostra), que cabe na memória do servidor Micro: contar a base inteira levava de 23 a
 // 85 s (21/10). A amostra junta duas: todas as linhas de ~2% das EMPRESAS (na_empresa) e todas as linhas de ~2% dos
 // NÚMEROS (no_fone). Linhas e empresas vêm da primeira, telefones distintos da segunda — certo com qualquer filtro,
@@ -381,6 +383,63 @@ export const SQL_CARGA = `select carregado_em, receita_mes, neo_ate, tabela_pref
 export const SQL_HISTORICO = `select criado_em, username, role, operacao, nome_carga, filtros, total_no_filtro, quantidade_pedida,
   quantidade_entregue, removidos_neo, removidos_repetidos from mailing.extracao order by criado_em desc limit 100`;
 export const SQL_USUARIO = `select role, operacao, username from public.profiles where id = $1::uuid`;
+
+// ===== 23/10 (seção 110, pedido do Rafael): contagem COMPLETA da base, não estimativa =====
+// Contar a base inteira levou 126 s em 23/10 (3 GB lidos do disco) e passa dos 120 s da conexão. A mailing-api só põe o
+// pedido na fila (mailing.contagem); o job mailing.contar_proxima() (pg_cron, a cada 10 s) conta um pedido por vez, sem
+// limite de 120 s, e o painel acompanha até sair o número exato. Migration 20261023200000_mailing_contagem_exata.sql.
+// O where vai para a fila com os valores num jsonb só ($1 no job): o $n de montarWhere vira o item n-1 dele. Lista vira
+// text[] e o cast que montarWhere já põe (::int[], ::smallint[], ::date...) converte. Só texto fixo entra no SQL.
+export function whereParaFila(w: SqlParte): { where_sql: string; params: unknown[] } {
+  const where_sql = w.sql.replace(/\$(\d+)/g, (_m, n: string) => {
+    const i = Number(n) - 1;
+    return Array.isArray(w.params[i]) ? `array(select jsonb_array_elements_text($1->${i}))` : `($1->>${i})`;
+  });
+  return { where_sql, params: w.params };
+}
+// Filtro canônico (chaves e listas em ordem): o mesmo filtro marcado em outra ordem reaproveita a mesma contagem.
+export function chaveContagem(f: Filtros): string {
+  const o: Record<string, unknown> = {};
+  for (const k of Object.keys(f).sort()) {
+    const v = (f as Record<string, unknown>)[k];
+    o[k] = Array.isArray(v) ? [...v].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)) : v;
+  }
+  return JSON.stringify(o);
+}
+// "Contando" = o job segura pg_advisory_xact_lock(110, id) enquanto conta (a linha só muda no fim, numa transação só).
+export const CONTAGEM_TRAVA = 110;
+const CONTANDO = (id: string) => `select a.pid from pg_locks a where a.locktype = 'advisory' and a.classid = ${CONTAGEM_TRAVA}::oid
+    and a.objid = (${id})::oid and a.objsubid = 2 and a.granted`;
+// Reaproveita: o mesmo filtro na fila com alguém olhando, ou pronto sem nada extraído nem carregado depois. A folga de
+// 3 min cobre a extração que começou antes da contagem e terminou depois (o que ela marcou pode não ter entrado na conta).
+// "Não extraídos há N dias" muda com o relógio: não reaproveita ($2 = false).
+export const SQL_CONTAGEM_EXISTENTE = `select c.id from mailing.contagem c
+ where c.chave = md5($1) and (
+   (c.estado = 'fila' and c.visto_em > now() - interval '1 minute')
+   or (c.estado = 'pronta' and $2::boolean
+       and c.iniciado_em > coalesce((select max(l.ultima_extracao) from mailing.linha l), '-infinity'::timestamptz) + interval '3 minutes'
+       and c.iniciado_em > coalesce((select max(g.carregado_em) from mailing.carga g), '-infinity'::timestamptz)))
+ order by (c.estado = 'pronta') desc, c.id desc limit 1`;
+export const SQL_CONTAGEM_NOVA = `insert into mailing.contagem (chave, filtros, where_sql, params, user_id, username)
+  values (md5($1), $1::text::jsonb, $2, $3::text::jsonb, $4::uuid, $5) returning id`;
+// O painel pergunta a cada poucos segundos: isso mantém o pedido vivo na fila (aba fechada = sai da fila em 1 min).
+// "skip locked": a linha que o job está contando fica travada até o fim, e o painel não pode esperar por ela.
+export const SQL_CONTAGEM_VISTA = `update mailing.contagem set visto_em = now()
+ where id = (select id from mailing.contagem where id = $1::bigint and estado = 'fila' for update skip locked)`;
+export const SQL_CONTAGEM_VER = `select c.estado, c.linhas, c.empresas, c.telefones, c.por_operadora, c.erro, c.terminado_em,
+  k.pid, (select extract(epoch from now() - s.query_start)::int from pg_stat_activity s where s.pid = k.pid) as segundos,
+  (select count(*)::int from mailing.contagem f where f.estado = 'fila' and f.id < c.id
+     and (f.visto_em > now() - interval '1 minute' or exists (${CONTANDO("f.id")}))) as na_frente
+ from mailing.contagem c left join lateral (${CONTANDO("c.id")} limit 1) k on true
+ where c.id = $1::bigint`;
+// Parar (só quem pediu): na fila, sai dela; contando, cancela a consulta e o job grava "cancelada".
+export const SQL_CONTAGEM_PARAR = `with c as (select id from mailing.contagem where id = $1::bigint and user_id = $2::uuid),
+ f as (
+   update mailing.contagem m set estado = 'cancelada', terminado_em = now(), erro = 'parada'
+    where m.id = (select x.id from mailing.contagem x join c on c.id = x.id where x.estado = 'fila' for update of x skip locked)
+   returning m.id)
+select (select count(*) from c)::int as achou, (select count(*) from f)::int as saiu_da_fila,
+  coalesce((select bool_or(pg_cancel_backend(k.pid)) from c, lateral (${CONTANDO("c.id")}) k), false) as cancelou`;
 
 export function validarQuantidade(v: unknown): number | null {
   const n = typeof v === "string" && /^\d+$/.test(v.trim()) ? Number(v.trim()) : v;
