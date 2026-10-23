@@ -3698,7 +3698,7 @@ Pedido do Rafael: "precisamos da contagem completa, não de estimativa — mesmo
 - **Banco:** migration `20261023200000_mailing_contagem_exata.sql`, rollback em `supabase/rollback/`.
 - **Publicação (23/10/2026, com ok do Rafael):**
   - **Medição antes:** com o filtro padrão (ativa, sem óbito), a contagem otimizada levou 38 s e gravou ~650 MB de temporário. O limite de disco ficou em 6,8 GB.
-  - **Banco:** migration aplicada ~19:00 (SP), com a tabela, a função e os jobs `mailing-contagem` e `mailing-contagem-limpeza`.
+  - **Banco:** migration aplicada às 19:37 (SP), com a tabela, a função e os jobs `mailing-contagem` e `mailing-contagem-limpeza`.
   - **Teste no banco** com os SQL da função:
     - a contagem real deu 10.443.927 linhas, 3.996.152 empresas e 9.112.230 telefones distintos, em ~40 s;
     - por operadora: Vivo 4.689.166, Claro 4.009.707, TIM 1.681.592 e Outras 63.462, que somam as linhas;
