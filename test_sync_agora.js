@@ -85,7 +85,7 @@ try{
   assert(window.__logConsultas === 0, 'recusa não consulta o log');
   window.__rpc = { data: { ok: false, motivo: 'automatica' }, error: null };
   await syncAgora();
-  assert(status().includes('automática'), 'recusa perto do minuto 59 explica (' + status() + ')');
+  assert(status().includes('automática'), 'recusa perto da rodada automática explica (' + status() + ')');
   window.__rpc = { data: { ok: false, motivo: 'noite' }, error: null };
   await syncAgora();
   assert(status().includes('10 minutos'), 'recusa da noite explica (' + status() + ')');

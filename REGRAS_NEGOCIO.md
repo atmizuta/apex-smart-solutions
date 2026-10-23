@@ -3617,3 +3617,16 @@ Pedido do Rafael: um botão para a Mesa do Supervisor que atualize o dashboard n
 Testes: `test_sync_agora.js` (32 asserções); `test_operacao_campinas.js` e `test_visao_diaria.js` ajustados à lista nova e à checagem de 2 min.
 
 - **Publicação:** 22/10/2026 ~19:40 (SP), com ok do Rafael. RPC `producao_sync_agora` criada no banco (anon sem acesso; sem perfil admin/supervisor recusa). MD5 do painel: `6f7ab3e143e057811ab8b9f1d33d1f54`. Backup: `~/deploy_backups/painel_clientes_apex_20261022_223956_antes_sync_agora.html`. O painel no ar era idêntico à oficial/main (MD5 `4b59c956…`).
+
+## 107. Produção sincronizada a cada 10 minutos durante o dia (22/10/2026)
+
+Pedido do Rafael: "por que o dash atualiza de hora em hora sendo que a gente tem uma api do sistema deles?" → "pode fazer sim! a cada 10 minutos".
+
+- A API do NeoSales só responde quando é consultada (não avisa quando entra pedido). Cada rodada leva ~2 s e a base inteira tem ~2 mil linhas: o "de hora em hora" era só o agendamento escolhido em 29/09 (seção 50) e o minuto 59 vinha do relatório das 17h (seção 63).
+- **Agendamento novo** (migration `20261022210000_sync_producao_10min.sql`; horários de São Paulo):
+  - 07:09 às 19:59 — nos minutos **:09, :19, :29, :49 e :59** (job 1 `sync-producao-horario`, `'9,19,29,49,59 10-22 * * *'` UTC). O :39 fica de fora para não encostar na sync-exportacao do :41 (a NeoSales aceita uma consulta a cada ~2 min; na API nova da seção 81 as duas dividem o limite). O :59 continua, então o relatório das 17h não muda.
+  - 20:09 e 20:19 — job `sync-producao-20h`; das 20:30 às 21:30 seguem os jobs da noite (13/14), de 10 em 10 min.
+  - 21:59 às 06:59 — de hora em hora, job `sync-producao-madrugada`.
+- As telas abertas já conferem dado novo a cada 2 min (seção 106): o dashboard fica no máximo ~12 min atrás do NeoCRM durante o dia.
+- **Botão "Atualizar dashboard agora"** (seção 106): passa a recusar nos 3 min antes de cada rodada (minutos terminados em 7, 8 e 9), além de 39–42, da janela da noite e dos 3 min depois da última execução.
+- Textos do painel que diziam "de hora em hora" (Upload Dash, estado vazio do Dashboard, rodapé de Pedidos Parados) passaram a dizer "a cada 10 minutos durante o dia".

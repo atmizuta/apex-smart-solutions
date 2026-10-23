@@ -1245,7 +1245,7 @@
     <section class="panel" id="panel-movimentacao">
       <div class="card" id="producaoSyncCard">
         <h3>Produção — atualização automática</h3>
-        <p class="desc">O Dashboard de Produção é atualizado sozinho, de hora em hora, direto do NeoCRM (NeoSales). Não é mais preciso exportar nem enviar planilha.</p>
+        <p class="desc">O Dashboard de Produção é atualizado sozinho, a cada 10 minutos durante o dia, direto do NeoCRM (NeoSales). Não é mais preciso exportar nem enviar planilha.</p>
         <div class="statLine" id="producaoSyncStatus"><div class="stat"><b>—</b><span>carregando...</span></div></div>
         <div id="producaoSyncAviso" style="margin-top:10px;font-size:12px;color:var(--muted)"></div>
       </div>
@@ -8708,8 +8708,8 @@ async function loadProducaoDashboard(){
     frameWrap.style.display = 'none';
     emptyCard.style.display = 'block';
     document.getElementById('producaoEmptyMsg').textContent = canUploadProducao()
-      ? 'Ainda não há dados de produção. A atualização é automática (de hora em hora, direto do NeoCRM); veja o status em "Upload Dash".'
-      : 'Ainda não há dados de produção. A atualização é automática, de hora em hora; se esta mensagem persistir, avise um administrador.';
+      ? 'Ainda não há dados de produção. A atualização é automática (a cada 10 minutos durante o dia, direto do NeoCRM); veja o status em "Upload Dash".'
+      : 'Ainda não há dados de produção. A atualização é automática, a cada 10 minutos durante o dia; se esta mensagem persistir, avise um administrador.';
     return;
   }
   emptyCard.style.display = 'none';
@@ -8771,7 +8771,7 @@ async function loadProducaoDashboard(){
   // atualizarDadosDashboard. Ver REGRAS_NEGOCIO.md seção 16.11.
   // 22/10/2026 (seção 106): antes era 1h depois de abrir a tela (podia ficar ~2h atrasada); agora confere a cada 2 min se
   // a sincronização trouxe dado novo (carimbo producao_neo_atualizado_em) e só busca os pedidos quando trouxe — assim o
-  // minuto 59 e o botão "Atualizar dashboard agora" chegam a todas as telas abertas (TV inclusive). Sem novidade, recarrega
+  // rodada automática (de 10 em 10 min de dia, seção 107) e o botão "Atualizar dashboard agora" chegam a todas as telas abertas (TV inclusive). Sem novidade, recarrega
   // de 1 em 1h como antes (as Vendas Perdidas têm sincronização própria, no minuto 41).
   producaoUltimaCarga = { stamp: (cfg && cfg.atualizado_em) || null, ms: Date.now() };
   if(producaoAutoRefreshTimer) clearInterval(producaoAutoRefreshTimer);
@@ -8870,7 +8870,7 @@ async function syncAgora(){
     if(!r.data.ok){ syncAgoraStatus(syncAgoraMensagemRecusa(r.data), erro); return; }
     const log = await syncAgoraEsperar(r.data.pedido_em);
     if(!log){ syncAgoraStatus('O NeoCRM está demorando para responder. O dashboard se atualiza sozinho quando os dados chegarem.', erro); return; }
-    if(!log.ok){ syncAgoraStatus('O NeoCRM recusou a consulta agora (' + (log.erro || 'erro desconhecido') + '). A próxima atualização automática é no minuto 59.', erro); return; }
+    if(!log.ok){ syncAgoraStatus('O NeoCRM recusou a consulta agora (' + (log.erro || 'erro desconhecido') + '). A próxima atualização automática é em até 10 minutos.', erro); return; }
     await producaoChecarNovidade(true);
     const mesa = document.getElementById('panel-mesa');
     if(mesa && mesa.classList.contains('active') && typeof loadMesa === 'function') loadMesa(true).catch(err => console.error(err));
@@ -8885,7 +8885,7 @@ async function syncAgora(){
 document.querySelectorAll('[data-sync-agora]').forEach(b => b.addEventListener('click', () => { syncAgora().catch(err => console.error(err)); }));
 
 /* ============ Status da sincronização automática da produção (NeoSales) — aba Upload Dash ============ */
-// A produção é espelhada sozinha pela Edge Function sync-producao (pg_cron, de hora em hora, ver
+// A produção é espelhada sozinha pela Edge Function sync-producao (pg_cron, de 10 em 10 min de dia — seção 107 —, ver
 // REGRAS_NEGOCIO.md seção 50). O antigo upload de planilha saiu. Aqui só se mostra o status; producao_sync_log
 // é legível por admin/supervisor. Textos que vêm de fora (mensagem de erro) entram por textContent, nunca HTML.
 function fmtDataHoraSP(iso){
@@ -12360,7 +12360,7 @@ function ppRender(){
     + pill('reoferecer', 'Reoferecer', c.ops.length)
     + pill('novidades', 'Novidades', e.movimentos.length);
   document.getElementById('ppSecao').innerHTML = { parados: ppHtmlParados, agenda: ppHtmlAgenda, recuperar: ppHtmlRecuperar, reoferecer: ppHtmlReoferecer, novidades: ppHtmlNovidades }[e.secao](c);
-  document.getElementById('ppRodape').textContent = `Dados do NeoCRM sincronizados de hora em hora (referência ${ppFmtDia(e.ref)}). Dias úteis: segunda a sexta, sem feriados nacionais. Valores em R$/mês.`;
+  document.getElementById('ppRodape').textContent = `Dados do NeoCRM sincronizados a cada 10 minutos durante o dia (referência ${ppFmtDia(e.ref)}). Dias úteis: segunda a sexta, sem feriados nacionais. Valores em R$/mês.`;
 }
 
 async function loadPedidosParados(){
@@ -13468,7 +13468,7 @@ async function bmObterResumoDiaria(){
   if(!pega()) return null;
   return (await bmRefrescarDashboard()) ? pega() : null;
 }
-// O dashboard só se atualiza de hora em hora desde que o painel foi aberto: antes de contar as vendas do boletim, busca os
+// O dashboard da tela pode estar até alguns minutos atrás da última sincronização: antes de contar as vendas do boletim, busca os
 // pedidos de novo e empurra para o iframe (mesmo caminho da atualização horária). Falhou = vendas indisponíveis (não usa dado velho).
 async function bmRefrescarDashboard(){
   const frame = document.getElementById('producaoFrame'), win = frame && frame.contentWindow;
