@@ -43,11 +43,17 @@ insert into public.leads_status_opcoes (status, grupo, ordem) values
   ('CLIENTE NÃO QUER NO CNPJ', 'perdido', 31)
 on conflict (status) do nothing;
 alter table public.leads_status_opcoes enable row level security;
-drop policy if exists leads_status_opcoes_select on public.leads_status_opcoes;
-create policy leads_status_opcoes_select on public.leads_status_opcoes for select to authenticated using (true);
-drop policy if exists leads_status_opcoes_write on public.leads_status_opcoes;
-create policy leads_status_opcoes_write on public.leads_status_opcoes for all to authenticated
-  using (public.get_my_role() = 'admin') with check (public.get_my_role() = 'admin');
+do $$ begin   -- cria só se não existir (o conector do Supabase trava em comando destrutivo)
+  if not exists (select 1 from pg_policies where tablename = 'leads_status_opcoes' and policyname = 'leads_status_opcoes_select') then
+    create policy leads_status_opcoes_select on public.leads_status_opcoes for select to authenticated using (true);
+  end if;
+end $$;
+do $$ begin   -- cria só se não existir (o conector do Supabase trava em comando destrutivo)
+  if not exists (select 1 from pg_policies where tablename = 'leads_status_opcoes' and policyname = 'leads_status_opcoes_write') then
+    create policy leads_status_opcoes_write on public.leads_status_opcoes for all to authenticated
+      using (public.get_my_role() = 'admin') with check (public.get_my_role() = 'admin');
+  end if;
+end $$;
 
 -- Histórico de pegar/classificar/redistribuir/devolver (só as RPCs escrevem).
 create table if not exists public.leads_historico (
@@ -62,9 +68,12 @@ create table if not exists public.leads_historico (
 );
 create index if not exists idx_leads_historico_lead on public.leads_historico (lead_aba, lead_id, em desc);
 alter table public.leads_historico enable row level security;
-drop policy if exists leads_historico_select on public.leads_historico;
-create policy leads_historico_select on public.leads_historico for select to authenticated
-  using (por = auth.uid() or public.get_my_role() in ('admin', 'supervisor'));
+do $$ begin   -- cria só se não existir (o conector do Supabase trava em comando destrutivo)
+  if not exists (select 1 from pg_policies where tablename = 'leads_historico' and policyname = 'leads_historico_select') then
+    create policy leads_historico_select on public.leads_historico for select to authenticated
+      using (por = auth.uid() or public.get_my_role() in ('admin', 'supervisor'));
+  end if;
+end $$;
 
 -- Fila do espelho: no máximo 1 item por lead (repetir só atualiza pedido_em).
 create table if not exists public.leads_espelho (
@@ -79,9 +88,12 @@ create table if not exists public.leads_espelho (
 );
 create index if not exists idx_leads_espelho_pendente on public.leads_espelho (proxima_em) where feito_em is null;
 alter table public.leads_espelho enable row level security;
-drop policy if exists leads_espelho_select on public.leads_espelho;
-create policy leads_espelho_select on public.leads_espelho for select to authenticated
-  using (public.get_my_role() in ('admin', 'supervisor'));
+do $$ begin   -- cria só se não existir (o conector do Supabase trava em comando destrutivo)
+  if not exists (select 1 from pg_policies where tablename = 'leads_espelho' and policyname = 'leads_espelho_select') then
+    create policy leads_espelho_select on public.leads_espelho for select to authenticated
+      using (public.get_my_role() in ('admin', 'supervisor'));
+  end if;
+end $$;
 
 -- Nome da aba (mês) de um lead pela data de criação em São Paulo; sem data = mês corrente. Igual às abas: MARCO sem cedilha.
 create or replace function public.leads_mes_aba(p_ts timestamptz) returns text

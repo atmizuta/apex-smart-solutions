@@ -173,8 +173,9 @@ begin
 end $$;
 
 -- Ingestão da guia de entrada (chamada só pela Edge Function, com service_role).
--- Lead novo (id em nenhuma aba): insere na aba do mês, sem dono, e enfileira. Existente: atualiza SÓ os
--- campos do formulário, e só quando mudou (evita escrita à toa a cada minuto).
+-- Lead novo (id em nenhuma aba): insere na aba do mês, sem dono, e enfileira. Lead que já existe NÃO é tocado:
+-- a guia de entrada tem o dado original do Facebook e sobrescreveria correções feitas na guia do mês (e evita
+-- escrita à toa a cada 10 s). 'atualizados' fica sempre 0 (mantido na resposta por compatibilidade).
 create or replace function public.leads_entrada(p_leads jsonb) returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare r jsonb; v_ins int := 0; v_upd int := 0; n int; v_aba text; v_ts timestamptz;
@@ -182,16 +183,6 @@ begin
   for r in select * from jsonb_array_elements(coalesce(p_leads, '[]'::jsonb)) loop
     continue when coalesce(r ->> 'id', '') = '';
     v_ts := nullif(r ->> 'criado_em_lead', '')::timestamptz;
-    update public.leads l set
-        full_name = r ->> 'full_name', phone_number = r ->> 'phone_number', email = r ->> 'email',
-        cnpj = r ->> 'cnpj', city = r ->> 'city', state = r ->> 'state', tipo_empresa = r ->> 'tipo_empresa',
-        qtd_linhas = r ->> 'qtd_linhas', lead_status = r ->> 'lead_status', atualizado_em = now()
-     where l.id = r ->> 'id'
-       and (l.full_name, l.phone_number, l.email, l.cnpj, l.city, l.state, l.tipo_empresa, l.qtd_linhas, l.lead_status)
-           is distinct from (r ->> 'full_name', r ->> 'phone_number', r ->> 'email', r ->> 'cnpj', r ->> 'city',
-                             r ->> 'state', r ->> 'tipo_empresa', r ->> 'qtd_linhas', r ->> 'lead_status');
-    get diagnostics n = row_count;
-    v_upd := v_upd + n;
     if not exists (select 1 from public.leads l where l.id = r ->> 'id') then
       -- cron de 10 s: duas rodadas podem trazer o mesmo lead ao mesmo tempo; on conflict evita derrubar o lote
       v_aba := public.leads_mes_aba(v_ts);
@@ -222,4 +213,12 @@ grant execute on function public.leads_kanban(uuid) to authenticated;
 grant execute on function public.leads_kanban_resumo() to authenticated;
 grant execute on function public.leads_kanban_versao() to authenticated;
 grant execute on function public.leads_espelho_reescrever(text) to authenticated;
+-- o Supabase dá execute ao anon por padrão em função nova: só usuário logado chama as da tela
+revoke execute on function public.leads_kanban_versao() from public, anon;
+revoke execute on function public.leads_kanban(uuid) from public, anon;
+revoke execute on function public.leads_kanban_resumo() from public, anon;
+revoke execute on function public.leads_pegar(text, text) from public, anon;
+revoke execute on function public.leads_classificar(text, text, text, text, boolean, numeric, date) from public, anon;
+revoke execute on function public.leads_redistribuir(text, text, uuid) from public, anon;
+revoke execute on function public.leads_espelho_reescrever(text) from public, anon;
 commit;

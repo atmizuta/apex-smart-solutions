@@ -91,7 +91,7 @@ begin
     jsonb_build_object('id', 'zz:3', 'criado_em_lead', '2000-06-20T09:00:00-03:00', 'full_name', 'Zz Empresa Tres', 'phone_number', '11900000003'),
     jsonb_build_object('id', 'zz:1', 'criado_em_lead', (select criado_em_lead from public.leads where id = 'zz:1')::text, 'full_name', 'Zz Empresa Um Novo', 'phone_number', '11900000001')));
   assert (select aba = 'JUNHO' and categoria = 'sem_contato' and dono_id is null from public.leads where id = 'zz:3'), 'entrada inseriu zz:3 livre';
-  assert (select full_name = 'Zz Empresa Um Novo' and status = 'PEDIDO CONCLUIDO (VENDA)' and consultor = 'ZZKCON' from public.leads where id = 'zz:1'), 'entrada não mexeu no trabalho do consultor';
+  assert (select full_name = 'Zz Empresa Um' and status = 'PEDIDO CONCLUIDO (VENDA)' and consultor = 'ZZKCON' from public.leads where id = 'zz:1'), 'entrada não toca lead que já existe (nem nome, nem trabalho do consultor)';
   assert exists (select 1 from public.leads_espelho where lead_id = 'zz:3' and feito_em is null), 'lead novo vai para a fila';
   assert (public.leads_entrada(jsonb_build_array(jsonb_build_object('id', 'zz:3', 'criado_em_lead', '2000-06-20T09:00:00-03:00', 'full_name', 'Zz Empresa Tres', 'phone_number', '11900000003'))) ->> 'inseridos')::int = 0, 'entrada repetida não insere de novo';
   -- ===== Task 3: colunas sensíveis =====
