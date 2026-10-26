@@ -320,5 +320,14 @@ assert(/leads_sync_erro", valor: aviso/.test(handler), 'handler grava o aviso em
   assert(/if \(tab\.soDoMes\)/.test(src), 'handler aplica filtrarSoDoMes nas abas soDoMes');
 }
 
+// --- 26/10/2026 (seção 112): no modo painel a sync-leads não lê nem grava nada (a planilha-espelho faz a entrada) ---
+{
+  const handlerSrc = fs.readFileSync('edge_function_sync_leads.ts', 'utf8');
+  const iModo = handlerSrc.indexOf('leads_modo');
+  const iFetch = handlerSrc.indexOf('await fetch(sheetTabCsvUrl');
+  assert(iModo > 0 && iModo < iFetch, 'handler consulta config.leads_modo antes de baixar a planilha');
+  assert(/modo: "painel"/.test(handlerSrc), 'resposta identifica o modo painel');
+}
+
 console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
 if(fail > 0) process.exitCode = 1;

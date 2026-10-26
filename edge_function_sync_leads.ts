@@ -364,6 +364,14 @@ Deno.serve(async (req) => {
       }
     }
 
+    // 26/10/2026 (REGRAS seção 112): no modo "painel" o banco é a fonte da verdade e a Edge Function planilha-espelho
+    // já traz os leads novos da guia de entrada a cada minuto. Esta função não lê nem grava nada, para não
+    // sobrescrever o que os consultores classificaram no painel. Voltar ao modo antigo: config.leads_modo = 'planilha'.
+    const { data: modoRow } = await admin.from("config").select("valor").eq("chave", "leads_modo").maybeSingle();
+    if ((modoRow?.valor ?? "planilha") === "painel") {
+      return json({ ok: true, modo: "painel", msg: "Modo painel: a entrada de leads é feita pela planilha-espelho." }, 200, corsHeaders);
+    }
+
     // Erro de sincronização fica em config.leads_sync_erro (vazio = última rodada ok): com o cron ninguém
     // vê a resposta da função, então o painel mostra esse aviso para admin/supervisor na Digital.
     const registrarErro = async (msg: string) => {
