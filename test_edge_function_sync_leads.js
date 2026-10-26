@@ -329,5 +329,11 @@ assert(/leads_sync_erro", valor: aviso/.test(handler), 'handler grava o aviso em
   assert(/modo: "painel"/.test(handlerSrc), 'resposta identifica o modo painel');
 }
 
+// --- revisão final (§112): erro ao ler o modo NÃO pode cair no modo planilha (sobrescreveria o banco) ---
+{
+  const hs = fs.readFileSync('edge_function_sync_leads.ts', 'utf8');
+  assert(/const \{ data: modoRow, error: erroModo \}/.test(hs) && /if \(erroModo\)/.test(hs), 'erro ao ler config.leads_modo para a função sem sincronizar');
+}
+
 console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
 if(fail > 0) process.exitCode = 1;
