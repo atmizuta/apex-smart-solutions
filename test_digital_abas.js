@@ -4,7 +4,7 @@
 // roda num jsdom. Dados fictícios.
 const fs = require('fs');
 const { JSDOM } = require('jsdom');
-const { comRange } = require('./test_helper_mock.js');
+const { comRange, rpcComLeadsDigital } = require('./test_helper_mock.js');
 
 const html = fs.readFileSync('_template.html', 'utf8');
 const htmlNoScript = html.replace(/<script>[\s\S]*?<\/script>/g, '');
@@ -30,7 +30,7 @@ window.supabase = { createClient: comRange(() => ({
   auth: { getSession: async () => ({data:{session:null}}), onAuthStateChange: () => {}, signInWithPassword: async () => ({data:{},error:null}), signOut: async () => ({}) },
   from: (t) => builder(t),
   functions: { invoke: async () => window.__syncResult },
-  rpc: async (nome, args) => { window.__rpcCalls.push({ nome, args }); return { data: { total: 0, ganho: 0, perdido: 0, andamento: 0, semPedido: 0, pedidosGanho: [], pedidosPerdido: [], pedidosAndamento: [] }, error: null }; },
+  rpc: rpcComLeadsDigital(async (nome, args) => { window.__rpcCalls.push({ nome, args }); return { data: { total: 0, ganho: 0, perdido: 0, andamento: 0, semPedido: 0, pedidosGanho: [], pedidosPerdido: [], pedidosAndamento: [] }, error: null }; }, () => window.__mockLeads),
 })) };
 window.alert = () => {};
 window.confirm = () => true;

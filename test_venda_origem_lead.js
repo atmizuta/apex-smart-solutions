@@ -79,13 +79,15 @@ window.supabase = { createClient: comRange(() => ({
   auth: { getSession: async () => ({data:{session:null}}), onAuthStateChange: () => {}, signInWithPassword: async () => ({data:{},error:null}), signOut: async () => ({}) },
   from: (table) => {
     if(table === 'producao_pedidos') return makeQuery(() => ({ data: MOCK_PEDIDOS, error: null }));
-    if(table === 'leads') return makeQuery(() => ({ data: MOCK_LEADS, error: null }));
+    // §112: telefone/e-mail/CNPJ não são mais legíveis direto da tabela — o mock simula a coluna trancada
+    if(table === 'leads') return makeQuery(() => ({ data: MOCK_LEADS.map(({ cnpj, ...resto }) => resto), error: null }));
     return makeQuery(() => ({ data: [], error: null }));
   },
   functions: { invoke: async () => ({data:{},error:null}) },
-  rpc: async (fnName) => {
-    if(fnName === 'reconciliacao_neocrm') return { data: MOCK_RPC_RECONCILIACAO, error: null };
-    return { data: null, error: null };
+  rpc: (fnName) => {
+    if(fnName === 'leads_digital_admin') return makeQuery(() => ({ data: MOCK_LEADS, error: null }));   // §112: CNPJ só pela RPC
+    if(fnName === 'reconciliacao_neocrm') return Promise.resolve({ data: MOCK_RPC_RECONCILIACAO, error: null });
+    return Promise.resolve({ data: null, error: null });
   },
 })) };
 window.alert = (msg) => { console.log('ALERT:', msg); };

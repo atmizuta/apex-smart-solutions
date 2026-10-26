@@ -94,6 +94,43 @@ begin
   assert (select full_name = 'Zz Empresa Um Novo' and status = 'PEDIDO CONCLUIDO (VENDA)' and consultor = 'ZZKCON' from public.leads where id = 'zz:1'), 'entrada não mexeu no trabalho do consultor';
   assert exists (select 1 from public.leads_espelho where lead_id = 'zz:3' and feito_em is null), 'lead novo vai para a fila';
   assert (public.leads_entrada(jsonb_build_array(jsonb_build_object('id', 'zz:3', 'criado_em_lead', '2000-06-20T09:00:00-03:00', 'full_name', 'Zz Empresa Tres', 'phone_number', '11900000003'))) ->> 'inseridos')::int = 0, 'entrada repetida não insere de novo';
+  -- ===== Task 3: colunas sensíveis =====
+  execute 'set local role authenticated';
+  perform set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-00000000e203', 'role', 'authenticated')::text, true);
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000e203', true);
+  begin
+    perform phone_number from public.leads limit 1;
+    assert false, 'consultor leu phone_number direto da tabela';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform cnpj from public.leads limit 1;
+    assert false, 'consultor leu cnpj direto da tabela';
+  exception when insufficient_privilege then null;
+  end;
+  perform status, categoria, consultor from public.leads limit 1;   -- colunas da Digital continuam liberadas
+  begin
+    perform * from public.leads_digital_admin();
+    assert false, 'consultor chamou leads_digital_admin';
+  exception when insufficient_privilege then null;
+  end;
+  perform set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-00000000e202', 'role', 'authenticated')::text, true);
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000e202', true);
+  assert (select count(*) from public.leads_digital_admin() where id like 'zz:%') = 3, 'supervisor recebe cnpj pela RPC';
+  execute 'reset role';
+  -- ===== Task 6: fila ===== (os itens de zz:1/zz:2/zz:3 estão pendentes desde o bloco da Task 2)
+  update public.leads_espelho set proxima_em = now() - interval '1 second' where lead_aba = 'JUNHO';
+  assert (select count(*) from public.leads_espelho_pegar(100) where lead_aba = 'JUNHO') = 3, 'pegar reserva os 3 itens';
+  assert (select count(*) from public.leads_espelho_pegar(100) where lead_aba = 'JUNHO') = 0, 'reservados não voltam na rodada seguinte';
+  -- feito com pedido_em velho não marca (consultor reclassificou no meio)
+  perform public.leads_espelho_feito(jsonb_build_array(jsonb_build_object('lead_aba', 'JUNHO', 'lead_id', 'zz:1', 'pedido_em', '2000-01-01T00:00:00Z', 'guia', 'G')));
+  assert (select feito_em is null from public.leads_espelho where lead_id = 'zz:1'), 'pedido_em diferente não marca feito';
+  perform public.leads_espelho_feito((select jsonb_agg(jsonb_build_object('lead_aba', lead_aba, 'lead_id', lead_id, 'pedido_em', pedido_em, 'guia', 'ZZ GUIA'))
+                                        from public.leads_espelho where lead_id = 'zz:2'));
+  assert (select feito_em is not null from public.leads_espelho where lead_id = 'zz:2'), 'feito com pedido_em igual';
+  assert (select aba_planilha = 'ZZ GUIA' from public.leads where id = 'zz:2'), 'aba_planilha gravada';
+  perform public.leads_espelho_falha(jsonb_build_array(jsonb_build_object('lead_aba', 'JUNHO', 'lead_id', 'zz:3')), 'Sheets 503');
+  assert (select tentativas = 1 and proxima_em > now() + interval '50 seconds' and ultimo_erro = 'Sheets 503' from public.leads_espelho where lead_id = 'zz:3'), 'falha conta tentativa e espera 1 min';
   -- ===== mais testes entram aqui =====
 end $$;
 rollback;

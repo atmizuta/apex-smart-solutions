@@ -3,7 +3,7 @@
 // "Vendas x origem do lead" (casarVendasComLeads), só a parte "com lead". Só admin/supervisor vê.
 const fs = require('fs');
 const { JSDOM } = require('jsdom');
-const { comRange } = require('./test_helper_mock.js');
+const { comRange, rpcComLeadsDigital } = require('./test_helper_mock.js');
 
 let html = fs.readFileSync('_template.html', 'utf8');
 const htmlNoScript = html.replace(/<script>[\s\S]*?<\/script>/g, '');
@@ -27,7 +27,7 @@ window.supabase = { createClient: comRange(() => ({
   auth: { getSession: async () => ({data:{session:null}}), onAuthStateChange: () => {}, signInWithPassword: async () => ({data:{},error:null}), signOut: async () => ({}) },
   from: () => makeQuery(() => ({ data: [], error: null })),
   functions: { invoke: async () => ({data:{},error:null}) },
-  rpc: async () => ({ data: { total: 0, ganho: 0, perdido: 0, andamento: 0, semPedido: 0, pedidosGanho: [], pedidosPerdido: [], pedidosAndamento: [] }, error: null }),
+  rpc: rpcComLeadsDigital(async () => ({ data: { total: 0, ganho: 0, perdido: 0, andamento: 0, semPedido: 0, pedidosGanho: [], pedidosPerdido: [], pedidosAndamento: [] }, error: null }), () => window.__mockLeads),
 })) };
 window.alert = (msg) => { console.log('ALERT:', msg); };
 

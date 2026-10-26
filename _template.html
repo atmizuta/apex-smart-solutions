@@ -9522,12 +9522,11 @@ async function loadConversaoVendas(){
   // CNPJ só é buscado pra admin/supervisor (precisa dele pra "Vendas x origem do lead" e
   // "Conversão confirmada no NeoCRM") — consultor não recebe a coluna, mesma cautela de privacidade
   // já usada no Dashboard de Produção (seção 16.4).
-  const leadsCols = adminMode
-    ? 'consultor,status,categoria,converteu,receita,criado_em_lead,cnpj,aba'
-    : 'consultor,status,categoria,converteu,receita,criado_em_lead,aba';
-
+  // 26/10/2026 (§112): telefone/e-mail/CNPJ não são mais legíveis direto da tabela; admin/supervisor recebem o CNPJ pela RPC.
   const queries = [
-    fetchAllRows(() => sb.from('leads').select(leadsCols)),
+    adminMode
+      ? fetchAllRows(() => sb.rpc('leads_digital_admin'))
+      : fetchAllRows(() => sb.from('leads').select('consultor,status,categoria,converteu,receita,criado_em_lead,aba')),
     sb.from('config').select('valor').eq('chave', 'leads_atualizado_em').maybeSingle(),
     // 29/09/2026 (§48): retornos agendados/registrados por consultor — RLS já devolve só os
     // próprios pro consultor e todos pra admin/supervisor, sem precisar filtrar aqui.
@@ -10608,7 +10607,7 @@ async function buscarVendasOrigemLead(){
   const [{ data: pedidos, error: errPedidos }, { data: leads, error: errLeads }] = await Promise.all([
     fetchAllRows(() => sb.from('producao_pedidos').select('numero_pedido,cliente,cnpj,cadastro,etapa')
       .gte('cadastro', inicio).lt('cadastro', fim)),
-    fetchAllRows(() => sb.from('leads').select('cnpj,criado_em_lead,converteu,receita')),
+    fetchAllRows(() => sb.rpc('leads_digital_admin')),   // §112: CNPJ só pela RPC (admin/supervisor)
   ]);
   if(errPedidos || errLeads){
     console.error(errPedidos || errLeads);

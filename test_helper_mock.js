@@ -48,4 +48,16 @@ function exigirArquivo(caminho, nomeDoTeste){
   return false;
 }
 
-module.exports = { comRange, exigirArquivo };
+// §112 (26/10/2026): a Digital de admin/supervisor lê os leads por sb.rpc('leads_digital_admin') (CNPJ trancado na tabela),
+// paginado com .range() pelo fetchAllRows. Envolve o rpc antigo do mock: essa RPC devolve os mesmos leads do mock da tabela.
+function rpcComLeadsDigital(rpcOriginal, dadosFn){
+  return function(nome, args){
+    if(nome === 'leads_digital_admin'){
+      const res = () => Promise.resolve({ data: dadosFn() || [], error: null });
+      return { range: (de, ate) => res().then(r => ({ ...r, data: r.data.slice(de, ate + 1) })), then: (ok, ko) => res().then(ok, ko) };
+    }
+    return rpcOriginal(nome, args);
+  };
+}
+
+module.exports = { comRange, exigirArquivo, rpcComLeadsDigital };

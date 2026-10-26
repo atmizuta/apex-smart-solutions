@@ -14,7 +14,7 @@ const w = dom.window;
 const alerts = [];
 w.alert = (m) => alerts.push(m);
 const b = new Proxy({}, { get: (_, p) => p === 'then' ? (res) => res({ data: [], error: null }) : () => b });
-w.supabase = { createClient: () => ({ auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => {} }, from: () => b, rpc: async () => ({ data: null, error: null }), functions: { invoke: async () => ({}) } }) };
+w.supabase = { createClient: () => ({ auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => {} }, from: () => b, rpc: (n) => n === 'leads_digital_admin' ? b : Promise.resolve({ data: null, error: null }), functions: { invoke: async () => ({}) } }) };
 w.eval(jsCode);
 const d = w.document;
 const M = w.ApexMotion;
@@ -115,7 +115,7 @@ const M = w.ApexMotion;
   const w2 = dom2.window;
   w2.alert = () => {};
   const comErro = new Proxy({}, { get: (_, p) => p === 'then' ? (res) => res({ data: null, error: { message: 'falha simulada' } }) : () => comErro });
-  w2.supabase = { createClient: () => ({ auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => {} }, from: () => comErro, rpc: async () => ({ data: null, error: { message: 'x' } }), functions: { invoke: async () => ({}) } }) };
+  w2.supabase = { createClient: () => ({ auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => {} }, from: () => comErro, rpc: () => comErro, functions: { invoke: async () => ({}) } }) };
   w2.console.error = () => {};
   w2.eval(jsCode + `
     ;window.__rodarErros = async function(){

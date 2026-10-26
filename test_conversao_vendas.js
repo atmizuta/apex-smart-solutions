@@ -1,6 +1,6 @@
 const fs = require('fs');
 const { JSDOM } = require('jsdom');
-const { comRange } = require('./test_helper_mock.js');
+const { comRange, rpcComLeadsDigital } = require('./test_helper_mock.js');
 
 let html = fs.readFileSync('_template.html', 'utf8');
 const htmlNoScript = html.replace(/<script>[\s\S]*?<\/script>/g, '');
@@ -37,7 +37,7 @@ window.supabase = { createClient: comRange(() => ({
   // usado por renderReconciliacaoNeoCRM quando quem está logado NÃO é admin/supervisor (ver
   // test_venda_origem_lead.js pro teste de verdade do card/drilldown) — aqui só evita
   // "sb.rpc is not a function" caso loadConversaoVendas() rode como consultor neste arquivo.
-  rpc: async () => ({ data: { total: 0, ganho: 0, perdido: 0, andamento: 0, semPedido: 0, pedidosGanho: [], pedidosPerdido: [], pedidosAndamento: [] }, error: null }),
+  rpc: rpcComLeadsDigital(async () => ({ data: { total: 0, ganho: 0, perdido: 0, andamento: 0, semPedido: 0, pedidosGanho: [], pedidosPerdido: [], pedidosAndamento: [] }, error: null }), () => window.__mockLeads),
 })) };
 window.alert = (msg) => { console.log('ALERT:', msg); };
 window.confirm = () => true;
