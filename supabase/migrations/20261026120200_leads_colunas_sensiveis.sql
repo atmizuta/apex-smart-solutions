@@ -19,5 +19,7 @@ begin
   return query select l.aba, l.id, l.consultor, l.status, l.categoria, l.converteu, l.receita, l.criado_em_lead, l.cnpj
                  from public.leads l order by l.aba, l.id;
 end $$;
+revoke execute on function public.leads_digital_admin() from public, anon;
 grant execute on function public.leads_digital_admin() to authenticated;
+-- Publicação (26/10): aplicada em DOIS tempos — a função antes do painel novo, o revoke/grant de colunas depois (ver plano, Task 11).
 commit;

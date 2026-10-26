@@ -3715,3 +3715,38 @@ A sincronização dos leads (`sync-leads`) parou em 26/10 às 07:22. A Digital, 
 - **Aba de entrada do formulário.** A aba gid 0 ("FORM- LEADS CLARO B2B APEX - AGOSTO") é onde o formulário do Facebook grava **todo lead novo**. O time copia cada lead para a aba do mês. Em 26/10 havia 21 leads de outubro nela, 20 deles já copiados para OUTUBRO, e isso passava do limite da trava de mês (§62). Agora essa aba tem `soDoMes: true`: a sync ignora nela os leads criados depois do mês da aba (função `filtrarSoDoMes`), porque são cópias de entrada. O lead entra no painel pela aba do mês, como antes. Os 10 leads de outubro que já estavam gravados como AGOSTO continuam no banco.
 - **Lição:** quando a Digital parar, conferir `config.leads_sync_erro` e a lista de abas com os gids no `htmlview` da planilha. O formulário escreve na aba gid 0, e não na aba do mês.
 - **Testes:** `test_edge_function_sync_leads.js` (127 ok). A simulação com a planilha real em 26/10 deu AGOSTO 156 (21 ignorados), SETEMBRO 851 e OUTUBRO 740, e a trava não disparou.
+
+## 112. Meus leads: Kanban no painel com espelho na planilha (26/10/2026)
+
+Pedido do Rafael: os consultores deixam a planilha "Leads Google" e passam a pegar e classificar os leads no painel. A planilha continua como **espelho permanente**, só de leitura, para a supervisão e a diretoria. Spec: `docs/superpowers/specs/2026-10-26-leads-kanban-planilha-design.md`. Plano: `docs/superpowers/plans/2026-10-26-leads-kanban-planilha.md`.
+
+- **Aba "Meus leads"** (menu, logo depois da Digital): um Kanban com cinco colunas (Livres, Meus novos, Em andamento, Convertido, Perdido).
+  - **Livres** = lead sem dono e sem status dos últimos 60 dias, que qualquer um da `leads_equipe` pode **pegar** (sem limite). Nos Livres, o consultor **não vê** telefone, e-mail nem CNPJ.
+  - **Classificar:** 20 tabulações (`leads_status_opcoes`, texto exato da planilha), OBS, "Converteu?" e Receita (o NEO sugere pelo CNPJ e o card avisa quando diverge), e data do retorno no AGENDADO RETORNO. Também dá para arrastar o card entre colunas.
+  - **Admin/supervisor:** filtro por consultor, "Só divergências", Redistribuir (devolver aos Livres só se o lead ainda não tem status) e "Reescrever planilha" (só admin). A Mesa ganha o card "Meus leads".
+  - A tela consulta `leads_kanban_versao()` a cada 10 s e só recarrega quando algo mudou.
+- **Banco:**
+  - colunas `leads.dono_id/pego_em/classificado_em/classificado_por/retorno_em/aba_planilha`;
+  - tabelas `leads_status_opcoes`, `leads_historico` e `leads_espelho` (fila);
+  - RPCs `leads_pegar` (atômica), `leads_classificar`, `leads_redistribuir`, `leads_kanban`, `leads_kanban_resumo`, `leads_kanban_versao`, `leads_espelho_reescrever` e `leads_digital_admin`;
+  - funções da fila e `leads_entrada` (só service_role);
+  - trava de rodada `leads_espelho_travar/destravar`.
+  - Migrations `20261026120000`…`120400`, rollback em `supabase/rollback/`.
+- **Telefone, e-mail e CNPJ dos leads** deixaram de ser legíveis direto da tabela pelo navegador (grant por coluna). A Digital de admin/supervisor lê o CNPJ por `leads_digital_admin()`.
+- **Edge Function `planilha-espelho`** (conta de serviço do Google, secret `GOOGLE_SA_JSON`, `verify_jwt` false com `x-cron-secret`):
+  - lê a guia de entrada "FORM-…" e **só cria** lead novo (nunca altera lead existente);
+  - esvazia a fila escrevendo CONSULTOR/VENDEDOR, STATUS, OBS, CONVERTEU? e RECEITA na guia do mês, achada pelo **nome** (contém o mês e "CLARO B2B"; AGOSTO fica na própria FORM- por `guias_fixas`), com a linha achada pelo **id do lead**. Lead que não está na guia vira linha nova;
+  - roda uma rodada por vez;
+  - se a guia do mês não existe, espera e avisa ("Crie a guia de NOVEMBRO") — **o time cria a guia, o painel nunca**;
+  - avisos em `config.leads_espelho_aviso` e `leads_sync_erro`.
+- **`config.leads_modo`:** `planilha` (como antes) ou `painel`. No modo painel, a `sync-leads` (v27) não lê nem grava nada.
+- **Publicação de 26/10, ~20:06:**
+  - painel MD5 `e0cd2f9a…`, backup `~/deploy_backups/painel_clientes_apex_20261026_200646_antes_meus_leads.html`;
+  - a 120200 foi aplicada em dois tempos (função antes, trancamento depois);
+  - `planilha-espelho` v1 publicada parada;
+  - ensaio a seco: OUTUBRO 752 a atualizar, 0 a criar; entrada com 1 lead novo.
+  - **Até a virada, a aba aparece só para o admin.**
+- **Virada (pendente, com o Rafael):** PARTES 0–3 do plano (Task 11): última sync, `dono_id` pelo nome da planilha, limpar as 10 duplicatas de outubro gravadas como AGOSTO, `leads_modo = painel` e o cron `planilha-espelho` a cada 10 s.
+  - Avisar o time: ninguém copia mais da FORM- e ninguém edita a planilha.
+  - **Voltar atrás:** com a fila zerada, `leads_modo = planilha` e `cron.unschedule('planilha-espelho')`.
+- **Durante a revisão:** 26/10, a `sync-leads` apareceu como v26, publicada por fora entre 15:37 e 20:02, com o mesmo comportamento da v25. Foi substituída pela v27.
