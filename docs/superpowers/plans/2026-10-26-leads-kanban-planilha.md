@@ -34,7 +34,8 @@
 - Seção do REGRAS: **§112**.
 - Valores fixos da spec:
   - limite de leads por consultor: **nenhum**;
-  - recarga do Kanban: **30 s**;
+  - entrada de lead novo e escrita na planilha: cron **a cada 10 s** (pedido do Rafael, 26/10: "o lead não consegue entrar em 10 segundos?");
+  - Kanban: verifica a cada **10 s** uma versão leve (`leads_kanban_versao`) e só recarrega tudo quando ela muda;
   - Livres mostram os **20** mais novos e um "ver mais";
   - aviso de atraso da planilha depois de **15 min**;
   - espera entre tentativas: **1, 2, 5, 10, 30 min**;
@@ -74,6 +75,8 @@ Cinco situações que a spec implica e que nenhum teste "natural" pega. Cada uma
 | `test_leads_kanban.js` | Testes jsdom do Kanban |
 | `test_venda_origem_lead.js` | Mock passa a responder a RPC `leads_digital_admin` |
 | `REGRAS_NEGOCIO.md` | §112 |
+
+**Ajuste de 26/10 (pedido do Rafael):** cron da `planilha-espelho` a cada **10 s** (pg_cron aceita segundos; o job `mailing-contagem` já usa) e Kanban com verificação leve de versão a cada 10 s. O lead aparece nos Livres ~10–20 s depois de cair na guia de entrada. O tempo Facebook → planilha é da integração deles e fica fora deste projeto (receber direto da Meta por webhook seria um projeto à parte).
 
 **Decisão de implementação (acréscimo à spec 5.5):** a ingestão da guia de entrada fica **dentro da `planilha-espelho`**, que já tem a conta de serviço e roda a cada minuto. A `sync-leads` só ganha a saída cedo no modo `painel`. O comportamento é o da spec (só insere lead novo e nunca sobrescreve os campos de trabalho), e o lead novo aparece em ~1 min em vez de ~10.
 
@@ -305,6 +308,7 @@ drop function if exists public.leads_classificar(text, text, text, text, boolean
 drop function if exists public.leads_redistribuir(text, text, uuid);
 drop function if exists public.leads_kanban(uuid);
 drop function if exists public.leads_kanban_resumo();
+drop function if exists public.leads_kanban_versao();
 drop function if exists public.leads_espelho_reescrever(text);
 drop function if exists public.leads_entrada(jsonb);
 -- 120000
@@ -351,6 +355,7 @@ git commit -m "feat(leads): estrutura base do Kanban e da fila do espelho (secao
   - `leads_redistribuir(p_aba text, p_id text, p_novo uuid) → void` (`p_novo` nulo = devolver; só para lead sem status).
   - `leads_kanban(p_dono uuid default null) → table(aba, lead_id, nome, cidade, uf, qtd_linhas, tipo_empresa, telefone, email, cnpj, status, categoria, obs, converteu, receita, retorno_em, dono_id, dono_nome, pego_em, classificado_em, criado_em_lead, primeiro_clique, primeira_ligacao, venda_neo, receita_neo, livre)`.
   - `leads_kanban_resumo() → table(livres int, livre_mais_antigo timestamptz, fila_pendente int, fila_mais_antiga timestamptz, aviso text)`.
+  - `leads_kanban_versao() → text` (barata; muda quando entra, é pego ou é classificado algum lead).
   - `leads_espelho_reescrever(p_aba text) → int` (só admin).
   - `leads_entrada(p_leads jsonb) → jsonb` `{inseridos, atualizados}` (só service_role).
 
@@ -416,6 +421,7 @@ git commit -m "feat(leads): estrutura base do Kanban e da fila do espelho (secao
   assert (select aba = 'JUNHO' and categoria = 'sem_contato' and dono_id is null from public.leads where id = 'zz:3'), 'entrada inseriu zz:3 livre';
   assert (select full_name = 'Zz Empresa Um Novo' and status = 'PEDIDO CONCLUIDO (VENDA)' and consultor = 'ZZKCON' from public.leads where id = 'zz:1'), 'entrada não mexeu no trabalho do consultor';
   assert exists (select 1 from public.leads_espelho where lead_id = 'zz:3' and feito_em is null), 'lead novo vai para a fila';
+  assert (public.leads_entrada(jsonb_build_array(jsonb_build_object('id', 'zz:3', 'criado_em_lead', '2000-06-20T09:00:00-03:00', 'full_name', 'Zz Empresa Tres', 'phone_number', '11900000003'))) ->> 'inseridos')::int = 0, 'entrada repetida não insere de novo';
 ```
 
 - [ ] **Step 2: Escrever a migration `supabase/migrations/20261026120100_leads_kanban_rpcs.sql`**
@@ -575,6 +581,13 @@ begin
     (select c.valor from public.config c where c.chave = 'leads_espelho_aviso');
 end $$;
 
+-- Versão leve do Kanban (o painel pergunta a cada 10 s e só recarrega leads_kanban quando muda).
+create or replace function public.leads_kanban_versao() returns text
+language sql stable security definer set search_path = public as $$
+  select concat_ws('|', max(primeira_sync_em), max(pego_em), max(classificado_em), count(*) filter (where dono_id is null and categoria = 'sem_contato'))
+    from public.leads where criado_em_lead >= now() - interval '60 days' or classificado_em >= now() - interval '1 day';
+$$;
+
 create or replace function public.leads_espelho_reescrever(p_aba text) returns int
 language plpgsql security definer set search_path = public as $$
 declare n int;
@@ -609,6 +622,7 @@ begin
     get diagnostics n = row_count;
     v_upd := v_upd + n;
     if not exists (select 1 from public.leads l where l.id = r ->> 'id') then
+      -- cron de 10 s: duas rodadas podem trazer o mesmo lead ao mesmo tempo; on conflict evita derrubar o lote
       v_aba := public.leads_mes_aba(v_ts);
       insert into public.leads (aba, id, criado_em_lead, ad_id, ad_name, adset_id, adset_name, campaign_id, campaign_name,
                                 form_id, form_name, is_organic, platform, tipo_empresa, qtd_linhas, cnpj, email, full_name,
@@ -617,9 +631,13 @@ begin
               r ->> 'campaign_id', r ->> 'campaign_name', r ->> 'form_id', r ->> 'form_name',
               coalesce((r ->> 'is_organic')::boolean, false), r ->> 'platform', r ->> 'tipo_empresa', r ->> 'qtd_linhas',
               r ->> 'cnpj', r ->> 'email', r ->> 'full_name', r ->> 'city', r ->> 'state', r ->> 'phone_number',
-              r ->> 'lead_status', 'sem_contato', false, 0, now(), now());
-      perform public.leads_espelho_enfileirar(v_aba, r ->> 'id');
-      v_ins := v_ins + 1;
+              r ->> 'lead_status', 'sem_contato', false, 0, now(), now())
+      on conflict (aba, id) do nothing;
+      get diagnostics n = row_count;
+      if n > 0 then
+        perform public.leads_espelho_enfileirar(v_aba, r ->> 'id');
+        v_ins := v_ins + 1;
+      end if;
     end if;
   end loop;
   return jsonb_build_object('inseridos', v_ins, 'atualizados', v_upd);
@@ -631,6 +649,7 @@ grant execute on function public.leads_classificar(text, text, text, text, boole
 grant execute on function public.leads_redistribuir(text, text, uuid) to authenticated;
 grant execute on function public.leads_kanban(uuid) to authenticated;
 grant execute on function public.leads_kanban_resumo() to authenticated;
+grant execute on function public.leads_kanban_versao() to authenticated;
 grant execute on function public.leads_espelho_reescrever(text) to authenticated;
 commit;
 ```
@@ -2076,6 +2095,12 @@ git commit -m "feat(meus-leads): funcoes puras do Kanban (secao 112)"
   await kbCarregar();
   assert(document.querySelector('#kbBoard [data-id="p1"]').textContent.includes('para resgatar'), 'selo para resgatar');
   assert(document.querySelector('#kbBoard [data-id="a1"] [data-kb-retorno="3"]'), 'andamento tem botão Em 3 dias');
+  // versão leve: igual não recarrega; mudou recarrega
+  window.__rpcRespostas.leads_kanban_versao = { data: 'v1', error: null };
+  assert(await kbVerificarVersao() === true, 'versão nova recarrega');
+  const nCarga = window.__rpcCalls.filter(c => c.nome === 'leads_kanban').length;
+  assert(await kbVerificarVersao() === false, 'versão igual não recarrega');
+  assert(window.__rpcCalls.filter(c => c.nome === 'leads_kanban').length === nCarga, 'não chamou leads_kanban de novo');
   // consultor fora da equipe não vê a aba
   window.__tabelas.leads_equipe = [];
   await kbAplicarPermissao();
@@ -2163,7 +2188,7 @@ Antes de usar, conferir no `<style>` base os nomes reais de `--surface`, `--bord
 - [ ] **Step 6: JS da tela** (no bloco da Task 8, depois das funções puras)
 
 ```js
-const kbEstado = { geracao: 0, naEquipe: false, modo: 'planilha', leads: [], opcoes: [], dono: '', timer: null, verTodosLivres: false, soDivergencias: false, classAlvo: null, consultores: [] };
+const kbEstado = { geracao: 0, naEquipe: false, modo: 'planilha', versao: '', leads: [], opcoes: [], dono: '', timer: null, verTodosLivres: false, soDivergencias: false, classAlvo: null, consultores: [] };
 function kbGestor(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor') && veAbasDaApex(); }
 // Antes da virada (config.leads_modo = 'planilha') só o admin vê a aba, para conferir; depois, equipe de leads + gestores.
 function kbPodeVer(){
@@ -2244,7 +2269,7 @@ function kbRender(){
       ${lista.map(l => kbCard(l, agoraMs)).join('')}${mais}
     </div>`;
   }).join('');
-  document.getElementById('kbStatus').textContent = `${c.livres.length} livre(s) · ${c.novos.length} novo(s) seu(s) · atualiza sozinho a cada 30 s`;
+  document.getElementById('kbStatus').textContent = `${c.livres.length} livre(s) · ${c.novos.length} novo(s) seu(s) · atualiza sozinho`;
 }
 async function kbPegar(aba, id){
   const r = await ppSeguro(() => sb.rpc('leads_pegar', { p_aba: aba, p_id: id }));
@@ -2308,12 +2333,22 @@ async function kbRetornoRapido(leadId, dias){
   if(error){ mostrarAviso('Não foi possível agendar o retorno: ' + error.message, 'erro'); return; }
   mostrarAviso('Retorno agendado para ' + ppFmtDia(data) + '.', 'ok');
 }
+// A cada 10 s pergunta só a versão (barata); recarrega o Kanban inteiro só quando ela muda (§112, pedido de 26/10).
+async function kbVerificarVersao(){
+  const r = await ppSeguro(() => sb.rpc('leads_kanban_versao'));
+  if(!r || r.error) return false;
+  const v = String(r.data || '');
+  if(v === kbEstado.versao) return false;
+  kbEstado.versao = v;
+  await kbCarregar();
+  return true;
+}
 function kbAgendar(){
   clearInterval(kbEstado.timer);
   kbEstado.timer = setInterval(() => {
     const ativa = document.getElementById('panel-meusleads').classList.contains('active');
-    if(ativa && document.visibilityState === 'visible') kbCarregar();
-  }, 30000);
+    if(ativa && document.visibilityState === 'visible') kbVerificarVersao();
+  }, 10000);
 }
 document.getElementById('kbBoard').addEventListener('click', (e) => {
   const card = e.target.closest('.kbCard');
@@ -2578,12 +2613,12 @@ select count(*) from public.leads a
 -- PARTE 3: ligar o modo painel e o cron do espelho
 begin;
 update public.config set valor = 'painel' where chave = 'leads_modo';
-select cron.schedule('planilha-espelho', '* * * * *', $$
+select cron.schedule('planilha-espelho', '10 seconds', $$
   select net.http_post(
     url := 'https://mdgfboijyqfkggcrhptn.supabase.co/functions/v1/planilha-espelho',
     headers := jsonb_build_object('Content-Type','application/json',
       'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'sync_producao_cron_secret')),
-    body := '{}'::jsonb, timeout_milliseconds := 55000);
+    body := '{}'::jsonb, timeout_milliseconds := 30000);
 $$);
 commit;
 
