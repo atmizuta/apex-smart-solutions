@@ -790,21 +790,58 @@
   .mbAcoes{display:flex;gap:var(--space-3);flex-wrap:wrap;margin-top:var(--space-3);}
 </style>
 <style id="kbStyles">
-  /* Meus leads — Kanban (26/10/2026, §112). Só tokens do design; nenhuma cor fixa. */
+  /* Meus leads — Kanban (§112; visual refeito em 26/10 à noite a pedido do Rafael). Só tokens do design, nenhuma cor fixa. */
   .kbTopo{display:flex;justify-content:space-between;align-items:flex-end;gap:var(--space-3);flex-wrap:wrap;}
   .kbFiltros{display:flex;gap:var(--space-2);align-items:flex-end;flex-wrap:wrap;}
-  .kbAviso{margin-top:var(--space-2);padding:var(--space-2) var(--space-3);border-left:3px solid var(--c-bordo);background:var(--c-papel);font-size:.9rem;}
-  .kbBoard{display:grid;grid-template-columns:repeat(5,minmax(240px,1fr));gap:var(--space-3);overflow-x:auto;padding-bottom:var(--space-2);}
-  .kbCol{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:var(--space-2);min-height:200px;}
-  .kbCol.kbAlvo{outline:2px dashed var(--c-sinal);}
-  .kbCol h4{margin:0 0 var(--space-2);font-size:.85rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);display:flex;justify-content:space-between;}
-  .kbCard{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:var(--space-2);margin-bottom:var(--space-2);font-size:.88rem;}
-  .kbCard[draggable="true"]{cursor:grab;}
-  .kbCard .kbNome{font-weight:600;}
-  .kbCard .kbMeta{color:var(--muted);font-size:.8rem;}
-  .kbCard .kbAcoes{display:flex;gap:var(--space-1);flex-wrap:wrap;margin-top:var(--space-2);}
-  .kbCard .kbDiv{margin-top:var(--space-1);font-size:.78rem;color:var(--c-bordo);}
+  .kbAviso{margin-top:var(--space-2);padding:var(--space-2) var(--space-3);border-left:3px solid var(--c-sinal);background:var(--c-papel);font-size:var(--fs-sm);}
+  .kbBoard{display:grid;grid-template-columns:repeat(5,minmax(250px,1fr));gap:var(--space-4);overflow-x:auto;padding:2px 2px var(--space-3);align-items:start;}
+  .kbCol{--kb-cor:var(--c-cinza);background:var(--c-papel);border:1px solid var(--c-linha);border-top:3px solid var(--kb-cor);border-radius:var(--radius-lg);padding:var(--space-3);min-height:260px;transition:opacity var(--dur-fast),box-shadow var(--dur-fast),background var(--dur-fast);}
+  .kbCol[data-kb-col="livres"]{--kb-cor:var(--c-grafite);}
+  .kbCol[data-kb-col="novos"]{--kb-cor:var(--c-sinal);}
+  .kbCol[data-kb-col="andamento"]{--kb-cor:var(--st-andamento);}
+  .kbCol[data-kb-col="convertido"]{--kb-cor:var(--st-ganho);}
+  .kbCol[data-kb-col="perdido"]{--kb-cor:var(--st-perdido);}
+  .kbColTopo{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-3);}
+  .kbColTopo h4{margin:0;font-family:var(--font-head);font-size:var(--fs-md);font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--c-grafite);}
+  .kbConta{min-width:26px;padding:2px 8px;border-radius:999px;background:var(--kb-cor);color:var(--c-branco);font-size:var(--fs-xs);font-weight:700;text-align:center;}
+  .kbBoard.kbArrastando .kbCol{opacity:.45;}
+  .kbBoard.kbArrastando .kbCol.kbAceita{opacity:1;box-shadow:inset 0 0 0 2px var(--kb-cor);}
+  .kbCol.kbAlvo{background:var(--c-branco);}
+  .kbCard{position:relative;background:var(--card);border:1px solid var(--c-linha);border-left:3px solid var(--kb-cor);border-radius:var(--radius-lg);padding:var(--space-3);margin-bottom:var(--space-2);box-shadow:var(--shadow-sm);cursor:pointer;transition:box-shadow var(--dur-fast),transform var(--dur-fast),opacity var(--dur-fast);}
+  .kbCard:hover{box-shadow:var(--shadow-md);transform:translateY(-1px);}
+  .kbCard:active{cursor:grabbing;}
+  .kbCard.kbArrastado{opacity:.35;}
+  .kbCardTopo{display:flex;gap:var(--space-2);align-items:flex-start;justify-content:space-between;}
+  .kbNome{font-weight:700;font-size:var(--fs-base);line-height:1.25;color:var(--c-grafite);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .kbMeta{color:var(--muted);font-size:var(--fs-xs);margin-top:3px;}
+  .kbChips{display:flex;flex-wrap:wrap;gap:var(--space-1);align-items:center;margin-top:var(--space-2);}
+  .kbRodape{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);margin-top:var(--space-2);padding-top:var(--space-2);border-top:1px solid var(--c-linha);}
+  .kbTempo{font-size:var(--fs-xs);color:var(--muted);}
+  .kbCard.kbAtrasado .kbTempo{color:var(--c-sinal);font-weight:700;}
+  .kbIcones{display:flex;gap:4px;flex-shrink:0;}
+  .kbIcone{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:var(--radius);border:1px solid var(--c-linha);background:var(--c-branco);color:var(--c-grafite);}
+  .kbIcone:hover{border-color:var(--c-sinal);color:var(--c-sinal);}
+  .kbIcone svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+  .kbLink{background:none;border:0;padding:0;color:var(--c-sinal);font-weight:700;font-size:var(--fs-sm);cursor:pointer;}
+  .kbLink:hover{text-decoration:underline;}
+  .kbMais{display:block;margin:var(--space-2) auto 0;}
+  .kbVazio{color:var(--muted);font-size:var(--fs-sm);text-align:center;padding:var(--space-6) var(--space-2);border:1px dashed var(--c-linha-forte);border-radius:var(--radius-lg);}
+  .kbDiv{margin-top:var(--space-2);font-size:var(--fs-xs);color:var(--c-sinal);font-weight:600;}
   .kbCol[data-kb-col="perdido"].kbFechada .kbCard{display:none;}
+  .kbFicha{position:fixed;top:0;right:0;bottom:0;width:min(440px,100vw);background:var(--c-branco);border-left:1px solid var(--c-linha);z-index:45;transform:translateX(100%);transition:transform var(--dur) var(--ease-out);overflow-y:auto;}
+  .kbFicha.aberta{transform:none;box-shadow:var(--shadow-lg);}
+  .kbFicha a.btn,.kbIcone{text-decoration:none;}
+  .kbFichaCorpo{position:relative;padding:var(--space-5);}
+  .kbFichaFechar{position:absolute;top:var(--space-3);right:var(--space-3);width:32px;height:32px;border:1px solid var(--c-linha);border-radius:var(--radius);background:var(--c-branco);font-size:20px;line-height:1;cursor:pointer;color:var(--c-grafite);}
+  .kbFichaCab{padding-right:40px;border-bottom:3px solid var(--c-sinal);padding-bottom:var(--space-3);}
+  .kbFichaCab h3{margin:0;font-family:var(--font-head);font-size:var(--fs-lg);color:var(--c-grafite);}
+  .kbFichaSecao h5{margin:var(--space-5) 0 var(--space-2);font-family:var(--font-head);font-size:var(--fs-sm);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);}
+  .kbFichaLinha{display:grid;grid-template-columns:92px 1fr auto;gap:var(--space-2);align-items:center;padding:7px 0;border-bottom:1px solid var(--c-linha);font-size:var(--fs-sm);}
+  .kbFichaLinha span{color:var(--muted);}
+  .kbFichaLinha strong{font-weight:600;color:var(--c-grafite);word-break:break-word;}
+  .kbFichaBotoes{display:flex;gap:var(--space-2);flex-wrap:wrap;margin:var(--space-2) 0;}
+  .kbFichaAcoes{margin-top:var(--space-5);padding-top:var(--space-4);border-top:1px solid var(--c-linha);}
+  .kbFichaAviso{background:var(--c-papel);border-left:3px solid var(--c-sinal);padding:var(--space-3);font-size:var(--fs-sm);margin:var(--space-2) 0;}
   @media (max-width: 900px){
     .kbBoard{grid-template-columns:repeat(5,82vw);}
     .kbCol[data-kb-col="livres"]{position:sticky;left:0;z-index:1;}
@@ -1466,6 +1503,7 @@
         </div>
       </div>
     </div>
+    <aside class="kbFicha" id="kbFicha" aria-label="Ficha do lead"><div class="kbFichaCorpo" id="kbFichaCorpo"></div></aside>
     <div class="overlay" id="kbRedOverlay">
       <div class="modal">
         <h3 style="margin-top:0" id="kbRedTitulo">Redistribuir lead</h3>
@@ -3083,6 +3121,69 @@ function kbTempoDesde(iso, agoraMs){
   if(h < 24) return `há ${h} h`;
   return `há ${Math.floor(h / 24)} dias`;
 }
+// Ajuste de design (26/10 noite): o que acontece ao soltar um cartão. Livres → Meus novos = pegar;
+// lead que já é meu → outra etapa (Em andamento/Convertido/Perdido) = classificar; o resto não aceita.
+function kbAcaoDoArraste(origem, destino){
+  if(!origem || !destino || origem === destino) return null;
+  if(origem === 'livres') return destino === 'novos' ? 'pegar' : null;
+  return kbGrupoDaColuna(destino) ? 'classificar' : null;
+}
+// "Atender agora" no cartão: lead novo meu, sem clique nem ligação, chegou há mais de 15 min.
+function kbAtrasado(l, agoraMs){
+  if(kbColunaDoLead(l) !== 'novos' || l.primeiro_clique || l.primeira_ligacao) return false;
+  const t = kbMs(l.criado_em_lead);
+  return t !== null && (agoraMs - t) / 60000 > 15;
+}
+function kbDataHoraBR(iso){
+  const t = kbMs(iso);
+  return t === null ? '' : new Date(t).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+// Celular no formato brasileiro só para exibir (copiar e ligar usam os dígitos).
+function kbFoneBR(v){
+  let d = String(v || '').replace(/\D/g, '');
+  if(d.length > 11 && d.startsWith('55')) d = d.slice(2);
+  if(d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if(d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return String(v || '');
+}
+const KB_MOEDA = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+function kbMoeda(n){ return Number(n) ? KB_MOEDA.format(Number(n)) : ''; }
+// Ficha do lead (gaveta lateral). Lead Livre sem dado de contato (consultor) mostra o convite para pegar.
+function kbFichaHtml(f, op){
+  const v = (x) => escapeHtml(x == null || x === '' ? '—' : String(x));
+  const tel = String(f.telefone || '').replace(/\D/g, '');
+  const local = [f.cidade, f.uf].filter(Boolean).join('/');
+  const div = kbDivergencia(f);
+  const col = kbColunaDoLead(f);
+  const linha = (rotulo, valor, copiar, mostrar) => `<div class="kbFichaLinha"><span>${rotulo}</span><strong>${v(mostrar || valor)}</strong>${copiar && valor ? `<button type="button" class="kbLink" data-kb-ficha-copiar="${escapeHtml(String(valor))}">Copiar</button>` : '<i></i>'}</div>`;
+  const semContato = f.livre && !tel && !f.email && !f.cnpj;
+  const msg = tel ? encodeURIComponent(col === 'novos' || f.livre ? vlMensagemPrimeiroContato(f, ppPrimeiroNome()) : plMensagemWhats(f, ppPrimeiroNome())) : '';
+  const contato = semContato
+    ? `<p class="kbFichaAviso">Pegue o lead para ver celular, e-mail e CNPJ.</p><button type="button" class="btn" data-kb-ficha-pegar>Pegar este lead</button>`
+    : linha('Celular', f.telefone, true, kbFoneBR(f.telefone))
+      + (tel ? `<div class="kbFichaBotoes"><a class="btn btn-sm" data-kb-contato="ligar" href="tel:${escapeHtml(tel)}">Ligar</a><a class="btn btn-sm btn-outline" data-kb-contato="whatsapp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}?text=${msg}">WhatsApp</a></div>` : '')
+      + linha('E-mail', f.email, true) + linha('CNPJ', f.cnpj, true);
+  const acoes = [];
+  if(f.livre) { if(!semContato) acoes.push(`<button type="button" class="btn btn-sm" data-kb-ficha-pegar>Pegar este lead</button>`); }
+  else {
+    acoes.push(`<button type="button" class="btn btn-sm" data-kb-ficha-classificar>${f.status ? 'Reclassificar' : 'Classificar'}</button>`);
+    if(col === 'andamento' || (col === 'perdido' && plParaResgatar(f))) acoes.push(
+      `<button type="button" class="btn btn-sm btn-outline" data-kb-ficha-retorno="1">Retorno amanhã</button>`,
+      `<button type="button" class="btn btn-sm btn-outline" data-kb-ficha-retorno="3">Em 3 dias</button>`);
+  }
+  if(op && op.gestor) acoes.push(`<button type="button" class="btn btn-sm btn-outline" data-kb-ficha-redistribuir>Redistribuir</button>`);
+  return `<button type="button" class="kbFichaFechar" data-kb-ficha-fechar aria-label="Fechar">×</button>
+    <div class="kbFichaCab">
+      <h3>${v(f.nome)}</h3>
+      <div class="kbChips">${f.status ? `<span class="catBadge ${escapeHtml(f.categoria || '')}">${escapeHtml(f.status)}</span>` : `<span class="catBadge sem_contato">${f.livre ? 'Livre' : 'Sem status'}</span>`}${plParaResgatar(f) ? '<span class="badge">para resgatar</span>' : ''}${f.venda_neo ? '<span class="catBadge convertido">✓ venda no NEO</span>' : ''}</div>
+      <p class="kbMeta">${f.livre ? 'Ainda sem dono' : 'Com ' + v(f.dono_nome)}</p>
+    </div>
+    <div class="kbFichaSecao"><h5>Contato</h5>${contato}</div>
+    <div class="kbFichaSecao"><h5>Empresa</h5>${linha('Tipo', f.tipo_empresa)}${linha('Linhas', f.qtd_linhas)}${linha('Cidade/UF', local)}</div>
+    <div class="kbFichaSecao"><h5>Origem</h5>${linha('Campanha', f.campanha)}${linha('Chegou', kbDataHoraBR(f.criado_em_lead) + ' (' + kbTempoDesde(f.criado_em_lead, op ? op.agoraMs : Date.now()) + ')')}</div>
+    <div class="kbFichaSecao"><h5>Andamento</h5>${linha('OBS', f.obs)}${f.retorno_em ? linha('Retorno', String(f.retorno_em).split('-').reverse().join('/')) : ''}${f.receita ? linha('Receita', kbMoeda(f.receita)) : ''}${div ? `<p class="kbFichaAviso">⚠ ${escapeHtml(div)}</p>` : ''}</div>
+    <div class="kbFichaBotoes kbFichaAcoes">${acoes.join('')}</div>`;
+}
 
 const kbEstado = { geracao: 0, naEquipe: false, modo: 'planilha', versao: '', leads: [], opcoes: [], dono: '', timer: null, verTodosLivres: false, soDivergencias: false, classAlvo: null, consultores: [] };
 function kbGestor(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor') && veAbasDaApex(); }
@@ -3119,36 +3220,32 @@ async function kbCarregar(){
   kbRender();
 }
 const KB_TITULOS = { livres: 'Livres', novos: 'Meus novos', andamento: 'Em andamento', convertido: 'Convertido', perdido: 'Perdido' };
+const KB_ICONE_TEL = '<svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>';
+const KB_ICONE_WHATS = '<svg viewBox="0 0 24 24"><path d="M3 21l1.7-5A8.5 8.5 0 1 1 8 19.3z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1.5-1.5-2-1-1 1a4 4 0 0 1-2.5-2.5l1-1-1-2z"/></svg>';
 function kbCard(l, agoraMs){
   const col = kbColunaDoLead(l);
   const div = kbDivergencia(l);
   const nomeConsultor = ppPrimeiroNome();
-  const meta = [l.cidade, l.qtd_linhas ? l.qtd_linhas + ' linhas' : '', kbTempoDesde(l.criado_em_lead, agoraMs)].filter(Boolean).join(' · ');
+  const local = [l.cidade, l.uf].filter(Boolean).join('/');
+  const meta = [local, l.qtd_linhas ? l.qtd_linhas + ' linhas' : ''].filter(Boolean).join(' · ');
   const tel = String(l.telefone || '').replace(/\D/g, '');
-  const acoes = [];
-  if(col === 'livres') acoes.push(`<button type="button" class="btn btn-sm" data-kb-pegar>Pegar</button>`);
-  else {
-    if(tel){
-      const msg = col === 'novos' ? vlMensagemPrimeiroContato(l, nomeConsultor) : plMensagemWhats(l, nomeConsultor);
-      acoes.push(`<a class="btn btn-sm btn-outline" data-kb-contato="ligar" href="tel:${escapeHtml(tel)}">Ligar</a>`);
-      acoes.push(`<a class="btn btn-sm btn-outline" data-kb-contato="whatsapp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}?text=${encodeURIComponent(msg)}">WhatsApp</a>`);
-    }
-    acoes.push(`<button type="button" class="btn btn-sm" data-kb-classificar>${col === 'novos' ? 'Classificar' : 'Reclassificar'}</button>`);
-    // retornos rápidos (§64): mesma gravação de hoje em leads_followups, sem mudar o status
-    if(col === 'andamento' || (col === 'perdido' && plParaResgatar(l))) acoes.push(
-      `<button type="button" class="btn btn-sm btn-ghost" data-kb-retorno="1">Amanhã</button>`,
-      `<button type="button" class="btn btn-sm btn-ghost" data-kb-retorno="3">Em 3 dias</button>`);
-    if(kbGestor()) acoes.push(`<button type="button" class="btn btn-sm btn-outline" data-kb-redistribuir>Redistribuir</button>`);
-  }
-  return `<div class="kbCard" data-aba="${escapeHtml(l.aba)}" data-id="${escapeHtml(l.lead_id)}" ${col === 'livres' ? '' : 'draggable="true"'}>
-    <div class="kbNome">${escapeHtml(l.nome || '(sem nome)')}</div>
-    <div class="kbMeta">${escapeHtml(meta)}</div>
-    ${l.status ? `<div><span class="badge">${escapeHtml(l.status)}</span>${plParaResgatar(l) ? ' <span class="badge">para resgatar</span>' : ''}${l.retorno_em ? ` <span class="kbMeta">retorno ${escapeHtml(l.retorno_em.split('-').reverse().join('/'))}</span>` : ''}</div>` : ''}
-    ${l.obs ? `<div class="kbMeta">${escapeHtml(String(l.obs).slice(0, 80))}</div>` : ''}
+  const icones = col !== 'livres' && tel
+    ? `<div class="kbIcones"><a class="kbIcone" title="Ligar" data-kb-contato="ligar" href="tel:${escapeHtml(tel)}">${KB_ICONE_TEL}</a><a class="kbIcone" title="WhatsApp" data-kb-contato="whatsapp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}?text=${encodeURIComponent(col === 'novos' ? vlMensagemPrimeiroContato(l, nomeConsultor) : plMensagemWhats(l, nomeConsultor))}">${KB_ICONE_WHATS}</a></div>`
+    : '';
+  const chips = [];
+  if(l.status) chips.push(`<span class="catBadge ${escapeHtml(l.categoria || '')}">${escapeHtml(l.status)}</span>`);
+  if(plParaResgatar(l)) chips.push('<span class="badge">para resgatar</span>');
+  if(l.retorno_em) chips.push(`<span class="kbMeta">retorno ${escapeHtml(String(l.retorno_em).split('-').reverse().join('/'))}</span>`);
+  const acao = col === 'livres' ? `<button type="button" class="btn btn-sm" data-kb-pegar>Pegar</button>`
+    : `<button type="button" class="kbLink" data-kb-classificar>${col === 'novos' ? 'Classificar' : 'Reclassificar'}</button>`;
+  return `<div class="kbCard${kbAtrasado(l, agoraMs) ? ' kbAtrasado' : ''}" data-aba="${escapeHtml(l.aba)}" data-id="${escapeHtml(l.lead_id)}" data-col="${col}" draggable="true">
+    <div class="kbCardTopo"><div class="kbNome">${escapeHtml(l.nome || '(sem nome)')}</div>${icones}</div>
+    ${meta ? `<div class="kbMeta">${escapeHtml(meta)}</div>` : ''}
+    ${chips.length ? `<div class="kbChips">${chips.join('')}</div>` : ''}
     ${kbGestor() && l.dono_nome ? `<div class="kbMeta">Com ${escapeHtml(l.dono_nome)}</div>` : ''}
-    ${col === 'convertido' && (l.receita || l.receita_neo) ? `<div class="kbMeta">R$ ${escapeHtml(String(l.receita || l.receita_neo))}${l.venda_neo ? ' · ✓ NEO' : ''}</div>` : ''}
+    ${col === 'convertido' && (l.receita || l.receita_neo) ? `<div class="kbMeta">${escapeHtml(kbMoeda(l.receita || l.receita_neo))}${l.venda_neo ? ' · ✓ NEO' : ''}</div>` : ''}
     ${div ? `<div class="kbDiv">⚠ ${escapeHtml(div)}</div>` : ''}
-    <div class="kbAcoes">${acoes.join('')}</div>
+    <div class="kbRodape"><span class="kbTempo">${kbAtrasado(l, agoraMs) ? '⏱ ' : ''}${escapeHtml(kbTempoDesde(l.criado_em_lead, agoraMs))}</span>${acao}</div>
   </div>`;
 }
 function kbRender(){
@@ -3159,11 +3256,12 @@ function kbRender(){
   const livresVis = kbEstado.verTodosLivres ? c.livres : c.livres.slice(0, KB_LIVRES_VISIVEIS);
   document.getElementById('kbBoard').innerHTML = KB_COLUNAS.map(col => {
     const lista = col === 'livres' ? livresVis : c[col];
-    const mais = col === 'livres' && c.livres.length > livresVis.length ? `<button type="button" class="btn btn-sm btn-outline" data-kb-vermais>Ver mais (${c.livres.length - livresVis.length})</button>` : '';
+    const mais = col === 'livres' && c.livres.length > livresVis.length ? `<button type="button" class="btn btn-sm btn-outline kbMais" data-kb-vermais>Ver mais (${c.livres.length - livresVis.length})</button>` : '';
+    const vazio = !lista.length ? `<div class="kbVazio">${col === 'livres' ? 'Nenhum lead livre agora' : col === 'novos' ? 'Arraste um lead dos Livres para cá' : 'Nada aqui'}</div>` : '';
     return `<div class="kbCol${col === 'perdido' ? ' kbFechada' : ''}" data-kb-col="${col}">
-      <h4><span>${KB_TITULOS[col]}</span><span>${c[col].length}</span></h4>
-      ${col === 'perdido' ? `<button type="button" class="btn btn-sm btn-outline" data-kb-abrirperdido>Mostrar</button>` : ''}
-      ${lista.map(l => kbCard(l, agoraMs)).join('')}${mais}
+      <div class="kbColTopo"><h4>${KB_TITULOS[col]}</h4><span class="kbConta">${c[col].length}</span></div>
+      ${col === 'perdido' && c[col].length ? `<button type="button" class="kbLink kbMais" data-kb-abrirperdido>Mostrar perdidos do mês</button>` : ''}
+      ${lista.map(l => kbCard(l, agoraMs)).join('')}${vazio}${mais}
     </div>`;
   }).join('');
   document.getElementById('kbStatus').textContent = `${c.livres.length} livre(s) · ${c.novos.length} novo(s) seu(s) · atualiza sozinho`;
@@ -3259,25 +3357,72 @@ document.getElementById('kbBoard').addEventListener('click', (e) => {
   else if(e.target.closest('[data-kb-redistribuir]')) kbAbrirRedistribuir(aba, id);
   else if(e.target.closest('[data-kb-retorno]')) kbRetornoRapido(id, Number(e.target.closest('[data-kb-retorno]').dataset.kbRetorno));
   else if(e.target.closest('[data-kb-contato]')) ppSeguro(() => sb.rpc('registrar_contato_lead', { p_aba: aba, p_lead_id: id, p_canal: e.target.closest('[data-kb-contato]').dataset.kbContato }));
+  else if(!e.target.closest('a,button')) kbAbrirFicha(aba, id);   // clique no cartão abre a ficha
 });
+// Arraste (ajuste 26/10): durante o arraste as colunas que aceitam o cartão acendem e as outras apagam.
+function kbLimparArraste(){
+  const board = document.getElementById('kbBoard');
+  board.classList.remove('kbArrastando');
+  board.querySelectorAll('.kbAceita,.kbAlvo,.kbArrastado').forEach(el => el.classList.remove('kbAceita', 'kbAlvo', 'kbArrastado'));
+  kbEstado.arrasteOrigem = null;
+}
 document.getElementById('kbBoard').addEventListener('dragstart', (e) => {
   const card = e.target.closest('.kbCard[draggable="true"]');
-  if(card) e.dataTransfer.setData('text/plain', JSON.stringify({ aba: card.dataset.aba, id: card.dataset.id }));
+  if(!card) return;
+  kbEstado.arrasteOrigem = card.dataset.col;
+  e.dataTransfer.setData('text/plain', JSON.stringify({ aba: card.dataset.aba, id: card.dataset.id, col: card.dataset.col }));
+  e.dataTransfer.effectAllowed = 'move';
+  card.classList.add('kbArrastado');
+  const board = document.getElementById('kbBoard');
+  board.classList.add('kbArrastando');
+  board.querySelectorAll('.kbCol').forEach(c => c.classList.toggle('kbAceita', !!kbAcaoDoArraste(card.dataset.col, c.dataset.kbCol)));
 });
+document.getElementById('kbBoard').addEventListener('dragend', kbLimparArraste);
 document.getElementById('kbBoard').addEventListener('dragover', (e) => {
   const col = e.target.closest('.kbCol');
-  if(col && kbGrupoDaColuna(col.dataset.kbCol)){ e.preventDefault(); col.classList.add('kbAlvo'); }
+  if(col && kbAcaoDoArraste(kbEstado.arrasteOrigem, col.dataset.kbCol)){ e.preventDefault(); col.classList.add('kbAlvo'); }
 });
-document.getElementById('kbBoard').addEventListener('dragleave', (e) => { const col = e.target.closest('.kbCol'); if(col) col.classList.remove('kbAlvo'); });
+document.getElementById('kbBoard').addEventListener('dragleave', (e) => { const col = e.target.closest('.kbCol'); if(col && !col.contains(e.relatedTarget)) col.classList.remove('kbAlvo'); });
 document.getElementById('kbBoard').addEventListener('drop', (e) => {
   const col = e.target.closest('.kbCol');
-  if(!col) return;
-  col.classList.remove('kbAlvo');
-  const grupo = kbGrupoDaColuna(col.dataset.kbCol);
-  if(!grupo) return;
+  let d = null;
+  try { d = JSON.parse(e.dataTransfer.getData('text/plain')); } catch(_) {}
+  kbLimparArraste();
+  if(!col || !d) return;
+  const acao = kbAcaoDoArraste(d.col, col.dataset.kbCol);
+  if(!acao) return;
   e.preventDefault();
-  try { const d = JSON.parse(e.dataTransfer.getData('text/plain')); kbAbrirClassificar(d.aba, d.id, grupo); } catch(_) {}
+  if(acao === 'pegar') kbPegar(d.aba, d.id);
+  else kbAbrirClassificar(d.aba, d.id, kbGrupoDaColuna(col.dataset.kbCol));
 });
+// Ficha do lead (gaveta lateral)
+async function kbAbrirFicha(aba, id){
+  kbEstado.fichaAlvo = { aba, id };
+  const el = document.getElementById('kbFicha'), corpo = document.getElementById('kbFichaCorpo');
+  corpo.innerHTML = '<p class="kbMeta" style="padding:var(--space-5)">Carregando…</p>';
+  el.classList.add('aberta');
+  const r = await ppSeguro(() => sb.rpc('leads_ficha', { p_aba: aba, p_id: id }));
+  if(!kbEstado.fichaAlvo || kbEstado.fichaAlvo.id !== id) return;
+  const f = r && !r.error && Array.isArray(r.data) ? r.data[0] : null;
+  corpo.innerHTML = f ? kbFichaHtml(f, { gestor: kbGestor(), agoraMs: Date.now() })
+    : '<button type="button" class="kbFichaFechar" data-kb-ficha-fechar aria-label="Fechar">×</button><p class="kbMeta" style="padding:var(--space-5)">Não foi possível abrir a ficha agora.</p>';
+}
+function kbFecharFicha(){ kbEstado.fichaAlvo = null; document.getElementById('kbFicha').classList.remove('aberta'); }
+document.getElementById('kbFicha').addEventListener('click', async (e) => {
+  const alvo = kbEstado.fichaAlvo;
+  if(e.target.closest('[data-kb-ficha-fechar]')){ kbFecharFicha(); return; }
+  if(!alvo) return;
+  const cp = e.target.closest('[data-kb-ficha-copiar]');
+  if(cp){ try { await navigator.clipboard.writeText(cp.dataset.kbFichaCopiar); mostrarAviso('Copiado.', 'ok'); } catch(_) { mostrarAviso('Não foi possível copiar.', 'erro'); } return; }
+  if(e.target.closest('[data-kb-ficha-pegar]')){ await kbPegar(alvo.aba, alvo.id); kbAbrirFicha(alvo.aba, alvo.id); return; }
+  if(e.target.closest('[data-kb-ficha-classificar]')){ kbFecharFicha(); kbAbrirClassificar(alvo.aba, alvo.id, null); return; }
+  if(e.target.closest('[data-kb-ficha-redistribuir]')){ kbFecharFicha(); kbAbrirRedistribuir(alvo.aba, alvo.id); return; }
+  const rt = e.target.closest('[data-kb-ficha-retorno]');
+  if(rt){ kbRetornoRapido(alvo.id, Number(rt.dataset.kbFichaRetorno)); return; }
+  const ct = e.target.closest('[data-kb-contato]');
+  if(ct) ppSeguro(() => sb.rpc('registrar_contato_lead', { p_aba: alvo.aba, p_lead_id: alvo.id, p_canal: ct.dataset.kbContato }));
+});
+document.addEventListener('keydown', (e) => { if(e.key === 'Escape' && kbEstado.fichaAlvo) kbFecharFicha(); });
 document.getElementById('kbClassStatus').addEventListener('change', kbClassAjustar);
 document.getElementById('kbClassSalvar').addEventListener('click', kbSalvarClassificacao);
 document.getElementById('kbClassCancelar').addEventListener('click', () => fecharOverlay(document.getElementById('kbClassOverlay')));

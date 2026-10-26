@@ -128,7 +128,8 @@ try{
     L('p1', { categoria: 'perdido', status: 'CLIENTE NÃO RESPONDE', classificado_em: new Date().toISOString() })], error: null };
   await kbCarregar();
   assert(document.querySelector('#kbBoard [data-id="p1"]').textContent.includes('para resgatar'), 'selo para resgatar');
-  assert(document.querySelector('#kbBoard [data-id="a1"] [data-kb-retorno="3"]'), 'andamento tem botão Em 3 dias');
+  // ajuste 26/10: retorno rápido saiu do cartão e foi para a ficha do lead
+  assert(kbFichaHtml(L('a1', { categoria: 'andamento', status: 'EM NEGOCIAÇÂO', telefone: '11900000001' }), { gestor: false, agoraMs: Date.now() }).includes('data-kb-ficha-retorno="3"'), 'ficha de lead em andamento tem Em 3 dias');
   // versão leve: igual não recarrega; mudou recarrega
   window.__rpcRespostas.leads_kanban_versao = { data: 'v1', error: null };
   assert(await kbVerificarVersao() === true, 'versão nova recarrega');
@@ -187,6 +188,53 @@ try{
   kbEstado.modo = 'planilha';
   eq(await kbMesaCard(), '', 'antes da virada a Mesa não mostra o card (números ainda não valem)');
   kbEstado.modo = 'painel';
+  // ==== Ajuste de design (26/10 noite): arrastar para pegar + ficha do lead ====
+  eq([kbAcaoDoArraste('livres', 'novos'), kbAcaoDoArraste('livres', 'andamento'), kbAcaoDoArraste('novos', 'andamento'),
+      kbAcaoDoArraste('andamento', 'perdido'), kbAcaoDoArraste('novos', 'livres'), kbAcaoDoArraste('andamento', 'andamento'), kbAcaoDoArraste('perdido', 'novos')],
+     ['pegar', null, 'classificar', 'classificar', null, null, null], 'regra do arraste: Livres→Meus novos pega; meus leads→etapas classificam; resto não aceita');
+  const fichaMeu = { aba: 'OUTUBRO', lead_id: 'f1', nome: 'Zz Padaria', cidade: 'Campinas', uf: 'SP', qtd_linhas: '5', tipo_empresa: 'MEI',
+    telefone: '11900000001', email: 'zz@teste.invalid', cnpj: '00000000000101', status: 'EM NEGOCIAÇÂO', categoria: 'andamento', obs: 'ligar à tarde',
+    campanha: 'Zz Campanha', criado_em_lead: '2026-10-26T12:00:00Z', livre: false, dono_nome: 'Zzkcon Teste', venda_neo: false, converteu: false };
+  const h1 = kbFichaHtml(fichaMeu, { gestor: false, agoraMs: Date.parse('2026-10-26T13:00:00Z') });
+  ['Zz Padaria', '00000000000101', '11900000001', 'zz@teste.invalid', 'Campinas/SP', '5', 'MEI', 'Zz Campanha', 'ligar à tarde'].forEach(x => assert(h1.includes(x), 'ficha do meu lead mostra ' + x));
+  assert(h1.includes('data-kb-ficha-copiar') && h1.includes('wa.me/5511900000001'), 'ficha tem copiar e WhatsApp');
+  const h2 = kbFichaHtml(Object.assign({}, fichaMeu, { livre: true, telefone: null, email: null, cnpj: null, status: null, categoria: 'sem_contato' }), { gestor: false, agoraMs: Date.now() });
+  assert(h2.includes('Pegue o lead para ver') && h2.includes('data-kb-ficha-pegar') && !h2.includes('11900000001'), 'ficha de lead Livre esconde contato e oferece Pegar');
+  assert(!kbFichaHtml(Object.assign({}, fichaMeu, { nome: '<img src=x onerror=alert(1)>' }), { gestor: false, agoraMs: Date.now() }).includes('<img'), 'ficha escapa HTML');
+  assert(kbAtrasado(L('t1', { criado_em_lead: '2026-10-26T12:00:00Z' }), Date.parse('2026-10-26T12:20:00Z')) === true, 'novo sem contato há 20 min = atrasado');
+  assert(kbAtrasado(L('t2', { criado_em_lead: '2026-10-26T12:00:00Z', primeiro_clique: '2026-10-26T12:05:00Z' }), Date.parse('2026-10-26T12:20:00Z')) === false, 'com contato não fica atrasado');
+  // arrastar dos Livres para Meus novos pega o lead
+  window.__rpcRespostas.leads_kanban = { data: [L('lv1', { livre: true })], error: null };
+  await kbCarregar();
+  window.__rpcRespostas.leads_pegar = { data: { ok: true, consultor: 'ZZKCON' }, error: null };
+  const antesPegar = window.__rpcCalls.filter(c => c.nome === 'leads_pegar').length;
+  const cardLv = document.querySelector('#kbBoard .kbCard[data-id="lv1"]');
+  assert(cardLv && cardLv.getAttribute('draggable') === 'true', 'cartão dos Livres pode ser arrastado');
+  const soltar = (alvoSel, dados) => {
+    const ev = new window.Event('drop', { bubbles: true, cancelable: true });
+    Object.defineProperty(ev, 'dataTransfer', { value: { getData: () => JSON.stringify(dados) } });
+    document.querySelector(alvoSel).dispatchEvent(ev);
+  };
+  soltar('#kbBoard [data-kb-col="novos"]', { aba: 'OUTUBRO', id: 'lv1', col: 'livres' });
+  await espera(50);
+  assert(window.__rpcCalls.filter(c => c.nome === 'leads_pegar').length === antesPegar + 1, 'soltar em Meus novos chama leads_pegar');
+  soltar('#kbBoard [data-kb-col="perdido"]', { aba: 'OUTUBRO', id: 'lv1', col: 'livres' });
+  await espera(50);
+  assert(window.__rpcCalls.filter(c => c.nome === 'leads_pegar').length === antesPegar + 1 && !document.getElementById('kbClassOverlay').classList.contains('active'), 'soltar Livre em Perdido não faz nada');
+  // clicar no cartão abre a ficha (busca leads_ficha)
+  window.__rpcRespostas.leads_kanban = { data: [L('f1', { telefone: '11900000001' })], error: null };
+  await kbCarregar();
+  window.__rpcRespostas.leads_ficha = { data: [fichaMeu], error: null };
+  document.querySelector('#kbBoard .kbCard[data-id="f1"] .kbNome').click();
+  await espera(50);
+  assert(window.__rpcCalls.some(c => c.nome === 'leads_ficha' && c.args.p_id === 'f1'), 'clique no cartão busca a ficha');
+  assert(document.getElementById('kbFicha').classList.contains('aberta') && document.getElementById('kbFicha').textContent.includes('00000000000101'), 'ficha abre com o CNPJ');
+  document.querySelector('#kbFicha [data-kb-ficha-fechar]').click();
+  assert(!document.getElementById('kbFicha').classList.contains('aberta'), 'ficha fecha');
+  // ==== Acabamento do visual: celular e receita no formato brasileiro ====
+  eq([kbFoneBR('11900000003'), kbFoneBR('5511900000003'), kbFoneBR('1133334444'), kbFoneBR('123'), kbFoneBR('')], ['(11) 90000-0003', '(11) 90000-0003', '(11) 3333-4444', '123', ''], 'celular formatado');
+  eq([kbMoeda(899.9), kbMoeda(1234.5), kbMoeda(0)], ['R$ 899,90', 'R$ 1.234,50', ''], 'receita em reais');
+  assert(kbFichaHtml(fichaMeu, { gestor: false, agoraMs: Date.now() }).includes('(11) 90000-0001'), 'ficha mostra o celular formatado');
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
