@@ -1334,6 +1334,7 @@
         <h3>Lead × Mailing</h3>
         <p class="desc">De onde vieram as vendas e as vendas perdidas da operação Apex: o período do boletim de hoje e os últimos 7 dias. Mesma tabela do Boletim da Manhã.</p>
         <div id="mesaOrig"></div>
+        <div id="mesaKb"></div>
       </div>
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
@@ -1462,6 +1463,17 @@
         <div style="display:flex;gap:var(--space-2);justify-content:flex-end">
           <button type="button" class="btn btn-sm btn-outline" id="kbClassCancelar">Cancelar</button>
           <button type="button" class="btn btn-sm" id="kbClassSalvar">Salvar</button>
+        </div>
+      </div>
+    </div>
+    <div class="overlay" id="kbRedOverlay" style="display:none">
+      <div class="modal">
+        <h3 style="margin-top:0" id="kbRedTitulo">Redistribuir lead</h3>
+        <label class="field"><span>Passar para</span><select id="kbRedNovo"></select></label>
+        <p class="desc" id="kbRedErro" style="color:var(--c-bordo)"></p>
+        <div style="display:flex;gap:var(--space-2);justify-content:flex-end">
+          <button type="button" class="btn btn-sm btn-outline" id="kbRedCancelar">Cancelar</button>
+          <button type="button" class="btn btn-sm" id="kbRedSalvar">Salvar</button>
         </div>
       </div>
     </div>
@@ -3089,6 +3101,7 @@ async function kbAplicarPermissao(){
   document.getElementById('tabBtnMeusLeads').style.display = kbPodeVer() ? 'inline-block' : 'none';
   document.getElementById('kbFiltrosGestor').style.display = kbGestor() ? '' : 'none';
   document.getElementById('kbReescrever').style.display = currentUser && currentUser.role === 'admin' ? '' : 'none';
+  if(kbGestor()) kbCarregarFiltros().catch(err => console.error(err));
 }
 async function kbCarregar(){
   if(!kbPodeVer()) return;
@@ -3152,6 +3165,7 @@ function kbRender(){
     </div>`;
   }).join('');
   document.getElementById('kbStatus').textContent = `${c.livres.length} livre(s) · ${c.novos.length} novo(s) seu(s) · atualiza sozinho`;
+  if(kbGestor()) ppSeguro(() => sb.from('config').select('valor').eq('chave', 'leads_espelho_aviso').maybeSingle()).then(r => { const a = r && r.data ? String(r.data.valor || '') : ''; const el = document.getElementById('kbAviso'); el.style.display = a ? '' : 'none'; el.textContent = a; });
 }
 async function kbPegar(aba, id){
   const r = await ppSeguro(() => sb.rpc('leads_pegar', { p_aba: aba, p_id: id }));
@@ -3265,7 +3279,55 @@ document.getElementById('kbBoard').addEventListener('drop', (e) => {
 document.getElementById('kbClassStatus').addEventListener('change', kbClassAjustar);
 document.getElementById('kbClassSalvar').addEventListener('click', kbSalvarClassificacao);
 document.getElementById('kbClassCancelar').addEventListener('click', () => fecharOverlay(document.getElementById('kbClassOverlay')));
-function kbAbrirRedistribuir(){ /* Task 10 (§112): redistribuir — só gestor */ }
+async function kbCarregarFiltros(){
+  if(!kbGestor()) return;
+  const r = await ppSeguro(() => sb.from('leads_equipe').select('profile_id,nome_planilha'));
+  kbEstado.consultores = (r && !r.error ? r.data || [] : []).filter(x => x.profile_id);
+  const sel = document.getElementById('kbDono');
+  sel.innerHTML = '<option value="">Todos</option>' + kbEstado.consultores.map(c => `<option value="${escapeHtml(c.profile_id)}">${escapeHtml(c.nome_planilha)}</option>`).join('');
+  sel.value = kbEstado.dono || '';
+}
+function kbAbrirRedistribuir(aba, id){
+  const l = kbAcharLead(aba, id);
+  if(!l || !kbGestor()) return;
+  kbEstado.redAlvo = { aba, id };
+  const semStatus = l.categoria === 'sem_contato';
+  document.getElementById('kbRedNovo').innerHTML = (semStatus ? '<option value="">Devolver aos Livres</option>' : '')
+    + kbEstado.consultores.filter(c => c.profile_id !== l.dono_id).map(c => `<option value="${escapeHtml(c.profile_id)}">${escapeHtml(c.nome_planilha)}</option>`).join('');
+  document.getElementById('kbRedTitulo').textContent = 'Redistribuir — ' + (l.nome || '');
+  document.getElementById('kbRedErro').textContent = '';
+  document.getElementById('kbRedOverlay').style.display = 'flex';
+}
+async function kbSalvarRedistribuicao(){
+  const alvo = kbEstado.redAlvo;
+  if(!alvo) return;
+  const novo = document.getElementById('kbRedNovo').value || null;
+  const r = await ppSeguro(() => sb.rpc('leads_redistribuir', { p_aba: alvo.aba, p_id: alvo.id, p_novo: novo }));
+  if(!r || r.error){ document.getElementById('kbRedErro').textContent = (r && r.error && r.error.message) || 'Não foi possível salvar agora.'; return; }
+  fecharOverlay(document.getElementById('kbRedOverlay'));
+  kbEstado.redAlvo = null;
+  mostrarAviso(novo ? 'Lead passado para outro consultor.' : 'Lead devolvido aos Livres.', 'ok');
+  await kbCarregar();
+}
+async function kbMesaCard(){
+  const r = await ppSeguro(() => sb.rpc('leads_kanban_resumo'));
+  const x = r && !r.error && Array.isArray(r.data) ? r.data[0] : null;
+  if(!x) return '';
+  const antigo = x.livre_mais_antigo ? ` · mais antigo ${kbTempoDesde(x.livre_mais_antigo, Date.now())}` : '';
+  return `<div class="card"><h4 style="margin:0">Meus leads</h4>
+    <p class="desc" style="margin:4px 0 0">${x.livres} livre(s)${escapeHtml(antigo)} · planilha: ${x.fila_pendente ? x.fila_pendente + ' na fila' : 'em dia'}</p>
+    ${x.aviso ? `<div class="kbAviso">${escapeHtml(x.aviso)}</div>` : ''}</div>`;
+}
+document.getElementById('kbDono').addEventListener('change', (e) => { kbEstado.dono = e.target.value; kbCarregar(); });
+document.getElementById('kbSoDiverg').addEventListener('click', (e) => { kbEstado.soDivergencias = !kbEstado.soDivergencias; e.target.classList.toggle('active', kbEstado.soDivergencias); kbRender(); });
+document.getElementById('kbReescrever').addEventListener('click', async () => {
+  const aba = mesAbaAtualKb();
+  const r = await ppSeguro(() => sb.rpc('leads_espelho_reescrever', { p_aba: aba }));
+  mostrarAviso(r && !r.error ? `${r.data} lead(s) de ${aba} na fila para reescrever na planilha.` : 'Não foi possível pedir a reescrita.', r && !r.error ? 'ok' : 'erro');
+});
+function mesAbaAtualKb(){ return ['JANEIRO','FEVEREIRO','MARCO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'][Number(hojeSP().slice(5, 7)) - 1]; }
+document.getElementById('kbRedSalvar').addEventListener('click', kbSalvarRedistribuicao);
+document.getElementById('kbRedCancelar').addEventListener('click', () => fecharOverlay(document.getElementById('kbRedOverlay')));
 /* ============ BIOMETRIA ============
    06/10/2026 (redesign a pedido do usuário): a aba virou só "nome do cliente -> baixar imagem
    personalizada". O fluxo antigo (link de biometria da Claro + "Enviar no WhatsApp"/"Copiar link")
@@ -13002,6 +13064,7 @@ function mesaResetar(){
   ['mesaKpis', 'mesaBioPills', 'mesaBioResumo', 'mesaBioTbody', 'mesaSemaforoTbody', 'mesaVelPills', 'mesaVelTabela', 'mesaAtraso', 'mesaStatus'].forEach(id => { document.getElementById(id).innerHTML = ''; });
   document.getElementById('mesaRetObj').innerHTML = '';
   document.getElementById('mesaOrig').innerHTML = ''; mesaEstado.origEm = null;   // §99
+  document.getElementById('mesaKb').innerHTML = '';   // §112
 }
 function mesaAplicarPermissao(){
   const vis = canSeeMesa();
@@ -13040,6 +13103,7 @@ async function loadMesa(forcar){
   mesaRender();
   mesaCarregarRetObj(hoje); // §72 — não bloqueia o resto
   mesaCarregarOrigens(hoje, forcar); // §99 — idem
+    kbMesaCard().then(h => { const el = document.getElementById('mesaKb'); if(el && canSeeMesa()) el.innerHTML = h; }).catch(err => console.error(err)); // §112 — não bloqueia o resto
   clearInterval(mesaEstado.timer);
   mesaEstado.timer = setInterval(() => {
     const ativo = document.getElementById('panel-mesa').classList.contains('active');

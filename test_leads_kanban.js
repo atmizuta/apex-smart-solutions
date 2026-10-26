@@ -139,6 +139,29 @@ try{
   await kbAplicarPermissao();
   assert(document.getElementById('tabBtnMeusLeads').style.display === 'none', 'fora da equipe não vê');
 
+  // ==== Task 10: supervisão ====
+  currentUser = { id: 'u-sup', nome: 'Zzksup Teste', role: 'supervisor', operacao: 'apex' };
+  window.__tabelas.leads_equipe = [{ profile_id: 'u-zz', nome_planilha: 'ZZKCON' }, { profile_id: 'u-zz2', nome_planilha: 'ZZOUTRA' }];
+  window.__rpcRespostas.leads_kanban = { data: [L('m1', { dono_id: 'u-zz', dono_nome: 'Zzkcon Teste', telefone: '11900000001' }), L('d1', { categoria: 'convertido', converteu: true, venda_neo: false, dono_id: 'u-zz' })], error: null };
+  await kbAplicarPermissao();
+  await kbCarregarFiltros();
+  assert(document.getElementById('kbFiltrosGestor').style.display !== 'none', 'gestor vê filtros');
+  eq([...document.querySelectorAll('#kbDono option')].map(o => o.value), ['', 'u-zz', 'u-zz2'], 'seletor de consultor: Todos + equipe');
+  await kbCarregar();
+  assert(document.querySelector('#kbBoard [data-id="m1"]').textContent.includes('Com Zzkcon Teste'), 'card mostra com quem está');
+  document.getElementById('kbSoDiverg').click();
+  assert(!document.querySelector('#kbBoard [data-id="m1"]') && document.querySelector('#kbBoard [data-id="d1"]'), 'filtro de divergências');
+  document.getElementById('kbSoDiverg').click();
+  window.__rpcRespostas.leads_redistribuir = { data: null, error: null };
+  kbAbrirRedistribuir('OUTUBRO', 'm1');
+  document.getElementById('kbRedNovo').value = 'u-zz2';
+  await kbSalvarRedistribuicao();
+  const red = window.__rpcCalls.filter(c => c.nome === 'leads_redistribuir').pop();
+  eq([red.args.p_id, red.args.p_novo], ['m1', 'u-zz2'], 'redistribuir manda o novo dono');
+  window.__rpcRespostas.leads_kanban_resumo = { data: [{ livres: 4, livre_mais_antigo: '2026-10-26T11:00:00Z', fila_pendente: 0, fila_mais_antiga: null, aviso: 'Crie a guia de NOVEMBRO na planilha' }], error: null };
+  const card = await kbMesaCard();
+  assert(card.includes('4 livre') && card.includes('Crie a guia de NOVEMBRO'), 'card da Mesa com livres e aviso');
+
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
