@@ -1,5 +1,11 @@
 -- Desfaz as migrations 20261026120000..120300 (§112). Rodar na ordem inversa da aplicação.
 begin;
+-- cron da virada (se existir)
+select cron.unschedule('planilha-espelho') where exists (select 1 from cron.job where jobname = 'planilha-espelho');
+-- 120400
+drop function if exists public.leads_espelho_travar(int);
+drop function if exists public.leads_espelho_destravar(text);
+delete from public.config where chave = 'leads_espelho_rodada';
 -- 120300
 drop function if exists public.leads_espelho_pegar(int);
 drop function if exists public.leads_espelho_feito(jsonb);

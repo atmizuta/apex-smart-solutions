@@ -74,7 +74,7 @@ export function criarSheets(token: string, sheetId: string, f: FetchFn): Sheets 
     },
     async acrescentar(titulo, linhas) {
       if (!linhas.length) return;
-      await chamar(`${API}/${sheetId}/values/${encodeURI(intervalo(titulo) + "!A1")}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+      await chamar(`${API}/${sheetId}/values/${encodeURI(intervalo(titulo) + "!A1")}:append?valueInputOption=RAW&insertDataOption=OVERWRITE`,
         { method: "POST", body: JSON.stringify({ values: linhas }) });
     },
   };

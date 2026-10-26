@@ -57,7 +57,7 @@ test("cliente do Sheets monta as URLs e corpos certos", async () => {
   assert.equal(chamadas[1].url, "https://sheets.googleapis.com/v4/spreadsheets/SID/values/'ZZ%20-%20OUTUBRO'?valueRenderOption=FORMATTED_VALUE");
   assert.equal(chamadas[2].url, "https://sheets.googleapis.com/v4/spreadsheets/SID/values:batchUpdate");
   assert.deepEqual(JSON.parse(String(chamadas[2].init?.body)), { valueInputOption: "RAW", data: [{ range: "'ZZ'!A2", values: [["x"]] }] });
-  assert.equal(chamadas[3].url, "https://sheets.googleapis.com/v4/spreadsheets/SID/values/'ZZ%20-%20OUTUBRO'!A1:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS");
+  assert.equal(chamadas[3].url, "https://sheets.googleapis.com/v4/spreadsheets/SID/values/'ZZ%20-%20OUTUBRO'!A1:append?valueInputOption=RAW&insertDataOption=OVERWRITE");   // não empurra linhas (revisão final)
   assert.equal((chamadas[3].init?.headers as Record<string, string>).Authorization, "Bearer tok");
 });
 

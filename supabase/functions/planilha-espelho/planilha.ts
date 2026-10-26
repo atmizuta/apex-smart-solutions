@@ -2,7 +2,7 @@
 // Spec: docs/superpowers/specs/2026-10-26-leads-kanban-planilha-design.md
 export const MESES = ["JANEIRO", "FEVEREIRO", "MARCO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
 export type Guia = { titulo: string; indice: number };
-export type CfgPlanilha = { sheet_id: string; entrada_prefixo: string; guia_mes_contem: string; guias_fixas?: Record<string, string> };
+export type CfgPlanilha = { sheet_id: string; entrada_prefixo: string; guia_mes_contem: string; guias_fixas?: Record<string, string>; entrada_desde?: string };
 export type Indices = { id: number; consultor: number; status: number; obs: number; converteu: number; receita: number };
 export type Cabecalho = { linha: number; colunas: string[]; idx: Indices };
 export type LeadPlanilha = {

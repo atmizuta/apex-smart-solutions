@@ -2575,11 +2575,16 @@ select net.http_post(
 -- depois de ~10 s:
 select status_code, left(content, 600) from net._http_response where id = <req>;
 ```
-Esperado: `200` com `"ensaio":{"LEADS CLARO B2B APEX - OUTUBRO":{"atualizar":~740,"criar":~0}}`. Se der `401` ou `403` do Google, a planilha não foi compartilhada com o e-mail da conta. Se der `token do Google: 400`, o JSON do secret está incompleto. Mostrar o resultado ao Rafael.
+Esperado: `200` com `"ensaio":{"LEADS CLARO B2B APEX - OUTUBRO":{"atualizar":~740,"criar":~0}}` e `"ensaioEntrada":{lidos, novos:{MÊS:n}, exemplos:[ids]}` (revisão final, item 6). `novos` é o que a entrada criaria como Livre na virada: mostrar ao Rafael. Se houver lead antigo que o time não copiou de propósito, definir `leads_planilha.entrada_desde` (ISO, ex. o início do dia da virada) antes da PARTE 3. Se der `401` ou `403` do Google, a planilha não foi compartilhada com o e-mail da conta. Se der `token do Google: 400`, o JSON do secret está incompleto. Mostrar o resultado ao Rafael.
 
 - [ ] **Step 2: Publicar painel + migration 120200 juntos** (com ok)
 
-Seguir a memória "Publicação do painel": comparar com o que está no ar, fazer backup e enviar com o MD5 no mesmo comando, vigia `-Aceitar`. Aplicar a `20261026120200` **logo depois** do envio do painel. Conferir na Digital (admin) que a conversão e "Vendas x origem do lead" continuam com números. Até a virada, a aba "Meus leads" só aparece para o **admin** (regra da Task 9 com `config.leads_modo = 'planilha'`). O Rafael pode abrir e conferir; consultores e supervisores ainda não a veem.
+Revisão final (item 8): a `20261026120200` vai em **dois tempos**:
+1. **antes** do envio do painel, só o `create function public.leads_digital_admin()` + `grant` (não tira nada de ninguém);
+2. enviar o painel, seguindo a memória "Publicação do painel": comparar com o que está no ar, fazer backup e enviar com o MD5 no mesmo comando, vigia `-Aceitar`;
+3. **depois**, o `revoke select` + `grant select (colunas)`.
+
+Assim a Digital do admin nunca fica sem fonte de CNPJ. Também aplicar a `20261026120400` (trava de rodada) antes do Step 1. Conferir na Digital (admin) que a conversão e "Vendas x origem do lead" continuam com números. Até a virada, a aba "Meus leads" só aparece para o **admin** (regra da Task 9 com `config.leads_modo = 'planilha'`). O Rafael pode abrir e conferir; consultores e supervisores ainda não a veem.
 
 - [ ] **Step 3: Escrever `supabase/virada/20261026_leads_kanban_virada.sql`** (rodado em partes, com ok, no horário combinado)
 
@@ -2622,8 +2627,11 @@ select cron.schedule('planilha-espelho', '10 seconds', $$
 $$);
 commit;
 
--- VOLTAR ATRÁS: begin; update public.config set valor = 'planilha' where chave = 'leads_modo';
+-- VOLTAR ATRÁS (revisão final, item 9): antes, esperar a fila zerar, senão a sync antiga desfaz classificações que ainda
+-- não chegaram à planilha:  select count(*) from public.leads_espelho where feito_em is null;  -- precisa dar 0
+-- begin; update public.config set valor = 'planilha' where chave = 'leads_modo';
 --   select cron.unschedule('planilha-espelho'); commit;
+-- Depois da Task 12 (link fechado), voltar ao modo planilha exige reabrir "qualquer pessoa com o link".
 ```
 
 - [ ] **Step 4: Publicar a `sync-leads` com a saída cedo (Task 7)** com ok e **antes da PARTE 3**: ela não muda nada enquanto o modo for `planilha`.

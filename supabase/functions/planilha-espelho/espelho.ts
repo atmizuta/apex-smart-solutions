@@ -2,7 +2,7 @@
 // Dependências injetadas: aqui não há rede nem banco (testado com node --test).
 import type { Sheets } from "./google.ts";
 import type { CfgPlanilha, Guia, LeadPlanilha } from "./planilha.ts";
-import { escolherGuia, escritasDaLinha, guiaEntrada, guiasDoMes, idsDaGuia, leadsDaEntrada, lerCabecalho, linhaNova } from "./planilha.ts";
+import { MESES, escolherGuia, escritasDaLinha, guiaEntrada, guiasDoMes, idsDaGuia, leadsDaEntrada, lerCabecalho, linhaNova } from "./planilha.ts";
 
 export type ItemFila = { lead_aba: string; lead_id: string; pedido_em: string; tentativas: number };
 export type DepsEspelho = {
@@ -17,39 +17,78 @@ export type DepsEspelho = {
   registrarEntrada(erro: string | null): Promise<void>;
   atrasoMin(): Promise<number | null>;
   avisar(msg: string): Promise<void>;
+  // revisão final: uma rodada por vez (cron de 10 s). travar() = false → outra rodada está trabalhando.
+  travar(): Promise<boolean>;
+  destravar(): Promise<void>;
+  idsExistentes(ids: string[]): Promise<Set<string>>;   // usado só no ensaio da entrada
 };
 export type Resultado = {
   ok: boolean; modo: string; entrada?: { inseridos: number; atualizados: number; invalidos: number };
   escritos: number; criados: number; adiados: number; falhas: number; aviso: string;
   ensaio?: Record<string, { atualizar: number; criar: number }>;
+  ensaioEntrada?: { lidos: number; novos: Record<string, number>; exemplos: string[] };
+  ocupado?: boolean;
 };
 
 const LOTE = 100;
 const ATRASO_AVISO_MIN = 15;
 const chave = (aba: string, id: string) => `${aba}|${id}`;
 
+// Leads da guia de entrada a partir de cfg.entrada_desde (na virada: só o que chegou depois dela).
+function filtrarDesde(leads: Record<string, unknown>[], desde?: string): Record<string, unknown>[] {
+  const t0 = Date.parse(desde || "");
+  if (isNaN(t0)) return leads;
+  return leads.filter((l) => { const t = Date.parse(String(l.criado_em_lead || "")); return !isNaN(t) && t >= t0; });
+}
+function mesSP(iso: string): string {
+  const t = Date.parse(iso || "");
+  return MESES[new Date((isNaN(t) ? Date.now() : t) - 3 * 3600000).getUTCMonth()];
+}
+
 export async function rodar(deps: DepsEspelho, op: { ensaioAba?: string }): Promise<Resultado> {
   const res: Resultado = { ok: true, modo: deps.modo, escritos: 0, criados: 0, adiados: 0, falhas: 0, aviso: "" };
   const ensaio = !!op.ensaioAba;
   if (deps.modo !== "painel" && !ensaio) return res;
+  if (!ensaio && !(await deps.travar())) { res.ocupado = true; return res; }
+  try {
+    await rodada(deps, op, res, ensaio);
+  } catch (e) {
+    // erro geral (sem acesso à planilha, Google fora, cabeçalho de entrada sumiu...): aparece para admin/supervisor
+    res.ok = false;
+    if (ensaio) throw e;
+    await deps.registrarEntrada(`planilha-espelho: ${(e as Error).message}`);
+  } finally {
+    if (!ensaio) await deps.destravar();
+  }
+  return res;
+}
 
+async function rodada(deps: DepsEspelho, op: { ensaioAba?: string }, res: Resultado, ensaio: boolean): Promise<void> {
   const guias = await deps.sheets.guias();
   const cache = new Map<string, string[][]>();
   const ler = async (t: string) => { if (!cache.has(t)) cache.set(t, await deps.sheets.ler(t)); return cache.get(t)!; };
 
-  // (1) entrada
-  if (!ensaio) {
-    try {
-      const g = guiaEntrada(guias, deps.cfg);
-      if (!g) throw new Error(`guia de entrada (título começando com "${deps.cfg.entrada_prefixo}") não encontrada`);
-      const { leads, invalidos } = leadsDaEntrada(await ler(g.titulo));
-      const r = await deps.inserirEntrada(leads);
-      res.entrada = { ...r, invalidos };
+  // (1) entrada (no ensaio: só conta o que seria criado, por mês, com alguns ids de exemplo)
+  try {
+    const g = guiaEntrada(guias, deps.cfg);
+    if (!g) throw new Error(`guia de entrada (título começando com "${deps.cfg.entrada_prefixo}") não encontrada`);
+    const lidos = leadsDaEntrada(await ler(g.titulo));
+    const leadsEntrada = filtrarDesde(lidos.leads, deps.cfg.entrada_desde);
+    if (ensaio) {
+      const existem = await deps.idsExistentes(leadsEntrada.map((l) => String(l.id)));
+      const novos = leadsEntrada.filter((l) => !existem.has(String(l.id)));
+      const porMes: Record<string, number> = {};
+      for (const l of novos) { const m = mesSP(String(l.criado_em_lead || "")); porMes[m] = (porMes[m] || 0) + 1; }
+      res.ensaioEntrada = { lidos: leadsEntrada.length, novos: porMes, exemplos: novos.slice(0, 5).map((l) => String(l.id)) };
+    } else {
+      const r = await deps.inserirEntrada(leadsEntrada);
+      res.entrada = { ...r, invalidos: lidos.invalidos };
       await deps.registrarEntrada(null);
-    } catch (e) {
-      res.ok = false;
-      await deps.registrarEntrada((e as Error).message);
     }
+  } catch (e) {
+    res.ok = false;
+    if (ensaio) throw e;
+    await deps.registrarEntrada((e as Error).message);
   }
 
   // (2) fila (ou, no ensaio, todos os leads da aba pedida)
@@ -117,7 +156,7 @@ export async function rodar(deps: DepsEspelho, op: { ensaioAba?: string }): Prom
       else throw e;
     }
   }
-  if (ensaio) { res.ensaio = contagem; return res; }
+  if (ensaio) { res.ensaio = contagem; return; }
 
   // (3) aviso para admin/supervisor
   if (faltando.length) res.aviso = `Crie a guia de ${faltando.join(", ")} na planilha — os leads desse mês estão esperando para ser escritos.`;
@@ -126,5 +165,4 @@ export async function rodar(deps: DepsEspelho, op: { ensaioAba?: string }): Prom
     if (atraso !== null && atraso > ATRASO_AVISO_MIN) res.aviso = `A planilha está atrasada há ${Math.round(atraso)} min (o painel funciona normal; a escrita tenta de novo sozinha).`;
   }
   await deps.avisar(res.aviso);
-  return res;
 }

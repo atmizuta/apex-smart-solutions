@@ -24,9 +24,9 @@ const agoraSP = () => new Date().toLocaleString("pt-BR", { timeZone: "America/Sa
 Deno.serve(async (req) => {
   const segredo = Deno.env.get("SYNC_CRON_SECRET") ?? "";
   if (!segredo || !iguais(req.headers.get("x-cron-secret") ?? "", segredo)) return json({ error: "não autorizado" }, 401);
+  const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
   try {
     const corpo = req.method === "POST" ? await req.json().catch(() => ({})) : {};
-    const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
     const falha = (ctx: string, error: { code?: string; message?: string } | null) => { if (error) throw new Error(`${ctx} (código ${error.code ?? "?"})`); };
     const cfgRows = await sb.from("config").select("chave,valor").in("chave", ["leads_modo", "leads_planilha"]);
     falha("ler config", cfgRows.error);
@@ -36,6 +36,7 @@ Deno.serve(async (req) => {
     const sa = JSON.parse(Deno.env.get("GOOGLE_SA_JSON") || "{}");
     if (!sa.client_email || !sa.private_key) throw new Error("secret GOOGLE_SA_JSON ausente ou inválido");
     const token = await obterToken(sa, Math.floor(Date.now() / 1000), fetch);
+    let token: string | null = null;
     const paraJson = (itens: ItemFila[], g: Record<string, string> = {}) =>
       itens.map((i) => ({ lead_aba: i.lead_aba, lead_id: i.lead_id, pedido_em: i.pedido_em, guia: g[`${i.lead_aba}|${i.lead_id}`] ?? "" }));
     const deps: DepsEspelho = {
@@ -65,11 +66,30 @@ Deno.serve(async (req) => {
       },
       async atrasoMin() { const r = await sb.rpc("leads_espelho_atraso"); falha("atraso", r.error); return r.data === null ? null : Number(r.data); },
       async avisar(msg) { falha("aviso", (await sb.from("config").upsert({ chave: "leads_espelho_aviso", valor: msg }, { onConflict: "chave" })).error); },
+      async travar() {
+        const r = await sb.rpc("leads_espelho_travar", { p_segundos: 60 });
+        falha("travar rodada", r.error);
+        token = r.data ?? null;
+        return token !== null;
+      },
+      async destravar() { if (token) falha("destravar rodada", (await sb.rpc("leads_espelho_destravar", { p_token: token })).error); },
+      async idsExistentes(ids) {
+        const achados = new Set<string>();
+        for (let i = 0; i < ids.length; i += 200) {
+          const r = await sb.from("leads").select("id").in("id", ids.slice(i, i + 200));
+          falha("conferir ids", r.error);
+          for (const x of (r.data ?? []) as { id: string }[]) achados.add(x.id);
+        }
+        return achados;
+      },
     };
     const r = await rodar(deps, { ensaioAba: typeof corpo.ensaio_aba === "string" ? corpo.ensaio_aba : undefined });
     return json(r, 200);
   } catch (e) {
+    // erro antes da rodada (secret, token do Google, config): sem isto a entrada de leads pararia em silêncio (revisão final)
     console.error("planilha-espelho:", (e as Error).message);
+    await sb.from("config").upsert({ chave: "leads_sync_erro", valor: `${agoraSP()} — planilha-espelho: ${(e as Error).message}` }, { onConflict: "chave" })
+      .then(() => null, () => null);
     return json({ error: (e as Error).message }, 500);
   }
 });

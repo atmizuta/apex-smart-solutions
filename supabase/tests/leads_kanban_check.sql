@@ -131,6 +131,14 @@ begin
   assert (select aba_planilha = 'ZZ GUIA' from public.leads where id = 'zz:2'), 'aba_planilha gravada';
   perform public.leads_espelho_falha(jsonb_build_array(jsonb_build_object('lead_aba', 'JUNHO', 'lead_id', 'zz:3')), 'Sheets 503');
   assert (select tentativas = 1 and proxima_em > now() + interval '50 seconds' and ultimo_erro = 'Sheets 503' from public.leads_espelho where lead_id = 'zz:3'), 'falha conta tentativa e espera 1 min';
+  -- ===== revisão final: trava de rodada (uma rodada por vez) =====
+  update public.config set valor = '' where chave = 'leads_espelho_rodada';
+  assert public.leads_espelho_travar(60) is not null, 'primeira rodada trava';
+  assert public.leads_espelho_travar(60) is null, 'segunda rodada não entra';
+  perform public.leads_espelho_destravar('token-de-outra-rodada');
+  assert public.leads_espelho_travar(60) is null, 'destravar com token errado não solta';
+  update public.config set valor = (clock_timestamp() - interval '2 minutes')::text where chave = 'leads_espelho_rodada';
+  assert public.leads_espelho_travar(60) is not null, 'trava velha (rodada que morreu) vence sozinha';
   -- ===== mais testes entram aqui =====
 end $$;
 rollback;
