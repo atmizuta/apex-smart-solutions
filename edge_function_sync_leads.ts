@@ -65,11 +65,15 @@ const SHEET_ID = "1nu3yNLedr3ier2f7S6dI95XX6gxyJpsg4dtpi66AP5w";
 // muda ao renomear, a sync passou a gravar leads de outubro como SETEMBRO (31 leads às 13:40). Corrigido:
 // o gid 1292366194 agora é OUTUBRO e SETEMBRO aponta para o gid novo. Lição: o gid é da ABA, não do nome —
 // conferir o nome de cada gid (htmlview da planilha) sempre que o time mexer nas abas. REGRAS seção 60.
+// 26/10/2026 (REGRAS seção 111): a sync parou às 07:22 por dois motivos. (1) O time recriou a aba de OUTUBRO
+// (gid novo 1168806124; o 1292366194 dá HTTP 400) e apagou a aba REPIQUE (os leads dela continuam no banco).
+// (2) A aba gid 0 ("FORM- ... AGOSTO") é a aba de ENTRADA do formulário do Facebook: todo lead novo cai nela e o
+// time copia para a aba do mês. Com 21 leads de outubro ali a trava de mês disparava. `soDoMes: true` faz a
+// sync ignorar, nessa aba, os leads criados depois do mês dela (são cópias de entrada; o lead entra pela aba do mês).
 const SHEET_TABS = [
-  { aba: "AGOSTO", label: "FORM- LEADS CLARO B2B APEX - AGOSTO", gid: "0" },
+  { aba: "AGOSTO", label: "FORM- LEADS CLARO B2B APEX - AGOSTO", gid: "0", soDoMes: true },
   { aba: "SETEMBRO", label: "LEADS CLARO B2B APEX - SETEMBRO 26", gid: "1519521435" },
-  { aba: "OUTUBRO", label: "LEADS CLARO B2B APEX - OUTUBRO", gid: "1292366194" },
-  { aba: "REPIQUE", label: "REPIQUE", gid: "532368128" },
+  { aba: "OUTUBRO", label: "LEADS CLARO B2B APEX - OUTUBRO", gid: "1168806124" },
 ];
 function sheetTabCsvUrl(gid: string): string {
   return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
@@ -114,6 +118,19 @@ export function verificarTrava(registros: LeadAba[]): string {
       `Parece que uma aba da planilha foi renomeada ou trocada — nada foi gravado. Confira o gid de cada aba em SHEET_TABS (REGRAS_NEGOCIO.md seções 60.2 e 62).`;
   }
   return "";
+}
+
+// 26/10/2026 (seção 111): aba de entrada (`soDoMes`) — tira os leads criados de 1 a 5 meses DEPOIS do mês da
+// aba (mesma conta da trava). Lead sem data ou de mês anterior fica. Devolve quantos saíram (só para log).
+export function filtrarSoDoMes(registros: LeadAba[]) {
+  const mantidos = registros.filter((r) => {
+    const mesAba = MESES_ABA.indexOf(String(r.aba || "").toUpperCase()) + 1;
+    const mesLead = mesSP(r.criado_em_lead || "");
+    if (!mesAba || !mesLead) return true;
+    const dif = (mesLead - mesAba + 12) % 12;
+    return dif < 1 || dif > 5;
+  });
+  return { mantidos, fora: registros.length - mantidos.length };
 }
 
 // Comparação do segredo do cron em tempo constante (mesma da sync-producao).
@@ -375,7 +392,13 @@ Deno.serve(async (req) => {
       }
       const csvText = await resp.text();
       try {
-        registros = registros.concat(parseSheetCsv(csvText, tab.label, tab.aba, ignorados));
+        let lidos = parseSheetCsv(csvText, tab.label, tab.aba, ignorados);
+        if (tab.soDoMes) {   // aba de entrada do formulário (seção 111)
+          const f = filtrarSoDoMes(lidos);
+          lidos = f.mantidos as typeof lidos;
+          if (f.fora) console.log(`Aba ${tab.aba}: ${f.fora} lead(s) de mês posterior ignorados (cópias de entrada).`);
+        }
+        registros = registros.concat(lidos);
       } catch (e) {
         await registrarErro((e as Error).message);
         return json({ error: (e as Error).message }, 502, corsHeaders);

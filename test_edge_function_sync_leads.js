@@ -62,6 +62,7 @@ new Function('sandbox', trechoPuro + `
   sandbox.verificarTrava = verificarTrava;
   sandbox.iguais = iguais;
   sandbox.TRAVA_LIMITE = TRAVA_LIMITE;
+  sandbox.filtrarSoDoMes = filtrarSoDoMes;
 `)(sandbox);
 
 let ok = 0, fail = 0;
@@ -136,11 +137,12 @@ assert(linhaSemStatus.consultor === null, 'lead sem consultor atribuído fica nu
 // sincronização inteira. Gid atualizado pro correto (1292366194) e adicionada a aba "REPIQUE"
 // (mesma estrutura de colunas, lote de recontato), a pedido do usuário — ver REGRAS_NEGOCIO.md.
 // 01/10/2026: o gid 1292366194 foi RENOMEADO para Outubro na planilha; Setembro foi para o gid 1519521435 (REGRAS seção 60).
-assert(Array.isArray(sandbox.SHEET_TABS) && sandbox.SHEET_TABS.length === 4, 'SHEET_TABS tem as 4 abas conhecidas (Agosto + Setembro + Outubro + REPIQUE)');
+// 26/10/2026 (seção 111): OUTUBRO recriada no gid 1168806124 e REPIQUE apagada da planilha.
+assert(Array.isArray(sandbox.SHEET_TABS) && sandbox.SHEET_TABS.length === 3, 'SHEET_TABS tem as 3 abas atuais (Agosto + Setembro + Outubro)');
 assert(sandbox.SHEET_TABS.some(t => t.label === 'FORM- LEADS CLARO B2B APEX - AGOSTO' && t.gid === '0'), 'SHEET_TABS inclui a aba de Agosto com o gid certo (0)');
 assert(sandbox.SHEET_TABS.some(t => t.label === 'LEADS CLARO B2B APEX - SETEMBRO 26' && t.gid === '1519521435'), 'SHEET_TABS inclui a aba de Setembro no gid novo (1519521435)');
-assert(sandbox.SHEET_TABS.some(t => t.label === 'LEADS CLARO B2B APEX - OUTUBRO' && t.gid === '1292366194'), 'SHEET_TABS inclui a aba de Outubro (gid 1292366194, a antiga aba de Setembro renomeada)');
-assert(sandbox.SHEET_TABS.some(t => t.label === 'REPIQUE' && t.gid === '532368128'), 'SHEET_TABS inclui a aba REPIQUE com o gid certo (532368128)');
+assert(sandbox.SHEET_TABS.some(t => t.label === 'LEADS CLARO B2B APEX - OUTUBRO' && t.gid === '1168806124'), 'SHEET_TABS inclui a aba de Outubro recriada (gid 1168806124)');
+assert(!sandbox.SHEET_TABS.some(t => t.gid === '532368128' || t.gid === '1292366194'), 'SHEET_TABS não usa os gids que sumiram (REPIQUE 532368128, Outubro antigo 1292366194)');
 assert(!sandbox.SHEET_TABS.some(t => t.gid === '1483781302'), 'SHEET_TABS não usa mais o gid antigo/quebrado da aba de Setembro (1483781302)');
 const urlSetembro = sandbox.sheetTabCsvUrl('1292366194');
 assert(urlSetembro.includes('export?format=csv'), 'sheetTabCsvUrl usa o endpoint de exportação direta (não o gviz, que corrompia o cabeçalho de Agosto)');
@@ -177,11 +179,11 @@ assert(!!erroSemCabecalho && erroSemCabecalho.includes('OUTUBRO (teste)'), 'pars
 // =====================================================================================
 
 // --- cada aba tem a sua chave (vira leads.aba e o seletor da aba Digital) ---
-assert(sandbox.SHEET_TABS.map(t => t.aba).join(',') === 'AGOSTO,SETEMBRO,OUTUBRO,REPIQUE', 'SHEET_TABS tem as chaves de aba AGOSTO, SETEMBRO, OUTUBRO e REPIQUE');
+assert(sandbox.SHEET_TABS.map(t => t.aba).join(',') === 'AGOSTO,SETEMBRO,OUTUBRO', 'SHEET_TABS tem as chaves de aba AGOSTO, SETEMBRO e OUTUBRO');
 assert(sandbox.SHEET_TABS.find(t => t.gid === '1519521435').aba === 'SETEMBRO', 'o gid novo de Setembro aponta pra chave SETEMBRO');
-assert(sandbox.SHEET_TABS.find(t => t.gid === '1292366194').aba === 'OUTUBRO', 'o gid 1292366194 (renomeado) aponta pra chave OUTUBRO, não mais SETEMBRO');
+assert(sandbox.SHEET_TABS.find(t => t.gid === '1168806124').aba === 'OUTUBRO', 'o gid 1168806124 aponta pra chave OUTUBRO');
 assert(new Set(sandbox.SHEET_TABS.map(t => t.gid)).size === sandbox.SHEET_TABS.length, 'nenhum gid repetido entre as abas');
-assert(sandbox.SHEET_TABS.find(t => t.gid === '532368128').aba === 'REPIQUE', 'o gid da aba REPIQUE aponta pra chave REPIQUE');
+assert(sandbox.SHEET_TABS.find(t => t.gid === '0').soDoMes === true && sandbox.SHEET_TABS.filter(t => t.soDoMes).length === 1, 'só a aba de entrada (gid 0) é soDoMes');
 
 // --- mapearLinha carimba de qual aba o lead veio ---
 assert(sandbox.mapearLinha({ id: 'l:1' }, 'SETEMBRO').aba === 'SETEMBRO', 'mapearLinha grava a aba de origem');
@@ -304,6 +306,19 @@ assert(sandbox.avisoIgnorados([]) === '', 'sem linha ignorada: aviso vazio');
 const muitos = Array.from({ length: 7 }, (_, i) => ({ aba: 'OUTUBRO', linha: 10 + i, valor: 'x' }));
 assert(sandbox.avisoIgnorados(muitos).includes('e mais 2'), 'lista até 5 linhas e resume o resto');
 assert(/leads_sync_erro", valor: aviso/.test(handler), 'handler grava o aviso em leads_sync_erro quando houve linha ignorada');
+
+// --- filtrarSoDoMes (26/10/2026, seção 111): aba de entrada do formulário ---
+{
+  const E = (data) => ({ aba: 'AGOSTO', criado_em_lead: data });
+  const lista = [E('2026-08-10T12:00:00-03:00'), ...Array.from({ length: 21 }, () => E('2026-10-25T20:00:00-03:00')), E(null), E('2026-07-30T12:00:00-03:00')];
+  const f = sandbox.filtrarSoDoMes(lista);
+  assert(f.fora === 21 && f.mantidos.length === 3, 'soDoMes: tira os 21 leads de outubro da aba AGOSTO e mantém agosto, sem data e mês anterior');
+  assert(sandbox.verificarTrava(f.mantidos) === '', 'soDoMes: depois do filtro a trava não dispara');
+  assert(sandbox.verificarTrava(lista) !== '', 'sem o filtro, os 21 de outubro na aba AGOSTO disparam a trava (o caso de 26/10)');
+  const virada = sandbox.filtrarSoDoMes([{ aba: 'DEZEMBRO', criado_em_lead: '2027-01-05T12:00:00-03:00' }, { aba: 'JANEIRO', criado_em_lead: '2026-12-20T12:00:00-03:00' }]);
+  assert(virada.fora === 1 && virada.mantidos[0].aba === 'JANEIRO', 'soDoMes: virada de ano (janeiro numa aba de dezembro sai; dezembro numa aba de janeiro fica)');
+  assert(/if \(tab\.soDoMes\)/.test(src), 'handler aplica filtrarSoDoMes nas abas soDoMes');
+}
 
 console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
 if(fail > 0) process.exitCode = 1;

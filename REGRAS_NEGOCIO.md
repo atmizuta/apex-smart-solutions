@@ -3706,3 +3706,12 @@ Pedido do Rafael: "precisamos da contagem completa, não de estimativa — mesmo
     - As linhas de teste foram apagadas.
   - **`mailing-api` v12** publicada, com `verify_jwt` e fumaça 401/403 ok. A v11 do ar era igual à oficial.
   - **Painel** publicado às 19:43 (SP), MD5 `d9ba0467f3c91078ac126a75c06e1afb`. Backup: `~/deploy_backups/painel_clientes_apex_20261023_224314_antes_contagem_exata.html`. Antes, o painel no ar era idêntico à oficial/main (MD5 `c2371da7…`).
+
+## 111. Leads: aba OUTUBRO recriada e aba de entrada do formulário (26/10/2026)
+
+A sincronização dos leads (`sync-leads`) parou em 26/10 às 07:22. A Digital, "Meus leads para tratar", "Atender agora" e a Mesa ficaram com os leads parados nesse horário. Foram dois motivos:
+
+- **Aba OUTUBRO recriada.** O time recriou a aba "LEADS CLARO B2B APEX - OUTUBRO", que ganhou o gid **1168806124**. O gid antigo (1292366194) passou a dar HTTP 400. A aba **REPIQUE** (532368128) foi apagada da planilha e saiu de `SHEET_TABS`. Os 427 leads dela que já estavam no banco continuam lá, porque a sync não apaga nada.
+- **Aba de entrada do formulário.** A aba gid 0 ("FORM- LEADS CLARO B2B APEX - AGOSTO") é onde o formulário do Facebook grava **todo lead novo**. O time copia cada lead para a aba do mês. Em 26/10 havia 21 leads de outubro nela, 20 deles já copiados para OUTUBRO, e isso passava do limite da trava de mês (§62). Agora essa aba tem `soDoMes: true`: a sync ignora nela os leads criados depois do mês da aba (função `filtrarSoDoMes`), porque são cópias de entrada. O lead entra no painel pela aba do mês, como antes. Os 10 leads de outubro que já estavam gravados como AGOSTO continuam no banco.
+- **Lição:** quando a Digital parar, conferir `config.leads_sync_erro` e a lista de abas com os gids no `htmlview` da planilha. O formulário escreve na aba gid 0, e não na aba do mês.
+- **Testes:** `test_edge_function_sync_leads.js` (127 ok). A simulação com a planilha real em 26/10 deu AGOSTO 156 (21 ignorados), SETEMBRO 851 e OUTUBRO 740, e a trava não disparou.
