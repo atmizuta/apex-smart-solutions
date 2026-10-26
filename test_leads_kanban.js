@@ -36,7 +36,8 @@ window.supabase = { createClient: comRange(() => ({
   },
 })) };
 window.XLSX = Object.assign({}, require('xlsx'), { writeFile: () => {} });
-window.alert = () => {};
+window.__alertas = [];
+window.alert = (m) => window.__alertas.push(String(m));   // sem ApexMotion no jsdom, mostrarAviso cai aqui
 window.confirm = () => true;
 window.Chart = function(){ this.destroy = function(){}; return this; };
 window.TextDecoder = TextDecoder;
@@ -79,6 +80,64 @@ try{
   const agora = Date.parse('2026-10-26T12:00:00Z');
   eq([kbTempoDesde('2026-10-26T11:59:40Z', agora), kbTempoDesde('2026-10-26T11:57:00Z', agora), kbTempoDesde('2026-10-26T09:00:00Z', agora), kbTempoDesde('2026-10-23T12:00:00Z', agora)],
      ['agora', 'há 3 min', 'há 3 h', 'há 3 dias'], 'tempo desde');
+
+  // ==== Task 9: tela do consultor ====
+  currentUser = { id: 'u-zz', nome: 'Zzkcon Teste', role: 'consultor' };
+  window.__tabelas.leads_equipe = [{ id: 1 }];
+  window.__tabelas.config = [{ valor: 'planilha' }];
+  await kbAplicarPermissao();
+  assert(document.getElementById('tabBtnMeusLeads').style.display === 'none', 'antes da virada (modo planilha) consultor não vê a aba');
+  window.__tabelas.config = [{ valor: 'painel' }];
+  window.__tabelas.leads_status_opcoes = [{ status: 'EM NEGOCIAÇÂO', grupo: 'andamento', ordem: 1 }, { status: 'AGENDADO RETORNO', grupo: 'andamento', ordem: 2 },
+    { status: 'PEDIDO CONCLUIDO (VENDA)', grupo: 'convertido', ordem: 10 }, { status: 'CNPJ INAPTO', grupo: 'perdido', ordem: 24 }];
+  window.__rpcRespostas.leads_kanban = { data: [L('n1', { livre: true, telefone: null }), L('m1', { telefone: '11900000001' })], error: null };
+  await kbAplicarPermissao();
+  assert(document.getElementById('tabBtnMeusLeads').style.display !== 'none', 'consultor da equipe vê a aba');
+  await kbCarregar();
+  const colLivres = document.querySelector('#kbBoard [data-kb-col="livres"]');
+  assert(colLivres && colLivres.textContent.includes('Zz n1'), 'Livres renderiza o lead livre');
+  assert(!colLivres.textContent.includes('11900000001'), 'Livres sem telefone');
+  assert(document.querySelector('#kbBoard [data-kb-col="novos"]').textContent.includes('Zz m1'), 'Meus novos renderiza o meu lead');
+  // pegar com sucesso move o card; pegar perdido avisa e recarrega
+  window.__rpcRespostas.leads_pegar = { data: { ok: true, consultor: 'ZZKCON' }, error: null };
+  window.__rpcRespostas.leads_kanban = { data: [L('n1', { livre: false, telefone: '11900000009' }), L('m1')], error: null };
+  await kbPegar('OUTUBRO', 'n1');
+  assert(window.__rpcCalls.some(c => c.nome === 'leads_pegar' && c.args.p_id === 'n1'), 'chamou leads_pegar');
+  assert(document.querySelector('#kbBoard [data-kb-col="novos"]').textContent.includes('Zz n1'), 'depois de pegar vai para Meus novos');
+  window.__rpcRespostas.leads_pegar = { data: { ok: false, dono: 'Fulana Zz' }, error: null };
+  await kbPegar('OUTUBRO', 'n1');
+  assert([...window.__alertas, document.body.textContent].join(' ').includes('Esse lead já foi pego por Fulana Zz'), 'aviso de lead já pego');
+  // classificar: modal filtra pelo grupo da coluna e valida
+  kbAbrirClassificar('OUTUBRO', 'm1', 'perdido');
+  const opts = [...document.querySelectorAll('#kbClassStatus option')].map(o => o.value).filter(Boolean);
+  eq(opts, ['CNPJ INAPTO'], 'arrastar para Perdido mostra só status de perda');
+  document.getElementById('kbClassStatus').value = 'CNPJ INAPTO';
+  window.__rpcRespostas.leads_classificar = { data: null, error: null };
+  await kbSalvarClassificacao();
+  const call = window.__rpcCalls.filter(c => c.nome === 'leads_classificar').pop();
+  eq([call.args.p_aba, call.args.p_id, call.args.p_status], ['OUTUBRO', 'm1', 'CNPJ INAPTO'], 'classificar manda aba/id/status');
+  kbAbrirClassificar('OUTUBRO', 'm1', null);
+  document.getElementById('kbClassStatus').value = 'AGENDADO RETORNO';
+  const antes = window.__rpcCalls.length;
+  await kbSalvarClassificacao();
+  assert(window.__rpcCalls.length === antes, 'AGENDADO RETORNO sem data não chama o banco');
+  assert(document.getElementById('kbClassErro').textContent.includes('data do retorno'), 'mostra o erro no modal');
+  // retorno rápido grava em leads_followups como a tela antiga (§64); perdido "para resgatar" ganha selo
+  window.__rpcRespostas.leads_kanban = { data: [L('a1', { categoria: 'andamento', status: 'EM NEGOCIAÇÂO', telefone: '11900000001' }),
+    L('p1', { categoria: 'perdido', status: 'CLIENTE NÃO RESPONDE', classificado_em: new Date().toISOString() })], error: null };
+  await kbCarregar();
+  assert(document.querySelector('#kbBoard [data-id="p1"]').textContent.includes('para resgatar'), 'selo para resgatar');
+  assert(document.querySelector('#kbBoard [data-id="a1"] [data-kb-retorno="3"]'), 'andamento tem botão Em 3 dias');
+  // versão leve: igual não recarrega; mudou recarrega
+  window.__rpcRespostas.leads_kanban_versao = { data: 'v1', error: null };
+  assert(await kbVerificarVersao() === true, 'versão nova recarrega');
+  const nCarga = window.__rpcCalls.filter(c => c.nome === 'leads_kanban').length;
+  assert(await kbVerificarVersao() === false, 'versão igual não recarrega');
+  assert(window.__rpcCalls.filter(c => c.nome === 'leads_kanban').length === nCarga, 'não chamou leads_kanban de novo');
+  // consultor fora da equipe não vê a aba
+  window.__tabelas.leads_equipe = [];
+  await kbAplicarPermissao();
+  assert(document.getElementById('tabBtnMeusLeads').style.display === 'none', 'fora da equipe não vê');
 
   // ==== mais testes entram aqui ====
 

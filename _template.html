@@ -789,6 +789,27 @@
   .mbChecks{display:flex;gap:var(--space-4);flex-wrap:wrap;margin-top:var(--space-3);font-size:var(--fs-sm);}
   .mbAcoes{display:flex;gap:var(--space-3);flex-wrap:wrap;margin-top:var(--space-3);}
 </style>
+<style id="kbStyles">
+  /* Meus leads — Kanban (26/10/2026, §112). Só tokens do design; nenhuma cor fixa. */
+  .kbTopo{display:flex;justify-content:space-between;align-items:flex-end;gap:var(--space-3);flex-wrap:wrap;}
+  .kbFiltros{display:flex;gap:var(--space-2);align-items:flex-end;flex-wrap:wrap;}
+  .kbAviso{margin-top:var(--space-2);padding:var(--space-2) var(--space-3);border-left:3px solid var(--c-bordo);background:var(--c-papel);font-size:.9rem;}
+  .kbBoard{display:grid;grid-template-columns:repeat(5,minmax(240px,1fr));gap:var(--space-3);overflow-x:auto;padding-bottom:var(--space-2);}
+  .kbCol{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:var(--space-2);min-height:200px;}
+  .kbCol.kbAlvo{outline:2px dashed var(--c-sinal);}
+  .kbCol h4{margin:0 0 var(--space-2);font-size:.85rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);display:flex;justify-content:space-between;}
+  .kbCard{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:var(--space-2);margin-bottom:var(--space-2);font-size:.88rem;}
+  .kbCard[draggable="true"]{cursor:grab;}
+  .kbCard .kbNome{font-weight:600;}
+  .kbCard .kbMeta{color:var(--muted);font-size:.8rem;}
+  .kbCard .kbAcoes{display:flex;gap:var(--space-1);flex-wrap:wrap;margin-top:var(--space-2);}
+  .kbCard .kbDiv{margin-top:var(--space-1);font-size:.78rem;color:var(--c-bordo);}
+  .kbCol[data-kb-col="perdido"].kbFechada .kbCard{display:none;}
+  @media (max-width: 900px){
+    .kbBoard{grid-template-columns:repeat(5,82vw);}
+    .kbCol[data-kb-col="livres"]{position:sticky;left:0;z-index:1;}
+  }
+</style>
 </head>
 <body>
 
@@ -934,6 +955,7 @@
       <!-- 20/10/2026, seção 102: Base de Mailing — admin/supervisor -->
       <button data-tab="mailing" id="tabBtnMailing" style="display:none" data-sub="Filtrar e exportar mailing no layout do ProContact"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v12H4z"/><path d="M4 7l8 6 8-6"/></svg><span class="sbLabel">Mailing</span></button>
       <button data-tab="conversao" id="tabBtnConversao" style="display:none" data-sub="Leads das campanhas e conversão em vendas"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg><span class="sbLabel">Digital</span></button>
+      <button data-tab="meusleads" id="tabBtnMeusLeads" style="display:none" data-sub="Pegue e classifique os leads das campanhas"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="11" rx="1"/><rect x="17" y="4" width="4" height="7" rx="1"/></svg><span class="sbLabel">Meus leads</span></button>
       <div class="navGroupLabel">Vendas</div>
       <button data-tab="busca" data-sub="Base de clientes por razão social, CNPJ ou telefone"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span class="sbLabel">Buscar Clientes</span></button>
       <button data-tab="proposta" id="tabBtnProposta" data-sub="Proposta avulsa e análise de fatura"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg><span class="sbLabel">Gerar Proposta</span></button>
@@ -1408,6 +1430,41 @@
       <div id="dcDetalhe"></div>
     </section>
     <!-- 20/10/2026, seção 102: Base de Mailing (admin/supervisor). Spec: docs/superpowers/specs/2026-10-20-base-mailing-design.md -->
+    <section class="panel" id="panel-meusleads">
+      <div class="card">
+        <div class="kbTopo">
+          <div>
+            <h3 style="margin:0">Meus leads</h3>
+            <p class="desc" id="kbStatus" style="margin:4px 0 0"></p>
+          </div>
+          <div class="kbFiltros" id="kbFiltrosGestor" style="display:none">
+            <label class="field" style="margin:0"><span>Consultor</span><select id="kbDono"></select></label>
+            <button type="button" class="filterPill" id="kbSoDiverg">Só divergências</button>
+            <button type="button" class="btn btn-sm btn-outline" id="kbReescrever" style="display:none">Reescrever planilha</button>
+          </div>
+        </div>
+        <div class="kbAviso" id="kbAviso" style="display:none"></div>
+      </div>
+      <div class="kbBoard" id="kbBoard"></div>
+    </section>
+    <div class="overlay" id="kbClassOverlay" style="display:none">
+      <div class="modal">
+        <h3 style="margin-top:0" id="kbClassTitulo">Classificar lead</h3>
+        <label class="field"><span>Status</span><select id="kbClassStatus"></select></label>
+        <label class="field"><span>OBS</span><textarea id="kbClassObs" rows="3"></textarea></label>
+        <div id="kbClassVenda" style="display:none">
+          <label class="field"><span><input type="checkbox" id="kbClassConverteu"> Converteu?</span></label>
+          <label class="field"><span>Receita (R$)</span><input type="text" id="kbClassReceita" inputmode="decimal" placeholder="0,00"></label>
+          <p class="desc" id="kbClassNeo"></p>
+        </div>
+        <label class="field" id="kbClassRetornoBox" style="display:none"><span>Data do retorno</span><input type="date" id="kbClassRetorno"></label>
+        <p class="desc" id="kbClassErro" style="color:var(--c-bordo)"></p>
+        <div style="display:flex;gap:var(--space-2);justify-content:flex-end">
+          <button type="button" class="btn btn-sm btn-outline" id="kbClassCancelar">Cancelar</button>
+          <button type="button" class="btn btn-sm" id="kbClassSalvar">Salvar</button>
+        </div>
+      </div>
+    </div>
     <section class="panel" id="panel-mailing">
       <div class="card">
         <h3 style="margin:0">Mailing</h3>
@@ -2693,6 +2750,8 @@ function enterApp(){
     dcAplicarPermissao();
     // 20/10/2026 (seção 102): Base de Mailing — só admin/supervisor
     mbAplicarPermissao();
+    // 26/10/2026 (seção 112): Meus leads — equipe de leads + admin/supervisor
+    kbAplicarPermissao().catch(err => console.error(err));
     // 06/10/2026 (seção 72): Caderno + Agenda + Objeções — botão do Caderno, rascunho, biblioteca e alertas
     cadernoAoEntrar();
     document.getElementById('btnConversaoSync').style.display = canSyncConversao() ? 'inline-block' : 'none';
@@ -2935,6 +2994,7 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
   if(btn.dataset.tab === 'movimentacao') loadMovimentacao();
   if(btn.dataset.tab === 'producao') loadProducaoDashboard();
   if(btn.dataset.tab === 'conversao') loadConversaoVendas();
+    if(btn.dataset.tab === 'meusleads'){ kbCarregar(); kbAgendar(); }
   if(btn.dataset.tab === 'fechamento') loadFechamento();
   if(btn.dataset.tab === 'config') carregarEmailConfigStatus();
   if(btn.dataset.tab === 'mesa') loadMesa(true);
@@ -3010,6 +3070,202 @@ function kbTempoDesde(iso, agoraMs){
   return `há ${Math.floor(h / 24)} dias`;
 }
 
+const kbEstado = { geracao: 0, naEquipe: false, modo: 'planilha', versao: '', leads: [], opcoes: [], dono: '', timer: null, verTodosLivres: false, soDivergencias: false, classAlvo: null, consultores: [] };
+function kbGestor(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor') && veAbasDaApex(); }
+// Antes da virada (config.leads_modo = 'planilha') só o admin vê a aba, para conferir; depois, equipe de leads + gestores.
+function kbPodeVer(){
+  if(!currentUser) return false;
+  if(currentUser.role === 'admin') return true;
+  return kbEstado.modo === 'painel' && (kbGestor() || kbEstado.naEquipe);
+}
+async function kbAplicarPermissao(){
+  kbEstado.naEquipe = false;
+  const m = await ppSeguro(() => sb.from('config').select('valor').eq('chave', 'leads_modo').maybeSingle());
+  kbEstado.modo = m && !m.error && m.data ? String(m.data.valor || 'planilha') : 'planilha';
+  if(currentUser && currentUser.role === 'consultor'){
+    const r = await ppSeguro(() => sb.from('leads_equipe').select('id').eq('profile_id', currentUser.id));
+    kbEstado.naEquipe = !!(r && !r.error && (r.data || []).length);
+  }
+  document.getElementById('tabBtnMeusLeads').style.display = kbPodeVer() ? 'inline-block' : 'none';
+  document.getElementById('kbFiltrosGestor').style.display = kbGestor() ? '' : 'none';
+  document.getElementById('kbReescrever').style.display = currentUser && currentUser.role === 'admin' ? '' : 'none';
+}
+async function kbCarregar(){
+  if(!kbPodeVer()) return;
+  const geracao = ++kbEstado.geracao;
+  const [lds, ops] = await Promise.all([
+    ppSeguro(() => sb.rpc('leads_kanban', { p_dono: kbGestor() && kbEstado.dono ? kbEstado.dono : null })),
+    kbEstado.opcoes.length ? Promise.resolve(null) : ppSeguro(() => sb.from('leads_status_opcoes').select('status,grupo,ordem').eq('ativo', true)),
+  ]);
+  if(geracao !== kbEstado.geracao) return;
+  if(ops && !ops.error) kbEstado.opcoes = ops.data || [];
+  if(!lds || lds.error){ console.error(lds && lds.error); document.getElementById('kbStatus').textContent = 'Não foi possível carregar os leads agora.'; return; }
+  kbEstado.leads = lds.data || [];
+  kbRender();
+}
+const KB_TITULOS = { livres: 'Livres', novos: 'Meus novos', andamento: 'Em andamento', convertido: 'Convertido', perdido: 'Perdido' };
+function kbCard(l, agoraMs){
+  const col = kbColunaDoLead(l);
+  const div = kbDivergencia(l);
+  const nomeConsultor = ppPrimeiroNome();
+  const meta = [l.cidade, l.qtd_linhas ? l.qtd_linhas + ' linhas' : '', kbTempoDesde(l.criado_em_lead, agoraMs)].filter(Boolean).join(' · ');
+  const tel = String(l.telefone || '').replace(/\D/g, '');
+  const acoes = [];
+  if(col === 'livres') acoes.push(`<button type="button" class="btn btn-sm" data-kb-pegar>Pegar</button>`);
+  else {
+    if(tel){
+      const msg = col === 'novos' ? vlMensagemPrimeiroContato(l, nomeConsultor) : plMensagemWhats(l, nomeConsultor);
+      acoes.push(`<a class="btn btn-sm btn-outline" data-kb-contato="ligar" href="tel:${escapeHtml(tel)}">Ligar</a>`);
+      acoes.push(`<a class="btn btn-sm btn-outline" data-kb-contato="whatsapp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}?text=${encodeURIComponent(msg)}">WhatsApp</a>`);
+    }
+    acoes.push(`<button type="button" class="btn btn-sm" data-kb-classificar>${col === 'novos' ? 'Classificar' : 'Reclassificar'}</button>`);
+    // retornos rápidos (§64): mesma gravação de hoje em leads_followups, sem mudar o status
+    if(col === 'andamento' || (col === 'perdido' && plParaResgatar(l))) acoes.push(
+      `<button type="button" class="btn btn-sm btn-ghost" data-kb-retorno="1">Amanhã</button>`,
+      `<button type="button" class="btn btn-sm btn-ghost" data-kb-retorno="3">Em 3 dias</button>`);
+    if(kbGestor()) acoes.push(`<button type="button" class="btn btn-sm btn-outline" data-kb-redistribuir>Redistribuir</button>`);
+  }
+  return `<div class="kbCard" data-aba="${escapeHtml(l.aba)}" data-id="${escapeHtml(l.lead_id)}" ${col === 'livres' ? '' : 'draggable="true"'}>
+    <div class="kbNome">${escapeHtml(l.nome || '(sem nome)')}</div>
+    <div class="kbMeta">${escapeHtml(meta)}</div>
+    ${l.status ? `<div><span class="badge">${escapeHtml(l.status)}</span>${plParaResgatar(l) ? ' <span class="badge">para resgatar</span>' : ''}${l.retorno_em ? ` <span class="kbMeta">retorno ${escapeHtml(l.retorno_em.split('-').reverse().join('/'))}</span>` : ''}</div>` : ''}
+    ${l.obs ? `<div class="kbMeta">${escapeHtml(String(l.obs).slice(0, 80))}</div>` : ''}
+    ${kbGestor() && l.dono_nome ? `<div class="kbMeta">Com ${escapeHtml(l.dono_nome)}</div>` : ''}
+    ${col === 'convertido' && (l.receita || l.receita_neo) ? `<div class="kbMeta">R$ ${escapeHtml(String(l.receita || l.receita_neo))}${l.venda_neo ? ' · ✓ NEO' : ''}</div>` : ''}
+    ${div ? `<div class="kbDiv">⚠ ${escapeHtml(div)}</div>` : ''}
+    <div class="kbAcoes">${acoes.join('')}</div>
+  </div>`;
+}
+function kbRender(){
+  const agoraMs = Date.now();
+  let leads = kbEstado.leads;
+  if(kbEstado.soDivergencias) leads = leads.filter(l => kbDivergencia(l));
+  const c = kbMontar(leads);
+  const livresVis = kbEstado.verTodosLivres ? c.livres : c.livres.slice(0, KB_LIVRES_VISIVEIS);
+  document.getElementById('kbBoard').innerHTML = KB_COLUNAS.map(col => {
+    const lista = col === 'livres' ? livresVis : c[col];
+    const mais = col === 'livres' && c.livres.length > livresVis.length ? `<button type="button" class="btn btn-sm btn-outline" data-kb-vermais>Ver mais (${c.livres.length - livresVis.length})</button>` : '';
+    return `<div class="kbCol${col === 'perdido' ? ' kbFechada' : ''}" data-kb-col="${col}">
+      <h4><span>${KB_TITULOS[col]}</span><span>${c[col].length}</span></h4>
+      ${col === 'perdido' ? `<button type="button" class="btn btn-sm btn-outline" data-kb-abrirperdido>Mostrar</button>` : ''}
+      ${lista.map(l => kbCard(l, agoraMs)).join('')}${mais}
+    </div>`;
+  }).join('');
+  document.getElementById('kbStatus').textContent = `${c.livres.length} livre(s) · ${c.novos.length} novo(s) seu(s) · atualiza sozinho`;
+}
+async function kbPegar(aba, id){
+  const r = await ppSeguro(() => sb.rpc('leads_pegar', { p_aba: aba, p_id: id }));
+  if(!r || r.error){ mostrarAviso('Não foi possível pegar o lead agora.', 'erro'); return; }
+  if(r.data && r.data.ok === false) mostrarAviso(`Esse lead já foi pego por ${r.data.dono}`, 'info');
+  await kbCarregar();
+}
+function kbAcharLead(aba, id){ return kbEstado.leads.find(l => l.aba === aba && l.lead_id === id) || null; }
+function kbAbrirClassificar(aba, id, grupo){
+  const l = kbAcharLead(aba, id);
+  if(!l) return;
+  kbEstado.classAlvo = { aba, id };
+  const sel = document.getElementById('kbClassStatus');
+  const ops = kbOpcoesDoGrupo(kbEstado.opcoes, grupo);
+  const rotulo = { andamento: 'Em andamento', convertido: 'Convertido', perdido: 'Perdido' };
+  sel.innerHTML = '<option value="">Escolha…</option>' + ['andamento', 'convertido', 'perdido'].map(g => {
+    const doG = ops.filter(o => o.grupo === g);
+    return doG.length ? `<optgroup label="${rotulo[g]}">${doG.map(o => `<option value="${escapeHtml(o.status)}">${escapeHtml(o.status)}</option>`).join('')}</optgroup>` : '';
+  }).join('');
+  sel.value = l.status && ops.some(o => o.status === l.status) ? l.status : '';
+  document.getElementById('kbClassTitulo').textContent = 'Classificar — ' + (l.nome || '');
+  document.getElementById('kbClassObs').value = l.obs || '';
+  document.getElementById('kbClassConverteu').checked = !!(l.converteu || l.venda_neo);
+  document.getElementById('kbClassReceita').value = l.receita ? String(l.receita).replace('.', ',') : (l.receita_neo ? String(l.receita_neo).replace('.', ',') : '');
+  document.getElementById('kbClassNeo').textContent = l.venda_neo ? 'O NEO tem venda neste CNPJ — conferido e pré-preenchido.' : '';
+  document.getElementById('kbClassRetorno').value = l.retorno_em || '';
+  document.getElementById('kbClassErro').textContent = '';
+  kbClassAjustar();
+  document.getElementById('kbClassOverlay').style.display = 'flex';
+}
+function kbClassAjustar(){
+  const st = document.getElementById('kbClassStatus').value;
+  const op = kbEstado.opcoes.find(o => o.status === st);
+  document.getElementById('kbClassVenda').style.display = op && op.grupo === 'convertido' ? '' : 'none';
+  document.getElementById('kbClassRetornoBox').style.display = st === 'AGENDADO RETORNO' ? '' : 'none';
+}
+async function kbSalvarClassificacao(){
+  const alvo = kbEstado.classAlvo;
+  if(!alvo) return;
+  const status = document.getElementById('kbClassStatus').value;
+  const op = kbEstado.opcoes.find(o => o.status === status);
+  const venda = !!op && op.grupo === 'convertido';
+  const form = { status, grupo: op ? op.grupo : null, receita: venda ? document.getElementById('kbClassReceita').value : '', retorno: document.getElementById('kbClassRetorno').value };
+  const erro = kbValidar(form, hojeSP());
+  document.getElementById('kbClassErro').textContent = erro;
+  if(erro) return;
+  const r = await ppSeguro(() => sb.rpc('leads_classificar', {
+    p_aba: alvo.aba, p_id: alvo.id, p_status: status, p_obs: document.getElementById('kbClassObs').value,
+    p_converteu: venda && document.getElementById('kbClassConverteu').checked, p_receita: venda ? kbNumeroBR(form.receita) : null,
+    p_retorno: status === 'AGENDADO RETORNO' ? form.retorno : null,
+  }));
+  if(!r || r.error){ document.getElementById('kbClassErro').textContent = 'Não foi possível salvar agora. Tente de novo.'; return; }
+  fecharOverlay(document.getElementById('kbClassOverlay'));
+  kbEstado.classAlvo = null;
+  mostrarAviso('Lead classificado.', 'ok');
+  await kbCarregar();
+}
+async function kbRetornoRapido(leadId, dias){
+  const data = somaDiasStr(hojeSP(), dias || 1);
+  const { error } = await sb.from('leads_followups').insert({ lead_id: leadId, consultor_id: currentUser.id, data_prevista: data, tipo: 'retorno', observacao: null });
+  if(error){ mostrarAviso('Não foi possível agendar o retorno: ' + error.message, 'erro'); return; }
+  mostrarAviso('Retorno agendado para ' + ppFmtDia(data) + '.', 'ok');
+}
+// A cada 10 s pergunta só a versão (barata); recarrega o Kanban inteiro só quando ela muda (§112, pedido de 26/10).
+async function kbVerificarVersao(){
+  const r = await ppSeguro(() => sb.rpc('leads_kanban_versao'));
+  if(!r || r.error) return false;
+  const v = String(r.data || '');
+  if(v === kbEstado.versao) return false;
+  kbEstado.versao = v;
+  await kbCarregar();
+  return true;
+}
+function kbAgendar(){
+  clearInterval(kbEstado.timer);
+  kbEstado.timer = setInterval(() => {
+    const ativa = document.getElementById('panel-meusleads').classList.contains('active');
+    if(ativa && document.visibilityState === 'visible') kbVerificarVersao();
+  }, 10000);
+}
+document.getElementById('kbBoard').addEventListener('click', (e) => {
+  const card = e.target.closest('.kbCard');
+  if(e.target.closest('[data-kb-vermais]')){ kbEstado.verTodosLivres = true; kbRender(); return; }
+  if(e.target.closest('[data-kb-abrirperdido]')){ e.target.closest('.kbCol').classList.remove('kbFechada'); e.target.closest('[data-kb-abrirperdido]').remove(); return; }
+  if(!card) return;
+  const aba = card.dataset.aba, id = card.dataset.id;
+  if(e.target.closest('[data-kb-pegar]')) kbPegar(aba, id);
+  else if(e.target.closest('[data-kb-classificar]')) kbAbrirClassificar(aba, id, null);
+  else if(e.target.closest('[data-kb-redistribuir]')) kbAbrirRedistribuir(aba, id);
+  else if(e.target.closest('[data-kb-retorno]')) kbRetornoRapido(id, Number(e.target.closest('[data-kb-retorno]').dataset.kbRetorno));
+  else if(e.target.closest('[data-kb-contato]')) ppSeguro(() => sb.rpc('registrar_contato_lead', { p_aba: aba, p_lead_id: id, p_canal: e.target.closest('[data-kb-contato]').dataset.kbContato }));
+});
+document.getElementById('kbBoard').addEventListener('dragstart', (e) => {
+  const card = e.target.closest('.kbCard[draggable="true"]');
+  if(card) e.dataTransfer.setData('text/plain', JSON.stringify({ aba: card.dataset.aba, id: card.dataset.id }));
+});
+document.getElementById('kbBoard').addEventListener('dragover', (e) => {
+  const col = e.target.closest('.kbCol');
+  if(col && kbGrupoDaColuna(col.dataset.kbCol)){ e.preventDefault(); col.classList.add('kbAlvo'); }
+});
+document.getElementById('kbBoard').addEventListener('dragleave', (e) => { const col = e.target.closest('.kbCol'); if(col) col.classList.remove('kbAlvo'); });
+document.getElementById('kbBoard').addEventListener('drop', (e) => {
+  const col = e.target.closest('.kbCol');
+  if(!col) return;
+  col.classList.remove('kbAlvo');
+  const grupo = kbGrupoDaColuna(col.dataset.kbCol);
+  if(!grupo) return;
+  e.preventDefault();
+  try { const d = JSON.parse(e.dataTransfer.getData('text/plain')); kbAbrirClassificar(d.aba, d.id, grupo); } catch(_) {}
+});
+document.getElementById('kbClassStatus').addEventListener('change', kbClassAjustar);
+document.getElementById('kbClassSalvar').addEventListener('click', kbSalvarClassificacao);
+document.getElementById('kbClassCancelar').addEventListener('click', () => fecharOverlay(document.getElementById('kbClassOverlay')));
+function kbAbrirRedistribuir(){ /* Task 10 (§112): redistribuir — só gestor */ }
 /* ============ BIOMETRIA ============
    06/10/2026 (redesign a pedido do usuário): a aba virou só "nome do cliente -> baixar imagem
    personalizada". O fluxo antigo (link de biometria da Claro + "Enviar no WhatsApp"/"Copiar link")

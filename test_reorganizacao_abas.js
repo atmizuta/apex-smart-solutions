@@ -94,7 +94,7 @@ try{
   // NOTA (08/10/2026): incluída "boletim" (Boletim da Manhã, só admin/supervisor), no grupo Visão geral logo depois de "mesa" (seção 76).
   // NOTA (15/10/2026): incluída "discador" (aba Discador, só admin/supervisor), no grupo Visão geral logo depois de "boletim" (seção 87).
   // NOTA (20/10/2026): incluída "mailing" (Base de Mailing, só admin/supervisor), logo depois de "discador" (seção 102).
-  const ordemEsperada = ['producao','mesa','boletim','discador','mailing','conversao','busca','proposta','funil','pedidosparados','agenda','anotacoes','biometria','config','basedados','movimentacao','consultores','fechamento'];
+  const ordemEsperada = ['producao','mesa','boletim','discador','mailing','conversao','meusleads','busca','proposta','funil','pedidosparados','agenda','anotacoes','biometria','config','basedados','movimentacao','consultores','fechamento'];
   assert(botoes.map(b => b.dataset.tab).join(',') === ordemEsperada.join(','), 'ordem das abas no menu segue: ' + ordemEsperada.join(', ') + ' (atual: ' + botoes.map(b => b.dataset.tab).join(',') + ')');
   const rotulos = { producao: 'Dashboard', conversao: 'Digital', busca: 'Buscar Clientes', proposta: 'Gerar Proposta', funil: 'Funil', basedados: 'Upload Base', movimentacao: 'Upload Dash', consultores: 'Usuários' };
   Object.entries(rotulos).forEach(([tab, rotulo]) => {
