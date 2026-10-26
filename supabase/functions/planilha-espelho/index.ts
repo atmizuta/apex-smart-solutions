@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
     const sa = JSON.parse(Deno.env.get("GOOGLE_SA_JSON") || "{}");
     if (!sa.client_email || !sa.private_key) throw new Error("secret GOOGLE_SA_JSON ausente ou inválido");
     const token = await obterToken(sa, Math.floor(Date.now() / 1000), fetch);
-    let token: string | null = null;
+    let tokenTrava: string | null = null;   // token da trava de rodada (≠ token do Google)
     const paraJson = (itens: ItemFila[], g: Record<string, string> = {}) =>
       itens.map((i) => ({ lead_aba: i.lead_aba, lead_id: i.lead_id, pedido_em: i.pedido_em, guia: g[`${i.lead_aba}|${i.lead_id}`] ?? "" }));
     const deps: DepsEspelho = {
@@ -69,10 +69,10 @@ Deno.serve(async (req) => {
       async travar() {
         const r = await sb.rpc("leads_espelho_travar", { p_segundos: 60 });
         falha("travar rodada", r.error);
-        token = r.data ?? null;
-        return token !== null;
+        tokenTrava = r.data ?? null;
+        return tokenTrava !== null;
       },
-      async destravar() { if (token) falha("destravar rodada", (await sb.rpc("leads_espelho_destravar", { p_token: token })).error); },
+      async destravar() { if (tokenTrava) falha("destravar rodada", (await sb.rpc("leads_espelho_destravar", { p_token: tokenTrava })).error); },
       async idsExistentes(ids) {
         const achados = new Set<string>();
         for (let i = 0; i < ids.length; i += 200) {
