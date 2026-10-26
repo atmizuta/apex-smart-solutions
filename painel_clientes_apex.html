@@ -2949,6 +2949,67 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
 // menu lateral do redesign "Sinal de Ápice" (no celular ele fica só com ícones). Os grupos do menu
 // (Visão geral / Vendas / Ferramentas / Administração) foram mantidos. Ver REGRAS_NEGOCIO.md seção 37.
 
+/* ============ MEUS LEADS (KANBAN) — §112 ============
+   26/10/2026: a equipe de leads pega e classifica os leads aqui; a planilha vira espelho (Edge Function planilha-espelho).
+   Spec: docs/superpowers/specs/2026-10-26-leads-kanban-planilha-design.md */
+const KB_COLUNAS = ['livres', 'novos', 'andamento', 'convertido', 'perdido'];
+const KB_LIVRES_VISIVEIS = 20;
+function kbColunaDoLead(l){
+  if(l.livre) return 'livres';
+  if(l.categoria === 'convertido' || l.venda_neo) return 'convertido';
+  if(l.categoria === 'perdido') return 'perdido';
+  if(l.categoria === 'andamento') return 'andamento';
+  return 'novos';
+}
+function kbMs(v){ const t = v ? Date.parse(v) : NaN; return isNaN(t) ? null : t; }
+function kbMontar(leads){
+  const c = { livres: [], novos: [], andamento: [], convertido: [], perdido: [] };
+  (leads || []).forEach(l => c[kbColunaDoLead(l)].push(l));
+  const desc = (a, b) => (kbMs(b.classificado_em || b.criado_em_lead) || 0) - (kbMs(a.classificado_em || a.criado_em_lead) || 0);
+  c.livres.sort((a, b) => (kbMs(b.criado_em_lead) || 0) - (kbMs(a.criado_em_lead) || 0));
+  c.novos.sort((a, b) => (kbMs(a.criado_em_lead) || 0) - (kbMs(b.criado_em_lead) || 0));
+  c.andamento.sort((a, b) => (a.retorno_em ? 0 : 1) - (b.retorno_em ? 0 : 1) || String(a.retorno_em || '').localeCompare(String(b.retorno_em || '')));
+  c.convertido.sort(desc);
+  c.perdido.sort(desc);
+  return c;
+}
+function kbDivergencia(l){
+  if(l.livre) return null;
+  if(l.venda_neo && !l.converteu) return 'NEO tem venda neste CNPJ, mas o lead não está marcado como convertido';
+  if(l.converteu && !l.venda_neo) return 'Marcado como venda, mas o NEO ainda não tem pedido neste CNPJ';
+  return null;
+}
+function kbGrupoDaColuna(col){ return ['andamento', 'convertido', 'perdido'].includes(col) ? col : null; }
+function kbOpcoesDoGrupo(opcoes, grupo){
+  return (opcoes || []).filter(o => !grupo || o.grupo === grupo).slice().sort((a, b) => a.ordem - b.ordem);
+}
+function kbNumeroBR(v){
+  const s = String(v == null ? '' : v).trim();
+  if(!s) return null;
+  const n = Number(s.replace(/\./g, '').replace(',', '.'));
+  return isNaN(n) ? NaN : n;
+}
+function kbValidar(f, hojeIso){
+  if(!f.status) return 'Escolha o status.';
+  if(f.status === 'AGENDADO RETORNO'){
+    if(!f.retorno) return 'Informe a data do retorno.';
+    if(f.retorno < hojeIso) return 'A data do retorno não pode ser no passado.';
+  }
+  const r = kbNumeroBR(f.receita);
+  if(r !== null && (isNaN(r) || r < 0)) return 'Receita inválida.';
+  return '';
+}
+function kbTempoDesde(iso, agoraMs){
+  const t = kbMs(iso);
+  if(t === null) return '—';
+  const min = Math.floor((agoraMs - t) / 60000);
+  if(min < 1) return 'agora';
+  if(min < 60) return `há ${min} min`;
+  const h = Math.floor(min / 60);
+  if(h < 24) return `há ${h} h`;
+  return `há ${Math.floor(h / 24)} dias`;
+}
+
 /* ============ BIOMETRIA ============
    06/10/2026 (redesign a pedido do usuário): a aba virou só "nome do cliente -> baixar imagem
    personalizada". O fluxo antigo (link de biometria da Claro + "Enviar no WhatsApp"/"Copiar link")
