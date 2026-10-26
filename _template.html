@@ -1448,7 +1448,7 @@
       </div>
       <div class="kbBoard" id="kbBoard"></div>
     </section>
-    <div class="overlay" id="kbClassOverlay" style="display:none">
+    <div class="overlay" id="kbClassOverlay">
       <div class="modal">
         <h3 style="margin-top:0" id="kbClassTitulo">Classificar lead</h3>
         <label class="field"><span>Status</span><select id="kbClassStatus"></select></label>
@@ -1466,7 +1466,7 @@
         </div>
       </div>
     </div>
-    <div class="overlay" id="kbRedOverlay" style="display:none">
+    <div class="overlay" id="kbRedOverlay">
       <div class="modal">
         <h3 style="margin-top:0" id="kbRedTitulo">Redistribuir lead</h3>
         <label class="field"><span>Passar para</span><select id="kbRedNovo"></select></label>
@@ -3058,6 +3058,8 @@ function kbOpcoesDoGrupo(opcoes, grupo){
 function kbNumeroBR(v){
   const s = String(v == null ? '' : v).trim();
   if(!s) return null;
+  // "1234.56" (ponto decimal, 1–2 casas, sem vírgula) vale como decimal; senão ponto é milhar e vírgula é decimal
+  if(!s.includes(',') && /^-?\d+\.\d{1,2}$/.test(s)) return Number(s);
   const n = Number(s.replace(/\./g, '').replace(',', '.'));
   return isNaN(n) ? NaN : n;
 }
@@ -3194,7 +3196,7 @@ function kbAbrirClassificar(aba, id, grupo){
   document.getElementById('kbClassRetorno').value = l.retorno_em || '';
   document.getElementById('kbClassErro').textContent = '';
   kbClassAjustar();
-  document.getElementById('kbClassOverlay').style.display = 'flex';
+  document.getElementById('kbClassOverlay').classList.add('active');   // fecharOverlay tira a classe (revisão final)
 }
 function kbClassAjustar(){
   const st = document.getElementById('kbClassStatus').value;
@@ -3296,7 +3298,7 @@ function kbAbrirRedistribuir(aba, id){
     + kbEstado.consultores.filter(c => c.profile_id !== l.dono_id).map(c => `<option value="${escapeHtml(c.profile_id)}">${escapeHtml(c.nome_planilha)}</option>`).join('');
   document.getElementById('kbRedTitulo').textContent = 'Redistribuir — ' + (l.nome || '');
   document.getElementById('kbRedErro').textContent = '';
-  document.getElementById('kbRedOverlay').style.display = 'flex';
+  document.getElementById('kbRedOverlay').classList.add('active');
 }
 async function kbSalvarRedistribuicao(){
   const alvo = kbEstado.redAlvo;
@@ -3310,6 +3312,7 @@ async function kbSalvarRedistribuicao(){
   await kbCarregar();
 }
 async function kbMesaCard(){
+  if(kbEstado.modo !== 'painel') return '';   // antes da virada ninguém tem dono no banco: os números enganariam
   const r = await ppSeguro(() => sb.rpc('leads_kanban_resumo'));
   const x = r && !r.error && Array.isArray(r.data) ? r.data[0] : null;
   if(!x) return '';

@@ -49,6 +49,7 @@ try{
   let ok = 0, fail = 0;
   function assert(cond, msg){ if(cond){ ok++; } else { fail++; console.log('FALHOU:', msg); } }
   function eq(a, b, msg){ assert(JSON.stringify(a) === JSON.stringify(b), msg + ' — esperado ' + JSON.stringify(b) + ', veio ' + JSON.stringify(a)); }
+  const espera = (ms) => new Promise(r => setTimeout(r, ms || 20));
   const L = (id, o) => Object.assign({ aba: 'OUTUBRO', lead_id: id, nome: 'Zz ' + id, categoria: 'sem_contato', livre: false, venda_neo: false,
     converteu: false, criado_em_lead: '2026-10-26T12:00:00Z', classificado_em: null, retorno_em: null, status: null }, o || {});
 
@@ -162,6 +163,30 @@ try{
   const card = await kbMesaCard();
   assert(card.includes('4 livre') && card.includes('Crie a guia de NOVEMBRO'), 'card da Mesa com livres e aviso');
 
+  // ==== Revisão final (crítico 1): os modais fecham de verdade depois de Salvar/Cancelar ====
+  const aberto = (id) => { const el = document.getElementById(id); return el.classList.contains('active') || el.style.display === 'flex'; };
+  window.__rpcRespostas.leads_kanban = { data: [L('m9', { dono_id: 'u-zz', telefone: '11900000001' })], error: null };
+  await kbCarregar();
+  kbAbrirClassificar('OUTUBRO', 'm9', null);
+  assert(aberto('kbClassOverlay'), 'Classificar abre');
+  document.getElementById('kbClassCancelar').click();
+  await espera(200);
+  assert(!aberto('kbClassOverlay'), 'Classificar fecha no Cancelar');
+  kbAbrirClassificar('OUTUBRO', 'm9', 'perdido');
+  document.getElementById('kbClassStatus').value = 'CNPJ INAPTO';
+  await kbSalvarClassificacao();
+  await espera(200);
+  assert(!aberto('kbClassOverlay'), 'Classificar fecha depois de Salvar');
+  kbAbrirRedistribuir('OUTUBRO', 'm9');
+  assert(aberto('kbRedOverlay'), 'Redistribuir abre');
+  document.getElementById('kbRedCancelar').click();
+  await espera(200);
+  assert(!aberto('kbRedOverlay'), 'Redistribuir fecha no Cancelar');
+  // ==== Revisão final: receita com ponto decimal; card da Mesa só depois da virada ====
+  eq([kbNumeroBR('1234.56'), kbNumeroBR('1.234'), kbNumeroBR('1.234,50'), kbNumeroBR('99,9'), kbNumeroBR('1.234.567')], [1234.56, 1234, 1234.5, 99.9, 1234567], 'receita: ponto decimal, milhar e formato BR');
+  kbEstado.modo = 'planilha';
+  eq(await kbMesaCard(), '', 'antes da virada a Mesa não mostra o card (números ainda não valem)');
+  kbEstado.modo = 'painel';
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
