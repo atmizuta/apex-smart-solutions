@@ -3839,4 +3839,4 @@ Pedido do Rafael, antes da virada: produtividade do consultor e supervisão dos 
   - RPCs `leads_contato_info`, `leads_ficha_detalhes`, `leads_buscar`, `leads_alertas`, `leads_equipe_resumo`, `leads_hoje`, `leads_agendar_retorno`; interna `leads_agenda_lead`; `leads_classificar` e `leads_redistribuir` passaram a mexer na Agenda (mesma assinatura).
   - Verificação: `supabase/tests/leads_hoje_check.sql` (sempre em ROLLBACK).
 - **Testes:** `test_leads_hoje.js` (49) e `test_leads_kanban.js` (78).
-- **Publicação:** pendente de autorização. Até a virada (§112), a aba continua só para o admin.
+- **Publicação (27/10, 17:12, ok do Rafael):** painel MD5 `509f8986…` (o do ar era `da38d8dc…`, comparado antes: nada por fora), backup `~/deploy_backups/painel_clientes_apex_20261027_171211_antes_meus_leads_hoje.html`. Migrations aplicadas e `leads_hoje_check.sql` → CHECK OK. **Sem virada:** a aba continua só para o admin até ela (§112).
