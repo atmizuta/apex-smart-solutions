@@ -3321,7 +3321,7 @@ function kbFichaHtml(f, op){
   const contato = semContato
     ? `<p class="kbFichaAviso">Pegue o lead para ver celular, e-mail e CNPJ.</p><button type="button" class="btn" data-kb-ficha-pegar>Pegar este lead</button>`
     : linha('Celular', f.telefone, true, kbFoneBR(f.telefone))
-      + (tel ? `<div class="kbFichaBotoes"><a class="btn btn-sm" data-kb-contato="ligar" href="tel:${escapeHtml(tel)}" target="_blank" rel="noopener">Ligar</a><a class="btn btn-sm btn-outline" data-kb-contato="whatsapp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}?text=${msg}">WhatsApp</a></div>` : '')
+      + (tel ? `<div class="kbFichaBotoes"><a class="btn btn-sm" data-kb-contato="ligar" data-kb-ligar href="#" title="Copia o número e abre o ProContact">Ligar</a><a class="btn btn-sm btn-outline" data-kb-contato="whatsapp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}?text=${msg}">WhatsApp</a></div>` : '')
       + linha('E-mail', f.email, true) + linha('CNPJ', f.cnpj, true);
   const acoes = [];
   if(f.livre) { if(!semContato) acoes.push(`<button type="button" class="btn btn-sm" data-kb-ficha-pegar>Pegar este lead</button>`); }
@@ -3400,7 +3400,7 @@ function kbCard(l, agoraMs){
   const tel = String(l.telefone || '').replace(/\D/g, '');
   // §120: ícones por sprite e link do WhatsApp montado só no clique (o cartão ficou bem menor); telefone abre em aba nova
   const icones = col !== 'livres' && tel
-    ? `<div class="kbIcones"><a class="kbIcone" title="Ligar" data-kb-contato="ligar" href="tel:${escapeHtml(tel)}" target="_blank" rel="noopener"><svg><use href="#kbIcoTel"></use></svg></a><a class="kbIcone" title="WhatsApp" data-kb-contato="whatsapp" data-kb-whats href="#"><svg><use href="#kbIcoWhats"></use></svg></a></div>`
+    ? `<div class="kbIcones"><a class="kbIcone" title="Ligar pelo ProContact (copia o número)" data-kb-contato="ligar" data-kb-ligar href="#"><svg><use href="#kbIcoTel"></use></svg></a><a class="kbIcone" title="WhatsApp" data-kb-contato="whatsapp" data-kb-whats href="#"><svg><use href="#kbIcoWhats"></use></svg></a></div>`
     : '';
   const chips = [];
   if(l.status) chips.push(`<span class="catBadge ${escapeHtml(l.categoria || '')}">${escapeHtml(l.status)}</span>`);
@@ -3490,6 +3490,26 @@ async function kbPegar(aba, id){
   await kbCarregar();
 }
 // Lead achado pela pesquisa ou pela Agenda pode não estar no Quadro carregado: vale o que a ficha aberta trouxe.
+// §121 (pedido 20:35): o telefone copia o número e abre a aba do ProContact. Se ela já estiver aberta (pelo painel),
+// só traz para frente — sem recarregar, para não derrubar uma ligação em andamento.
+const KB_PROCONTACT_URL = 'https://eaglesales.procontact.com.br/';
+function kbAbrirProContact(){
+  let w = null;
+  try { w = window.open('', 'procontactApex'); } catch(_e) { w = null; }
+  if(!w){ mostrarAviso('O navegador bloqueou a aba do ProContact. Permita pop-ups para o painel.', 'erro'); return; }
+  let vazia = false;
+  try { vazia = !w.location || !w.location.href || w.location.href === 'about:blank'; } catch(_e) { vazia = false; }   // outra origem = ProContact já aberto
+  if(vazia){ try { w.opener = null; } catch(_e) {} w.location.href = KB_PROCONTACT_URL; }
+  try { w.focus(); } catch(_e) {}
+}
+async function kbLigar(telefone){
+  const num = String(telefone || '').replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '');
+  if(!num) return;
+  let copiou = false;   // copia antes de abrir a aba: depois o painel perde o foco e o navegador recusa a cópia
+  try { await (kbFichaNo().ownerDocument.defaultView || window).navigator.clipboard.writeText(num); copiou = true; } catch(_e) {}
+  kbAbrirProContact();
+  mostrarAviso(copiou ? `Número ${kbFoneBR(num)} copiado. Cole no ProContact para ligar.` : `Ligue para ${kbFoneBR(num)} no ProContact.`, copiou ? 'ok' : 'info');
+}
 function kbDuracao(seg){ const n = Math.round(Number(seg) || 0); return n < 60 ? `${n} s` : `${Math.floor(n / 60)} min ${n % 60} s`; }
 function kbAbrirWhats(l, col){
   if(!l) return;
@@ -3633,6 +3653,7 @@ document.getElementById('kbBoard').addEventListener('click', (e) => {
   else if(e.target.closest('[data-kb-retorno]')) kbRetornoRapido(aba, id, Number(e.target.closest('[data-kb-retorno]').dataset.kbRetorno));
   else if(e.target.closest('[data-kb-contato]')){
     if(e.target.closest('[data-kb-whats]')){ e.preventDefault(); kbAbrirWhats(kbAcharLead(aba, id), card.dataset.col); }
+    if(e.target.closest('[data-kb-ligar]')){ e.preventDefault(); const l = kbAcharLead(aba, id); if(l) kbLigar(l.telefone); }
     ppSeguro(() => sb.rpc('registrar_contato_lead', { p_aba: aba, p_lead_id: id, p_canal: e.target.closest('[data-kb-contato]').dataset.kbContato }));
   }
   else if(!e.target.closest('a,button')) kbAbrirFicha(aba, id);   // clique no cartão abre a ficha
@@ -3745,6 +3766,7 @@ kbFichaNo().addEventListener('click', async (e) => {
   const rt = e.target.closest('[data-kb-ficha-retorno]');
   if(rt){ kbRetornoRapido(alvo.aba, alvo.id, Number(rt.dataset.kbFichaRetorno)); return; }
   const ct = e.target.closest('[data-kb-contato]');
+  if(ct && ct.hasAttribute('data-kb-ligar')){ e.preventDefault(); if(kbEstado.fichaLead) kbLigar(kbEstado.fichaLead.telefone); }
   if(ct) ppSeguro(() => sb.rpc('registrar_contato_lead', { p_aba: alvo.aba, p_lead_id: alvo.id, p_canal: ct.dataset.kbContato }));
 });
 document.addEventListener('keydown', (e) => { if(e.key === 'Escape' && kbEstado.fichaAlvo) kbFecharFicha(); });

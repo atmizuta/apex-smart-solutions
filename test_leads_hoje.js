@@ -215,7 +215,7 @@ try{
   assert(colAnd().querySelector('.kbCard') === noAntes, 'coluna sem mudança não é redesenhada');
   // telefone abre em aba nova; WhatsApp monta o link só no clique
   const tel = document.querySelector('#kbBoard [data-kb-col="andamento"] a[data-kb-contato="ligar"]');
-  assert(tel && tel.getAttribute('target') === '_blank', 'telefone do cartão abre em aba nova');
+  assert(tel && tel.hasAttribute('data-kb-ligar') && !String(tel.getAttribute('href')).startsWith('tel:'), 'telefone do cartão não usa mais tel: (abre o ProContact)');
   assert(!document.getElementById('kbBoard').innerHTML.includes('wa.me'), 'cartão não carrega o link do WhatsApp pronto');
   const abertos = []; const openOrig = window.open; window.open = (u) => { abertos.push(String(u)); return null; };
   document.querySelector('#kbBoard [data-kb-col="andamento"] [data-kb-whats]').click();
@@ -251,7 +251,7 @@ try{
   const fz = { aba: 'OUTUBRO', lead_id: 'a1', nome: 'Zz a1', livre: false, categoria: 'andamento', status: 'EM NEGOCIAÇÂO', telefone: '11900000001' };
   assert(!kbFichaHtml(fz, { gestor: false, agoraMs: Date.now() }).includes('data-kb-ficha-apagar'), 'consultor não tem Apagar');
   assert(kbFichaHtml(fz, { gestor: true, agoraMs: Date.now() }).includes('data-kb-ficha-apagar'), 'gestor tem Apagar');
-  assert(kbFichaHtml(fz, { gestor: false, agoraMs: Date.now() }).includes('target="_blank"'), 'Ligar da ficha abre em aba nova');
+  assert(kbFichaHtml(fz, { gestor: false, agoraMs: Date.now() }).includes('data-kb-ligar') && !kbFichaHtml(fz, { gestor: false, agoraMs: Date.now() }).includes('href="tel:'), 'Ligar da ficha abre o ProContact');
   currentUser = { id: 'u-sup', nome: 'Zzksup Teste', role: 'supervisor', operacao: 'apex' };
   window.__rpcRespostas.leads_ficha = { data: [fz], error: null };
   window.__rpcRespostas.leads_apagar = { data: null, error: null };
@@ -301,6 +301,19 @@ try{
   assert(document.querySelector('#kbBoard [data-kb-col="semlig"] .kbCard[data-id="s1"]'), 'lead sem ligação na coluna Sem ligação');
   assert(document.querySelector('#kbNavQuadro [data-kb-ir="semlig"]').textContent.includes('1'), 'atalho Sem ligação com contagem');
   eq(KB_COLUNAS.indexOf('semlig'), 1, 'Sem ligação logo depois dos Livres');
+  // §121 (pedido 20:35): telefone copia o número e abre (ou traz para frente, sem recarregar) a aba do ProContact
+  const copiados = []; Object.defineProperty(window.navigator, 'clipboard', { value: { writeText: async (t) => { copiados.push(t); } }, configurable: true });
+  const janelas = []; const openOrig2 = window.open;
+  window.open = (u, nome) => { const w = { nome, url: u, opener: 'painel', focado: false, location: { href: 'about:blank' }, focus(){ this.focado = true; } }; janelas.push(w); return w; };
+  await kbLigar('(11) 90000-0001');
+  eq(copiados.pop(), '11900000001', 'Ligar copia o número (só dígitos, sem 55)');
+  const j1 = janelas.pop();
+  assert(j1 && j1.nome === 'procontactApex' && j1.location.href.includes('procontact.com.br') && j1.focado && j1.opener === null, 'abre a aba do ProContact (nomeada, sem acesso de volta ao painel)');
+  window.open = (u, nome) => { const w = { nome, focado: false, focus(){ this.focado = true; } }; Object.defineProperty(w, 'location', { get(){ throw new Error('cross-origin'); } }); janelas.push(w); return w; };
+  await kbLigar('11900000002');
+  const j2 = janelas.pop();
+  assert(j2.focado && !('url' in j2), 'ProContact já aberto: só traz para frente, não recarrega (não derruba ligação)');
+  window.open = openOrig2;
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
