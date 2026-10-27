@@ -3893,3 +3893,23 @@ Pedido do Rafael na noite da virada: a aba travava nos computadores dos consulto
   - testes `test_leads_hoje.js` (77) e `test_leads_kanban.js` (78; o teste do selo "para resgatar" abre o Perdido antes, e o da versão usa a `leads_kanban_versao_dono`).
 - **Publicação (27/10, 19:52, ok do Rafael):** painel MD5 `9e5be530…` (o do ar era `6abb4411…` = oficial b57d883, nada por fora), backup `~/deploy_backups/painel_clientes_apex_20261027_195236_antes_meus_leads_leve.html`. O time precisa dar F5.
 - **Correção (27/10, 20:08, ok do Rafael):** a publicação das 19:52 deixou dois `</div>` sobrando depois do modal Classificar; as abas saíram da área principal (conteúdo sob o menu e o Dashboard de Produção aparecendo embaixo de todas as abas). Removidos; painel MD5 `fa6c0cef…`, backup `~/deploy_backups/painel_clientes_apex_20261027_200811_antes_fix_divs.html`. Teste novo em `test_leads_hoje.js`: todas as `section.panel` no mesmo contêiner.
+
+## 121. Meus leads: coluna "Sem ligação", última ligação e OBS no cartão, 100 cartões por coluna (27/10/2026)
+
+Pedido do Rafael depois da §120 ("assim do jeito que está está ótimo"):
+- **Mais cartões:** cada coluna mostra até **100** cartões (antes 40), com "Ver mais" para os próximos 100.
+- **Coluna "Sem ligação"**, logo depois dos Livres. Ela traz o lead aberto do consultor (sem status ou em andamento) que **nunca recebeu ligação**: manual do ProContact pelo telefone ou do discador pelo CNPJ, desde a chegada − 1 h.
+  - O lead fica **só** nessa coluna (decisão do Rafael).
+  - Pegou um Livre, ele cai em "Sem ligação" (arrastar dos Livres para "Sem ligação" ou "Meus novos" pega o lead).
+  - Na primeira ligação, ele vai sozinho para "Meus novos" ou "Em andamento". A ligação não muda a versão do Quadro, então, com a aba aberta, o Quadro recarrega a cada 60 s; o robô do ProContact também só traz as ligações de tempos em tempos.
+  - "Meus novos" passa a ser: já ligado, ainda sem status.
+  - Na virada desta noite eram 25 leads nessa situação (Giovanna 8, Caio 4, Lucas 3, Manuella 3...).
+- **Cartão:**
+  - **última ligação** ("Última ligação há 2 h · atendida · 3 min 35 s", em verde quando atendida, ou "não atendida");
+  - **última OBS** (2 linhas; o texto inteiro aparece ao parar o mouse).
+- **Banco:** função nova `leads_kanban2` = `leads_kanban` + `ligacoes`, `ultima_ligacao`, `ultima_atendida`, `ultima_seg`, `ultima_tabulacao` (~70 ms para 236 leads). A `leads_kanban` fica para abas abertas com o painel antigo.
+- **Arquivos:**
+  - migration `20261027203000_leads_kanban2_ligacoes.sql`;
+  - verificação `supabase/tests/leads_kanban2_check.sql` (ROLLBACK, CHECK OK);
+  - testes `test_leads_hoje.js` (88) e `test_leads_kanban.js` (78; respostas agora pela `leads_kanban2`).
+- **Publicação:** pendente de autorização.

@@ -90,7 +90,7 @@ try{
   window.__tabelas.leads_equipe = [{ id: 1, profile_id: 'u-zz', nome_planilha: 'ZZKCON' }];
   window.__tabelas.config = [{ valor: 'painel' }];
   window.__tabelas.leads_status_opcoes = [{ status: 'AGENDADO RETORNO', grupo: 'andamento', ordem: 2 }, { status: 'CNPJ INAPTO', grupo: 'perdido', ordem: 24 }];
-  window.__rpcRespostas.leads_kanban = { data: [{ aba: 'OUTUBRO', lead_id: 'h1', nome: 'Zz Hoje Um', categoria: 'sem_contato', livre: false, criado_em_lead: new Date().toISOString() }], error: null };
+  window.__rpcRespostas.leads_kanban2 = { data: [{ aba: 'OUTUBRO', lead_id: 'h1', nome: 'Zz Hoje Um', categoria: 'sem_contato', livre: false, criado_em_lead: new Date().toISOString() }], error: null };
   window.__rpcRespostas.leads_hoje = { data: { fila: [{ aba: 'OUTUBRO', lead_id: 'h1', nome: 'Zz Hoje Um', motivo: 'Novo sem contato', desde: new Date().toISOString() }],
     retornos: [{ aba: 'OUTUBRO', lead_id: 'h2', nome: 'Zz Retorno', quando: new Date(Date.now() - 600000).toISOString(), vencido: true }], livres: 3 }, error: null };
   window.__rpcRespostas.leads_alertas = { data: [{ tipo: 'sem_contato', aba: 'OUTUBRO', lead_id: 'h1', nome: 'Zz Hoje Um', dono_nome: 'Zzkcon Teste', desde: new Date().toISOString() }], error: null };
@@ -198,16 +198,16 @@ try{
   kbEstado.opcoes = [];
   const LL = (id, o) => Object.assign({ aba: 'OUTUBRO', lead_id: id, nome: 'Zz ' + id, categoria: 'andamento', status: 'EM NEGOCIAÇÂO', livre: false, telefone: '11900000001',
     criado_em_lead: new Date(Date.now() - 3600000).toISOString(), classificado_em: new Date().toISOString() }, o || {});
-  const muitos = Array.from({ length: 50 }, (_, i) => LL('a' + i)).concat([LL('pp1', { categoria: 'perdido', status: 'CNPJ INAPTO' }), LL('nv1', { categoria: 'sem_contato', status: null })]);
-  window.__rpcRespostas.leads_kanban = { data: muitos, error: null };
+  const muitos = Array.from({ length: 110 }, (_, i) => LL('a' + i)).concat([LL('pp1', { categoria: 'perdido', status: 'CNPJ INAPTO' }), LL('nv1', { categoria: 'sem_contato', status: null })]);
+  window.__rpcRespostas.leads_kanban2 = { data: muitos, error: null };
   await kbAplicarPermissao();
   await kbCarregar();
   kbTrocarAba('quadro');
   const colAnd = () => document.querySelector('#kbBoard [data-kb-col="andamento"]');
-  eq(colAnd().querySelectorAll('.kbCard').length, 40, 'coluna mostra no máximo 40 cartões');
+  eq(colAnd().querySelectorAll('.kbCard').length, 100, 'coluna mostra no máximo 100 cartões');
   assert(colAnd().querySelector('[data-kb-vermais="andamento"]').textContent.includes('10'), '"Ver mais (10)" na coluna');
   colAnd().querySelector('[data-kb-vermais="andamento"]').click();
-  eq(colAnd().querySelectorAll('.kbCard').length, 50, 'Ver mais mostra o resto');
+  eq(colAnd().querySelectorAll('.kbCard').length, 110, 'Ver mais mostra o resto');
   assert(!document.querySelector('#kbBoard [data-kb-col="perdido"] .kbCard') && document.querySelector('#kbBoard [data-kb-abrirperdido]'), 'Perdido fechado não monta cartões');
   // recarga com os mesmos dados não refaz a coluna (mesmo nó no DOM)
   const noAntes = colAnd().querySelector('.kbCard');
@@ -282,6 +282,25 @@ try{
   const pais = new Set([...document.querySelectorAll('section.panel')].map(p => p.parentElement));
   assert(pais.size === 1, 'todas as abas (section.panel) dentro do mesmo contêiner — HTML sem </div> sobrando');
   assert(document.getElementById('kbClassOverlay').parentElement === document.getElementById('kbRedOverlay').parentElement, 'modais de Meus leads no mesmo lugar');
+  // ==== §121: coluna "Sem ligação", última ligação e OBS no cartão, mais cartões por coluna ====
+  const SL = (o) => Object.assign({ aba: 'OUTUBRO', lead_id: 'x', nome: 'Zz', livre: false, categoria: 'sem_contato', status: null }, o);
+  eq([kbColunaDoLead(SL({ ligacoes: 0 })), kbColunaDoLead(SL({ ligacoes: 0, categoria: 'andamento', status: 'EM NEGOCIAÇÂO' })),
+      kbColunaDoLead(SL({ ligacoes: 2, categoria: 'andamento' })), kbColunaDoLead(SL({ ligacoes: 1 })),
+      kbColunaDoLead(SL({ ligacoes: 0, categoria: 'perdido' })), kbColunaDoLead(SL({ ligacoes: 0, livre: true })), kbColunaDoLead(SL({ ligacoes: 0, categoria: 'convertido' }))],
+     ['semlig', 'semlig', 'andamento', 'novos', 'perdido', 'livres', 'convertido'], 'Sem ligação: só lead aberto meu que nunca recebeu ligação');
+  eq([kbAcaoDoArraste('livres', 'semlig'), kbAcaoDoArraste('semlig', 'andamento'), kbAcaoDoArraste('semlig', 'novos')], ['pegar', 'classificar', null], 'arraste com Sem ligação');
+  const cartao = kbCard(SL({ lead_id: 'c1', categoria: 'andamento', status: 'EM NEGOCIAÇÂO', telefone: '11900000001', obs: 'zz pediu proposta <b>', ligacoes: 2,
+    ultima_ligacao: new Date(Date.now() - 2 * 3600000).toISOString(), ultima_atendida: true, ultima_seg: 95, criado_em_lead: new Date().toISOString() }), Date.now());
+  assert(cartao.includes('zz pediu proposta') && cartao.includes('&lt;b&gt;'), 'cartão mostra a última OBS (escapada)');
+  assert(cartao.includes('Última ligação há 2 h') && cartao.includes('atendida · 1 min 35 s'), 'cartão mostra a última ligação');
+  assert(kbCard(SL({ lead_id: 'c2', telefone: '11900000001', categoria: 'andamento', ligacoes: 1, ultima_ligacao: new Date().toISOString(), ultima_atendida: false, criado_em_lead: new Date().toISOString() }), Date.now()).includes('não atendida'), 'ligação não atendida');
+  window.__rpcRespostas.leads_kanban2 = { data: [SL({ lead_id: 's1', nome: 'Zz Nunca Ligou', ligacoes: 0, telefone: '11900000001', criado_em_lead: new Date().toISOString() })], error: null };
+  currentUser = { id: 'u-zz', nome: 'Zzkcon Teste', role: 'consultor' };
+  await kbAplicarPermissao(); await kbCarregar(); kbTrocarAba('quadro');
+  assert(window.__rpcCalls.some(c => c.nome === 'leads_kanban2'), 'Quadro usa leads_kanban2 (com ligações)');
+  assert(document.querySelector('#kbBoard [data-kb-col="semlig"] .kbCard[data-id="s1"]'), 'lead sem ligação na coluna Sem ligação');
+  assert(document.querySelector('#kbNavQuadro [data-kb-ir="semlig"]').textContent.includes('1'), 'atalho Sem ligação com contagem');
+  eq(KB_COLUNAS.indexOf('semlig'), 1, 'Sem ligação logo depois dos Livres');
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');

@@ -91,7 +91,7 @@ try{
   window.__tabelas.config = [{ valor: 'painel' }];
   window.__tabelas.leads_status_opcoes = [{ status: 'EM NEGOCIAÇÂO', grupo: 'andamento', ordem: 1 }, { status: 'AGENDADO RETORNO', grupo: 'andamento', ordem: 2 },
     { status: 'PEDIDO CONCLUIDO (VENDA)', grupo: 'convertido', ordem: 10 }, { status: 'CNPJ INAPTO', grupo: 'perdido', ordem: 24 }];
-  window.__rpcRespostas.leads_kanban = { data: [L('n1', { livre: true, telefone: null }), L('m1', { telefone: '11900000001' })], error: null };
+  window.__rpcRespostas.leads_kanban2 = { data: [L('n1', { livre: true, telefone: null }), L('m1', { telefone: '11900000001' })], error: null };
   await kbAplicarPermissao();
   assert(document.getElementById('tabBtnMeusLeads').style.display !== 'none', 'consultor da equipe vê a aba');
   await kbCarregar();
@@ -101,7 +101,7 @@ try{
   assert(document.querySelector('#kbBoard [data-kb-col="novos"]').textContent.includes('Zz m1'), 'Meus novos renderiza o meu lead');
   // pegar com sucesso move o card; pegar perdido avisa e recarrega
   window.__rpcRespostas.leads_pegar = { data: { ok: true, consultor: 'ZZKCON' }, error: null };
-  window.__rpcRespostas.leads_kanban = { data: [L('n1', { livre: false, telefone: '11900000009' }), L('m1')], error: null };
+  window.__rpcRespostas.leads_kanban2 = { data: [L('n1', { livre: false, telefone: '11900000009' }), L('m1')], error: null };
   await kbPegar('OUTUBRO', 'n1');
   assert(window.__rpcCalls.some(c => c.nome === 'leads_pegar' && c.args.p_id === 'n1'), 'chamou leads_pegar');
   assert(document.querySelector('#kbBoard [data-kb-col="novos"]').textContent.includes('Zz n1'), 'depois de pegar vai para Meus novos');
@@ -124,7 +124,7 @@ try{
   assert(window.__rpcCalls.length === antes, 'AGENDADO RETORNO sem data não chama o banco');
   assert(document.getElementById('kbClassErro').textContent.includes('data do retorno'), 'mostra o erro no modal');
   // retorno rápido grava em leads_followups como a tela antiga (§64); perdido "para resgatar" ganha selo
-  window.__rpcRespostas.leads_kanban = { data: [L('a1', { categoria: 'andamento', status: 'EM NEGOCIAÇÂO', telefone: '11900000001' }),
+  window.__rpcRespostas.leads_kanban2 = { data: [L('a1', { categoria: 'andamento', status: 'EM NEGOCIAÇÂO', telefone: '11900000001' }),
     L('p1', { categoria: 'perdido', status: 'CLIENTE NÃO RESPONDE', classificado_em: new Date().toISOString() })], error: null };
   await kbCarregar();
   kbEstado.perdidoAberto = true; kbRender();   // §120: o Perdido só monta os cartões quando é aberto
@@ -134,9 +134,9 @@ try{
   // versão leve: igual não recarrega; mudou recarrega
   window.__rpcRespostas.leads_kanban_versao_dono = { data: 'v1', error: null };   // §120: versão por consultor
   assert(await kbVerificarVersao() === true, 'versão nova recarrega');
-  const nCarga = window.__rpcCalls.filter(c => c.nome === 'leads_kanban').length;
+  const nCarga = window.__rpcCalls.filter(c => c.nome === 'leads_kanban2').length;
   assert(await kbVerificarVersao() === false, 'versão igual não recarrega');
-  assert(window.__rpcCalls.filter(c => c.nome === 'leads_kanban').length === nCarga, 'não chamou leads_kanban de novo');
+  assert(window.__rpcCalls.filter(c => c.nome === 'leads_kanban2').length === nCarga, 'não chamou leads_kanban de novo');
   // consultor fora da equipe não vê a aba
   window.__tabelas.leads_equipe = [];
   await kbAplicarPermissao();
@@ -145,7 +145,7 @@ try{
   // ==== Task 10: supervisão ====
   currentUser = { id: 'u-sup', nome: 'Zzksup Teste', role: 'supervisor', operacao: 'apex' };
   window.__tabelas.leads_equipe = [{ profile_id: 'u-zz', nome_planilha: 'ZZKCON' }, { profile_id: 'u-zz2', nome_planilha: 'ZZOUTRA' }];
-  window.__rpcRespostas.leads_kanban = { data: [L('m1', { dono_id: 'u-zz', dono_nome: 'Zzkcon Teste', telefone: '11900000001' }), L('d1', { categoria: 'convertido', converteu: true, venda_neo: false, dono_id: 'u-zz' })], error: null };
+  window.__rpcRespostas.leads_kanban2 = { data: [L('m1', { dono_id: 'u-zz', dono_nome: 'Zzkcon Teste', telefone: '11900000001' }), L('d1', { categoria: 'convertido', converteu: true, venda_neo: false, dono_id: 'u-zz' })], error: null };
   await kbAplicarPermissao();
   await kbCarregarFiltros();
   assert(document.getElementById('kbFiltrosGestor').style.display !== 'none', 'gestor vê filtros');
@@ -167,7 +167,7 @@ try{
 
   // ==== Revisão final (crítico 1): os modais fecham de verdade depois de Salvar/Cancelar ====
   const aberto = (id) => { const el = document.getElementById(id); return el.classList.contains('active') || el.style.display === 'flex'; };
-  window.__rpcRespostas.leads_kanban = { data: [L('m9', { dono_id: 'u-zz', telefone: '11900000001' })], error: null };
+  window.__rpcRespostas.leads_kanban2 = { data: [L('m9', { dono_id: 'u-zz', telefone: '11900000001' })], error: null };
   await kbCarregar();
   kbAbrirClassificar('OUTUBRO', 'm9', null);
   assert(aberto('kbClassOverlay'), 'Classificar abre');
@@ -205,7 +205,7 @@ try{
   assert(kbAtrasado(L('t1', { criado_em_lead: '2026-10-26T12:00:00Z' }), Date.parse('2026-10-26T12:20:00Z')) === true, 'novo sem contato há 20 min = atrasado');
   assert(kbAtrasado(L('t2', { criado_em_lead: '2026-10-26T12:00:00Z', primeiro_clique: '2026-10-26T12:05:00Z' }), Date.parse('2026-10-26T12:20:00Z')) === false, 'com contato não fica atrasado');
   // arrastar dos Livres para Meus novos pega o lead
-  window.__rpcRespostas.leads_kanban = { data: [L('lv1', { livre: true })], error: null };
+  window.__rpcRespostas.leads_kanban2 = { data: [L('lv1', { livre: true })], error: null };
   await kbCarregar();
   window.__rpcRespostas.leads_pegar = { data: { ok: true, consultor: 'ZZKCON' }, error: null };
   const antesPegar = window.__rpcCalls.filter(c => c.nome === 'leads_pegar').length;
@@ -223,7 +223,7 @@ try{
   await espera(50);
   assert(window.__rpcCalls.filter(c => c.nome === 'leads_pegar').length === antesPegar + 1 && !document.getElementById('kbClassOverlay').classList.contains('active'), 'soltar Livre em Perdido não faz nada');
   // clicar no cartão abre a ficha (busca leads_ficha)
-  window.__rpcRespostas.leads_kanban = { data: [L('f1', { telefone: '11900000001' })], error: null };
+  window.__rpcRespostas.leads_kanban2 = { data: [L('f1', { telefone: '11900000001' })], error: null };
   await kbCarregar();
   window.__rpcRespostas.leads_ficha = { data: [fichaMeu], error: null };
   document.querySelector('#kbBoard .kbCard[data-id="f1"] .kbNome').click();
@@ -240,7 +240,7 @@ try{
   const rr = kbResumoMes([L('v1', { categoria: 'convertido', converteu: true, receita: 899.9 }), L('v2', { categoria: 'convertido', converteu: true, receita: 100.1 }),
     L('v3', { categoria: 'perdido', receita: 50 }), L('v4', { livre: true, receita: 0 }), L('v5', { categoria: 'andamento' })]);
   eq([rr.vendas, rr.receita, rr.abertos], [2, 1000, 1], 'resumo: vendas e receita só dos convertidos; abertos = andamento + novos (sem Livres)');
-  window.__rpcRespostas.leads_kanban = { data: [L('v1', { categoria: 'convertido', converteu: true, receita: 899.9 })], error: null };
+  window.__rpcRespostas.leads_kanban2 = { data: [L('v1', { categoria: 'convertido', converteu: true, receita: 899.9 })], error: null };
   await kbCarregar();
   assert(document.getElementById('kbResumo').textContent.includes('R$') && document.getElementById('kbResumo').textContent.includes('899,90') && document.getElementById('kbResumo').textContent.includes('1 venda'), 'topo mostra a receita do mês');
   // ==== mais testes entram aqui ====
