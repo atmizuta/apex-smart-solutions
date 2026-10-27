@@ -321,7 +321,9 @@ secao('Projeção por PDU', () => {
     ped({ numero_pedido: 'U2', etapa: C, grupo: 'VOZ - Portabilidade', data_portabilidade: dia('2026-10-05'), valor: 50 }),
     ped({ numero_pedido: 'U3', etapa: C, grupo: 'BANDA LARGA - Novo', data_portabilidade: null, data_instalacao: dia('2026-10-06'), valor: 200 }),
     ped({ numero_pedido: 'U4', etapa: C, data_portabilidade: null, valor: 999 }),                                  // sem data de ativação: fora
-    ped({ numero_pedido: 'U5', etapa: 'ENTREGA (NEOCRM)', data_portabilidade: dia('2026-10-07'), valor: 999 }),    // não é Concluído: fora
+    ped({ numero_pedido: 'U5', etapa: 'ENTREGA (NEOCRM)', grupo: 'VOZ - Portabilidade', data_portabilidade: dia('2026-10-07'), valor: 999 }), // Entrega só vale para Linha Nova: fora
+    ped({ numero_pedido: 'U9', etapa: 'ENTREGA (NEOCRM)', atualizacao: '2026-10-09T10:00:00-03:00', valor: 40 }),    // Linha Nova em Entrega: ativada pela data de atualização
+    ped({ numero_pedido: 'U10', etapa: 'VALIDAÇÃO ESIM (NEOCRM)', atualizacao: '2026-10-19T09:00:00-03:00', valor: 15 }),   // Linha Nova em eSIM hoje (parcial)
     ped({ numero_pedido: 'U6', etapa: C, data_portabilidade: dia('2026-10-19'), valor: 30 }),                      // hoje (parcial)
     ped({ numero_pedido: 'U7', etapa: C, grupo: 'SVA MÓVEL', data_portabilidade: dia('2026-10-08'), valor: 20 }),
     ped({ numero_pedido: 'U8', etapa: C, data_portabilidade: dia('2026-09-30'), valor: 70 }),                      // setembro
@@ -329,12 +331,12 @@ secao('Projeção por PDU', () => {
   const w = montarDashboard({ data: FIX_PDU });
   const pdu = w.montarProjecaoPdu(FIX_PDU, { mes: '2026-10', hoje: '2026-10-19', operacao: 'apex' });
   const o = pdu.porOperacao[0];
-  assert(perto(o.realizado.valor, 370) && o.realizado.linhas === 2 && perto(o.hoje.valor, 30), 'ativadas até ontem: R$ 370 e 2 linhas; hoje 30 — ' + JSON.stringify(o.realizado));
-  assert(perto(o.ritmo.valor, 370 / 11) && perto(o.ritmo.contratos, 2 / 11) && perto(o.mes.valor, 370 / 11 * 21) && perto(o.mes.contratos, 2 / 11 * 21), 'PDU = ativadas ÷ 11 dias; mês × 21');
-  assert(perto(o.semana.valor, 370 / 11 * 5), 'semana = ritmo × 5 (nada ativado ainda na semana até ontem)');
+  assert(perto(o.realizado.valor, 410) && o.realizado.linhas === 3 && perto(o.hoje.valor, 45), 'ativadas até ontem: R$ 410 e 3 linhas (com a Linha Nova em Entrega); hoje 45 — ' + JSON.stringify(o.realizado));
+  assert(perto(o.ritmo.valor, 410 / 11) && perto(o.ritmo.contratos, 3 / 11) && perto(o.mes.valor, 410 / 11 * 21) && perto(o.mes.contratos, 3 / 11 * 21), 'PDU = ativadas ÷ 11 dias; mês × 21');
+  assert(perto(o.semana.valor, 410 / 11 * 5), 'semana = ritmo × 5 (nada ativado ainda na semana até ontem)');
   const t = g => pdu.tipos.find(x => x.grupo === g);
   assert(t('BANDA LARGA - Novo').realizado.qtd === 1 && perto(t('BANDA LARGA - Novo').realizado.valor, 200), 'banda larga entra pela data de instalação');
-  assert(t('VOZ - Novo').realizado.qtd === 1 && t('SVA MÓVEL').realizado.qtd === 1, 'todos os produtos entram');
+  assert(t('VOZ - Novo').realizado.qtd === 2 && perto(t('VOZ - Novo').realizado.valor, 140) && t('VOZ - Portabilidade').realizado.qtd === 1 && t('SVA MÓVEL').realizado.qtd === 1, 'todos os produtos entram');
   assert(perto(w.projTotalTipos(pdu.tipos).mes.valor, pdu.total.mes.valor), 'total da tabela por tipo = card do mês');
   // a esteira atual não muda com o PDU
   const est = w.montarProjecao(FIX_APEX, { mes: '2026-10', hoje: '2026-10-19', operacao: 'apex' });
@@ -345,12 +347,25 @@ secao('Projeção por PDU', () => {
   const tit = [...d.querySelectorAll('#tabProjecao .section-title')].map(x => txt(x.textContent));
   assert(tit.indexOf('Projeção por PDU') >= 0 && tit.indexOf('Projeção da esteira atual') >= 0 && tit.indexOf('Projeção por PDU') < tit.indexOf('Projeção da esteira atual'), 'dois quadros: ' + tit.slice(0, 3));
   const cards = [...d.querySelectorAll('#pduCards .card')].map(c => txt(c.querySelector('.value').textContent));
-  assert(cards.length === 4 && cards[0] === 'R$ 706,36' && cards[3] === 'R$ 370,00', 'cards do PDU: ' + cards);
+  assert(cards.length === 4 && cards[0] === 'R$ 782,73' && cards[3] === 'R$ 410,00', 'cards do PDU: ' + cards);
   assert(/Ativado/.test(d.getElementById('pduCards').textContent), 'rótulo do realizado = Ativado');
   const linhasPdu = d.querySelectorAll('#pduTipos tbody tr');
   assert(linhasPdu.length === 9 && /^pdu:/.test(linhasPdu[0].getAttribute('data-proj') || ''), 'tabela por tipo do PDU com total — ' + linhasPdu.length);
   linhasPdu[0].dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
   assert(/^Projeção por PDU — /.test(d.getElementById('drilldownTitle').textContent), 'clique abre o analítico do PDU');
+  assert(d.getElementById('drilldownResumo').style.display === 'none', 'analítico da projeção não mostra o resumo Linha Nova x demais');
+  // Visão Geral: barra de etapa abre o analítico com o resumo Linha Nova x demais produtos (seção 117)
+  const linhaBarra = d.querySelector('#userCardsWrap .uc-row[data-etapa="CONCLUIDO (NEOCRM)"]');
+  assert(!!linhaBarra, 'barra de etapa na Visão Geral');
+  if(linhaBarra){
+    linhaBarra.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+    const chips = [...d.querySelectorAll('#drilldownResumo .dd-chip')].map(c => txt(c.textContent));
+    const n = i => Number((chips[i].match(/(\d+) linha/) || [])[1]);
+    assert(d.getElementById('drilldownResumo').style.display !== 'none' && chips.length === 3 && /^Todos:/.test(chips[0]) && /^Linha Nova:/.test(chips[1]) && /^Demais produtos:/.test(chips[2]) && n(0) === n(1) + n(2) && n(1) >= 1, 'resumo: ' + JSON.stringify(chips));
+    d.querySelectorAll('#drilldownResumo .dd-chip')[1].dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+    const linhasTab = d.querySelectorAll('#drilldownTable tbody tr').length;
+    assert(linhasTab === n(1) && new RegExp(n(1) + ' linha[(]s[)]').test(d.getElementById('drilldownSub').textContent), 'filtro Linha Nova: ' + linhasTab);
+  }
 });
 
 // ---------------- Task 4: tela ----------------
