@@ -3777,3 +3777,13 @@ Pedido do Rafael: os consultores deixam a planilha "Leads Google" e passam a peg
 - **Onde:** `fechamentoCategoria()`, `fechamentoGruposTexto()` e `totalFechamentoOperacao()` no `_template.html`. As colunas do ranking por consultor (Linhas móveis / Fibras / Outros) **não mudaram**.
 - **Atenção:** o nome do grupo de Tel Fixo ainda não apareceu nos dados reais; se o NeoCRM usar outro nome, ele sai com o nome do grupo até ajustarmos.
 - **Testes:** `test_fechamento.js` (80 verificações). Publicação: pendente de autorização.
+
+## 115. Projeção de Ganho: linhas em vez de contratos (27/10/2026)
+
+- **Pedido do usuário:** em nenhum quadro da Projeção de Ganho aparece mais a quantidade de **contratos**. Os quadros mostram a quantidade de **linhas** (linha nova + portabilidade + migração/transferência de titularidade); os demais itens têm **projeção própria**.
+- **Conta:** cada linha vale o peso da etapa (Concluído/Entrega/eSIM 100%, Antifraude/Biometria 50%), igual ao R$. Ritmo, semana e mês seguem a mesma regra de antes (realizado até ontem ÷ dias úteis completos × dias úteis).
+- **Grupos que contam como "linhas":** `VOZ - Novo`, `VOZ - Portabilidade` e `VOZ - Tranf. Titularidade`. Renovação, BL, SVA, TV, aparelho etc. **não** entram nessa contagem.
+- **Demais itens:** os quadros (mês, semana, por dia, realizado) trazem uma linha "Outros: X BLs · Y Renovações · Z Sol. Digitais…", com a projeção de cada um calculada separadamente (mesma conta, por grupo). A tabela "Projeção por tipo de venda" já abria cada grupo.
+- **Telas e Excel:** cards, semana a semana, dia a dia (dica do gráfico), por consultor, por etapa e as abas do Excel passaram de "Contratos" para "Linhas". O R$ não mudou.
+- **Onde:** `projEhLinha()`, `projPesoLinhas()` e `projOutrosTexto()` no template do Dashboard embutido (`PRODUCAO_DASHBOARD_TPL_B64`).
+- **Testes:** `test_projecao_ganho.js` atualizado (187 verificações passam; a aba do Excel só roda onde há o módulo `exceljs`). Publicação: pendente de autorização.

@@ -135,10 +135,10 @@ secao('Task 2', () => {
   assert(conv && conv.peso === 1 && conv.faixa.k === 'concluido' && conv.linhas.length === 2, 'convergência vira 1 contrato, faixa Concluído');
   assert(p.porOperacao.length === 1 && p.porOperacao[0].op === 'apex', 'uma operação');
   const o = p.porOperacao[0];
-  assert(perto(o.realizado.valor, 440) && perto(o.realizado.contratos, 7), 'realizado até ontem: R$ 440 e 7 contratos (sábado 17/10 entra) — ' + JSON.stringify(o.realizado));
+  assert(perto(o.realizado.valor, 440) && perto(o.realizado.contratos, 6), 'realizado até ontem: R$ 440 e 6 linhas móveis — nova/portin/migração com o peso da etapa (sábado 17/10 entra) — ' + JSON.stringify(o.realizado));
   assert(perto(o.hoje.valor, 50) && perto(o.hoje.contratos, 1), 'hoje (parcial) fora do realizado: R$ 50');
-  assert(perto(o.ritmo.valor, 40) && perto(o.ritmo.contratos, 7 / 11), 'ritmo = 440 ÷ 11');
-  assert(perto(o.mes.valor, 840) && perto(o.mes.contratos, 7 / 11 * 21), 'mês = ritmo × 21');
+  assert(perto(o.ritmo.valor, 40) && perto(o.ritmo.contratos, 6 / 11), 'ritmo = 440 ÷ 11');
+  assert(perto(o.mes.valor, 840) && perto(o.mes.contratos, 6 / 11 * 21), 'mês = ritmo × 21');
   assert(o.semana && o.semana.de === '2026-10-19' && o.semana.ate === '2026-10-25' && o.semana.uteis === 5 && perto(o.semana.valor, 200), 'semana (segunda) = ritmo × 5');
   assert(perto(p.total.mes.valor, 840) && perto(p.total.ritmo.valor, 40) && perto(p.total.realizado.valor, 440) && perto(p.total.hoje.valor, 50), 'total = a operação');
   assert(p.total.semana.de === '2026-10-19' && p.total.semana.uteis === 5, 'total da semana com datas');
@@ -194,17 +194,17 @@ secao('Task 3', () => {
   assert(dd('2026-10-12').tipo === 'feriado' && dd('2026-10-17').tipo === 'naoUtil' && perto(dd('2026-10-17').valor, 35), 'feriado e sábado com venda');
   assert(!dd('2026-10-18'), 'domingo sem venda não aparece');
   assert(dd('2026-10-19').tipo === 'hoje' && perto(dd('2026-10-19').valor, 50), 'hoje parcial');
-  assert(dd('2026-10-20').tipo === 'projetado' && perto(dd('2026-10-20').valor, 40) && perto(dd('2026-10-20').contratos, 7 / 11), 'dia futuro = ritmo');
+  assert(dd('2026-10-20').tipo === 'projetado' && perto(dd('2026-10-20').valor, 40) && perto(dd('2026-10-20').contratos, 6 / 11), 'dia futuro = ritmo');
   assert(dd('2026-10-08').tipo === 'realizado' && perto(dd('2026-10-08').valor, 0), 'dia útil só com Território = 0');
   assert(perto(dd('2026-10-01').valor, 100) && perto(dd('2026-10-01').contratos, 1) && dd('2026-10-01').linhas.length === 1, 'dia com 1 pedido');
-  assert(dd('2026-10-14').linhas.length === 2 && perto(dd('2026-10-14').contratos, 1), 'convergência: 2 linhas, 1 contrato');
+  assert(dd('2026-10-14').linhas.length === 2 && perto(dd('2026-10-14').contratos, 0.5), 'convergência: 2 linhas (BL + móvel), só a linha móvel conta (0,5 — biometria) e não há mais contrato');
 
   const sem = p.semanas;
   assert(sem.length === 5, '5 semanas — ' + sem.length);
   const esperado = [
-    ['2026-10-01', '2026-10-04', 2, 'fechada', 160, 2], ['2026-10-05', '2026-10-11', 5, 'fechada', 90, 2],
-    ['2026-10-12', '2026-10-18', 4, 'fechada', 190, 3], ['2026-10-19', '2026-10-25', 5, 'atual', 200, 7 / 11 * 5],
-    ['2026-10-26', '2026-10-31', 5, 'futura', 200, 7 / 11 * 5],
+    ['2026-10-01', '2026-10-04', 2, 'fechada', 160, 2], ['2026-10-05', '2026-10-11', 5, 'fechada', 90, 1.5],
+    ['2026-10-12', '2026-10-18', 4, 'fechada', 190, 2.5], ['2026-10-19', '2026-10-25', 5, 'atual', 200, 6 / 11 * 5],
+    ['2026-10-26', '2026-10-31', 5, 'futura', 200, 6 / 11 * 5],
   ];
   esperado.forEach((e, i) => {
     const s = sem[i];
@@ -215,7 +215,7 @@ secao('Task 3', () => {
 
   const c = p.consultores;
   assert(c.length === 2 && c[0].usuario === 'BRUNO TESTE' && c[1].usuario === 'ANA TESTE', 'maior projeção primeiro');
-  assert(perto(c[0].valor, 235) && perto(c[0].contratos, 3.5) && perto(c[0].ritmo, 235 / 11) && perto(c[0].projMes, 235 / 11 * 21) && perto(c[0].projContratos, 3.5 / 11 * 21), 'Bruno');
+  assert(perto(c[0].valor, 235) && perto(c[0].contratos, 3) && perto(c[0].ritmo, 235 / 11) && perto(c[0].projMes, 235 / 11 * 21) && perto(c[0].projContratos, 3 / 11 * 21), 'Bruno');
   assert(c[0].linhas.length === 5 && c[0].operacao === 'apex', 'Bruno: 5 linhas até ontem');
   assert(perto(c[1].valor, 205) && c[1].linhas.length === 5, 'Ana: 205 (hoje fora)');
 
@@ -223,11 +223,11 @@ secao('Task 3', () => {
 
   const e = k => p.etapas.find(x => x.k === k);
   assert(JSON.stringify(p.etapas.map(x => x.k)) === '["concluido","entrega","antifraude","biometria"]', 'etapas na ordem');
-  assert(e('concluido').contratos === 3 && perto(e('concluido').bruto, 235) && perto(e('concluido').valor, 235), 'Concluído: A1, A8 e a convergência');
+  assert(e('concluido').contratos === 2 && perto(e('concluido').bruto, 235) && perto(e('concluido').valor, 235), 'Concluído: 2 linhas móveis (A1, A8); a BL da convergência não conta como linha, mas o R$ sim');
   assert(e('entrega').contratos === 3 && perto(e('entrega').valor, 130), 'Entrega + eSIM: A2, A3 e M1');
   assert(e('antifraude').contratos === 1 && perto(e('antifraude').bruto, 90) && perto(e('antifraude').valor, 45), 'Antifraude: bruto 90, ponderado 45');
   assert(e('biometria').contratos === 1 && perto(e('biometria').bruto, 60) && perto(e('biometria').valor, 30), 'Biometria: bruto 60, ponderado 30');
-  assert(perto(p.etapas.reduce((a, x) => a + x.valor, 0), 440) && p.etapas.reduce((a, x) => a + x.contratos, 0) === 8, 'etapas somam 440 e 8 contratos');
+  assert(perto(p.etapas.reduce((a, x) => a + x.valor, 0), 440) && p.etapas.reduce((a, x) => a + x.contratos, 0) === 7, 'etapas somam 440 e 7 linhas móveis');
 
   const camp = w.montarProjecao(FIX_CAMP, { mes: '2026-10', hoje: '2026-10-19', operacao: 'campinas' });
   assert(camp.dias[0].data === '2026-10-06', 'Campinas: gráfico começa em 06/10');
@@ -329,8 +329,11 @@ secao('Task 4', () => {
   assert(cards.length === 4, '4 cards');
   assert(lab(0) === 'Projeção do mês · 21 dias úteis' && val(0) === 'R$ 840,00' && cards[0].classList.contains('proj-hero'), 'card do mês: ' + lab(0) + ' / ' + val(0));
   assert(lab(1) === 'Projeção da semana · 19/10 a 23/10' && val(1) === 'R$ 200,00' && /5 dias úteis/.test(sub(1)), 'card da semana: ' + lab(1) + ' / ' + val(1));
-  assert(val(2) === 'R$ 40,00' && /contratos por dia/.test(sub(2)), 'card diário');
-  assert(val(3) === 'R$ 440,00' && /7,0 contratos até ontem/.test(sub(3)) && /hoje \(parcial\): R\$ 50,00/.test(sub(3)), 'card realizado: ' + sub(3));
+  assert(val(2) === 'R$ 40,00' && /linhas por dia/.test(sub(2)), 'card diário');
+  assert(val(3) === 'R$ 440,00' && /6,0 linhas até ontem/.test(sub(3)) && /hoje \(parcial\): R\$ 50,00/.test(sub(3)), 'card realizado: ' + sub(3));
+  // seção 115: os demais itens têm projeção própria (BL, Sol. Digitais, grupos novos) e não entram na conta das linhas
+  assert(/Outros:/.test(sub(3)) && /1,0 BLs/.test(sub(3)) && /Sol\. Digitais/.test(sub(3)), 'card realizado lista os outros itens separados: ' + sub(3));
+  assert(!/contratos/.test(sub(0) + sub(1) + sub(2) + sub(3)), 'nenhum quadro fala mais em contratos');
   const prog = txt(d.getElementById('projProgresso').textContent);
   assert(/52,4% da projeção do mês já realizado/.test(prog) && /11 de 21 dias úteis completos · faltam 10 \(com hoje\)/.test(prog), 'barra de progresso: ' + prog);
 
