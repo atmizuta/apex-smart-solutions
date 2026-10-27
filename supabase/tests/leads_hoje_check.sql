@@ -97,6 +97,23 @@ begin
   perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000e403', true);
   assert not exists (select 1 from public.leads_alertas() where tipo = 'sem_contato'), 'fora do expediente não alerta sem contato';
   execute 'reset role';
+  -- ===== Ajustes da revisão final (migration 20261027100200) =====
+  insert into public.leads (aba, id, criado_em_lead, full_name, phone_number, cnpj, categoria, status, converteu, receita, dono_id, pego_em) values
+  ('JUNHO', 'zh:fut', now() - interval '6 days', 'Zz Retorno Futuro', '11900000051', null, 'andamento', 'EM NEGOCIAÇÂO', false, 0, '00000000-0000-0000-0000-00000000e403', now() - interval '5 days');
+  execute 'set local role authenticated';
+  perform set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-00000000e403', 'role', 'authenticated')::text, true);
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000e403', true);
+  assert (select count(*) from public.leads_buscar('00000133')) = 0, 'Livre não aparece por pedaço do CNPJ (só inteiro)';
+  assert (select count(*) from public.leads_buscar('00000051')) = 1, 'lead meu aparece por pedaço do telefone';
+  perform public.leads_agendar_retorno('JUNHO', 'zh:fut', now() + interval '1 day');
+  assert not exists (select 1 from public.leads_alertas() where tipo = 'parado' and lead_id = 'zh:fut'), 'retorno marcado para frente: não é parado';
+  assert not exists (select 1 from jsonb_array_elements(public.leads_hoje() -> 'fila') f where f->>'lead_id' = 'zh:fut'), 'retorno marcado para frente: não esfria na fila';
+  perform public.leads_classificar('JUNHO', 'zh:fut', 'EM NEGOCIAÇÂO', 'zz obs nova', false, null, null);
+  assert (select count(*) from public.agenda_retornos where lead_id = 'zh:fut' and status = 'pendente') = 1, 'reclassificar em andamento mantém o retorno futuro';
+  assert (select retorno_em is not null from public.leads where id = 'zh:fut'), 'e mantém a data do retorno no lead';
+  perform public.leads_classificar('JUNHO', 'zh:fut', 'CNPJ INAPTO', null, false, null, null);
+  assert (select count(*) from public.agenda_retornos where lead_id = 'zh:fut' and status = 'pendente') = 0, 'sair do andamento fecha o retorno';
+  execute 'reset role';
   -- ===== mais testes entram aqui =====
 end $$;
 select 'CHECK OK' r;
