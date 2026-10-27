@@ -278,6 +278,10 @@ try{
   kbFecharFicha();
   assert(document.getElementById('kbFicha') && !pip.getElementById('kbFicha'), 'fechar a flutuante devolve a ficha ao painel');
   delete window.documentPictureInPicture;
+  // §120 (correção 27/10 20h): o modal novo deixou dois </div> sobrando e as abas saíram da área principal (Dashboard aparecendo em tudo)
+  const pais = new Set([...document.querySelectorAll('section.panel')].map(p => p.parentElement));
+  assert(pais.size === 1, 'todas as abas (section.panel) dentro do mesmo contêiner — HTML sem </div> sobrando');
+  assert(document.getElementById('kbClassOverlay').parentElement === document.getElementById('kbRedOverlay').parentElement, 'modais de Meus leads no mesmo lugar');
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
