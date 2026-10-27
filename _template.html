@@ -10270,6 +10270,31 @@ function fechamentoTipo(r){
   return 'outros';
 }
 function fechamentoTipoTexto(r){ const t = fechamentoTipo(r); return t === 'voz' ? 'Linha móvel' : (t === 'fibra' ? 'Fibra' : String(r.grupo || '—')); }
+// 26/10/2026 (seção 114): "Operação no período" separa por grupo — GROSS (Portin + Novas), Migrações, Renovações, BLs,
+// Sol. Digitais, Tel Fixo, TV; o que não tiver nome próprio aparece com o nome do grupo. Conta ITENS (linhas), como o ranking.
+function fechamentoCategoria(r){
+  const g = String(r.grupo || '').toUpperCase();
+  if(g.indexOf('VOZ - PORTAB') === 0) return 'portin';
+  if(g.indexOf('VOZ - NOVO') === 0) return 'novas';
+  if(g.indexOf('TITULARIDADE') >= 0 || g.indexOf('TRANF') >= 0 || g.indexOf('TRANSF') >= 0) return 'migracoes';
+  if(g.indexOf('VOZ - RENOV') === 0) return 'renovacoes';
+  if(g.indexOf('BANDA LARGA') === 0 || g.indexOf('VIRTUA') >= 0) return 'bls';
+  if(g.indexOf('SVA') === 0) return 'solDigitais';
+  if(g.indexOf('FONE') >= 0 || g.indexOf('FIXO') >= 0 || g.indexOf('VOZ FIXA') >= 0) return 'telFixo';
+  if(g.indexOf('TV') >= 0) return 'tv';
+  return 'outros';
+}
+function fechamentoGruposTexto(cat, outrosGrupos){
+  const n = k => (cat && cat[k]) || 0;
+  const gross = n('portin') + n('novas');
+  const partes = ['GROSS ' + fechamentoQtd(gross) + ' (' + fechamentoQtd(n('portin')) + ' Portin + ' + fechamentoQtd(n('novas')) + ' Novas)'];
+  [['migracoes', 'Migrações', 'Migração'], ['renovacoes', 'Renovações', 'Renovação'], ['bls', 'BLs', 'BL'],
+   ['solDigitais', 'Sol. Digitais', 'Sol. Digital'], ['telFixo', 'Tel Fixo', 'Tel Fixo'], ['tv', 'TV', 'TV']].forEach(([k, plural, singular]) => {
+    if(n(k)) partes.push(fechamentoQtd(n(k)) + ' ' + (n(k) === 1 ? singular : plural));
+  });
+  Object.keys(outrosGrupos || {}).sort().forEach(g => partes.push(fechamentoQtd(outrosGrupos[g]) + ' ' + g));
+  return partes.join(', ');
+}
 function fechamentoR2(v){ return Math.round((Number(v) || 0) * 100) / 100; }
 // data ISO → dd/mm/aaaa no fuso de São Paulo ('' sem data)
 function fechamentoDataBR(iso){ const d = leadDateSP(iso); return d ? d.split('-').reverse().join('/') : ''; }
@@ -10277,9 +10302,12 @@ function fechamentoEtapaTexto(e){ return String(e || '').replace(/\s*\(NEOCRM\)\
 
 // seção 104: total da operação no período (mesmas contagens do ranking, somando todo mundo; pedidos distintos no geral)
 function totalFechamentoOperacao(registrosFiltrados){
-  const t = { linhasVoz: 0, fibras: 0, itensOutros: 0, pedidos: 0, valor: 0 };
+  const t = { linhasVoz: 0, fibras: 0, itensOutros: 0, pedidos: 0, valor: 0, categorias: {}, outrosGrupos: {} };
   const pedidos = new Set();
   (registrosFiltrados || []).forEach((r, i) => {
+    const cat = fechamentoCategoria(r);
+    if(cat === 'outros'){ const g = String(r.grupo || '(sem grupo)'); t.outrosGrupos[g] = (t.outrosGrupos[g] || 0) + 1; }
+    else t.categorias[cat] = (t.categorias[cat] || 0) + 1;
     const tipo = fechamentoTipo(r);
     if(tipo === 'voz') t.linhasVoz++; else if(tipo === 'fibra') t.fibras++; else t.itensOutros++;
     pedidos.add(fechamentoChavePedido(r, i));
@@ -10402,7 +10430,7 @@ function renderFechamentoFiltrado(filtrados, de, ate){
   resumoCard.style.display = 'block';
 
   // seção 104: total da operação (respeita o seletor de operação, porque o cache já vem filtrado)
-  document.getElementById('fechamentoReceitaTotal').innerHTML = `<strong>Operação no período:</strong> ${fechamentoPlural(total.linhasVoz, 'linha móvel', 'linhas móveis')} · ${fechamentoPlural(total.fibras, 'fibra', 'fibras')}${total.itensOutros ? ' · ' + fechamentoPlural(total.itensOutros, 'outro', 'outros') : ''} · ${fechamentoPlural(total.pedidos, 'pedido', 'pedidos')} · <strong>Receita ${fmtBRL(total.valor)}</strong>`;
+  document.getElementById('fechamentoReceitaTotal').innerHTML = `<strong>Operação no período:</strong> ${escapeHtml(fechamentoGruposTexto(total.categorias, total.outrosGrupos))} · ${fechamentoPlural(total.pedidos, 'pedido', 'pedidos')} · <strong>Receita ${fmtBRL(total.valor)}</strong>`;
 
   const num = 'style="text-align:right"';
   document.getElementById('fechamentoRanking').innerHTML = `

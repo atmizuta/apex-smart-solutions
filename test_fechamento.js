@@ -233,7 +233,9 @@ try{
   assert(document.getElementById('fechamentoEmptyCard').style.display === 'none', 'card de "vazio" fica escondido quando há dados');
   const receitaTotalText = document.getElementById('fechamentoReceitaTotal').textContent;
   assert(receitaTotalText.includes(fmtBRL(1150)), '"Receita total no período" mostra R$1150 (só o Caio qualificou em agosto) — ' + receitaTotalText);
-  assert(/2 linhas móveis/.test(receitaTotalText) && /1 fibra(?!s)/.test(receitaTotalText), 'resumo da operação mostra linhas móveis e fibras — ' + receitaTotalText);
+  // seção 114: resumo separado por grupo — GROSS (Portin + Novas), Migrações, Renovações, BLs, Sol. Digitais, Tel Fixo, TV; o resto com o nome do grupo
+  assert(/GROSS 2 [(]2 Portin [+] 0 Novas[)]/.test(receitaTotalText) && /1 BL(?!s)/.test(receitaTotalText) && /1 APARELHO/.test(receitaTotalText), 'resumo da operação mostra GROSS (Portin + Novas) e BLs — ' + receitaTotalText);
+  assert(!/linhas móveis|fibra/.test(receitaTotalText), 'o resumo não usa mais "linhas móveis"/"fibras" — ' + receitaTotalText);
 
   // --- 5.1) tabela "Ganhos sem data de ativação" ---
   assert(document.getElementById('fechamentoSemDataCard').style.display === 'block', 'card "sem data de ativação" aparece');

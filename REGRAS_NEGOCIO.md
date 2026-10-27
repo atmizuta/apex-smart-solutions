@@ -3763,3 +3763,17 @@ Pedido do Rafael: os consultores deixam a planilha "Leads Google" e passam a peg
 - **Efeito colateral a conhecer:** a Visão Diária / Cadastro Diário usa as mesmas linhas filtradas, então Concluídos sem data de portabilidade deixam de aparecer ali.
 - **Testes:** `test_dashboard_concluido_portabilidade.js` (novo); `test_dashboard_ajustes.js` atualizado (o Concluído fictício ganhou data de portabilidade); `test_fechamento.js` segue passando.
 - **Publicação:** pendente, depende de autorização do usuário.
+
+## 114. Fechamento: "Operação no período" separada por grupo (26/10/2026)
+
+- **Pedido do usuário:** a linha de resumo da operação ("108 linhas móveis · 13 fibras · 1 outro") passa a mostrar cada grupo separado, para ler melhor.
+- **Formato:** `GROSS XX (XX Portin + XX Novas), XX Migrações, XX Renovações, XX BLs, XX Sol. Digitais, XX Tel Fixo, XX TV · XX pedidos · Receita R$ …`. Conta **itens (linhas)**, como o ranking; pedidos continuam distintos.
+- **Grupos (pelo nome do grupo no NeoCRM):**
+  - Portin = `VOZ - Portabilidade`; Novas = `VOZ - Novo`; **GROSS = Portin + Novas**;
+  - Migrações = Transferência de Titularidade; Renovações = `VOZ - Renovação`;
+  - BLs = `BANDA LARGA - *` e `NET - VIRTUA`; Sol. Digitais = `SVA *` (Móvel e Fixa);
+  - Tel Fixo = grupo com FONE/FIXO no nome; TV = `NET - TV`;
+  - qualquer outro grupo (Aparelho, M2M…) aparece com o próprio nome. Grupo sem nenhum item no período não aparece (exceto o GROSS).
+- **Onde:** `fechamentoCategoria()`, `fechamentoGruposTexto()` e `totalFechamentoOperacao()` no `_template.html`. As colunas do ranking por consultor (Linhas móveis / Fibras / Outros) **não mudaram**.
+- **Atenção:** o nome do grupo de Tel Fixo ainda não apareceu nos dados reais; se o NeoCRM usar outro nome, ele sai com o nome do grupo até ajustarmos.
+- **Testes:** `test_fechamento.js` (80 verificações). Publicação: pendente de autorização.
