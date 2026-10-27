@@ -84,6 +84,79 @@ try{
   eq(kbAlertasParaNotificar(al, new Set(['O|3'])).map(a => a.lead_id), ['1'], 'notifica só sem_contato ainda não notificado');
   eq(kbQuandoSP('2026-10-28', '14:30'), '2026-10-28T14:30:00-03:00', 'data + hora em SP');
   eq(kbQuandoSP('2026-10-28', ''), '2026-10-28T10:00:00-03:00', 'hora padrão 10:00');
+  // ==== Task 4: telas ====
+  // consultor: abas, Hoje com fila e retornos, próximo lead abre ficha e entra na exceção
+  currentUser = { id: 'u-zz', nome: 'Zzkcon Teste', role: 'consultor' };
+  window.__tabelas.leads_equipe = [{ id: 1, profile_id: 'u-zz', nome_planilha: 'ZZKCON' }];
+  window.__tabelas.config = [{ valor: 'painel' }];
+  window.__tabelas.leads_status_opcoes = [{ status: 'AGENDADO RETORNO', grupo: 'andamento', ordem: 2 }, { status: 'CNPJ INAPTO', grupo: 'perdido', ordem: 24 }];
+  window.__rpcRespostas.leads_kanban = { data: [{ aba: 'OUTUBRO', lead_id: 'h1', nome: 'Zz Hoje Um', categoria: 'sem_contato', livre: false, criado_em_lead: new Date().toISOString() }], error: null };
+  window.__rpcRespostas.leads_hoje = { data: { fila: [{ aba: 'OUTUBRO', lead_id: 'h1', nome: 'Zz Hoje Um', motivo: 'Novo sem contato', desde: new Date().toISOString() }],
+    retornos: [{ aba: 'OUTUBRO', lead_id: 'h2', nome: 'Zz Retorno', quando: new Date(Date.now() - 600000).toISOString(), vencido: true }], livres: 3 }, error: null };
+  window.__rpcRespostas.leads_alertas = { data: [{ tipo: 'sem_contato', aba: 'OUTUBRO', lead_id: 'h1', nome: 'Zz Hoje Um', dono_nome: 'Zzkcon Teste', desde: new Date().toISOString() }], error: null };
+  window.__rpcRespostas.leads_ficha = { data: [{ aba: 'OUTUBRO', lead_id: 'h1', nome: 'Zz Hoje Um', livre: false, categoria: 'sem_contato', telefone: '11900000001' }], error: null };
+  window.__rpcRespostas.leads_ficha_detalhes = { data: { anuncio: { campanha: 'Zz Camp', conjunto: 'Zz Conj', anuncio: null, formulario: 'Zz Form', plataforma: 'fb', organico: false },
+    resumo: { ligacoes: 2, atendidas: 1, cliques: 0, ultimo: new Date(Date.now() - 3600000).toISOString() },
+    eventos: [{ em: new Date().toISOString(), tipo: 'ligacao', titulo: 'Ligação atendida', detalhe: '2 min 5 s', quem: 'zz.usuario' }] }, error: null };
+  await kbAplicarPermissao();
+  await kbCarregar();
+  await espera(80);   // Hoje e alertas carregam em segundo plano
+  eq([...document.querySelectorAll('#kbAbas [data-kb-aba]')].filter(b => b.style.display !== 'none').map(b => b.dataset.kbAba), ['hoje', 'quadro'], 'consultor vê Hoje e Quadro');
+  assert(document.getElementById('kbHoje').style.display !== 'none' && document.getElementById('kbBoard').style.display === 'none', 'consultor abre na aba Hoje');
+  assert(document.getElementById('kbHoje').textContent.includes('Zz Retorno') && document.getElementById('kbHoje').textContent.includes('Pego e sem contato'), 'Hoje mostra retornos e alertas');
+  document.querySelector('#kbHoje [data-kb-proximo]').click();
+  await espera(60);
+  assert(window.__rpcCalls.some(c => c.nome === 'leads_ficha' && c.args.p_id === 'h1'), 'Próximo lead abre a ficha do primeiro da fila');
+  assert(kbEstado.excecoes['OUTUBRO|h1'] > 0, 'lead aberto entra na exceção de 2 min');
+  assert(document.getElementById('kbFichaDetalhes').textContent.includes('2 tentativas') && document.getElementById('kbFichaDetalhes').textContent.includes('Zz Conj'), 'ficha mostra resumo, linha do tempo e anúncio');
+  kbFecharFicha();
+  // notificação uma vez por lead
+  await kbCarregarAlertas(true); await kbCarregarAlertas(true);
+  assert(kbEstado.notificados.has('OUTUBRO|h1') && document.getElementById('tabBtnMeusLeads').textContent.includes('1'), 'alerta urgente notificado e contador no menu');
+  eq((window.__alertas || []).filter(m => m.includes('Pego e sem contato')).length, 1, 'notifica uma vez só por lead');
+  // pesquisa com espera de 300 ms
+  window.__rpcRespostas.leads_buscar = { data: [{ aba: 'OUTUBRO', lead_id: 'b1', nome: 'Zz Achado', cidade: 'Campinas', uf: 'SP', status: null, categoria: 'sem_contato', dono_nome: null, livre: true }], error: null };
+  const campo = document.getElementById('kbBusca');
+  campo.value = 'zz'; campo.dispatchEvent(new window.Event('input'));
+  await espera(350);
+  assert(!window.__rpcCalls.some(c => c.nome === 'leads_buscar'), 'menos de 3 letras não busca');
+  campo.value = 'zz ach'; campo.dispatchEvent(new window.Event('input'));
+  await espera(350);
+  assert(window.__rpcCalls.filter(c => c.nome === 'leads_buscar').length === 1 && document.getElementById('kbBuscaRes').textContent.includes('Zz Achado'), 'busca mostra resultado');
+  // classificar AGENDADO RETORNO com hora chama leads_agendar_retorno
+  window.__rpcRespostas.leads_classificar = { data: null, error: null };
+  window.__rpcRespostas.leads_agendar_retorno = { data: null, error: null };
+  kbEstado.leads = [{ aba: 'OUTUBRO', lead_id: 'h1', nome: 'Zz Hoje Um', categoria: 'sem_contato' }];
+  kbAbrirClassificar('OUTUBRO', 'h1', null);
+  document.getElementById('kbClassStatus').value = 'AGENDADO RETORNO';
+  document.getElementById('kbClassStatus').dispatchEvent(new window.Event('change'));
+  assert(document.getElementById('kbClassRetornoBox').style.display !== 'none', 'AGENDADO RETORNO mostra data e hora');
+  document.getElementById('kbClassRetorno').value = '2099-01-02';
+  document.getElementById('kbClassHora').value = '14:30';
+  await kbSalvarClassificacao();
+  const ag = window.__rpcCalls.filter(c => c.nome === 'leads_agendar_retorno').pop();
+  eq(ag && ag.args.p_quando, '2099-01-02T14:30:00-03:00', 'retorno com data e hora vai para a Agenda');
+  // retorno rápido da ficha também vai para a Agenda (10:00)
+  await kbRetornoRapido('OUTUBRO', 'h1', 1);
+  const rr2 = window.__rpcCalls.filter(c => c.nome === 'leads_agendar_retorno').pop();
+  assert(rr2 && rr2.args.p_aba === 'OUTUBRO' && rr2.args.p_id === 'h1' && /T10:00:00-03:00$/.test(rr2.args.p_quando), 'retorno rápido agenda às 10:00');
+  // gestor: Equipe com semáforo; clicar na linha filtra o Quadro
+  currentUser = { id: 'u-sup', nome: 'Zzksup Teste', role: 'supervisor', operacao: 'apex' };
+  window.__rpcRespostas.leads_equipe_resumo = { data: [{ dono_id: 'u-zz', nome: 'Zzkcon Teste', em_aberto: 5, sem_contato: 1, retornos_vencidos: 0, parados: 0, perdas_suspeitas: 0, pegos_mes: 20, convertidos_mes: 5, receita_mes: 899.9, tempo_medio_1o_contato_min: 4.5 }], error: null };
+  await kbAplicarPermissao();
+  await kbCarregar();
+  await espera(80);   // Equipe carrega em segundo plano
+  assert(document.getElementById('kbEquipe').style.display !== 'none', 'gestor abre na aba Equipe');
+  const linhaEq = document.querySelector('#kbEquipe tr[data-kb-dono="u-zz"]');
+  assert(linhaEq && linhaEq.classList.contains('kbSem-vermelho') && linhaEq.textContent.includes('25%'), 'Equipe: semáforo e conversão');
+  linhaEq.click();
+  await espera(60);
+  assert(kbEstado.aba === 'quadro' && kbEstado.dono === 'u-zz', 'clicar no consultor abre o Quadro filtrado');
+  // Agenda: clicar num retorno ligado a lead abre a ficha do lead
+  const antesFicha = window.__rpcCalls.filter(c => c.nome === 'leads_ficha').length;
+  alAoClicar({ id: 'r1', nome: 'Zz Retorno', lead_aba: 'OUTUBRO', lead_id: 'h1' });
+  await espera(60);
+  assert(window.__rpcCalls.filter(c => c.nome === 'leads_ficha').length === antesFicha + 1, 'retorno da Agenda abre a ficha do lead');
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
