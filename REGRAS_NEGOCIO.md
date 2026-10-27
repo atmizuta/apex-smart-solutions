@@ -3891,4 +3891,4 @@ Pedido do Rafael na noite da virada: a aba travava nos computadores dos consulto
   - migration `20261027190000_leads_apagar_versao_dono.sql`;
   - verificação `supabase/tests/leads_apagar_check.sql` (ROLLBACK, CHECK OK);
   - testes `test_leads_hoje.js` (77) e `test_leads_kanban.js` (78; o teste do selo "para resgatar" abre o Perdido antes, e o da versão usa a `leads_kanban_versao_dono`).
-- **Publicação:** pendente de autorização.
+- **Publicação (27/10, 19:52, ok do Rafael):** painel MD5 `9e5be530…` (o do ar era `6abb4411…` = oficial b57d883, nada por fora), backup `~/deploy_backups/painel_clientes_apex_20261027_195236_antes_meus_leads_leve.html`. O time precisa dar F5.
