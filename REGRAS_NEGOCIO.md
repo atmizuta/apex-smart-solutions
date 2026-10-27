@@ -3854,3 +3854,4 @@ Pedido do Rafael, antes da virada: produtividade do consultor e supervisão dos 
 - **Boletim da Manhã não muda:** ela segue fora pela lista nova `PRODUCAO_FORA_DO_BOLETIM`, usada só em `bmFora`. Fechamento sem mudança (ela já estava lá).
 - Rafael continua fora do Dashboard e do Boletim (§77).
 - **Testes:** `test_producao_filtro_pessoas.js` (Isabelly no Dashboard) e `test_operacao_campinas.js` (Isabelly no Dashboard da Apex e fora do Boletim). Obs.: 4 asserções antigas de `test_producao_filtro_pessoas.js` já falhavam na main antes desta mudança (desatualizadas desde a §106: Danilo e Gabriel voltaram ao Fechamento).
+- **Publicação (27/10, 17:45, ok do Rafael):** painel MD5 `6abb4411…` (o do ar era `509f8986…`, igual à main: nada por fora), backup `~/deploy_backups/painel_clientes_apex_20261027_174551_antes_isabelly_dashboard.html`.
