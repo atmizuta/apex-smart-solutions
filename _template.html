@@ -2808,6 +2808,7 @@ document.getElementById('btnLogout').addEventListener('click', async function(){
   await sb.auth.signOut();
   currentUser = null;
   cadernoResetar(); // seção 72: some o Caderno e para os alertas
+  kbParar(); // seção 118: alertas de Meus leads
   verificarAlertaSyncProducao(); // sem usuário: esconde a faixa
   appEl.style.display = 'none';
   loginScreen.style.display = 'flex';
@@ -3215,6 +3216,8 @@ function kbBuscaValida(t){ return String(t || '').trim().length >= 3; }
 const KB_ALERTA_TEXTO = { sem_contato: 'Pego e sem contato', retorno_vencido: 'Retorno vencido', parado: 'Parado em andamento', perda_suspeita: 'Perdido sem nenhuma ligação' };
 function kbAlertaTexto(a){ return KB_ALERTA_TEXTO[a.tipo] || a.tipo; }
 function kbAlertasParaNotificar(alertas, ja){ return (alertas || []).filter(a => a.tipo === 'sem_contato' && !ja.has(a.aba + '|' + a.lead_id)); }
+// Alertas em segundo plano (revisão final): aba fechada ou janela escondida/minimizada — o laço de 10 s só roda com a aba à vista.
+function kbAlertaDeFundo(ativa, visivel){ return !ativa || !visivel; }
 function kbQuandoSP(dataIso, hora){ return `${dataIso}T${/^\d{2}:\d{2}$/.test(hora || '') ? hora : '10:00'}:00-03:00`; }
 function kbAtrasado(l, agoraMs){
   if(kbColunaDoLead(l) !== 'novos' || l.primeiro_clique || l.primeira_ligacao) return false;
@@ -3294,6 +3297,7 @@ async function kbAplicarPermissao(){
   document.getElementById('kbFiltrosGestor').style.display = kbGestor() ? '' : 'none';
   document.getElementById('kbReescrever').style.display = currentUser && currentUser.role === 'admin' ? '' : 'none';
   if(kbGestor()) kbCarregarFiltros().catch(err => console.error(err));
+  if(kbPodeVer()) kbAgendar(); else kbParar();   // alertas e contador do menu desde o login (revisão final)
 }
 async function kbCarregar(){
   if(!kbPodeVer()) return;
@@ -3307,8 +3311,9 @@ async function kbCarregar(){
   if(!lds || lds.error){ console.error(lds && lds.error); document.getElementById('kbStatus').textContent = 'Não foi possível carregar os leads agora.'; return; }
   kbEstado.leads = lds.data || [];
   kbRender();
-  if(!kbEstado.aba) kbTrocarAba(kbAbaPadrao(kbGestor())); else if(kbEstado.aba !== 'quadro') kbTrocarAba(kbEstado.aba);
-  kbCarregarAlertas(false);
+  // Equipe e alertas pesam (contato de cada lead): só na primeira carga e no laço de 60 s, não a cada mudança de versão.
+  if(!kbEstado.aba){ kbTrocarAba(kbAbaPadrao(kbGestor())); if(kbEstado.aba !== 'equipe') kbCarregarAlertas(false); }
+  else if(kbEstado.aba === 'hoje') kbCarregarHoje();
 }
 const KB_TITULOS = { livres: 'Livres', novos: 'Meus novos', andamento: 'Em andamento', convertido: 'Convertido', perdido: 'Perdido' };
 const KB_ICONE_TEL = '<svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>';
@@ -3423,7 +3428,9 @@ async function kbSalvarClassificacao(){
   fecharOverlay(document.getElementById('kbClassOverlay'));
   kbEstado.classAlvo = null;
   mostrarAviso('Lead classificado.', 'ok');
+  agAvisarMudou();   // o alarme da Agenda recarrega na hora (retorno fechado ou com hora nova)
   await kbCarregar();
+  kbCarregarAlertas(false);
 }
 async function kbRetornoRapido(aba, leadId, dias){
   const data = somaDiasStr(hojeSP(), dias || 1);
@@ -3431,6 +3438,7 @@ async function kbRetornoRapido(aba, leadId, dias){
   if(!r || r.error){ mostrarAviso('Não foi possível agendar o retorno: ' + ((r && r.error && r.error.message) || 'tente de novo'), 'erro'); return; }
   const { error } = await sb.from('leads_followups').insert({ lead_id: leadId, consultor_id: currentUser.id, data_prevista: data, tipo: 'retorno', observacao: null });
   if(error) console.error(error);   // a Agenda já tem o retorno; o follow-up antigo é só registro
+  agAvisarMudou();
   mostrarAviso('Retorno agendado para ' + ppFmtDia(data) + ' às 10:00, na Agenda.', 'ok');
 }
 // A cada 10 s pergunta só a versão (barata); recarrega o Kanban inteiro só quando ela muda (§112, pedido de 26/10).
@@ -3452,9 +3460,19 @@ function kbAgendar(){
   kbEstado.timer = setInterval(() => {
     if(!ativa() || document.visibilityState !== 'visible') return;
     kbVerificarVersao();
-    if(++voltas % 6 === 0){ kbCarregarAlertas(true); if(kbEstado.aba === 'hoje') kbCarregarHoje(); }
+    if(++voltas % 6 === 0){
+      if(kbEstado.aba === 'equipe') kbCarregarEquipe(true); else kbCarregarAlertas(true);
+      if(kbEstado.aba === 'hoje') kbCarregarHoje();
+    }
   }, 10000);
-  kbEstado.timerAlertas = setInterval(() => { if(!ativa() && kbPodeVer()) kbCarregarAlertas(true); }, 120000);
+  kbEstado.timerAlertas = setInterval(() => { if(kbPodeVer() && kbAlertaDeFundo(ativa(), document.visibilityState === 'visible')) kbCarregarAlertas(true); }, 120000);
+}
+// Sair (ou perder o acesso): para os timers e zera alertas, contador e fila.
+function kbParar(){
+  clearInterval(kbEstado.timer); clearInterval(kbEstado.timerAlertas);
+  kbEstado.timer = null; kbEstado.timerAlertas = null;
+  kbEstado.aba = null; kbEstado.hoje = null; kbEstado.excecoes = {}; kbEstado.notificados = new Set(); kbEstado.alertas = [];
+  ['kbBadgeHoje', 'kbBadgeEquipe', 'kbBadgeMenu'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = ''; });
 }
 document.getElementById('kbBoard').addEventListener('click', (e) => {
   const card = e.target.closest('.kbCard');
@@ -3585,9 +3603,9 @@ async function kbPegarProximoLivre(){
   await kbPegar(livre.aba, livre.lead_id);
   await kbAbrirFicha(livre.aba, livre.lead_id);
 }
-async function kbCarregarEquipe(){
+async function kbCarregarEquipe(notificar){
   if(!kbGestor()) return;
-  const [r] = await Promise.all([ppSeguro(() => sb.rpc('leads_equipe_resumo')), kbCarregarAlertas(false)]);
+  const [r] = await Promise.all([ppSeguro(() => sb.rpc('leads_equipe_resumo')), kbCarregarAlertas(!!notificar)]);
   kbEstado.equipe = r && !r.error ? r.data || [] : [];
   const linhas = kbEstado.equipe.map(l => `<tr class="kbSem-${kbSemaforo(l)}" data-kb-dono="${escapeHtml(l.dono_id)}">
       <td><span class="kbSemaforo"></span>${escapeHtml(l.nome)}</td><td>${l.em_aberto}</td><td>${l.sem_contato}</td><td>${l.retornos_vencidos}</td>
@@ -3605,8 +3623,10 @@ async function kbCarregarAlertas(notificar){
   const n = kbEstado.alertas.length;
   document.getElementById('kbBadgeHoje').textContent = n ? String(n) : '';
   document.getElementById('kbBadgeEquipe').textContent = kbGestor() && n ? String(n) : '';
-  const lab = document.querySelector('#tabBtnMeusLeads .sbLabel');
-  if(lab) lab.textContent = n ? `Meus leads (${n})` : 'Meus leads';
+  // contador num badge próprio: o rótulo do menu é copiado para o título da página
+  let bm = document.getElementById('kbBadgeMenu');
+  if(!bm){ bm = document.createElement('span'); bm.id = 'kbBadgeMenu'; bm.className = 'kbBadge'; document.getElementById('tabBtnMeusLeads').appendChild(bm); }
+  bm.textContent = n ? String(n) : '';
   if(notificar) kbAlertasParaNotificar(kbEstado.alertas, kbEstado.notificados).forEach(a => {
     kbEstado.notificados.add(a.aba + '|' + a.lead_id);
     const texto = `${kbAlertaTexto(a)}: ${a.nome || 'lead'}${kbGestor() && a.dono_nome ? ' (' + a.dono_nome + ')' : ''}`;
@@ -3687,6 +3707,7 @@ async function kbSalvarRedistribuicao(){
   fecharOverlay(document.getElementById('kbRedOverlay'));
   kbEstado.redAlvo = null;
   mostrarAviso(novo ? 'Lead passado para outro consultor.' : 'Lead devolvido aos Livres.', 'ok');
+  agAvisarMudou();
   await kbCarregar();
 }
 async function kbMesaCard(){

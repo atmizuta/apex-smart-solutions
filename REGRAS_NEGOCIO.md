@@ -3818,24 +3818,25 @@ Pedido do Rafael, antes da virada: produtividade do consultor e supervisão dos 
 
 - **Abas dentro de "Meus leads":** consultor vê **Hoje** (abre nela) e **Quadro** (o Kanban da §112); admin/supervisor vê também **Equipe** (abre nela).
 - **Hoje:**
-  - botão **"Próximo lead"**: abre a ficha do primeiro da fila do dia. Ordem: 1) novo sem contato; 2) retorno vencido; 3) em andamento sem contato há mais de 2 dias ("esfriando"); 4) perdido do mês por "cliente não responde" sem contato há mais de 2 dias ("para resgatar"). Lead em dois motivos aparece uma vez, no de maior prioridade. O lead aberto fica 2 min fora da fila. Fila vazia: "Pegar o próximo livre";
+  - botão **"Próximo lead"**: abre a ficha do primeiro da fila do dia. Ordem: 1) novo sem contato; 2) retorno vencido; 3) em andamento sem contato há mais de 2 dias ("esfriando"); 4) perdido do mês por "cliente não responde" sem contato há mais de 2 dias ("para resgatar"). Lead com retorno marcado para frente não entra em 3 e 4. Lead em dois motivos aparece uma vez, no de maior prioridade. O lead aberto fica 2 min fora da fila. Fila vazia: "Pegar o próximo livre";
   - **Retornos de hoje** (hora, nome, vencido em vermelho) e **Alertas**.
 - **Equipe (gestor):** uma linha por consultor da `leads_equipe` com semáforo (vermelho = novo sem contato +15 min ou retorno vencido; amarelo = parado ou perdido sem ligação; verde = em dia), em aberto, pegos no mês, vendas e conversão, receita do mês e tempo médio até o 1º contato hoje. Clicar no consultor abre o Quadro filtrado por ele. Abaixo, a lista de alertas da equipe.
-- **Pesquisa** (topo, todas as abas): CNPJ, nome ou telefone, a partir de 3 caracteres, até 20 resultados. Consultor acha os leads dele e os Livres (Livre sem mostrar telefone/CNPJ); gestor acha qualquer lead. Clicar abre a ficha.
+- **Pesquisa** (topo, todas as abas): CNPJ, nome ou telefone, a partir de 3 caracteres, até 20 resultados. Consultor acha os leads dele (também por pedaço do número) e os Livres (Livre só pelo nome ou pelo CNPJ/telefone **inteiro**, e sem mostrar o número); gestor acha qualquer lead. Clicar abre a ficha.
 - **Ficha:** nova seção **"Contato e histórico"**: resumo ("5 tentativas · 2 atendidas · última há 3 h") e **linha do tempo** (chegou, pegou, classificou, redistribuiu, cliques de Ligar/WhatsApp, ligações manuais com duração e do discador), 30 eventos com "Ver tudo"; e **"Detalhes do anúncio"** (campanha, conjunto, anúncio, formulário, plataforma, orgânico).
   - Contato conta desde a chegada do lead − 1 h: ligação manual pelo telefone (`chave_tel`), discador pelo CNPJ (14 dígitos), cliques no painel.
 - **Retorno vira compromisso na Agenda:**
   - AGENDADO RETORNO no Classificar pede **data e hora** (padrão 10:00) e cria/atualiza **um** retorno pendente na Agenda do dono (`agenda_retornos` com `lead_aba/lead_id`, origem `manual`). "Retorno amanhã"/"Em 3 dias" da ficha também vão para a Agenda às 10:00;
-  - reclassificar para outro status marca o retorno como **feito** (o alarme não toca à toa); redistribuir **cancela** o retorno do dono antigo e **cria** no novo (o gatilho da Agenda não deixa trocar o consultor de um retorno); devolver aos Livres cancela;
+  - reclassificar para venda ou perda marca o retorno como **feito** (o alarme não toca à toa); reclassificar continuando em andamento (ex.: EM NEGOCIAÇÃO com OBS nova) **mantém** o retorno marcado para frente; retorno já vencido é fechado; redistribuir **cancela** o retorno do dono antigo e **cria** no novo (o gatilho da Agenda não deixa trocar o consultor de um retorno); devolver aos Livres cancela;
   - o alarme da Agenda (5 min antes) abre a **ficha do lead** em vez do Caderno.
 - **Alertas** (`config.leads_alertas` = `{"sem_contato_min":15,"parado_dias":3,"esfriando_dias":2}`):
   - **Pego e sem contato** há mais de 15 min, contados só dentro do expediente de `config.velocidade_lead` (seg–sex 11h–21h); fora dele não alerta;
-  - **Retorno vencido** sem contato depois da hora marcada; **Parado em andamento** há mais de 3 dias; **Perdido sem nenhuma ligação** no mês (só o gestor vê);
-  - contador no menu ("Meus leads (3)") e nas abas; recarrega a cada 60 s com a aba aberta e a cada 2 min com ela fechada. O "sem contato" avisa na tela, com bip e notificação do Windows, **uma vez por lead** por sessão.
+  - **Retorno vencido** sem contato depois da hora marcada; **Parado em andamento** há mais de 3 dias (sem retorno marcado para frente); **Perdido sem nenhuma ligação** no mês (só o gestor vê);
+  - contador (badge) no menu e nas abas, desde o login; recarrega a cada 60 s com a aba aberta e a cada 2 min com ela fechada ou com a janela minimizada. Classificar, agendar e redistribuir avisam a Agenda na hora (o alarme não toca retorno fechado). O "sem contato" avisa na tela, com bip e notificação do Windows, **uma vez por lead** por sessão.
 - **Banco:**
   - migrations `20261027100000_leads_hoje_base.sql` e `20261027100100_leads_hoje_alertas.sql`;
   - colunas `agenda_retornos.lead_aba/lead_id`;
+  - migration `20261027100200_leads_hoje_ajustes.sql` (ajustes da revisão final);
   - RPCs `leads_contato_info`, `leads_ficha_detalhes`, `leads_buscar`, `leads_alertas`, `leads_equipe_resumo`, `leads_hoje`, `leads_agendar_retorno`; interna `leads_agenda_lead`; `leads_classificar` e `leads_redistribuir` passaram a mexer na Agenda (mesma assinatura).
   - Verificação: `supabase/tests/leads_hoje_check.sql` (sempre em ROLLBACK).
-- **Testes:** `test_leads_hoje.js` (43) e `test_leads_kanban.js` (78).
+- **Testes:** `test_leads_hoje.js` (49) e `test_leads_kanban.js` (78).
 - **Publicação:** pendente de autorização. Até a virada (§112), a aba continua só para o admin.

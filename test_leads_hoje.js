@@ -157,6 +157,39 @@ try{
   alAoClicar({ id: 'r1', nome: 'Zz Retorno', lead_aba: 'OUTUBRO', lead_id: 'h1' });
   await espera(60);
   assert(window.__rpcCalls.filter(c => c.nome === 'leads_ficha').length === antesFicha + 1, 'retorno da Agenda abre a ficha do lead');
+  // ==== Ajustes da revisão final ====
+  // Important 2b: com a aba aberta mas a janela escondida, o timer de 2 min continua atualizando os alertas
+  eq([kbAlertaDeFundo(false, true), kbAlertaDeFundo(true, false), kbAlertaDeFundo(true, true)], [true, true, false], 'alerta de fundo: aba fechada ou janela escondida');
+  // Important 2a: o timer começa no login (kbAplicarPermissao), sem precisar abrir a aba
+  clearInterval(kbEstado.timer); clearInterval(kbEstado.timerAlertas); kbEstado.timer = null; kbEstado.timerAlertas = null;
+  await kbAplicarPermissao();
+  assert(kbEstado.timerAlertas, 'timer de alertas começa no login de quem vê a aba');
+  // Important 1: classificar/agendar/redistribuir avisam a Agenda (o alarme recarrega na hora)
+  let mudou = 0; document.addEventListener('agenda:mudou', () => mudou++);
+  await kbRetornoRapido('OUTUBRO', 'h1', 1);
+  kbEstado.leads = [{ aba: 'OUTUBRO', lead_id: 'h1', nome: 'Zz Hoje Um', categoria: 'andamento', status: 'EM NEGOCIAÇÂO' }];
+  kbEstado.opcoes = [{ status: 'CNPJ INAPTO', grupo: 'perdido', ordem: 24 }];
+  kbAbrirClassificar('OUTUBRO', 'h1', null);
+  document.getElementById('kbClassStatus').value = 'CNPJ INAPTO';
+  await kbSalvarClassificacao();
+  window.__rpcRespostas.leads_redistribuir = { data: null, error: null };
+  kbEstado.consultores = [{ profile_id: 'u-zz', nome_planilha: 'ZZKCON' }, { profile_id: 'u-out', nome_planilha: 'ZZOUT' }];
+  kbEstado.leads = [{ aba: 'OUTUBRO', lead_id: 'h1', nome: 'Zz Hoje Um', categoria: 'andamento', dono_id: 'u-zz' }];
+  kbAbrirRedistribuir('OUTUBRO', 'h1');
+  await kbSalvarRedistribuicao();
+  eq(mudou, 3, 'retorno rápido, classificar e redistribuir avisam a Agenda');
+  // Minor→Important (carga): mudança de versão no Quadro não recalcula a Equipe nem os alertas
+  kbTrocarAba('equipe'); await espera(60);
+  const contar = (n) => window.__rpcCalls.filter(c => c.nome === n).length;
+  const [eq0, al0] = [contar('leads_equipe_resumo'), contar('leads_alertas')];
+  await kbCarregar(); await espera(60);
+  eq([contar('leads_equipe_resumo') - eq0, contar('leads_alertas') - al0], [0, 0], 'recarga do Kanban não recalcula Equipe nem alertas');
+  // Minor→Important: contador do menu num badge próprio, sem mexer no rótulo (o título da página copia o rótulo)
+  await kbCarregarAlertas(false);
+  assert(document.querySelector('#tabBtnMeusLeads .sbLabel').textContent === 'Meus leads' && document.getElementById('kbBadgeMenu').textContent !== '', 'contador no badge, rótulo intacto');
+  // sair: zera estado e timers de alertas
+  kbParar();
+  assert(kbEstado.notificados.size === 0 && !kbEstado.alertas.length && document.getElementById('kbBadgeMenu').textContent === '', 'sair zera alertas e contador');
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
