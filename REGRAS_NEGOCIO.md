@@ -3855,3 +3855,40 @@ Pedido do Rafael, antes da virada: produtividade do consultor e supervisão dos 
 - Rafael continua fora do Dashboard e do Boletim (§77).
 - **Testes:** `test_producao_filtro_pessoas.js` (Isabelly no Dashboard) e `test_operacao_campinas.js` (Isabelly no Dashboard da Apex e fora do Boletim). Obs.: 4 asserções antigas de `test_producao_filtro_pessoas.js` já falhavam na main antes desta mudança (desatualizadas desde a §106: Danilo e Gabriel voltaram ao Fechamento).
 - **Publicação (27/10, 17:45, ok do Rafael):** painel MD5 `6abb4411…` (o do ar era `509f8986…`, igual à main: nada por fora), backup `~/deploy_backups/painel_clientes_apex_20261027_174551_antes_isabelly_dashboard.html`.
+
+## 120. Meus leads mais leve, Quadro navegável, Classificar novo, ligar em aba nova, apagar lead e ficha flutuante (27/10/2026)
+
+Pedido do Rafael na noite da virada: a aba travava nos computadores dos consultores. O foco foi deixar o mais leve possível, com outros ajustes de uso junto.
+
+- **Leveza** (medido no Chrome, 241 leads fictícios):
+  - o Quadro mostra até **40 cartões por coluna**, com "Ver mais" para os próximos 40 (os Livres seguem com 20);
+  - o **Perdido** só monta os cartões quando é aberto;
+  - a cada recarga, só a **coluna que mudou** é redesenhada: com os mesmos dados, o redesenho caiu de ~12 ms para ~1 ms;
+  - o HTML dos cartões caiu de ~335 KB para ~92 KB: ícones por *sprite* e link do WhatsApp montado só no clique;
+  - o navegador não desenha cartões fora da tela (`content-visibility`);
+  - sem animação de "levantar" o cartão e sem desfoque atrás dos modais de Classificar e Redistribuir.
+- **Banco:**
+  - nova `leads_kanban_versao_dono(p_dono)`: a tela só recarrega quando muda algo **do próprio consultor** ou dos Livres. Antes, qualquer classificação de qualquer pessoa recarregava a tela de todos;
+  - o `leads_kanban` só soma os pedidos do NEO dos CNPJs que estão na tela (~26 ms para 238 leads).
+- **Quadro na tela:**
+  - o Quadro ocupa a altura que sobra da janela e **cada coluna rola por dentro**, então a rolagem para os lados fica sempre à vista;
+  - em cima, **setas ‹ ›** e atalhos de cada coluna com a contagem (Livres, Meus novos, Em andamento, Convertido, Perdido). O atalho do Perdido abre a coluna.
+- **Classificar (modal novo):**
+  - no padrão de modal do painel (cabeçalho com nome do lead, status atual e cidade);
+  - as tabulações viram **botões por grupo** (Em andamento, Convertido, Perdido), e um clique escolhe;
+  - AGENDADO RETORNO mostra atalhos **Hoje / Amanhã / Em 3 dias / Em 1 semana**, além de data e hora;
+  - venda: receita e "Converteu" lado a lado;
+  - OBS; **Ctrl+Enter salva**. Arrastando para uma coluna, só aparecem as tabulações daquele grupo.
+- **Telefone:** o ícone de ligar do cartão e o botão Ligar da ficha abrem **em aba nova** (`target="_blank"`). Se no computador o ProContact estiver instalado como aplicativo e ainda abrir em janela própria, é configuração do Chrome nesse computador (desmarcar "Abrir como janela" no app).
+- **Apagar lead (só supervisor/admin):**
+  - botão "Apagar do painel" na ficha, com confirmação e motivo opcional;
+  - o lead some do Quadro, da busca, dos alertas, da fila do dia e do Equipe, e o retorno da Agenda é cancelado;
+  - a planilha **não muda**, porque o apagar não entra na fila do espelho;
+  - colunas `leads.apagado_em/apagado_por/apagado_motivo`; RPCs `leads_apagar` e `leads_restaurar` (desfazer, por enquanto só pelo banco);
+  - histórico com as ações `apagar`/`restaurar` (regra `leads_historico_acao_check` ampliada).
+- **Ficha flutuante:** botão **"Flutuar"** na ficha. Ela vai para uma janela que fica por cima do ProContact, igual ao Caderno. Clicar em outro lead no painel atualiza a janela; o × devolve a ficha ao painel.
+- **Arquivos:**
+  - migration `20261027190000_leads_apagar_versao_dono.sql`;
+  - verificação `supabase/tests/leads_apagar_check.sql` (ROLLBACK, CHECK OK);
+  - testes `test_leads_hoje.js` (77) e `test_leads_kanban.js` (78; o teste do selo "para resgatar" abre o Perdido antes, e o da versão usa a `leads_kanban_versao_dono`).
+- **Publicação:** pendente de autorização.

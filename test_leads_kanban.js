@@ -127,11 +127,12 @@ try{
   window.__rpcRespostas.leads_kanban = { data: [L('a1', { categoria: 'andamento', status: 'EM NEGOCIAÇÂO', telefone: '11900000001' }),
     L('p1', { categoria: 'perdido', status: 'CLIENTE NÃO RESPONDE', classificado_em: new Date().toISOString() })], error: null };
   await kbCarregar();
+  kbEstado.perdidoAberto = true; kbRender();   // §120: o Perdido só monta os cartões quando é aberto
   assert(document.querySelector('#kbBoard [data-id="p1"]').textContent.includes('para resgatar'), 'selo para resgatar');
   // ajuste 26/10: retorno rápido saiu do cartão e foi para a ficha do lead
   assert(kbFichaHtml(L('a1', { categoria: 'andamento', status: 'EM NEGOCIAÇÂO', telefone: '11900000001' }), { gestor: false, agoraMs: Date.now() }).includes('data-kb-ficha-retorno="3"'), 'ficha de lead em andamento tem Em 3 dias');
   // versão leve: igual não recarrega; mudou recarrega
-  window.__rpcRespostas.leads_kanban_versao = { data: 'v1', error: null };
+  window.__rpcRespostas.leads_kanban_versao_dono = { data: 'v1', error: null };   // §120: versão por consultor
   assert(await kbVerificarVersao() === true, 'versão nova recarrega');
   const nCarga = window.__rpcCalls.filter(c => c.nome === 'leads_kanban').length;
   assert(await kbVerificarVersao() === false, 'versão igual não recarrega');

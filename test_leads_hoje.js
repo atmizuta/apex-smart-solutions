@@ -190,6 +190,94 @@ try{
   // sair: zera estado e timers de alertas
   kbParar();
   assert(kbEstado.notificados.size === 0 && !kbEstado.alertas.length && document.getElementById('kbBadgeMenu').textContent === '', 'sair zera alertas e contador');
+  // ==== §120 (27/10 noite): leveza, navegação do Quadro, Classificar novo, telefone em aba nova, apagar, ficha flutuante ====
+  currentUser = { id: 'u-zz', nome: 'Zzkcon Teste', role: 'consultor' };
+  window.__tabelas.leads_equipe = [{ id: 1, profile_id: 'u-zz', nome_planilha: 'ZZKCON' }];
+  window.__tabelas.leads_status_opcoes = [{ status: 'EM NEGOCIAÇÂO', grupo: 'andamento', ordem: 1 }, { status: 'AGENDADO RETORNO', grupo: 'andamento', ordem: 2 },
+    { status: 'PEDIDO CONCLUIDO (VENDA)', grupo: 'convertido', ordem: 10 }, { status: 'CNPJ INAPTO', grupo: 'perdido', ordem: 24 }];
+  kbEstado.opcoes = [];
+  const LL = (id, o) => Object.assign({ aba: 'OUTUBRO', lead_id: id, nome: 'Zz ' + id, categoria: 'andamento', status: 'EM NEGOCIAÇÂO', livre: false, telefone: '11900000001',
+    criado_em_lead: new Date(Date.now() - 3600000).toISOString(), classificado_em: new Date().toISOString() }, o || {});
+  const muitos = Array.from({ length: 50 }, (_, i) => LL('a' + i)).concat([LL('pp1', { categoria: 'perdido', status: 'CNPJ INAPTO' }), LL('nv1', { categoria: 'sem_contato', status: null })]);
+  window.__rpcRespostas.leads_kanban = { data: muitos, error: null };
+  await kbAplicarPermissao();
+  await kbCarregar();
+  kbTrocarAba('quadro');
+  const colAnd = () => document.querySelector('#kbBoard [data-kb-col="andamento"]');
+  eq(colAnd().querySelectorAll('.kbCard').length, 40, 'coluna mostra no máximo 40 cartões');
+  assert(colAnd().querySelector('[data-kb-vermais="andamento"]').textContent.includes('10'), '"Ver mais (10)" na coluna');
+  colAnd().querySelector('[data-kb-vermais="andamento"]').click();
+  eq(colAnd().querySelectorAll('.kbCard').length, 50, 'Ver mais mostra o resto');
+  assert(!document.querySelector('#kbBoard [data-kb-col="perdido"] .kbCard') && document.querySelector('#kbBoard [data-kb-abrirperdido]'), 'Perdido fechado não monta cartões');
+  // recarga com os mesmos dados não refaz a coluna (mesmo nó no DOM)
+  const noAntes = colAnd().querySelector('.kbCard');
+  kbRender();
+  assert(colAnd().querySelector('.kbCard') === noAntes, 'coluna sem mudança não é redesenhada');
+  // telefone abre em aba nova; WhatsApp monta o link só no clique
+  const tel = document.querySelector('#kbBoard [data-kb-col="andamento"] a[data-kb-contato="ligar"]');
+  assert(tel && tel.getAttribute('target') === '_blank', 'telefone do cartão abre em aba nova');
+  assert(!document.getElementById('kbBoard').innerHTML.includes('wa.me'), 'cartão não carrega o link do WhatsApp pronto');
+  const abertos = []; const openOrig = window.open; window.open = (u) => { abertos.push(String(u)); return null; };
+  document.querySelector('#kbBoard [data-kb-col="andamento"] [data-kb-whats]').click();
+  window.open = openOrig;
+  assert(abertos.length === 1 && abertos[0].includes('wa.me/5511900000001'), 'clique no WhatsApp abre a conversa');
+  // navegação: setas e atalhos das colunas; atalho do Perdido abre a coluna
+  assert(document.getElementById('kbNavQuadro').style.display !== 'none' && document.querySelector('#kbNavQuadro [data-kb-ir="perdido"]').textContent.includes('1'), 'barra de navegação com contagem');
+  document.querySelector('#kbNavQuadro [data-kb-ir="perdido"]').click();
+  assert(document.querySelector('#kbBoard [data-kb-col="perdido"] .kbCard[data-id="pp1"]'), 'atalho do Perdido abre a coluna');
+  assert(document.querySelector('#kbNavQuadro [data-kb-seta="1"]') && document.querySelector('#kbNavQuadro [data-kb-seta="-1"]'), 'setas para os lados');
+  kbTrocarAba('hoje');
+  assert(document.getElementById('kbNavQuadro').style.display === 'none', 'barra só no Quadro');
+  // versão por consultor
+  window.__rpcRespostas.leads_kanban_versao_dono = { data: 'vd1', error: null };
+  await kbVerificarVersao();
+  assert(window.__rpcCalls.some(c => c.nome === 'leads_kanban_versao_dono'), 'versão por consultor');
+  // Classificar novo: chips por grupo, atalhos de data, Ctrl+Enter
+  kbAbrirClassificar('OUTUBRO', 'a1', null);
+  const chips = [...document.querySelectorAll('#kbClassGrupos [data-kb-status]')];
+  eq(chips.length, 4, 'um botão por tabulação');
+  document.querySelector('#kbClassGrupos [data-kb-status="AGENDADO RETORNO"]').click();
+  assert(document.getElementById('kbClassStatus').value === 'AGENDADO RETORNO' && document.getElementById('kbClassRetornoBox').style.display !== 'none'
+    && document.querySelector('#kbClassGrupos [data-kb-status="AGENDADO RETORNO"]').classList.contains('ativo'), 'clicar na tabulação escolhe e mostra data/hora');
+  document.querySelector('#kbClassRetornoBox [data-kb-ret-dias="1"]').click();
+  eq(document.getElementById('kbClassRetorno').value, somaDiasStr(hojeSP(), 1), 'atalho Amanhã preenche a data');
+  assert(document.querySelector('#kbClassOverlay .mHead') && document.querySelector('#kbClassOverlay .mBody'), 'modal no padrão do painel (cabeçalho e corpo)');
+  fecharOverlay(document.getElementById('kbClassOverlay'));
+  kbAbrirClassificar('OUTUBRO', 'a1', 'perdido');
+  eq([...document.querySelectorAll('#kbClassGrupos [data-kb-status]')].map(b => b.dataset.kbStatus), ['CNPJ INAPTO'], 'arrastar para Perdido mostra só as de perda');
+  eq(document.querySelector('#kbClassGrupos [data-kb-status="CNPJ INAPTO"]').textContent, 'CNPJ inapto', 'sigla continua em maiúscula no botão');
+  fecharOverlay(document.getElementById('kbClassOverlay'));
+  // apagar: só gestor, com confirmação
+  const fz = { aba: 'OUTUBRO', lead_id: 'a1', nome: 'Zz a1', livre: false, categoria: 'andamento', status: 'EM NEGOCIAÇÂO', telefone: '11900000001' };
+  assert(!kbFichaHtml(fz, { gestor: false, agoraMs: Date.now() }).includes('data-kb-ficha-apagar'), 'consultor não tem Apagar');
+  assert(kbFichaHtml(fz, { gestor: true, agoraMs: Date.now() }).includes('data-kb-ficha-apagar'), 'gestor tem Apagar');
+  assert(kbFichaHtml(fz, { gestor: false, agoraMs: Date.now() }).includes('target="_blank"'), 'Ligar da ficha abre em aba nova');
+  currentUser = { id: 'u-sup', nome: 'Zzksup Teste', role: 'supervisor', operacao: 'apex' };
+  window.__rpcRespostas.leads_ficha = { data: [fz], error: null };
+  window.__rpcRespostas.leads_apagar = { data: null, error: null };
+  await kbAbrirFicha('OUTUBRO', 'a1');
+  document.querySelector('#kbFicha [data-kb-ficha-apagar]').click();
+  const caixa = document.querySelector('#kbFicha [data-kb-apagar-box]');
+  assert(caixa && !caixa.hidden, 'Apagar pede confirmação');
+  caixa.querySelector('input').value = 'duplicado';
+  caixa.querySelector('[data-kb-apagar-confirmar]').click();
+  await espera(60);
+  const ap = window.__rpcCalls.filter(c => c.nome === 'leads_apagar').pop();
+  eq(ap && [ap.args.p_id, ap.args.p_motivo], ['a1', 'duplicado'], 'apagar manda o lead e o motivo');
+  assert(!document.getElementById('kbFicha').classList.contains('aberta'), 'ficha fecha depois de apagar');
+  // ficha flutuante (por cima do ProContact), como o Caderno
+  const pip = document.implementation.createHTMLDocument('pip');
+  const win = { document: pip, addEventListener: (ev, fn) => { if(ev === 'pagehide') win._ph = fn; }, close(){ if(win._ph) win._ph(); } };
+  window.documentPictureInPicture = { requestWindow: async () => win };
+  await kbAbrirFicha('OUTUBRO', 'a1');
+  await kbFlutuarFicha();
+  assert(pip.getElementById('kbFicha') && !document.getElementById('kbFicha'), 'ficha vai para a janela flutuante');
+  window.__rpcRespostas.leads_ficha = { data: [Object.assign({}, fz, { lead_id: 'a2', nome: 'Zz Segundo' })], error: null };
+  await kbAbrirFicha('OUTUBRO', 'a2');
+  assert(pip.getElementById('kbFichaCorpo').textContent.includes('Zz Segundo'), 'abrir outro lead atualiza a janela flutuante');
+  kbFecharFicha();
+  assert(document.getElementById('kbFicha') && !pip.getElementById('kbFicha'), 'fechar a flutuante devolve a ficha ao painel');
+  delete window.documentPictureInPicture;
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
