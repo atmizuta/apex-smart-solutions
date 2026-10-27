@@ -20,7 +20,7 @@ export type DepsEspelho = {
   // revisão final: uma rodada por vez (cron de 10 s). travar() = false → outra rodada está trabalhando.
   travar(): Promise<boolean>;
   destravar(): Promise<void>;
-  idsExistentes(ids: string[]): Promise<Set<string>>;   // usado só no ensaio da entrada
+  idsExistentes(ids: string[]): Promise<Set<string>>;   // quais ids o banco já tem (entrada e ensaio)
 };
 export type Resultado = {
   ok: boolean; modo: string; entrada?: { inseridos: number; atualizados: number; invalidos: number };
@@ -99,7 +99,10 @@ async function rodada(deps: DepsEspelho, op: { ensaioAba?: string; agoraMs?: num
       for (const l of novos) { const m = mesSP(String(l.criado_em_lead || "")); porMes[m] = (porMes[m] || 0) + 1; }
       res.ensaioEntrada = { lidos: leadsEntrada.length, novos: porMes, exemplos: novos.slice(0, 5).map((l) => String(l.id)) };
     } else {
-      const r = await deps.inserirEntrada(leadsEntrada);
+      // só manda ao banco o que ele ainda não tem (as guias somam ~1.600 leads; normalmente chegam 0 ou 1 novos)
+      const existem = await deps.idsExistentes(leadsEntrada.map((l) => String(l.id)));
+      const novos = leadsEntrada.filter((l) => !existem.has(String(l.id)));
+      const r = novos.length ? await deps.inserirEntrada(novos) : { inseridos: 0, atualizados: 0 };
       res.entrada = { ...r, invalidos: lidos.invalidos };
       await deps.registrarEntrada(null);
     }

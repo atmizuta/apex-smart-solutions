@@ -170,3 +170,10 @@ test("na virada do mês olha também a guia do mês anterior", async () => {
   await rodar(d, { agoraMs: Date.parse("2026-11-01T08:00:00-03:00") });
   assert.deepEqual(lidas.sort(), ["FORM- LEADS CLARO B2B APEX - AGOSTO", "LEADS CLARO B2B APEX - NOVEMBRO", "LEADS CLARO B2B APEX - OUTUBRO"]);
 });
+
+test("a entrada só manda ao banco os leads que ele ainda não tem (leve a cada 10 s)", async () => {
+  const valores = { "FORM- LEADS CLARO B2B APEX - AGOSTO": [CAB], "LEADS CLARO B2B APEX - OUTUBRO": [CAB, ["l:velho", "2026-10-20T08:00:00-03:00"], ["l:novo", "2026-10-27T14:00:00-03:00"]] };
+  const { d, log } = deps({ valores, existentes: ["l:velho"] });
+  await rodar(d, { agoraMs: Date.parse("2026-10-27T15:00:00-03:00") });
+  assert.deepEqual(log.entrada.map((x) => (x as { id: string }).id), ["l:novo"]);
+});
