@@ -310,6 +310,49 @@ secao('Tipos de venda', () => {
   assert(perto(w.projTotalTipos(t6.tipos).mes.valor, t6.total.mes.valor), 'em 06/10 o total dos tipos = card (só Apex)');
 });
 
+
+// ---------------- Projeção por PDU (27/10/2026, seção 116) ----------------
+// Só vendas ATIVADAS (Concluído, dia da data de ativação), todos os produtos, sem peso: ativadas até ontem ÷ dias úteis
+// completos × dias úteis do mês. A "esteira atual" (projeção ponderada) continua como estava.
+secao('Projeção por PDU', () => {
+  const C = 'CONCLUIDO (NEOCRM)';
+  const FIX_PDU = [
+    ped({ numero_pedido: 'U1', etapa: C, data_portabilidade: dia('2026-10-02'), valor: 100 }),
+    ped({ numero_pedido: 'U2', etapa: C, grupo: 'VOZ - Portabilidade', data_portabilidade: dia('2026-10-05'), valor: 50 }),
+    ped({ numero_pedido: 'U3', etapa: C, grupo: 'BANDA LARGA - Novo', data_portabilidade: null, data_instalacao: dia('2026-10-06'), valor: 200 }),
+    ped({ numero_pedido: 'U4', etapa: C, data_portabilidade: null, valor: 999 }),                                  // sem data de ativação: fora
+    ped({ numero_pedido: 'U5', etapa: 'ENTREGA (NEOCRM)', data_portabilidade: dia('2026-10-07'), valor: 999 }),    // não é Concluído: fora
+    ped({ numero_pedido: 'U6', etapa: C, data_portabilidade: dia('2026-10-19'), valor: 30 }),                      // hoje (parcial)
+    ped({ numero_pedido: 'U7', etapa: C, grupo: 'SVA MÓVEL', data_portabilidade: dia('2026-10-08'), valor: 20 }),
+    ped({ numero_pedido: 'U8', etapa: C, data_portabilidade: dia('2026-09-30'), valor: 70 }),                      // setembro
+  ];
+  const w = montarDashboard({ data: FIX_PDU });
+  const pdu = w.montarProjecaoPdu(FIX_PDU, { mes: '2026-10', hoje: '2026-10-19', operacao: 'apex' });
+  const o = pdu.porOperacao[0];
+  assert(perto(o.realizado.valor, 370) && o.realizado.linhas === 2 && perto(o.hoje.valor, 30), 'ativadas até ontem: R$ 370 e 2 linhas; hoje 30 — ' + JSON.stringify(o.realizado));
+  assert(perto(o.ritmo.valor, 370 / 11) && perto(o.ritmo.contratos, 2 / 11) && perto(o.mes.valor, 370 / 11 * 21) && perto(o.mes.contratos, 2 / 11 * 21), 'PDU = ativadas ÷ 11 dias; mês × 21');
+  assert(perto(o.semana.valor, 370 / 11 * 5), 'semana = ritmo × 5 (nada ativado ainda na semana até ontem)');
+  const t = g => pdu.tipos.find(x => x.grupo === g);
+  assert(t('BANDA LARGA - Novo').realizado.qtd === 1 && perto(t('BANDA LARGA - Novo').realizado.valor, 200), 'banda larga entra pela data de instalação');
+  assert(t('VOZ - Novo').realizado.qtd === 1 && t('SVA MÓVEL').realizado.qtd === 1, 'todos os produtos entram');
+  assert(perto(w.projTotalTipos(pdu.tipos).mes.valor, pdu.total.mes.valor), 'total da tabela por tipo = card do mês');
+  // a esteira atual não muda com o PDU
+  const est = w.montarProjecao(FIX_APEX, { mes: '2026-10', hoje: '2026-10-19', operacao: 'apex' });
+  assert(perto(est.total.mes.valor, 840), 'esteira atual intacta (840)');
+  // tela
+  const d = w.document;
+  w.switchTab('projecao');
+  const tit = [...d.querySelectorAll('#tabProjecao .section-title')].map(x => txt(x.textContent));
+  assert(tit.indexOf('Projeção por PDU') >= 0 && tit.indexOf('Projeção da esteira atual') >= 0 && tit.indexOf('Projeção por PDU') < tit.indexOf('Projeção da esteira atual'), 'dois quadros: ' + tit.slice(0, 3));
+  const cards = [...d.querySelectorAll('#pduCards .card')].map(c => txt(c.querySelector('.value').textContent));
+  assert(cards.length === 4 && cards[0] === 'R$ 706,36' && cards[3] === 'R$ 370,00', 'cards do PDU: ' + cards);
+  assert(/Ativado/.test(d.getElementById('pduCards').textContent), 'rótulo do realizado = Ativado');
+  const linhasPdu = d.querySelectorAll('#pduTipos tbody tr');
+  assert(linhasPdu.length === 9 && /^pdu:/.test(linhasPdu[0].getAttribute('data-proj') || ''), 'tabela por tipo do PDU com total — ' + linhasPdu.length);
+  linhasPdu[0].dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  assert(/^Projeção por PDU — /.test(d.getElementById('drilldownTitle').textContent), 'clique abre o analítico do PDU');
+});
+
 // ---------------- Task 4: tela ----------------
 secao('Task 4', () => {
   const w = montarDashboard();
@@ -440,7 +483,7 @@ async function testarExcel(){
   w.eval(bundle);
   const { nome, wb } = await baixar(w);
   assert(nome === 'ProjecaoGanho_Apex_2026-10.xlsx', 'nome do arquivo: ' + nome);
-  assert(JSON.stringify(wb.worksheets.map(s => s.name)) === JSON.stringify(['Resumo', 'Dia a dia', 'Semana a semana', 'Por consultor', 'Por tipo de venda', 'Por etapa', 'Pedidos']), '7 abas');
+  assert(JSON.stringify(wb.worksheets.map(s => s.name)) === JSON.stringify(['Resumo', 'Dia a dia', 'Semana a semana', 'Por consultor', 'Por tipo de venda', 'Projeção por PDU', 'Por etapa', 'Pedidos']), '8 abas (com a Projeção por PDU)');
   const r = wb.getWorksheet('Resumo');
   assert(String(r.getCell('A1').value) === 'Projeção de Ganho — Operação Apex — Outubro/2026', 'título: ' + r.getCell('A1').value);
   assert(String(r.getCell('A2').value).indexOf('Base de 19/10/2026, 14:59:02') === 0, 'linha 2 com a base');

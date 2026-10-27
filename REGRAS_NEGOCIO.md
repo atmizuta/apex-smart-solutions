@@ -3794,3 +3794,10 @@ Pedido do Rafael: os consultores deixam a planilha "Leads Google" e passam a peg
 - Pergunta do usuário: com realizado 95 e ritmo de 4,9/dia útil, a projeção não deveria ser maior? Era: o realizado mostrava a contagem **real** de linhas, mas ritmo/semana/mês eram calculados sobre linhas **ponderadas** (50% Antifraude/Biometria) — podia a projeção ficar abaixo do realizado.
 - Agora, para **linhas** (cards, dia a dia, semanas, consultores, tabela por tipo): realizado, ritmo, semana e mês partem da **mesma contagem real**. Projeção do mês = realizado ÷ dias completos × dias úteis do mês, logo nunca fica abaixo do realizado. Mostradas inteiras; ritmo com 1 casa.
 - O **peso da etapa vale só para o R$** (valor projetado continua ponderado, igual aos cards).
+
+## 116. Projeção por PDU e "Projeção da esteira atual" (27/10/2026)
+- A sub-aba **Projeção de Ganho** passou a ter dois quadros: **Projeção por PDU** (novo, no topo) e **Projeção da esteira atual** (a projeção ponderada que já existia, só renomeada; regras das seções 101, 115 e 115b inalteradas).
+- **PDU = produtividade por dia útil**: vendas **ativadas** até ontem ÷ dias úteis completos da operação; projeção do mês = PDU × dias úteis do mês. Vale para **todos os produtos**, **sem peso de etapa**.
+- **Venda ativada** = etapa Concluído (NEOCRM) pelo dia da **data de ativação** (mesma regra do Fechamento/Dashboard: `data_portabilidade`; Banda Larga cai em `data_instalacao`). Concluído sem data de ativação não conta. O dia usa o fuso de São Paulo; hoje fica fora do PDU (parcial).
+- Quadro: 4 cards (mês, semana, PDU por dia útil, Ativado) + tabela por tipo de venda, por operação e somada, igual à da esteira. Linhas inteiras (nova + portabilidade + migração); os demais itens em "Outros". Clique numa linha abre o analítico (título "Projeção por PDU — tipo"). O Excel ganhou a aba **Projeção por PDU**.
+- Código: `projLinhasPdu`, `montarProjecaoPdu` (reaproveita `projQuebraTipos`, `projCardsHtml`, `projTiposHtml`). Testes: seção "Projeção por PDU" em `test_projecao_ganho.js`.
