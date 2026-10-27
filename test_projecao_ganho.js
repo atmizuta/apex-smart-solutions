@@ -135,10 +135,10 @@ secao('Task 2', () => {
   assert(conv && conv.peso === 1 && conv.faixa.k === 'concluido' && conv.linhas.length === 2, 'convergência vira 1 contrato, faixa Concluído');
   assert(p.porOperacao.length === 1 && p.porOperacao[0].op === 'apex', 'uma operação');
   const o = p.porOperacao[0];
-  assert(perto(o.realizado.valor, 440) && perto(o.realizado.contratos, 6) && o.realizado.linhas === 7, 'realizado até ontem: R$ 440, 7 linhas reais (inteiro) e 6 ponderadas para a projeção (sábado 17/10 entra) — ' + JSON.stringify(o.realizado));
+  assert(perto(o.realizado.valor, 440) && perto(o.realizado.contratos, 7) && o.realizado.linhas === 7, 'realizado até ontem: R$ 440 e 7 linhas reais (inteiro; ritmo e projeção partem da mesma contagem — sábado 17/10 entra) — ' + JSON.stringify(o.realizado));
   assert(perto(o.hoje.valor, 50) && perto(o.hoje.contratos, 1), 'hoje (parcial) fora do realizado: R$ 50');
-  assert(perto(o.ritmo.valor, 40) && perto(o.ritmo.contratos, 6 / 11), 'ritmo = 440 ÷ 11');
-  assert(perto(o.mes.valor, 840) && perto(o.mes.contratos, 6 / 11 * 21), 'mês = ritmo × 21');
+  assert(perto(o.ritmo.valor, 40) && perto(o.ritmo.contratos, 7 / 11), 'ritmo = 440 ÷ 11');
+  assert(perto(o.mes.valor, 840) && perto(o.mes.contratos, 7 / 11 * 21), 'mês = ritmo × 21');
   assert(o.semana && o.semana.de === '2026-10-19' && o.semana.ate === '2026-10-25' && o.semana.uteis === 5 && perto(o.semana.valor, 200), 'semana (segunda) = ritmo × 5');
   assert(perto(p.total.mes.valor, 840) && perto(p.total.ritmo.valor, 40) && perto(p.total.realizado.valor, 440) && perto(p.total.hoje.valor, 50), 'total = a operação');
   assert(p.total.semana.de === '2026-10-19' && p.total.semana.uteis === 5, 'total da semana com datas');
@@ -170,7 +170,7 @@ secao('Task 2', () => {
   assert(JSON.stringify(tod.porOperacao.map(x => x.op)) === '["apex","campinas"]', 'duas operações');
   const camp = tod.porOperacao[1];
   assert(camp.dias.total === 18 && perto(camp.realizado.valor, 160) && perto(camp.ritmo.valor, 20) && perto(camp.mes.valor, 360), 'Campinas: 160 em 8 dias, mês 360');
-  assert(perto(camp.realizado.contratos, 2.5) && perto(camp.hoje.valor, 30), 'Campinas: 2,5 contratos, hoje 30');
+  assert(perto(camp.realizado.contratos, camp.realizado.linhas) && perto(camp.hoje.valor, 30), 'Campinas: linhas reais = base do ritmo, hoje 30');
   assert(perto(tod.total.mes.valor, 1200) && perto(tod.total.ritmo.valor, 60) && perto(tod.total.hoje.valor, 80) && perto(tod.total.semana.valor, 300), 'total = 840 + 360');
   const soCamp = mp(FIX_APEX.concat(FIX_CAMP), { mes: '2026-10', hoje: '2026-10-19', operacao: 'campinas' });
   assert(soCamp.porOperacao.length === 1 && perto(soCamp.total.realizado.valor, 160) && soCamp.calendario.total === 18, 'só Campinas ignora linhas da Apex');
@@ -194,7 +194,7 @@ secao('Task 3', () => {
   assert(dd('2026-10-12').tipo === 'feriado' && dd('2026-10-17').tipo === 'naoUtil' && perto(dd('2026-10-17').valor, 35), 'feriado e sábado com venda');
   assert(!dd('2026-10-18'), 'domingo sem venda não aparece');
   assert(dd('2026-10-19').tipo === 'hoje' && perto(dd('2026-10-19').valor, 50), 'hoje parcial');
-  assert(dd('2026-10-20').tipo === 'projetado' && perto(dd('2026-10-20').valor, 40) && perto(dd('2026-10-20').contratos, 6 / 11), 'dia futuro = ritmo');
+  assert(dd('2026-10-20').tipo === 'projetado' && perto(dd('2026-10-20').valor, 40) && perto(dd('2026-10-20').contratos, 7 / 11), 'dia futuro = ritmo');
   assert(dd('2026-10-08').tipo === 'realizado' && perto(dd('2026-10-08').valor, 0), 'dia útil só com Território = 0');
   assert(perto(dd('2026-10-01').valor, 100) && perto(dd('2026-10-01').contratos, 1) && dd('2026-10-01').linhas.length === 1, 'dia com 1 pedido');
   assert(dd('2026-10-14').linhas.length === 2 && perto(dd('2026-10-14').contratos, 1), 'convergência: 2 linhas (BL + móvel), só a linha móvel conta (1 linha, inteira) e não há mais contrato');
@@ -203,8 +203,8 @@ secao('Task 3', () => {
   assert(sem.length === 5, '5 semanas — ' + sem.length);
   const esperado = [
     ['2026-10-01', '2026-10-04', 2, 'fechada', 160, 2], ['2026-10-05', '2026-10-11', 5, 'fechada', 90, 2],
-    ['2026-10-12', '2026-10-18', 4, 'fechada', 190, 3], ['2026-10-19', '2026-10-25', 5, 'atual', 200, 6 / 11 * 5],
-    ['2026-10-26', '2026-10-31', 5, 'futura', 200, 6 / 11 * 5],
+    ['2026-10-12', '2026-10-18', 4, 'fechada', 190, 3], ['2026-10-19', '2026-10-25', 5, 'atual', 200, 7 / 11 * 5],
+    ['2026-10-26', '2026-10-31', 5, 'futura', 200, 7 / 11 * 5],
   ];
   esperado.forEach((e, i) => {
     const s = sem[i];
@@ -215,7 +215,7 @@ secao('Task 3', () => {
 
   const c = p.consultores;
   assert(c.length === 2 && c[0].usuario === 'BRUNO TESTE' && c[1].usuario === 'ANA TESTE', 'maior projeção primeiro');
-  assert(perto(c[0].valor, 235) && perto(c[0].contratos, 4) && perto(c[0].ritmo, 235 / 11) && perto(c[0].projMes, 235 / 11 * 21) && perto(c[0].projContratos, 3 / 11 * 21), 'Bruno');
+  assert(perto(c[0].valor, 235) && perto(c[0].contratos, 4) && perto(c[0].ritmo, 235 / 11) && perto(c[0].projMes, 235 / 11 * 21) && perto(c[0].projContratos, 4 / 11 * 21), 'Bruno');
   assert(c[0].linhas.length === 5 && c[0].operacao === 'apex', 'Bruno: 5 linhas até ontem');
   assert(perto(c[1].valor, 205) && c[1].linhas.length === 5, 'Ana: 205 (hoje fora)');
 
@@ -253,8 +253,8 @@ secao('Tipos de venda', () => {
     'GRUPO NOVO X', 'Claro Monitor (SVA Móvel)', 'Renovação', 'Aparelho', 'Telefone fixo (SVA Fixa)']), 'rótulos por extenso — ' + JSON.stringify(p.tipos.map(x => x.label)));
   const novo = t('VOZ - Novo');
   assert(par(novo.realizado, 245, 5), 'Linha Nova até ontem: R$ 245 em 5 linhas reais (inteiro; o peso de 50% da Biometria só entra na projeção) — ' + JSON.stringify(novo.realizado));
-  assert(par(novo.ritmo, 245 / 11, 4.5 / 11) && par(novo.mes, 245 / 11 * 21, 4.5 / 11 * 21), 'Linha Nova: ritmo ÷ 11 e mês × 21');
-  assert(par(novo.semana, 245 / 11 * 5, 4.5 / 11 * 5), 'Linha Nova: semana na segunda = ritmo × 5');
+  assert(par(novo.ritmo, 245 / 11, 5 / 11) && par(novo.mes, 245 / 11 * 21, 5 / 11 * 21), 'Linha Nova: ritmo ÷ 11 e mês × 21');
+  assert(par(novo.semana, 245 / 11 * 5, 5 / 11 * 5), 'Linha Nova: semana na segunda = ritmo × 5');
   assert(novo.linhas.length === 5 && !novo.zero, 'Linha Nova: 5 linhas no analítico (hoje fora)');
   assert(par(t('VOZ - Tranf. Titularidade').realizado, 40, 1) && par(t('SVA MÓVEL').realizado, 5, 1) && par(t('BANDA LARGA - Novo').realizado, 100, 1), 'TT, Claro Monitor e Banda Larga');
   assert(par(t('GRUPO NOVO X').realizado, 10, 1), 'grupo fora da lista aparece pelo nome');
@@ -262,7 +262,7 @@ secao('Tipos de venda', () => {
   assert(ren.zero && par(ren.realizado, 0, 0) && par(ren.mes, 0, 0) && par(ren.semana, 0, 0) && ren.linhas.length === 0, 'tipo sem venda aparece zerado');
   const tot = w.projTotalTipos(p.tipos);
   assert(par(tot.realizado, 440, 10) && perto(tot.ritmo.valor, 40) && perto(tot.semana.valor, 200) && perto(tot.mes.valor, 840), 'total em R$ bate com os cards — ' + JSON.stringify(tot));
-  assert(perto(tot.mes.qtd, 8 / 11 * 21), 'total de linhas do mês');
+  assert(perto(tot.mes.qtd, 10 / 11 * 21), 'total de linhas do mês');
   const comTerritorio = mp(FIX_APEX.concat([ped({ numero_pedido: 'T1', grupo: 'NET - TV', etapa: 'TERRITORIO (NEOCRM)', cadastro: dia('2026-10-08') })]),
     { mes: '2026-10', hoje: '2026-10-19', operacao: 'apex' });
   assert(!comTerritorio.tipos.some(x => x.grupo === 'NET - TV'), 'grupo fora da lista só com etapa de peso 0 não aparece');
@@ -270,7 +270,7 @@ secao('Tipos de venda', () => {
   // quarta-feira: a semana do tipo soma o que já entrou nela
   const q = mp(FIX_APEX, { mes: '2026-10', hoje: '2026-10-21', operacao: 'apex' });
   const qn = q.tipos.find(x => x.grupo === 'VOZ - Novo');
-  assert(par(qn.realizado, 295, 6) && par(qn.semana, 50 + 295 / 13 * 3, 1 + 5.5 / 13 * 3), 'quarta 21/10: semana = 19/10 + ritmo × 3 — ' + JSON.stringify(qn.semana));
+  assert(par(qn.realizado, 295, 6) && par(qn.semana, 50 + 295 / 13 * 3, 1 + 6 / 13 * 3), 'quarta 21/10: semana = 19/10 + ritmo × 3 — ' + JSON.stringify(qn.semana));
   assert(perto(w.projTotalTipos(q.tipos).semana.valor, q.total.semana.valor), 'quarta: semana dos tipos = card da semana');
 
   // semana que começa no mês anterior: a venda de 30/11 entra na semana de dezembro, não no mês
@@ -300,9 +300,9 @@ secao('Tipos de venda', () => {
   // Apex + Campinas: cada operação com o seu ritmo, somadas
   const tod = mp(FIX_APEX.concat(FIX_CAMP), { mes: '2026-10', hoje: '2026-10-19', operacao: 'todas' });
   const tn = tod.tipos.find(x => x.grupo === 'VOZ - Novo'), tt = tod.tipos.find(x => x.grupo === 'VOZ - Tranf. Titularidade');
-  assert(par(tn.realizado, 365, 7) && par(tn.mes, 245 / 11 * 21 + 120 / 8 * 18, 4.5 / 11 * 21 + 1.5 / 8 * 18), 'Linha Nova: Apex ÷ 11 × 21 + Campinas ÷ 8 × 18');
-  assert(par(tn.semana, 245 / 11 * 5 + 120 / 8 * 5, 4.5 / 11 * 5 + 1.5 / 8 * 5) && tn.linhas.length === 7, 'Linha Nova: semana das duas e 7 linhas no analítico');
-  assert(par(tt.mes, 40 / 11 * 21 + 40 / 8 * 18, 0.5 / 11 * 21 + 1 / 8 * 18), 'TT das duas operações');
+  assert(par(tn.realizado, 365, 7) && par(tn.mes, 245 / 11 * 21 + 120 / 8 * 18, 5 / 11 * 21 + 2 / 8 * 18), 'Linha Nova: Apex ÷ 11 × 21 + Campinas ÷ 8 × 18');
+  assert(par(tn.semana, 245 / 11 * 5 + 120 / 8 * 5, 5 / 11 * 5 + 2 / 8 * 5) && tn.linhas.length === 7, 'Linha Nova: semana das duas e 7 linhas no analítico');
+  assert(par(tt.mes, 40 / 11 * 21 + 40 / 8 * 18, 1 / 11 * 21 + 1 / 8 * 18), 'TT das duas operações');
   const tTod = w.projTotalTipos(tod.tipos);
   assert(perto(tTod.mes.valor, 1200) && perto(tTod.semana.valor, 300) && perto(tTod.ritmo.valor, 60) && perto(tTod.realizado.valor, 600), 'Apex + Campinas: total = cards');
   // 06/10: Campinas ainda sem dia completo fica fora, como nos cards
@@ -363,10 +363,10 @@ secao('Task 4', () => {
   const tiRows = d.querySelectorAll('#projTipos tbody tr');
   const celulas = tr => [...tr.querySelectorAll('td')].map(c => txt(c.textContent));
   assert(tiRows.length === 10, '9 tipos + total — ' + tiRows.length);
-  assert(JSON.stringify(celulas(tiRows[0])) === JSON.stringify(['Linha Nova', '5', 'R$ 245,00', '0,4', 'R$ 22,27', '2', 'R$ 111,36', '9', 'R$ 467,73']),
+  assert(JSON.stringify(celulas(tiRows[0])) === JSON.stringify(['Linha Nova', '5', 'R$ 245,00', '0,5', 'R$ 22,27', '2', 'R$ 111,36', '10', 'R$ 467,73']),
     'linha da Linha Nova: ' + JSON.stringify(celulas(tiRows[0])));
   assert(tiRows[6].classList.contains('proj-zero') && !tiRows[6].hasAttribute('data-proj') && celulas(tiRows[6])[0] === 'Renovação', 'tipo zerado em cinza, sem clique');
-  assert(tiRows[9].classList.contains('proj-total') && JSON.stringify(celulas(tiRows[9]).slice(1)) === JSON.stringify(['10', 'R$ 440,00', '0,7', 'R$ 40,00', '4', 'R$ 200,00', '15', 'R$ 840,00']),
+  assert(tiRows[9].classList.contains('proj-total') && JSON.stringify(celulas(tiRows[9]).slice(1)) === JSON.stringify(['10', 'R$ 440,00', '0,9', 'R$ 40,00', '5', 'R$ 200,00', '19', 'R$ 840,00']),
     'total: ' + JSON.stringify(celulas(tiRows[9])));
   tiRows[0].dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
   assert(d.getElementById('drilldownTitle').textContent === 'Projeção — Linha Nova' && /^5 linha\(s\)/.test(d.getElementById('drilldownSub').textContent), 'analítico do tipo');
@@ -470,11 +470,11 @@ async function testarExcel(){
   const cabTi = []; ti.getRow(3).eachCell(c => cabTi.push(c.value));
   assert(JSON.stringify(cabTi) === JSON.stringify(['Tipo', 'Grupo no NeoCRM', 'Linhas até ontem', 'R$ até ontem', 'Linhas / dia útil', 'R$ / dia útil',
     'Linhas semana', 'R$ semana', 'Linhas mês', 'R$ mês']), 'Excel: colunas dos tipos — ' + JSON.stringify(cabTi));
-  assert(ti.getCell('A4').value === 'Linha Nova' && ti.getCell('B4').value === 'VOZ - Novo' && perto(ti.getCell('C4').value, 4.5) && perto(ti.getCell('D4').value, 245),
+  assert(ti.getCell('A4').value === 'Linha Nova' && ti.getCell('B4').value === 'VOZ - Novo' && ti.getCell('C4').value === 5 && perto(ti.getCell('D4').value, 245),
     'Excel: Linha Nova realizado');
-  assert(perto(ti.getCell('E4').value, 4.5 / 11) && perto(ti.getCell('F4').value, 245 / 11) && perto(ti.getCell('H4').value, 245 / 11 * 5) && perto(ti.getCell('J4').value, 245 / 11 * 21),
+  assert(Math.abs(ti.getCell('E4').value - 5 / 11) < 0.06 && perto(ti.getCell('F4').value, 245 / 11) && perto(ti.getCell('H4').value, 245 / 11 * 5) && perto(ti.getCell('J4').value, 245 / 11 * 21),
     'Excel: Linha Nova ritmo, semana e mês');
-  assert(ti.getCell('C4').numFmt === '0.0' && String(ti.getCell('J4').numFmt).indexOf('R$') >= 0, 'Excel: linhas com 1 casa, R$ como moeda');
+  assert(ti.getCell('C4').numFmt === '0' && ti.getCell('E4').numFmt === '0.0' && String(ti.getCell('J4').numFmt).indexOf('R$') >= 0, 'Excel: linhas inteiras, taxa com 1 casa, R$ como moeda');
   assert(ti.actualRowCount === 3 + 9 + 1 && ti.getCell('A13').value === 'Total' && perto(ti.getCell('D13').value, 440) && perto(ti.getCell('J13').value, 840)
     && ti.getCell('A13').font && ti.getCell('A13').font.bold === true, 'Excel: 9 tipos + total em negrito');
   assert(c1 && c1.getCell(12).value === '22222222000100' && c1.getCell(12).numFmt === '@' && c1.getCell(1).numFmt === '@', 'nº e CNPJ como texto');
