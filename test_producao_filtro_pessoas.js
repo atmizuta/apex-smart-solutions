@@ -52,15 +52,15 @@ try{
   const eqApex = filtrarDashboardEquipe(EQUIPE);
   assert(eqApex.length === 2 && eqApex.includes('Caio Costa Santana') && eqApex.includes('Giovanna Firmina Gonçalves'), 'equipe do Dashboard da Apex (quem zerou) — achou ' + JSON.stringify(eqApex));
 
-  // 09/10/2026 (seção 77): Rafael Santiago e Isabelly saem do Dashboard e do Boletim, mas continuam no Fechamento (comissão)
+  // 09/10/2026 (seção 77): Rafael Santiago sai do Dashboard e do Boletim, mas continua no Fechamento (comissão); seção 119: Isabelly volta ao Dashboard
   const COM_DOIS = PEDIDOS.concat([
     { numero_pedido: '10', usuario: 'Rafael Santiago Angelão', valor: 1000 },
     { numero_pedido: '11', usuario: 'ISABELLY FONSECA BATISTA DA SILVA', valor: 1100 },
   ]);
-  assert(filtrarDashboardPedidos(COM_DOIS).map(p => p.numero_pedido).sort().join(',') === '1,6', 'Dashboard: tira as 7 pessoas de fora e também Rafael e Isabelly');
+  assert(filtrarDashboardPedidos(COM_DOIS).map(p => p.numero_pedido).sort().join(',') === '1,11,6', 'Dashboard: tira as pessoas de fora e o Rafael; Isabelly aparece (seção 119)');
   assert(filtrarProducaoPedidos(COM_DOIS).map(p => p.numero_pedido).sort().join(',') === '1,10,11,3,4,6,8,9', 'Fechamento (filtrarProducaoPedidos): Rafael e Isabelly continuam');
   const eqDash = filtrarDashboardEquipe(EQUIPE.concat(['RAFAEL SANTIAGO ANGELÃO', 'Isabelly Fonseca Batista da Silva']));
-  assert(eqDash.length === 2, 'equipe do Dashboard sem Rafael e Isabelly — achou ' + JSON.stringify(eqDash));
+  assert(eqDash.length === 3 && eqDash.includes('Isabelly Fonseca Batista da Silva'), 'equipe do Dashboard sem Rafael e com Isabelly — achou ' + JSON.stringify(eqDash));
 
   console.log(\`\\n--- RESULTADO: \${ok} passaram, \${fail} falharam ---\`);
   window.__testResult = fail > 0 ? 'FAIL' : 'OK';

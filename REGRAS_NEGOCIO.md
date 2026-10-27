@@ -3846,3 +3846,11 @@ Pedido do Rafael, antes da virada: produtividade do consultor e supervisão dos 
   - Verificação: `supabase/tests/leads_hoje_check.sql` (sempre em ROLLBACK).
 - **Testes:** `test_leads_hoje.js` (49) e `test_leads_kanban.js` (78).
 - **Publicação (27/10, 17:12, ok do Rafael):** painel MD5 `509f8986…` (o do ar era `da38d8dc…`, comparado antes: nada por fora), backup `~/deploy_backups/painel_clientes_apex_20261027_171211_antes_meus_leads_hoje.html`. Migrations aplicadas e `leads_hoje_check.sql` → CHECK OK. **Sem virada:** a aba continua só para o admin até ela (§112).
+
+## 119. Isabelly volta ao Dashboard de Produção (27/10/2026)
+
+- **Pedido do Rafael (27/10):** a Isabelly subiu 2 pedidos em 26/10 (no banco, vínculo `consultor_neo` ok) e eles não apareciam: ela estava em `PRODUCAO_FORA_DO_DASHBOARD` desde a §77. "Só preciso que a Isabelly apareça no dashboard, apenas isso, ela e os pedidos dela."
+- `ISABELLY FONSECA BATISTA DA SILVA` **saiu** de `PRODUCAO_FORA_DO_DASHBOARD`: ela e os pedidos dela voltam a todas as telas do Dashboard (carga, atualização automática, equipe do Cadastro Diário).
+- **Boletim da Manhã não muda:** ela segue fora pela lista nova `PRODUCAO_FORA_DO_BOLETIM`, usada só em `bmFora`. Fechamento sem mudança (ela já estava lá).
+- Rafael continua fora do Dashboard e do Boletim (§77).
+- **Testes:** `test_producao_filtro_pessoas.js` (Isabelly no Dashboard) e `test_operacao_campinas.js` (Isabelly no Dashboard da Apex e fora do Boletim). Obs.: 4 asserções antigas de `test_producao_filtro_pessoas.js` já falhavam na main antes desta mudança (desatualizadas desde a §106: Danilo e Gabriel voltaram ao Fechamento).

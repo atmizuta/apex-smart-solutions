@@ -49,7 +49,7 @@ try{
     { numero_pedido: '5', usuario: 'Ranniele da Silva Vieira Cotrim' },
     { numero_pedido: '6', usuario: 'Juan de Melo Fernandes' },
     { numero_pedido: '7', usuario: 'Vitor Queiroz Cavalcante' },            // continua fora de tudo
-    { numero_pedido: '8', usuario: 'ISABELLY FONSECA BATISTA DA SILVA' },   // fora do dashboard (seção 77)
+    { numero_pedido: '8', usuario: 'RAFAEL SANTIAGO ANGELÃO' },             // fora do dashboard (seção 77)
   ];
   const ids = rows => rows.map(p => p.numero_pedido).sort().join(',');
 
@@ -105,6 +105,7 @@ try{
   operacaoSelecionada = 'campinas';
   assert(bmFora('JUAN DE MELO FERNANDES'), 'boletim: vendedor de Campinas fica fora');
   assert(bmFora('VITOR QUEIROZ CAVALCANTE') && bmFora('ISABELLY FONSECA BATISTA DA SILVA'), 'boletim: quem já estava fora continua fora');
+  assert(ids(filtrarDashboardPedidos([{ numero_pedido: '9', usuario: 'ISABELLY FONSECA BATISTA DA SILVA' }], 'apex')) === '9', 'Dashboard da Apex: Isabelly aparece (seção 119)');
   assert(!bmFora('CAIO COSTA SANTANA') && !bmFora('GIOVANNA FIRMINA GONÇALVES'), 'boletim: Apex (com ou sem vínculo) entra');
 
   // funil: supervisor vê só propostas de consultores da operação dele; admin vê tudo

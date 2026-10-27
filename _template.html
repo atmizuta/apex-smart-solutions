@@ -9369,13 +9369,18 @@ function filtrarProducaoEquipe(nomes){
 }
 // 09/10/2026 (seção 77, pedido do usuário): não vendem mais / não entram na disputa — saem do Dashboard de Produção e do
 // Boletim da Manhã, mas CONTINUAM no Fechamento (comissão), que segue usando só filtrarProducaoPedidos.
+// 27/10/2026 (seção 119, pedido do Rafael): Isabelly Fonseca Batista da Silva SAIU desta lista — ela e os pedidos dela
+// voltam ao Dashboard; no Boletim da Manhã ela continua fora (PRODUCAO_FORA_DO_BOLETIM).
 const PRODUCAO_FORA_DO_DASHBOARD = new Set([
   'RAFAEL SANTIAGO ANGELÃO',
-  'ISABELLY FONSECA BATISTA DA SILVA',
   'DANILO MORAIS ARAUJO',     // seção 106: só no Fechamento
   'GABRIEL MACEDO MARTINS',   // seção 106: só no Fechamento
 ]);
 function foraDoDashboard(nome){ const n = String(nome || '').trim().toUpperCase(); return PRODUCAO_USUARIOS_EXCLUIDOS.has(n) || PRODUCAO_FORA_DO_DASHBOARD.has(n); }
+// seção 119: aparecem no Dashboard, mas seguem fora do Boletim da Manhã (como na seção 77)
+const PRODUCAO_FORA_DO_BOLETIM = new Set([
+  'ISABELLY FONSECA BATISTA DA SILVA',
+]);
 
 /* ============ OPERAÇÃO CAMPINAS — separação NA TELA entre operações (09/10/2026, seção 78) ============
    Cada login tem uma operação (profiles.operacao: 'apex' padrão | 'campinas'). Cada venda é da operação do vendedor:
@@ -13827,7 +13832,7 @@ document.getElementById('btnMesaAtualizar').addEventListener('click', () => load
    (test_boletim_manha.js). Vendas = resumoDiaria do dashboard (mesma conta da Visão Diária); leads = relógio do lead
    (vl*, minutos úteis); pessoas fora = foraDoDashboard. Tela e PDF desenham só a partir do retrato guardado. */
 // seção 78: o boletim é só da Operação Apex — vendedor de outra operação fica fora, como quem já está fora do Dashboard
-function bmFora(nome){ return foraDoDashboard(nome) || operacaoDoVendedor(nome) !== 'apex'; }
+function bmFora(nome){ return foraDoDashboard(nome) || PRODUCAO_FORA_DO_BOLETIM.has(String(nome || '').trim().toUpperCase()) || operacaoDoVendedor(nome) !== 'apex'; }
 const BM_VERSAO = 2;
 const BM_CFG_PADRAO = { hora: '10:00', abre_sozinho: [], queda_alerta: 0.30, telefonia: {}, planilha: {},
   perdas: { evitaveis: [], nao_evitaveis: [] }, retencao_meses: 12 };
