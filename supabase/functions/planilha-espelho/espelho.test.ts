@@ -151,3 +151,22 @@ test("ensaio conta o que a entrada criaria, por mês, com exemplos de id", async
   assert.deepEqual(r.ensaioEntrada, { lidos: 3, novos: { OUTUBRO: 2 }, exemplos: ["l:b", "l:c"] });
   assert.equal(log.entrada.length, 0);
 });
+
+test("lead que cai direto na guia do mês também entra no painel (27/10: o formulário passou a escrever na OUTUBRO)", async () => {
+  const valores = {
+    "FORM- LEADS CLARO B2B APEX - AGOSTO": [CAB, ["l:form", "2026-10-26T08:00:00-03:00", "Zz Form"]],
+    "LEADS CLARO B2B APEX - OUTUBRO": [CAB, ["l:direto", "2026-10-27T13:35:00-03:00", "Zz Direto"], ["l:form", "2026-10-26T08:00:00-03:00", "Zz Form"]],
+  };
+  const { d, log } = deps({ valores });
+  await rodar(d, { agoraMs: Date.parse("2026-10-27T15:00:00-03:00") });
+  assert.deepEqual(log.entrada.map((x) => (x as { id: string }).id).sort(), ["l:direto", "l:form"]);
+});
+
+test("na virada do mês olha também a guia do mês anterior", async () => {
+  const guias = [{ titulo: "LEADS CLARO B2B APEX - NOVEMBRO", indice: 0 }, { titulo: "LEADS CLARO B2B APEX - OUTUBRO", indice: 1 }, { titulo: "LEADS CLARO B2B APEX - SETEMBRO 26", indice: 2 }, { titulo: "FORM- LEADS CLARO B2B APEX - AGOSTO", indice: 3 }];
+  const lidas: string[] = [];
+  const { d } = deps({ guias, valores: {} });
+  d.sheets.ler = async (t: string) => { lidas.push(t); return [CAB]; };
+  await rodar(d, { agoraMs: Date.parse("2026-11-01T08:00:00-03:00") });
+  assert.deepEqual(lidas.sort(), ["FORM- LEADS CLARO B2B APEX - AGOSTO", "LEADS CLARO B2B APEX - NOVEMBRO", "LEADS CLARO B2B APEX - OUTUBRO"]);
+});

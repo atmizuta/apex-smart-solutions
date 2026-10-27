@@ -40,12 +40,21 @@ function filtrarDesde(leads: Record<string, unknown>[], desde?: string): Record<
   if (isNaN(t0)) return leads;
   return leads.filter((l) => { const t = Date.parse(String(l.criado_em_lead || "")); return !isNaN(t) && t >= t0; });
 }
+// Onde lead novo pode cair: a guia de entrada antiga (FORM-) e as guias do mês atual e do anterior.
+// 27/10: o formulário do Facebook passou a escrever direto na guia OUTUBRO — o painel olha todas elas (pedido do Rafael:
+// "caiu lead novo na planilha, vai direto para o painel").
+function guiasDeEntrada(guias: Guia[], cfg: CfgPlanilha, agoraMs: number): Guia[] {
+  const m = new Date(agoraMs - 3 * 3600000).getUTCMonth();
+  const lista = [guiaEntrada(guias, cfg), ...guiasDoMes(guias, MESES[m], cfg), ...guiasDoMes(guias, MESES[(m + 11) % 12], cfg)];
+  const vistos = new Set<string>();
+  return lista.filter((g): g is Guia => !!g && !vistos.has(g.titulo) && !!vistos.add(g.titulo));
+}
 function mesSP(iso: string): string {
   const t = Date.parse(iso || "");
   return MESES[new Date((isNaN(t) ? Date.now() : t) - 3 * 3600000).getUTCMonth()];
 }
 
-export async function rodar(deps: DepsEspelho, op: { ensaioAba?: string }): Promise<Resultado> {
+export async function rodar(deps: DepsEspelho, op: { ensaioAba?: string; agoraMs?: number }): Promise<Resultado> {
   const res: Resultado = { ok: true, modo: deps.modo, escritos: 0, criados: 0, adiados: 0, falhas: 0, aviso: "" };
   const ensaio = !!op.ensaioAba;
   if (deps.modo !== "painel" && !ensaio) return res;
@@ -63,16 +72,25 @@ export async function rodar(deps: DepsEspelho, op: { ensaioAba?: string }): Prom
   return res;
 }
 
-async function rodada(deps: DepsEspelho, op: { ensaioAba?: string }, res: Resultado, ensaio: boolean): Promise<void> {
+async function rodada(deps: DepsEspelho, op: { ensaioAba?: string; agoraMs?: number }, res: Resultado, ensaio: boolean): Promise<void> {
   const guias = await deps.sheets.guias();
   const cache = new Map<string, string[][]>();
   const ler = async (t: string) => { if (!cache.has(t)) cache.set(t, await deps.sheets.ler(t)); return cache.get(t)!; };
 
   // (1) entrada (no ensaio: só conta o que seria criado, por mês, com alguns ids de exemplo)
   try {
-    const g = guiaEntrada(guias, deps.cfg);
-    if (!g) throw new Error(`guia de entrada (título começando com "${deps.cfg.entrada_prefixo}") não encontrada`);
-    const lidos = leadsDaEntrada(await ler(g.titulo));
+    const fontes = guiasDeEntrada(guias, deps.cfg, op.agoraMs ?? Date.now());
+    if (!fontes.length) throw new Error("nenhuma guia de leads encontrada na planilha (nem FORM- nem a do mês)");
+    const porId = new Map<string, Record<string, unknown>>();
+    let invalidos = 0;
+    for (const g of fontes) {
+      const v = await ler(g.titulo);
+      if (!lerCabecalho(v)) continue;   // guia sem o cabeçalho do formulário: ignora
+      const l = leadsDaEntrada(v);
+      invalidos += l.invalidos;
+      for (const x of l.leads) if (!porId.has(String(x.id))) porId.set(String(x.id), x);
+    }
+    const lidos = { leads: [...porId.values()], invalidos };
     const leadsEntrada = filtrarDesde(lidos.leads, deps.cfg.entrada_desde);
     if (ensaio) {
       const existem = await deps.idsExistentes(leadsEntrada.map((l) => String(l.id)));
