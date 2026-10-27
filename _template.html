@@ -3143,6 +3143,39 @@ function kbResumoMes(leads){
   });
   return { vendas, receita: Math.round(receita * 100) / 100, abertos };
 }
+// §118 (27/10): abas Hoje / Quadro / Equipe, próximo lead, semáforo, linha do tempo e alertas — funções puras.
+const KB_ABAS = ['hoje', 'quadro', 'equipe'];
+const KB_ABA_TITULOS = { hoje: 'Hoje', quadro: 'Quadro', equipe: 'Equipe' };
+function kbAbasDoPerfil(gestor){ return gestor ? KB_ABAS.slice() : ['hoje', 'quadro']; }
+function kbAbaPadrao(gestor){ return gestor ? 'equipe' : 'hoje'; }
+// "Próximo lead": pula o lead aberto há menos de 2 min (o consultor já está nele ou acabou de largar).
+const KB_EXCECAO_MS = 2 * 60000;
+function kbProximoDaFila(fila, excecoes, agoraMs){
+  return (fila || []).find(f => { const t = (excecoes || {})[f.aba + '|' + f.lead_id]; return !t || agoraMs - t >= KB_EXCECAO_MS; }) || null;
+}
+function kbSemaforo(l){
+  if((l.sem_contato || 0) > 0 || (l.retornos_vencidos || 0) > 0) return 'vermelho';
+  if((l.parados || 0) > 0 || (l.perdas_suspeitas || 0) > 0) return 'amarelo';
+  return 'verde';
+}
+function kbConversao(l){ return l.pegos_mes ? Math.round(100 * (l.convertidos_mes || 0) / l.pegos_mes) + '%' : '—'; }
+function kbResumoContatoTexto(r, agoraMs){
+  if(!r) return '';
+  if(!r.ligacoes) return r.cliques ? `Nenhuma ligação ainda · ${r.cliques} clique${r.cliques === 1 ? '' : 's'} no painel` : 'Nenhuma ligação ainda';
+  return `${r.ligacoes} tentativa${r.ligacoes === 1 ? '' : 's'} · ${r.atendidas} atendida${r.atendidas === 1 ? '' : 's'} · última ${kbTempoDesde(r.ultimo, agoraMs)}`;
+}
+const KB_EV_ICONE = { chegou: '●', pegar: '✋', classificar: '✎', redistribuir: '⇄', devolver: '↩', clique: '☝', ligacao: '☎', discador: '☎', retorno: '⏰' };
+function kbLinhaTempoHtml(eventos, limite){
+  const lista = (eventos || []).slice(0, limite || 30);
+  const itens = lista.map(e => `<li class="kbEv kbEv-${escapeHtml(e.tipo || '')}"><span class="kbEvIco">${KB_EV_ICONE[e.tipo] || '•'}</span><div><strong>${escapeHtml(e.titulo || '')}</strong>${e.detalhe ? `<span> · ${escapeHtml(e.detalhe)}</span>` : ''}<div class="kbMeta">${escapeHtml(kbDataHoraBR(e.em))}${e.quem ? ' · ' + escapeHtml(e.quem) : ''}</div></div></li>`).join('');
+  const mais = (eventos || []).length > lista.length ? `<button type="button" class="kbLink" data-kb-ver-tudo>Ver tudo (${eventos.length})</button>` : '';
+  return `<ul class="kbLinhaTempo">${itens}</ul>${mais}`;
+}
+function kbBuscaValida(t){ return String(t || '').trim().length >= 3; }
+const KB_ALERTA_TEXTO = { sem_contato: 'Pego e sem contato', retorno_vencido: 'Retorno vencido', parado: 'Parado em andamento', perda_suspeita: 'Perdido sem nenhuma ligação' };
+function kbAlertaTexto(a){ return KB_ALERTA_TEXTO[a.tipo] || a.tipo; }
+function kbAlertasParaNotificar(alertas, ja){ return (alertas || []).filter(a => a.tipo === 'sem_contato' && !ja.has(a.aba + '|' + a.lead_id)); }
+function kbQuandoSP(dataIso, hora){ return `${dataIso}T${/^\d{2}:\d{2}$/.test(hora || '') ? hora : '10:00'}:00-03:00`; }
 function kbAtrasado(l, agoraMs){
   if(kbColunaDoLead(l) !== 'novos' || l.primeiro_clique || l.primeira_ligacao) return false;
   const t = kbMs(l.criado_em_lead);
