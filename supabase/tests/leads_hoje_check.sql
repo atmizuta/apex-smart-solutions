@@ -49,6 +49,54 @@ begin
   assert (select count(*) from public.leads_buscar('00000000000132')) = 1, 'supervisor acha qualquer lead';
   assert jsonb_array_length(public.leads_ficha_detalhes('JUNHO', 'zh:outro')->'eventos') >= 1, 'supervisor abre detalhes de qualquer lead';
   execute 'reset role';
+  -- ===== Task 2 =====
+  update public.config set valor = '{"seg_sex":["00:00","23:59"],"sabado":null}' where chave = 'velocidade_lead';
+  -- expediente "o dia inteiro" só em dia útil; no fim de semana o alerta sem_contato não existe por regra
+  insert into public.leads (aba, id, criado_em_lead, full_name, phone_number, cnpj, categoria, converteu, receita, dono_id, pego_em, status, classificado_em) values
+  ('JUNHO', 'zh:novo',  now() - interval '1 hour', 'Zz Novo Sem Contato', '11900000041', null, 'sem_contato', false, 0, '00000000-0000-0000-0000-00000000e403', now() - interval '40 minutes', null, null),
+  ('JUNHO', 'zh:perd',  now() - interval '2 hours', 'Zz Perdido Sem Ligacao', '11900000042', null, 'perdido', false, 0, '00000000-0000-0000-0000-00000000e403', now() - interval '2 hours', 'CNPJ INAPTO', now()),
+  ('JUNHO', 'zh:conv',  now() - interval '2 hours', 'Zz Convertido', '11900000043', null, 'convertido', true, 500, '00000000-0000-0000-0000-00000000e403', now() - interval '2 hours', 'PEDIDO CONCLUIDO (VENDA)', now());
+  execute 'set local role authenticated';
+  perform set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-00000000e403', 'role', 'authenticated')::text, true);
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000e403', true);
+  if extract(isodow from now() at time zone 'America/Sao_Paulo') between 1 and 5 then
+    assert exists (select 1 from public.leads_alertas() where tipo = 'sem_contato' and lead_id = 'zh:novo'), 'alerta: pego sem contato há 40 min';
+  end if;
+  assert exists (select 1 from public.leads_alertas() where tipo = 'parado' and lead_id = 'zh:semtel'), 'alerta: em andamento parado há 5 dias (lead sem telefone)';
+  assert not exists (select 1 from public.leads_alertas() where tipo = 'perda_suspeita'), 'perda suspeita é só do gestor';
+  assert not exists (select 1 from public.leads_alertas() where lead_id = 'zh:outro'), 'consultor não vê alerta de outro';
+  -- retorno: agendar, vencer, aparecer na fila e no alerta; reclassificar fecha
+  perform public.leads_agendar_retorno('JUNHO', 'zh:semtel', now() - interval '10 minutes');
+  assert (select count(*) from public.agenda_retornos where lead_id = 'zh:semtel' and status = 'pendente') = 1, 'agendar cria 1 retorno pendente';
+  perform public.leads_agendar_retorno('JUNHO', 'zh:semtel', now() - interval '5 minutes');
+  assert (select count(*) from public.agenda_retornos where lead_id = 'zh:semtel' and status = 'pendente') = 1, 'agendar de novo atualiza (não duplica)';
+  assert exists (select 1 from public.leads_alertas() where tipo = 'retorno_vencido' and lead_id = 'zh:semtel'), 'alerta: retorno vencido';
+  assert (select count(*) from jsonb_array_elements(public.leads_hoje() -> 'fila') f where f->>'lead_id' = 'zh:semtel') = 1, 'lead em dois motivos aparece 1 vez na fila (Review Focus 3)';
+  assert (select f->>'motivo' from jsonb_array_elements(public.leads_hoje() -> 'fila') f where f->>'lead_id' = 'zh:semtel') = 'Retorno vencido', 'fica o motivo de maior prioridade';
+  assert ((public.leads_hoje() -> 'fila') -> 0 ->> 'lead_id') = 'zh:novo', 'novo sem contato vem primeiro';
+  assert jsonb_array_length(public.leads_hoje() -> 'retornos') = 1, 'retornos de hoje';
+  perform public.leads_classificar('JUNHO', 'zh:semtel', 'CNPJ INAPTO', null, false, null, null);
+  assert (select count(*) from public.agenda_retornos where lead_id = 'zh:semtel' and status = 'pendente') = 0, 'reclassificar fecha o retorno (Review Focus 5)';
+  perform public.leads_classificar('JUNHO', 'zh:meu', 'AGENDADO RETORNO', null, false, null, (now() at time zone 'America/Sao_Paulo')::date + 1);
+  assert (select to_char(quando at time zone 'America/Sao_Paulo', 'HH24:MI') = '10:00' from public.agenda_retornos where lead_id = 'zh:meu' and status = 'pendente'), 'AGENDADO RETORNO cria retorno às 10:00';
+  -- gestor: perda suspeita, resumo da equipe, redistribuir leva o retorno
+  perform set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-00000000e402', 'role', 'authenticated')::text, true);
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000e402', true);
+  assert exists (select 1 from public.leads_alertas(null) where tipo = 'perda_suspeita' and lead_id = 'zh:perd'), 'gestor vê perda suspeita';
+  assert (select convertidos_mes = 1 and receita_mes = 500 and em_aberto >= 2 from public.leads_equipe_resumo() where dono_id = '00000000-0000-0000-0000-00000000e403'), 'resumo da equipe';
+  perform public.leads_redistribuir('JUNHO', 'zh:meu', '00000000-0000-0000-0000-00000000e404');
+  execute 'reset role';
+  -- o gatilho da Agenda trava consultor_id no UPDATE: o do dono antigo é cancelado e o novo dono ganha um pendente
+  assert (select count(*) = 1 and bool_and(consultor_id = '00000000-0000-0000-0000-00000000e404') from public.agenda_retornos where lead_id = 'zh:meu' and status = 'pendente'), 'redistribuir leva o retorno';
+  assert (select count(*) = 1 from public.agenda_retornos where lead_id = 'zh:meu' and status = 'cancelado' and consultor_id = '00000000-0000-0000-0000-00000000e403'), 'retorno do dono antigo cancelado';
+  execute 'reset role';
+  -- fora do expediente: sem alerta sem_contato (Review Focus 2)
+  update public.config set valor = '{"seg_sex":["00:00","00:01"],"sabado":null}' where chave = 'velocidade_lead';
+  execute 'set local role authenticated';
+  perform set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-00000000e403', 'role', 'authenticated')::text, true);
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000e403', true);
+  assert not exists (select 1 from public.leads_alertas() where tipo = 'sem_contato'), 'fora do expediente não alerta sem contato';
+  execute 'reset role';
   -- ===== mais testes entram aqui =====
 end $$;
 select 'CHECK OK' r;
