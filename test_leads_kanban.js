@@ -235,6 +235,13 @@ try{
   eq([kbFoneBR('11900000003'), kbFoneBR('5511900000003'), kbFoneBR('1133334444'), kbFoneBR('123'), kbFoneBR('')], ['(11) 90000-0003', '(11) 90000-0003', '(11) 3333-4444', '123', ''], 'celular formatado');
   eq([kbMoeda(899.9), kbMoeda(1234.5), kbMoeda(0)], ['R$ 899,90', 'R$ 1.234,50', ''], 'receita em reais');
   assert(kbFichaHtml(fichaMeu, { gestor: false, agoraMs: Date.now() }).includes('(11) 90000-0001'), 'ficha mostra o celular formatado');
+  // ==== Receita total do consultor no topo (27/10) ====
+  const rr = kbResumoMes([L('v1', { categoria: 'convertido', converteu: true, receita: 899.9 }), L('v2', { categoria: 'convertido', converteu: true, receita: 100.1 }),
+    L('v3', { categoria: 'perdido', receita: 50 }), L('v4', { livre: true, receita: 0 }), L('v5', { categoria: 'andamento' })]);
+  eq([rr.vendas, rr.receita, rr.abertos], [2, 1000, 1], 'resumo: vendas e receita só dos convertidos; abertos = andamento + novos (sem Livres)');
+  window.__rpcRespostas.leads_kanban = { data: [L('v1', { categoria: 'convertido', converteu: true, receita: 899.9 })], error: null };
+  await kbCarregar();
+  assert(document.getElementById('kbResumo').textContent.includes('R$') && document.getElementById('kbResumo').textContent.includes('899,90') && document.getElementById('kbResumo').textContent.includes('1 venda'), 'topo mostra a receita do mês');
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');

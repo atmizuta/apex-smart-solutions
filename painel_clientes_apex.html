@@ -793,6 +793,8 @@
   /* Meus leads — Kanban (§112; visual refeito em 26/10 à noite a pedido do Rafael). Só tokens do design, nenhuma cor fixa. */
   .kbTopo{display:flex;justify-content:space-between;align-items:flex-end;gap:var(--space-3);flex-wrap:wrap;}
   .kbFiltros{display:flex;gap:var(--space-2);align-items:flex-end;flex-wrap:wrap;}
+  .kbResumo{display:flex;gap:var(--space-6);flex-wrap:wrap;margin-top:var(--space-3);font-size:var(--fs-sm);color:var(--muted);}
+  .kbResumo strong{font-family:var(--font-head);font-size:var(--fs-lg);font-weight:700;color:var(--c-grafite);margin-right:6px;}
   .kbAviso{margin-top:var(--space-2);padding:var(--space-2) var(--space-3);border-left:3px solid var(--c-sinal);background:var(--c-papel);font-size:var(--fs-sm);}
   .kbBoard{display:grid;grid-template-columns:repeat(5,minmax(250px,1fr));gap:var(--space-4);overflow-x:auto;padding:2px 2px var(--space-3);align-items:start;}
   .kbCol{--kb-cor:var(--c-cinza);background:var(--c-papel);border:1px solid var(--c-linha);border-top:3px solid var(--kb-cor);border-radius:var(--radius-lg);padding:var(--space-3);min-height:260px;transition:opacity var(--dur-fast),box-shadow var(--dur-fast),background var(--dur-fast);}
@@ -1474,6 +1476,7 @@
           <div>
             <h3 style="margin:0">Meus leads</h3>
             <p class="desc" id="kbStatus" style="margin:4px 0 0"></p>
+            <div class="kbResumo" id="kbResumo"></div>
           </div>
           <div class="kbFiltros" id="kbFiltrosGestor" style="display:none">
             <label class="field" style="margin:0"><span>Consultor</span><select id="kbDono"></select></label>
@@ -3129,6 +3132,17 @@ function kbAcaoDoArraste(origem, destino){
   return kbGrupoDaColuna(destino) ? 'classificar' : null;
 }
 // "Atender agora" no cartão: lead novo meu, sem clique nem ligação, chegou há mais de 15 min.
+// Resumo do topo (27/10, pedido do Rafael: "junto com a receita total dele"): vendas e receita do mês (coluna
+// Convertido, que já é só do mês) e leads em aberto (Meus novos + Em andamento).
+function kbResumoMes(leads){
+  let vendas = 0, receita = 0, abertos = 0;
+  (leads || []).forEach(l => {
+    const c = kbColunaDoLead(l);
+    if(c === 'convertido'){ vendas++; receita += Number(l.receita) || 0; }
+    else if(c === 'novos' || c === 'andamento') abertos++;
+  });
+  return { vendas, receita: Math.round(receita * 100) / 100, abertos };
+}
 function kbAtrasado(l, agoraMs){
   if(kbColunaDoLead(l) !== 'novos' || l.primeiro_clique || l.primeira_ligacao) return false;
   const t = kbMs(l.criado_em_lead);
@@ -3265,6 +3279,8 @@ function kbRender(){
     </div>`;
   }).join('');
   document.getElementById('kbStatus').textContent = `${c.livres.length} livre(s) · ${c.novos.length} novo(s) seu(s) · atualiza sozinho`;
+  const rm = kbResumoMes(leads), equipe = kbGestor() && !kbEstado.dono;
+  document.getElementById('kbResumo').innerHTML = `<span><strong>${escapeHtml(kbMoeda(rm.receita) || 'R$ 0,00')}</strong>em ${rm.vendas} venda${rm.vendas === 1 ? '' : 's'} no mês${equipe ? ' (equipe)' : ''}</span><span><strong>${rm.abertos}</strong>lead${rm.abertos === 1 ? '' : 's'} em aberto</span>`;
   if(kbGestor()) ppSeguro(() => sb.from('config').select('valor').eq('chave', 'leads_espelho_aviso').maybeSingle()).then(r => { const a = r && r.data ? String(r.data.valor || '') : ''; const el = document.getElementById('kbAviso'); el.style.display = a ? '' : 'none'; el.textContent = a; });
 }
 async function kbPegar(aba, id){
