@@ -28,6 +28,7 @@ function montarDashboard({ data = [] } = {}){
 function ped(over){ return Object.assign({
   numero_pedido: 'P', grupo: 'VOZ - Novo', usuario: 'Caio', etapa: 'ENTREGA (NEOCRM)',
   cadastro: '2026-09-01T10:00:00-03:00', atualizacao: '2026-09-28T10:00:00-03:00',
+  data_portabilidade: '2026-09-28T10:00:00-03:00', // seção 113: Concluído só conta com data de portabilidade no período
   valor: 100, quantidade: 1, produto: 'Plano Teste', cliente: 'EMPRESA FICTICIA LTDA', cnpj: '11111111000100', tag: null,
 }, over); }
 

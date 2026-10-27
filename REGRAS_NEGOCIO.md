@@ -3750,3 +3750,16 @@ Pedido do Rafael: os consultores deixam a planilha "Leads Google" e passam a peg
   - Avisar o time: ninguém copia mais da FORM- e ninguém edita a planilha.
   - **Voltar atrás:** com a fila zerada, `leads_modo = planilha` e `cron.unschedule('planilha-espelho')`.
 - **Durante a revisão:** 26/10, a `sync-leads` apareceu como v26, publicada por fora entre 15:37 e 20:02, com o mesmo comportamento da v25. Foi substituída pela v27.
+
+## 113. Dashboard: Concluído com a mesma regra do Fechamento (26/10/2026)
+
+- **Pedido do usuário:** o Dashboard e o Fechamento mostravam números diferentes para "Concluído" (outubro, Operação Apex: 84 pedidos no Dashboard contra 68 no Fechamento nos 3 grupos). O Dashboard contava pela data de **Atualização**; o Fechamento conta pela data de **portabilidade (ativação)**.
+- **Regra (só nos Concluídos; corrigida no mesmo dia):** no Dashboard de Produção, a etapa `CONCLUIDO (NEOCRM)` — **de qualquer grupo** — só entra se tiver **data de ativação** dentro do período do filtro, igual ao Fechamento:
+  - a data de **Portabilidade** preenchida (vale para qualquer produto); ou, na **Banda Larga** sem ela, a **Data de instalação**;
+  - Concluído sem nenhuma dessas datas não entra;
+  - o botão Cadastro/Atualização **não muda** esse critério para o Concluído. As demais etapas (Entrega, Biometria, Perdido etc.) continuam pelo campo escolhido, como antes.
+- **Onde:** `applyFilters()` do template embutido (`PRODUCAO_DASHBOARD_TPL_B64`) e a lista de colunas `producaoColunas()`, que agora traz `data_portabilidade` e `data_instalacao`.
+- **Fechamento, "Concluídos sem data de ativação":** entra o pedido cujo **cadastro ou atualização** cair no período (antes só o cadastro). Pedidos cadastrados em agosto/setembro e concluídos em outubro sem data de portabilidade não apareciam. Coluna nova "Atualizado em" na tela e no Excel.
+- **Efeito colateral a conhecer:** a Visão Diária / Cadastro Diário usa as mesmas linhas filtradas, então Concluídos sem data de portabilidade deixam de aparecer ali.
+- **Testes:** `test_dashboard_concluido_portabilidade.js` (novo); `test_dashboard_ajustes.js` atualizado (o Concluído fictício ganhou data de portabilidade); `test_fechamento.js` segue passando.
+- **Publicação:** pendente, depende de autorização do usuário.
