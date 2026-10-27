@@ -252,16 +252,16 @@ secao('Tipos de venda', () => {
   assert(JSON.stringify(p.tipos.map(x => x.label)) === JSON.stringify(['Linha Nova', 'Banda Larga', 'Migração (Transf. Titularidade)', 'Portabilidade',
     'GRUPO NOVO X', 'Claro Monitor (SVA Móvel)', 'Renovação', 'Aparelho', 'Telefone fixo (SVA Fixa)']), 'rótulos por extenso — ' + JSON.stringify(p.tipos.map(x => x.label)));
   const novo = t('VOZ - Novo');
-  assert(par(novo.realizado, 245, 4.5), 'Linha Nova até ontem: R$ 245 em 4,5 linhas (C2 de Biometria vale 0,5) — ' + JSON.stringify(novo.realizado));
+  assert(par(novo.realizado, 245, 5), 'Linha Nova até ontem: R$ 245 em 5 linhas reais (inteiro; o peso de 50% da Biometria só entra na projeção) — ' + JSON.stringify(novo.realizado));
   assert(par(novo.ritmo, 245 / 11, 4.5 / 11) && par(novo.mes, 245 / 11 * 21, 4.5 / 11 * 21), 'Linha Nova: ritmo ÷ 11 e mês × 21');
   assert(par(novo.semana, 245 / 11 * 5, 4.5 / 11 * 5), 'Linha Nova: semana na segunda = ritmo × 5');
   assert(novo.linhas.length === 5 && !novo.zero, 'Linha Nova: 5 linhas no analítico (hoje fora)');
-  assert(par(t('VOZ - Tranf. Titularidade').realizado, 40, 0.5) && par(t('SVA MÓVEL').realizado, 5, 0.5) && par(t('BANDA LARGA - Novo').realizado, 100, 1), 'TT, Claro Monitor e Banda Larga');
-  assert(par(t('GRUPO NOVO X').realizado, 10, 0.5), 'grupo fora da lista aparece pelo nome');
+  assert(par(t('VOZ - Tranf. Titularidade').realizado, 40, 1) && par(t('SVA MÓVEL').realizado, 5, 1) && par(t('BANDA LARGA - Novo').realizado, 100, 1), 'TT, Claro Monitor e Banda Larga');
+  assert(par(t('GRUPO NOVO X').realizado, 10, 1), 'grupo fora da lista aparece pelo nome');
   const ren = t('VOZ - Renovação');
   assert(ren.zero && par(ren.realizado, 0, 0) && par(ren.mes, 0, 0) && par(ren.semana, 0, 0) && ren.linhas.length === 0, 'tipo sem venda aparece zerado');
   const tot = w.projTotalTipos(p.tipos);
-  assert(par(tot.realizado, 440, 8) && perto(tot.ritmo.valor, 40) && perto(tot.semana.valor, 200) && perto(tot.mes.valor, 840), 'total em R$ bate com os cards — ' + JSON.stringify(tot));
+  assert(par(tot.realizado, 440, 10) && perto(tot.ritmo.valor, 40) && perto(tot.semana.valor, 200) && perto(tot.mes.valor, 840), 'total em R$ bate com os cards — ' + JSON.stringify(tot));
   assert(perto(tot.mes.qtd, 8 / 11 * 21), 'total de linhas do mês');
   const comTerritorio = mp(FIX_APEX.concat([ped({ numero_pedido: 'T1', grupo: 'NET - TV', etapa: 'TERRITORIO (NEOCRM)', cadastro: dia('2026-10-08') })]),
     { mes: '2026-10', hoje: '2026-10-19', operacao: 'apex' });
@@ -270,7 +270,7 @@ secao('Tipos de venda', () => {
   // quarta-feira: a semana do tipo soma o que já entrou nela
   const q = mp(FIX_APEX, { mes: '2026-10', hoje: '2026-10-21', operacao: 'apex' });
   const qn = q.tipos.find(x => x.grupo === 'VOZ - Novo');
-  assert(par(qn.realizado, 295, 5.5) && par(qn.semana, 50 + 295 / 13 * 3, 1 + 5.5 / 13 * 3), 'quarta 21/10: semana = 19/10 + ritmo × 3 — ' + JSON.stringify(qn.semana));
+  assert(par(qn.realizado, 295, 6) && par(qn.semana, 50 + 295 / 13 * 3, 1 + 5.5 / 13 * 3), 'quarta 21/10: semana = 19/10 + ritmo × 3 — ' + JSON.stringify(qn.semana));
   assert(perto(w.projTotalTipos(q.tipos).semana.valor, q.total.semana.valor), 'quarta: semana dos tipos = card da semana');
 
   // semana que começa no mês anterior: a venda de 30/11 entra na semana de dezembro, não no mês
@@ -300,7 +300,7 @@ secao('Tipos de venda', () => {
   // Apex + Campinas: cada operação com o seu ritmo, somadas
   const tod = mp(FIX_APEX.concat(FIX_CAMP), { mes: '2026-10', hoje: '2026-10-19', operacao: 'todas' });
   const tn = tod.tipos.find(x => x.grupo === 'VOZ - Novo'), tt = tod.tipos.find(x => x.grupo === 'VOZ - Tranf. Titularidade');
-  assert(par(tn.realizado, 365, 6) && par(tn.mes, 245 / 11 * 21 + 120 / 8 * 18, 4.5 / 11 * 21 + 1.5 / 8 * 18), 'Linha Nova: Apex ÷ 11 × 21 + Campinas ÷ 8 × 18');
+  assert(par(tn.realizado, 365, 7) && par(tn.mes, 245 / 11 * 21 + 120 / 8 * 18, 4.5 / 11 * 21 + 1.5 / 8 * 18), 'Linha Nova: Apex ÷ 11 × 21 + Campinas ÷ 8 × 18');
   assert(par(tn.semana, 245 / 11 * 5 + 120 / 8 * 5, 4.5 / 11 * 5 + 1.5 / 8 * 5) && tn.linhas.length === 7, 'Linha Nova: semana das duas e 7 linhas no analítico');
   assert(par(tt.mes, 40 / 11 * 21 + 40 / 8 * 18, 0.5 / 11 * 21 + 1 / 8 * 18), 'TT das duas operações');
   const tTod = w.projTotalTipos(tod.tipos);
@@ -332,7 +332,7 @@ secao('Task 4', () => {
   assert(val(2) === 'R$ 40,00' && /linhas por dia/.test(sub(2)), 'card diário');
   assert(val(3) === 'R$ 440,00' && /7 linhas até ontem/.test(sub(3)) && /hoje \(parcial\): R\$ 50,00/.test(sub(3)), 'card realizado: ' + sub(3));
   // seção 115: os demais itens têm projeção própria (BL, Sol. Digitais, grupos novos) e não entram na conta das linhas
-  assert(/Outros:/.test(sub(3)) && /1,0 BLs/.test(sub(3)) && /Sol\. Digitais/.test(sub(3)), 'card realizado lista os outros itens separados: ' + sub(3));
+  assert(/Outros:/.test(sub(3)) && /1 BLs/.test(sub(3)) && /Sol\. Digitais/.test(sub(3)), 'card realizado lista os outros itens separados: ' + sub(3));
   assert(!/contratos/.test(sub(0) + sub(1) + sub(2) + sub(3)), 'nenhum quadro fala mais em contratos');
   const prog = txt(d.getElementById('projProgresso').textContent);
   assert(/52,4% da projeção do mês já realizado/.test(prog) && /11 de 21 dias úteis completos · faltam 10 \(com hoje\)/.test(prog), 'barra de progresso: ' + prog);
@@ -363,10 +363,10 @@ secao('Task 4', () => {
   const tiRows = d.querySelectorAll('#projTipos tbody tr');
   const celulas = tr => [...tr.querySelectorAll('td')].map(c => txt(c.textContent));
   assert(tiRows.length === 10, '9 tipos + total — ' + tiRows.length);
-  assert(JSON.stringify(celulas(tiRows[0])) === JSON.stringify(['Linha Nova', '4,5', 'R$ 245,00', '0,4', 'R$ 22,27', '2,0', 'R$ 111,36', '8,6', 'R$ 467,73']),
+  assert(JSON.stringify(celulas(tiRows[0])) === JSON.stringify(['Linha Nova', '5', 'R$ 245,00', '0,4', 'R$ 22,27', '2', 'R$ 111,36', '9', 'R$ 467,73']),
     'linha da Linha Nova: ' + JSON.stringify(celulas(tiRows[0])));
   assert(tiRows[6].classList.contains('proj-zero') && !tiRows[6].hasAttribute('data-proj') && celulas(tiRows[6])[0] === 'Renovação', 'tipo zerado em cinza, sem clique');
-  assert(tiRows[9].classList.contains('proj-total') && JSON.stringify(celulas(tiRows[9]).slice(1)) === JSON.stringify(['8,0', 'R$ 440,00', '0,7', 'R$ 40,00', '3,6', 'R$ 200,00', '15,3', 'R$ 840,00']),
+  assert(tiRows[9].classList.contains('proj-total') && JSON.stringify(celulas(tiRows[9]).slice(1)) === JSON.stringify(['10', 'R$ 440,00', '0,7', 'R$ 40,00', '4', 'R$ 200,00', '15', 'R$ 840,00']),
     'total: ' + JSON.stringify(celulas(tiRows[9])));
   tiRows[0].dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
   assert(d.getElementById('drilldownTitle').textContent === 'Projeção — Linha Nova' && /^5 linha\(s\)/.test(d.getElementById('drilldownSub').textContent), 'analítico do tipo');
