@@ -3746,7 +3746,13 @@ Pedido do Rafael: os consultores deixam a planilha "Leads Google" e passam a peg
   - `planilha-espelho` v1 publicada parada;
   - ensaio a seco: OUTUBRO 752 a atualizar, 0 a criar; entrada com 1 lead novo.
   - **Até a virada, a aba aparece só para o admin.**
-- **Virada (pendente, com o Rafael):** PARTES 0–3 do plano (Task 11): última sync, `dono_id` pelo nome da planilha, limpar as 10 duplicatas de outubro gravadas como AGOSTO, `leads_modo = painel` e o cron `planilha-espelho` a cada 10 s.
+- **Virada FEITA em 27/10/2026, 17:24–17:29 (ok do Rafael):**
+  - antes: Gabriel (perfil "Gabriel") e Vitoria Brito entraram na `leads_equipe` (nomes da planilha "Gabriel" e "Vitoria"; "Victoria" continua sendo a Victoria Horni); ensaio da `planilha-espelho`: OUTUBRO 791 a atualizar, 0 a criar;
+  - PARTE 0, 17:26: última `sync-leads` no modo planilha (1.798 leads; 3 linhas "ERRO - NUNCA EXCLUIR LINHAS" da OUTUBRO ignoradas);
+  - PARTE 1: `dono_id` pelo nome da planilha. Leads de outubro em aberto: Mariana 59, Luria 57, Lucas 26, Bianca 12, Caio 11, Henrique 4, Gabriel 3, Vitoria Brito 2 (com status, OBS e receita); perdidos e vendas também com dono. Ficaram sem dono (não são da equipe de leads, nenhum aberto em outubro): Rafael 148, Danilo 32, Isa 1. Livres dos últimos 60 dias: 4;
+  - PARTE 2: apagadas as 10 duplicatas de outubro gravadas como AGOSTO;
+  - PARTE 3, 17:28: `leads_modo = painel` e cron `planilha-espelho` (job 24) a cada 10 s. A fila acumulada (389) foi escrita em ~40 s, sem falhas; aviso vazio.
+  - Falta: tirar a edição dos consultores na planilha (Google, com o Rafael) e, depois de dias estável, a Task 12.
   - Avisar o time: ninguém copia mais da FORM- e ninguém edita a planilha.
   - **Voltar atrás:** com a fila zerada, `leads_modo = planilha` e `cron.unschedule('planilha-espelho')`.
 - **Visual novo, arrastar e ficha (27/10, 15:00, a pedido do Rafael: "o Kanban está feio"):**
