@@ -3749,6 +3749,11 @@ Pedido do Rafael: os consultores deixam a planilha "Leads Google" e passam a peg
 - **Virada (pendente, com o Rafael):** PARTES 0–3 do plano (Task 11): última sync, `dono_id` pelo nome da planilha, limpar as 10 duplicatas de outubro gravadas como AGOSTO, `leads_modo = painel` e o cron `planilha-espelho` a cada 10 s.
   - Avisar o time: ninguém copia mais da FORM- e ninguém edita a planilha.
   - **Voltar atrás:** com a fila zerada, `leads_modo = planilha` e `cron.unschedule('planilha-espelho')`.
+- **Visual novo, arrastar e ficha (27/10, 15:00, a pedido do Rafael: "o Kanban está feio"):**
+  - colunas claras com faixa colorida por etapa e contador; cartões limpos com ícones de ligar e WhatsApp; tempo em vermelho para lead novo sem contato há mais de 15 min;
+  - **arrastar dos Livres para Meus novos pega o lead**; arrastar meu lead para outra etapa abre o Classificar filtrado; só as colunas que aceitam ficam acesas;
+  - **clique no cartão abre a ficha** (gaveta à direita, RPC `leads_ficha`): celular formatado com Ligar/WhatsApp/Copiar, e-mail e CNPJ com Copiar, tipo, linhas, cidade/UF, campanha, chegada, OBS, retorno e ações. Nos Livres, para consultor, a ficha mostra "Pegue o lead para ver celular, e-mail e CNPJ". O formulário não tem CEP, só cidade/UF;
+  - publicado sobre as §113–§115 de outra sessão (painel no ar = oficial 40e3175, MD5 `704c67fb…`); novo MD5 `da38d8dc…`, backup `…_20261027_150000_antes_kanban_visual.html`.
 - **Durante a revisão:** 26/10, a `sync-leads` apareceu como v26, publicada por fora entre 15:37 e 20:02, com o mesmo comportamento da v25. Foi substituída pela v27.
 
 ## 113. Dashboard: Concluído com a mesma regra do Fechamento (26/10/2026)
