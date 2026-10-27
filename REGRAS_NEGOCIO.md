@@ -3912,4 +3912,4 @@ Pedido do Rafael depois da §120 ("assim do jeito que está está ótimo"):
   - migration `20261027203000_leads_kanban2_ligacoes.sql`;
   - verificação `supabase/tests/leads_kanban2_check.sql` (ROLLBACK, CHECK OK);
   - testes `test_leads_hoje.js` (88) e `test_leads_kanban.js` (78; respostas agora pela `leads_kanban2`).
-- **Publicação:** pendente de autorização.
+- **Publicação (27/10, 20:32, ok do Rafael):** painel MD5 `ce4f7810…` (o do ar era `fa6c0cef…`, a correção das 20:08), backup `~/deploy_backups/painel_clientes_apex_20261027_203220_antes_sem_ligacao.html`.
