@@ -134,6 +134,99 @@ try{
   assert(document.activeElement === ta, '/ dentro de um campo de texto não rouba o foco');
   ta.remove();
   painel.classList.remove('active');
+  // ==== Task 3: ficha nova com Classificar dentro ====
+  const OPC = [{ status: 'EM NEGOCIAÇÂO', grupo: 'andamento', ordem: 1 }, { status: 'AGENDADO RETORNO', grupo: 'andamento', ordem: 2 },
+    { status: 'PEDIDO CONCLUIDO (VENDA)', grupo: 'convertido', ordem: 10 }, { status: 'CNPJ INAPTO', grupo: 'perdido', ordem: 24 }];
+  const F3 = { aba: 'OUTUBRO', lead_id: 'f3', nome: 'Zz Padaria', cidade: 'Campinas', uf: 'SP', qtd_linhas: '6', tipo_empresa: 'MEI', telefone: '11900000031',
+    email: 'zz@teste.invalid', cnpj: '00000000000131', status: 'AGENDADO RETORNO', categoria: 'andamento', obs: 'Zz ligar depois do almoço', campanha: 'Zz Campanha',
+    criado_em_lead: '2026-10-24T09:14:00-03:00', livre: false, dono_nome: 'Zzkcon Teste', ligacoes: 3 };
+  const h3 = kbFichaHtml(F3, { gestor: false, agoraMs: ag1, opcoes: OPC, retorno: { quando: '2026-10-28T14:00:00-03:00', vencido: true } });
+  ['Zz Padaria', '(11) 90000-0031', 'zz@teste.invalid', '00000000000131', 'MEI · 6 linhas · Campinas/SP', 'Zz Campanha', 'Zz ligar depois do almoço', 'retorno era às 14:00', 'Agendado retorno']
+    .forEach(x => assert(h3.includes(x), 'ficha nova mostra ' + x));
+  assert(h3.includes('data-kb-ficha-aba="classificar"') && h3.includes('data-kb-ficha-pane="historico"') && h3.includes('data-kb-ficha-pane="anuncio"'), 'abas Classificar · Histórico · Anúncio');
+  assert(h3.includes('id="kbClassStatus"') && h3.includes('data-kb-status="CNPJ INAPTO"') && h3.includes('Sem resposta ou perdido') && h3.includes('Venda'), 'Classificar dentro da ficha, com os grupos renomeados');
+  assert(h3.includes('class="kbStatusChip kbSt ativo" data-st="agendado-retorno"'), 'status atual já vem marcado');
+  assert(h3.includes('id="kbClassSalvar"') && !h3.includes('kbClassSalvarProx'), 'na gaveta o botão é só Salvar');
+  assert(kbFichaHtml(F3, { gestor: false, agoraMs: ag1, opcoes: OPC, naHoje: true }).includes('id="kbClassSalvarProx"'), 'na Hoje tem Salvar e ir para o próximo');
+  assert(!h3.includes('kbMaisMenu') && kbFichaHtml(F3, { gestor: true, agoraMs: ag1, opcoes: OPC }).includes('data-kb-ficha-redistribuir'), 'menu ⋯ (Redistribuir, Apagar) só para o gestor');
+  const hLivre = kbFichaHtml({ aba: 'O', lead_id: 'lv', nome: 'Zz Livre', livre: true, categoria: 'sem_contato', qtd_linhas: '10', campanha: 'Zz Camp' }, { gestor: false, agoraMs: ag1, podePegar: true, opcoes: OPC });
+  assert(hLivre.includes('data-kb-ficha-pegar') && hLivre.includes('aparecem quando você pega o lead') && !hLivre.includes('kbClassStatus'), 'livre: prévia com Pegar e sem Classificar');
+  // RF1: campos vazios e STATUS antigo
+  const hVazio = kbFichaHtml({ aba: 'O', lead_id: 'v', nome: null, livre: false, categoria: 'andamento', status: 'STATUS ANTIGO QUALQUER' }, { gestor: false, agoraMs: ag1, opcoes: OPC });
+  assert(!/undefined|>null</.test(hVazio) && hVazio.includes('Status antigo qualquer') && !hVazio.includes('kbSt ativo'), 'RF1: sem undefined/null; status antigo em texto e nenhum botão marcado');
+  // RF2: HTML no nome, OBS e STATUS
+  const hX = kbFichaHtml({ aba: 'O', lead_id: 'x', nome: '<img src=x onerror=alert(1)>', obs: '<script>zz</script>', status: '<b>zz</b>', livre: false, categoria: 'andamento', telefone: '11900000032' }, { gestor: false, agoraMs: ag1, opcoes: OPC });
+  assert(!hX.includes('<img') && !hX.includes('<script>') && !hX.includes('<b>zz'), 'RF2: ficha escapa nome, OBS e status');
+  // tela: abrir pelo arraste destaca o grupo e não salva nada
+  currentUser = { id: 'u-zz', nome: 'Zzkcon Teste', role: 'consultor' };
+  window.__tabelas.config = [{ valor: 'painel' }];
+  window.__tabelas.leads_equipe = [{ id: 1, profile_id: 'u-zz', nome_planilha: 'ZZKCON', pode_pegar: true }];
+  window.__tabelas.leads_status_opcoes = OPC;
+  window.__rpcRespostas.leads_kanban3 = { data: [Object.assign({}, F3, { lead_id: 'f3' }), Object.assign({}, F3, { lead_id: 'f4', nome: 'Zz Segundo', status: null, categoria: 'sem_contato' })], error: null };
+  window.__rpcRespostas.leads_hoje = { data: { fila: [], retornos: [], livres: 0, placar: {} }, error: null };
+  window.__rpcRespostas.leads_alertas = { data: [], error: null };
+  window.__rpcRespostas.leads_ficha = (a) => ({ data: [Object.assign({}, F3, { lead_id: a.p_id, nome: a.p_id === 'f4' ? 'Zz Segundo' : 'Zz Padaria' })], error: null });
+  window.__rpcRespostas.leads_ficha_detalhes = { data: { anuncio: { campanha: 'Zz Camp', conjunto: 'Zz Conj' }, resumo: { ligacoes: 3, atendidas: 1, cliques: 0, ultimo: new Date().toISOString() },
+    eventos: [{ em: new Date().toISOString(), tipo: 'ligacao', titulo: 'Ligação não atendida', quem: 'zz.usuario' }] }, error: null };
+  await kbAplicarPermissao();
+  await kbCarregar();
+  kbTrocarAba('quadro');
+  await espera(60);
+  const nClass0 = window.__rpcCalls.filter(c => c.nome === 'leads_classificar').length;
+  await kbAbrirClassificar('OUTUBRO', 'f3', 'perdido');
+  const ficha = document.getElementById('kbFicha');
+  assert(ficha.classList.contains('aberta') && ficha.querySelector('[data-kb-grupo="perdido"]').classList.contains('kbDestaque'), 'arrastar para Perdido abre a ficha com o grupo de perda em destaque');
+  eq(window.__rpcCalls.filter(c => c.nome === 'leads_classificar').length, nClass0, 'abrir pelo arraste não salva nada');
+  assert(document.getElementById('kbFichaResumo').textContent.includes('3 tentativas') && document.getElementById('kbFichaAnuncio').textContent.includes('Zz Conj'), 'resumo e anúncio carregados');
+  ficha.querySelector('[data-kb-ficha-aba="historico"]').click();
+  assert(!ficha.querySelector('[data-kb-ficha-pane="historico"]').hidden && ficha.querySelector('[data-kb-ficha-pane="classificar"]').hidden, 'trocar para a aba Histórico');
+  ficha.querySelector('[data-kb-ficha-aba="classificar"]').click();
+  // escolher status mostra os blocos certos
+  ficha.querySelector('[data-kb-status="PEDIDO CONCLUIDO (VENDA)"]').click();
+  assert(document.getElementById('kbClassVenda').style.display !== 'none' && document.getElementById('kbClassRetornoBox').style.display === 'none', 'venda mostra Receita/Converteu');
+  document.getElementById('kbClassRetorno').value = '';
+  ficha.querySelector('[data-kb-status="AGENDADO RETORNO"]').click();
+  assert(document.getElementById('kbClassRetornoBox').style.display !== 'none' && document.getElementById('kbClassRetorno').value === kbSomaDias(kbDiaSP(Date.now()), 1), 'retorno vem em Amanhã 10h');
+  [...ficha.querySelectorAll('[data-kb-ret-data]')].find(b => b.textContent === 'Em 3 dias').click();
+  eq([document.getElementById('kbClassRetorno').value, document.getElementById('kbClassHora').value], [kbSomaDias(kbDiaSP(Date.now()), 3), '10:00'], 'atalho Em 3 dias preenche data e hora');
+  // OBS em branco mantém a anterior; Ctrl+Enter salva
+  window.__rpcRespostas.leads_classificar = { data: null, error: null };
+  window.__rpcRespostas.leads_agendar_retorno = { data: null, error: null };
+  ficha.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true, cancelable: true }));
+  await espera(80);
+  const c3 = window.__rpcCalls.filter(c => c.nome === 'leads_classificar').pop();
+  eq([c3.args.p_id, c3.args.p_status, c3.args.p_obs], ['f3', 'AGENDADO RETORNO', 'Zz ligar depois do almoço'], 'Ctrl+Enter salva; OBS em branco mantém a anterior');
+  assert(/T10:00:00-03:00$/.test(window.__rpcCalls.filter(c => c.nome === 'leads_agendar_retorno').pop().args.p_quando), 'retorno com a hora escolhida');
+  assert(document.getElementById('kbFicha').classList.contains('aberta') && document.getElementById('kbClassObs').value === '', 'depois de salvar a ficha reabre com a OBS em branco');
+  // RF3: erro do banco não perde a OBS
+  window.__rpcRespostas.leads_classificar = { data: null, error: { message: 'rede' } };
+  document.getElementById('kbClassStatus').value = 'EM NEGOCIAÇÂO';
+  document.getElementById('kbClassObs').value = 'Zz texto que não pode sumir';
+  const ok3 = await kbSalvarClassificacao();
+  assert(ok3 === false && document.getElementById('kbClassErro').textContent.includes('Não foi possível salvar agora') && document.getElementById('kbClassObs').value === 'Zz texto que não pode sumir', 'RF3: erro avisa e mantém a OBS');
+  // RF4: dois cliques seguidos = uma chamada só
+  window.__rpcRespostas.leads_classificar = { data: null, error: null };
+  const n4 = window.__rpcCalls.filter(c => c.nome === 'leads_classificar').length;
+  await Promise.all([kbSalvarClassificacao(), kbSalvarClassificacao()]);
+  eq(window.__rpcCalls.filter(c => c.nome === 'leads_classificar').length - n4, 1, 'RF4: duplo salvar chama o banco uma vez');
+  // setas trocam de lead na lista de onde a ficha veio; Esc fecha a gaveta
+  await kbAbrirFicha('OUTUBRO', 'f3', { lista: ['OUTUBRO|f3', 'OUTUBRO|f4'] });
+  assert(document.getElementById('kbFicha').textContent.includes('1 de 2'), 'posição na lista');
+  document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+  await espera(60);
+  document.getElementById('panel-meusleads').classList.add('active');
+  document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+  await espera(60);
+  assert(kbEstado.fichaAlvo.id === 'f4' && document.getElementById('kbFicha').textContent.includes('Zz Segundo'), 'seta para baixo abre o próximo da lista');
+  document.getElementById('kbClassObs').value = 'Zz pendente';
+  document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+  await espera(40);
+  assert(kbEstado.fichaAlvo.id === 'f4', 'com OBS digitada a seta não troca de lead');
+  document.getElementById('kbClassObs').value = '';
+  document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert(!document.getElementById('kbFicha').classList.contains('aberta'), 'Esc fecha a gaveta');
+  document.getElementById('panel-meusleads').classList.remove('active');
+  assert(!document.getElementById('kbClassOverlay'), 'a janela Classificar saiu do painel');
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');

@@ -108,21 +108,24 @@ try{
   window.__rpcRespostas.leads_pegar = { data: { ok: false, dono: 'Fulana Zz' }, error: null };
   await kbPegar('OUTUBRO', 'n1');
   assert([...window.__alertas, document.body.textContent].join(' ').includes('Esse lead já foi pego por Fulana Zz'), 'aviso de lead já pego');
-  // classificar: modal filtra pelo grupo da coluna e valida
-  kbAbrirClassificar('OUTUBRO', 'm1', 'perdido');
-  const opts = [...document.querySelectorAll('#kbClassStatus option')].map(o => o.value).filter(Boolean);
-  eq(opts, ['CNPJ INAPTO'], 'arrastar para Perdido mostra só status de perda');
+  // §126: classificar abre a ficha (sem janela) com o grupo da coluna em destaque e valida
+  window.__rpcRespostas.leads_ficha = (a) => ({ data: [L(a.p_id, { telefone: '11900000001' })], error: null });
+  await kbAbrirClassificar('OUTUBRO', 'm1', 'perdido');
+  eq([...document.querySelectorAll('#kbFicha #kbClassStatus option')].map(o => o.value).filter(Boolean), ['EM NEGOCIAÇÂO', 'AGENDADO RETORNO', 'PEDIDO CONCLUIDO (VENDA)', 'CNPJ INAPTO'], 'a ficha traz todas as tabulações');
+  assert(document.querySelector('#kbFicha [data-kb-grupo="perdido"]').classList.contains('kbDestaque'), 'arrastar para Perdido destaca o grupo de perda');
   document.getElementById('kbClassStatus').value = 'CNPJ INAPTO';
   window.__rpcRespostas.leads_classificar = { data: null, error: null };
   await kbSalvarClassificacao();
   const call = window.__rpcCalls.filter(c => c.nome === 'leads_classificar').pop();
   eq([call.args.p_aba, call.args.p_id, call.args.p_status], ['OUTUBRO', 'm1', 'CNPJ INAPTO'], 'classificar manda aba/id/status');
-  kbAbrirClassificar('OUTUBRO', 'm1', null);
+  await kbAbrirClassificar('OUTUBRO', 'm1', null);
   document.getElementById('kbClassStatus').value = 'AGENDADO RETORNO';
+  document.getElementById('kbClassRetorno').value = '';
   const antes = window.__rpcCalls.length;
   await kbSalvarClassificacao();
   assert(window.__rpcCalls.length === antes, 'AGENDADO RETORNO sem data não chama o banco');
-  assert(document.getElementById('kbClassErro').textContent.includes('data do retorno'), 'mostra o erro no modal');
+  assert(document.getElementById('kbClassErro').textContent.includes('data do retorno'), 'mostra o erro na ficha');
+  kbFecharFicha();
   // retorno rápido grava em leads_followups como a tela antiga (§64); perdido "para resgatar" ganha selo
   window.__rpcRespostas.leads_kanban3 = { data: [L('a1', { categoria: 'andamento', status: 'EM NEGOCIAÇÂO', telefone: '11900000001' }),
     L('p1', { categoria: 'perdido', status: 'CLIENTE NÃO RESPONDE', classificado_em: new Date().toISOString() })], error: null };
@@ -130,7 +133,7 @@ try{
   kbEstado.perdidoAberto = true; kbRender();   // §120: o Perdido só monta os cartões quando é aberto
   assert(document.querySelector('#kbBoard .kbCol[data-kb-col="semresp"] [data-id="p1"]').textContent.includes('para resgatar'), 'selo para resgatar (pedido 28/10: na coluna Sem resposta)');
   // ajuste 26/10: retorno rápido saiu do cartão e foi para a ficha do lead
-  assert(kbFichaHtml(L('a1', { categoria: 'andamento', status: 'EM NEGOCIAÇÂO', telefone: '11900000001' }), { gestor: false, agoraMs: Date.now() }).includes('data-kb-ficha-retorno="3"'), 'ficha de lead em andamento tem Em 3 dias');
+  assert(kbFichaHtml(L('a1', { categoria: 'andamento', status: 'EM NEGOCIAÇÂO', telefone: '11900000001' }), { gestor: false, agoraMs: Date.now() }).includes('>Em 3 dias</button>'), 'ficha de lead em andamento tem o atalho Em 3 dias');
   // versão leve: igual não recarrega; mudou recarrega
   window.__rpcRespostas.leads_kanban_versao_dono = { data: 'v1', error: null };   // §120: versão por consultor
   assert(await kbVerificarVersao() === true, 'versão nova recarrega');
@@ -169,16 +172,16 @@ try{
   const aberto = (id) => { const el = document.getElementById(id); return el.classList.contains('active') || el.style.display === 'flex'; };
   window.__rpcRespostas.leads_kanban3 = { data: [L('m9', { dono_id: 'u-zz', telefone: '11900000001' })], error: null };
   await kbCarregar();
-  kbAbrirClassificar('OUTUBRO', 'm9', null);
-  assert(aberto('kbClassOverlay'), 'Classificar abre');
-  document.getElementById('kbClassCancelar').click();
-  await espera(200);
-  assert(!aberto('kbClassOverlay'), 'Classificar fecha no Cancelar');
-  kbAbrirClassificar('OUTUBRO', 'm9', 'perdido');
+  window.__rpcRespostas.leads_ficha = { data: [L('m9', { dono_id: 'u-zz', telefone: '11900000001', obs: 'Zz obs antiga' })], error: null };
+  await kbAbrirClassificar('OUTUBRO', 'm9', 'perdido');
+  assert(document.getElementById('kbFicha').classList.contains('aberta'), 'Classificar abre a ficha (não há mais janela)');
   document.getElementById('kbClassStatus').value = 'CNPJ INAPTO';
+  document.getElementById('kbClassObs').value = 'Zz obs nova';
   await kbSalvarClassificacao();
-  await espera(200);
-  assert(!aberto('kbClassOverlay'), 'Classificar fecha depois de Salvar');
+  await espera(60);
+  eq(window.__rpcCalls.filter(c => c.nome === 'leads_classificar').pop().args.p_obs, 'Zz obs nova', 'OBS digitada vai para o banco');
+  assert(document.getElementById('kbClassObs').value === '', 'depois de salvar a ficha reabre com a OBS em branco');
+  kbFecharFicha();
   kbAbrirRedistribuir('OUTUBRO', 'm9');
   assert(aberto('kbRedOverlay'), 'Redistribuir abre');
   document.getElementById('kbRedCancelar').click();
@@ -200,7 +203,7 @@ try{
   ['Zz Padaria', '00000000000101', '11900000001', 'zz@teste.invalid', 'Campinas/SP', '5', 'MEI', 'Zz Campanha', 'ligar à tarde'].forEach(x => assert(h1.includes(x), 'ficha do meu lead mostra ' + x));
   assert(h1.includes('data-kb-ficha-copiar') && h1.includes('wa.me/5511900000001'), 'ficha tem copiar e WhatsApp');
   const h2 = kbFichaHtml(Object.assign({}, fichaMeu, { livre: true, telefone: null, email: null, cnpj: null, status: null, categoria: 'sem_contato' }), { gestor: false, agoraMs: Date.now() });
-  assert(h2.includes('Pegue o lead para ver') && h2.includes('data-kb-ficha-pegar') && !h2.includes('11900000001'), 'ficha de lead Livre esconde contato e oferece Pegar');
+  assert(h2.includes('aparecem quando você pega o lead') && h2.includes('data-kb-ficha-pegar') && !h2.includes('11900000001'), 'ficha de lead Livre esconde contato e oferece Pegar');
   assert(!kbFichaHtml(Object.assign({}, fichaMeu, { nome: '<img src=x onerror=alert(1)>' }), { gestor: false, agoraMs: Date.now() }).includes('<img'), 'ficha escapa HTML');
   assert(kbAtrasado(L('t1', { criado_em_lead: '2026-10-26T12:00:00Z' }), Date.parse('2026-10-26T12:20:00Z')) === true, 'novo sem contato há 20 min = atrasado');
   assert(kbAtrasado(L('t2', { criado_em_lead: '2026-10-26T12:00:00Z', primeiro_clique: '2026-10-26T12:05:00Z' }), Date.parse('2026-10-26T12:20:00Z')) === false, 'com contato não fica atrasado');
@@ -221,7 +224,7 @@ try{
   assert(window.__rpcCalls.filter(c => c.nome === 'leads_pegar').length === antesPegar + 1, 'soltar em Meus novos chama leads_pegar');
   soltar('#kbBoard [data-kb-col="perdido"]', { aba: 'OUTUBRO', id: 'lv1', col: 'livres' });
   await espera(50);
-  assert(window.__rpcCalls.filter(c => c.nome === 'leads_pegar').length === antesPegar + 1 && !document.getElementById('kbClassOverlay').classList.contains('active'), 'soltar Livre em Perdido não faz nada');
+  assert(window.__rpcCalls.filter(c => c.nome === 'leads_pegar').length === antesPegar + 1 && !document.getElementById('kbFicha').classList.contains('aberta'), 'soltar Livre em Perdido não faz nada');
   // clicar no cartão abre a ficha (busca leads_ficha)
   window.__rpcRespostas.leads_kanban3 = { data: [L('f1', { telefone: '11900000001' })], error: null };
   await kbCarregar();

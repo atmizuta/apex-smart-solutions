@@ -889,18 +889,18 @@
   .kbSeta{flex:0 0 auto;width:34px;height:34px;border:1px solid var(--c-linha-forte);border-radius:50%;background:var(--c-branco);font-size:20px;line-height:1;color:var(--c-grafite);cursor:pointer;}
   .kbSeta:hover{border-color:var(--c-sinal);color:var(--c-sinal);}
   /* modal Classificar (§120): tabulações em botões por grupo, atalhos de data, rodapé fixo */
-  #kbClassOverlay,#kbRedOverlay{backdrop-filter:none;}
+  #kbRedOverlay{backdrop-filter:none;}
   .kbClassModal{max-width:640px;}
   .kbClassEtiqueta{display:block;font-size:var(--fs-xs);font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--c-sinal);margin-bottom:4px;}
   .kbClassModal .mHead h2{font-size:var(--fs-lg);text-transform:none;padding-right:40px;}
   .kbOculto{display:none;}
   .kbClassGrupo{margin-bottom:var(--space-4);}
-  .kbClassRotulo{display:block;font-family:var(--font-head);font-size:var(--fs-sm);font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:var(--space-2);}
+  .kbClassRotulo{display:block;font-size:var(--fs-xs);font-weight:600;color:var(--ml-ink-2,var(--muted));margin-bottom:var(--space-2);}
   .kbStatusChips{display:flex;flex-wrap:wrap;gap:var(--space-2);}
   .kbStatusChip{padding:7px 12px;border:1px solid var(--c-linha-forte);border-radius:999px;background:var(--c-branco);font:inherit;font-size:var(--fs-sm);color:var(--c-grafite);cursor:pointer;}
   .kbStatusChip:hover{border-color:var(--c-grafite);}
   .kbStatusChip.ativo{border-color:var(--c-grafite);box-shadow:0 0 0 2px var(--c-branco),0 0 0 4px var(--c-grafite);font-weight:700;}
-  .kbClassBloco{background:var(--c-papel);border:1px solid var(--c-linha);border-radius:var(--radius-lg);padding:var(--space-3) var(--space-4);margin-bottom:var(--space-4);}
+  .kbClassBloco{background:var(--ml-surface-2,var(--c-papel));border-radius:12px;padding:var(--space-3) 14px;margin:var(--space-1) 0 14px;}
   .kbAtalhos{display:flex;flex-wrap:wrap;gap:var(--space-2);margin-bottom:var(--space-2);}
   .kbVendaCampos{display:flex;gap:var(--space-4);align-items:flex-end;flex-wrap:wrap;}
   .kbVendaCampos .field{flex:1 1 180px;margin:0;}
@@ -940,22 +940,50 @@
   /* apagar do painel e ficha flutuante (§120) */
   .kbApagarBox{margin-top:var(--space-3);padding:var(--space-3);border:1px solid var(--c-sinal-600);border-radius:var(--radius-lg);background:var(--c-papel);font-size:var(--fs-sm);}
   .kbApagarBox input{width:100%;margin:var(--space-2) 0;padding:8px 10px;border:1px solid var(--c-linha-forte);border-radius:var(--radius);font:inherit;}
-  .kbFichaFlutuar{position:absolute;top:var(--space-3);right:calc(var(--space-3) + 40px);height:32px;padding:0 10px;border:1px solid var(--c-linha);border-radius:var(--radius);background:var(--c-branco);font:inherit;font-size:var(--fs-xs);font-weight:700;cursor:pointer;color:var(--c-grafite);}
-  .kbFichaFlutuar:hover{border-color:var(--c-sinal);color:var(--c-sinal);}
-  .kbFicha.flutuante{position:static;transform:none;width:auto;height:100vh;border:0;box-shadow:none;}
-  .kbFicha{position:fixed;top:0;right:0;bottom:0;width:min(440px,100vw);background:var(--c-branco);border-left:1px solid var(--c-linha);z-index:45;transform:translateX(100%);transition:transform var(--dur) var(--ease-out);overflow-y:auto;}
-  .kbFicha.aberta{transform:none;box-shadow:var(--shadow-lg);}
+  /* §126: ficha nova — gaveta de 560 px presa à direita, rodapé fixo; na Hoje vira o painel da direita (.noPainel) */
+  .kbFicha{position:fixed;top:0;right:0;bottom:0;width:min(560px,100vw);background:var(--ml-surface);z-index:45;transform:translateX(100%);transition:transform var(--dur) var(--ease-out);display:flex;flex-direction:column;}
+  .kbFicha.aberta{transform:none;box-shadow:var(--ml-float);}
+  .kbFicha.flutuante{position:static;transform:none;width:auto;height:100vh;box-shadow:none;}
+  .kbFicha.noPainel{position:static;transform:none;width:auto;height:100%;min-height:0;box-shadow:none;z-index:auto;transition:none;}
+  .kbFicha[hidden]{display:none;}
+  .kbFichaCorpo{display:flex;flex-direction:column;min-height:0;height:100%;}
+  .kbFichaRolagem{flex:1;min-height:0;overflow-y:auto;padding:var(--space-4) var(--space-6) var(--space-3);}
+  .kbFichaBarra{display:flex;align-items:center;gap:4px;margin-bottom:var(--space-2);}
+  .kbFichaPos{margin-right:auto;font-size:var(--fs-xs);color:var(--ml-ink-3);}
+  .noPainel [data-kb-ficha-fechar]{display:none;}
+  .kbFichaNome{margin:var(--space-2) 0 0;font:700 30px/1.05 var(--font-head);color:var(--ml-ink);}
+  .kbFichaSub{display:flex;flex-wrap:wrap;gap:var(--space-2) var(--space-3);align-items:center;margin-top:var(--space-2);font-size:var(--fs-sm);color:var(--ml-ink-2);}
+  .kbFichaContato{margin-top:var(--space-4);padding:var(--space-3) var(--space-4);border-radius:14px;background:var(--ml-surface-2);}
+  .kbFichaTel{display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;}
+  .kbFichaTel strong{font:600 24px/1 var(--font-head);letter-spacing:.01em;font-variant-numeric:tabular-nums;color:var(--ml-ink);}
+  .kbFichaTel .kbBtnQ{background:var(--ml-surface);}
+  .kbFichaDir{margin-left:auto;display:flex;gap:6px;}
+  .kbFichaOutros{display:grid;grid-template-columns:auto 1fr auto;gap:4px var(--space-3);align-items:center;margin-top:var(--space-3);font-size:var(--fs-sm);}
+  .kbFichaOutros span{color:var(--ml-ink-3);}
+  .kbFichaOutros b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ml-ink);}
+  .kbFichaResumo{margin:var(--space-2) 2px 0;font-size:var(--fs-sm);color:var(--ml-ink-2);}
+  .kbObsAnt{margin:var(--space-3) 0 0;padding:var(--space-3) 14px;border-radius:10px;background:var(--ml-surface-2);font-size:var(--fs-base);line-height:1.5;color:var(--ml-ink);white-space:pre-wrap;}
+  .kbObsAnt small{display:block;font-size:var(--fs-xs);color:var(--ml-ink-3);margin-bottom:3px;}
+  .kbFichaAbas{margin:var(--space-4) 0 var(--space-3);}
+  .kbComoFoi{margin:0 0 var(--space-2);font-size:var(--fs-md);font-weight:600;color:var(--ml-ink);}
+  .kbFichaTravado{margin-top:var(--space-4);padding:var(--space-4);border-radius:14px;background:var(--ml-surface-2);display:flex;align-items:center;gap:var(--space-4);flex-wrap:wrap;}
+  .kbFichaTravado p{margin:0;flex:1;min-width:220px;color:var(--ml-ink-2);}
+  .kbFichaUltimos{margin-top:var(--space-4);}
+  .kbFichaUltimos h4{margin:0 0 var(--space-2);font-size:var(--fs-base);font-weight:600;}
+  .kbFichaRodape{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-3) var(--space-6);box-shadow:0 -1px 0 var(--ml-surface-3);background:var(--ml-surface);}
+  .kbFichaRodape .kbMeta{margin:0 0 0 auto;}
+  .kbClassGrupo.kbG-perdido .kbStatusChip.kbSt:not(.ativo){background:var(--ml-surface-2);color:var(--ml-ink-2);box-shadow:none;font-weight:500;}
+  .kbClassGrupo.kbDestaque{padding:var(--space-2);margin-left:calc(-1 * var(--space-2));border-radius:12px;box-shadow:inset 0 0 0 2px var(--c-sinal);}
+  .kbAtalhos .kbAtalho{border:0;border-radius:8px;padding:6px 10px;background:var(--ml-surface);font:inherit;font-size:var(--fs-sm);font-weight:600;color:var(--ml-ink);cursor:pointer;}
+  .kbAtalhos .kbAtalho.ativo{background:var(--ml-ink);color:var(--c-branco);}
+  .kbClass .field textarea{width:100%;border:1px solid var(--c-linha);border-radius:10px;padding:9px 12px;font:inherit;resize:vertical;}
+  @media (prefers-reduced-motion: reduce){ .kbFicha{transition:none;} }
   .kbFicha a.btn,.kbIcone{text-decoration:none;}
-  .kbFichaCorpo{position:relative;padding:var(--space-5);}
-  .kbFichaFechar{position:absolute;top:var(--space-3);right:var(--space-3);width:32px;height:32px;border:1px solid var(--c-linha);border-radius:var(--radius);background:var(--c-branco);font-size:20px;line-height:1;cursor:pointer;color:var(--c-grafite);}
-  .kbFichaCab{padding-right:40px;border-bottom:3px solid var(--c-sinal);padding-bottom:var(--space-3);}
-  .kbFichaCab h3{margin:0;font-family:var(--font-head);font-size:var(--fs-lg);color:var(--c-grafite);}
   .kbFichaSecao h5{margin:var(--space-5) 0 var(--space-2);font-family:var(--font-head);font-size:var(--fs-sm);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);}
   .kbFichaLinha{display:grid;grid-template-columns:92px 1fr auto;gap:var(--space-2);align-items:center;padding:7px 0;border-bottom:1px solid var(--c-linha);font-size:var(--fs-sm);}
   .kbFichaLinha span{color:var(--muted);}
   .kbFichaLinha strong{font-weight:600;color:var(--c-grafite);word-break:break-word;}
   .kbFichaBotoes{display:flex;gap:var(--space-2);flex-wrap:wrap;margin:var(--space-2) 0;}
-  .kbFichaAcoes{margin-top:var(--space-5);padding-top:var(--space-4);border-top:1px solid var(--c-linha);}
   .kbFichaAviso{background:var(--c-papel);border-left:3px solid var(--c-sinal);padding:var(--space-3);font-size:var(--fs-sm);margin:var(--space-2) 0;}
   /* §118: pesquisa, abas Hoje/Quadro/Equipe, semáforo, linha do tempo */
   .kbBuscaBox{position:relative;flex:1 1 320px;max-width:520px;}
@@ -1682,33 +1710,7 @@
       <svg class="kbSprite" aria-hidden="true" style="display:none"><symbol id="kbIcoTel" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></symbol><symbol id="kbIcoWhats" viewBox="0 0 24 24"><path d="M3 21l1.7-5A8.5 8.5 0 1 1 8 19.3z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1.5-1.5-2-1-1 1a4 4 0 0 1-2.5-2.5l1-1-1-2z"/></symbol></svg>
       <div class="kbBoard" id="kbBoard"></div>
     </section>
-    <div class="overlay" id="kbClassOverlay">
-      <div class="modal kbClassModal" role="dialog" aria-labelledby="kbClassTitulo">
-        <div class="mHead"><span class="kbClassEtiqueta">Classificar lead</span><h2 id="kbClassTitulo">Lead</h2><div class="mCnpj" id="kbClassSub"></div>
-          <button type="button" class="mClose" id="kbClassFechar" aria-label="Fechar">×</button></div>
-        <div class="mBody">
-          <select id="kbClassStatus" class="kbOculto" aria-hidden="true" tabindex="-1"></select>
-          <div class="kbClassGrupos" id="kbClassGrupos"></div>
-          <div class="kbClassBloco" id="kbClassRetornoBox" style="display:none">
-            <span class="kbClassRotulo">Quando ligar de novo?</span>
-            <div class="kbAtalhos"><button type="button" class="filterPill" data-kb-ret-dias="0">Hoje</button><button type="button" class="filterPill" data-kb-ret-dias="1">Amanhã</button><button type="button" class="filterPill" data-kb-ret-dias="3">Em 3 dias</button><button type="button" class="filterPill" data-kb-ret-dias="7">Em 1 semana</button></div>
-            <div class="kbRetornoCampos"><label class="field"><span>Data</span><input type="date" id="kbClassRetorno"></label><label class="field"><span>Hora</span><input type="time" id="kbClassHora" value="10:00"></label></div>
-          </div>
-          <div class="kbClassBloco" id="kbClassVenda" style="display:none">
-            <span class="kbClassRotulo">Venda</span>
-            <div class="kbVendaCampos"><label class="field"><span>Receita (R$)</span><input type="text" id="kbClassReceita" inputmode="decimal" placeholder="0,00"></label>
-              <label class="kbCheck"><input type="checkbox" id="kbClassConverteu"> Converteu</label></div>
-            <p class="desc" id="kbClassNeo"></p>
-          </div>
-          <label class="field kbClassObs"><span>OBS</span><textarea id="kbClassObs" rows="3" placeholder="O que o cliente disse e o próximo passo"></textarea></label>
-          <p class="desc kbClassErro" id="kbClassErro"></p>
-        </div>
-        <div class="kbClassRodape"><span class="kbMeta">Ctrl+Enter salva</span><div class="kbClassBotoes">
-          <button type="button" class="btn btn-sm btn-outline" id="kbClassCancelar">Cancelar</button>
-          <button type="button" class="btn btn-sm" id="kbClassSalvar">Salvar</button></div></div>
-      </div>
-    </div>
-    <aside class="kbFicha" id="kbFicha" aria-label="Ficha do lead"><div class="kbFichaCorpo" id="kbFichaCorpo"></div></aside>
+    <div id="kbFichaCasa"><aside class="kbFicha" id="kbFicha" aria-label="Ficha do lead"><div class="kbFichaCorpo" id="kbFichaCorpo"></div></aside></div>
     <div class="overlay" id="kbRedOverlay">
       <div class="modal kbClassModal" role="dialog" aria-labelledby="kbRedTitulo">
         <div class="mHead"><span class="kbClassEtiqueta">Redistribuir lead</span><h2 id="kbRedTitulo">Lead</h2><div class="mCnpj" id="kbRedSub"></div>
@@ -3671,47 +3673,102 @@ function kbUrgenciaFicha(l, retorno, agoraMs){
   return null;
 }
 // Ficha do lead (gaveta lateral). Lead Livre sem dado de contato (consultor) mostra o convite para pegar.
+// §126: ícones da ficha (traço de 2 px, mesmo desenho do mockup aprovado)
+const KB_ICO = {
+  tel: '<svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>',
+  wa: '<svg viewBox="0 0 24 24"><path d="M3 21l1.7-5A8.5 8.5 0 1 1 8 19.3z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1.5-1.5-2-1-1 1a4 4 0 0 1-2.5-2.5l1-1-1-2z"/></svg>',
+  copiar: '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></svg>',
+  cima: '<svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg>',
+  baixo: '<svg viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></svg>',
+  pip: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="12" y="11" width="7" height="6" rx="1"/></svg>',
+  mais: '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg>',
+  fechar: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  relogio: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>',
+  mao: '<svg viewBox="0 0 24 24"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11m0-1.5v-6a1.5 1.5 0 0 1 3 0V11m0-4.5a1.5 1.5 0 0 1 3 0V13m0-3.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1.5a6 6 0 0 1-5-2.7L4 14.5a1.5 1.5 0 0 1 2.5-1.6L8 15"/></svg>',
+  seta: '<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  check: '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+};
+// §126: o Classificar mora dentro da ficha (sai a janela). Os ids são os de antes; o select escondido guarda a escolha.
+const KB_GRUPO_ROTULO = { andamento: 'Em andamento', convertido: 'Venda', perdido: 'Sem resposta ou perdido' };
+function kbClassificarHtml(f, opcoes, op){
+  const o = op || {}, ops = kbOpcoesDoGrupo(opcoes, null);
+  const atual = f.status && ops.some(x => x.status === f.status) ? f.status : '';
+  const grupoAtual = (ops.find(x => x.status === atual) || {}).grupo || '';
+  const select = `<select id="kbClassStatus" class="kbOculto" aria-hidden="true" tabindex="-1"><option value="">Escolha…</option>${ops.map(x => `<option value="${escapeHtml(x.status)}"${x.status === atual ? ' selected' : ''}>${escapeHtml(x.status)}</option>`).join('')}</select>`;
+  const grupos = ['andamento', 'convertido', 'perdido'].map(g => {
+    const doG = ops.filter(x => x.grupo === g);
+    return doG.length ? `<div class="kbClassGrupo kbG-${g}${o.grupo === g ? ' kbDestaque' : ''}" data-kb-grupo="${g}"><span class="kbClassRotulo">${KB_GRUPO_ROTULO[g]}</span><div class="kbStatusChips">${doG.map(x =>
+      `<button type="button" class="kbStatusChip kbSt${x.status === atual ? ' ativo' : ''}" data-st="${escapeHtml(kbStSlug(x.status))}" data-kb-status="${escapeHtml(x.status)}">${escapeHtml(kbStTexto(x.status))}</button>`).join('')}</div></div>` : '';
+  }).join('');
+  const atalhos = kbAtalhosRetorno(o.agoraMs || Date.now()).map(a => `<button type="button" class="kbAtalho" data-kb-ret-data="${a.data}" data-kb-ret-hora="${a.hora}">${a.rotulo}</button>`).join('');
+  const retData = f.retorno_em ? String(f.retorno_em).slice(0, 10) : '';
+  const receita = f.receita ? String(f.receita).replace('.', ',') : (f.receita_neo ? String(f.receita_neo).replace('.', ',') : '');
+  return `<div class="kbClass" id="kbClassForm">${select}
+    <p class="kbComoFoi">Como foi?</p>
+    <div class="kbClassGrupos" id="kbClassGrupos">${grupos}</div>
+    <div class="kbClassBloco" id="kbClassRetornoBox" style="display:${atual === 'AGENDADO RETORNO' ? '' : 'none'}"><span class="kbClassRotulo">Quando ligar de novo?</span>
+      <div class="kbAtalhos">${atalhos}</div>
+      <div class="kbRetornoCampos"><label class="field"><span>Data</span><input type="date" id="kbClassRetorno" value="${escapeHtml(retData)}"></label><label class="field"><span>Hora</span><input type="time" id="kbClassHora" value="10:00"></label></div></div>
+    <div class="kbClassBloco" id="kbClassVenda" style="display:${grupoAtual === 'convertido' ? '' : 'none'}"><span class="kbClassRotulo">Venda</span>
+      <div class="kbVendaCampos"><label class="field"><span>Receita (R$)</span><input type="text" id="kbClassReceita" inputmode="decimal" placeholder="0,00" value="${escapeHtml(receita)}"></label>
+      <label class="kbCheck"><input type="checkbox" id="kbClassConverteu"${f.converteu || f.venda_neo ? ' checked' : ''}> Converteu</label></div>
+      <p class="desc" id="kbClassNeo">${f.venda_neo ? 'O NEO tem venda neste CNPJ — conferido e pré-preenchido.' : ''}</p></div>
+    <label class="field kbClassObs"><span>OBS</span><textarea id="kbClassObs" rows="3" placeholder="O que o cliente disse e o próximo passo"></textarea></label>
+    <p class="desc kbClassErro" id="kbClassErro"></p>
+  </div>`;
+}
+// §126: ficha nova (spec 3.1). op = { gestor, agoraMs, flutuando, podePegar, opcoes, grupo, naHoje, pos, total, retorno }.
 function kbFichaHtml(f, op){
+  const o = op || {}, agoraMs = o.agoraMs || Date.now();
   const v = (x) => escapeHtml(x == null || x === '' ? '—' : String(x));
   const tel = String(f.telefone || '').replace(/\D/g, '');
   const local = [f.cidade, f.uf].filter(Boolean).join('/');
-  const div = kbDivergencia(f);
-  const col = kbColunaDoLead(f);
-  const linha = (rotulo, valor, copiar, mostrar) => `<div class="kbFichaLinha"><span>${rotulo}</span><strong>${v(mostrar || valor)}</strong>${copiar && valor ? `<button type="button" class="kbLink" data-kb-ficha-copiar="${escapeHtml(String(valor))}">Copiar</button>` : '<i></i>'}</div>`;
+  const div = kbDivergencia(f), col = kbColunaDoLead(f);
   const semContato = f.livre && !tel && !f.email && !f.cnpj;
-  const msg = tel ? encodeURIComponent(col === 'novos' || f.livre ? vlMensagemPrimeiroContato(f, ppPrimeiroNome()) : plMensagemWhats(f, ppPrimeiroNome())) : '';
-  const contato = semContato
-    ? (op && op.podePegar === false
-        ? `<p class="kbFichaAviso">Você não está liberado para pegar leads.</p>`
-        : `<p class="kbFichaAviso">Pegue o lead para ver celular, e-mail e CNPJ.</p><button type="button" class="btn" data-kb-ficha-pegar>Pegar este lead</button>`)
-    : linha('Celular', kbTelCopiar(f.telefone), true, kbFoneBR(f.telefone))
-      + (tel ? `<div class="kbFichaBotoes"><a class="btn btn-sm" data-kb-contato="ligar" data-kb-ligar href="#" title="Copia o número e abre o ProContact">Ligar</a><a class="btn btn-sm btn-outline" data-kb-contato="whatsapp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}?text=${msg}">WhatsApp</a></div>` : '')
-      + linha('E-mail', f.email, true) + linha('CNPJ', f.cnpj, true);
-  const acoes = [];
-  if(f.livre) { if(!semContato) acoes.push(`<button type="button" class="btn btn-sm" data-kb-ficha-pegar>Pegar este lead</button>`); }
-  else {
-    acoes.push(`<button type="button" class="btn btn-sm" data-kb-ficha-classificar>${f.status ? 'Reclassificar' : 'Classificar'}</button>`);
-    if(col === 'andamento' || (col === 'perdido' && plParaResgatar(f))) acoes.push(
-      `<button type="button" class="btn btn-sm btn-outline" data-kb-ficha-retorno="1">Retorno amanhã</button>`,
-      `<button type="button" class="btn btn-sm btn-outline" data-kb-ficha-retorno="3">Em 3 dias</button>`);
+  const urg = kbUrgenciaFicha(f, o.retorno || null, agoraMs);
+  const pos = `<span class="kbFichaPos">${o.total ? `${o.pos} de ${o.total}${o.naHoje ? ' na sua fila' : ''}` : ''}</span>`;
+  const setas = o.total ? `<button type="button" class="kbBtn kbBtnG kbBtnIco" data-kb-ficha-mover="-1" title="Lead anterior (↑)" aria-label="Lead anterior">${KB_ICO.cima}</button><button type="button" class="kbBtn kbBtnG kbBtnIco" data-kb-ficha-mover="1" title="Próximo lead (↓)" aria-label="Próximo lead">${KB_ICO.baixo}</button>` : '';
+  const flutuar = o.flutuando ? '' : `<button type="button" class="kbBtn kbBtnG kbBtnIco" data-kb-ficha-flutuar title="Deixar a ficha por cima do ProContact" aria-label="Flutuar">${KB_ICO.pip}</button>`;
+  const mais = o.gestor ? `<details class="kbMaisMenu"><summary class="kbBtn kbBtnG kbBtnIco" title="Mais opções" aria-label="Mais opções">${KB_ICO.mais}</summary><div class="kbMaisLista">
+      <button type="button" class="kbBtn kbBtnG kbBtnSm" data-kb-ficha-redistribuir>Redistribuir</button><button type="button" class="kbBtn kbBtnG kbBtnSm kbPerigo" data-kb-ficha-apagar>Apagar do painel</button></div></details>` : '';
+  const barra = `<div class="kbFichaBarra">${pos}${setas}${flutuar}${mais}<button type="button" class="kbBtn kbBtnG kbBtnIco" data-kb-ficha-fechar title="Fechar (Esc)" aria-label="Fechar">${KB_ICO.fechar}</button></div>`;
+  const apagar = o.gestor ? `<div class="kbApagarBox" data-kb-apagar-box hidden><strong>Apagar este lead do painel?</strong> Some do Quadro, dos alertas e da busca; a planilha não muda.
+      <input type="text" maxlength="200" placeholder="Motivo (opcional), ex.: duplicado, teste"><div class="kbFichaBotoes"><button type="button" class="kbBtn kbBtnP kbBtnSm" data-kb-apagar-confirmar>Apagar</button><button type="button" class="kbBtn kbBtnQ kbBtnSm" data-kb-apagar-cancelar>Cancelar</button></div></div>` : '';
+  const chips = [f.status ? `<span class="kbSt" data-st="${escapeHtml(kbStSlug(f.status))}">${escapeHtml(kbStTexto(f.status))}</span>` : `<span class="kbSt">${f.livre ? 'Livre' : 'Sem status'}</span>`];
+  if(plParaResgatar(f)) chips.push('<span class="badge">para resgatar</span>');
+  if(f.venda_neo) chips.push('<span class="catBadge convertido">✓ venda no NEO</span>');
+  const sub = [chips.join('')];
+  const empresa = [f.tipo_empresa, f.qtd_linhas ? f.qtd_linhas + ' linhas' : '', local].filter(Boolean).join(' · ');
+  if(empresa) sub.push(`<span>${escapeHtml(empresa)}</span>`);
+  sub.push(`<span>${escapeHtml(['chegou ' + (kbDataHoraBR(f.criado_em_lead) || '—'), f.campanha].filter(Boolean).join(' · '))}</span>`);
+  if(!f.livre && f.dono_nome) sub.push(`<span>com ${escapeHtml(f.dono_nome)}</span>`);
+  const cab = `${urg ? `<span class="kbTag ${urg.classe}">${KB_ICO.relogio}${escapeHtml(urg.texto)}</span>` : ''}<h3 class="kbFichaNome">${v(f.nome)}</h3><div class="kbFichaSub">${sub.join('')}</div>`;
+  const copiar = (rot, valor, mostrar) => valor ? `<span>${rot}</span><b>${escapeHtml(mostrar || valor)}</b><button type="button" class="kbLink" data-kb-ficha-copiar="${escapeHtml(String(valor))}">Copiar</button>` : '';
+  let contato;
+  if(semContato){
+    contato = o.podePegar === false
+      ? '<div class="kbFichaTravado"><p>Você não está liberado para pegar leads.</p></div>'
+      : `<div class="kbFichaTravado"><p>Celular, e-mail e CNPJ aparecem quando você pega o lead. Ele vai direto para a sua fila.</p><button type="button" class="kbBtn kbBtnP kbBtnLg" data-kb-ficha-pegar>${KB_ICO.mao}Pegar este lead</button></div>`;
+  } else {
+    const msg = tel ? encodeURIComponent(col === 'novos' || f.livre ? vlMensagemPrimeiroContato(f, ppPrimeiroNome()) : plMensagemWhats(f, ppPrimeiroNome())) : '';
+    contato = `<div class="kbFichaContato">${tel ? `<div class="kbFichaTel"><strong>${escapeHtml(kbFoneBR(f.telefone))}</strong>
+        <button type="button" class="kbBtn kbBtnQ kbBtnSm" data-kb-ficha-copiar="${escapeHtml(kbTelCopiar(f.telefone))}">${KB_ICO.copiar}Copiar</button>
+        <span class="kbFichaDir"><a class="kbBtn kbBtnP" data-kb-contato="ligar" data-kb-ligar href="#" title="Copia o número e abre o ProContact">${KB_ICO.tel}Ligar</a><a class="kbBtn kbBtnQ" data-kb-contato="whatsapp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}?text=${msg}">${KB_ICO.wa}WhatsApp</a></span></div>` : '<p class="kbMeta">Lead sem celular.</p>'}
+      <div class="kbFichaOutros">${copiar('E-mail', f.email)}${copiar('CNPJ', f.cnpj)}</div></div>`
+      + (f.livre ? `<div class="kbFichaBotoes"><button type="button" class="kbBtn kbBtnP" data-kb-ficha-pegar>${KB_ICO.mao}Pegar este lead</button></div>` : '');
   }
-  if(op && op.gestor) acoes.push(`<button type="button" class="btn btn-sm btn-outline" data-kb-ficha-redistribuir>Redistribuir</button>`,
-    `<button type="button" class="btn btn-sm btn-danger" data-kb-ficha-apagar>Apagar do painel</button>`);
-  const apagar = op && op.gestor ? `<div class="kbApagarBox" data-kb-apagar-box hidden><strong>Apagar este lead do painel?</strong> Some do Quadro, dos alertas e da busca; a planilha não muda.
-      <input type="text" maxlength="200" placeholder="Motivo (opcional), ex.: duplicado, teste"><div class="kbFichaBotoes"><button type="button" class="btn btn-sm btn-danger" data-kb-apagar-confirmar>Apagar</button><button type="button" class="btn btn-sm btn-outline" data-kb-apagar-cancelar>Cancelar</button></div></div>` : '';
-  const flutuar = op && !op.flutuando ? `<button type="button" class="kbFichaFlutuar" data-kb-ficha-flutuar title="Deixar a ficha por cima do ProContact">Flutuar</button>` : '';
-  return `<button type="button" class="kbFichaFechar" data-kb-ficha-fechar aria-label="Fechar">×</button>${flutuar}
-    <div class="kbFichaCab">
-      <h3>${v(f.nome)}</h3>
-      <div class="kbChips">${f.status ? kbStChip(f.status) : `<span class="catBadge sem_contato">${f.livre ? 'Livre' : 'Sem status'}</span>`}${plParaResgatar(f) ? '<span class="badge">para resgatar</span>' : ''}${f.venda_neo ? '<span class="catBadge convertido">✓ venda no NEO</span>' : ''}</div>
-      <p class="kbMeta">${f.livre ? 'Ainda sem dono' : 'Com ' + v(f.dono_nome)}</p>
-    </div>
-    <div class="kbFichaSecao"><h5>Contato</h5>${contato}</div>
-    <div class="kbFichaSecao"><h5>Empresa</h5>${linha('Tipo', f.tipo_empresa)}${linha('Linhas', f.qtd_linhas)}${linha('Cidade/UF', local)}</div>
-    <div class="kbFichaSecao"><h5>Origem</h5>${linha('Campanha', f.campanha)}${linha('Chegou', kbDataHoraBR(f.criado_em_lead) + ' (' + kbTempoDesde(f.criado_em_lead, op ? op.agoraMs : Date.now()) + ')')}</div>
-    <div class="kbFichaSecao"><h5>Andamento</h5>${linha('OBS', f.obs)}${f.retorno_em ? linha('Retorno', String(f.retorno_em).split('-').reverse().join('/')) : ''}${f.receita ? linha('Receita', kbMoeda(f.receita)) : ''}${div ? `<p class="kbFichaAviso">⚠ ${escapeHtml(div)}</p>` : ''}</div>
-    <div id="kbFichaDetalhes"></div>
-    <div class="kbFichaBotoes kbFichaAcoes">${acoes.join('')}</div>${apagar}`;
+  const obsAnt = f.obs ? `<p class="kbObsAnt"><small>Última OBS${f.classificado_em ? ' · ' + escapeHtml(kbDataHoraBR(f.classificado_em)) : ''}</small>${escapeHtml(f.obs)}</p>` : '';
+  const aviso = div ? `<p class="kbFichaAviso">⚠ ${escapeHtml(div)}</p>` : '';
+  const corpo = f.livre
+    ? `<div class="kbFichaSecao"><h5>Anúncio</h5><div id="kbFichaAnuncio"></div></div>`
+    : `<nav class="kbSeg kbFichaAbas" aria-label="Partes da ficha"><button type="button" class="active" data-kb-ficha-aba="classificar">Classificar</button><button type="button" data-kb-ficha-aba="historico">Histórico</button><button type="button" data-kb-ficha-aba="anuncio">Anúncio</button></nav>
+      <div data-kb-ficha-pane="classificar">${kbClassificarHtml(f, o.opcoes || [], { grupo: o.grupo, agoraMs })}<div class="kbFichaUltimos" id="kbFichaUltimos"></div></div>
+      <div data-kb-ficha-pane="historico" hidden><div id="kbLinhaTempo"></div></div>
+      <div data-kb-ficha-pane="anuncio" hidden><div id="kbFichaAnuncio"></div></div>`;
+  const rodape = f.livre ? '' : `<div class="kbFichaRodape">${o.naHoje
+      ? `<button type="button" class="kbBtn kbBtnP kbBtnLg" id="kbClassSalvarProx" data-kb-salvar="prox">Salvar e ir para o próximo${KB_ICO.seta}</button><button type="button" class="kbBtn kbBtnG" id="kbClassSalvar" data-kb-salvar="so">Só salvar</button>`
+      : `<button type="button" class="kbBtn kbBtnP kbBtnLg" id="kbClassSalvar" data-kb-salvar="so">Salvar</button>`}<span class="kbMeta">Ctrl+Enter</span></div>`;
+  return `<div class="kbFichaRolagem">${barra}${apagar}${cab}${contato}<p class="kbFichaResumo" id="kbFichaResumo"></p>${aviso}${obsAnt}${corpo}</div>${rodape}`;
 }
 
 const kbEstado = { geracao: 0, naEquipe: false, modo: 'planilha', versao: '', leads: [], opcoes: [], dono: '', timer: null, verTodosLivres: false, soDivergencias: false, classAlvo: null, consultores: [] };
@@ -3860,9 +3917,11 @@ let kbAlturaPendente = false;
 window.addEventListener('resize', () => { if(kbAlturaPendente) return; kbAlturaPendente = true; requestAnimationFrame(() => { kbAlturaPendente = false; kbAjustarAltura(); }); });
 async function kbPegar(aba, id){
   const r = await ppSeguro(() => sb.rpc('leads_pegar', { p_aba: aba, p_id: id }));
-  if(!r || r.error){ mostrarAviso('Não foi possível pegar o lead agora.', 'erro'); return; }
-  if(r.data && r.data.ok === false) mostrarAviso(`Esse lead já foi pego por ${r.data.dono}`, 'info');
+  if(!r || r.error){ mostrarAviso('Não foi possível pegar o lead agora.', 'erro'); return false; }
+  const ok = !(r.data && r.data.ok === false);
+  if(!ok) mostrarAviso(`Esse lead já foi pego por ${r.data.dono}`, 'info');
   await kbCarregar();
+  return ok;
 }
 // Lead achado pela pesquisa ou pela Agenda pode não estar no Quadro carregado: vale o que a ficha aberta trouxe.
 // §121 (pedido 20:35): o telefone copia o número e abre a aba do ProContact. Se ela já estiver aberta (pelo painel),
@@ -3899,89 +3958,83 @@ function kbAcharLead(aba, id){
   const f = kbEstado.fichaLead;
   return kbEstado.leads.find(l => l.aba === aba && l.lead_id === id) || (f && f.aba === aba && f.lead_id === id ? f : null);
 }
-function kbAbrirClassificar(aba, id, grupo){
-  const l = kbAcharLead(aba, id);
-  if(!l) return;
-  kbEstado.classAlvo = { aba, id };
-  const sel = document.getElementById('kbClassStatus');
-  const ops = kbOpcoesDoGrupo(kbEstado.opcoes, grupo);
-  const rotulo = { andamento: 'Em andamento', convertido: 'Convertido', perdido: 'Perdido' };
-  sel.innerHTML = '<option value="">Escolha…</option>' + ['andamento', 'convertido', 'perdido'].map(g => {
-    const doG = ops.filter(o => o.grupo === g);
-    return doG.length ? `<optgroup label="${rotulo[g]}">${doG.map(o => `<option value="${escapeHtml(o.status)}">${escapeHtml(o.status)}</option>`).join('')}</optgroup>` : '';
-  }).join('');
-  sel.value = l.status && ops.some(o => o.status === l.status) ? l.status : '';
-  // §120: as tabulações viram botões por grupo (um clique escolhe); o select fica escondido como fonte do valor
-  const bonito = (t) => { const x = String(t || '').toLowerCase().replace(/\b(cnpj|cpf|neo|mei|pj|pf)\b/g, m => m.toUpperCase()).replace(/\bclaro\b/g, 'Claro'); return x.charAt(0).toUpperCase() + x.slice(1); };
-  document.getElementById('kbClassGrupos').innerHTML = ['andamento', 'convertido', 'perdido'].map(g => {
-    const doG = ops.filter(o => o.grupo === g);
-    return doG.length ? `<div class="kbClassGrupo kbG-${g}"><span class="kbClassRotulo">${rotulo[g]}</span><div class="kbStatusChips">${doG.map(o => `<button type="button" class="kbStatusChip kbSt" data-st="${escapeHtml(kbStSlug(o.status))}" data-kb-status="${escapeHtml(o.status)}">${escapeHtml(bonito(o.status))}</button>`).join('')}</div></div>` : '';
-  }).join('');
-  document.getElementById('kbClassTitulo').textContent = l.nome || '(sem nome)';
-  document.getElementById('kbClassSub').textContent = [l.status ? 'Agora: ' + bonito(l.status) : 'Sem status', [l.cidade, l.uf].filter(Boolean).join('/')].filter(Boolean).join(' · ');
-  document.getElementById('kbClassObs').value = l.obs || '';
-  document.getElementById('kbClassConverteu').checked = !!(l.converteu || l.venda_neo);
-  document.getElementById('kbClassReceita').value = l.receita ? String(l.receita).replace('.', ',') : (l.receita_neo ? String(l.receita_neo).replace('.', ',') : '');
-  document.getElementById('kbClassNeo').textContent = l.venda_neo ? 'O NEO tem venda neste CNPJ — conferido e pré-preenchido.' : '';
-  document.getElementById('kbClassRetorno').value = l.retorno_em || '';
-  document.getElementById('kbClassErro').textContent = '';
-  kbClassAjustar();
-  document.getElementById('kbClassOverlay').classList.add('active');   // fecharOverlay tira a classe (revisão final)
-}
+// §126: Classificar = abrir a ficha. O grupo da coluna de destino (arrastar) fica em destaque; nada é salvo sozinho.
+function kbAbrirClassificar(aba, id, grupo){ return kbAbrirFicha(aba, id, { grupo: grupo || null }); }
 function kbClassAjustar(){
-  const st = document.getElementById('kbClassStatus').value;
-  const op = kbEstado.opcoes.find(o => o.status === st);
-  document.getElementById('kbClassVenda').style.display = op && op.grupo === 'convertido' ? '' : 'none';
-  document.getElementById('kbClassRetornoBox').style.display = st === 'AGENDADO RETORNO' ? '' : 'none';
-  document.querySelectorAll('#kbClassGrupos [data-kb-status]').forEach(b => b.classList.toggle('ativo', b.dataset.kbStatus === st));
+  const sel = kbFichaEl('kbClassStatus');
+  if(!sel) return;
+  const st = sel.value, op = kbEstado.opcoes.find(o => o.status === st);
+  kbFichaEl('kbClassVenda').style.display = op && op.grupo === 'convertido' ? '' : 'none';
+  kbFichaEl('kbClassRetornoBox').style.display = st === 'AGENDADO RETORNO' ? '' : 'none';
+  kbFichaNo().querySelectorAll('#kbClassGrupos [data-kb-status]').forEach(b => b.classList.toggle('ativo', b.dataset.kbStatus === st));
 }
-document.getElementById('kbClassGrupos').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-kb-status]'); if(!b) return;
-  const sel = document.getElementById('kbClassStatus');
-  sel.value = b.dataset.kbStatus; sel.dispatchEvent(new Event('change'));
-  if(b.dataset.kbStatus === 'AGENDADO RETORNO' && !document.getElementById('kbClassRetorno').value) document.getElementById('kbClassRetorno').value = somaDiasStr(hojeSP(), 1);
-});
-document.getElementById('kbClassRetornoBox').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-kb-ret-dias]'); if(b) document.getElementById('kbClassRetorno').value = somaDiasStr(hojeSP(), Number(b.dataset.kbRetDias));
-});
-document.getElementById('kbClassFechar').addEventListener('click', () => fecharOverlay(document.getElementById('kbClassOverlay')));
-document.getElementById('kbClassOverlay').addEventListener('keydown', (e) => { if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); kbSalvarClassificacao(); } });
-async function kbSalvarClassificacao(){
-  const alvo = kbEstado.classAlvo;
-  if(!alvo) return;
-  const status = document.getElementById('kbClassStatus').value;
+function kbClassEscolher(st){
+  const sel = kbFichaEl('kbClassStatus');
+  if(!sel) return;
+  sel.value = st;
+  if(st === 'AGENDADO RETORNO' && !kbFichaEl('kbClassRetorno').value){
+    const a = kbAtalhosRetorno(Date.now()).find(x => x.rotulo === 'Amanhã 10h');
+    kbFichaEl('kbClassRetorno').value = a.data; kbFichaEl('kbClassHora').value = a.hora;
+    kbFichaNo().querySelectorAll('[data-kb-ret-data]').forEach(b => b.classList.toggle('ativo', b.dataset.kbRetData === a.data && b.dataset.kbRetHora === a.hora));
+  }
+  kbFichaEl('kbClassErro').textContent = '';
+  kbClassAjustar();
+}
+// Ficha "suja" = OBS digitada ou status escolhido e ainda não salvo (spec 3.1: a recarga não pode apagar isso).
+function kbFichaSuja(){
+  const obs = kbFichaEl('kbClassObs'), sel = kbFichaEl('kbClassStatus'), f = kbEstado.fichaLead;
+  if(!obs || !sel) return false;
+  const atual = f && f.status && [...sel.options].some(o => o.value === f.status) ? f.status : '';
+  return !!obs.value.trim() || sel.value !== atual;
+}
+function kbFichaTrocarAba(nome){
+  const no = kbFichaNo();
+  no.querySelectorAll('.kbFichaAbas [data-kb-ficha-aba]').forEach(b => b.classList.toggle('active', b.dataset.kbFichaAba === nome));
+  no.querySelectorAll('[data-kb-ficha-pane]').forEach(p => { p.hidden = p.dataset.kbFichaPane !== nome; });
+}
+function kbFichaMover(d){
+  const lista = kbEstado.fichaLista || [], alvo = kbEstado.fichaAlvo;
+  if(!alvo || !lista.length) return;
+  if(kbFichaSuja()){ mostrarAviso('Salve ou apague o que digitou antes de trocar de lead.', 'info'); return; }
+  const prox = lista[lista.indexOf(alvo.aba + '|' + alvo.id) + d];
+  if(!prox) return;
+  if(typeof kbHojeSelecionar === 'function' && kbEstado.aba === 'hoje' && kbFichaNo().classList.contains('noPainel')){ kbHojeSelecionar(prox); return; }
+  const [aba, id] = prox.split('|');
+  kbAbrirFicha(aba, id);
+}
+// Ponto de extensão: a Hoje (Task 4) troca por "ir para o próximo da fila". Aqui: recarrega e reabre o mesmo lead.
+async function kbDepoisDeSalvar(alvo){ await kbCarregar(); await kbAbrirFicha(alvo.aba, alvo.id); }
+async function kbSalvarClassificacao(opc){
+  const alvo = kbEstado.fichaAlvo, el = kbFichaEl;
+  if(!alvo || !el('kbClassStatus') || kbEstado.salvando) return false;
+  const l = kbEstado.fichaLead || kbAcharLead(alvo.aba, alvo.id) || {};
+  const status = el('kbClassStatus').value;
   const op = kbEstado.opcoes.find(o => o.status === status);
   const venda = !!op && op.grupo === 'convertido';
-  const form = { status, grupo: op ? op.grupo : null, receita: venda ? document.getElementById('kbClassReceita').value : '', retorno: document.getElementById('kbClassRetorno').value };
+  const form = { status, grupo: op ? op.grupo : null, receita: venda ? el('kbClassReceita').value : '', retorno: el('kbClassRetorno').value };
   const erro = kbValidar(form, hojeSP());
-  document.getElementById('kbClassErro').textContent = erro;
-  if(erro) return;
-  const r = await ppSeguro(() => sb.rpc('leads_classificar', {
-    p_aba: alvo.aba, p_id: alvo.id, p_status: status, p_obs: document.getElementById('kbClassObs').value,
-    p_converteu: venda && document.getElementById('kbClassConverteu').checked, p_receita: venda ? kbNumeroBR(form.receita) : null,
-    p_retorno: status === 'AGENDADO RETORNO' ? form.retorno : null,
-  }));
-  if(!r || r.error){ document.getElementById('kbClassErro').textContent = 'Não foi possível salvar agora. Tente de novo.'; return; }
-  // §118: o banco já criou o retorno às 10:00; aqui vale a hora escolhida
-  if(status === 'AGENDADO RETORNO'){
-    const ag = await ppSeguro(() => sb.rpc('leads_agendar_retorno', { p_aba: alvo.aba, p_id: alvo.id, p_quando: kbQuandoSP(form.retorno, document.getElementById('kbClassHora').value) }));
-    if(!ag || ag.error) mostrarAviso('Lead classificado, mas a hora do retorno ficou 10:00 (não foi possível ajustar).', 'info');
-  }
-  fecharOverlay(document.getElementById('kbClassOverlay'));
-  kbEstado.classAlvo = null;
-  mostrarAviso('Lead classificado.', 'ok');
-  agAvisarMudou();   // o alarme da Agenda recarrega na hora (retorno fechado ou com hora nova)
-  await kbCarregar();
-  kbCarregarAlertas(false);
-}
-async function kbRetornoRapido(aba, leadId, dias){
-  const data = somaDiasStr(hojeSP(), dias || 1);
-  const r = await ppSeguro(() => sb.rpc('leads_agendar_retorno', { p_aba: aba, p_id: leadId, p_quando: kbQuandoSP(data, '10:00') }));
-  if(!r || r.error){ mostrarAviso('Não foi possível agendar o retorno: ' + ((r && r.error && r.error.message) || 'tente de novo'), 'erro'); return; }
-  const { error } = await sb.from('leads_followups').insert({ lead_id: leadId, consultor_id: currentUser.id, data_prevista: data, tipo: 'retorno', observacao: null });
-  if(error) console.error(error);   // a Agenda já tem o retorno; o follow-up antigo é só registro
-  agAvisarMudou();
-  mostrarAviso('Retorno agendado para ' + ppFmtDia(data) + ' às 10:00, na Agenda.', 'ok');
+  el('kbClassErro').textContent = erro;
+  if(erro) return false;
+  kbEstado.salvando = true;
+  try {
+    const hora = el('kbClassHora').value;
+    const r = await ppSeguro(() => sb.rpc('leads_classificar', {
+      p_aba: alvo.aba, p_id: alvo.id, p_status: status, p_obs: kbObsParaSalvar(el('kbClassObs').value, l.obs),
+      p_converteu: venda && el('kbClassConverteu').checked, p_receita: venda ? kbNumeroBR(form.receita) : null,
+      p_retorno: status === 'AGENDADO RETORNO' ? form.retorno : null,
+    }));
+    if(!r || r.error){ el('kbClassErro').textContent = 'Não foi possível salvar agora. Tente de novo.'; return false; }
+    // §118: o banco já criou o retorno às 10:00; aqui vale a hora escolhida
+    if(status === 'AGENDADO RETORNO'){
+      const ag = await ppSeguro(() => sb.rpc('leads_agendar_retorno', { p_aba: alvo.aba, p_id: alvo.id, p_quando: kbQuandoSP(form.retorno, hora) }));
+      if(!ag || ag.error) mostrarAviso('Lead classificado, mas a hora do retorno ficou 10:00 (não foi possível ajustar).', 'info');
+    }
+    mostrarAviso(`Salvo. ${l.nome || 'Lead'} → ${kbStTexto(status)}${status === 'AGENDADO RETORNO' ? `, ${ppFmtDia(form.retorno)} às ${hora}` : ''}. A planilha atualiza em segundos.`, 'ok');
+    agAvisarMudou();   // o alarme da Agenda recarrega na hora (retorno fechado ou com hora nova)
+    await kbDepoisDeSalvar(alvo, opc || {});
+    kbCarregarAlertas(false);
+    return true;
+  } finally { kbEstado.salvando = false; }
 }
 // A cada 10 s pergunta só a versão (barata); recarrega o Kanban inteiro só quando ela muda (§112, pedido de 26/10).
 async function kbVerificarVersao(){
@@ -4032,13 +4085,15 @@ document.getElementById('kbBoard').addEventListener('click', (e) => {
   if(e.target.closest('[data-kb-pegar]')) kbPegar(aba, id);
   else if(e.target.closest('[data-kb-classificar]')) kbAbrirClassificar(aba, id, null);
   else if(e.target.closest('[data-kb-redistribuir]')) kbAbrirRedistribuir(aba, id);
-  else if(e.target.closest('[data-kb-retorno]')) kbRetornoRapido(aba, id, Number(e.target.closest('[data-kb-retorno]').dataset.kbRetorno));
   else if(e.target.closest('[data-kb-contato]')){
     if(e.target.closest('[data-kb-whats]')){ e.preventDefault(); kbAbrirWhats(kbAcharLead(aba, id), card.dataset.col); }
     if(e.target.closest('[data-kb-ligar]')){ e.preventDefault(); const l = kbAcharLead(aba, id); if(l) kbLigar(l.telefone); }
     ppSeguro(() => sb.rpc('registrar_contato_lead', { p_aba: aba, p_lead_id: id, p_canal: e.target.closest('[data-kb-contato]').dataset.kbContato }));
   }
-  else if(!e.target.closest('a,button')) kbAbrirFicha(aba, id);   // clique no cartão abre a ficha
+  else if(!e.target.closest('a,button')){   // clique no cartão abre a ficha; ↑ ↓ andam pela coluna
+    const lista = card.closest('.kbColLista');
+    kbAbrirFicha(aba, id, { lista: lista ? [...lista.querySelectorAll('.kbCard')].map(c => c.dataset.aba + '|' + c.dataset.id) : null });
+  }
 });
 // Arraste (ajuste 26/10): durante o arraste as colunas que aceitam o cartão acendem e as outras apagam.
 function kbLimparArraste(){
@@ -4081,18 +4136,31 @@ document.getElementById('kbBoard').addEventListener('drop', (e) => {
 // A ficha pode estar na janela flutuante (§120): sempre achar os elementos dentro do próprio nó da ficha
 function kbFichaNo(){ return kbEstado.fichaNo || (kbEstado.fichaNo = document.getElementById('kbFicha')); }
 function kbFichaEl(id){ const no = kbFichaNo(); return no ? no.querySelector('#' + id) : null; }
-async function kbAbrirFicha(aba, id){
+async function kbAbrirFicha(aba, id, opc){
+  const o = opc || {};
   kbEstado.fichaAlvo = { aba, id };
-  const el = kbFichaNo(), corpo = kbFichaEl('kbFichaCorpo');
+  if('lista' in o) kbEstado.fichaLista = o.lista || null;
+  if(typeof kbFichaLugar === 'function') kbFichaLugar();
+  const el = kbFichaNo(), corpo = kbFichaEl('kbFichaCorpo'), vazio = document.getElementById('kbHojeVazio');
+  el.hidden = false;
+  if(vazio && el.classList.contains('noPainel')) vazio.hidden = true;   // na Hoje, a ficha toma o lugar do "Tudo em dia"
   corpo.innerHTML = '<p class="kbMeta" style="padding:var(--space-5)">Carregando…</p>';
   el.classList.add('aberta');
   const r = await ppSeguro(() => sb.rpc('leads_ficha', { p_aba: aba, p_id: id }));
   if(!kbEstado.fichaAlvo || kbEstado.fichaAlvo.id !== id) return;
   const f = r && !r.error && Array.isArray(r.data) ? r.data[0] : null;
   kbEstado.fichaLead = f;
-  corpo.innerHTML = f ? kbFichaHtml(f, { gestor: kbGestor(), agoraMs: Date.now(), flutuando: !!kbEstado.fichaJanela, podePegar: kbGestor() || kbPodePegar() })
-    : '<button type="button" class="kbFichaFechar" data-kb-ficha-fechar aria-label="Fechar">×</button><p class="kbMeta" style="padding:var(--space-5)">Não foi possível abrir a ficha agora.</p>';
-  if(f) await kbCarregarDetalhes(aba, id);
+  const lista = kbEstado.fichaLista || [], chave = aba + '|' + id;
+  const ret = ((kbEstado.hoje || {}).retornos || []).find(x => x.aba === aba && x.lead_id === id) || null;
+  corpo.innerHTML = f ? kbFichaHtml(f, { gestor: kbGestor(), agoraMs: Date.now(), flutuando: !!kbEstado.fichaJanela, podePegar: kbGestor() || kbPodePegar(),
+      opcoes: kbEstado.opcoes, grupo: o.grupo || null, naHoje: kbEstado.aba === 'hoje' && el.classList.contains('noPainel'),
+      pos: lista.indexOf(chave) + 1, total: lista.includes(chave) ? lista.length : 0, retorno: ret })
+    : `<div class="kbFichaRolagem"><div class="kbFichaBarra"><span class="kbFichaPos"></span><button type="button" class="kbBtn kbBtnG kbBtnIco" data-kb-ficha-fechar aria-label="Fechar">${KB_ICO.fechar}</button></div><p class="kbMeta">Não foi possível abrir a ficha agora.</p></div>`;
+  if(!f) return;
+  const sel = kbFichaEl('kbClassStatus');
+  if(sel) sel.addEventListener('change', kbClassAjustar);
+  if(o.grupo){ const g = kbFichaNo().querySelector(`[data-kb-grupo="${o.grupo}"]`); if(g && g.scrollIntoView) g.scrollIntoView({ block: 'center' }); }
+  await kbCarregarDetalhes(aba, id);
 }
 function kbFecharFicha(){
   if(kbEstado.fichaJanela){ try { kbEstado.fichaJanela.close(); } catch(_e) {} kbRecolherFicha(); return; }
@@ -4137,25 +4205,43 @@ kbFichaNo().addEventListener('click', async (e) => {
   if(e.target.closest('[data-kb-ficha-fechar]')){ kbFecharFicha(); return; }
   if(e.target.closest('[data-kb-ficha-flutuar]')){ kbFlutuarFicha(); return; }
   if(!alvo) return;
+  const aba = e.target.closest('[data-kb-ficha-aba]');
+  if(aba){ kbFichaTrocarAba(aba.dataset.kbFichaAba); return; }
+  const mv = e.target.closest('[data-kb-ficha-mover]');
+  if(mv){ kbFichaMover(Number(mv.dataset.kbFichaMover)); return; }
+  const ch = e.target.closest('[data-kb-status]');
+  if(ch){ kbClassEscolher(ch.dataset.kbStatus); return; }
+  const at = e.target.closest('[data-kb-ret-data]');
+  if(at){ kbFichaEl('kbClassRetorno').value = at.dataset.kbRetData; kbFichaEl('kbClassHora').value = at.dataset.kbRetHora; kbFichaNo().querySelectorAll('[data-kb-ret-data]').forEach(b => b.classList.toggle('ativo', b === at)); return; }
+  const sv = e.target.closest('[data-kb-salvar]');
+  if(sv){ kbSalvarClassificacao({ proximo: sv.dataset.kbSalvar === 'prox' }); return; }
   const cp = e.target.closest('[data-kb-ficha-copiar]');
   if(cp){ try { await (kbFichaNo().ownerDocument.defaultView || window).navigator.clipboard.writeText(cp.dataset.kbFichaCopiar); mostrarAviso('Copiado.', 'ok'); } catch(_) { mostrarAviso('Não foi possível copiar.', 'erro'); } return; }
   const caixa = kbFichaNo().querySelector('[data-kb-apagar-box]');
   if(e.target.closest('[data-kb-ficha-apagar]')){ if(caixa){ caixa.hidden = false; const i = caixa.querySelector('input'); if(i) i.focus(); } return; }
   if(e.target.closest('[data-kb-apagar-cancelar]')){ if(caixa) caixa.hidden = true; return; }
   if(e.target.closest('[data-kb-apagar-confirmar]')){ kbApagarLead(alvo.aba, alvo.id, caixa ? caixa.querySelector('input').value : ''); return; }
-  if(e.target.closest('[data-kb-ficha-pegar]')){ await kbPegar(alvo.aba, alvo.id); kbAbrirFicha(alvo.aba, alvo.id); return; }
-  if(e.target.closest('[data-kb-ficha-classificar]')){ kbFecharFicha(); kbAbrirClassificar(alvo.aba, alvo.id, null); return; }
-  if(e.target.closest('[data-kb-ficha-redistribuir]')){ kbFecharFicha(); kbAbrirRedistribuir(alvo.aba, alvo.id); return; }
-  const rt = e.target.closest('[data-kb-ficha-retorno]');
-  if(rt){ kbRetornoRapido(alvo.aba, alvo.id, Number(rt.dataset.kbFichaRetorno)); return; }
+  if(e.target.closest('[data-kb-ficha-pegar]')){ const ok = await kbPegar(alvo.aba, alvo.id); if(ok !== false) await kbDepoisDePegar(alvo); return; }
+  if(e.target.closest('[data-kb-ficha-redistribuir]')){ if(!kbFichaNo().classList.contains('noPainel')) kbFecharFicha(); kbAbrirRedistribuir(alvo.aba, alvo.id); return; }
   const ct = e.target.closest('[data-kb-contato]');
   if(ct && ct.hasAttribute('data-kb-ligar')){ e.preventDefault(); if(kbEstado.fichaLead) kbLigar(kbEstado.fichaLead.telefone); }
   if(ct) ppSeguro(() => sb.rpc('registrar_contato_lead', { p_aba: alvo.aba, p_lead_id: alvo.id, p_canal: ct.dataset.kbContato }));
 });
-document.addEventListener('keydown', (e) => { if(e.key === 'Escape' && kbEstado.fichaAlvo) kbFecharFicha(); });
-document.getElementById('kbClassStatus').addEventListener('change', kbClassAjustar);
-document.getElementById('kbClassSalvar').addEventListener('click', kbSalvarClassificacao);
-document.getElementById('kbClassCancelar').addEventListener('click', () => fecharOverlay(document.getElementById('kbClassOverlay')));
+kbFichaNo().addEventListener('keydown', (e) => {
+  if(e.key === 'Enter' && (e.ctrlKey || e.metaKey) && kbFichaEl('kbClassStatus')){ e.preventDefault(); kbSalvarClassificacao({ proximo: kbFichaNo().classList.contains('noPainel') }); }
+});
+// Ponto de extensão: a Hoje (Task 4) leva o lead pego para a fila.
+async function kbDepoisDePegar(alvo){ mostrarAviso('Lead pego. Ligue agora.', 'ok'); await kbAbrirFicha(alvo.aba, alvo.id); }
+document.addEventListener('keydown', (e) => {
+  if(e.key === 'Escape' && kbEstado.fichaAlvo && !kbFichaNo().classList.contains('noPainel')){ kbFecharFicha(); return; }
+  if(e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+  const a = document.activeElement;
+  if(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
+  const p = document.getElementById('panel-meusleads');
+  if(!p || !p.classList.contains('active') || !kbEstado.fichaAlvo) return;
+  e.preventDefault();
+  kbFichaMover(e.key === 'ArrowDown' ? 1 : -1);
+});
 // ===== §118: abas, Hoje, Equipe, pesquisa, detalhes da ficha, alertas =====
 kbEstado.aba = null; kbEstado.excecoes = {}; kbEstado.notificados = new Set(); kbEstado.alertas = []; kbEstado.hoje = null; kbEstado.equipe = [];
 kbEstado.filtros = kbLerFiltros();
@@ -4368,17 +4454,18 @@ async function kbCarregarAlertas(notificar){
   if(kbEstado.aba === 'hoje' && document.getElementById('kbHoje').innerHTML) kbRenderHoje();
 }
 async function kbCarregarDetalhes(aba, id){
-  const el = kbFichaEl('kbFichaDetalhes');
-  if(!el) return;
   const r = await ppSeguro(() => sb.rpc('leads_ficha_detalhes', { p_aba: aba, p_id: id }));
   if(!kbEstado.fichaAlvo || kbEstado.fichaAlvo.id !== id) return;
   const d = r && !r.error ? r.data : null;
-  if(!d){ el.innerHTML = ''; return; }
+  if(!d) return;
   kbEstado.fichaEventos = d.eventos || [];
-  const an = d.anuncio || {};
+  const an = d.anuncio || {}, ev = kbEstado.fichaEventos;
   const linhaAn = (rot, v) => `<div class="kbFichaLinha"><span>${rot}</span><strong>${escapeHtml(v == null || v === '' ? '—' : String(v))}</strong><i></i></div>`;
-  el.innerHTML = `<div class="kbFichaSecao"><h5>Contato e histórico</h5>${d.resumo ? `<p class="kbResumoContato">${escapeHtml(kbResumoContatoTexto(d.resumo, Date.now()))}</p>` : ''}<div id="kbLinhaTempo">${kbLinhaTempoHtml(kbEstado.fichaEventos, 30)}</div></div>
-    <div class="kbFichaSecao"><h5>Detalhes do anúncio</h5>${linhaAn('Campanha', an.campanha)}${linhaAn('Conjunto', an.conjunto)}${linhaAn('Anúncio', an.anuncio)}${linhaAn('Formulário', an.formulario)}${linhaAn('Plataforma', an.plataforma)}${linhaAn('Orgânico', an.organico ? 'sim' : 'não')}</div>`;
+  const por = (idEl, html) => { const el = kbFichaEl(idEl); if(el) el.innerHTML = html; };
+  por('kbFichaResumo', d.resumo ? escapeHtml(kbResumoContatoTexto(d.resumo, Date.now())) : '');
+  por('kbLinhaTempo', kbLinhaTempoHtml(ev, 30));
+  por('kbFichaUltimos', ev.length ? `<h4>Últimos contatos</h4>${kbLinhaTempoHtml(ev.slice(0, 4), 4)}${ev.length > 4 ? `<button type="button" class="kbLink" data-kb-ficha-aba="historico">Ver histórico completo (${ev.length})</button>` : ''}` : '');
+  por('kbFichaAnuncio', linhaAn('Campanha', an.campanha) + linhaAn('Conjunto', an.conjunto) + linhaAn('Anúncio', an.anuncio) + linhaAn('Formulário', an.formulario) + linhaAn('Plataforma', an.plataforma) + linhaAn('Orgânico', an.organico ? 'sim' : 'não'));
 }
 let kbBuscaTimer = null, kbBuscaGeracao = 0;
 async function kbBuscar(texto){
@@ -4419,7 +4506,12 @@ document.getElementById('panel-meusleads').addEventListener('click', (e) => {
   if(e.target.closest('#kbHoje [data-kb-cartao-mais]')){ kbEstado.cartaoMax = (kbEstado.cartaoMax || 20) + 20; kbRenderHoje(); return; }
   if(e.target.closest('[data-kb-ver-alertas]')){ kbEstado.alertasAbertos = !kbEstado.alertasAbertos; kbRenderHoje(); return; }
   const ab = e.target.closest('[data-kb-abrir]');
-  if(ab){ const [aba, id] = ab.dataset.kbAbrir.split('|'); document.getElementById('kbBuscaRes').style.display = 'none'; kbAbrirFicha(aba, id); return; }
+  if(ab){
+    const [aba, id] = ab.dataset.kbAbrir.split('|'), tabela = ab.closest('#kbTodosTabela');
+    document.getElementById('kbBuscaRes').style.display = 'none';
+    kbAbrirFicha(aba, id, { lista: tabela ? [...tabela.querySelectorAll('tr[data-kb-abrir]')].map(t => t.dataset.kbAbrir) : null });
+    return;
+  }
   if(e.target.closest('[data-kb-proximo]')){ kbProximo(); return; }
   if(e.target.closest('[data-kb-pegar-proximo]')){ kbPegarProximoLivre(); return; }
   const tr = e.target.closest('#kbEquipe tr[data-kb-dono]');

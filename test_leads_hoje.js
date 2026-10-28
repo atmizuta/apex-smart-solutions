@@ -108,7 +108,7 @@ try{
   await espera(60);
   assert(window.__rpcCalls.some(c => c.nome === 'leads_ficha' && c.args.p_id === 'h1'), 'Próximo lead abre a ficha do primeiro da fila');
   assert(kbEstado.excecoes['OUTUBRO|h1'] > 0, 'lead aberto entra na exceção de 2 min');
-  assert(document.getElementById('kbFichaDetalhes').textContent.includes('2 tentativas') && document.getElementById('kbFichaDetalhes').textContent.includes('Zz Conj'), 'ficha mostra resumo, linha do tempo e anúncio');
+  assert(document.getElementById('kbFichaResumo').textContent.includes('2 tentativas') && document.getElementById('kbFichaAnuncio').textContent.includes('Zz Conj'), 'ficha mostra resumo e anúncio');
   kbFecharFicha();
   // notificação uma vez por lead
   await kbCarregarAlertas(true); await kbCarregarAlertas(true);
@@ -127,7 +127,7 @@ try{
   window.__rpcRespostas.leads_classificar = { data: null, error: null };
   window.__rpcRespostas.leads_agendar_retorno = { data: null, error: null };
   kbEstado.leads = [{ aba: 'OUTUBRO', lead_id: 'h1', nome: 'Zz Hoje Um', categoria: 'sem_contato' }];
-  kbAbrirClassificar('OUTUBRO', 'h1', null);
+  await kbAbrirClassificar('OUTUBRO', 'h1', null);
   document.getElementById('kbClassStatus').value = 'AGENDADO RETORNO';
   document.getElementById('kbClassStatus').dispatchEvent(new window.Event('change'));
   assert(document.getElementById('kbClassRetornoBox').style.display !== 'none', 'AGENDADO RETORNO mostra data e hora');
@@ -136,10 +136,6 @@ try{
   await kbSalvarClassificacao();
   const ag = window.__rpcCalls.filter(c => c.nome === 'leads_agendar_retorno').pop();
   eq(ag && ag.args.p_quando, '2099-01-02T14:30:00-03:00', 'retorno com data e hora vai para a Agenda');
-  // retorno rápido da ficha também vai para a Agenda (10:00)
-  await kbRetornoRapido('OUTUBRO', 'h1', 1);
-  const rr2 = window.__rpcCalls.filter(c => c.nome === 'leads_agendar_retorno').pop();
-  assert(rr2 && rr2.args.p_aba === 'OUTUBRO' && rr2.args.p_id === 'h1' && /T10:00:00-03:00$/.test(rr2.args.p_quando), 'retorno rápido agenda às 10:00');
   // gestor: Equipe com semáforo; clicar na linha filtra o Quadro
   currentUser = { id: 'u-sup', nome: 'Zzksup Teste', role: 'supervisor', operacao: 'apex' };
   window.__rpcRespostas.leads_equipe_resumo = { data: [{ dono_id: 'u-zz', nome: 'Zzkcon Teste', em_aberto: 5, sem_contato: 1, retornos_vencidos: 0, parados: 0, perdas_suspeitas: 0, pegos_mes: 20, convertidos_mes: 5, receita_mes: 899.9, tempo_medio_1o_contato_min: 4.5 }], error: null };
@@ -171,10 +167,10 @@ try{
   assert(kbEstado.timerAlertas, 'timer de alertas começa no login de quem vê a aba');
   // Important 1: classificar/agendar/redistribuir avisam a Agenda (o alarme recarrega na hora)
   let mudou = 0; document.addEventListener('agenda:mudou', () => mudou++);
-  await kbRetornoRapido('OUTUBRO', 'h1', 1);
   kbEstado.leads = [{ aba: 'OUTUBRO', lead_id: 'h1', nome: 'Zz Hoje Um', categoria: 'andamento', status: 'EM NEGOCIAÇÂO' }];
   kbEstado.opcoes = [{ status: 'CNPJ INAPTO', grupo: 'perdido', ordem: 24 }];
-  kbAbrirClassificar('OUTUBRO', 'h1', null);
+  window.__rpcRespostas.leads_ficha = { data: [{ aba: 'OUTUBRO', lead_id: 'h1', nome: 'Zz Hoje Um', livre: false, categoria: 'andamento', status: 'EM NEGOCIAÇÂO', telefone: '11900000001' }], error: null };
+  await kbAbrirClassificar('OUTUBRO', 'h1', null);
   document.getElementById('kbClassStatus').value = 'CNPJ INAPTO';
   await kbSalvarClassificacao();
   window.__rpcRespostas.leads_redistribuir = { data: null, error: null };
@@ -182,7 +178,7 @@ try{
   kbEstado.leads = [{ aba: 'OUTUBRO', lead_id: 'h1', nome: 'Zz Hoje Um', categoria: 'andamento', dono_id: 'u-zz' }];
   kbAbrirRedistribuir('OUTUBRO', 'h1');
   await kbSalvarRedistribuicao();
-  eq(mudou, 3, 'retorno rápido, classificar e redistribuir avisam a Agenda');
+  eq(mudou, 2, 'classificar e redistribuir avisam a Agenda');
   // Minor→Important (carga): mudança de versão no Quadro não recalcula a Equipe nem os alertas
   kbTrocarAba('equipe'); await espera(60);
   const contar = (n) => window.__rpcCalls.filter(c => c.nome === n).length;
@@ -238,20 +234,20 @@ try{
   await kbVerificarVersao();
   assert(window.__rpcCalls.some(c => c.nome === 'leads_kanban_versao_dono'), 'versão por consultor');
   // Classificar novo: chips por grupo, atalhos de data, Ctrl+Enter
-  kbAbrirClassificar('OUTUBRO', 'a1', null);
+  window.__rpcRespostas.leads_ficha = { data: [{ aba: 'OUTUBRO', lead_id: 'a1', nome: 'Zz a1', livre: false, categoria: 'andamento', status: 'EM NEGOCIAÇÂO', telefone: '11900000001' }], error: null };
+  await kbAbrirClassificar('OUTUBRO', 'a1', null);
   const chips = [...document.querySelectorAll('#kbClassGrupos [data-kb-status]')];
   eq(chips.length, 4, 'um botão por tabulação');
   document.querySelector('#kbClassGrupos [data-kb-status="AGENDADO RETORNO"]').click();
   assert(document.getElementById('kbClassStatus').value === 'AGENDADO RETORNO' && document.getElementById('kbClassRetornoBox').style.display !== 'none'
     && document.querySelector('#kbClassGrupos [data-kb-status="AGENDADO RETORNO"]').classList.contains('ativo'), 'clicar na tabulação escolhe e mostra data/hora');
-  document.querySelector('#kbClassRetornoBox [data-kb-ret-dias="1"]').click();
+  [...document.querySelectorAll('#kbClassRetornoBox [data-kb-ret-data]')].find(b => b.textContent === 'Amanhã 10h').click();
   eq(document.getElementById('kbClassRetorno').value, somaDiasStr(hojeSP(), 1), 'atalho Amanhã preenche a data');
-  assert(document.querySelector('#kbClassOverlay .mHead') && document.querySelector('#kbClassOverlay .mBody'), 'modal no padrão do painel (cabeçalho e corpo)');
-  fecharOverlay(document.getElementById('kbClassOverlay'));
-  kbAbrirClassificar('OUTUBRO', 'a1', 'perdido');
-  eq([...document.querySelectorAll('#kbClassGrupos [data-kb-status]')].map(b => b.dataset.kbStatus), ['CNPJ INAPTO'], 'arrastar para Perdido mostra só as de perda');
+  assert(document.querySelector('#kbFicha #kbClassGrupos'), 'Classificar fica dentro da ficha');
+  await kbAbrirClassificar('OUTUBRO', 'a1', 'perdido');
+  assert(document.querySelector('#kbClassGrupos [data-kb-grupo="perdido"]').classList.contains('kbDestaque'), 'arrastar para Perdido destaca as de perda');
   eq(document.querySelector('#kbClassGrupos [data-kb-status="CNPJ INAPTO"]').textContent, 'CNPJ inapto', 'sigla continua em maiúscula no botão');
-  fecharOverlay(document.getElementById('kbClassOverlay'));
+  kbFecharFicha();
   // apagar: só gestor, com confirmação
   const fz = { aba: 'OUTUBRO', lead_id: 'a1', nome: 'Zz a1', livre: false, categoria: 'andamento', status: 'EM NEGOCIAÇÂO', telefone: '11900000001' };
   assert(!kbFichaHtml(fz, { gestor: false, agoraMs: Date.now() }).includes('data-kb-ficha-apagar'), 'consultor não tem Apagar');
@@ -286,7 +282,7 @@ try{
   // §120 (correção 27/10 20h): o modal novo deixou dois </div> sobrando e as abas saíram da área principal (Dashboard aparecendo em tudo)
   const pais = new Set([...document.querySelectorAll('section.panel')].map(p => p.parentElement));
   assert(pais.size === 1, 'todas as abas (section.panel) dentro do mesmo contêiner — HTML sem </div> sobrando');
-  assert(document.getElementById('kbClassOverlay').parentElement === document.getElementById('kbRedOverlay').parentElement, 'modais de Meus leads no mesmo lugar');
+  assert(document.getElementById('kbFichaCasa').parentElement === document.getElementById('kbRedOverlay').parentElement, 'ficha e Redistribuir no mesmo lugar');
   // ==== §121: coluna "Sem ligação", última ligação e OBS no cartão, mais cartões por coluna ====
   const SL = (o) => Object.assign({ aba: 'OUTUBRO', lead_id: 'x', nome: 'Zz', livre: false, categoria: 'sem_contato', status: null }, o);
   eq([kbColunaDoLead(SL({ ligacoes: 0 })), kbColunaDoLead(SL({ ligacoes: 0, categoria: 'andamento', status: 'EM NEGOCIAÇÂO' })),
@@ -334,9 +330,9 @@ try{
   const cartaoCor = kbCard(SL({ lead_id: 'cc1', categoria: 'andamento', status: 'EM NEGOCIAÇÂO', telefone: '11900000001', ligacoes: 1, criado_em_lead: new Date().toISOString() }), Date.now());
   assert(cartaoCor.includes('class="kbSt" data-st="em-negociacao"'), 'cartão usa a cor da tabulação');
   assert(kbFichaHtml(Object.assign({}, fz, { status: 'CNPJ INAPTO' }), { gestor: false, agoraMs: Date.now() }).includes('data-st="cnpj-inapto"'), 'ficha usa a cor da tabulação');
-  kbAbrirClassificar('OUTUBRO', 'a1', null);
+  await kbAbrirClassificar('OUTUBRO', 'a1', null);
   assert(document.querySelector('#kbClassGrupos [data-kb-status="CNPJ INAPTO"]').getAttribute('data-st') === 'cnpj-inapto', 'botão do Classificar com a cor da tabulação');
-  fecharOverlay(document.getElementById('kbClassOverlay'));
+  kbFecharFicha();
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
