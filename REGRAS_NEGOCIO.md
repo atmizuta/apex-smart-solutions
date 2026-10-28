@@ -3926,3 +3926,26 @@ Pedido do Rafael depois da §120 ("assim do jeito que está está ótimo"):
   - Publicado em 28/10, 13:45, com ok do Rafael: painel MD5 `7d2d83c9…` (o do ar era `63393bca…`), backup `~/deploy_backups/painel_clientes_apex_20261028_134500_antes_semlig_andamento.html`.
 - **Publicação do telefone e das cores (27/10, 22:18, ok do Rafael):** painel MD5 `63393bca…` (o do ar era `ce4f7810…`), backup `~/deploy_backups/painel_clientes_apex_20261027_221851_antes_cores_procontact.html`.
 - **Publicação (27/10, 20:32, ok do Rafael):** painel MD5 `ce4f7810…` (o do ar era `fa6c0cef…`, a correção das 20:08), backup `~/deploy_backups/painel_clientes_apex_20261027_203220_antes_sem_ligacao.html`.
+
+## 122. Meus leads: só 4 pegam lead, Hoje em painel, Equipe com atividade, filtros, aba Todos e aviso de lead novo (28/10/2026)
+
+Pedido do Rafael (a Hoje estava "completamente confusa, só um monte de lead"). Spec `docs/superpowers/specs/2026-10-28-meus-leads-painel-hoje-design.md`, plano `docs/superpowers/plans/2026-10-28-meus-leads-painel-hoje.md`.
+- **Quem pega lead:** só **Luria, Lucas, Caio e Mariana** (coluna nova `leads_equipe.pode_pegar`).
+  - `leads_pegar` recusa os outros com "você não está liberado para pegar leads".
+  - Quem já tinha lead **fica com ele**; o supervisor **continua redistribuindo para qualquer um** (`leads_redistribuir` não mudou).
+  - No painel, quem não pega não vê a coluna Livres, o botão Pegar, o arrastar para pegar nem o "Pegar o próximo livre"; a ficha de um Livre achado pela pesquisa avisa que a pessoa não está liberada. O gestor continua vendo os Livres.
+- **Hoje** (consultor; o gestor vê a da equipe ou a do consultor escolhido):
+  - **Cartões por etapa**, só com o número: Sem contato, Em andamento, Retornos de hoje, Retornos atrasados, Convertidos no mês (com a receita). O clique abre logo abaixo a lista só daquela etapa (20, com "Ver mais"); clicar de novo fecha.
+  - **Faça agora:** até 5 leads, na ordem retorno atrasado → retorno de hoje → pego e nunca ligado → mais dias parado.
+  - **Seu dia:** ligações hoje (com a meta, de `meu_placar_ligacoes`), classificações hoje e retornos cumpridos (`leads_hoje.placar`: retorno marcado para hoje que foi feito, teve ligação ou classificação hoje).
+  - A lista de alertas virou a linha "N alertas · ver", fechada por padrão.
+- **Equipe** (supervisor): uma linha por consultor da `leads_equipe` com
+  - **Atividade:** "ligou há X min · N hoje" e "OBS há X min · N hoje" (função nova `leads_atividade_equipe`; ligações pelo usuário de telefonia, como a `mesa_ligacoes_hoje`; OBS = classificação que mudou a OBS para um texto não vazio). Sem usuário de telefonia (Gabriel, Vitoria) aparece "sem usuário de telefonia".
+  - **Semáforo:** sem ligar nem escrever OBS há 30 min = amarelo, 1 h = vermelho, contando só das **13h às 21h, segunda a sexta** (antes das 13h a conta começa às 13h); fora disso fica cinza. As ligações chegam do ProContact de hora em hora, então podem estar até 1 h atrasadas.
+  - Sem contato, Andamento, Parados 3+ dias, Retornos atrasados, Convertidos no mês, Conversão e Receita, contados no painel pela mesma regra dos cartões da Hoje. Cada número abre a lista daquele consultor; clicar no resto da linha abre o Quadro dele, como antes.
+- **Filtros** no Quadro e na aba Todos (somam entre si, contagem em cada opção, "Limpar", guardados no navegador): Parado há (hoje, 1–2, 3–4, 5+ dias corridos desde a última ligação, classificação ou pego), Nunca ligado, Retorno (atrasado, hoje, esta semana até domingo), Linhas, Tipo de empresa, Cidade, Campanha, Formulário e Mês. Parado, ligação e retorno não se aplicam aos Livres.
+- **Aba Todos:** tabela com todos os leads do consultor, de todas as etapas e meses (o gestor vê os da equipe, com o seletor de consultor), busca por nome (ou telefone/CNPJ só com dígitos), ordenação no cabeçalho e 50 por página. Usa `leads_kanban3(p_dono, p_todos => true)`.
+- **Lead novo:** os 4 que pegam recebem som, aviso e notificação do Windows quando entra um lead livre (alerta `lead_novo` em `leads_alertas`, lead de até 2 h). Ao abrir o painel, os que já estavam lá não apitam; o título da aba ganha "[N novos]" antes do "(n)" dos retornos da Agenda. Chega em até 10 s com o painel à vista e em até 2 min minimizado; com o painel fechado, não chega.
+- **Copiar telefone** na ficha copia a partir do DDD (`p:+5511999998888` → `11999998888`).
+- **Banco:** migrations `20261028100000_leads_pode_pegar.sql` (coluna, trava, `placar`, `lead_novo`) e `20261028100100_leads_kanban3_atividade.sql` (`leads_kanban3` = `leads_kanban2` + `campanha`, `formulario` e o modo Todos; `leads_atividade_equipe`). `leads_kanban2` e `leads_equipe_resumo` ficam no banco para abas abertas com o painel antigo. Verificação `supabase/tests/leads_painel_hoje_check.sql` (ROLLBACK).
+- **Testes:** `test_leads_painel_hoje.js` (novo), `test_leads_hoje.js` e `test_leads_kanban.js` ajustados.
