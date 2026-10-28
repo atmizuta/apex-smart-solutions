@@ -3912,4 +3912,10 @@ Pedido do Rafael depois da §120 ("assim do jeito que está está ótimo"):
   - migration `20261027203000_leads_kanban2_ligacoes.sql`;
   - verificação `supabase/tests/leads_kanban2_check.sql` (ROLLBACK, CHECK OK);
   - testes `test_leads_hoje.js` (88) e `test_leads_kanban.js` (78; respostas agora pela `leads_kanban2`).
+- **Telefone (pedido 20:35):** o ícone do cartão e o "Ligar" da ficha **copiam o número** (só dígitos, sem 55) e **abrem a aba do ProContact** (`https://eaglesales.procontact.com.br/`, aba nomeada `procontactApex`).
+  - Se o painel já abriu essa aba, ela só vem para frente, sem recarregar (não derruba ligação em andamento).
+  - O `tel:` saiu, porque abria o ProContact como janela de aplicativo. Não há link conhecido do ProContact que já disque sozinho.
+- **Cores das tabulações (pedido 20:40):** os chips de status no cartão, na ficha e nos botões do Classificar usam as **cores do menu de STATUS da planilha**, tiradas dos prints do Rafael (a API do Google não expõe a cor dos chips do menu suspenso).
+  - Tokens `--kb-st-bg/--kb-st-fg` por `data-st` (chave = status sem acento, em minúsculas, com hífen).
+  - "CLIENTE NÃO QUER NO CNPJ" não existe na planilha e fica no cinza.
 - **Publicação (27/10, 20:32, ok do Rafael):** painel MD5 `ce4f7810…` (o do ar era `fa6c0cef…`, a correção das 20:08), backup `~/deploy_backups/painel_clientes_apex_20261027_203220_antes_sem_ligacao.html`.

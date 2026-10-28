@@ -314,6 +314,21 @@ try{
   const j2 = janelas.pop();
   assert(j2.focado && !('url' in j2), 'ProContact já aberto: só traz para frente, não recarrega (não derruba ligação)');
   window.open = openOrig2;
+  // §121 (pedido 20:40): cores das tabulações iguais às da planilha
+  eq([kbStSlug('EM NEGOCIAÇÂO'), kbStSlug('TELEFONE ERRADO ou  SEM WHATSAPP'), kbStSlug(' PROPOSTA ENVIADA'), kbStSlug('CLIENTE NÃO RESPONDE ')],
+     ['em-negociacao', 'telefone-errado-ou-sem-whatsapp', 'proposta-enviada', 'cliente-nao-responde'], 'chave da cor por tabulação');
+  const css = document.getElementById('kbStyles').textContent;
+  ['EM NEGOCIAÇÂO', 'AGENDADO RETORNO', 'AGUARDANDO DOCUMENTAÇÃO', 'AGUARDANDO CLIENTE DECIDIR', 'PEDIDO EM ANÁLISE', 'PROPOSTA ENVIADA', 'PROBLEMA SISTÊMICO',
+   'PEDIDO CONCLUIDO (VENDA)', 'CLIENTE NÃO RESPONDE', 'CLIENTE NÃO ACEITOU VALORES', 'CLIENTE SEM INTERESSE NO PLANO', 'LEAD PAROU DE RESPONDER', 'CNPJ INAPTO',
+   'TELEFONE ERRADO ou  SEM WHATSAPP', 'LEAD FORA DO PERFIL', 'CLIENTE SO QUERIA APARELHO', 'CLIENTE SÓ QUERIA FIBRA', 'CNPJ REPROVADO', 'SUSPEITA DE FRAUDE',
+   'PEDIDO ATIVO', 'AGUARDANDO ACEITE / ASSINATURA']
+    .forEach(st => assert(css.includes('[data-st="' + kbStSlug(st) + '"]'), 'cor da planilha para ' + st));
+  const cartaoCor = kbCard(SL({ lead_id: 'cc1', categoria: 'andamento', status: 'EM NEGOCIAÇÂO', telefone: '11900000001', ligacoes: 1, criado_em_lead: new Date().toISOString() }), Date.now());
+  assert(cartaoCor.includes('class="kbSt" data-st="em-negociacao"'), 'cartão usa a cor da tabulação');
+  assert(kbFichaHtml(Object.assign({}, fz, { status: 'CNPJ INAPTO' }), { gestor: false, agoraMs: Date.now() }).includes('data-st="cnpj-inapto"'), 'ficha usa a cor da tabulação');
+  kbAbrirClassificar('OUTUBRO', 'a1', null);
+  assert(document.querySelector('#kbClassGrupos [data-kb-status="CNPJ INAPTO"]').getAttribute('data-st') === 'cnpj-inapto', 'botão do Classificar com a cor da tabulação');
+  fecharOverlay(document.getElementById('kbClassOverlay'));
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');

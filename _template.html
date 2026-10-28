@@ -855,9 +855,6 @@
   .kbStatusChips{display:flex;flex-wrap:wrap;gap:var(--space-2);}
   .kbStatusChip{padding:7px 12px;border:1px solid var(--c-linha-forte);border-radius:999px;background:var(--c-branco);font:inherit;font-size:var(--fs-sm);color:var(--c-grafite);cursor:pointer;}
   .kbStatusChip:hover{border-color:var(--c-grafite);}
-  .kbG-andamento .kbStatusChip.ativo{background:var(--st-andamento-bg);border-color:var(--st-andamento);color:var(--st-andamento);font-weight:700;}
-  .kbG-convertido .kbStatusChip.ativo{background:var(--st-ganho-bg);border-color:var(--st-ganho);color:var(--st-ganho);font-weight:700;}
-  .kbG-perdido .kbStatusChip.ativo{background:var(--st-perdido-bg);border-color:var(--st-perdido);color:var(--st-perdido);font-weight:700;}
   .kbClassBloco{background:var(--c-papel);border:1px solid var(--c-linha);border-radius:var(--radius-lg);padding:var(--space-3) var(--space-4);margin-bottom:var(--space-4);}
   .kbAtalhos{display:flex;flex-wrap:wrap;gap:var(--space-2);margin-bottom:var(--space-2);}
   .kbVendaCampos{display:flex;gap:var(--space-4);align-items:flex-end;flex-wrap:wrap;}
@@ -868,6 +865,33 @@
   .kbClassRodape{position:sticky;bottom:0;display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-3) var(--space-6);border-top:1px solid var(--c-linha);background:var(--c-branco);}
   .kbClassBotoes{display:flex;gap:var(--space-2);}
   .kbClassBotoes .btn{width:auto;}
+  /* §121: cores das tabulações iguais às do menu de STATUS da planilha (prints do Rafael, 27/10). Cada tabulação define
+     só os tokens --kb-st-bg/--kb-st-fg; o chip usa var(). Tabulação sem cor na planilha fica no cinza do papel. */
+  .kbSt{display:inline-block;padding:2px 9px;border-radius:999px;font-size:var(--fs-xs);font-weight:700;letter-spacing:.02em;line-height:1.5;background:var(--kb-st-bg,var(--c-papel));color:var(--kb-st-fg,var(--c-grafite));}
+  [data-st="cliente-nao-responde"]{--kb-st-bg:#ffcfc9;--kb-st-fg:#b10202;}
+  [data-st="aguardando-cliente-decidir"]{--kb-st-bg:#ffc8aa;--kb-st-fg:#753800;}
+  [data-st="agendado-retorno"]{--kb-st-bg:#ffe5a0;--kb-st-fg:#473821;}
+  [data-st="lead-parou-de-responder"]{--kb-st-bg:#c9752a;--kb-st-fg:#ffffff;}
+  [data-st="cliente-sem-interesse-no-plano"]{--kb-st-bg:#b10202;--kb-st-fg:#ffffff;}
+  [data-st="cnpj-reprovado"]{--kb-st-bg:#e0242b;--kb-st-fg:#ffffff;}
+  [data-st="cliente-nao-aceitou-valores"]{--kb-st-bg:#d4204a;--kb-st-fg:#ffffff;}
+  [data-st="pedido-em-analise"]{--kb-st-bg:#d4edbc;--kb-st-fg:#11734b;}
+  [data-st="aguardando-documentacao"]{--kb-st-bg:#22a35a;--kb-st-fg:#ffffff;}
+  [data-st="aguardando-aceite-assinatura"]{--kb-st-bg:#11734b;--kb-st-fg:#ffffff;}
+  [data-st="proposta-enviada"]{--kb-st-bg:#c6dbe1;--kb-st-fg:#215a6c;}
+  [data-st="pedido-concluido-venda"]{--kb-st-bg:#bfe1f6;--kb-st-fg:#0a53a8;}
+  [data-st="pedido-ativo"]{--kb-st-bg:#0a53a8;--kb-st-fg:#ffffff;}
+  [data-st="lead-fora-do-perfil"]{--kb-st-bg:#3d3d3d;--kb-st-fg:#ffffff;}
+  [data-st="suspeita-de-fraude"]{--kb-st-bg:#000000;--kb-st-fg:#ffffff;}
+  [data-st="cnpj-inapto"]{--kb-st-bg:#473821;--kb-st-fg:#ffffff;}
+  [data-st="cliente-so-queria-fibra"]{--kb-st-bg:#e8eaed;--kb-st-fg:#3d3d3d;}
+  [data-st="problema-sistemico"]{--kb-st-bg:#e6cff2;--kb-st-fg:#5a3286;}
+  [data-st="em-negociacao"]{--kb-st-bg:#f6d32d;--kb-st-fg:#3d3000;}
+  [data-st="telefone-errado-ou-sem-whatsapp"]{--kb-st-bg:#ef7f7f;--kb-st-fg:#4a0a0a;}
+  [data-st="cliente-so-queria-aparelho"]{--kb-st-bg:#753800;--kb-st-fg:#ffffff;}
+  .kbStatusChip.kbSt{padding:7px 12px;font-size:var(--fs-sm);border:0;background:var(--kb-st-bg,var(--c-branco));color:var(--kb-st-fg,var(--c-grafite));box-shadow:inset 0 0 0 1px var(--c-linha-forte);}
+  .kbStatusChip.kbSt:hover{filter:brightness(.95);}
+  .kbStatusChip.kbSt.ativo{box-shadow:0 0 0 2px var(--c-branco),0 0 0 4px var(--c-grafite);}
   /* apagar do painel e ficha flutuante (§120) */
   .kbApagarBox{margin-top:var(--space-3);padding:var(--space-3);border:1px solid var(--c-sinal-600);border-radius:var(--radius-lg);background:var(--c-papel);font-size:var(--fs-sm);}
   .kbApagarBox input{width:100%;margin:var(--space-2) 0;padding:8px 10px;border:1px solid var(--c-linha-forte);border-radius:var(--radius);font:inherit;}
@@ -3339,7 +3363,7 @@ function kbFichaHtml(f, op){
   return `<button type="button" class="kbFichaFechar" data-kb-ficha-fechar aria-label="Fechar">×</button>${flutuar}
     <div class="kbFichaCab">
       <h3>${v(f.nome)}</h3>
-      <div class="kbChips">${f.status ? `<span class="catBadge ${escapeHtml(f.categoria || '')}">${escapeHtml(f.status)}</span>` : `<span class="catBadge sem_contato">${f.livre ? 'Livre' : 'Sem status'}</span>`}${plParaResgatar(f) ? '<span class="badge">para resgatar</span>' : ''}${f.venda_neo ? '<span class="catBadge convertido">✓ venda no NEO</span>' : ''}</div>
+      <div class="kbChips">${f.status ? kbStChip(f.status) : `<span class="catBadge sem_contato">${f.livre ? 'Livre' : 'Sem status'}</span>`}${plParaResgatar(f) ? '<span class="badge">para resgatar</span>' : ''}${f.venda_neo ? '<span class="catBadge convertido">✓ venda no NEO</span>' : ''}</div>
       <p class="kbMeta">${f.livre ? 'Ainda sem dono' : 'Com ' + v(f.dono_nome)}</p>
     </div>
     <div class="kbFichaSecao"><h5>Contato</h5>${contato}</div>
@@ -3403,7 +3427,7 @@ function kbCard(l, agoraMs){
     ? `<div class="kbIcones"><a class="kbIcone" title="Ligar pelo ProContact (copia o número)" data-kb-contato="ligar" data-kb-ligar href="#"><svg><use href="#kbIcoTel"></use></svg></a><a class="kbIcone" title="WhatsApp" data-kb-contato="whatsapp" data-kb-whats href="#"><svg><use href="#kbIcoWhats"></use></svg></a></div>`
     : '';
   const chips = [];
-  if(l.status) chips.push(`<span class="catBadge ${escapeHtml(l.categoria || '')}">${escapeHtml(l.status)}</span>`);
+  if(l.status) chips.push(kbStChip(l.status));
   if(plParaResgatar(l)) chips.push('<span class="badge">para resgatar</span>');
   if(l.retorno_em) chips.push(`<span class="kbMeta">retorno ${escapeHtml(String(l.retorno_em).split('-').reverse().join('/'))}</span>`);
   const acao = col === 'livres' ? `<button type="button" class="btn btn-sm" data-kb-pegar>Pegar</button>`
@@ -3510,6 +3534,8 @@ async function kbLigar(telefone){
   kbAbrirProContact();
   mostrarAviso(copiou ? `Número ${kbFoneBR(num)} copiado. Cole no ProContact para ligar.` : `Ligue para ${kbFoneBR(num)} no ProContact.`, copiou ? 'ok' : 'info');
 }
+function kbStSlug(st){ return String(st || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
+function kbStChip(st){ return `<span class="kbSt" data-st="${escapeHtml(kbStSlug(st))}">${escapeHtml(st)}</span>`; }
 function kbDuracao(seg){ const n = Math.round(Number(seg) || 0); return n < 60 ? `${n} s` : `${Math.floor(n / 60)} min ${n % 60} s`; }
 function kbAbrirWhats(l, col){
   if(!l) return;
@@ -3538,7 +3564,7 @@ function kbAbrirClassificar(aba, id, grupo){
   const bonito = (t) => { const x = String(t || '').toLowerCase().replace(/\b(cnpj|cpf|neo|mei|pj|pf)\b/g, m => m.toUpperCase()).replace(/\bclaro\b/g, 'Claro'); return x.charAt(0).toUpperCase() + x.slice(1); };
   document.getElementById('kbClassGrupos').innerHTML = ['andamento', 'convertido', 'perdido'].map(g => {
     const doG = ops.filter(o => o.grupo === g);
-    return doG.length ? `<div class="kbClassGrupo kbG-${g}"><span class="kbClassRotulo">${rotulo[g]}</span><div class="kbStatusChips">${doG.map(o => `<button type="button" class="kbStatusChip" data-kb-status="${escapeHtml(o.status)}">${escapeHtml(bonito(o.status))}</button>`).join('')}</div></div>` : '';
+    return doG.length ? `<div class="kbClassGrupo kbG-${g}"><span class="kbClassRotulo">${rotulo[g]}</span><div class="kbStatusChips">${doG.map(o => `<button type="button" class="kbStatusChip kbSt" data-st="${escapeHtml(kbStSlug(o.status))}" data-kb-status="${escapeHtml(o.status)}">${escapeHtml(bonito(o.status))}</button>`).join('')}</div></div>` : '';
   }).join('');
   document.getElementById('kbClassTitulo').textContent = l.nome || '(sem nome)';
   document.getElementById('kbClassSub').textContent = [l.status ? 'Agora: ' + bonito(l.status) : 'Sem status', [l.cidade, l.uf].filter(Boolean).join('/')].filter(Boolean).join(' · ');
