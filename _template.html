@@ -839,22 +839,38 @@
   .kbResumo strong{font-family:var(--font-head);font-size:var(--fs-lg);font-weight:700;color:var(--ml-ink);margin-right:6px;font-variant-numeric:tabular-nums;}
   .kbAviso{margin-top:var(--space-2);padding:var(--space-2) var(--space-3);border-left:3px solid var(--c-sinal);background:var(--c-papel);font-size:var(--fs-sm);}
   /* §120: o Quadro cabe na tela — cada coluna rola por dentro e a barra de rolagem lateral fica sempre à vista */
-  .kbBoard{display:grid;grid-template-columns:repeat(7,minmax(250px,1fr));gap:var(--space-4);overflow-x:auto;padding:2px 2px var(--space-3);align-items:stretch;height:var(--kb-altura,calc(100vh - 230px));min-height:420px;}
-  .kbCol{--kb-cor:var(--c-cinza);display:flex;flex-direction:column;min-height:0;background:var(--c-papel);border:1px solid var(--c-linha);border-top:3px solid var(--kb-cor);border-radius:var(--radius-lg);padding:var(--space-3);transition:opacity var(--dur-fast),box-shadow var(--dur-fast),background var(--dur-fast);}
+  /* §126.2: colunas sem caixa — marcador de cor, nome, contagem, subtítulo e ações; Convertido e Perdido recolhem numa faixa */
+  .kbBoard{display:flex;gap:14px;overflow-x:auto;padding:2px 2px var(--space-3);align-items:stretch;height:var(--kb-altura,calc(100vh - 230px));min-height:420px;}
+  .kbCol{--kb-cor:var(--ml-ink-3);flex:0 0 262px;display:flex;flex-direction:column;min-height:0;border-radius:var(--radius-lg);transition:opacity var(--dur-fast),box-shadow var(--dur-fast),background var(--dur-fast);}
+  .kbCol[data-kb-col="livres"]{flex-basis:232px;}
+  .kbCol[data-kb-col="livres"] .kbColLista{background:var(--ml-surface-3);border-radius:var(--radius-lg);padding:8px;margin:0;}
+  .kbCol[data-kb-col="semresp"]{--kb-cor:var(--st-perdido);}
+  .kbColTopo{display:flex;align-items:center;gap:8px;padding:2px 4px 6px;}
+  .kbColCor{width:9px;height:9px;border-radius:3px;background:var(--kb-cor);flex:none;}
+  .kbColTopo h4{margin:0;font:600 var(--fs-md)/1.2 var(--font-body);text-transform:none;letter-spacing:0;color:var(--ml-ink);}
+  .kbConta{font-size:var(--fs-sm);font-weight:600;color:var(--ml-ink-3);font-variant-numeric:tabular-nums;}
+  .kbColAcoes{margin-left:auto;display:flex;align-items:center;gap:4px;}
+  .kbColSub{margin:-2px 4px 10px;font-size:var(--fs-xs);color:var(--ml-ink-3);}
+  .kbColFaixa{display:none;}
+  .kbCol.kbRecolhida{flex:0 0 52px;background:var(--ml-surface);}
+  .kbCol.kbRecolhida .kbColTopo,.kbCol.kbRecolhida .kbColSub,.kbCol.kbRecolhida .kbColLista{display:none;}
+  .kbCol.kbRecolhida .kbColFaixa{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;height:100%;padding:12px 0;border:0;border-radius:var(--radius-lg);background:none;font:inherit;cursor:pointer;color:var(--ml-ink);}
+  .kbCol.kbRecolhida .kbColFaixa:hover{background:var(--ml-surface-2);}
+  .kbColFaixa i{width:9px;height:9px;border-radius:3px;background:var(--kb-cor);}
+  .kbColFaixa b{writing-mode:vertical-rl;transform:rotate(180deg);font-weight:600;font-size:var(--fs-base);display:flex;gap:10px;align-items:center;}
+  .kbColFaixa b span{color:var(--ml-ink-3);font-weight:500;}
+  .kbBoard.kbArrastando .kbCol.kbAceita[data-kb-col="novos"] .kbColLista::before{content:"Solte aqui para pegar este lead";display:block;margin-bottom:var(--space-2);padding:14px 10px;border:2px dashed var(--c-sinal);border-radius:var(--radius-lg);background:var(--ml-novo-soft);color:var(--c-sinal-600);font-weight:600;font-size:var(--fs-sm);text-align:center;}
   .kbCol[data-kb-col="livres"]{--kb-cor:var(--c-grafite);}
   .kbCol[data-kb-col="semlig"]{--kb-cor:var(--c-bordo);}
   .kbCol[data-kb-col="novos"]{--kb-cor:var(--c-sinal);}
   .kbCol[data-kb-col="andamento"]{--kb-cor:var(--st-andamento);}
   .kbCol[data-kb-col="convertido"]{--kb-cor:var(--st-ganho);}
   .kbCol[data-kb-col="perdido"]{--kb-cor:var(--st-perdido);}
-  .kbColTopo{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-3);}
   .kbOrdem{margin-left:auto;margin-right:var(--space-2);padding:2px 6px;border:0;background:none;font:inherit;font-size:var(--fs-xs);font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;}
   .kbOrdem:hover{color:var(--c-grafite);}
-  .kbColTopo h4{margin:0;font-family:var(--font-head);font-size:var(--fs-md);font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--c-grafite);}
-  .kbConta{min-width:26px;padding:2px 8px;border-radius:999px;background:var(--kb-cor);color:var(--c-branco);font-size:var(--fs-xs);font-weight:700;text-align:center;}
   .kbBoard.kbArrastando .kbCol{opacity:.45;}
-  .kbBoard.kbArrastando .kbCol.kbAceita{opacity:1;box-shadow:inset 0 0 0 2px var(--kb-cor);}
-  .kbCol.kbAlvo{background:var(--c-branco);}
+  .kbBoard.kbArrastando .kbCol.kbAceita{opacity:1;box-shadow:inset 0 0 0 2px var(--kb-cor);border-radius:var(--radius-lg);}
+  .kbCol.kbAlvo{background:var(--ml-surface);}
   .kbColLista{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;margin-right:calc(-1 * var(--space-2));padding-right:var(--space-2);}
   /* content-visibility: o navegador não desenha os cartões fora da tela (o que mais pesava nos computadores dos consultores) */
   /* §126.2: cartão novo — três níveis, ícone de urgência, faixa vermelha só no que precisa de ação, ações ao passar o mouse */
@@ -895,13 +911,6 @@
   .kbMais{display:block;margin:var(--space-2) auto 0;}
   .kbVazio{color:var(--muted);font-size:var(--fs-sm);text-align:center;padding:var(--space-6) var(--space-2);border:1px dashed var(--c-linha-forte);border-radius:var(--radius-lg);}
   .kbDiv{margin-top:var(--space-2);font-size:var(--fs-xs);color:var(--c-sinal);font-weight:600;}
-  .kbNavQuadro{display:flex;align-items:center;gap:var(--space-2);margin:0 0 var(--space-3);}
-  .kbNavCols{display:flex;gap:var(--space-2);flex:1;overflow-x:auto;scrollbar-width:none;}
-  .kbNavCol{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid var(--c-linha);border-radius:999px;background:var(--c-branco);font:inherit;font-size:var(--fs-sm);font-weight:600;color:var(--c-grafite);cursor:pointer;}
-  .kbNavCol b{min-width:22px;padding:0 6px;border-radius:999px;background:var(--c-papel);font-size:var(--fs-xs);text-align:center;}
-  .kbNavCol:hover{border-color:var(--c-sinal);color:var(--c-sinal);}
-  .kbSeta{flex:0 0 auto;width:34px;height:34px;border:1px solid var(--c-linha-forte);border-radius:50%;background:var(--c-branco);font-size:20px;line-height:1;color:var(--c-grafite);cursor:pointer;}
-  .kbSeta:hover{border-color:var(--c-sinal);color:var(--c-sinal);}
   /* modal Classificar (§120): tabulações em botões por grupo, atalhos de data, rodapé fixo */
   #kbRedOverlay{backdrop-filter:none;}
   .kbClassModal{max-width:640px;}
@@ -1031,7 +1040,8 @@
   .kbEv > div{margin-left:var(--space-2);}
   .kbEv-ligacao .kbEvIco,.kbEv-discador .kbEvIco{border-color:var(--c-sinal);color:var(--c-sinal);}
   @media (max-width: 900px){
-    .kbBoard{grid-template-columns:repeat(6,82vw);height:auto;}
+    .kbBoard{height:auto;}
+    .kbCol{flex-basis:82vw;}
     .kbColLista{max-height:70vh;}
     .kbCol[data-kb-col="livres"]{position:sticky;left:0;z-index:1;}
   }
@@ -1755,19 +1765,6 @@
       <div id="kbFiltroBarra" class="kbFiltroBarra card" style="display:none"></div>
       <div id="kbTodos" class="kbTodos" style="display:none">
         <div class="card"><input type="search" id="kbTodosBusca" class="kbBusca" placeholder="Buscar nos seus leads por nome, telefone ou CNPJ…" autocomplete="off"><div id="kbTodosTabela"></div></div>
-      </div>
-      <div class="kbNavQuadro" id="kbNavQuadro" style="display:none">
-        <button type="button" class="kbSeta" data-kb-seta="-1" aria-label="Colunas à esquerda">‹</button>
-        <div class="kbNavCols">
-          <button type="button" class="kbNavCol" data-kb-ir="livres">Livres <b>0</b></button>
-          <button type="button" class="kbNavCol" data-kb-ir="semlig">Sem ligação <b>0</b></button>
-          <button type="button" class="kbNavCol" data-kb-ir="novos">Meus novos <b>0</b></button>
-          <button type="button" class="kbNavCol" data-kb-ir="andamento">Em andamento <b>0</b></button>
-          <button type="button" class="kbNavCol" data-kb-ir="semresp">Sem resposta <b>0</b></button>
-          <button type="button" class="kbNavCol" data-kb-ir="convertido">Convertido <b>0</b></button>
-          <button type="button" class="kbNavCol" data-kb-ir="perdido">Perdido <b>0</b></button>
-        </div>
-        <button type="button" class="kbSeta" data-kb-seta="1" aria-label="Colunas à direita">›</button>
       </div>
       <svg class="kbSprite" aria-hidden="true" style="display:none"><symbol id="kbIcoTel" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></symbol><symbol id="kbIcoWhats" viewBox="0 0 24 24"><path d="M3 21l1.7-5A8.5 8.5 0 1 1 8 19.3z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1.5-1.5-2-1-1 1a4 4 0 0 1-2.5-2.5l1-1-1-2z"/></symbol></svg>
       <div class="kbBoard" id="kbBoard"></div>
@@ -3941,17 +3938,25 @@ const KB_POR_COLUNA = 100;   // §121: pedido do Rafael, mais clientes por colun
 // §120: as colunas são montadas uma vez; a cada recarga só a coluna que mudou é redesenhada, com até 40 cartões
 // ("Ver mais" traz mais 40) e o Perdido só monta os cartões quando é aberto.
 function kbListaHtml(col, todos, agoraMs){
-  if(col === 'perdido' && !kbEstado.perdidoAberto)
-    return todos.length ? `<button type="button" class="kbLink kbMais" data-kb-abrirperdido>Mostrar perdidos do mês (${todos.length})</button>` : `<div class="kbVazio">Nada aqui</div>`;
+  if(!kbColAberta(col)) return '';   // §126.2: coluna recolhida não monta cartões
   const limite = col === 'livres' ? (kbEstado.verTodosLivres ? todos.length : KB_LIVRES_VISIVEIS) : ((kbEstado.limites || {})[col] || KB_POR_COLUNA);
   const lista = todos.slice(0, limite);
   const vazio = !lista.length ? `<div class="kbVazio">${col === 'livres' ? 'Nenhum lead livre agora' : col === 'semlig' ? 'Nenhum lead em andamento sem ligação' : col === 'novos' ? 'Arraste um lead dos Livres para cá' : 'Nada aqui'}</div>` : '';
   const mais = todos.length > lista.length ? `<button type="button" class="btn btn-sm btn-outline kbMais" data-kb-vermais="${col}">Ver mais (${todos.length - lista.length})</button>` : '';
   return lista.map(l => kbCard(l, agoraMs)).join('') + vazio + mais;
 }
+// §126.2: cabeçalho das colunas (marcador de cor, nome, contagem, subtítulo, ações) e a faixa das recolhíveis.
+const KB_COL_SUB = { livres: 'Arraste para "Meus novos" ou clique em Pegar', semlig: 'Classificados, mas ninguém ligou ainda', novos: 'Pegos por você, ainda sem status',
+  andamento: 'Pela chegada do lead', semresp: 'Todos os meses · pela chegada do lead', convertido: 'Vendas do mês · pela chegada do lead', perdido: 'Perdidos do mês' };
 function kbGarantirColunas(board){
   if(board.querySelector('.kbColLista')) return;
-  board.innerHTML = KB_COLUNAS.map(col => `<div class="kbCol" data-kb-col="${col}"><div class="kbColTopo"><h4>${KB_TITULOS[col]}</h4>${KB_COL_ORDEM.includes(col) ? `<button type="button" class="kbOrdem" data-kb-ordem="${col}" title="Ordem pela chegada do lead"></button>` : ''}<span class="kbConta">0</span></div><div class="kbColLista"></div></div>`).join('');
+  board.innerHTML = KB_COLUNAS.map(col => {
+    const acoes = (col === 'livres' ? `<button type="button" class="kbBtn kbBtnP kbBtnSm" data-kb-pegar-proximo>${KB_ICO.mao}Pegar próximo</button>` : '')
+      + (KB_COL_ORDEM.includes(col) ? `<button type="button" class="kbOrdem" data-kb-ordem="${col}" title="Ordem pela chegada do lead"></button>` : '')
+      + (KB_COL_RECOLHIVEIS.includes(col) ? `<button type="button" class="kbBtn kbBtnG kbBtnSm" data-kb-recolher="${col}" title="Recolher a coluna">Recolher</button>` : '');
+    const faixa = KB_COL_RECOLHIVEIS.includes(col) ? `<button type="button" class="kbColFaixa" data-kb-abrircol="${col}" title="Abrir ${KB_TITULOS[col]}"><i></i><b>${KB_TITULOS[col]} <span>0</span></b></button>` : '';
+    return `<div class="kbCol" data-kb-col="${col}"><div class="kbColTopo"><i class="kbColCor"></i><h4>${KB_TITULOS[col]}</h4><span class="kbConta">0</span><span class="kbColAcoes">${acoes}</span></div><p class="kbColSub">${escapeHtml(KB_COL_SUB[col])}</p>${faixa}<div class="kbColLista"></div></div>`;
+  }).join('');
   kbEstado.colHtml = {};
 }
 function kbRender(){
@@ -3962,19 +3967,21 @@ function kbRender(){
   const c = kbMontar(kbFiltrar(leads, kbEstado.filtros, agoraMs), kbEstado.ordens);
   const board = document.getElementById('kbBoard');
   kbGarantirColunas(board);
+  board.classList.toggle('kbCompacto', kbEstado.densidade === 'compacto');
   kbEstado.colHtml = kbEstado.colHtml || {};
   KB_COLUNAS.forEach(col => {
     const el = board.querySelector(`.kbCol[data-kb-col="${col}"]`);
     el.style.display = col === 'livres' && !kbVeLivres() ? 'none' : '';
     el.querySelector('.kbConta').textContent = c[col].length;
-    el.classList.toggle('kbFechada', col === 'perdido' && !kbEstado.perdidoAberto);
+    el.classList.toggle('kbRecolhida', !kbColAberta(col));
+    const faixa = el.querySelector('.kbColFaixa span');
+    if(faixa) faixa.textContent = col === 'convertido' ? `${c[col].length} · ${kbMoeda(c[col].reduce((s, l) => s + (Number(l.receita || l.receita_neo) || 0), 0)) || 'R$ 0,00'}` : String(c[col].length);
+    const pp = el.querySelector('.kbColAcoes [data-kb-pegar-proximo]');
+    if(pp) pp.style.display = kbPodePegar() ? '' : 'none';
     const html = kbListaHtml(col, c[col], agoraMs);
     const ob = el.querySelector('[data-kb-ordem]');
     if(ob) ob.textContent = kbEstado.ordens[col] === 'novo' ? '↓ Mais novo' : '↑ Mais antigo';
     if(kbEstado.colHtml[col] !== html){ const lista = el.querySelector('.kbColLista'), topo = lista.scrollTop; lista.innerHTML = html; lista.scrollTop = topo; kbEstado.colHtml[col] = html; }   // rolagem fica onde estava
-    const nav = document.querySelector(`#kbNavQuadro [data-kb-ir="${col}"] b`);
-    if(nav) nav.textContent = c[col].length;
-    if(nav && nav.parentElement) nav.parentElement.style.display = col === 'livres' && !kbVeLivres() ? 'none' : '';
   });
   document.getElementById('kbStatus').textContent = `${c.livres.length} livre(s) · ${c.novos.length} novo(s) seu(s) · atualiza sozinho`;
   const rm = kbResumoMes(leads), equipe = kbGestor() && !kbEstado.dono;
@@ -3991,19 +3998,6 @@ function kbAjustarAltura(){
     b.style.setProperty(varCss, Math.max(minimo, Math.round(window.innerHeight - topo - 16)) + 'px');
   });
 }
-function kbIrColuna(col){
-  if(col === 'perdido' && !kbEstado.perdidoAberto){ kbEstado.perdidoAberto = true; kbRender(); }
-  const b = document.getElementById('kbBoard'), el = b.querySelector(`.kbCol[data-kb-col="${col}"]`);
-  if(el && b.scrollTo) b.scrollTo({ left: el.offsetLeft - b.offsetLeft, behavior: 'smooth' });
-}
-function kbRolarColunas(dir){
-  const b = document.getElementById('kbBoard'), el = b.querySelector('.kbCol');
-  if(el && b.scrollBy) b.scrollBy({ left: dir * (el.offsetWidth + 16), behavior: 'smooth' });
-}
-document.getElementById('kbNavQuadro').addEventListener('click', (e) => {
-  const ir = e.target.closest('[data-kb-ir]'); if(ir){ kbIrColuna(ir.dataset.kbIr); return; }
-  const st = e.target.closest('[data-kb-seta]'); if(st) kbRolarColunas(Number(st.dataset.kbSeta));
-});
 let kbAlturaPendente = false;
 window.addEventListener('resize', () => { if(kbAlturaPendente) return; kbAlturaPendente = true; requestAnimationFrame(() => { kbAlturaPendente = false; kbAjustarAltura(); }); });
 async function kbPegar(aba, id){
@@ -4179,7 +4173,8 @@ document.getElementById('kbBoard').addEventListener('click', (e) => {
   const card = e.target.closest('.kbCard');
   const vm = e.target.closest('[data-kb-vermais]');
   if(vm){ const col = vm.dataset.kbVermais; if(col === 'livres') kbEstado.verTodosLivres = true; else { kbEstado.limites = kbEstado.limites || {}; kbEstado.limites[col] = ((kbEstado.limites[col]) || KB_POR_COLUNA) + KB_POR_COLUNA; } kbRender(); return; }
-  if(e.target.closest('[data-kb-abrirperdido]')){ kbEstado.perdidoAberto = true; kbRender(); return; }
+  const ac = e.target.closest('[data-kb-abrircol]'), rc = e.target.closest('[data-kb-recolher]');
+  if(ac || rc){ kbEstado.colAbertas = Object.assign({}, kbEstado.colAbertas, { [(ac || rc).dataset[ac ? 'kbAbrircol' : 'kbRecolher']]: !!ac }); kbSalvarColAbertas(); kbRender(); return; }
   if(!card) return;
   const aba = card.dataset.aba, id = card.dataset.id;
   if(e.target.closest('[data-kb-pegar]')) kbPegar(aba, id);
@@ -4349,6 +4344,7 @@ document.addEventListener('keydown', (e) => {
 // ===== §118: abas, Hoje, Equipe, pesquisa, detalhes da ficha, alertas =====
 kbEstado.aba = null; kbEstado.filaAba = 'fazer'; kbEstado.hojeSel = null; kbEstado.filaHoje = []; kbEstado.notificados = new Set(); kbEstado.alertas = []; kbEstado.hoje = null; kbEstado.equipe = [];
 kbEstado.filtros = kbLerFiltros();
+kbEstado.colAbertas = kbLerColAbertas(); kbEstado.densidade = kbLerDensidade();
 function kbTrocarAba(aba){
   const abas = kbAbasDoPerfil(kbGestor());
   kbEstado.aba = abas.includes(aba) ? aba : kbAbaPadrao(kbGestor());
@@ -4363,7 +4359,6 @@ function kbTrocarAba(aba){
   });
   document.getElementById('kbHoje').style.display = kbEstado.aba === 'hoje' ? '' : 'none';
   document.getElementById('kbBoard').style.display = kbEstado.aba === 'quadro' ? '' : 'none';
-  document.getElementById('kbNavQuadro').style.display = kbEstado.aba === 'quadro' ? '' : 'none';
   document.getElementById('kbFiltroBarra').style.display = kbEstado.aba === 'quadro' || kbEhTabela(kbEstado.aba) ? '' : 'none';
   if(kbEstado.aba === 'quadro' || kbEhTabela(kbEstado.aba)) kbRenderFiltroBarra();
   if(kbEstado.aba === 'quadro' || kbEstado.aba === 'hoje') kbAjustarAltura();

@@ -130,7 +130,7 @@ try{
   window.__rpcRespostas.leads_kanban3 = { data: [L('a1', { categoria: 'andamento', status: 'EM NEGOCIAÇÂO', telefone: '11900000001' }),
     L('p1', { categoria: 'perdido', status: 'CLIENTE NÃO RESPONDE', classificado_em: new Date().toISOString() })], error: null };
   await kbCarregar();
-  kbEstado.perdidoAberto = true; kbRender();   // §120: o Perdido só monta os cartões quando é aberto
+  kbEstado.colAbertas = { perdido: true }; kbRender();   // §126.2: Perdido recolhido não monta cartões
   assert(document.querySelector('#kbBoard .kbCol[data-kb-col="semresp"] [data-id="p1"]').textContent.includes('para resgatar'), 'selo para resgatar (pedido 28/10: na coluna Sem resposta)');
   // ajuste 26/10: retorno rápido saiu do cartão e foi para a ficha do lead
   assert(kbFichaHtml(L('a1', { categoria: 'andamento', status: 'EM NEGOCIAÇÂO', telefone: '11900000001' }), { gestor: false, agoraMs: Date.now() }).includes('>Em 3 dias</button>'), 'ficha de lead em andamento tem o atalho Em 3 dias');
@@ -151,6 +151,7 @@ try{
   window.__rpcRespostas.leads_kanban3 = { data: [L('m1', { dono_id: 'u-zz', dono_nome: 'Zzkcon Teste', telefone: '11900000001' }), L('d1', { categoria: 'convertido', converteu: true, venda_neo: false, dono_id: 'u-zz' })], error: null };
   await kbAplicarPermissao();
   await kbCarregarFiltros();
+  kbEstado.colAbertas = { convertido: true };   // §126.2: Convertido começa recolhido
   assert(document.getElementById('kbFiltrosGestor').style.display !== 'none', 'gestor vê filtros');
   eq([...document.querySelectorAll('#kbDono option')].map(o => o.value), ['', 'u-zz', 'u-zz2'], 'seletor de consultor: Todos + equipe');
   await kbCarregar();

@@ -81,7 +81,6 @@ try{
   assert(window.__rpcCalls.some(c => c.nome === 'leads_kanban3' && c.args.p_todos === false), 'Quadro carrega pelo leads_kanban3');
   eq(kbPodePegar(), false, 'consultor sem pode_pegar');
   assert(document.querySelector('#kbBoard .kbCol[data-kb-col="livres"]').style.display === 'none', 'coluna Livres some para quem não pega');
-  assert(document.querySelector('#kbNavQuadro [data-kb-ir="livres"]').style.display === 'none', 'atalho Livres some');
   assert(!kbCard({ aba: 'O', lead_id: 'l1', nome: 'Zz Livre', livre: true, categoria: 'sem_contato' }, Date.now()).includes('data-kb-pegar'), 'cartão livre sem botão Pegar');
   const fichaNao = kbFichaHtml({ aba: 'O', lead_id: 'l1', nome: 'Zz Livre', livre: true, categoria: 'sem_contato' }, { gestor: false, agoraMs: Date.now(), podePegar: false });
   assert(!fichaNao.includes('data-kb-ficha-pegar') && fichaNao.includes('não está liberado para pegar leads'), 'ficha de livre avisa quem não pode pegar (Review Focus 1)');
@@ -351,7 +350,7 @@ try{
   eq(document.querySelector('#kbBoard .kbCol[data-kb-col="semresp"] .kbConta').textContent, '2', 'Sem resposta conta os dois status');
   eq(document.querySelector('#kbBoard .kbCol[data-kb-col="perdido"] .kbConta').textContent, '1', 'Perdido fica só com o resto');
   eq([...document.querySelectorAll('#kbBoard .kbCol[data-kb-col="semresp"] .kbCard')].map(c => c.dataset.id), ['sr3', 'sr1'], 'mais tempo sem contato primeiro');
-  assert(document.querySelector('#kbNavQuadro [data-kb-ir="semresp"]'), 'atalho da coluna no topo do Quadro');
+  eq(document.querySelector('#kbBoard [data-kb-col="semresp"] .kbColTopo h4').textContent, 'Sem resposta', 'coluna Sem resposta com título');
   eq(kbAbasDoPerfil(false), ['hoje', 'quadro', 'todos'], 'a aba à parte "Sem resposta" saiu');
   // ==== Redistribuir com o visual do Classificar (pedido 28/10) ====
   currentUser = { id: 'u-sup', nome: 'Zzksup Teste', role: 'supervisor', operacao: 'apex' };

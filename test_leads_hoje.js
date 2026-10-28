@@ -202,7 +202,7 @@ try{
   assert(colAnd().querySelector('[data-kb-vermais="andamento"]').textContent.includes('10'), '"Ver mais (10)" na coluna');
   colAnd().querySelector('[data-kb-vermais="andamento"]').click();
   eq(colAnd().querySelectorAll('.kbCard').length, 110, 'Ver mais mostra o resto');
-  assert(!document.querySelector('#kbBoard [data-kb-col="perdido"] .kbCard') && document.querySelector('#kbBoard [data-kb-abrirperdido]'), 'Perdido fechado não monta cartões');
+  assert(!document.querySelector('#kbBoard [data-kb-col="perdido"] .kbCard') && document.querySelector('#kbBoard [data-kb-abrircol="perdido"]'), 'Perdido recolhido não monta cartões');
   // recarga com os mesmos dados não refaz a coluna (mesmo nó no DOM)
   const noAntes = colAnd().querySelector('.kbCard');
   kbRender();
@@ -215,13 +215,13 @@ try{
   document.querySelector('#kbBoard [data-kb-col="andamento"] [data-kb-whats]').click();
   window.open = openOrig;
   assert(abertos.length === 1 && abertos[0].includes('wa.me/5511900000001'), 'clique no WhatsApp abre a conversa');
-  // navegação: setas e atalhos das colunas; atalho do Perdido abre a coluna
-  assert(document.getElementById('kbNavQuadro').style.display !== 'none' && document.querySelector('#kbNavQuadro [data-kb-ir="perdido"]').textContent.includes('1'), 'barra de navegação com contagem');
-  document.querySelector('#kbNavQuadro [data-kb-ir="perdido"]').click();
-  assert(document.querySelector('#kbBoard [data-kb-col="perdido"] .kbCard[data-id="pp1"]'), 'atalho do Perdido abre a coluna');
-  assert(document.querySelector('#kbNavQuadro [data-kb-seta="1"]') && document.querySelector('#kbNavQuadro [data-kb-seta="-1"]'), 'setas para os lados');
+  // §126.2: a faixa do Perdido recolhido mostra a contagem e abre a coluna
+  assert(document.querySelector('#kbBoard [data-kb-abrircol="perdido"]').textContent.includes('1'), 'faixa do Perdido com contagem');
+  document.querySelector('#kbBoard [data-kb-abrircol="perdido"]').click();
+  assert(document.querySelector('#kbBoard [data-kb-col="perdido"] .kbCard[data-id="pp1"]'), 'clicar na faixa abre o Perdido');
+  kbEstado.colAbertas = {}; kbSalvarColAbertas();
   kbTrocarAba('hoje');
-  assert(document.getElementById('kbNavQuadro').style.display === 'none', 'barra só no Quadro');
+  assert(!document.getElementById('kbNavQuadro'), 'barra de atalhos das colunas saiu');
   // versão por consultor
   window.__rpcRespostas.leads_kanban_versao_dono = { data: 'vd1', error: null };
   await kbVerificarVersao();
@@ -296,7 +296,7 @@ try{
   assert(window.__rpcCalls.some(c => c.nome === 'leads_kanban3'), 'Quadro usa leads_kanban3 (com ligações)');
   assert(document.querySelector('#kbBoard [data-kb-col="semlig"] .kbCard[data-id="s1"]'), 'lead em andamento sem ligação na coluna Sem ligação');
   assert(document.querySelector('#kbBoard [data-kb-col="novos"] .kbCard[data-id="s2"]'), 'lead recém-pego (sem status) fica em Meus novos');
-  assert(document.querySelector('#kbNavQuadro [data-kb-ir="semlig"]').textContent.includes('1'), 'atalho Sem ligação com contagem');
+  eq(document.querySelector('#kbBoard [data-kb-col="semlig"] .kbConta').textContent, '1', 'Sem ligação com contagem');
   eq(KB_COLUNAS.indexOf('semlig'), 1, 'Sem ligação logo depois dos Livres');
   assert(kbAtrasado(SL({ categoria: 'andamento', status: 'EM NEGOCIAÇÂO', ligacoes: 0, criado_em_lead: '2026-10-26T12:00:00Z' }), Date.parse('2026-10-27T12:00:00Z')) === false, 'lead em andamento sem ligação não ganha o relógio de atrasado (é só de Meus novos)');
   // §121 (pedido 20:35): telefone copia o número e abre (ou traz para frente, sem recarregar) a aba do ProContact

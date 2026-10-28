@@ -117,6 +117,42 @@ try{
   const cg = kbCard(LA('g1', { dono_nome: 'Zzkcon Teste' }), agC);
   assert(cg.includes('title="Com Zzkcon Teste"') && cg.includes('<b>ZT</b>Zzkcon'), 'gestor vê as iniciais e o primeiro nome do dono');
   currentUser = { id: 'u-zz', nome: 'Zzkcon Teste', role: 'consultor' };
+  // ==== Task 3: colunas ====
+  window.__tabelas.config = [{ valor: 'painel' }];
+  window.__tabelas.leads_equipe = [{ id: 1, profile_id: 'u-zz', nome_planilha: 'ZZKCON', pode_pegar: true }];
+  window.__tabelas.leads_status_opcoes = [{ status: 'EM NEGOCIAÇÂO', grupo: 'andamento', ordem: 1 }, { status: 'PEDIDO CONCLUIDO (VENDA)', grupo: 'convertido', ordem: 10 }, { status: 'CNPJ INAPTO', grupo: 'perdido', ordem: 24 }];
+  const LQ = [LA('q1', { telefone: '11900000021' }), LA('q2', { cidade: 'Campinas', telefone: '11900000022' }), LA('cv1', { categoria: 'convertido', status: 'PEDIDO CONCLUIDO (VENDA)', receita: 100 }), LA('cv2', { categoria: 'convertido', status: 'PEDIDO CONCLUIDO (VENDA)', receita: 50.5, cidade: 'Campinas' }),
+    LA('pp1', { categoria: 'perdido', status: 'CNPJ INAPTO' }), { aba: 'O', lead_id: 'lv1', nome: 'Zz Livre', livre: true, categoria: 'sem_contato', criado_em_lead: isoC(-3) }];
+  window.__rpcRespostas.leads_kanban3 = { data: LQ, error: null };
+  window.__rpcRespostas.leads_hoje = { data: { fila: [], retornos: [], livres: 1, placar: {} }, error: null };
+  window.__rpcRespostas.leads_ficha = (a) => ({ data: [Object.assign({ telefone: '11900000021' }, LQ.find(l => l.lead_id === a.p_id) || {})], error: null });
+  await kbAplicarPermissao(); await kbCarregar();
+  kbTrocarAba('quadro'); await espera(40);
+  const col = (c) => document.querySelector('#kbBoard .kbCol[data-kb-col="' + c + '"]');
+  assert(!document.getElementById('kbNavQuadro'), 'sai a barra de atalhos das colunas');
+  eq(col('andamento').querySelector('.kbColSub').textContent, 'Pela chegada do lead', 'subtítulo explica a coluna');
+  assert(col('livres').querySelector('.kbColAcoes [data-kb-pegar-proximo]') && col('livres').querySelector('.kbColAcoes [data-kb-pegar-proximo]').style.display !== 'none', 'Livres com Pegar próximo no cabeçalho');
+  assert(col('convertido').classList.contains('kbRecolhida') && col('perdido').classList.contains('kbRecolhida') && !col('convertido').querySelector('.kbCard'), 'Convertido e Perdido começam recolhidos, sem montar cartões');
+  assert(col('convertido').querySelector('.kbColFaixa').textContent.includes('2') && col('convertido').querySelector('.kbColFaixa').textContent.includes('150,50'), 'faixa do Convertido com contagem e receita');
+  col('convertido').querySelector('[data-kb-abrircol="convertido"]').click();
+  assert(!col('convertido').classList.contains('kbRecolhida') && col('convertido').querySelector('.kbCard[data-id="cv1"]') && String(window.localStorage.getItem('kbColAbertas')).includes('"convertido":true'), 'clicar na faixa abre a coluna e guarda');
+  col('convertido').querySelector('[data-kb-recolher="convertido"]').click();
+  assert(col('convertido').classList.contains('kbRecolhida'), 'Recolher fecha de novo');
+  // RF4: filtro ativo com coluna recolhida
+  kbEstado.filtros = { cidade: 'Campinas' }; kbAoMudarFiltros();
+  assert(col('convertido').querySelector('.kbColFaixa').textContent.includes('1') && col('convertido').querySelector('.kbConta').textContent === '1', 'RF4: faixa recolhida conta só os filtrados');
+  kbEstado.filtros = {}; kbAoMudarFiltros();
+  // RF6: soltar num Convertido recolhido abre a ficha com o grupo em destaque
+  const soltar = (alvoSel, dados) => { const ev = new window.Event('drop', { bubbles: true, cancelable: true }); Object.defineProperty(ev, 'dataTransfer', { value: { getData: () => JSON.stringify(dados) } }); document.querySelector(alvoSel).dispatchEvent(ev); };
+  const nCls = window.__rpcCalls.filter(c => c.nome === 'leads_classificar').length;
+  soltar('#kbBoard .kbCol[data-kb-col="convertido"] .kbColFaixa', { aba: 'O', id: 'q1', col: 'andamento' });
+  await espera(60);
+  assert(kbEstado.fichaAlvo && kbEstado.fichaAlvo.id === 'q1' && document.querySelector('#kbFicha [data-kb-grupo="convertido"]').classList.contains('kbDestaque') && window.__rpcCalls.filter(c => c.nome === 'leads_classificar').length === nCls, 'RF6: soltar no Convertido recolhido abre a ficha com Venda em destaque');
+  kbFecharFicha(true);
+  // densidade
+  kbEstado.densidade = 'compacto'; kbRender();
+  assert(document.getElementById('kbBoard').classList.contains('kbCompacto'), 'densidade compacta no Quadro');
+  kbEstado.densidade = 'conforto'; kbRender();
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
