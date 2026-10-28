@@ -3454,7 +3454,8 @@ function kbTempoDesde(iso, agoraMs){
   if(min < 60) return `há ${min} min`;
   const h = Math.floor(min / 60);
   if(h < 24) return `há ${h} h`;
-  return `há ${Math.floor(h / 24)} dias`;
+  const d = Math.floor(h / 24);
+  return `há ${d} dia${d === 1 ? "" : "s"}`;
 }
 // Ajuste de design (26/10 noite): o que acontece ao soltar um cartão. Livres → Meus novos = pegar;
 // lead que já é meu → outra etapa (Em andamento/Convertido/Perdido) = classificar; o resto não aceita.

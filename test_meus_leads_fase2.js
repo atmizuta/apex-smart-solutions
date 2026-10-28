@@ -262,6 +262,7 @@ try{
   document.querySelector('#kbFiltroBarra [data-kb-filtro="cidade"][data-valor="Sumaré"]').click();
   assert(kbEstado.filtros.cidade === 'Sumaré' && !document.querySelector('#kbFiltroBarra details[data-kb-menu="cidade"]').open, 'F6: escolher uma opção fecha o menu');
   kbEstado.filtros = {}; kbAoMudarFiltros();
+  eq([kbTempoDesde(new Date(agC - 86400000 - 60000).toISOString(), agC), kbTempoDesde(new Date(agC - 3 * 86400000).toISOString(), agC)], ['há 1 dia', 'há 3 dias'], 'singular: há 1 dia');
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
