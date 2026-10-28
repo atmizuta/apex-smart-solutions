@@ -287,20 +287,23 @@ try{
   eq([kbColunaDoLead(SL({ ligacoes: 0 })), kbColunaDoLead(SL({ ligacoes: 0, categoria: 'andamento', status: 'EM NEGOCIAÇÂO' })),
       kbColunaDoLead(SL({ ligacoes: 2, categoria: 'andamento' })), kbColunaDoLead(SL({ ligacoes: 1 })),
       kbColunaDoLead(SL({ ligacoes: 0, categoria: 'perdido' })), kbColunaDoLead(SL({ ligacoes: 0, livre: true })), kbColunaDoLead(SL({ ligacoes: 0, categoria: 'convertido' }))],
-     ['semlig', 'semlig', 'andamento', 'novos', 'perdido', 'livres', 'convertido'], 'Sem ligação: só lead aberto meu que nunca recebeu ligação');
-  eq([kbAcaoDoArraste('livres', 'semlig'), kbAcaoDoArraste('semlig', 'andamento'), kbAcaoDoArraste('semlig', 'novos')], ['pegar', 'classificar', null], 'arraste com Sem ligação');
+     ['novos', 'semlig', 'andamento', 'novos', 'perdido', 'livres', 'convertido'], 'Sem ligação: só lead já classificado (em andamento) que nunca recebeu ligação; lead novo fica em Meus novos');
+  eq([kbAcaoDoArraste('livres', 'semlig'), kbAcaoDoArraste('livres', 'novos'), kbAcaoDoArraste('semlig', 'perdido'), kbAcaoDoArraste('semlig', 'novos')], [null, 'pegar', 'classificar', null], 'arraste: pegar vai para Meus novos; Sem ligação reclassifica');
   const cartao = kbCard(SL({ lead_id: 'c1', categoria: 'andamento', status: 'EM NEGOCIAÇÂO', telefone: '11900000001', obs: 'zz pediu proposta <b>', ligacoes: 2,
     ultima_ligacao: new Date(Date.now() - 2 * 3600000).toISOString(), ultima_atendida: true, ultima_seg: 95, criado_em_lead: new Date().toISOString() }), Date.now());
   assert(cartao.includes('zz pediu proposta') && cartao.includes('&lt;b&gt;'), 'cartão mostra a última OBS (escapada)');
   assert(cartao.includes('Última ligação há 2 h') && cartao.includes('atendida · 1 min 35 s'), 'cartão mostra a última ligação');
   assert(kbCard(SL({ lead_id: 'c2', telefone: '11900000001', categoria: 'andamento', ligacoes: 1, ultima_ligacao: new Date().toISOString(), ultima_atendida: false, criado_em_lead: new Date().toISOString() }), Date.now()).includes('não atendida'), 'ligação não atendida');
-  window.__rpcRespostas.leads_kanban2 = { data: [SL({ lead_id: 's1', nome: 'Zz Nunca Ligou', ligacoes: 0, telefone: '11900000001', criado_em_lead: new Date().toISOString() })], error: null };
+  window.__rpcRespostas.leads_kanban2 = { data: [SL({ lead_id: 's1', nome: 'Zz Nunca Ligou', categoria: 'andamento', status: 'EM NEGOCIAÇÂO', ligacoes: 0, telefone: '11900000001', criado_em_lead: new Date().toISOString() }),
+    SL({ lead_id: 's2', nome: 'Zz Recem Pego', ligacoes: 0, telefone: '11900000002', criado_em_lead: new Date().toISOString() })], error: null };
   currentUser = { id: 'u-zz', nome: 'Zzkcon Teste', role: 'consultor' };
   await kbAplicarPermissao(); await kbCarregar(); kbTrocarAba('quadro');
   assert(window.__rpcCalls.some(c => c.nome === 'leads_kanban2'), 'Quadro usa leads_kanban2 (com ligações)');
-  assert(document.querySelector('#kbBoard [data-kb-col="semlig"] .kbCard[data-id="s1"]'), 'lead sem ligação na coluna Sem ligação');
+  assert(document.querySelector('#kbBoard [data-kb-col="semlig"] .kbCard[data-id="s1"]'), 'lead em andamento sem ligação na coluna Sem ligação');
+  assert(document.querySelector('#kbBoard [data-kb-col="novos"] .kbCard[data-id="s2"]'), 'lead recém-pego (sem status) fica em Meus novos');
   assert(document.querySelector('#kbNavQuadro [data-kb-ir="semlig"]').textContent.includes('1'), 'atalho Sem ligação com contagem');
   eq(KB_COLUNAS.indexOf('semlig'), 1, 'Sem ligação logo depois dos Livres');
+  assert(kbAtrasado(SL({ categoria: 'andamento', status: 'EM NEGOCIAÇÂO', ligacoes: 0, criado_em_lead: '2026-10-26T12:00:00Z' }), Date.parse('2026-10-27T12:00:00Z')) === false, 'lead em andamento sem ligação não ganha o relógio de atrasado (é só de Meus novos)');
   // §121 (pedido 20:35): telefone copia o número e abre (ou traz para frente, sem recarregar) a aba do ProContact
   const copiados = []; Object.defineProperty(window.navigator, 'clipboard', { value: { writeText: async (t) => { copiados.push(t); } }, configurable: true });
   const janelas = []; const openOrig2 = window.open;

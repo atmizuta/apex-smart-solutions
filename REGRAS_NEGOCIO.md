@@ -3918,5 +3918,10 @@ Pedido do Rafael depois da §120 ("assim do jeito que está está ótimo"):
 - **Cores das tabulações (pedido 20:40):** os chips de status no cartão, na ficha e nos botões do Classificar usam as **cores do menu de STATUS da planilha**, tiradas dos prints do Rafael (a API do Google não expõe a cor dos chips do menu suspenso).
   - Tokens `--kb-st-bg/--kb-st-fg` por `data-st` (chave = status sem acento, em minúsculas, com hífen).
   - "CLIENTE NÃO QUER NO CNPJ" não existe na planilha e fica no cinza.
+- **Ajuste da coluna "Sem ligação" (28/10, pedido do Rafael: "está meio confuso"):** antes, todo lead recém-pego caía em "Sem ligação", porque é normal ainda não ter ligação, e "Meus novos" ficava vazia.
+  - Agora "Sem ligação" = lead **já classificado (em andamento)** que nunca recebeu ligação, manual ou do discador.
+  - Lead pego e sem status fica em **"Meus novos"**, como antes: pegar = arrastar dos Livres para "Meus novos".
+  - O relógio de atrasado e a mensagem de primeiro contato do WhatsApp voltam a ser só de "Meus novos".
+  - Em 28/10 eram 22 leads em andamento sem ligação: Giovanna 8, Caio 4, Lucas 3, Manuella 3, Luria 2, Gabriel 1, Bianca 1.
 - **Publicação do telefone e das cores (27/10, 22:18, ok do Rafael):** painel MD5 `63393bca…` (o do ar era `ce4f7810…`), backup `~/deploy_backups/painel_clientes_apex_20261027_221851_antes_cores_procontact.html`.
 - **Publicação (27/10, 20:32, ok do Rafael):** painel MD5 `ce4f7810…` (o do ar era `fa6c0cef…`, a correção das 20:08), backup `~/deploy_backups/painel_clientes_apex_20261027_203220_antes_sem_ligacao.html`.

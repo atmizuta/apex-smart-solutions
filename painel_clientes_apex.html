@@ -3202,9 +3202,9 @@ function kbColunaDoLead(l){
   if(l.livre) return 'livres';
   if(l.categoria === 'convertido' || l.venda_neo) return 'convertido';
   if(l.categoria === 'perdido') return 'perdido';
-  // §121: lead aberto meu que nunca recebeu ligação (manual ou discador) fica só em "Sem ligação"
-  if(typeof l.ligacoes === 'number' && l.ligacoes === 0) return 'semlig';
-  if(l.categoria === 'andamento') return 'andamento';
+  // §121 (ajuste 28/10, Rafael): "Sem ligação" = lead já classificado (em andamento) que nunca recebeu ligação (manual ou
+  // discador). Lead recém-pego, sem status, fica em "Meus novos" — é normal ele ainda não ter ligação.
+  if(l.categoria === 'andamento') return typeof l.ligacoes === 'number' && l.ligacoes === 0 ? 'semlig' : 'andamento';
   return 'novos';
 }
 function kbMs(v){ const t = v ? Date.parse(v) : NaN; return isNaN(t) ? null : t; }
@@ -3262,7 +3262,7 @@ function kbTempoDesde(iso, agoraMs){
 // lead que já é meu → outra etapa (Em andamento/Convertido/Perdido) = classificar; o resto não aceita.
 function kbAcaoDoArraste(origem, destino){
   if(!origem || !destino || origem === destino) return null;
-  if(origem === 'livres') return destino === 'novos' || destino === 'semlig' ? 'pegar' : null;
+  if(origem === 'livres') return destino === 'novos' ? 'pegar' : null;
   return kbGrupoDaColuna(destino) ? 'classificar' : null;
 }
 // "Atender agora" no cartão: lead novo meu, sem clique nem ligação, chegou há mais de 15 min.
@@ -3313,8 +3313,7 @@ function kbAlertasParaNotificar(alertas, ja){ return (alertas || []).filter(a =>
 function kbAlertaDeFundo(ativa, visivel){ return !ativa || !visivel; }
 function kbQuandoSP(dataIso, hora){ return `${dataIso}T${/^\d{2}:\d{2}$/.test(hora || '') ? hora : '10:00'}:00-03:00`; }
 function kbAtrasado(l, agoraMs){
-  const col = kbColunaDoLead(l);
-  if((col !== 'novos' && col !== 'semlig') || l.primeiro_clique || l.primeira_ligacao) return false;
+  if(kbColunaDoLead(l) !== 'novos' || l.primeiro_clique || l.primeira_ligacao) return false;
   const t = kbMs(l.criado_em_lead);
   return t !== null && (agoraMs - t) / 60000 > 15;
 }
@@ -3431,7 +3430,7 @@ function kbCard(l, agoraMs){
   if(plParaResgatar(l)) chips.push('<span class="badge">para resgatar</span>');
   if(l.retorno_em) chips.push(`<span class="kbMeta">retorno ${escapeHtml(String(l.retorno_em).split('-').reverse().join('/'))}</span>`);
   const acao = col === 'livres' ? `<button type="button" class="btn btn-sm" data-kb-pegar>Pegar</button>`
-    : `<button type="button" class="kbLink" data-kb-classificar>${col === 'novos' || col === 'semlig' ? 'Classificar' : 'Reclassificar'}</button>`;
+    : `<button type="button" class="kbLink" data-kb-classificar>${col === 'novos' ? 'Classificar' : 'Reclassificar'}</button>`;
   // §121: última ligação e última OBS à vista no cartão
   const ultLig = col !== 'livres' && l.ultima_ligacao ? `<div class="kbUltLig${l.ultima_atendida ? ' kbAtendida' : ''}">Última ligação ${escapeHtml(kbTempoDesde(l.ultima_ligacao, agoraMs))} · ${l.ultima_atendida ? 'atendida' + (l.ultima_seg ? ' · ' + escapeHtml(kbDuracao(l.ultima_seg)) : '') : 'não atendida'}</div>` : '';
   const obs = col !== 'livres' && l.obs ? `<div class="kbObs" title="${escapeHtml(l.obs)}">${escapeHtml(l.obs)}</div>` : '';
@@ -3454,7 +3453,7 @@ function kbListaHtml(col, todos, agoraMs){
     return todos.length ? `<button type="button" class="kbLink kbMais" data-kb-abrirperdido>Mostrar perdidos do mês (${todos.length})</button>` : `<div class="kbVazio">Nada aqui</div>`;
   const limite = col === 'livres' ? (kbEstado.verTodosLivres ? todos.length : KB_LIVRES_VISIVEIS) : ((kbEstado.limites || {})[col] || KB_POR_COLUNA);
   const lista = todos.slice(0, limite);
-  const vazio = !lista.length ? `<div class="kbVazio">${col === 'livres' ? 'Nenhum lead livre agora' : col === 'semlig' ? 'Arraste um lead dos Livres para cá' : col === 'novos' ? 'Leads já ligados, ainda sem status' : 'Nada aqui'}</div>` : '';
+  const vazio = !lista.length ? `<div class="kbVazio">${col === 'livres' ? 'Nenhum lead livre agora' : col === 'semlig' ? 'Nenhum lead em andamento sem ligação' : col === 'novos' ? 'Arraste um lead dos Livres para cá' : 'Nada aqui'}</div>` : '';
   const mais = todos.length > lista.length ? `<button type="button" class="btn btn-sm btn-outline kbMais" data-kb-vermais="${col}">Ver mais (${todos.length - lista.length})</button>` : '';
   return lista.map(l => kbCard(l, agoraMs)).join('') + vazio + mais;
 }
@@ -3541,7 +3540,7 @@ function kbAbrirWhats(l, col){
   if(!l) return;
   const tel = String(l.telefone || '').replace(/\D/g, '').replace(/^55/, ''), nome = ppPrimeiroNome();
   if(!tel) return;
-  const msg = col === 'novos' || col === 'semlig' ? vlMensagemPrimeiroContato(l, nome) : plMensagemWhats(l, nome);
+  const msg = col === 'novos' ? vlMensagemPrimeiroContato(l, nome) : plMensagemWhats(l, nome);
   window.open(`https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
 }
 function kbAcharLead(aba, id){
