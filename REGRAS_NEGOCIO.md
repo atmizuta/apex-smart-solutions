@@ -3970,3 +3970,4 @@ Pedido do Rafael: o modal de Redistribuir passa a ter o mesmo desenho do Classif
 - Os consultores da equipe de leads (menos o dono atual) viram **botões** no estilo dos chips de status, em "Passar para". Para lead sem status, "Devolver aos Livres" fica num grupo à parte ("Ou"). O escolhido fica destacado.
 - Rodapé fixo com Cancelar e Salvar; Ctrl+Enter salva. A opção que já vem marcada é a mesma de antes (Livres para lead sem status; senão, o primeiro consultor).
 - Sem mudança no banco (`leads_redistribuir` igual). Teste em `test_leads_painel_hoje.js`.
+- **Publicação (28/10, 16:27, ok do Rafael):** painel MD5 `0c8061f8…` (o do ar era `56d4e502…`, a §123), backup `~/deploy_backups/painel_clientes_apex_20261028_162708_antes_redistribuir_visual.html`.
