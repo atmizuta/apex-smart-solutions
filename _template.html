@@ -3312,6 +3312,19 @@ function kbAlertasParaNotificar(alertas, ja){ return (alertas || []).filter(a =>
 // Alertas em segundo plano (revisão final): aba fechada ou janela escondida/minimizada — o laço de 10 s só roda com a aba à vista.
 function kbAlertaDeFundo(ativa, visivel){ return !ativa || !visivel; }
 function kbQuandoSP(dataIso, hora){ return `${dataIso}T${/^\d{2}:\d{2}$/.test(hora || '') ? hora : '10:00'}:00-03:00`; }
+// ===== §122 (28/10): quem pega, Hoje em painel, filtros, Todos, atividade, lead novo — funções puras =====
+// São Paulo é UTC−3 o ano todo (sem horário de verão desde 2019).
+function kbPartesSP(ms){
+  const d = new Date(ms - 3 * 3600000), s = d.toISOString();
+  return { dia: s.slice(0, 10), hora: s.slice(11, 16), min: d.getUTCHours() * 60 + d.getUTCMinutes(), dow: d.getUTCDay() };
+}
+function kbDiaSP(v){ const t = typeof v === 'number' ? v : kbMs(v); return t === null ? null : kbPartesSP(t).dia; }
+function kbSomaDias(dia, n){ return new Date(Date.parse(dia + 'T00:00:00Z') + n * 86400000).toISOString().slice(0, 10); }
+function kbDiasEntre(a, b){ return Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000); }
+function kbTelCopiar(v){ return String(v || '').replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, ''); }
+function kbUltimaAcao(l){ const t = [l.ultima_ligacao, l.classificado_em, l.pego_em].map(kbMs).filter(x => x !== null); return t.length ? Math.max(...t) : null; }
+function kbDiasParado(l, agoraMs){ const u = kbUltimaAcao(l); return u === null ? null : kbDiasEntre(kbDiaSP(u), kbDiaSP(agoraMs)); }
+function kbAbertoCol(col){ return col === 'novos' || col === 'semlig' || col === 'andamento'; }
 function kbAtrasado(l, agoraMs){
   if(kbColunaDoLead(l) !== 'novos' || l.primeiro_clique || l.primeira_ligacao) return false;
   const t = kbMs(l.criado_em_lead);
@@ -3342,8 +3355,10 @@ function kbFichaHtml(f, op){
   const semContato = f.livre && !tel && !f.email && !f.cnpj;
   const msg = tel ? encodeURIComponent(col === 'novos' || f.livre ? vlMensagemPrimeiroContato(f, ppPrimeiroNome()) : plMensagemWhats(f, ppPrimeiroNome())) : '';
   const contato = semContato
-    ? `<p class="kbFichaAviso">Pegue o lead para ver celular, e-mail e CNPJ.</p><button type="button" class="btn" data-kb-ficha-pegar>Pegar este lead</button>`
-    : linha('Celular', f.telefone, true, kbFoneBR(f.telefone))
+    ? (op && op.podePegar === false
+        ? `<p class="kbFichaAviso">Você não está liberado para pegar leads.</p>`
+        : `<p class="kbFichaAviso">Pegue o lead para ver celular, e-mail e CNPJ.</p><button type="button" class="btn" data-kb-ficha-pegar>Pegar este lead</button>`)
+    : linha('Celular', kbTelCopiar(f.telefone), true, kbFoneBR(f.telefone))
       + (tel ? `<div class="kbFichaBotoes"><a class="btn btn-sm" data-kb-contato="ligar" data-kb-ligar href="#" title="Copia o número e abre o ProContact">Ligar</a><a class="btn btn-sm btn-outline" data-kb-contato="whatsapp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}?text=${msg}">WhatsApp</a></div>` : '')
       + linha('E-mail', f.email, true) + linha('CNPJ', f.cnpj, true);
   const acoes = [];
@@ -3381,14 +3396,19 @@ function kbPodeVer(){
   if(currentUser.role === 'admin') return true;
   return kbEstado.modo === 'painel' && (kbGestor() || kbEstado.naEquipe);
 }
+// §122: só quem tem leads_equipe.pode_pegar pega lead (Luria, Lucas, Caio e Mariana). O gestor não pega, mas vê os Livres para redistribuir.
+function kbPodePegar(){ return !kbGestor() && !!kbEstado.podePegar; }
+function kbVeLivres(){ return kbGestor() || kbPodePegar(); }
 async function kbAplicarPermissao(){
-  kbEstado.naEquipe = false;
+  kbEstado.naEquipe = false; kbEstado.podePegar = false;
   kbEstado.aba = null;
   const m = await ppSeguro(() => sb.from('config').select('valor').eq('chave', 'leads_modo').maybeSingle());
   kbEstado.modo = m && !m.error && m.data ? String(m.data.valor || 'planilha') : 'planilha';
   if(currentUser && currentUser.role === 'consultor'){
-    const r = await ppSeguro(() => sb.from('leads_equipe').select('id').eq('profile_id', currentUser.id));
-    kbEstado.naEquipe = !!(r && !r.error && (r.data || []).length);
+    const r = await ppSeguro(() => sb.from('leads_equipe').select('id,pode_pegar').eq('profile_id', currentUser.id));
+    const linhas = r && !r.error ? r.data || [] : [];
+    kbEstado.naEquipe = !!linhas.length;
+    kbEstado.podePegar = linhas.some(x => x.pode_pegar === true);
   }
   document.getElementById('tabBtnMeusLeads').style.display = kbPodeVer() ? 'inline-block' : 'none';
   document.getElementById('kbFiltrosGestor').style.display = kbGestor() ? '' : 'none';
@@ -3400,7 +3420,7 @@ async function kbCarregar(){
   if(!kbPodeVer()) return;
   const geracao = ++kbEstado.geracao;
   const [lds, ops] = await Promise.all([
-    ppSeguro(() => sb.rpc('leads_kanban2', { p_dono: kbGestor() && kbEstado.dono ? kbEstado.dono : null })),
+    ppSeguro(() => sb.rpc('leads_kanban3', { p_dono: kbGestor() && kbEstado.dono ? kbEstado.dono : null, p_todos: false })),
     kbEstado.opcoes.length ? Promise.resolve(null) : ppSeguro(() => sb.from('leads_status_opcoes').select('status,grupo,ordem').eq('ativo', true)),
   ]);
   if(geracao !== kbEstado.geracao) return;
@@ -3429,7 +3449,7 @@ function kbCard(l, agoraMs){
   if(l.status) chips.push(kbStChip(l.status));
   if(plParaResgatar(l)) chips.push('<span class="badge">para resgatar</span>');
   if(l.retorno_em) chips.push(`<span class="kbMeta">retorno ${escapeHtml(String(l.retorno_em).split('-').reverse().join('/'))}</span>`);
-  const acao = col === 'livres' ? `<button type="button" class="btn btn-sm" data-kb-pegar>Pegar</button>`
+  const acao = col === 'livres' ? (kbVeLivres() ? `<button type="button" class="btn btn-sm" data-kb-pegar>Pegar</button>` : '')
     : `<button type="button" class="kbLink" data-kb-classificar>${col === 'novos' ? 'Classificar' : 'Reclassificar'}</button>`;
   // §121: última ligação e última OBS à vista no cartão
   const ultLig = col !== 'livres' && l.ultima_ligacao ? `<div class="kbUltLig${l.ultima_atendida ? ' kbAtendida' : ''}">Última ligação ${escapeHtml(kbTempoDesde(l.ultima_ligacao, agoraMs))} · ${l.ultima_atendida ? 'atendida' + (l.ultima_seg ? ' · ' + escapeHtml(kbDuracao(l.ultima_seg)) : '') : 'não atendida'}</div>` : '';
@@ -3472,12 +3492,14 @@ function kbRender(){
   kbEstado.colHtml = kbEstado.colHtml || {};
   KB_COLUNAS.forEach(col => {
     const el = board.querySelector(`.kbCol[data-kb-col="${col}"]`);
+    el.style.display = col === 'livres' && !kbVeLivres() ? 'none' : '';
     el.querySelector('.kbConta').textContent = c[col].length;
     el.classList.toggle('kbFechada', col === 'perdido' && !kbEstado.perdidoAberto);
     const html = kbListaHtml(col, c[col], agoraMs);
     if(kbEstado.colHtml[col] !== html){ el.querySelector('.kbColLista').innerHTML = html; kbEstado.colHtml[col] = html; }
     const nav = document.querySelector(`#kbNavQuadro [data-kb-ir="${col}"] b`);
     if(nav) nav.textContent = c[col].length;
+    if(nav && nav.parentElement) nav.parentElement.style.display = col === 'livres' && !kbVeLivres() ? 'none' : '';
   });
   document.getElementById('kbStatus').textContent = `${c.livres.length} livre(s) · ${c.novos.length} novo(s) seu(s) · atualiza sozinho`;
   const rm = kbResumoMes(leads), equipe = kbGestor() && !kbEstado.dono;
@@ -3526,7 +3548,7 @@ function kbAbrirProContact(){
   try { w.focus(); } catch(_e) {}
 }
 async function kbLigar(telefone){
-  const num = String(telefone || '').replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '');
+  const num = kbTelCopiar(telefone);
   if(!num) return;
   let copiou = false;   // copia antes de abrir a aba: depois o painel perde o foco e o navegador recusa a cópia
   try { await (kbFichaNo().ownerDocument.defaultView || window).navigator.clipboard.writeText(num); copiou = true; } catch(_e) {}
@@ -3693,6 +3715,7 @@ function kbLimparArraste(){
 document.getElementById('kbBoard').addEventListener('dragstart', (e) => {
   const card = e.target.closest('.kbCard[draggable="true"]');
   if(!card) return;
+  if(card.dataset.col === 'livres' && !kbPodePegar() && !kbGestor()){ e.preventDefault(); return; }
   kbEstado.arrasteOrigem = card.dataset.col;
   e.dataTransfer.setData('text/plain', JSON.stringify({ aba: card.dataset.aba, id: card.dataset.id, col: card.dataset.col }));
   e.dataTransfer.effectAllowed = 'move';
@@ -3732,7 +3755,7 @@ async function kbAbrirFicha(aba, id){
   if(!kbEstado.fichaAlvo || kbEstado.fichaAlvo.id !== id) return;
   const f = r && !r.error && Array.isArray(r.data) ? r.data[0] : null;
   kbEstado.fichaLead = f;
-  corpo.innerHTML = f ? kbFichaHtml(f, { gestor: kbGestor(), agoraMs: Date.now(), flutuando: !!kbEstado.fichaJanela })
+  corpo.innerHTML = f ? kbFichaHtml(f, { gestor: kbGestor(), agoraMs: Date.now(), flutuando: !!kbEstado.fichaJanela, podePegar: kbGestor() || kbPodePegar() })
     : '<button type="button" class="kbFichaFechar" data-kb-ficha-fechar aria-label="Fechar">×</button><p class="kbMeta" style="padding:var(--space-5)">Não foi possível abrir a ficha agora.</p>';
   if(f) await kbCarregarDetalhes(aba, id);
 }

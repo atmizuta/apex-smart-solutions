@@ -90,7 +90,7 @@ try{
   window.__tabelas.leads_equipe = [{ id: 1, profile_id: 'u-zz', nome_planilha: 'ZZKCON' }];
   window.__tabelas.config = [{ valor: 'painel' }];
   window.__tabelas.leads_status_opcoes = [{ status: 'AGENDADO RETORNO', grupo: 'andamento', ordem: 2 }, { status: 'CNPJ INAPTO', grupo: 'perdido', ordem: 24 }];
-  window.__rpcRespostas.leads_kanban2 = { data: [{ aba: 'OUTUBRO', lead_id: 'h1', nome: 'Zz Hoje Um', categoria: 'sem_contato', livre: false, criado_em_lead: new Date().toISOString() }], error: null };
+  window.__rpcRespostas.leads_kanban3 = { data: [{ aba: 'OUTUBRO', lead_id: 'h1', nome: 'Zz Hoje Um', categoria: 'sem_contato', livre: false, criado_em_lead: new Date().toISOString() }], error: null };
   window.__rpcRespostas.leads_hoje = { data: { fila: [{ aba: 'OUTUBRO', lead_id: 'h1', nome: 'Zz Hoje Um', motivo: 'Novo sem contato', desde: new Date().toISOString() }],
     retornos: [{ aba: 'OUTUBRO', lead_id: 'h2', nome: 'Zz Retorno', quando: new Date(Date.now() - 600000).toISOString(), vencido: true }], livres: 3 }, error: null };
   window.__rpcRespostas.leads_alertas = { data: [{ tipo: 'sem_contato', aba: 'OUTUBRO', lead_id: 'h1', nome: 'Zz Hoje Um', dono_nome: 'Zzkcon Teste', desde: new Date().toISOString() }], error: null };
@@ -199,7 +199,7 @@ try{
   const LL = (id, o) => Object.assign({ aba: 'OUTUBRO', lead_id: id, nome: 'Zz ' + id, categoria: 'andamento', status: 'EM NEGOCIAÇÂO', livre: false, telefone: '11900000001',
     criado_em_lead: new Date(Date.now() - 3600000).toISOString(), classificado_em: new Date().toISOString() }, o || {});
   const muitos = Array.from({ length: 110 }, (_, i) => LL('a' + i)).concat([LL('pp1', { categoria: 'perdido', status: 'CNPJ INAPTO' }), LL('nv1', { categoria: 'sem_contato', status: null })]);
-  window.__rpcRespostas.leads_kanban2 = { data: muitos, error: null };
+  window.__rpcRespostas.leads_kanban3 = { data: muitos, error: null };
   await kbAplicarPermissao();
   await kbCarregar();
   kbTrocarAba('quadro');
@@ -294,11 +294,11 @@ try{
   assert(cartao.includes('zz pediu proposta') && cartao.includes('&lt;b&gt;'), 'cartão mostra a última OBS (escapada)');
   assert(cartao.includes('Última ligação há 2 h') && cartao.includes('atendida · 1 min 35 s'), 'cartão mostra a última ligação');
   assert(kbCard(SL({ lead_id: 'c2', telefone: '11900000001', categoria: 'andamento', ligacoes: 1, ultima_ligacao: new Date().toISOString(), ultima_atendida: false, criado_em_lead: new Date().toISOString() }), Date.now()).includes('não atendida'), 'ligação não atendida');
-  window.__rpcRespostas.leads_kanban2 = { data: [SL({ lead_id: 's1', nome: 'Zz Nunca Ligou', categoria: 'andamento', status: 'EM NEGOCIAÇÂO', ligacoes: 0, telefone: '11900000001', criado_em_lead: new Date().toISOString() }),
+  window.__rpcRespostas.leads_kanban3 = { data: [SL({ lead_id: 's1', nome: 'Zz Nunca Ligou', categoria: 'andamento', status: 'EM NEGOCIAÇÂO', ligacoes: 0, telefone: '11900000001', criado_em_lead: new Date().toISOString() }),
     SL({ lead_id: 's2', nome: 'Zz Recem Pego', ligacoes: 0, telefone: '11900000002', criado_em_lead: new Date().toISOString() })], error: null };
   currentUser = { id: 'u-zz', nome: 'Zzkcon Teste', role: 'consultor' };
   await kbAplicarPermissao(); await kbCarregar(); kbTrocarAba('quadro');
-  assert(window.__rpcCalls.some(c => c.nome === 'leads_kanban2'), 'Quadro usa leads_kanban2 (com ligações)');
+  assert(window.__rpcCalls.some(c => c.nome === 'leads_kanban3'), 'Quadro usa leads_kanban3 (com ligações)');
   assert(document.querySelector('#kbBoard [data-kb-col="semlig"] .kbCard[data-id="s1"]'), 'lead em andamento sem ligação na coluna Sem ligação');
   assert(document.querySelector('#kbBoard [data-kb-col="novos"] .kbCard[data-id="s2"]'), 'lead recém-pego (sem status) fica em Meus novos');
   assert(document.querySelector('#kbNavQuadro [data-kb-ir="semlig"]').textContent.includes('1'), 'atalho Sem ligação com contagem');
