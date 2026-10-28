@@ -153,6 +153,26 @@ try{
   kbEstado.densidade = 'compacto'; kbRender();
   assert(document.getElementById('kbBoard').classList.contains('kbCompacto'), 'densidade compacta no Quadro');
   kbEstado.densidade = 'conforto'; kbRender();
+  // ==== Task 4: filtros em botões e densidade ====
+  const hf = kbFiltroBarraHtml(LQ, { cidade: 'Campinas' }, Date.now(), { densidade: 'conforto' });
+  assert(hf.includes('data-kb-menu="cidade"') && hf.includes('class="kbFb on">Cidade: <b>Campinas</b><span class="kbFbX" data-kb-filtro-tirar="cidade"') && hf.includes('class="kbFiltroOp" data-kb-filtro-tirar="cidade">Todos'), 'filtro ativo: botão escuro com o valor, × e opção Todos');
+  assert(hf.includes('class="kbFiltroOp ativo" data-kb-filtro="cidade" data-valor="Campinas"') && !hf.includes('<select'), 'opções em lista de botões, sem select');
+  assert(hf.includes('data-kb-filtro="ligacao"') && hf.includes('data-kb-densidade="compacto"') && hf.includes('Limpar filtros (1)'), 'Nunca ligado direto, densidade e Limpar');
+  assert(kbFiltroBarraHtml([{ aba: 'O', lead_id: 'x', cidade: 'Santos', livre: false }], { cidade: 'Campinas' }, Date.now()).includes('Cidade: <b>Campinas</b>'), 'filtro guardado que sumiu dos leads continua à vista');
+  kbTrocarAba('quadro'); kbRenderFiltroBarra();
+  const barraF = document.getElementById('kbFiltroBarra');
+  assert(!barraF.classList.contains('card'), 'barra de filtros sem caixa');
+  barraF.querySelector('[data-kb-filtro="cidade"][data-valor="Campinas"]').click();
+  eq(kbEstado.filtros.cidade, 'Campinas', 'clicar na opção liga o filtro');
+  barraF.querySelector('.kbFbX[data-kb-filtro-tirar="cidade"]').click();
+  assert(!kbEstado.filtros.cidade, 'o × tira o filtro do grupo');
+  barraF.querySelector('[data-kb-densidade="compacto"]').click();
+  assert(kbEstado.densidade === 'compacto' && document.getElementById('kbBoard').classList.contains('kbCompacto') && window.localStorage.getItem('kbDensidade') === 'compacto', 'densidade compacta aplicada e guardada');
+  document.getElementById('kbFiltroBarra').querySelector('[data-kb-densidade="conforto"]').click();
+  // menu aberto fecha ao clicar fora
+  const menu = document.querySelector('#kbFiltroBarra details[data-kb-menu="cidade"]');
+  menu.open = true; document.body.click();
+  assert(!menu.open, 'menu de filtro fecha ao clicar fora');
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');

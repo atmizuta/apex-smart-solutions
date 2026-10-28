@@ -1046,11 +1046,23 @@
     .kbCol[data-kb-col="livres"]{position:sticky;left:0;z-index:1;}
   }
   /* §122: filtros do Quadro e da aba Todos */
-  .kbFiltroBarra{display:flex;flex-wrap:wrap;gap:var(--space-3);align-items:flex-end;margin-bottom:var(--space-3);}
-  .kbFiltroGrupo{display:flex;flex-wrap:wrap;gap:var(--space-1);align-items:center;}
-  .kbFiltroGrupo .kbMeta{margin-right:var(--space-1);}
-  .kbFiltroCampo{margin:0;min-width:150px;}
-  .kbFiltroBarra .filterPill b{margin-left:4px;font-weight:700;}
+  /* §126.2: filtros em botões compactos + densidade */
+  .kbFiltroBarra{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);flex-wrap:wrap;margin:0 0 var(--space-3);}
+  .kbFiltrosLinha{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .kbFb{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px 0 12px;border:0;border-radius:var(--radius-lg);background:var(--ml-surface);font:inherit;font-size:var(--fs-sm);font-weight:600;color:var(--ml-ink-2);cursor:pointer;list-style:none;}
+  .kbFb::-webkit-details-marker{display:none;}
+  .kbFb:hover{color:var(--ml-ink);}
+  .kbFb.on{background:var(--ml-ink);color:var(--c-branco);}
+  .kbFb b{font-weight:700;font-variant-numeric:tabular-nums;}
+  .kbFbSeta{font-size:10px;opacity:.7;}
+  .kbFbX{margin-left:2px;padding:0 2px;opacity:.85;}
+  .kbFbX:hover{opacity:1;}
+  .kbFiltroMenu{position:relative;}
+  .kbFiltroLista{position:absolute;left:0;top:calc(100% + 4px);min-width:210px;max-height:300px;overflow-y:auto;padding:6px;border-radius:var(--radius-lg);background:var(--ml-surface);box-shadow:var(--ml-float);z-index:20;display:flex;flex-direction:column;gap:2px;}
+  .kbFiltroOp{display:flex;justify-content:space-between;gap:12px;width:100%;padding:7px 10px;border:0;border-radius:6px;background:none;font:inherit;font-size:var(--fs-sm);text-align:left;color:var(--ml-ink);cursor:pointer;}
+  .kbFiltroOp:hover{background:var(--ml-surface-2);}
+  .kbFiltroOp.ativo{background:var(--ml-surface-3);font-weight:600;}
+  .kbFiltroOp b{color:var(--ml-ink-3);font-weight:600;}
   /* §122: Hoje em painel */
   .kbCartaoLista{margin-bottom:var(--space-4);}
   /* §122: atividade na Equipe */
@@ -1762,7 +1774,7 @@
         </div>
       </div>
       <div id="kbEquipe" class="kbEquipe" style="display:none"></div>
-      <div id="kbFiltroBarra" class="kbFiltroBarra card" style="display:none"></div>
+      <div id="kbFiltroBarra" class="kbFiltroBarra" style="display:none"></div>
       <div id="kbTodos" class="kbTodos" style="display:none">
         <div class="card"><input type="search" id="kbTodosBusca" class="kbBusca" placeholder="Buscar nos seus leads por nome, telefone ou CNPJ…" autocomplete="off"><div id="kbTodosTabela"></div></div>
       </div>
@@ -3509,19 +3521,22 @@ function kbOpcoesFiltro(leads, grupo, filtros, agoraMs){
   base.forEach(l => { const v = String(def.campo(l) || '').trim(); if(v) m.set(v, (m.get(v) || 0) + 1); });
   return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([v, n]) => ({ valor: v, rotulo: v, n }));
 }
-function kbFiltroBarraHtml(leads, filtros, agoraMs){
-  const f = filtros || {};
-  const grupos = Object.keys(KB_FILTROS).map(g => {
+// §126.2: filtros em botões compactos que abrem uma lista; o ativo fica escuro com o valor. Mesma lógica (KB_FILTROS) e o mesmo guardado no navegador.
+function kbFiltroBarraHtml(leads, filtros, agoraMs, opc){
+  const f = filtros || {}, o = opc || {};
+  const itens = Object.keys(KB_FILTROS).map(g => {
     const def = KB_FILTROS[g], ops = kbOpcoesFiltro(leads, g, f, agoraMs);
-    if(def.soDono) return `<div class="kbFiltroGrupo"><span class="kbMeta">${def.rotulo}</span>${ops.map(o =>
-      `<button type="button" class="filterPill${f[g] === o.valor ? ' active' : ''}" data-kb-filtro="${g}" data-valor="${escapeHtml(o.valor)}">${escapeHtml(o.rotulo)} <b>${o.n}</b></button>`).join('')}</div>`;
-    if(f[g] && !ops.some(o => o.valor === f[g])) ops.unshift({ valor: f[g], rotulo: f[g], n: 0 });   // valor guardado que sumiu dos leads: continua à vista
+    if(f[g] && !ops.some(x => x.valor === f[g])) ops.unshift({ valor: f[g], rotulo: f[g], n: 0 });   // valor guardado que sumiu dos leads: continua à vista
     if(!ops.length && !f[g]) return '';
-    return `<label class="field kbFiltroCampo"><span>${def.rotulo}</span><select data-kb-filtro="${g}"><option value="">Todos</option>${ops.map(o =>
-      `<option value="${escapeHtml(o.valor)}"${f[g] === o.valor ? ' selected' : ''}>${escapeHtml(o.rotulo)} (${o.n})</option>`).join('')}</select></label>`;
+    if(g === 'ligacao'){ const op = ops[0]; return `<button type="button" class="kbFb${f[g] ? ' on' : ''}" data-kb-filtro="${g}" data-valor="${escapeHtml(op.valor)}">${escapeHtml(op.rotulo)} <b>${op.n}</b></button>`; }
+    const atual = f[g] ? ((ops.find(x => x.valor === f[g]) || {}).rotulo || f[g]) : '';
+    return `<details class="kbFiltroMenu" data-kb-menu="${g}"><summary class="kbFb${f[g] ? ' on' : ''}">${def.rotulo}${f[g] ? `: <b>${escapeHtml(atual)}</b><span class="kbFbX" data-kb-filtro-tirar="${g}" title="Tirar o filtro">×</span>` : '<span class="kbFbSeta" aria-hidden="true">▾</span>'}</summary>`
+      + `<div class="kbFiltroLista">${f[g] ? `<button type="button" class="kbFiltroOp" data-kb-filtro-tirar="${g}">Todos</button>` : ''}${ops.map(x =>
+        `<button type="button" class="kbFiltroOp${f[g] === x.valor ? ' ativo' : ''}" data-kb-filtro="${g}" data-valor="${escapeHtml(x.valor)}">${escapeHtml(x.rotulo)} <b>${x.n}</b></button>`).join('')}</div></details>`;
   }).join('');
   const ativos = Object.keys(f).filter(g => f[g]).length;
-  return grupos + (ativos ? `<button type="button" class="btn btn-sm btn-outline" data-kb-filtro-limpar>Limpar filtros (${ativos})</button>` : '');
+  const dens = o.densidade ? `<nav class="kbSeg kbDensidade" aria-label="Densidade"><button type="button" data-kb-densidade="conforto"${o.densidade === 'conforto' ? ' class="active"' : ''}>Confortável</button><button type="button" data-kb-densidade="compacto"${o.densidade === 'compacto' ? ' class="active"' : ''}>Compacto</button></nav>` : '';
+  return `<div class="kbFiltrosLinha">${itens}${ativos ? `<button type="button" class="kbBtn kbBtnG kbBtnSm" data-kb-filtro-limpar>Limpar filtros (${ativos})</button>` : ''}</div>${dens}`;
 }
 function kbLerFiltros(){ try { const v = JSON.parse(window.localStorage.getItem('kbFiltros') || '{}'); return v && typeof v === 'object' ? v : {}; } catch(_e) { return {}; } }
 function kbSalvarFiltros(){ try { window.localStorage.setItem('kbFiltros', JSON.stringify(kbEstado.filtros || {})); } catch(_e) {} }
@@ -4371,7 +4386,7 @@ function kbTrocarAba(aba){
 function kbFonteFiltros(){ return kbEstado.aba === 'todos' ? (kbEstado.todos || []) : kbEstado.leads; }
 function kbRenderFiltroBarra(){
   const el = document.getElementById('kbFiltroBarra');
-  const html = kbFiltroBarraHtml(kbFonteFiltros(), kbEstado.filtros, Date.now());
+  const html = kbFiltroBarraHtml(kbFonteFiltros(), kbEstado.filtros, Date.now(), { densidade: kbEstado.densidade || 'conforto' });
   if(el.dataset.html !== html){ el.innerHTML = html; el.dataset.html = html; }
 }
 function kbAoMudarFiltros(){
@@ -4382,18 +4397,18 @@ function kbAoMudarFiltros(){
 }
 document.getElementById('kbFiltroBarra').addEventListener('click', (e) => {
   if(e.target.closest('[data-kb-filtro-limpar]')){ kbEstado.filtros = {}; kbAoMudarFiltros(); return; }
+  const dn = e.target.closest('[data-kb-densidade]');
+  if(dn){ kbEstado.densidade = dn.dataset.kbDensidade === 'compacto' ? 'compacto' : 'conforto'; kbSalvarDensidade(); if(kbEhTabela(kbEstado.aba)) kbRenderTodos(); else kbRender(); kbRenderFiltroBarra(); return; }
+  const tr = e.target.closest('[data-kb-filtro-tirar]');
+  if(tr){ e.preventDefault(); delete kbEstado.filtros[tr.dataset.kbFiltroTirar]; kbAoMudarFiltros(); return; }   // preventDefault: o × no summary não abre o menu
   const b = e.target.closest('button[data-kb-filtro]');
   if(!b) return;
   const g = b.dataset.kbFiltro, v = b.dataset.valor;
   if(kbEstado.filtros[g] === v) delete kbEstado.filtros[g]; else kbEstado.filtros[g] = v;
   kbAoMudarFiltros();
 });
-document.getElementById('kbFiltroBarra').addEventListener('change', (e) => {
-  const s = e.target.closest('select[data-kb-filtro]');
-  if(!s) return;
-  if(s.value) kbEstado.filtros[s.dataset.kbFiltro] = s.value; else delete kbEstado.filtros[s.dataset.kbFiltro];
-  kbAoMudarFiltros();
-});
+// menu de filtro aberto fecha ao clicar fora dele
+document.addEventListener('click', (e) => { document.querySelectorAll('#kbFiltroBarra details.kbFiltroMenu[open]').forEach(d => { if(!d.contains(e.target)) d.open = false; }); });
 async function kbCarregarHoje(){
   const [r, pl] = await Promise.all([
     ppSeguro(() => sb.rpc('leads_hoje', { p_dono: kbGestor() && kbEstado.dono ? kbEstado.dono : null })),

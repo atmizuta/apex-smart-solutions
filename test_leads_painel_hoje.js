@@ -126,9 +126,8 @@ try{
   eq(kbEstado.filtros.parado, '5+', 'clicar no botão liga o filtro');
   eq(document.querySelector('#kbBoard .kbCol[data-kb-col="novos"] .kbConta').textContent, '1', 'coluna filtrada');
   eq(document.querySelector('#kbBoard .kbCol[data-kb-col="andamento"] .kbConta').textContent, '0', 'coluna zerada mostra 0');
-  const cidadeSel = barra.querySelector('select[data-kb-filtro="cidade"]');
-  cidadeSel.value = 'Campinas'; cidadeSel.dispatchEvent(new window.Event('change', { bubbles: true }));
-  eq(kbEstado.filtros.cidade, 'Campinas', 'select liga o filtro');
+  barra.querySelector('[data-kb-filtro="cidade"][data-valor="Campinas"]').click();
+  eq(kbEstado.filtros.cidade, 'Campinas', 'opção da lista liga o filtro');
   assert(String(window.localStorage.getItem('kbFiltros')).includes('Campinas'), 'filtros guardados no navegador');
   barra.querySelector('[data-kb-filtro-limpar]').click();
   eq(Object.keys(kbEstado.filtros).length, 0, 'Limpar zera os filtros');
@@ -308,7 +307,7 @@ try{
   assert(plRF && plRF.args && /^\\d{4}-\\d{2}-\\d{2}$/.test(plRF.args.p_ref), 'placar de ligações manda p_ref (dia SP)');
   // Important 2: filtro guardado cujo valor sumiu dos leads continua visível (senão o select mostra "Todos" e esconde Livres)
   const htmlRF = kbFiltroBarraHtml([{ aba: 'O', lead_id: 'x', cidade: 'Santos', livre: false }], { cidade: 'Campinas' }, Date.now());
-  assert(htmlRF.includes('<option value="Campinas" selected>Campinas (0)</option>'), 'filtro guardado que sumiu dos leads continua selecionado com (0)');
+  assert(htmlRF.includes('Cidade: <b>Campinas</b>') && htmlRF.includes('data-valor="Campinas"'), 'filtro guardado que sumiu dos leads continua à vista');
   // Important 3: "Ver mais" da lista da Equipe funciona
   kbEstado.leadsEquipe = Array.from({ length: 60 }, (_, i) => ({ aba: 'O', lead_id: 'e' + i, nome: 'Zz E' + i, dono_id: 'u-zz', categoria: 'andamento', livre: false, ligacoes: 1, ultima_ligacao: new Date().toISOString() }));
   kbEstado.atividade = [{ dono_id: 'u-zz', nome: 'Zzkcon Teste', tem_telefonia: true, lig_hoje: 0, obs_hoje: 0 }];
