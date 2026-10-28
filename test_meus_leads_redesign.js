@@ -110,6 +110,30 @@ try{
   eq(u(L1[4], null), { classe: 'soon', texto: 'parado há 4 dias' }, 'urgência: parado');
   eq(u(L1[10], null), null, 'convertido sem urgência');
   eq(u(LF('lv', { livre: true, categoria: 'sem_contato', status: null, criado_em_lead: '2026-10-28T14:47:00-03:00' }), null), { classe: 'novo', texto: 'livre · chegou há 25 min' }, 'urgência: livre');
+  // ==== Task 2: tokens e barra da aba ====
+  const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('\\n');
+  assert(css.includes('#panel-meusleads,#kbFicha{--ml-ink:var(--c-grafite);--ml-ink-2:#464A4E;'), 'tokens da aba declarados');
+  const stKb = [...document.querySelectorAll('style')].map(s => s.textContent).find(t => t.includes('/* Meus leads — Kanban')) || '';
+  const cssKb = stKb.slice(stKb.indexOf('/* Meus leads — Kanban'));   // o bloco de Meus leads vai até o fim desse <style>
+  const hexSolto = cssKb.split('\\n').filter(l => /#[0-9a-fA-F]{3,6}\\b/.test(l) && !/^\\s*\\[data-st=/.test(l) && !/--ml-ink-2:#464A4E;.*--ml-surface-2:#F7F7F8;/.test(l));
+  eq(hexSolto, [], 'CSS de Meus leads: hex só nos tokens e nas cores de STATUS');
+  const seg = document.getElementById('kbAbas');
+  assert(seg.classList.contains('kbSeg'), 'abas viram controle segmentado');
+  eq([...seg.querySelectorAll('[data-kb-aba]')].map(b => b.dataset.kbAba), ['equipe', 'hoje', 'quadro', 'todos'], 'Equipe primeiro (só o gestor vê)');
+  assert(document.querySelector('.kbBarra #kbBusca') && document.querySelector('.kbBarra .kbAtalhoTecla').textContent === '/', 'busca na barra, com o atalho /');
+  assert(document.querySelector('#kbFiltrosGestor .kbMaisMenu #kbSoDiverg') && document.querySelector('#kbFiltrosGestor .kbMaisMenu #kbReescrever'), 'Só divergências e Reescrever no menu ⋯ do gestor');
+  assert(!document.querySelector('#panel-meusleads .kbTopo'), 'sai o cartão antigo do topo');
+  const painel = document.getElementById('panel-meusleads');
+  painel.classList.add('active');
+  const tecla = (k, alvo) => (alvo || document).dispatchEvent(new window.KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
+  document.body.focus();
+  tecla('/');
+  assert(document.activeElement === document.getElementById('kbBusca'), '/ leva para a busca');
+  const ta = document.createElement('textarea'); document.body.appendChild(ta); ta.focus();
+  tecla('/', ta);
+  assert(document.activeElement === ta, '/ dentro de um campo de texto não rouba o foco');
+  ta.remove();
+  painel.classList.remove('active');
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');

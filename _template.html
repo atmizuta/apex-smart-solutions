@@ -791,10 +791,52 @@
 </style>
 <style id="kbStyles">
   /* Meus leads — Kanban (§112; visual refeito em 26/10 à noite a pedido do Rafael). Só tokens do design, nenhuma cor fixa. */
-  .kbTopo{display:flex;justify-content:space-between;align-items:flex-end;gap:var(--space-3);flex-wrap:wrap;}
-  .kbFiltros{display:flex;gap:var(--space-2);align-items:flex-end;flex-wrap:wrap;}
-  .kbResumo{display:flex;gap:var(--space-6);flex-wrap:wrap;margin-top:var(--space-3);font-size:var(--fs-sm);color:var(--muted);}
-  .kbResumo strong{font-family:var(--font-head);font-size:var(--fs-lg);font-weight:700;color:var(--c-grafite);margin-right:6px;}
+  /* §126 (redesign 28/10, pedido do Rafael): tokens da aba. Hex novo só em --ml-ink-2 e --ml-surface-2; o resto reaproveita o sistema. */
+  #panel-meusleads,#kbFicha{--ml-ink:var(--c-grafite);--ml-ink-2:#464A4E;--ml-ink-3:var(--c-cinza);--ml-ground:var(--c-papel);--ml-surface:var(--c-branco);--ml-surface-2:#F7F7F8;--ml-surface-3:var(--c-cinza-claro);--ml-late:var(--c-sinal-600);--ml-late-soft:var(--st-perdido-bg);--ml-soon:var(--st-andamento);--ml-soon-soft:var(--st-andamento-bg);--ml-ok:var(--st-ganho);--ml-ok-soft:var(--st-ganho-bg);--ml-novo:var(--c-sinal);--ml-novo-soft:var(--c-rosa);--ml-float:0 12px 32px rgba(29,31,32,.16);}
+  /* §126: botões planos de 8 px (decididos uma vez), controle segmentado, marcadores e contadores */
+  .kbBtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 14px;border:0;border-radius:8px;font:inherit;font-size:var(--fs-base);font-weight:600;line-height:1;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background var(--dur-fast) var(--ease-out),color var(--dur-fast),transform var(--dur-fast);}
+  .kbBtn:active{transform:translateY(1px);}
+  .kbBtn svg{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  .kbBtn svg circle{fill:currentColor;}
+  .kbBtnP{background:var(--c-sinal);color:var(--c-branco);}
+  .kbBtnP:hover{background:var(--c-sinal-600);}
+  .kbBtnQ{background:var(--ml-surface-3);color:var(--ml-ink);}
+  .kbBtnQ:hover{background:var(--c-linha-forte);}
+  .kbBtnG{background:none;color:var(--ml-ink-2);}
+  .kbBtnG:hover{background:var(--ml-surface-2);color:var(--ml-ink);}
+  .kbBtnLg{height:46px;padding:0 20px;font-size:var(--fs-md);border-radius:10px;}
+  .kbBtnSm{height:30px;padding:0 10px;font-size:var(--fs-sm);}
+  .kbBtnIco{width:32px;height:32px;padding:0;}
+  .kbSeg{display:inline-flex;gap:2px;padding:3px;border-radius:10px;background:var(--ml-surface-3);}
+  .kbSeg button{display:inline-flex;align-items:center;gap:7px;border:0;background:none;padding:7px 14px;border-radius:8px;font:inherit;font-size:var(--fs-base);font-weight:600;color:var(--ml-ink-2);cursor:pointer;transition:background var(--dur-fast),color var(--dur-fast);}
+  .kbSeg button:hover{color:var(--ml-ink);}
+  .kbSeg button.active{background:var(--ml-surface);color:var(--ml-ink);box-shadow:var(--shadow-sm);}
+  .kbTag{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:6px;font-size:var(--fs-xs);font-weight:600;white-space:nowrap;background:var(--ml-surface-2);color:var(--ml-ink-2);}
+  .kbTag svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;}
+  .kbTag.late{background:var(--ml-late-soft);color:var(--ml-late);}
+  .kbTag.soon{background:var(--ml-soon-soft);color:var(--ml-soon);}
+  .kbTag.ok{background:var(--ml-ok-soft);color:var(--ml-ok);}
+  .kbTag.novo{background:var(--ml-novo-soft);color:var(--ml-novo);}
+  .kbN{min-width:20px;padding:0 6px;border-radius:999px;background:var(--ml-surface-2);color:var(--ml-ink-2);font-size:var(--fs-xs);font-weight:700;line-height:18px;text-align:center;}
+  .kbN:empty{display:none;}
+  .kbN.hot{background:var(--c-sinal);color:var(--c-branco);}
+  .kbMaisMenu{position:relative;display:inline-block;}
+  .kbMaisMenu > summary{list-style:none;}
+  .kbMaisMenu > summary::-webkit-details-marker{display:none;}
+  .kbMaisLista{position:absolute;right:0;top:calc(100% + 4px);min-width:210px;padding:6px;border-radius:12px;background:var(--ml-surface);box-shadow:var(--ml-float);z-index:5;display:flex;flex-direction:column;gap:2px;}
+  .kbMaisLista .kbBtn,.kbMaisLista .filterPill{justify-content:flex-start;width:100%;}
+  .kbPerigo{color:var(--c-sinal-600);}
+  /* §126: barra da aba (sub-abas, busca com "/", seletor de consultor e menu ⋯ do gestor) */
+  .kbBarra{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin-bottom:var(--space-2);}
+  .kbBarra .kbBuscaBox{margin-left:auto;flex:1 1 280px;max-width:460px;}
+  .kbBarra .kbBusca{height:38px;padding:0 36px;}
+  .kbBuscaIco{position:absolute;left:12px;top:11px;width:16px;height:16px;stroke:var(--ml-ink-3);fill:none;stroke-width:2;pointer-events:none;}
+  .kbAtalhoTecla{position:absolute;right:10px;top:9px;padding:1px 6px;border-radius:5px;background:var(--ml-surface-2);color:var(--ml-ink-3);font-size:11px;font-weight:600;pointer-events:none;}
+  .kbDono{height:38px;border:0;border-radius:10px;background:var(--ml-surface);padding:0 12px;font:inherit;font-weight:600;color:var(--ml-ink);}
+  .kbStatusLinha{font-size:var(--fs-xs);color:var(--ml-ink-3);}
+  .kbFiltros{display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;}
+  .kbResumo{display:flex;gap:var(--space-6);flex-wrap:wrap;margin:0 0 var(--space-3);font-size:var(--fs-sm);color:var(--ml-ink-2);}
+  .kbResumo strong{font-family:var(--font-head);font-size:var(--fs-lg);font-weight:700;color:var(--ml-ink);margin-right:6px;font-variant-numeric:tabular-nums;}
   .kbAviso{margin-top:var(--space-2);padding:var(--space-2) var(--space-3);border-left:3px solid var(--c-sinal);background:var(--c-papel);font-size:var(--fs-sm);}
   /* §120: o Quadro cabe na tela — cada coluna rola por dentro e a barra de rolagem lateral fica sempre à vista */
   .kbBoard{display:grid;grid-template-columns:repeat(7,minmax(250px,1fr));gap:var(--space-4);overflow-x:auto;padding:2px 2px var(--space-3);align-items:stretch;height:var(--kb-altura,calc(100vh - 230px));min-height:420px;}
@@ -917,12 +959,11 @@
   .kbFichaAviso{background:var(--c-papel);border-left:3px solid var(--c-sinal);padding:var(--space-3);font-size:var(--fs-sm);margin:var(--space-2) 0;}
   /* §118: pesquisa, abas Hoje/Quadro/Equipe, semáforo, linha do tempo */
   .kbBuscaBox{position:relative;flex:1 1 320px;max-width:520px;}
-  .kbBusca{width:100%;padding:10px 14px;border:1px solid var(--c-linha-forte);border-radius:var(--radius-lg);font:inherit;font-size:var(--fs-base);background:var(--c-branco);}
+  .kbBusca{width:100%;padding:10px 14px;border:0;border-radius:10px;font:inherit;font-size:var(--fs-base);background:var(--ml-surface);color:var(--ml-ink);}
   .kbBusca:focus{outline:2px solid var(--c-sinal);outline-offset:1px;}
   .kbBuscaRes{display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);background:var(--c-branco);border:1px solid var(--c-linha);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);z-index:30;max-height:360px;overflow-y:auto;}
   .kbBuscaItem{display:flex;flex-direction:column;align-items:flex-start;width:100%;text-align:left;padding:var(--space-2) var(--space-3);border:0;border-bottom:1px solid var(--c-linha);background:none;cursor:pointer;font:inherit;}
   .kbBuscaItem:hover{background:var(--c-papel);}
-  .kbAbas{margin-top:var(--space-3);}
   .kbBadge{display:inline-block;min-width:18px;margin-left:4px;padding:0 6px;border-radius:999px;background:var(--c-sinal);color:var(--c-branco);font-size:var(--fs-xs);font-weight:700;text-align:center;}
   .kbBadge:empty{display:none;}
   .kbProximoBox{display:flex;align-items:center;gap:var(--space-4);flex-wrap:wrap;}
@@ -1602,28 +1643,23 @@
     </section>
     <!-- 20/10/2026, seção 102: Base de Mailing (admin/supervisor). Spec: docs/superpowers/specs/2026-10-20-base-mailing-design.md -->
     <section class="panel" id="panel-meusleads">
-      <div class="card">
-        <div class="kbTopo">
-          <div>
-            <h3 style="margin:0">Meus leads</h3>
-            <p class="desc" id="kbStatus" style="margin:4px 0 0"></p>
-            <div class="kbResumo" id="kbResumo"></div>
-          </div>
-          <div class="kbBuscaBox"><input type="search" id="kbBusca" class="kbBusca" placeholder="Pesquisar por CNPJ, nome ou telefone…" autocomplete="off"><div class="kbBuscaRes" id="kbBuscaRes"></div></div>
-          <div class="kbFiltros" id="kbFiltrosGestor" style="display:none">
-            <label class="field" style="margin:0"><span>Consultor</span><select id="kbDono"></select></label>
-            <button type="button" class="filterPill" id="kbSoDiverg">Só divergências</button>
-            <button type="button" class="btn btn-sm btn-outline" id="kbReescrever" style="display:none">Reescrever planilha</button>
-          </div>
+      <div class="kbBarra">
+        <nav class="kbSeg" id="kbAbas" aria-label="Visões de Meus leads">
+          <button type="button" data-kb-aba="equipe">Equipe <span class="kbBadge" id="kbBadgeEquipe"></span></button>
+          <button type="button" data-kb-aba="hoje">Hoje <span class="kbBadge" id="kbBadgeHoje"></span></button>
+          <button type="button" data-kb-aba="quadro">Quadro</button>
+          <button type="button" data-kb-aba="todos">Todos</button>
+        </nav>
+        <span class="kbStatusLinha" id="kbStatus"></span>
+        <div class="kbBuscaBox"><svg class="kbBuscaIco" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="search" id="kbBusca" class="kbBusca" placeholder="Buscar lead por nome, CNPJ ou telefone" autocomplete="off" aria-label="Buscar lead"><span class="kbAtalhoTecla" aria-hidden="true">/</span><div class="kbBuscaRes" id="kbBuscaRes"></div></div>
+        <div class="kbFiltros" id="kbFiltrosGestor" style="display:none">
+          <select id="kbDono" class="kbDono" aria-label="Consultor"></select>
+          <details class="kbMaisMenu"><summary class="kbBtn kbBtnG kbBtnIco" title="Mais opções" aria-label="Mais opções"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg></summary>
+            <div class="kbMaisLista"><button type="button" class="filterPill" id="kbSoDiverg">Só divergências</button><button type="button" class="kbBtn kbBtnG kbBtnSm" id="kbReescrever" style="display:none">Reescrever planilha</button></div></details>
         </div>
-        <div class="filterPills kbAbas" id="kbAbas">
-          <button type="button" class="filterPill" data-kb-aba="hoje">Hoje <span class="kbBadge" id="kbBadgeHoje"></span></button>
-          <button type="button" class="filterPill" data-kb-aba="quadro">Quadro</button>
-          <button type="button" class="filterPill" data-kb-aba="todos">Todos</button>
-          <button type="button" class="filterPill" data-kb-aba="equipe">Equipe <span class="kbBadge" id="kbBadgeEquipe"></span></button>
-        </div>
-        <div class="kbAviso" id="kbAviso" style="display:none"></div>
       </div>
+      <div class="kbResumo" id="kbResumo"></div>
+      <div class="kbAviso" id="kbAviso" style="display:none"></div>
       <div id="kbHoje" class="kbHoje" style="display:none"></div>
       <div id="kbEquipe" class="kbEquipe" style="display:none"></div>
       <div id="kbFiltroBarra" class="kbFiltroBarra card" style="display:none"></div>
@@ -4362,6 +4398,16 @@ document.getElementById('kbBusca').addEventListener('input', (e) => {
   kbBuscaTimer = setTimeout(() => kbBuscar(v), 300);
 });
 document.addEventListener('click', (e) => { if(!e.target.closest('.kbBuscaBox')) document.getElementById('kbBuscaRes').style.display = 'none'; });
+// §126: "/" leva à busca de Meus leads (fora de campo de texto e só com a aba à vista)
+document.addEventListener('keydown', (e) => {
+  if(e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+  const a = document.activeElement;
+  if(a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)) return;
+  const p = document.getElementById('panel-meusleads');
+  if(!p || !p.classList.contains('active')) return;
+  e.preventDefault();
+  document.getElementById('kbBusca').focus();
+});
 document.getElementById('kbAbas').addEventListener('click', (e) => { const b = e.target.closest('[data-kb-aba]'); if(b) kbTrocarAba(b.dataset.kbAba); });
 document.getElementById('panel-meusleads').addEventListener('click', (e) => {
   const eqn = e.target.closest('[data-kb-eq]');
