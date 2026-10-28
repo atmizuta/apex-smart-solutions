@@ -173,6 +173,46 @@ try{
   const menu = document.querySelector('#kbFiltroBarra details[data-kb-menu="cidade"]');
   menu.open = true; document.body.click();
   assert(!menu.open, 'menu de filtro fecha ao clicar fora');
+  // ==== Task 5: Lista ====
+  eq(document.querySelector('#kbAbas [data-kb-aba="todos"]').textContent.trim(), 'Lista', 'a sub-aba Todos passa a se chamar Lista');
+  const LL = [LA('t1', { nome: 'Zz Alfa', cidade: 'Campinas', uf: 'SP', campanha: 'Zz Camp', telefone: '11900000031', retorno_em: kbSomaDias(hojeC, -1), ultima_ligacao: isoC(-120), ultima_atendida: true, ultima_seg: 240, qtd_linhas: '12' }),
+    LA('t2', { nome: 'Zz Beta', telefone: '11900000032', ligacoes: 0 }), LA('t3', { nome: 'Zz Gama', categoria: 'convertido', status: 'PEDIDO CONCLUIDO (VENDA)' }),
+    LA('t4', { nome: 'Zz Delta', categoria: 'perdido', status: 'CLIENTE NÃO RESPONDE' })];
+  window.__rpcRespostas.leads_kanban3 = (args) => ({ data: args.p_todos ? LL : LQ, error: null });
+  kbEstado.filtros = {};
+  kbTrocarAba('todos'); await espera(80);
+  const vis = [...document.querySelectorAll('#kbVisoes [data-kb-visao]')];
+  eq(vis.map(b => b.dataset.kbVisao), ['todos', 'aberto', 'retornos', 'semlig', 'semresp', 'convertido', 'perdido'], 'visões prontas');
+  assert(vis[0].classList.contains('active') && vis[0].textContent.includes('4') && vis[1].textContent.includes('2'), 'visões com contagem');
+  vis[1].click();
+  eq([...document.querySelectorAll('#kbTodos tbody tr')].map(t => t.dataset.kbAbrir).sort(), ['O|t1', 'O|t2'], 'visão Em aberto filtra a tabela');
+  document.querySelector('#kbVisoes [data-kb-visao="todos"]').click();
+  const ths = [...document.querySelectorAll('#kbTodos thead th[data-kb-ord]')].map(t => t.textContent.replace(/[▲▼]/g, '').trim());
+  eq(ths, ['Empresa', 'Etapa', 'STATUS', 'Último contato', 'Próximo retorno', 'Linhas', 'Pego em'], 'colunas da Lista (consultor)');
+  const lt1 = document.querySelector('#kbTodos tr[data-kb-abrir="O|t1"]');
+  assert(lt1.querySelector('.kbTd-nome').textContent.includes('Campinas/SP · Zz Camp') && lt1.querySelector('.kbTd-etapa .kbEtapa') && lt1.querySelector('.kbTd-status .kbStP'), 'Empresa com cidade e campanha; etapa e STATUS com marcador');
+  assert(lt1.querySelector('.kbTd-contato').textContent.includes('atendida · 4 min') && lt1.querySelector('.kbTd-retorno .kbTag.late') && lt1.querySelector('.kbTd-linhas').textContent.trim() === '12', 'último contato, retorno atrasado e linhas');
+  assert(document.querySelector('#kbTodos tr[data-kb-abrir="O|t2"] .kbTd-contato').textContent.includes('nunca ligado'), 'nunca ligado');
+  assert(!document.querySelector('#kbTodos table').classList.contains('tbl') && document.querySelector('#kbTodos table').classList.contains('kbTabelaTodos'), 'tabela própria da Lista');
+  // RF5: Ligar na linha não abre a ficha
+  const nF = window.__rpcCalls.filter(c => c.nome === 'leads_ficha').length;
+  const abertosL = []; const openL = window.open; window.open = (u) => { abertosL.push(String(u)); return null; };
+  lt1.querySelector('.kbLnAcoes [data-kb-whats]').click();
+  await espera(40);
+  window.open = openL;
+  assert(window.__rpcCalls.filter(c => c.nome === 'leads_ficha').length === nF && abertosL.some(u => u.includes('wa.me/5511900000031')), 'RF5: WhatsApp na linha abre a conversa sem abrir a ficha');
+  lt1.querySelector('.kbTd-nome').click();
+  await espera(60);
+  assert(window.__rpcCalls.filter(c => c.nome === 'leads_ficha').length === nF + 1, 'clicar na linha abre a ficha');
+  kbFecharFicha(true);
+  // densidade e gestor
+  kbEstado.densidade = 'compacto'; kbRenderTodos();
+  assert(document.querySelector('#kbTodos table').classList.contains('kbCompacto'), 'densidade compacta na Lista');
+  kbEstado.densidade = 'conforto';
+  currentUser = { id: 'u-sup', nome: 'Zzksup Teste', role: 'supervisor', operacao: 'apex' };
+  kbEstado.todos = LL.map(l => Object.assign({}, l, { dono_nome: 'Zzkcon Teste' })); kbRenderTodos();
+  assert([...document.querySelectorAll('#kbTodos thead th[data-kb-ord]')].some(t => t.textContent.includes('Consultor')) && document.querySelector('#kbTodos .kbTd-dono').textContent.includes('Zzkcon'), 'gestor vê a coluna Consultor');
+  currentUser = { id: 'u-zz', nome: 'Zzkcon Teste', role: 'consultor' };
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');

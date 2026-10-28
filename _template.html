@@ -1070,9 +1070,42 @@
   .kbAtiv span{display:block;font-size:var(--fs-xs);}
   .kbTabelaEquipe .kbAtiv{white-space:normal;min-width:190px;}
   /* §122: aba Todos */
-  .kbTodos .kbBusca{margin-bottom:var(--space-3);}
-  .kbTabelaTodos tbody tr{cursor:pointer;}
-  .kbTabelaTodos td,.kbTabelaTodos th{white-space:nowrap;}
+  /* §126.2: Lista — visões prontas e tabela limpa (52 px; 40 no compacto), cabeçalho fixo em tom */
+  .kbListaTopo{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin-bottom:var(--space-3);}
+  .kbVisoes{display:flex;gap:4px;flex-wrap:wrap;}
+  .kbVisao{display:inline-flex;align-items:center;gap:7px;border:0;background:none;padding:7px 12px;border-radius:var(--radius-lg);font:inherit;font-size:var(--fs-base);font-weight:600;color:var(--ml-ink-2);cursor:pointer;}
+  .kbVisao:hover{background:var(--ml-surface);color:var(--ml-ink);}
+  .kbVisao.active{background:var(--ml-ink);color:var(--c-branco);}
+  .kbVisao span{color:var(--ml-ink-3);font-weight:600;font-variant-numeric:tabular-nums;}
+  .kbVisao.active span{color:var(--c-branco);opacity:.75;}
+  .kbListaBusca{margin-left:auto;max-width:360px;height:36px;}
+  .kbListaTabela{background:var(--ml-surface);border-radius:var(--radius-lg);overflow:auto;}
+  .kbTabelaTodos{width:100%;border-collapse:collapse;}
+  .kbTabelaTodos thead th{position:sticky;top:0;z-index:1;background:var(--ml-surface-2);text-align:left;font-size:var(--fs-xs);font-weight:600;color:var(--ml-ink-2);padding:10px 14px;white-space:nowrap;text-transform:none;letter-spacing:0;}
+  .kbTabelaTodos thead th.ord{color:var(--ml-ink);}
+  .kbOrdSeta{color:var(--c-sinal);margin-left:4px;}
+  .kbTabelaTodos th.num,.kbTabelaTodos td.kbTd-linhas{text-align:right;font-variant-numeric:tabular-nums;}
+  .kbTabelaTodos tbody td{height:52px;padding:0 14px;border-top:1px solid var(--ml-surface-3);white-space:nowrap;font-size:var(--fs-base);color:var(--ml-ink);}
+  .kbTabelaTodos.kbCompacto tbody td{height:40px;}
+  .kbTabelaTodos tbody tr{cursor:pointer;transition:background var(--dur-fast);}
+  .kbTabelaTodos tbody tr:hover{background:var(--ml-surface-2);}
+  .kbTd-nome b{display:block;font-weight:600;}
+  .kbTd-nome small,.kbTd-contato small{display:block;font-size:var(--fs-xs);color:var(--ml-ink-3);}
+  .kbTabelaTodos.kbCompacto .kbTd-nome small,.kbTabelaTodos.kbCompacto .kbTd-contato small{display:none;}
+  .kbEtapa{display:inline-flex;align-items:center;gap:6px;font-size:var(--fs-sm);color:var(--ml-ink-2);}
+  .kbEtapa::before{content:"";width:8px;height:8px;border-radius:2px;background:var(--kb-cor,var(--ml-ink-3));}
+  .kbEt-livres{--kb-cor:var(--c-grafite);}
+  .kbEt-semlig{--kb-cor:var(--c-bordo);}
+  .kbEt-novos{--kb-cor:var(--c-sinal);}
+  .kbEt-andamento{--kb-cor:var(--st-andamento);}
+  .kbEt-semresp{--kb-cor:var(--st-perdido);}
+  .kbEt-convertido{--kb-cor:var(--st-ganho);}
+  .kbEt-perdido{--kb-cor:var(--ml-ink-3);}
+  .kbTdAcoes{width:80px;}
+  .kbLnAcoes{display:flex;gap:4px;justify-content:flex-end;opacity:0;transition:opacity var(--dur-fast);}
+  .kbTabelaTodos tbody tr:hover .kbLnAcoes,.kbTabelaTodos tbody tr:focus-within .kbLnAcoes{opacity:1;}
+  .kbLnAcoes .kbBtnIco{width:30px;height:30px;}
+  .kbMuted{color:var(--ml-ink-3);}
   .kbOrdenavel{cursor:pointer;user-select:none;}
   .kbPaginacao{display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:center;margin-top:var(--space-3);}
   /* §126: Hoje B — placar no topo, fila à esquerda e ficha à direita na altura da tela */
@@ -1747,7 +1780,7 @@
           <button type="button" data-kb-aba="equipe">Equipe <span class="kbBadge" id="kbBadgeEquipe"></span></button>
           <button type="button" data-kb-aba="hoje">Hoje <span class="kbBadge" id="kbBadgeHoje"></span></button>
           <button type="button" data-kb-aba="quadro">Quadro</button>
-          <button type="button" data-kb-aba="todos">Todos</button>
+          <button type="button" data-kb-aba="todos">Lista</button>
         </nav>
         <span class="kbStatusLinha" id="kbStatus"></span>
         <div class="kbBuscaBox"><svg class="kbBuscaIco" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="search" id="kbBusca" class="kbBusca" placeholder="Buscar lead por nome, CNPJ ou telefone" autocomplete="off" aria-label="Buscar lead"><span class="kbAtalhoTecla" aria-hidden="true">/</span><div class="kbBuscaRes" id="kbBuscaRes"></div></div>
@@ -1776,7 +1809,8 @@
       <div id="kbEquipe" class="kbEquipe" style="display:none"></div>
       <div id="kbFiltroBarra" class="kbFiltroBarra" style="display:none"></div>
       <div id="kbTodos" class="kbTodos" style="display:none">
-        <div class="card"><input type="search" id="kbTodosBusca" class="kbBusca" placeholder="Buscar nos seus leads por nome, telefone ou CNPJ…" autocomplete="off"><div id="kbTodosTabela"></div></div>
+        <div class="kbListaTopo"><nav class="kbVisoes" id="kbVisoes" aria-label="Visões da lista"></nav><input type="search" id="kbTodosBusca" class="kbBusca kbListaBusca" placeholder="Buscar na lista por nome, telefone ou CNPJ" autocomplete="off" aria-label="Buscar na lista"></div>
+        <div class="kbListaTabela" id="kbTodosTabela"></div>
       </div>
       <svg class="kbSprite" aria-hidden="true" style="display:none"><symbol id="kbIcoTel" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></symbol><symbol id="kbIcoWhats" viewBox="0 0 24 24"><path d="M3 21l1.7-5A8.5 8.5 0 1 1 8 19.3z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1.5-1.5-2-1-1 1a4 4 0 0 1-2.5-2.5l1-1-1-2z"/></symbol></svg>
       <div class="kbBoard" id="kbBoard"></div>
@@ -3442,7 +3476,7 @@ function kbResumoMes(leads){
 }
 // §118 (27/10): abas Hoje / Quadro / Equipe, próximo lead, semáforo, linha do tempo e alertas — funções puras.
 const KB_ABAS = ['hoje', 'quadro', 'todos', 'equipe'];
-const KB_ABA_TITULOS = { hoje: 'Hoje', quadro: 'Quadro', todos: 'Todos', equipe: 'Equipe' };
+const KB_ABA_TITULOS = { hoje: 'Hoje', quadro: 'Quadro', todos: 'Lista', equipe: 'Equipe' };   // §126.2: Todos vira Lista (chave interna continua 'todos')
 function kbAbasDoPerfil(gestor){ return gestor ? KB_ABAS.slice() : ['hoje', 'quadro', 'todos']; }
 function kbAbaPadrao(gestor){ return gestor ? 'equipe' : 'hoje'; }
 function kbSemaforo(l){
@@ -3589,7 +3623,7 @@ function kbContagemEquipe(leads, alertas, agoraMs){
   return m;
 }
 const KB_TODOS_POR_PAGINA = 50;
-const KB_TODOS_COLUNAS = [['nome', 'Nome'], ['etapa', 'Etapa'], ['status', 'STATUS'], ['contato', 'Último contato'], ['retorno', 'Retorno'], ['linhas', 'Linhas'], ['cidade', 'Cidade'], ['pego', 'Pego em']];
+const KB_TODOS_COLUNAS = [['nome', 'Empresa'], ['etapa', 'Etapa'], ['status', 'STATUS'], ['contato', 'Último contato'], ['retorno', 'Próximo retorno'], ['linhas', 'Linhas'], ['pego', 'Pego em']];
 function kbValorOrdem(l, col){
   if(col === 'nome') return String(l.nome || '').toLowerCase();
   if(col === 'etapa') return KB_COLUNAS.indexOf(kbColunaDoLead(l));
@@ -3599,6 +3633,7 @@ function kbValorOrdem(l, col){
   if(col === 'linhas') return Number((String(l.qtd_linhas || '').match(/\d+/) || [0])[0]);
   if(col === 'cidade') return String(l.cidade || '').toLowerCase();
   if(col === 'pego') return kbMs(l.pego_em) || 0;
+  if(col === 'dono') return String(l.dono_nome || '').toLowerCase();
   return '';
 }
 function kbOrdenar(leads, col, desc){ return (leads || []).slice().sort((a, b) => { const x = kbValorOrdem(a, col), y = kbValorOrdem(b, col); const c = x < y ? -1 : x > y ? 1 : 0; return desc ? -c : c; }); }
@@ -4605,38 +4640,55 @@ async function kbCarregarTodos(){
   kbRenderFiltroBarra();
 }
 function kbEhTabela(aba){ return aba === 'todos'; }
-function kbEstadoTabela(){ return kbEstado.todosEstado || (kbEstado.todosEstado = { busca: '', col: 'pego', desc: true, pagina: 1 }); }
+function kbEstadoTabela(){ return kbEstado.todosEstado || (kbEstado.todosEstado = { busca: '', col: 'pego', desc: true, pagina: 1, visao: 'todos' }); }
+// §126.2: células da Lista — Empresa (nome; cidade · campanha), Etapa e STATUS com marcador, último contato, retorno, linhas, pego em.
 function kbCelulaTabela(l, col, agoraMs){
-  if(col === 'nome') return `${escapeHtml(l.nome || '(sem nome)')}${kbGestor() && l.dono_nome ? `<span class="kbMeta"> · ${escapeHtml(l.dono_nome)}</span>` : ''}`;
-  if(col === 'etapa') return escapeHtml(KB_TITULOS[kbColunaDoLead(l)] || '');
-  if(col === 'status') return l.status ? kbStChip(l.status) : '—';
-  if(col === 'contato') return l.ultima_ligacao ? escapeHtml(kbTempoDesde(l.ultima_ligacao, agoraMs)) : 'nunca ligado';
-  if(col === 'retorno') return l.retorno_em ? escapeHtml(String(l.retorno_em).split('-').reverse().join('/')) : '—';
-  if(col === 'linhas') return escapeHtml(l.qtd_linhas || '—');
-  if(col === 'cidade') return escapeHtml(l.cidade || '—');
-  if(col === 'pego') return l.pego_em ? escapeHtml(kbDataHoraBR(l.pego_em)) : '—';
+  const c = kbColunaDoLead(l);
+  if(col === 'nome') return `<b>${escapeHtml(l.nome || '(sem nome)')}</b><small>${escapeHtml([[l.cidade, l.uf].filter(Boolean).join('/'), l.campanha].filter(Boolean).join(' · '))}</small>`;
+  if(col === 'dono') return l.dono_nome ? `<span class="kbCartDono"><b>${escapeHtml(kbIniciais(l.dono_nome))}</b>${escapeHtml(l.dono_nome)}</span>` : '<span class="kbMuted">—</span>';
+  if(col === 'etapa') return `<span class="kbEtapa kbEt-${c}">${escapeHtml(KB_TITULOS[c] || '')}</span>`;
+  if(col === 'status') return l.status ? `<span class="kbStP" data-st="${escapeHtml(kbStSlug(l.status))}">${escapeHtml(kbStTexto(l.status))}</span>` : '<span class="kbMuted">—</span>';
+  if(col === 'contato') return l.ultima_ligacao ? `${escapeHtml(kbTempoDesde(l.ultima_ligacao, agoraMs))}<small>${l.ultima_atendida ? 'atendida' + (l.ultima_seg ? ' · ' + escapeHtml(kbDuracao(l.ultima_seg)) : '') : 'não atendida'}</small>` : '<span class="kbMuted">nunca ligado</span>';
+  if(col === 'retorno'){ const t = kbAbertoCol(c) ? kbRetornoTag(l, agoraMs) : null; return t ? `<span class="kbTag ${t.classe}">${escapeHtml(t.texto.replace(/^retorno /, ''))}</span>` : '<span class="kbMuted">—</span>'; }
+  if(col === 'linhas') return escapeHtml(String((String(l.qtd_linhas || '').match(/\d+/) || ['—'])[0]));
+  if(col === 'pego') return l.pego_em ? escapeHtml(kbDataHoraBR(l.pego_em)) : '<span class="kbMuted">—</span>';
   return '';
 }
-// Tabela da aba Todos (leads_kanban3 com p_todos)
+// Lista (ex-Todos; leads_kanban3 com p_todos): visões prontas, tabela de 52 px (40 no compacto), ações ao passar o mouse.
 function kbRenderTodos(){
-  const st = kbEstadoTabela(), agoraMs = Date.now(), cols = KB_TODOS_COLUNAS;
-  const base = kbEstado.todos || [];
-  const lista = kbOrdenar(kbFiltrar(base, kbEstado.filtros, agoraMs).filter(l => kbBuscaLocal(l, st.busca)), st.col, st.desc);
+  const st = kbEstadoTabela(), agoraMs = Date.now();
+  const cols = kbGestor() ? [KB_TODOS_COLUNAS[0], ['dono', 'Consultor'], ...KB_TODOS_COLUNAS.slice(1)] : KB_TODOS_COLUNAS;
+  const base = kbFiltrar(kbEstado.todos || [], kbEstado.filtros, agoraMs).filter(l => kbBuscaLocal(l, st.busca));
+  const n = kbContarVisoes(base);
+  document.getElementById('kbVisoes').innerHTML = KB_VISOES.map(([v, t]) => `<button type="button" class="kbVisao${st.visao === v ? ' active' : ''}" data-kb-visao="${v}">${t} <span>${n[v]}</span></button>`).join('');
+  const lista = kbOrdenar(base.filter(l => kbNaVisao(l, st.visao)), st.col, st.desc);
   const pg = kbPagina(lista, st.pagina, KB_TODOS_POR_PAGINA);
   st.pagina = pg.pagina;
   const busca = document.getElementById('kbTodosBusca');
   if(busca && document.activeElement !== busca) busca.value = st.busca || '';
-  const cab = cols.map(([c, r]) => `<th data-kb-ord="${c}" class="kbOrdenavel">${r}${st.col === c ? (st.desc ? ' ▼' : ' ▲') : ''}</th>`).join('');
-  const linhas = pg.itens.map(l => `<tr data-kb-abrir="${escapeHtml(l.aba)}|${escapeHtml(l.lead_id)}">${cols.map(([c]) => `<td>${kbCelulaTabela(l, c, agoraMs)}</td>`).join('')}</tr>`).join('');
+  const cab = cols.map(([c, r]) => `<th data-kb-ord="${c}" class="kbOrdenavel${st.col === c ? ' ord' : ''}${c === 'linhas' ? ' num' : ''}">${r}${st.col === c ? `<span class="kbOrdSeta">${st.desc ? '▼' : '▲'}</span>` : ''}</th>`).join('') + '<th aria-label="Ações"></th>';
+  const acoes = (l) => String(l.telefone || '').replace(/\D/g, '') ? `<div class="kbLnAcoes"><a class="kbBtn kbBtnP kbBtnIco" title="Ligar pelo ProContact (copia o número)" data-kb-contato="ligar" data-kb-ligar href="#">${KB_ICO.tel}</a><a class="kbBtn kbBtnQ kbBtnIco" title="WhatsApp" data-kb-contato="whatsapp" data-kb-whats href="#">${KB_ICO.wa}</a></div>` : '';
+  const linhas = pg.itens.map(l => `<tr data-kb-abrir="${escapeHtml(l.aba)}|${escapeHtml(l.lead_id)}">${cols.map(([c]) => `<td class="kbTd-${c}">${kbCelulaTabela(l, c, agoraMs)}</td>`).join('')}<td class="kbTdAcoes">${acoes(l)}</td></tr>`).join('');
   const botoes = Array.from({ length: pg.total }, (_, i) => i + 1).filter(p => p === 1 || p === pg.total || Math.abs(p - pg.pagina) <= 2)
-    .map(p => `<button type="button" class="filterPill${p === pg.pagina ? ' active' : ''}" data-kb-pag="${p}">${p}</button>`).join('');
-  const vazio = 'Nenhum lead com esses filtros.';
-  document.getElementById('kbTodosTabela').innerHTML = `<div class="kbTabelaRolagem"><table class="tbl kbTabelaTodos"><thead><tr>${cab}</tr></thead><tbody>${linhas || `<tr><td colspan="${cols.length}" class="kbMeta">${vazio}</td></tr>`}</tbody></table></div>
+    .map(p => `<button type="button" class="kbFb${p === pg.pagina ? ' on' : ''}" data-kb-pag="${p}">${p}</button>`).join('');
+  document.getElementById('kbTodosTabela').innerHTML = `<table class="kbTabelaTodos${kbEstado.densidade === 'compacto' ? ' kbCompacto' : ''}"><thead><tr>${cab}</tr></thead><tbody>${linhas || `<tr><td colspan="${cols.length + 1}" class="kbMuted">Nenhum lead com esses filtros.</td></tr>`}</tbody></table>
     <div class="kbPaginacao"><span class="kbMeta">${lista.length} leads · Página ${pg.pagina} de ${pg.total}</span>${pg.total > 1 ? botoes : ''}</div>`;
 }
 document.getElementById('kbTodos').addEventListener('click', (e) => {
-  const th = e.target.closest('th[data-kb-ord]');
   const st = kbEstadoTabela();
+  const ct = e.target.closest('[data-kb-contato]');
+  if(ct){   // Ligar/WhatsApp na linha não abrem a ficha
+    e.preventDefault(); e.stopPropagation();
+    const [aba, id] = ct.closest('tr[data-kb-abrir]').dataset.kbAbrir.split('|');
+    const l = (kbEstado.todos || []).find(x => x.aba === aba && x.lead_id === id);
+    if(l && ct.hasAttribute('data-kb-ligar')) kbLigar(l.telefone);
+    if(l && ct.hasAttribute('data-kb-whats')) kbAbrirWhats(l, kbColunaDoLead(l));
+    ppSeguro(() => sb.rpc('registrar_contato_lead', { p_aba: aba, p_lead_id: id, p_canal: ct.dataset.kbContato }));
+    return;
+  }
+  const vs = e.target.closest('[data-kb-visao]');
+  if(vs){ st.visao = vs.dataset.kbVisao; st.pagina = 1; kbRenderTodos(); return; }
+  const th = e.target.closest('th[data-kb-ord]');
   if(th){ const c = th.dataset.kbOrd; if(st.col === c) st.desc = !st.desc; else { st.col = c; st.desc = false; } st.pagina = 1; kbRenderTodos(); return; }
   const pb = e.target.closest('[data-kb-pag]');
   if(pb){ st.pagina = Number(pb.dataset.kbPag); kbRenderTodos(); }
