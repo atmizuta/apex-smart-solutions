@@ -3690,6 +3690,61 @@ function kbUrgenciaFicha(l, retorno, agoraMs){
   if(d !== null && d >= 3) return { classe: 'soon', texto: `parado há ${d} dias` };
   return null;
 }
+// ===== §126.2 (Fase 2): Quadro e Lista — funções puras =====
+// Iniciais do dono no cartão do gestor ("Zzkcon Teste" → "ZT").
+function kbIniciais(nome){ const p = String(nome || '').trim().split(/\s+/).filter(Boolean); return ((p[0] || '').charAt(0) + (p.length > 1 ? p[p.length - 1].charAt(0) : '')).toUpperCase(); }
+// Retorno pela data da planilha (retorno_em): atrasado, hoje ou marcado para frente.
+function kbRetornoFaixa(l, agoraMs){
+  if(!l || !l.retorno_em) return null;
+  const r = String(l.retorno_em).slice(0, 10), hoje = kbDiaSP(agoraMs);
+  return r < hoje ? 'late' : r === hoje ? 'hoje' : 'fut';
+}
+// Ícone do canto do cartão (só lead em aberto): late = retorno atrasado, hoje = retorno hoje, fut = marcado, nada = nada agendado.
+function kbUrgenciaCartao(l, agoraMs){
+  if(!l || l.livre || !kbAbertoCol(kbColunaDoLead(l))) return null;
+  return kbRetornoFaixa(l, agoraMs) || 'nada';
+}
+// Faixa vermelha = precisa de ação agora: retorno vencido, novo sem contato há 15+ min, Sem ligação pego há mais de 1 dia.
+function kbFaixaVermelha(l, agoraMs){
+  if(!l || l.livre) return false;
+  const col = kbColunaDoLead(l);
+  if(!kbAbertoCol(col)) return false;
+  if(kbRetornoFaixa(l, agoraMs) === 'late' || kbAtrasado(l, agoraMs)) return true;
+  const pego = kbMs(l.pego_em || l.criado_em_lead);
+  return col === 'semlig' && pego !== null && agoraMs - pego > 86400000;
+}
+function kbRetornoTag(l, agoraMs){
+  const f = kbRetornoFaixa(l, agoraMs);
+  if(!f) return null;
+  const d = String(l.retorno_em).slice(0, 10), dm = d.slice(8, 10) + '/' + d.slice(5, 7);
+  if(f === 'late') return { classe: 'late', texto: 'retorno ' + (d === kbSomaDias(kbDiaSP(agoraMs), -1) ? 'ontem' : dm) + ' · atrasado' };
+  if(f === 'hoje') return { classe: 'ok', texto: 'retorno hoje' };
+  return { classe: '', texto: 'retorno ' + dm };
+}
+// Cor da idade do lead livre: novo até 5 min, neutro até 15, atenção até 30, atrasado depois.
+function kbCorIdadeLivre(l, agoraMs){
+  const t = kbMs(l && l.criado_em_lead);
+  if(t === null) return '';
+  const min = (agoraMs - t) / 60000;
+  return min <= 5 ? 'novo' : min < 15 ? '' : min < 30 ? 'soon' : 'late';
+}
+// Visões prontas da Lista (spec 4.2).
+const KB_VISOES = [['todos', 'Todos'], ['aberto', 'Em aberto'], ['retornos', 'Retornos'], ['semlig', 'Sem ligação'], ['semresp', 'Sem resposta'], ['convertido', 'Convertidos'], ['perdido', 'Perdidos']];
+function kbNaVisao(l, visao){
+  const col = kbColunaDoLead(l);
+  if(!visao || visao === 'todos') return true;
+  if(visao === 'aberto') return kbAbertoCol(col);
+  if(visao === 'retornos') return kbAbertoCol(col) && !!l.retorno_em;
+  return col === visao;
+}
+function kbContarVisoes(leads){ const n = {}; KB_VISOES.forEach(([v]) => { n[v] = (leads || []).filter(l => kbNaVisao(l, v)).length; }); return n; }
+// Convertido e Perdido começam recolhidos; a escolha e a densidade ficam guardadas no navegador.
+const KB_COL_RECOLHIVEIS = ['convertido', 'perdido'];
+function kbLerColAbertas(){ try { const v = JSON.parse(window.localStorage.getItem('kbColAbertas') || '{}'); return v && typeof v === 'object' ? v : {}; } catch(_e) { return {}; } }
+function kbSalvarColAbertas(){ try { window.localStorage.setItem('kbColAbertas', JSON.stringify(kbEstado.colAbertas || {})); } catch(_e) {} }
+function kbColAberta(col){ return !KB_COL_RECOLHIVEIS.includes(col) || !!(kbEstado.colAbertas || {})[col]; }
+function kbLerDensidade(){ try { return window.localStorage.getItem('kbDensidade') === 'compacto' ? 'compacto' : 'conforto'; } catch(_e) { return 'conforto'; } }
+function kbSalvarDensidade(){ try { window.localStorage.setItem('kbDensidade', kbEstado.densidade === 'compacto' ? 'compacto' : 'conforto'); } catch(_e) {} }
 // Ficha do lead (gaveta lateral). Lead Livre sem dado de contato (consultor) mostra o convite para pegar.
 // §126: ícones da ficha (traço de 2 px, mesmo desenho do mockup aprovado)
 const KB_ICO = {
