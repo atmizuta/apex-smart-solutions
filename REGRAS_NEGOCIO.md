@@ -3950,3 +3950,14 @@ Pedido do Rafael (a Hoje estava "completamente confusa, só um monte de lead"). 
 - **Banco:** migrations `20261028100000_leads_pode_pegar.sql` (coluna, trava, `placar`, `lead_novo`) e `20261028100100_leads_kanban3_atividade.sql` (`leads_kanban3` = `leads_kanban2` + `campanha`, `formulario` e o modo Todos; `leads_atividade_equipe`). `leads_kanban2` e `leads_equipe_resumo` ficam no banco para abas abertas com o painel antigo. Verificação `supabase/tests/leads_painel_hoje_check.sql` (ROLLBACK).
 - **Testes:** `test_leads_painel_hoje.js` (novo), `test_leads_hoje.js` e `test_leads_kanban.js` ajustados.
 - **Publicação (28/10, 16:00, ok do Rafael):** migrations aplicadas antes do painel; `pode_pegar` = Caio, Lucas, Luria, Mariana (conferido); `leads_painel_hoje_check.sql` sem erro. Aba Todos do supervisor: 1.656 leads em 0,8 s. Painel MD5 `52c30d39…` (o do ar era `7d2d83c9…`, igual ao último conhecido), backup `~/deploy_backups/painel_clientes_apex_20261028_160040_antes_meus_leads_painel_hoje.html`. Na revisão final saíram 4 correções: placar de ligações com o dia, filtro guardado continua visível, "Ver mais" da Equipe e alertas da equipe toda na Equipe.
+
+## 123. Meus leads: aba "Sem resposta" (28/10/2026)
+
+Pedido do Rafael: tirar do Quadro os clientes que não respondem e dar a eles uma aba própria.
+- **Quais:** status **CLIENTE NÃO RESPONDE** e **LEAD PAROU DE RESPONDER** (grupo perdido). Em 28/10 eram 458 + 41 leads com dono, 276 deles do mês.
+- **Quadro:** esses leads saem da coluna Perdido. As outras colunas não mudam.
+- **Aba "Sem resposta"** (entre Quadro e Todos): todos os meses, mesma carga da aba Todos (`leads_kanban3` com `p_todos`), filtrada por esses dois status.
+  - Colunas: Nome, STATUS, Última ligação, Ligações, Dias sem contato (dias corridos desde a última ligação, classificação ou pego), Retorno, Linhas e Pego em.
+  - Abre com mais dias sem contato primeiro. Tem busca, ordenação no cabeçalho, os filtros do Quadro e 50 por página.
+  - O consultor vê os leads dele; o supervisor vê os da equipe, com o seletor de consultor. Clicar abre a ficha; reclassificado para outro status, o lead volta ao Quadro.
+- **Banco:** sem mudança. **Testes:** `test_leads_painel_hoje.js`, `test_leads_hoje.js` e `test_leads_kanban.js` (o selo "para resgatar" segue no cartão, mas o lead não aparece mais no Quadro).

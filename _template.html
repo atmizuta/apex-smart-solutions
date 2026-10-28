@@ -1616,6 +1616,7 @@
         <div class="filterPills kbAbas" id="kbAbas">
           <button type="button" class="filterPill" data-kb-aba="hoje">Hoje <span class="kbBadge" id="kbBadgeHoje"></span></button>
           <button type="button" class="filterPill" data-kb-aba="quadro">Quadro</button>
+          <button type="button" class="filterPill" data-kb-aba="semresp">Sem resposta</button>
           <button type="button" class="filterPill" data-kb-aba="todos">Todos</button>
           <button type="button" class="filterPill" data-kb-aba="equipe">Equipe <span class="kbBadge" id="kbBadgeEquipe"></span></button>
         </div>
@@ -3310,9 +3311,9 @@ function kbResumoMes(leads){
   return { vendas, receita: Math.round(receita * 100) / 100, abertos };
 }
 // §118 (27/10): abas Hoje / Quadro / Equipe, próximo lead, semáforo, linha do tempo e alertas — funções puras.
-const KB_ABAS = ['hoje', 'quadro', 'todos', 'equipe'];
-const KB_ABA_TITULOS = { hoje: 'Hoje', quadro: 'Quadro', todos: 'Todos', equipe: 'Equipe' };
-function kbAbasDoPerfil(gestor){ return gestor ? KB_ABAS.slice() : ['hoje', 'quadro', 'todos']; }
+const KB_ABAS = ['hoje', 'quadro', 'semresp', 'todos', 'equipe'];
+const KB_ABA_TITULOS = { hoje: 'Hoje', quadro: 'Quadro', semresp: 'Sem resposta', todos: 'Todos', equipe: 'Equipe' };
+function kbAbasDoPerfil(gestor){ return gestor ? KB_ABAS.slice() : ['hoje', 'quadro', 'semresp', 'todos']; }
 function kbAbaPadrao(gestor){ return gestor ? 'equipe' : 'hoje'; }
 // "Próximo lead": pula o lead aberto há menos de 2 min (o consultor já está nele ou acabou de largar).
 const KB_EXCECAO_MS = 2 * 60000;
@@ -3485,6 +3486,9 @@ function kbContagemEquipe(leads, alertas, agoraMs){
   return m;
 }
 const KB_TODOS_POR_PAGINA = 50;
+// Pedido 28/10: "CLIENTE NÃO RESPONDE" e "LEAD PAROU DE RESPONDER" saem do Quadro e ficam na aba "Sem resposta" (todos os meses).
+function kbSemResposta(l){ const s = kbStSlug(l && l.status); return s === 'cliente-nao-responde' || s === 'lead-parou-de-responder'; }
+const KB_SEMRESP_COLUNAS = [['nome', 'Nome'], ['status', 'STATUS'], ['contato', 'Última ligação'], ['ligacoes', 'Ligações'], ['dias', 'Dias sem contato'], ['retorno', 'Retorno'], ['linhas', 'Linhas'], ['pego', 'Pego em']];
 const KB_TODOS_COLUNAS = [['nome', 'Nome'], ['etapa', 'Etapa'], ['status', 'STATUS'], ['contato', 'Último contato'], ['retorno', 'Retorno'], ['linhas', 'Linhas'], ['cidade', 'Cidade'], ['pego', 'Pego em']];
 function kbValorOrdem(l, col){
   if(col === 'nome') return String(l.nome || '').toLowerCase();
@@ -3495,6 +3499,8 @@ function kbValorOrdem(l, col){
   if(col === 'linhas') return Number((String(l.qtd_linhas || '').match(/\d+/) || [0])[0]);
   if(col === 'cidade') return String(l.cidade || '').toLowerCase();
   if(col === 'pego') return kbMs(l.pego_em) || 0;
+  if(col === 'ligacoes') return Number(l.ligacoes || 0);
+  if(col === 'dias'){ const d = kbDiasParado(l, Date.now()); return d === null ? -1 : d; }
   return '';
 }
 function kbOrdenar(leads, col, desc){ return (leads || []).slice().sort((a, b) => { const x = kbValorOrdem(a, col), y = kbValorOrdem(b, col); const c = x < y ? -1 : x > y ? 1 : 0; return desc ? -c : c; }); }
@@ -3676,7 +3682,7 @@ function kbRender(){
   const agoraMs = Date.now();
   let leads = kbEstado.leads;
   if(kbEstado.soDivergencias) leads = leads.filter(l => kbDivergencia(l));
-  const c = kbMontar(kbFiltrar(leads, kbEstado.filtros, agoraMs));
+  const c = kbMontar(kbFiltrar(leads.filter(l => !kbSemResposta(l)), kbEstado.filtros, agoraMs));
   const board = document.getElementById('kbBoard');
   kbGarantirColunas(board);
   kbEstado.colHtml = kbEstado.colHtml || {};
@@ -3867,7 +3873,7 @@ function kbAgendar(){
       if(kbEstado.aba === 'equipe') kbCarregarEquipe(true); else kbCarregarAlertas(true);
       if(kbEstado.aba === 'hoje') kbCarregarHoje();
       if(kbEstado.aba === 'quadro') kbCarregar();
-      if(kbEstado.aba === 'todos') kbCarregarTodos();
+      if(kbEhTabela(kbEstado.aba)) kbCarregarTodos();
     }
   }, 10000);
   kbEstado.timerAlertas = setInterval(() => { if(kbPodeVer() && kbAlertaDeFundo(ativa(), document.visibilityState === 'visible')) kbCarregarAlertas(true); }, 120000);
@@ -4028,16 +4034,19 @@ function kbTrocarAba(aba){
   document.getElementById('kbHoje').style.display = kbEstado.aba === 'hoje' ? '' : 'none';
   document.getElementById('kbBoard').style.display = kbEstado.aba === 'quadro' ? '' : 'none';
   document.getElementById('kbNavQuadro').style.display = kbEstado.aba === 'quadro' ? '' : 'none';
-  document.getElementById('kbFiltroBarra').style.display = kbEstado.aba === 'quadro' || kbEstado.aba === 'todos' ? '' : 'none';
-  if(kbEstado.aba === 'quadro' || kbEstado.aba === 'todos') kbRenderFiltroBarra();
+  document.getElementById('kbFiltroBarra').style.display = kbEstado.aba === 'quadro' || kbEhTabela(kbEstado.aba) ? '' : 'none';
+  if(kbEstado.aba === 'quadro' || kbEhTabela(kbEstado.aba)) kbRenderFiltroBarra();
   if(kbEstado.aba === 'quadro') kbAjustarAltura();
   document.getElementById('kbEquipe').style.display = kbEstado.aba === 'equipe' ? '' : 'none';
-  document.getElementById('kbTodos').style.display = kbEstado.aba === 'todos' ? '' : 'none';
+  document.getElementById('kbTodos').style.display = kbEhTabela(kbEstado.aba) ? '' : 'none';
   if(kbEstado.aba === 'hoje') kbCarregarHoje();
   if(kbEstado.aba === 'equipe') kbCarregarEquipe();
-  if(kbEstado.aba === 'todos') kbCarregarTodos();
+  if(kbEhTabela(kbEstado.aba)) kbCarregarTodos();
 }
-function kbFonteFiltros(){ return kbEstado.aba === 'todos' ? (kbEstado.todos || []) : kbEstado.leads; }
+function kbFonteFiltros(){
+  if(kbEstado.aba === 'semresp') return (kbEstado.todos || []).filter(kbSemResposta);
+  return kbEstado.aba === 'todos' ? (kbEstado.todos || []) : kbEstado.leads.filter(l => !kbSemResposta(l));
+}
 function kbRenderFiltroBarra(){
   const el = document.getElementById('kbFiltroBarra');
   const html = kbFiltroBarraHtml(kbFonteFiltros(), kbEstado.filtros, Date.now());
@@ -4045,7 +4054,7 @@ function kbRenderFiltroBarra(){
 }
 function kbAoMudarFiltros(){
   kbSalvarFiltros();
-  if(kbEstado.aba === 'todos'){ (kbEstado.todosEstado || {}).pagina = 1; if(typeof kbRenderTodos === 'function') kbRenderTodos(); }
+  if(kbEhTabela(kbEstado.aba)){ kbEstadoTabela().pagina = 1; kbRenderTodos(); }
   else kbRender();
   kbRenderFiltroBarra();
 }
@@ -4158,26 +4167,45 @@ async function kbCarregarTodos(){
   kbRenderTodos();
   kbRenderFiltroBarra();
 }
+function kbEhTabela(aba){ return aba === 'todos' || aba === 'semresp'; }
+function kbEstadoTabela(){
+  const k = kbEstado.aba === 'semresp' ? 'semrespEstado' : 'todosEstado';
+  return kbEstado[k] || (kbEstado[k] = k === 'semrespEstado' ? { busca: '', col: 'dias', desc: true, pagina: 1 } : { busca: '', col: 'pego', desc: true, pagina: 1 });
+}
+function kbCelulaTabela(l, col, agoraMs){
+  if(col === 'nome') return `${escapeHtml(l.nome || '(sem nome)')}${kbGestor() && l.dono_nome ? `<span class="kbMeta"> · ${escapeHtml(l.dono_nome)}</span>` : ''}`;
+  if(col === 'etapa') return escapeHtml(KB_TITULOS[kbColunaDoLead(l)] || '');
+  if(col === 'status') return l.status ? kbStChip(l.status) : '—';
+  if(col === 'contato') return l.ultima_ligacao ? escapeHtml(kbTempoDesde(l.ultima_ligacao, agoraMs)) : 'nunca ligado';
+  if(col === 'ligacoes') return String(Number(l.ligacoes || 0));
+  if(col === 'dias'){ const d = kbDiasParado(l, agoraMs); return d === null ? '—' : `${d} dia${d === 1 ? '' : 's'}`; }
+  if(col === 'retorno') return l.retorno_em ? escapeHtml(String(l.retorno_em).split('-').reverse().join('/')) : '—';
+  if(col === 'linhas') return escapeHtml(l.qtd_linhas || '—');
+  if(col === 'cidade') return escapeHtml(l.cidade || '—');
+  if(col === 'pego') return l.pego_em ? escapeHtml(kbDataHoraBR(l.pego_em)) : '—';
+  return '';
+}
+// Tabela das abas Todos e Sem resposta (mesma carga: leads_kanban3 com p_todos)
 function kbRenderTodos(){
-  const st = kbEstado.todosEstado || (kbEstado.todosEstado = { busca: '', col: 'pego', desc: true, pagina: 1 }), agoraMs = Date.now();
-  const lista = kbOrdenar(kbFiltrar(kbEstado.todos || [], kbEstado.filtros, agoraMs).filter(l => kbBuscaLocal(l, st.busca)), st.col, st.desc);
+  const st = kbEstadoTabela(), agoraMs = Date.now(), semresp = kbEstado.aba === 'semresp';
+  const cols = semresp ? KB_SEMRESP_COLUNAS : KB_TODOS_COLUNAS;
+  const base = (kbEstado.todos || []).filter(l => !semresp || kbSemResposta(l));
+  const lista = kbOrdenar(kbFiltrar(base, kbEstado.filtros, agoraMs).filter(l => kbBuscaLocal(l, st.busca)), st.col, st.desc);
   const pg = kbPagina(lista, st.pagina, KB_TODOS_POR_PAGINA);
   st.pagina = pg.pagina;
-  const cab = KB_TODOS_COLUNAS.map(([c, r]) => `<th data-kb-ord="${c}" class="kbOrdenavel">${r}${st.col === c ? (st.desc ? ' ▼' : ' ▲') : ''}</th>`).join('');
-  const linhas = pg.itens.map(l => `<tr data-kb-abrir="${escapeHtml(l.aba)}|${escapeHtml(l.lead_id)}">
-      <td>${escapeHtml(l.nome || '(sem nome)')}${kbGestor() && l.dono_nome ? `<span class="kbMeta"> · ${escapeHtml(l.dono_nome)}</span>` : ''}</td>
-      <td>${escapeHtml(KB_TITULOS[kbColunaDoLead(l)] || '')}</td><td>${l.status ? kbStChip(l.status) : '—'}</td>
-      <td>${l.ultima_ligacao ? escapeHtml(kbTempoDesde(l.ultima_ligacao, agoraMs)) : 'nunca ligado'}</td>
-      <td>${l.retorno_em ? escapeHtml(String(l.retorno_em).split('-').reverse().join('/')) : '—'}</td>
-      <td>${escapeHtml(l.qtd_linhas || '—')}</td><td>${escapeHtml(l.cidade || '—')}</td><td>${l.pego_em ? escapeHtml(kbDataHoraBR(l.pego_em)) : '—'}</td></tr>`).join('');
+  const busca = document.getElementById('kbTodosBusca');
+  if(busca && document.activeElement !== busca) busca.value = st.busca || '';
+  const cab = cols.map(([c, r]) => `<th data-kb-ord="${c}" class="kbOrdenavel">${r}${st.col === c ? (st.desc ? ' ▼' : ' ▲') : ''}</th>`).join('');
+  const linhas = pg.itens.map(l => `<tr data-kb-abrir="${escapeHtml(l.aba)}|${escapeHtml(l.lead_id)}">${cols.map(([c]) => `<td>${kbCelulaTabela(l, c, agoraMs)}</td>`).join('')}</tr>`).join('');
   const botoes = Array.from({ length: pg.total }, (_, i) => i + 1).filter(p => p === 1 || p === pg.total || Math.abs(p - pg.pagina) <= 2)
     .map(p => `<button type="button" class="filterPill${p === pg.pagina ? ' active' : ''}" data-kb-pag="${p}">${p}</button>`).join('');
-  document.getElementById('kbTodosTabela').innerHTML = `<div class="kbTabelaRolagem"><table class="tbl kbTabelaTodos"><thead><tr>${cab}</tr></thead><tbody>${linhas || `<tr><td colspan="8" class="kbMeta">Nenhum lead com esses filtros.</td></tr>`}</tbody></table></div>
+  const vazio = semresp ? 'Nenhum cliente sem resposta com esses filtros.' : 'Nenhum lead com esses filtros.';
+  document.getElementById('kbTodosTabela').innerHTML = `<div class="kbTabelaRolagem"><table class="tbl kbTabelaTodos"><thead><tr>${cab}</tr></thead><tbody>${linhas || `<tr><td colspan="${cols.length}" class="kbMeta">${vazio}</td></tr>`}</tbody></table></div>
     <div class="kbPaginacao"><span class="kbMeta">${lista.length} leads · Página ${pg.pagina} de ${pg.total}</span>${pg.total > 1 ? botoes : ''}</div>`;
 }
 document.getElementById('kbTodos').addEventListener('click', (e) => {
   const th = e.target.closest('th[data-kb-ord]');
-  const st = kbEstado.todosEstado || (kbEstado.todosEstado = { busca: '', col: 'pego', desc: true, pagina: 1 });
+  const st = kbEstadoTabela();
   if(th){ const c = th.dataset.kbOrd; if(st.col === c) st.desc = !st.desc; else { st.col = c; st.desc = false; } st.pagina = 1; kbRenderTodos(); return; }
   const pb = e.target.closest('[data-kb-pag]');
   if(pb){ st.pagina = Number(pb.dataset.kbPag); kbRenderTodos(); }
@@ -4185,7 +4213,7 @@ document.getElementById('kbTodos').addEventListener('click', (e) => {
 let kbTodosBuscaTimer = null;
 document.getElementById('kbTodosBusca').addEventListener('input', (e) => {
   clearTimeout(kbTodosBuscaTimer);
-  kbTodosBuscaTimer = setTimeout(() => { const st = kbEstado.todosEstado || (kbEstado.todosEstado = { busca: '', col: 'pego', desc: true, pagina: 1 }); st.busca = e.target.value; st.pagina = 1; kbRenderTodos(); }, 300);
+  kbTodosBuscaTimer = setTimeout(() => { const st = kbEstadoTabela(); st.busca = e.target.value; st.pagina = 1; kbRenderTodos(); }, 300);
 });
 async function kbCarregarAlertas(notificar){
   if(!kbPodeVer()) return;
@@ -4305,7 +4333,7 @@ async function kbMesaCard(){
     <p class="desc" style="margin:4px 0 0">${x.livres} livre(s)${escapeHtml(antigo)} · planilha: ${x.fila_pendente ? x.fila_pendente + ' na fila' : 'em dia'}</p>
     ${x.aviso ? `<div class="kbAviso">${escapeHtml(x.aviso)}</div>` : ''}</div>`;
 }
-document.getElementById('kbDono').addEventListener('change', (e) => { kbEstado.dono = e.target.value; kbCarregar(); if(kbEstado.aba === 'todos') kbCarregarTodos(); });
+document.getElementById('kbDono').addEventListener('change', (e) => { kbEstado.dono = e.target.value; kbCarregar(); if(kbEhTabela(kbEstado.aba)) kbCarregarTodos(); });
 document.getElementById('kbSoDiverg').addEventListener('click', (e) => { kbEstado.soDivergencias = !kbEstado.soDivergencias; e.target.classList.toggle('active', kbEstado.soDivergencias); kbRender(); });
 document.getElementById('kbReescrever').addEventListener('click', async () => {
   const aba = mesAbaAtualKb();
