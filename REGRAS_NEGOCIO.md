@@ -3988,3 +3988,99 @@ Pedido do Rafael (com print da coluna Em andamento):
 - **Cartão parado ao classificar:** antes, "Em andamento" ordenava pela data de retorno e "Convertido" pela data da classificação, então reclassificar fazia o cartão pular. Agora a chegada não muda, e o cartão fica no mesmo lugar. A rolagem de cada coluna também é mantida quando o Quadro atualiza. Só muda de lugar o lead que troca de coluna (por exemplo, de Em andamento para Sem resposta).
 - As outras colunas (Livres, Sem ligação, Meus novos, Perdido) continuam com a ordem de antes. Sem mudança no banco. Testes em `test_leads_painel_hoje.js`.
 - **Publicação (28/10, 17:17, ok do Rafael):** painel MD5 `a2e9bdaf…` (o do ar era `8e4060e5…`, a §123.1), backup `~/deploy_backups/painel_clientes_apex_20261028_171701_antes_ordem_colunas.html`.
+
+## 126. Meus leads: redesign claro, moderno e intuitivo, em 3 fases (28/10/2026)
+
+**Pedido do Rafael:** "deixe a aba CLARA e bonita e intuitiva para todos os consultores e supervisores… mude tudo".
+
+**Antes do código:** foram feitos mockups no navegador e uma pesquisa de referências: Close, Linear, HubSpot, Pipedrive, Attio e Twenty.
+
+**O Rafael aprovou:**
+- **Visual:** as telas novas da Hoje, do Quadro, da Lista, da Equipe e da Ficha.
+- **Hoje:** a **ideia B**, com a fila à esquerda e a ficha aberta ao lado.
+- **Entrega:** **3 fases**, cada uma publicada separadamente:
+  - **126.1:** ficha nova com o Classificar dentro, mais a Hoje B;
+  - **126.2:** Quadro e Lista;
+  - **126.3:** Equipe, que é a única fase que mexe no banco.
+
+**Documentos:** spec `docs/superpowers/specs/2026-10-28-meus-leads-redesign-design.md`; plano da Fase 1 `docs/superpowers/plans/2026-10-28-meus-leads-redesign-fase1.md`.
+
+**O que não muda em nenhuma fase:**
+- o shell: menu bordô, cabeçalho e o bloco "SISTEMA VISUAL SINAL DE ÁPICE";
+- as RPCs e a planilha-espelho;
+- as regras de quem pega lead.
+
+### 126.1 Fase 1: ficha nova com o Classificar dentro e a Hoje B (28/10/2026)
+
+- **Visual da aba:**
+  - **Tokens:** ficam em `#panel-meusleads,#kbFicha` (`--ml-*`). Reaproveitam as variáveis do sistema; só dois tons são novos: `--ml-ink-2` e `--ml-surface-2`.
+  - **Componentes:** botões planos (`.kbBtn*`), controle segmentado (`.kbSeg`), marcadores de urgência (`.kbTag`), rótulos em frase normal e números tabulares.
+  - **Cantos:** 8 px (`--radius-lg`), porque o `test_redesign_shell` proíbe os cantos de 10–14 px do visual antigo.
+- **Barra da aba:**
+  - as sub-abas viram controle segmentado, com a Equipe primeiro para o gestor;
+  - a busca ganha o atalho **"/"**;
+  - "Só divergências" e "Reescrever planilha" passam para o menu "⋯" do gestor.
+- **Ficha nova:** é o mesmo nó `#kbFicha`, que muda de lugar conforme a aba:
+  - **Lugares:**
+    - na **Hoje**, fica no painel da direita (`#kbHojeFicha`, classe `noPainel`);
+    - nas **outras abas**, é uma **gaveta de 560 px** (`#kbFichaCasa`);
+    - a **janela flutuante** continua.
+  - **Barra:** "N de M", ↑ ↓, Flutuar, "⋯" do gestor (Redistribuir, Apagar) e Fechar.
+  - **Cabeçalho:** marcador de urgência ("retorno era às 14:00", "lead novo · pego há 6 min", "classificado, mas nunca ligado", "parado há N dias").
+  - **Contato:** telefone grande, Copiar, Ligar (ProContact), WhatsApp, e-mail e CNPJ.
+  - **Resumo:** resumo de ligações e última OBS.
+  - **Abas:** **Classificar · Histórico · Anúncio**.
+- **Classificar dentro da ficha:**
+  - **Sai** o modal `#kbClassOverlay`.
+  - **Grupos:** os botões vêm de `leads_status_opcoes` e aparecem como "Em andamento", "Venda" e "Sem resposta ou perdido" (esse último mais apagado).
+  - **Retorno:** "Quando ligar de novo?" com Hoje 17h (só antes das 17h), Amanhã 10h, Amanhã 14h, Em 3 dias e Próxima semana (segunda às 10h). A data e a hora do retorno já marcado vêm preenchidas, então salvar só a OBS não muda o horário.
+  - **Venda:** Receita, Converteu e o aviso do NEO, como antes.
+  - **OBS em branco mantém a OBS atual.** Texto novo substitui a anterior, que continua no Histórico.
+  - **Status escolhido por engano:** clicar de novo no botão desfaz.
+  - **Salvar:** "Salvar" na gaveta e **"Salvar e ir para o próximo"** na Hoje, com Ctrl+Enter. Usa as mesmas RPCs: `leads_classificar` e `leads_agendar_retorno`.
+  - **Arrastar:** arrastar um cartão para outra coluna abre a ficha com o grupo daquela coluna em destaque, sem salvar nada.
+  - **Sai** o retorno rápido da ficha (`kbRetornoRapido`).
+- **Proteção do que foi digitado:**
+  - Trocar de lead, fechar a ficha, trocar o consultor no seletor ou abrir outro lead pela busca, Agenda ou notificação **pergunta antes de descartar**, se há status escolhido ou OBS digitada sem salvar.
+  - A recarga de 10 s não redesenha a ficha.
+  - Flutuar e fechar a janela flutuante levam a ficha como está.
+- **Hoje B:**
+  - **Topo:** saudação e placar (ligações / meta, classificados hoje, retornos cumpridos, vendas no mês).
+  - **Fila à esquerda:** abas Fazer agora · Livres · Alertas, com a ficha ao lado.
+  - **Grupos da fila** (`kbFilaHoje`), cada lead uma vez, no primeiro grupo em que se encaixar:
+    1. **Atrasados:** retorno vencido.
+    2. **Agora:** pegos sem status, mais os retornos da próxima 1 h.
+    3. **Mais tarde hoje.**
+    4. **Nunca ligados.**
+    5. **Parados há 3 dias ou mais.**
+  - "Para resgatar" fica fora da Hoje.
+  - **Seleção:** a fila só escolhe o primeiro lead depois que `leads_hoje` chega.
+  - **"Salvar e ir para o próximo"** abre o seguinte da fila de antes. O lead salvo que não se encaixa mais sai da lista.
+  - **Livres:**
+    - a lista vai do mais antigo para o mais novo, com prévia sem contato;
+    - "Pegar este lead" leva o lead para a fila;
+    - o "Pegar o próximo livre" só aparece para quem pega.
+  - **Alertas:** clicar abre o lead.
+  - **Fila vazia:** "Tudo em dia", com o próximo retorno e o "Pegar o próximo livre".
+  - **Gestor:** vê a fila do consultor escolhido. Com "Todos", aparece "Escolha um consultor".
+  - **Sai** a Hoje da §122: cartões por etapa, "Faça agora" e "Próximo lead".
+- **Outros ajustes:**
+  - **Sair** limpa a ficha, a fila e o placar, para o próximo usuário na mesma aba do navegador não ver o lead de quem saiu.
+  - **A notificação de lead novo** abre a aba Meus leads antes da ficha.
+  - **A altura da Hoje** é medida depois do placar, então o botão de salvar cabe em 1366×768.
+- **Testes:**
+  - `test_meus_leads_redesign.js` é novo, com 116 verificações;
+  - `test_leads_kanban.js`, `test_leads_hoje.js` e `test_leads_painel_hoje.js` foram ajustados onde o modal virou ficha e a Hoje mudou.
+  - Revisão final independente: 5 problemas importantes corrigidos, todos com teste.
+  - **Pendências pequenas**, no ledger do worktree:
+    - "Salvando…" no botão;
+    - mensagem quando `leads_hoje` falha;
+    - teclado dentro da janela flutuante;
+    - rótulo "Anúncio" em caixa alta na ficha de livre.
+- **Publicação (28/10, 19:24, ok do Rafael):**
+  - Sem mudança no banco.
+  - O painel do ar era `a2e9bdaf…`, a §125, igual ao build da `oficial/main` 370c762.
+  - Painel novo MD5 `c9b37188…`.
+  - Backup `~/deploy_backups/painel_clientes_apex_20261028_192417_antes_meus_leads_redesign_fase1.html`.
+  - Vigia aceito.
+  - **Para voltar atrás:** republicar o backup.
