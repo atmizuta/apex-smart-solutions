@@ -56,12 +56,7 @@ try{
   eq(kbAbasDoPerfil(false), ['hoje', 'quadro', 'todos'], 'consultor: Hoje, Quadro e Todos');
   eq(kbAbasDoPerfil(true), ['hoje', 'quadro', 'todos', 'equipe'], 'gestor: + Todos e Equipe');
   eq([kbAbaPadrao(false), kbAbaPadrao(true)], ['hoje', 'equipe'], 'aba padrão por perfil');
-  const fila = [{ aba: 'OUTUBRO', lead_id: 'a', motivo: 'Novo sem contato' }, { aba: 'OUTUBRO', lead_id: 'b', motivo: 'Esfriando' }];
   const agora = Date.parse('2026-10-27T15:00:00Z');
-  eq(kbProximoDaFila(fila, {}, agora).lead_id, 'a', 'próximo = primeiro da fila');
-  eq(kbProximoDaFila(fila, { 'OUTUBRO|a': agora - 60000 }, agora).lead_id, 'b', 'aberto há 1 min é pulado');
-  eq(kbProximoDaFila(fila, { 'OUTUBRO|a': agora - 180000 }, agora).lead_id, 'a', 'exceção vence em 2 min');
-  eq(kbProximoDaFila([], {}, agora), null, 'fila vazia');
   eq(kbSemaforo({ sem_contato: 1, retornos_vencidos: 0, parados: 0, perdas_suspeitas: 0 }), 'vermelho', 'semáforo vermelho: novo sem contato');
   eq(kbSemaforo({ sem_contato: 0, retornos_vencidos: 2, parados: 0, perdas_suspeitas: 0 }), 'vermelho', 'semáforo vermelho: retorno vencido');
   eq(kbSemaforo({ sem_contato: 0, retornos_vencidos: 0, parados: 1, perdas_suspeitas: 0 }), 'amarelo', 'semáforo amarelo: parado');
@@ -103,11 +98,9 @@ try{
   await espera(80);   // Hoje e alertas carregam em segundo plano
   eq([...document.querySelectorAll('#kbAbas [data-kb-aba]')].filter(b => b.style.display !== 'none').map(b => b.dataset.kbAba), ['hoje', 'quadro', 'todos'], 'consultor vê Hoje e Quadro');
   assert(document.getElementById('kbHoje').style.display !== 'none' && document.getElementById('kbBoard').style.display === 'none', 'consultor abre na aba Hoje');
-  assert(document.getElementById('kbHoje').textContent.includes('Zz Retorno') && document.querySelector('#kbHoje [data-kb-ver-alertas]'), 'Hoje mostra retornos (Faça agora) e a linha de alertas');
-  kbProximo();
-  await espera(60);
-  assert(window.__rpcCalls.some(c => c.nome === 'leads_ficha' && c.args.p_id === 'h1'), 'Próximo lead abre a ficha do primeiro da fila');
-  assert(kbEstado.excecoes['OUTUBRO|h1'] > 0, 'lead aberto entra na exceção de 2 min');
+  const filaTxt = document.getElementById('kbFilaLista').textContent;
+  assert(filaTxt.includes('Atrasados') && filaTxt.includes('Zz Retorno') && filaTxt.includes('Agora') && filaTxt.includes('Zz Hoje Um'), 'Hoje mostra a fila em grupos (retorno vencido em Atrasados, novo em Agora)');
+  assert(window.__rpcCalls.some(c => c.nome === 'leads_ficha' && c.args.p_id === 'h2'), 'a ficha do primeiro da fila já abre ao lado');
   assert(document.getElementById('kbFichaResumo').textContent.includes('2 tentativas') && document.getElementById('kbFichaAnuncio').textContent.includes('Zz Conj'), 'ficha mostra resumo e anúncio');
   kbFecharFicha();
   // notificação uma vez por lead
@@ -256,6 +249,7 @@ try{
   currentUser = { id: 'u-sup', nome: 'Zzksup Teste', role: 'supervisor', operacao: 'apex' };
   window.__rpcRespostas.leads_ficha = { data: [fz], error: null };
   window.__rpcRespostas.leads_apagar = { data: null, error: null };
+  kbTrocarAba('quadro');   // §126: na Hoje a ficha é o painel da direita e passa para o próximo; aqui vale a gaveta
   await kbAbrirFicha('OUTUBRO', 'a1');
   document.querySelector('#kbFicha [data-kb-ficha-apagar]').click();
   const caixa = document.querySelector('#kbFicha [data-kb-apagar-box]');

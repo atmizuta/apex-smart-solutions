@@ -117,6 +117,7 @@ try{
   const cssKb = stKb.slice(stKb.indexOf('/* Meus leads — Kanban'));   // o bloco de Meus leads vai até o fim desse <style>
   const hexSolto = cssKb.split('\\n').filter(l => /#[0-9a-fA-F]{3,6}\\b/.test(l) && !/^\\s*\\[data-st=/.test(l) && !/--ml-ink-2:#464A4E;.*--ml-surface-2:#F7F7F8;/.test(l));
   eq(hexSolto, [], 'CSS de Meus leads: hex só nos tokens e nas cores de STATUS');
+  eq(cssKb.match(/border-radius:(10|12|14|16)px/g) || [], [], 'CSS de Meus leads: cantos pelos tokens da marca (sem os 10–14px antigos)');
   const seg = document.getElementById('kbAbas');
   assert(seg.classList.contains('kbSeg'), 'abas viram controle segmentado');
   eq([...seg.querySelectorAll('[data-kb-aba]')].map(b => b.dataset.kbAba), ['equipe', 'hoje', 'quadro', 'todos'], 'Equipe primeiro (só o gestor vê)');
@@ -227,6 +228,120 @@ try{
   assert(!document.getElementById('kbFicha').classList.contains('aberta'), 'Esc fecha a gaveta');
   document.getElementById('panel-meusleads').classList.remove('active');
   assert(!document.getElementById('kbClassOverlay'), 'a janela Classificar saiu do painel');
+  // ==== Task 4: Hoje B ====
+  const agora4 = Date.now();
+  const iso = (minDelta) => new Date(agora4 + minDelta * 60000).toISOString();
+  const L4 = [
+    { aba: 'OUTUBRO', lead_id: 'h1', nome: 'Zz Novo', categoria: 'sem_contato', livre: false, pego_em: iso(-10), criado_em_lead: iso(-12) },
+    { aba: 'OUTUBRO', lead_id: 'h2', nome: 'Zz Retorno Vencido', categoria: 'andamento', status: 'AGENDADO RETORNO', livre: false, ligacoes: 2, ultima_ligacao: iso(-60), obs: 'Zz obs h2' },
+    { aba: 'OUTUBRO', lead_id: 'h3', nome: 'Zz Nunca', categoria: 'andamento', status: 'EM NEGOCIAÇÂO', livre: false, ligacoes: 0, pego_em: iso(-120) },
+    { aba: 'OUTUBRO', lead_id: 'lv1', nome: 'Zz Livre Antigo', categoria: 'sem_contato', livre: true, criado_em_lead: iso(-30), cidade: 'Campinas', qtd_linhas: '10' },
+    { aba: 'OUTUBRO', lead_id: 'lv2', nome: 'Zz Livre Novo', categoria: 'sem_contato', livre: true, criado_em_lead: iso(-2) },
+  ];
+  const R4 = [{ aba: 'OUTUBRO', lead_id: 'h2', nome: 'Zz Retorno Vencido', quando: iso(-30), vencido: true }];
+  window.__rpcRespostas.leads_kanban3 = { data: L4, error: null };
+  window.__rpcRespostas.leads_hoje = { data: { fila: [], retornos: R4, livres: 2, placar: { classificacoes: 7, retornos_hoje: 2, retornos_cumpridos: 1 } }, error: null };
+  window.__rpcRespostas.meu_placar_ligacoes = { data: [{ lig_hoje: 23, meta_ligacoes_dia: 80, tem_telefonia: true, tem_dados: true }], error: null };
+  window.__rpcRespostas.leads_alertas = { data: [{ tipo: 'sem_contato', aba: 'OUTUBRO', lead_id: 'h1', nome: 'Zz Novo', desde: iso(-10) }], error: null };
+  window.__rpcRespostas.leads_ficha = (a) => ({ data: [Object.assign({ telefone: '11900000041' }, L4.find(l => l.lead_id === a.p_id) || { aba: 'OUTUBRO', lead_id: a.p_id, nome: 'Zz ?', categoria: 'andamento' })], error: null });
+  kbFecharFicha();
+  document.getElementById('panel-meusleads').classList.add('active');
+  await kbCarregar();
+  kbTrocarAba('hoje');
+  await espera(120);
+  const hoje4 = document.getElementById('kbHoje'), lista4 = document.getElementById('kbFilaLista');
+  assert(hoje4.querySelector('#kbHojeTopo').textContent.includes('23') && hoje4.textContent.includes('/ 80') && hoje4.textContent.includes('1 de 2') && hoje4.querySelector('#kbHojeTopo').textContent.includes('7'), 'placar: ligações/meta, classificados, retornos cumpridos');
+  eq([...lista4.querySelectorAll('[data-kb-fila]')].map(b => b.dataset.kbFila), ['OUTUBRO|h2', 'OUTUBRO|h1', 'OUTUBRO|h3'], 'fila: atrasado, novo, nunca ligado');
+  assert(lista4.textContent.includes('Atrasados') && lista4.textContent.includes('Agora') && lista4.textContent.includes('Nunca ligados'), 'títulos dos grupos');
+  const no4 = document.getElementById('kbFicha');
+  assert(no4.parentElement.id === 'kbHojeFicha' && no4.classList.contains('noPainel'), 'na Hoje a ficha mora no painel da direita');
+  assert(kbEstado.fichaAlvo && kbEstado.fichaAlvo.id === 'h2' && no4.textContent.includes('Zz Retorno Vencido') && no4.textContent.includes('1 de 3 na sua fila'), 'o primeiro da fila já abre ao lado');
+  assert(no4.querySelector('#kbClassSalvarProx'), 'na Hoje o botão é Salvar e ir para o próximo');
+  eq(document.getElementById('kbFilaNFazer').textContent, '3', 'contador de Fazer agora');
+  // clicar em outro lead troca a ficha; com OBS digitada não troca
+  lista4.querySelector('[data-kb-fila="OUTUBRO|h3"]').click();
+  await espera(60);
+  assert(kbEstado.fichaAlvo.id === 'h3' && lista4.querySelector('[data-kb-fila="OUTUBRO|h3"]').classList.contains('sel'), 'clicar na fila abre o lead ao lado');
+  document.getElementById('kbClassObs').value = 'Zz digitando';
+  lista4.querySelector('[data-kb-fila="OUTUBRO|h1"]').click();
+  await espera(40);
+  assert(kbEstado.fichaAlvo.id === 'h3', 'com OBS digitada, clicar em outro lead não troca');
+  // a recarga de 10 s não apaga o que foi digitado
+  const nFicha = window.__rpcCalls.filter(c => c.nome === 'leads_ficha').length;
+  await kbCarregar();
+  assert(document.getElementById('kbClassObs').value === 'Zz digitando' && window.__rpcCalls.filter(c => c.nome === 'leads_ficha').length === nFicha, 'recarga não redesenha a ficha com OBS digitada');
+  // RF3-hoje: erro ao salvar não avança
+  window.__rpcRespostas.leads_classificar = { data: null, error: { message: 'rede' } };
+  document.getElementById('kbClassStatus').value = 'EM NEGOCIAÇÂO';
+  document.getElementById('kbClassSalvarProx').click();
+  await espera(80);
+  assert(kbEstado.fichaAlvo.id === 'h3' && document.getElementById('kbClassObs').value === 'Zz digitando', 'RF3-hoje: erro não avança e mantém a OBS');
+  // Salvar e ir para o próximo: h3 sai da fila (agora tem ligação) e o próximo da ordem antiga abre
+  window.__rpcRespostas.leads_classificar = { data: null, error: null };
+  window.__rpcRespostas.leads_kanban3 = { data: L4.map(l => l.lead_id === 'h3' ? Object.assign({}, l, { ligacoes: 1, ultima_ligacao: iso(0) }) : l), error: null };
+  document.getElementById('kbClassSalvarProx').click();
+  await espera(150);
+  eq([...lista4.querySelectorAll('[data-kb-fila]')].map(b => b.dataset.kbFila), ['OUTUBRO|h2', 'OUTUBRO|h1'], 'lead salvo que não se encaixa mais sai da fila');
+  assert(kbEstado.fichaAlvo.id === 'h2' && kbEstado.hojeSel === 'OUTUBRO|h2', 'h3 era o último: volta para o primeiro que sobrou');
+  // setas na Hoje andam pela fila
+  document.body.focus();
+  document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+  await espera(60);
+  assert(kbEstado.hojeSel === 'OUTUBRO|h1' && kbEstado.fichaAlvo.id === 'h1', 'seta para baixo vai para o próximo da fila');
+  // Livres: do mais antigo para o mais novo; prévia e Pegar
+  hoje4.querySelector('[data-kb-fila-aba="livres"]').click();
+  eq([...lista4.querySelectorAll('[data-kb-fila]')].map(b => b.dataset.kbFila), ['OUTUBRO|lv1', 'OUTUBRO|lv2'], 'Livres do mais antigo para o mais novo');
+  assert(lista4.querySelector('[data-kb-pegar-proximo]'), 'Pegar o próximo livre na aba Livres');
+  window.__rpcRespostas.leads_ficha = (a) => ({ data: [L4.find(l => l.lead_id === a.p_id)], error: null });
+  lista4.querySelector('[data-kb-fila="OUTUBRO|lv1"]').click();
+  await espera(60);
+  assert(no4.querySelector('[data-kb-ficha-pegar]') && !no4.querySelector('#kbClassStatus'), 'livre: prévia com Pegar');
+  window.__rpcRespostas.leads_pegar = { data: { ok: true }, error: null };
+  window.__rpcRespostas.leads_kanban3 = { data: L4.map(l => l.lead_id === 'lv1' ? Object.assign({}, l, { livre: false, pego_em: iso(0) }) : l), error: null };
+  window.__rpcRespostas.leads_ficha = (a) => ({ data: [Object.assign({ telefone: '11900000042' }, L4.find(l => l.lead_id === a.p_id), a.p_id === 'lv1' ? { livre: false, pego_em: iso(0) } : {})], error: null });
+  no4.querySelector('[data-kb-ficha-pegar]').click();
+  await espera(150);
+  assert(kbEstado.filaAba === 'fazer' && kbEstado.hojeSel === 'OUTUBRO|lv1' && hoje4.querySelector('[data-kb-fila-aba="fazer"]').classList.contains('active'), 'pegar leva para Fazer agora com o lead selecionado');
+  // Alertas
+  hoje4.querySelector('[data-kb-fila-aba="alertas"]').click();
+  assert(lista4.textContent.includes('Pego e sem contato') && lista4.textContent.includes('Zz Novo'), 'aba Alertas lista os alertas');
+  lista4.querySelector('[data-kb-fila="OUTUBRO|h1"]').click();
+  await espera(60);
+  assert(kbEstado.fichaAlvo.id === 'h1', 'clicar no alerta abre o lead');
+  hoje4.querySelector('[data-kb-fila-aba="fazer"]').click();
+  // RF2-fila: nome com HTML na fila sai escapado
+  kbEstado.leads = [{ aba: 'OUTUBRO', lead_id: 'x9', nome: '<img src=x onerror=alert(1)>', categoria: 'sem_contato', livre: false, pego_em: iso(-1) }];
+  kbRenderHoje();
+  assert(!lista4.innerHTML.includes('<img'), 'RF2-fila: nome escapado');
+  // Tudo em dia
+  kbEstado.leads = []; kbEstado.hoje = { fila: [], retornos: [], livres: 0, placar: {} };
+  kbFecharFicha(); kbEstado.fichaAlvo = null;
+  kbRenderHoje();
+  assert(!document.getElementById('kbHojeVazio').hidden && document.getElementById('kbHojeVazio').textContent.includes('Tudo em dia') && no4.hidden, 'fila vazia: Tudo em dia no lugar da ficha');
+  // RF5: flutuar na Hoje, trocar de aba e fechar a flutuante
+  window.__rpcRespostas.leads_kanban3 = { data: L4, error: null };
+  window.__rpcRespostas.leads_ficha = (a) => ({ data: [Object.assign({ telefone: '11900000041' }, L4.find(l => l.lead_id === a.p_id))], error: null });
+  await kbCarregar(); await espera(100);
+  const pip4 = document.implementation.createHTMLDocument('pip');
+  const win4 = { document: pip4, addEventListener: (ev, fn) => { if(ev === 'pagehide') win4._ph = fn; }, close(){ if(win4._ph) win4._ph(); } };
+  window.documentPictureInPicture = { requestWindow: async () => win4 };
+  await kbFlutuarFicha(); await espera(60);
+  kbTrocarAba('quadro'); kbRenderHoje();
+  assert(pip4.getElementById('kbFicha') && !document.getElementById('kbFicha'), 'RF5: flutuando, trocar de aba não puxa a ficha de volta');
+  kbTrocarAba('hoje'); await espera(80);
+  kbFecharFicha(); await espera(80);
+  assert(document.getElementById('kbFicha') && document.getElementById('kbFicha').parentElement.id === 'kbHojeFicha', 'RF5: fechar a flutuante na Hoje devolve a ficha ao painel da direita');
+  delete window.documentPictureInPicture;
+  // sair da Hoje: ficha volta para a casa e fecha (sem nada digitado)
+  kbTrocarAba('quadro');
+  assert(document.getElementById('kbFicha').parentElement.id === 'kbFichaCasa' && !document.getElementById('kbFicha').classList.contains('aberta'), 'fora da Hoje a ficha volta a ser gaveta, fechada');
+  // gestor sem consultor escolhido
+  currentUser = { id: 'u-sup', nome: 'Zzksup Teste', role: 'supervisor', operacao: 'apex' };
+  kbEstado.dono = '';
+  kbTrocarAba('hoje'); await espera(80);
+  assert(document.getElementById('kbFilaLista').textContent.includes('Escolha um consultor'), 'gestor sem consultor escolhido vê o aviso');
+  currentUser = { id: 'u-zz', nome: 'Zzkcon Teste', role: 'consultor' };
+  document.getElementById('panel-meusleads').classList.remove('active');
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
