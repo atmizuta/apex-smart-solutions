@@ -88,6 +88,35 @@ try{
   kbSalvarDensidade(); kbSalvarColAbertas();
   Object.defineProperty(window, 'localStorage', { value: lsReal, configurable: true, writable: true });
   window.localStorage.removeItem('kbDensidade'); window.localStorage.removeItem('kbColAbertas'); kbEstado.colAbertas = {};
+  // ==== Task 2: cartão novo ====
+  currentUser = { id: 'u-zz', nome: 'Zzkcon Teste', role: 'consultor' };
+  kbEstado.podePegar = true;
+  const agC = Date.now(), isoC = (min) => new Date(agC + min * 60000).toISOString(), hojeC = kbDiaSP(agC);
+  const c1 = kbCard(LA('c1', { retorno_em: kbSomaDias(hojeC, -1), qtd_linhas: '6', cidade: 'Campinas', uf: 'SP', telefone: '11900000011', obs: 'Zz pediu proposta <b>',
+    ultima_ligacao: isoC(-120), ultima_atendida: true, ultima_seg: 95, criado_em_lead: isoC(-60 * 24 * 4) }), agC);
+  assert(c1.includes('class="kbCard kbAtrasado"') && c1.includes('kbUrg kbUrg-late'), 'retorno vencido: faixa vermelha e ícone vermelho');
+  assert(c1.includes('class="kbStP" data-st="em-negociacao"') && c1.includes('>Em negociaçâo<'), 'STATUS como ponto + texto em frase normal (a planilha grava NEGOCIAÇÂO)');
+  assert(c1.includes('Campinas/SP · 6 linhas') && c1.includes('retorno ontem · atrasado') && c1.includes('Ligou há 2 h') && c1.includes('atendida · 1 min 35 s') && c1.includes('há 4 dias'), 'cartão em 3 níveis: meta, retorno, última ligação e chegada');
+  assert(c1.includes('Zz pediu proposta &lt;b&gt;') && c1.includes('data-kb-contato="ligar"') && c1.includes('data-kb-whats') && !c1.includes('wa.me') && !c1.includes('data-kb-classificar'), 'OBS escapada; Ligar e WhatsApp sem link pronto; sem link Classificar');
+  const c2 = kbCard(LA('c2', { retorno_em: kbSomaDias(hojeC, 2) }), agC);
+  assert(!c2.includes('kbAtrasado') && c2.includes('kbUrg-fut') && c2.includes('retorno ' + kbSomaDias(hojeC, 2).slice(8, 10) + '/'), 'retorno marcado: sem faixa, ícone cinza');
+  assert(kbCard(LA('c3'), agC).includes('kbUrg-nada') && kbCard(LA('c4', { categoria: 'convertido', status: 'PEDIDO CONCLUIDO (VENDA)', receita: 899.9, venda_neo: true }), agC).includes('✓ NEO'), 'nada agendado (amarelo); convertido com receita e NEO, sem ícone');
+  assert(!kbCard(LA('c5', { categoria: 'convertido' }), agC).includes('kbUrg'), 'convertido sem ícone de urgência');
+  const cl = kbCard({ aba: 'O', lead_id: 'l1', nome: 'Zz Livre', livre: true, categoria: 'sem_contato', cidade: 'Jundiaí', uf: 'SP', qtd_linhas: '10', criado_em_lead: isoC(-40) }, agC);
+  assert(cl.includes('kbCardLivre') && cl.includes('data-kb-pegar') && cl.includes('kbTag late') && cl.includes('Jundiaí/SP · 10 linhas') && !cl.includes('kbUrg'), 'livre: cidade, linhas, idade com cor e Pegar');
+  kbEstado.podePegar = false;
+  assert(!kbCard({ aba: 'O', lead_id: 'l1', nome: 'Zz Livre', livre: true, categoria: 'sem_contato' }, agC).includes('data-kb-pegar'), 'quem não pega não vê Pegar');
+  kbEstado.podePegar = true;
+  // RF1/RF2: campos vazios, STATUS antigo, HTML
+  const cv = kbCard({ aba: 'O', lead_id: 'v', nome: null, livre: false, categoria: 'andamento', status: 'STATUS ANTIGO QUALQUER', ligacoes: 1 }, agC);
+  assert(!/undefined|>null</.test(cv) && cv.includes('(sem nome)') && cv.includes('Status antigo qualquer'), 'RF1: cartão sem undefined/null e com status antigo em texto');
+  const cx = kbCard({ aba: 'O', lead_id: 'x', nome: '<img src=x onerror=alert(1)>', obs: '<script>zz</script>', status: '<b>zz</b>', livre: false, categoria: 'andamento', ligacoes: 1 }, agC);
+  assert(!cx.includes('<img') && !cx.includes('<script>') && !cx.includes('<b>zz'), 'RF2: cartão escapa nome, OBS e status');
+  // gestor: iniciais e nome do dono
+  currentUser = { id: 'u-sup', nome: 'Zzksup Teste', role: 'supervisor', operacao: 'apex' };
+  const cg = kbCard(LA('g1', { dono_nome: 'Zzkcon Teste' }), agC);
+  assert(cg.includes('title="Com Zzkcon Teste"') && cg.includes('<b>ZT</b>Zzkcon'), 'gestor vê as iniciais e o primeiro nome do dono');
+  currentUser = { id: 'u-zz', nome: 'Zzkcon Teste', role: 'consultor' };
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');

@@ -844,10 +844,6 @@
   .kbCol[data-kb-col="livres"]{--kb-cor:var(--c-grafite);}
   .kbCol[data-kb-col="semlig"]{--kb-cor:var(--c-bordo);}
   .kbCol[data-kb-col="novos"]{--kb-cor:var(--c-sinal);}
-  .kbUltLig{margin-top:var(--space-2);font-size:var(--fs-xs);color:var(--muted);}
-  .kbUltLig::before{content:"☎ ";}
-  .kbUltLig.kbAtendida{color:var(--st-ganho);}
-  .kbObs{margin-top:4px;padding:4px 8px;border-left:2px solid var(--c-linha-forte);background:var(--c-papel);font-size:var(--fs-xs);color:var(--c-grafite);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
   .kbCol[data-kb-col="andamento"]{--kb-cor:var(--st-andamento);}
   .kbCol[data-kb-col="convertido"]{--kb-cor:var(--st-ganho);}
   .kbCol[data-kb-col="perdido"]{--kb-cor:var(--st-perdido);}
@@ -861,21 +857,39 @@
   .kbCol.kbAlvo{background:var(--c-branco);}
   .kbColLista{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;margin-right:calc(-1 * var(--space-2));padding-right:var(--space-2);}
   /* content-visibility: o navegador não desenha os cartões fora da tela (o que mais pesava nos computadores dos consultores) */
-  .kbCard{position:relative;background:var(--card);border:1px solid var(--c-linha);border-left:3px solid var(--kb-cor);border-radius:var(--radius-lg);padding:var(--space-3);margin-bottom:var(--space-2);box-shadow:var(--shadow-sm);cursor:pointer;content-visibility:auto;contain-intrinsic-size:auto 118px;}
-  .kbCard:hover{box-shadow:var(--shadow-md);}
+  /* §126.2: cartão novo — três níveis, ícone de urgência, faixa vermelha só no que precisa de ação, ações ao passar o mouse */
+  .kbCard{position:relative;background:var(--ml-surface);border-radius:var(--radius-lg);padding:12px 12px 10px;margin-bottom:var(--space-2);cursor:pointer;content-visibility:auto;contain-intrinsic-size:auto 128px;transition:box-shadow var(--dur-fast);}
+  .kbCard:hover{box-shadow:0 0 0 1px var(--c-linha),0 4px 12px rgba(29,31,32,.08);}
+  .kbCard.kbAtrasado::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:0 3px 3px 0;background:var(--ml-late);}
+  .kbNome{font-weight:600;font-size:14.5px;line-height:1.25;color:var(--ml-ink);padding-right:22px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .kbCartMeta{margin-top:2px;font-size:var(--fs-xs);color:var(--ml-ink-3);}
+  .kbCartSt{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;}
+  .kbStP{display:inline-flex;align-items:center;gap:6px;font-size:var(--fs-sm);color:var(--ml-ink-2);}
+  .kbStP::before{content:"";width:9px;height:9px;border-radius:50%;flex:none;background:var(--kb-st-bg,var(--c-linha-forte));box-shadow:inset 0 0 0 1.5px var(--kb-st-fg,transparent);}
+  .kbObs{margin-top:8px;font-size:var(--fs-sm);color:var(--ml-ink-2);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .kbCartRodape{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:10px;font-size:var(--fs-xs);color:var(--ml-ink-3);}
+  .kbTempo{margin-left:auto;font-size:var(--fs-xs);color:var(--ml-ink-3);}
+  .kbCartLig{display:inline-flex;align-items:center;gap:4px;}
+  .kbCartLig svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;}
+  .kbCartLig.ok{color:var(--ml-ok);}
+  .kbCartDono{display:inline-flex;align-items:center;gap:5px;color:var(--ml-ink-2);}
+  .kbCartDono b{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:6px;background:var(--ml-surface-3);color:var(--ml-ink);font-size:10px;font-weight:700;}
+  .kbCartReceita{font-size:var(--fs-xs);font-weight:600;color:var(--ml-ok);}
+  .kbUrg{position:absolute;top:11px;right:10px;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;}
+  .kbUrg svg{width:12px;height:12px;stroke:var(--c-branco);fill:none;stroke-width:2.4;}
+  .kbUrg-late{background:var(--ml-late);}
+  .kbUrg-hoje{background:var(--ml-ok);}
+  .kbUrg-fut{background:var(--ml-ink-3);}
+  .kbUrg-nada{background:var(--ml-soon);}
+  .kbCartAcoes{position:absolute;right:8px;bottom:8px;display:flex;gap:4px;opacity:0;transition:opacity var(--dur-fast);}
+  .kbCard:hover .kbCartAcoes,.kbCard:focus-within .kbCartAcoes{opacity:1;}
+  .kbCartAcoes .kbBtnIco{width:28px;height:28px;}
+  .kbCardLivre .kbCartRodape .kbBtn{margin-left:auto;}
+  .kbBoard.kbCompacto .kbObs,.kbBoard.kbCompacto .kbCartLig,.kbBoard.kbCompacto .kbCartMeta{display:none;}
   .kbCard:active{cursor:grabbing;}
   .kbCard.kbArrastado{opacity:.35;}
-  .kbCardTopo{display:flex;gap:var(--space-2);align-items:flex-start;justify-content:space-between;}
-  .kbNome{font-weight:700;font-size:var(--fs-base);line-height:1.25;color:var(--c-grafite);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
   .kbMeta{color:var(--muted);font-size:var(--fs-xs);margin-top:3px;}
   .kbChips{display:flex;flex-wrap:wrap;gap:var(--space-1);align-items:center;margin-top:var(--space-2);}
-  .kbRodape{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);margin-top:var(--space-2);padding-top:var(--space-2);border-top:1px solid var(--c-linha);}
-  .kbTempo{font-size:var(--fs-xs);color:var(--muted);}
-  .kbCard.kbAtrasado .kbTempo{color:var(--c-sinal);font-weight:700;}
-  .kbIcones{display:flex;gap:4px;flex-shrink:0;}
-  .kbIcone{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:var(--radius);border:1px solid var(--c-linha);background:var(--c-branco);color:var(--c-grafite);}
-  .kbIcone:hover{border-color:var(--c-sinal);color:var(--c-sinal);}
-  .kbIcone svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
   .kbLink{background:none;border:0;padding:0;color:var(--c-sinal);font-weight:700;font-size:var(--fs-sm);cursor:pointer;}
   .kbLink:hover{text-decoration:underline;}
   .kbMais{display:block;margin:var(--space-2) auto 0;}
@@ -3893,34 +3907,34 @@ async function kbCarregar(){
 const KB_TITULOS = { livres: 'Livres', semlig: 'Sem ligação', novos: 'Meus novos', andamento: 'Em andamento', semresp: 'Sem resposta', convertido: 'Convertido', perdido: 'Perdido' };
 const KB_ICONE_TEL = '<svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>';
 const KB_ICONE_WHATS = '<svg viewBox="0 0 24 24"><path d="M3 21l1.7-5A8.5 8.5 0 1 1 8 19.3z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1.5-1.5-2-1-1 1a4 4 0 0 1-2.5-2.5l1-1-1-2z"/></svg>';
+// §126.2: cartão novo em três níveis — nome; cidade · linhas e STATUS (ponto); OBS, retorno, última ligação e chegada.
+// Ícone de urgência no canto (só em aberto), faixa vermelha só no que precisa de ação agora, Ligar/WhatsApp ao passar o mouse.
+const KB_URG_TITULO = { late: 'Retorno atrasado', hoje: 'Retorno hoje', fut: 'Retorno marcado', nada: 'Nada agendado' };
 function kbCard(l, agoraMs){
-  const col = kbColunaDoLead(l);
-  const div = kbDivergencia(l);
-  const local = [l.cidade, l.uf].filter(Boolean).join('/');
-  const meta = [local, l.qtd_linhas ? l.qtd_linhas + ' linhas' : ''].filter(Boolean).join(' · ');
+  const col = kbColunaDoLead(l), div = kbDivergencia(l);
+  const meta = [[l.cidade, l.uf].filter(Boolean).join('/'), l.qtd_linhas ? l.qtd_linhas + ' linhas' : ''].filter(Boolean).join(' · ');
   const tel = String(l.telefone || '').replace(/\D/g, '');
-  // §120: ícones por sprite e link do WhatsApp montado só no clique (o cartão ficou bem menor); telefone abre em aba nova
-  const icones = col !== 'livres' && tel
-    ? `<div class="kbIcones"><a class="kbIcone" title="Ligar pelo ProContact (copia o número)" data-kb-contato="ligar" data-kb-ligar href="#"><svg><use href="#kbIcoTel"></use></svg></a><a class="kbIcone" title="WhatsApp" data-kb-contato="whatsapp" data-kb-whats href="#"><svg><use href="#kbIcoWhats"></use></svg></a></div>`
-    : '';
-  const chips = [];
-  if(l.status) chips.push(kbStChip(l.status));
-  if(plParaResgatar(l)) chips.push('<span class="badge">para resgatar</span>');
-  if(l.retorno_em) chips.push(`<span class="kbMeta">retorno ${escapeHtml(String(l.retorno_em).split('-').reverse().join('/'))}</span>`);
-  const acao = col === 'livres' ? (kbVeLivres() ? `<button type="button" class="btn btn-sm" data-kb-pegar>Pegar</button>` : '')
-    : `<button type="button" class="kbLink" data-kb-classificar>${col === 'novos' ? 'Classificar' : 'Reclassificar'}</button>`;
-  // §121: última ligação e última OBS à vista no cartão
-  const ultLig = col !== 'livres' && l.ultima_ligacao ? `<div class="kbUltLig${l.ultima_atendida ? ' kbAtendida' : ''}">Última ligação ${escapeHtml(kbTempoDesde(l.ultima_ligacao, agoraMs))} · ${l.ultima_atendida ? 'atendida' + (l.ultima_seg ? ' · ' + escapeHtml(kbDuracao(l.ultima_seg)) : '') : 'não atendida'}</div>` : '';
-  const obs = col !== 'livres' && l.obs ? `<div class="kbObs" title="${escapeHtml(l.obs)}">${escapeHtml(l.obs)}</div>` : '';
-  return `<div class="kbCard${kbAtrasado(l, agoraMs) ? ' kbAtrasado' : ''}" data-aba="${escapeHtml(l.aba)}" data-id="${escapeHtml(l.lead_id)}" data-col="${col}" draggable="true">
-    <div class="kbCardTopo"><div class="kbNome">${escapeHtml(l.nome || '(sem nome)')}</div>${icones}</div>
-    ${meta ? `<div class="kbMeta">${escapeHtml(meta)}</div>` : ''}
-    ${chips.length ? `<div class="kbChips">${chips.join('')}</div>` : ''}
-    ${ultLig}${obs}
-    ${kbGestor() && l.dono_nome ? `<div class="kbMeta">Com ${escapeHtml(l.dono_nome)}</div>` : ''}
-    ${col === 'convertido' && (l.receita || l.receita_neo) ? `<div class="kbMeta">${escapeHtml(kbMoeda(l.receita || l.receita_neo))}${l.venda_neo ? ' · ✓ NEO' : ''}</div>` : ''}
-    ${div ? `<div class="kbDiv">⚠ ${escapeHtml(div)}</div>` : ''}
-    <div class="kbRodape"><span class="kbTempo">${kbAtrasado(l, agoraMs) ? '⏱ ' : ''}${escapeHtml(kbTempoDesde(l.criado_em_lead, agoraMs))}</span>${acao}</div>
+  const attrs = `data-aba="${escapeHtml(l.aba)}" data-id="${escapeHtml(l.lead_id)}" data-col="${col}" draggable="true"`;
+  const nome = `<div class="kbNome">${escapeHtml(l.nome || '(sem nome)')}</div>`;
+  const metaHtml = meta ? `<div class="kbCartMeta">${escapeHtml(meta)}</div>` : '';
+  if(col === 'livres'){
+    const cor = kbCorIdadeLivre(l, agoraMs);
+    return `<div class="kbCard kbCardLivre" ${attrs}>${nome}${metaHtml}<div class="kbCartRodape"><span class="kbTag${cor ? ' ' + cor : ''}">${escapeHtml(kbTempoDesde(l.criado_em_lead, agoraMs))}</span>${kbPodePegar() ? '<button type="button" class="kbBtn kbBtnQ kbBtnSm" data-kb-pegar>Pegar</button>' : ''}</div></div>`;
+  }
+  const urg = kbUrgenciaCartao(l, agoraMs);
+  const st = l.status ? `<span class="kbStP" data-st="${escapeHtml(kbStSlug(l.status))}">${escapeHtml(kbStTexto(l.status))}</span>` : '<span class="kbStP">Sem status</span>';
+  const extras = [];
+  if(plParaResgatar(l)) extras.push('<span class="badge">para resgatar</span>');
+  if(col === 'convertido' && (l.receita || l.receita_neo)) extras.push(`<span class="kbCartReceita">${escapeHtml(kbMoeda(l.receita || l.receita_neo))}${l.venda_neo ? ' · ✓ NEO' : ''}</span>`);
+  const ret = kbAbertoCol(col) ? kbRetornoTag(l, agoraMs) : null;
+  const lig = l.ultima_ligacao ? `<span class="kbCartLig${l.ultima_atendida ? ' ok' : ''}">${KB_ICO.tel}${escapeHtml('Ligou ' + kbTempoDesde(l.ultima_ligacao, agoraMs))} · ${l.ultima_atendida ? 'atendida' + (l.ultima_seg ? ' · ' + escapeHtml(kbDuracao(l.ultima_seg)) : '') : 'não atendida'}</span>` : '';
+  const dono = kbGestor() && l.dono_nome ? `<span class="kbCartDono" title="Com ${escapeHtml(l.dono_nome)}"><b>${escapeHtml(kbIniciais(l.dono_nome))}</b>${escapeHtml(String(l.dono_nome).trim().split(/\s+/)[0])}</span>` : '';
+  const acoes = tel ? `<div class="kbCartAcoes"><a class="kbBtn kbBtnP kbBtnIco" title="Ligar pelo ProContact (copia o número)" data-kb-contato="ligar" data-kb-ligar href="#">${KB_ICO.tel}</a><a class="kbBtn kbBtnQ kbBtnIco" title="WhatsApp" data-kb-contato="whatsapp" data-kb-whats href="#">${KB_ICO.wa}</a></div>` : '';
+  return `<div class="kbCard${kbFaixaVermelha(l, agoraMs) ? ' kbAtrasado' : ''}" ${attrs}>
+    ${urg ? `<span class="kbUrg kbUrg-${urg}" title="${KB_URG_TITULO[urg]}">${KB_ICO.relogio}</span>` : ''}${nome}${metaHtml}
+    <div class="kbCartSt">${st}${extras.join('')}</div>
+    ${l.obs ? `<div class="kbObs" title="${escapeHtml(l.obs)}">${escapeHtml(l.obs)}</div>` : ''}${div ? `<div class="kbDiv">⚠ ${escapeHtml(div)}</div>` : ''}
+    <div class="kbCartRodape">${ret ? `<span class="kbTag ${ret.classe}">${escapeHtml(ret.texto)}</span>` : ''}${lig}${dono}<span class="kbTempo" title="Chegada do lead">${escapeHtml(kbTempoDesde(l.criado_em_lead, agoraMs))}</span></div>${acoes}
   </div>`;
 }
 const KB_POR_COLUNA = 100;   // §121: pedido do Rafael, mais clientes por coluna

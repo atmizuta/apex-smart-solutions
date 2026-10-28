@@ -154,7 +154,7 @@ try{
   assert(document.getElementById('kbFiltrosGestor').style.display !== 'none', 'gestor vê filtros');
   eq([...document.querySelectorAll('#kbDono option')].map(o => o.value), ['', 'u-zz', 'u-zz2'], 'seletor de consultor: Todos + equipe');
   await kbCarregar();
-  assert(document.querySelector('#kbBoard [data-id="m1"]').textContent.includes('Com Zzkcon Teste'), 'card mostra com quem está');
+  assert(document.querySelector('#kbBoard [data-id="m1"] .kbCartDono').title === 'Com Zzkcon Teste', 'card mostra com quem está');
   document.getElementById('kbSoDiverg').click();
   assert(!document.querySelector('#kbBoard [data-id="m1"]') && document.querySelector('#kbBoard [data-id="d1"]'), 'filtro de divergências');
   document.getElementById('kbSoDiverg').click();

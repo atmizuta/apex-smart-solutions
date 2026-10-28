@@ -287,7 +287,7 @@ try{
   const cartao = kbCard(SL({ lead_id: 'c1', categoria: 'andamento', status: 'EM NEGOCIAÇÂO', telefone: '11900000001', obs: 'zz pediu proposta <b>', ligacoes: 2,
     ultima_ligacao: new Date(Date.now() - 2 * 3600000).toISOString(), ultima_atendida: true, ultima_seg: 95, criado_em_lead: new Date().toISOString() }), Date.now());
   assert(cartao.includes('zz pediu proposta') && cartao.includes('&lt;b&gt;'), 'cartão mostra a última OBS (escapada)');
-  assert(cartao.includes('Última ligação há 2 h') && cartao.includes('atendida · 1 min 35 s'), 'cartão mostra a última ligação');
+  assert(cartao.includes('Ligou há 2 h') && cartao.includes('atendida · 1 min 35 s'), 'cartão mostra a última ligação');
   assert(kbCard(SL({ lead_id: 'c2', telefone: '11900000001', categoria: 'andamento', ligacoes: 1, ultima_ligacao: new Date().toISOString(), ultima_atendida: false, criado_em_lead: new Date().toISOString() }), Date.now()).includes('não atendida'), 'ligação não atendida');
   window.__rpcRespostas.leads_kanban3 = { data: [SL({ lead_id: 's1', nome: 'Zz Nunca Ligou', categoria: 'andamento', status: 'EM NEGOCIAÇÂO', ligacoes: 0, telefone: '11900000001', criado_em_lead: new Date().toISOString() }),
     SL({ lead_id: 's2', nome: 'Zz Recem Pego', ligacoes: 0, telefone: '11900000002', criado_em_lead: new Date().toISOString() })], error: null };
@@ -322,7 +322,7 @@ try{
    'PEDIDO ATIVO', 'AGUARDANDO ACEITE / ASSINATURA']
     .forEach(st => assert(css.includes('[data-st="' + kbStSlug(st) + '"]'), 'cor da planilha para ' + st));
   const cartaoCor = kbCard(SL({ lead_id: 'cc1', categoria: 'andamento', status: 'EM NEGOCIAÇÂO', telefone: '11900000001', ligacoes: 1, criado_em_lead: new Date().toISOString() }), Date.now());
-  assert(cartaoCor.includes('class="kbSt" data-st="em-negociacao"'), 'cartão usa a cor da tabulação');
+  assert(cartaoCor.includes('class="kbStP" data-st="em-negociacao"'), 'cartão usa a cor da tabulação (ponto)');
   assert(kbFichaHtml(Object.assign({}, fz, { status: 'CNPJ INAPTO' }), { gestor: false, agoraMs: Date.now() }).includes('data-st="cnpj-inapto"'), 'ficha usa a cor da tabulação');
   await kbAbrirClassificar('OUTUBRO', 'a1', null);
   assert(document.querySelector('#kbClassGrupos [data-kb-status="CNPJ INAPTO"]').getAttribute('data-st') === 'cnpj-inapto', 'botão do Classificar com a cor da tabulação');
