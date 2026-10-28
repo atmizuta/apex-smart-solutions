@@ -84,7 +84,7 @@
   - Ficam como estão hoje: "Só divergências" e "Reescrever planilha" (admin), num menu "⋯" ao lado do seletor, e o aviso `.kbAviso`.
   - A aba "Todos" passa a se chamar **"Lista"** na Fase 2. Até lá continua "Todos".
 - **Movimento.** Só transform e opacity, entre 150 e 300 ms. O lead que sai da fila desliza e some. Com `prefers-reduced-motion`, nada se move.
-- **Tela estreita (< 900 px).** A fila e a ficha da Hoje ficam uma embaixo da outra, e a ficha vira gaveta. O Quadro mantém a rolagem lateral.
+- **Tela estreita (< 900 px).** A fila e a ficha da Hoje ficam uma embaixo da outra. O Quadro mantém a rolagem lateral.
 
 ## 3. Fase 1: ficha nova e Hoje B
 
