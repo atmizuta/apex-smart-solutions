@@ -307,6 +307,34 @@ try{
   await kbCarregarAlertas(true);
   assert(!/^\\[/.test(document.title), 'sem lead novo, título volta ao normal');
   alBip = bipOrig;
+  // ==== Revisão final ====
+  // Critical 1: o placar de ligações precisa do dia (meu_placar_ligacoes(p_ref date) não tem versão sem argumento)
+  currentUser = { id: 'u-pode', nome: 'Zzpode Teste', role: 'consultor' };
+  window.__rpcCalls.length = 0;
+  await kbCarregarHoje();
+  const plRF = window.__rpcCalls.find(c => c.nome === 'meu_placar_ligacoes');
+  assert(plRF && plRF.args && /^\\d{4}-\\d{2}-\\d{2}$/.test(plRF.args.p_ref), 'placar de ligações manda p_ref (dia SP)');
+  // Important 2: filtro guardado cujo valor sumiu dos leads continua visível (senão o select mostra "Todos" e esconde Livres)
+  const htmlRF = kbFiltroBarraHtml([{ aba: 'O', lead_id: 'x', cidade: 'Santos', livre: false }], { cidade: 'Campinas' }, Date.now());
+  assert(htmlRF.includes('<option value="Campinas" selected>Campinas (0)</option>'), 'filtro guardado que sumiu dos leads continua selecionado com (0)');
+  // Important 3: "Ver mais" da lista da Equipe funciona
+  kbEstado.leadsEquipe = Array.from({ length: 60 }, (_, i) => ({ aba: 'O', lead_id: 'e' + i, nome: 'Zz E' + i, dono_id: 'u-zz', categoria: 'andamento', livre: false, ligacoes: 1, ultima_ligacao: new Date().toISOString() }));
+  kbEstado.atividade = [{ dono_id: 'u-zz', nome: 'Zzkcon Teste', tem_telefonia: true, lig_hoje: 0, obs_hoje: 0 }];
+  kbEstado.equipeLista = { dono: 'u-zz', chave: 'andamento' }; kbEstado.equipeMax = 50;
+  kbRenderEquipe();
+  eq(document.querySelectorAll('#kbEquipe .kbCartaoLista [data-kb-abrir]').length, 50, 'Equipe: lista mostra 50');
+  document.querySelector('#kbEquipe [data-kb-cartao-mais]').click();
+  eq(document.querySelectorAll('#kbEquipe .kbCartaoLista [data-kb-abrir]').length, 60, 'Equipe: Ver mais traz o resto');
+  // Important (re-graduado do Minor 7): Equipe usa os alertas da equipe toda, mesmo com um consultor escolhido no seletor
+  currentUser = { id: 'u-sup', nome: 'Zzksup Teste', role: 'supervisor', operacao: 'apex' };
+  kbEstado.dono = 'u-zz'; window.__rpcCalls.length = 0;
+  window.__rpcRespostas.leads_alertas = (args) => ({ data: args.p_dono ? [] : [{ tipo: 'retorno_vencido', aba: 'O', lead_id: 'e1', nome: 'Zz E1', dono_id: 'u-yy', dono_nome: 'Zzyy Teste', desde: new Date(Date.now() - 3600000).toISOString() }], error: null });
+  kbEstado.atividade = [{ dono_id: 'u-yy', nome: 'Zzyy Teste', tem_telefonia: false, lig_hoje: 0, obs_hoje: 0 }];
+  window.__rpcRespostas.leads_atividade_equipe = { data: kbEstado.atividade, error: null };
+  kbEstado.equipeLista = null;
+  await kbCarregarEquipe();
+  assert(document.querySelector('#kbEquipe [data-kb-eq="u-yy|retorno_atrasado"]'), 'Equipe conta retorno atrasado de outro consultor com o seletor em u-zz');
+  kbEstado.dono = '';
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');

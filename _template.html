@@ -3401,6 +3401,7 @@ function kbFiltroBarraHtml(leads, filtros, agoraMs){
     const def = KB_FILTROS[g], ops = kbOpcoesFiltro(leads, g, f, agoraMs);
     if(def.soDono) return `<div class="kbFiltroGrupo"><span class="kbMeta">${def.rotulo}</span>${ops.map(o =>
       `<button type="button" class="filterPill${f[g] === o.valor ? ' active' : ''}" data-kb-filtro="${g}" data-valor="${escapeHtml(o.valor)}">${escapeHtml(o.rotulo)} <b>${o.n}</b></button>`).join('')}</div>`;
+    if(f[g] && !ops.some(o => o.valor === f[g])) ops.unshift({ valor: f[g], rotulo: f[g], n: 0 });   // valor guardado que sumiu dos leads: continua à vista
     if(!ops.length && !f[g]) return '';
     return `<label class="field kbFiltroCampo"><span>${def.rotulo}</span><select data-kb-filtro="${g}"><option value="">Todos</option>${ops.map(o =>
       `<option value="${escapeHtml(o.valor)}"${f[g] === o.valor ? ' selected' : ''}>${escapeHtml(o.rotulo)} (${o.n})</option>`).join('')}</select></label>`;
@@ -4065,7 +4066,7 @@ document.getElementById('kbFiltroBarra').addEventListener('change', (e) => {
 async function kbCarregarHoje(){
   const [r, pl] = await Promise.all([
     ppSeguro(() => sb.rpc('leads_hoje', { p_dono: kbGestor() && kbEstado.dono ? kbEstado.dono : null })),
-    kbGestor() ? Promise.resolve(null) : ppSeguro(() => sb.rpc('meu_placar_ligacoes')),
+    kbGestor() ? Promise.resolve(null) : ppSeguro(() => sb.rpc('meu_placar_ligacoes', { p_ref: hojeSP() })),
   ]);
   kbEstado.hoje = r && !r.error ? r.data : null;
   kbEstado.placarLig = pl && !pl.error && pl.data ? (Array.isArray(pl.data) ? pl.data[0] : pl.data) : null;
@@ -4109,18 +4110,22 @@ async function kbPegarProximoLivre(){
 }
 async function kbCarregarEquipe(notificar){
   if(!kbGestor()) return;
-  const [lds, at] = await Promise.all([
+  const [lds, at, ale] = await Promise.all([
     ppSeguro(() => sb.rpc('leads_kanban3', { p_dono: null, p_todos: false })),
     ppSeguro(() => sb.rpc('leads_atividade_equipe')),
+    ppSeguro(() => sb.rpc('leads_alertas', { p_dono: null })),   // a Equipe é sempre da equipe toda, mesmo com consultor no seletor
     kbCarregarAlertas(!!notificar),
   ]);
   if(lds && !lds.error) kbEstado.leadsEquipe = lds.data || [];
+  if(ale && !ale.error) kbEstado.alertasEquipe = ale.data || [];
   if(at && !at.error) kbEstado.atividade = at.data || [];
   kbRenderEquipe();
 }
 // §122: uma linha por consultor — atividade (semáforo de ligação/OBS, só no expediente) e contagens que abrem a lista.
 function kbRenderEquipe(){
-  const agoraMs = Date.now(), cont = kbContagemEquipe(kbEstado.leadsEquipe, kbEstado.alertas, agoraMs);
+  // alertas da equipe toda (não os do consultor escolhido no seletor)
+  const alEq = kbEstado.alertasEquipe || kbEstado.alertas || [];
+  const agoraMs = Date.now(), cont = kbContagemEquipe(kbEstado.leadsEquipe, alEq, agoraMs);
   const num = (dono, chave, n) => n ? `<button type="button" class="kbLink" data-kb-eq="${escapeHtml(dono)}|${chave}">${n}</button>` : '0';
   const linhas = (kbEstado.atividade || []).map(a => {
     const c = cont[a.dono_id] || { sem_contato: 0, andamento: 0, parados3: 0, retornos_atrasados: 0, convertidos: 0, receita: 0, pegos_mes: 0 };
@@ -4137,11 +4142,11 @@ function kbRenderEquipe(){
   let lista = '';
   if(sel){
     const leadsDono = (kbEstado.leadsEquipe || []).filter(l => l.dono_id === sel.dono);
-    const ret = (kbEstado.alertas || []).filter(a => a.tipo === 'retorno_vencido' && a.dono_id === sel.dono).map(a => ({ aba: a.aba, lead_id: a.lead_id, nome: a.nome, quando: a.desde, vencido: true }));
+    const ret = alEq.filter(a => a.tipo === 'retorno_vencido' && a.dono_id === sel.dono).map(a => ({ aba: a.aba, lead_id: a.lead_id, nome: a.nome, quando: a.desde, vencido: true }));
     const nome = ((kbEstado.atividade || []).find(a => a.dono_id === sel.dono) || {}).nome || '';
-    lista = `<div class="card"><h4>${escapeHtml(nome)} · ${escapeHtml(KB_EQ_TITULOS[sel.chave] || '')} <button type="button" class="kbLink" data-kb-eq-fechar>fechar</button></h4>${kbListaCartaoHtml(kbListaDoCartao(sel.chave, leadsDono, ret, agoraMs), 50)}</div>`;
+    lista = `<div class="card"><h4>${escapeHtml(nome)} · ${escapeHtml(KB_EQ_TITULOS[sel.chave] || '')} <button type="button" class="kbLink" data-kb-eq-fechar>fechar</button></h4>${kbListaCartaoHtml(kbListaDoCartao(sel.chave, leadsDono, ret, agoraMs), kbEstado.equipeMax || 50)}</div>`;
   }
-  const alertas = kbEstado.alertas.map(a => `<li><span class="kbAlertaTipo kbAl-${escapeHtml(a.tipo)}">${escapeHtml(kbAlertaTexto(a))}</span><button type="button" class="kbLink" data-kb-abrir="${escapeHtml(a.aba)}|${escapeHtml(a.lead_id)}">${escapeHtml(a.nome || '')}</button><span class="kbMeta">${escapeHtml(a.dono_nome || '')} · ${escapeHtml(kbTempoDesde(a.desde, agoraMs))}</span></li>`).join('') || '<li class="kbMeta">Nenhum alerta na equipe.</li>';
+  const alertas = alEq.map(a => `<li><span class="kbAlertaTipo kbAl-${escapeHtml(a.tipo)}">${escapeHtml(kbAlertaTexto(a))}</span><button type="button" class="kbLink" data-kb-abrir="${escapeHtml(a.aba)}|${escapeHtml(a.lead_id)}">${escapeHtml(a.nome || '')}</button><span class="kbMeta">${escapeHtml(a.dono_nome || '')} · ${escapeHtml(kbTempoDesde(a.desde, agoraMs))}</span></li>`).join('') || '<li class="kbMeta">Nenhum alerta na equipe.</li>';
   document.getElementById('kbEquipe').innerHTML = `<div class="card kbTabelaRolagem"><table class="tbl kbTabelaEquipe"><thead><tr><th>Consultor</th><th>Atividade</th><th>Sem contato</th><th>Andamento</th><th>Parados 3+ dias</th><th>Retornos atrasados</th><th>Convertidos no mês</th><th>Conversão</th><th>Receita</th></tr></thead><tbody>${linhas || '<tr><td colspan="9" class="kbMeta">Sem consultores na equipe de leads.</td></tr>'}</tbody></table>
     <p class="kbMeta">Semáforo: sem ligar nem escrever OBS há 30 min = amarelo, 1 h = vermelho (13h–21h, seg–sex). Ligações chegam do ProContact de hora em hora; a última ligação pode estar até 1 h atrasada.</p></div>
     ${lista}<div class="card"><h4>Alertas da equipe</h4><ul class="kbLista">${alertas}</ul></div>`;
@@ -4242,10 +4247,11 @@ document.addEventListener('click', (e) => { if(!e.target.closest('.kbBuscaBox'))
 document.getElementById('kbAbas').addEventListener('click', (e) => { const b = e.target.closest('[data-kb-aba]'); if(b) kbTrocarAba(b.dataset.kbAba); });
 document.getElementById('panel-meusleads').addEventListener('click', (e) => {
   const eqn = e.target.closest('[data-kb-eq]');
-  if(eqn){ const [dono, chave] = eqn.dataset.kbEq.split('|'); kbEstado.equipeLista = { dono, chave }; kbRenderEquipe(); return; }
+  if(eqn){ const [dono, chave] = eqn.dataset.kbEq.split('|'); kbEstado.equipeLista = { dono, chave }; kbEstado.equipeMax = 50; kbRenderEquipe(); return; }
   if(e.target.closest('[data-kb-eq-fechar]')){ kbEstado.equipeLista = null; kbRenderEquipe(); return; }
   const ct = e.target.closest('[data-kb-cartao]');
   if(ct){ kbEstado.cartaoAberto = kbEstado.cartaoAberto === ct.dataset.kbCartao ? null : ct.dataset.kbCartao; kbEstado.cartaoMax = 20; kbRenderHoje(); return; }
+  if(e.target.closest('#kbEquipe [data-kb-cartao-mais]')){ kbEstado.equipeMax = (kbEstado.equipeMax || 50) + 50; kbRenderEquipe(); return; }
   if(e.target.closest('#kbHoje [data-kb-cartao-mais]')){ kbEstado.cartaoMax = (kbEstado.cartaoMax || 20) + 20; kbRenderHoje(); return; }
   if(e.target.closest('[data-kb-ver-alertas]')){ kbEstado.alertasAbertos = !kbEstado.alertasAbertos; kbRenderHoje(); return; }
   const ab = e.target.closest('[data-kb-abrir]');
