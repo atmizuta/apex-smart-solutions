@@ -239,8 +239,8 @@ try{
   assert(document.querySelector('#kbEquipe .kbCartaoLista') && document.getElementById('kbEquipe').textContent.includes('Zz P2'), 'número abre a lista do consultor naquela etapa');
   assert(kbEstado.aba === 'equipe', 'clicar no número não troca de aba');
   // ==== Task 7 ====
-  eq(kbAbasDoPerfil(false), ['hoje', 'quadro', 'semresp', 'todos'], 'consultor: Hoje, Quadro, Sem resposta e Todos');
-  eq(kbAbasDoPerfil(true), ['hoje', 'quadro', 'semresp', 'todos', 'equipe'], 'gestor: + Equipe');
+  eq(kbAbasDoPerfil(false), ['hoje', 'quadro', 'todos'], 'consultor: Hoje, Quadro e Todos');
+  eq(kbAbasDoPerfil(true), ['hoje', 'quadro', 'todos', 'equipe'], 'gestor: + Equipe');
   const L7 = Array.from({ length: 120 }, (_, i) => ({ aba: 'OUTUBRO', lead_id: 't' + i, nome: 'Zz Todos ' + String(i).padStart(3, '0'), categoria: i % 3 ? 'perdido' : 'andamento', status: i % 3 ? 'CNPJ INAPTO' : 'EM NEGOCIAÇÂO',
     livre: false, dono_id: 'u-pode', ligacoes: i % 2, ultima_ligacao: i % 2 ? '2026-10-2' + (i % 8) + 'T10:00:00-03:00' : null, pego_em: '2026-10-01T10:00:00-03:00', qtd_linhas: (i % 10 + 1) + ' linhas', cidade: i % 2 ? 'Campinas' : 'Santos', telefone: '119000' + String(i).padStart(5, '0'), cnpj: '000000000' + String(i).padStart(5, '0') }));
   eq(kbOrdenar(L7, 'nome', true)[0].lead_id, 't119', 'ordena por nome (desc)');
@@ -335,9 +335,12 @@ try{
   await kbCarregarEquipe();
   assert(document.querySelector('#kbEquipe [data-kb-eq="u-yy|retorno_atrasado"]'), 'Equipe conta retorno atrasado de outro consultor com o seletor em u-zz');
   kbEstado.dono = '';
-  // ==== Aba "Sem resposta" (pedido 28/10): sai do Quadro e ganha aba própria ====
+  // ==== Coluna "Sem resposta" no Quadro (pedido 28/10, corrigido: é coluna do Quadro, não aba) ====
   eq([kbSemResposta({ status: 'CLIENTE NÃO RESPONDE' }), kbSemResposta({ status: 'LEAD PAROU DE RESPONDER' }), kbSemResposta({ status: 'CNPJ INAPTO' }), kbSemResposta({})],
      [true, true, false, false], 'quais status são "sem resposta"');
+  eq([kbColunaDoLead({ categoria: 'perdido', status: 'CLIENTE NÃO RESPONDE' }), kbColunaDoLead({ categoria: 'perdido', status: 'LEAD PAROU DE RESPONDER' }), kbColunaDoLead({ categoria: 'perdido', status: 'CNPJ INAPTO' })],
+     ['semresp', 'semresp', 'perdido'], 'coluna dos "sem resposta"');
+  eq([kbGrupoDaColuna('semresp'), kbAcaoDoArraste('andamento', 'semresp')], ['perdido', 'classificar'], 'soltar em Sem resposta abre o Classificar nos perdidos');
   currentUser = { id: 'u-pode', nome: 'Zzpode Teste', role: 'consultor' };
   window.__tabelas.leads_equipe = [{ id: 1, pode_pegar: true }];
   await kbAplicarPermissao();
@@ -345,27 +348,18 @@ try{
   const agSR = Date.now(), dia = 86400000;
   kbEstado.leads = [
     { aba: 'OUTUBRO', lead_id: 'sr1', nome: 'Zz Nao Responde', categoria: 'perdido', status: 'CLIENTE NÃO RESPONDE', livre: false, ligacoes: 3, ultima_ligacao: new Date(agSR - 2 * dia).toISOString(), classificado_em: new Date(agSR - 2 * dia).toISOString(), criado_em_lead: new Date(agSR - 9 * dia).toISOString() },
+    { aba: 'SETEMBRO', lead_id: 'sr3', nome: 'Zz Parou Antigo', categoria: 'perdido', status: 'LEAD PAROU DE RESPONDER', livre: false, ligacoes: 1, ultima_ligacao: new Date(agSR - 40 * dia).toISOString(), classificado_em: new Date(agSR - 40 * dia).toISOString(), criado_em_lead: new Date(agSR - 45 * dia).toISOString() },
     { aba: 'OUTUBRO', lead_id: 'sr2', nome: 'Zz Inapto', categoria: 'perdido', status: 'CNPJ INAPTO', livre: false, ligacoes: 1, classificado_em: new Date(agSR - dia).toISOString(), criado_em_lead: new Date(agSR - 9 * dia).toISOString() },
   ];
   kbTrocarAba('quadro');
   kbRender();
-  eq(document.querySelector('#kbBoard .kbCol[data-kb-col="perdido"] .kbConta').textContent, '1', 'Quadro: "sem resposta" sai da coluna Perdido');
-  const todosSR = [
-    { aba: 'OUTUBRO', lead_id: 'sr1', nome: 'Zz Nao Responde', categoria: 'perdido', status: 'CLIENTE NÃO RESPONDE', livre: false, ligacoes: 3, ultima_ligacao: new Date(agSR - 2 * dia).toISOString(), pego_em: new Date(agSR - 8 * dia).toISOString() },
-    { aba: 'SETEMBRO', lead_id: 'sr3', nome: 'Zz Parou Antigo', categoria: 'perdido', status: 'LEAD PAROU DE RESPONDER', livre: false, ligacoes: 1, ultima_ligacao: new Date(agSR - 40 * dia).toISOString(), pego_em: new Date(agSR - 45 * dia).toISOString() },
-    { aba: 'OUTUBRO', lead_id: 'sr2', nome: 'Zz Inapto', categoria: 'perdido', status: 'CNPJ INAPTO', livre: false, ligacoes: 1, pego_em: new Date(agSR - 8 * dia).toISOString() },
-  ];
-  window.__rpcRespostas.leads_kanban3 = (args) => ({ data: args.p_todos ? todosSR : [], error: null });
-  kbTrocarAba('semresp');
-  await espera(80);
-  assert(window.__rpcCalls.some(c => c.nome === 'leads_kanban3' && c.args.p_todos === true), 'Sem resposta carrega todos os meses');
-  assert(document.getElementById('kbTodos').style.display !== 'none' && document.getElementById('kbBoard').style.display === 'none', 'aba Sem resposta aparece');
-  eq([...document.querySelectorAll('#kbTodos tbody tr')].map(t => t.dataset.kbAbrir), ['SETEMBRO|sr3', 'OUTUBRO|sr1'], 'só "sem resposta", mais dias sem contato primeiro');
-  assert(document.querySelector('#kbTodos th[data-kb-ord="dias"]') && document.querySelector('#kbTodos th[data-kb-ord="ligacoes"]'), 'colunas Dias sem contato e Ligações');
-  assert(document.getElementById('kbFiltroBarra').style.display !== 'none', 'filtros na aba Sem resposta');
-  kbTrocarAba('todos');
-  await espera(80);
-  eq(document.querySelectorAll('#kbTodos tbody tr').length, 3, 'aba Todos continua com todos os leads');
+  eq([...document.querySelectorAll('#kbBoard .kbCol')].map(c => c.dataset.kbCol), ['livres', 'semlig', 'novos', 'andamento', 'semresp', 'convertido', 'perdido'], 'Quadro com a coluna Sem resposta depois de Em andamento');
+  eq(document.querySelector('#kbBoard .kbCol[data-kb-col="semresp"] h4').textContent, 'Sem resposta', 'título da coluna');
+  eq(document.querySelector('#kbBoard .kbCol[data-kb-col="semresp"] .kbConta').textContent, '2', 'Sem resposta conta os dois status');
+  eq(document.querySelector('#kbBoard .kbCol[data-kb-col="perdido"] .kbConta').textContent, '1', 'Perdido fica só com o resto');
+  eq([...document.querySelectorAll('#kbBoard .kbCol[data-kb-col="semresp"] .kbCard')].map(c => c.dataset.id), ['sr3', 'sr1'], 'mais tempo sem contato primeiro');
+  assert(document.querySelector('#kbNavQuadro [data-kb-ir="semresp"]'), 'atalho da coluna no topo do Quadro');
+  eq(kbAbasDoPerfil(false), ['hoje', 'quadro', 'todos'], 'a aba à parte "Sem resposta" saiu');
   // ==== Redistribuir com o visual do Classificar (pedido 28/10) ====
   currentUser = { id: 'u-sup', nome: 'Zzksup Teste', role: 'supervisor', operacao: 'apex' };
   kbEstado.consultores = [{ profile_id: 'u-a', nome_planilha: 'Zza' }, { profile_id: 'u-b', nome_planilha: 'Zzb' }, { profile_id: 'u-c', nome_planilha: 'Zzc' }];

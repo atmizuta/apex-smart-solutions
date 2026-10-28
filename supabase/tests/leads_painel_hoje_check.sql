@@ -16,7 +16,8 @@ insert into public.leads (aba, id, criado_em_lead, full_name, phone_number, cnpj
 ('JUNHO', 'zp:livre',  now() - interval '30 minutes', 'Zz Livre Novo',  '11900000051', '00000000000151', 'Zz Camp', 'Zz Form', 'sem_contato', null, null, false, 0, null, null, null),
 ('JUNHO', 'zp:velho',  now() - interval '5 hours',    'Zz Livre Velho', '11900000052', '00000000000152', 'Zz Camp', 'Zz Form', 'sem_contato', null, null, false, 0, null, null, null),
 ('JUNHO', 'zp:dele',   now() - interval '3 hours',    'Zz Do Nao',      '11900000053', '00000000000153', 'Zz Camp', 'Zz Form', 'sem_contato', null, null, false, 0, '00000000-0000-0000-0000-00000000e503', now() - interval '2 hours', null),
-('JUNHO', 'zp:antigo', now() - interval '80 days',    'Zz Perdido Velho','11900000054', '00000000000154', 'Zz Camp', 'Zz Form', 'perdido', 'CNPJ INAPTO', null, false, 0, '00000000-0000-0000-0000-00000000e502', now() - interval '79 days', now() - interval '70 days');
+('JUNHO', 'zp:antigo', now() - interval '80 days',    'Zz Perdido Velho','11900000054', '00000000000154', 'Zz Camp', 'Zz Form', 'perdido', 'CNPJ INAPTO', null, false, 0, '00000000-0000-0000-0000-00000000e502', now() - interval '79 days', now() - interval '70 days'),
+('JUNHO', 'zp:semresp', now() - interval '80 days',   'Zz Sem Resposta', '11900000055', '00000000000155', 'Zz Camp', 'Zz Form', 'perdido', 'CLIENTE NÃO RESPONDE', null, false, 0, '00000000-0000-0000-0000-00000000e502', now() - interval '79 days', now() - interval '70 days');
 insert into public.leads_historico (lead_aba, lead_id, acao, por, em, antes, depois) values
 ('JUNHO', 'zp:dele', 'classificar', '00000000-0000-0000-0000-00000000e502', now() - interval '20 minutes', '{"obs": ""}'::jsonb, '{"obs": "Zz falou com o dono"}'::jsonb),
 ('JUNHO', 'zp:dele', 'classificar', '00000000-0000-0000-0000-00000000e502', now() - interval '10 minutes', '{"obs": "Zz falou com o dono"}'::jsonb, '{"obs": "Zz falou com o dono"}'::jsonb);
@@ -59,6 +60,7 @@ begin
   perform set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-00000000e502', 'role', 'authenticated')::text, true);
   perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000e502', true);
   assert not exists (select 1 from public.leads_kanban3(null, false) k where k.lead_id = 'zp:antigo'), 'Quadro não traz perdido de meses atrás';
+  assert exists (select 1 from public.leads_kanban3(null, false) k where k.lead_id = 'zp:semresp'), '§123: Quadro traz o "sem resposta" de meses atrás (coluna Sem resposta)';
   assert exists (select 1 from public.leads_kanban3(null, true) k where k.lead_id = 'zp:antigo' and k.campanha = 'Zz Camp' and k.formulario = 'Zz Form'), 'Todos traz o perdido antigo com campanha e formulário';
   assert not exists (select 1 from public.leads_kanban3(null, true) k where k.livre), 'Todos não traz livres';
   assert exists (select 1 from public.leads_kanban3(null, false) k where k.lead_id = 'zp:velho' and k.livre and k.telefone is null), 'Quadro continua com livres (sem telefone para consultor)';

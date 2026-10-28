@@ -3971,3 +3971,11 @@ Pedido do Rafael: o modal de Redistribuir passa a ter o mesmo desenho do Classif
 - Rodapé fixo com Cancelar e Salvar; Ctrl+Enter salva. A opção que já vem marcada é a mesma de antes (Livres para lead sem status; senão, o primeiro consultor).
 - Sem mudança no banco (`leads_redistribuir` igual). Teste em `test_leads_painel_hoje.js`.
 - **Publicação (28/10, 16:27, ok do Rafael):** painel MD5 `0c8061f8…` (o do ar era `56d4e502…`, a §123), backup `~/deploy_backups/painel_clientes_apex_20261028_162708_antes_redistribuir_visual.html`.
+
+### 123.1 Correção: "Sem resposta" é coluna do Quadro, não aba (28/10/2026)
+
+O Rafael corrigiu: "Sem resposta" tinha que ser uma **coluna do Quadro (kanban)**, e não uma aba à parte. A aba saiu.
+- **Coluna "Sem resposta"** logo depois de "Em andamento": CLIENTE NÃO RESPONDE e LEAD PAROU DE RESPONDER, de **todos os meses**, com mais tempo sem contato primeiro. A coluna Perdido fica com o resto.
+- Arrastar um cartão para "Sem resposta" abre o Classificar nos status de perdido; tirar o lead de lá = reclassificar.
+- Atalho "Sem resposta" no topo do Quadro; o Quadro passou a ter 7 colunas.
+- **Banco:** migration `20261028170000_leads_kanban3_semresp.sql`: o Quadro (`leads_kanban3` com `p_todos = false`) passa a trazer esses dois status também de meses anteriores. Check em `supabase/tests/leads_painel_hoje_check.sql`.
