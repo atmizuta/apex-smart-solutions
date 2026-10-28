@@ -3979,3 +3979,4 @@ O Rafael corrigiu: "Sem resposta" tinha que ser uma **coluna do Quadro (kanban)*
 - Arrastar um cartão para "Sem resposta" abre o Classificar nos status de perdido; tirar o lead de lá = reclassificar.
 - Atalho "Sem resposta" no topo do Quadro; o Quadro passou a ter 7 colunas.
 - **Banco:** migration `20261028170000_leads_kanban3_semresp.sql`: o Quadro (`leads_kanban3` com `p_todos = false`) passa a trazer esses dois status também de meses anteriores. Check em `supabase/tests/leads_painel_hoje_check.sql`.
+- **Publicação (28/10, 16:38, ok do Rafael):** migration `20261028170000` aplicada antes; painel MD5 `8e4060e5…` (o do ar era `0c8061f8…`, a §124), backup `~/deploy_backups/painel_clientes_apex_20261028_163843_antes_semresp_coluna.html`.
