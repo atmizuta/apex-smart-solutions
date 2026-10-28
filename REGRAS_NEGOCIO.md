@@ -4084,3 +4084,64 @@ Pedido do Rafael (com print da coluna Em andamento):
   - Backup `~/deploy_backups/painel_clientes_apex_20261028_192417_antes_meus_leads_redesign_fase1.html`.
   - Vigia aceito.
   - **Para voltar atrás:** republicar o backup.
+
+### 126.2 Fase 2: Quadro e Lista (28/10/2026)
+
+Plano em `docs/superpowers/plans/2026-10-28-meus-leads-redesign-fase2.md`. Sem mudança no banco.
+
+- **Cartão do Quadro (`kbCard`)**, em 3 níveis:
+  1. nome;
+  2. cidade · linhas e STATUS (ponto com a cor da planilha + texto em frase normal);
+  3. OBS (2 linhas), etiqueta de retorno, última ligação ("Ligou há 2 h · atendida · 1 min 35 s") e chegada ("há 4 dias", da §125).
+  - **Ícone de urgência no canto**, só em lead em aberto: vermelho (retorno atrasado), verde (retorno hoje), cinza (retorno marcado), âmbar (nada agendado).
+  - **Faixa vermelha à esquerda** só no que precisa de ação agora, **sempre com texto**:
+    - retorno vencido ("retorno ontem · atrasado");
+    - novo sem contato há 15 min ou mais ("sem contato há 40 min");
+    - Sem ligação pego há mais de 1 dia ("nunca ligado · pego há 2 dias").
+  - **Ligar e WhatsApp** aparecem ao passar o mouse e ficam sempre visíveis em tela de toque.
+  - **Supervisor:** vê as iniciais e o primeiro nome do dono.
+  - **Livre:** cidade, linhas e a idade com cor (até 5 min novo, até 15 neutro, até 30 atenção, depois atrasado), mais "Pegar" só para quem pega.
+  - **Abrir a ficha:** clique ou Enter no cartão. Sai o link "Classificar/Reclassificar" do cartão.
+- **Colunas:**
+  - Cada uma tem marcador de cor, nome, contagem e uma frase que explica a coluna (ex.: "Classificados, mas ninguém ligou ainda", "Pela chegada do lead").
+  - A coluna Livres tem fundo de tom e "Pegar próximo" no cabeçalho, só para quem pega. Esse botão pergunta antes de descartar uma OBS digitada.
+  - **Convertido e Perdido começam recolhidos** numa faixa de 52 px com a contagem; o Convertido mostra também a receita. Um clique abre, "Recolher" fecha, e a escolha fica guardada no navegador (`kbColAbertas`). Coluna recolhida não monta cartões e aceita o soltar do arraste.
+  - Ao arrastar um livre aparece "Solte aqui para pegar este lead" em Meus novos.
+  - **Sai** a barra de atalhos das colunas (`#kbNavQuadro`). Continuam a ordem e o botão da §125 e o desempenho da §120.
+- **Filtros** (Quadro e Lista), com a mesma lógica e o mesmo guardado no navegador:
+  - viram botões compactos que abrem uma lista com as contagens;
+  - o filtro ativo fica escuro, com o valor e um "×";
+  - "Nunca ligado" é um botão direto;
+  - o menu aberto não fecha quando os dados atualizam, e escolher uma opção fecha.
+  - Nova escolha **Confortável/Compacto** (`kbDensidade`). O Compacto esconde cidade, OBS e última ligação no cartão e encolhe as linhas da Lista.
+  - Filtro e densidade valem também ao voltar da Lista para o Quadro.
+- **Lista** (a sub-aba **"Todos" passa a se chamar "Lista"**; a chave interna continua `todos`):
+  - **Visões prontas com contagem:** Todos, Em aberto, Retornos, Sem ligação, Sem resposta, Convertidos e Perdidos.
+  - **Tabela** de 52 px (40 no compacto), com as colunas:
+    - Empresa (nome; cidade · campanha);
+    - Etapa (marcador);
+    - STATUS (ponto);
+    - Último contato (quando; atendida e duração, ou "nunca ligado");
+    - Próximo retorno (etiqueta);
+    - Linhas;
+    - Pego em;
+    - para o supervisor, Consultor.
+  - **Ligar e WhatsApp na linha** não abrem a ficha. Clicar no resto da linha abre a ficha ao lado.
+  - Mantém a ordenação, as 50 linhas por página e a busca.
+- **Também:** "há 1 dia" no singular (antes saía "há 1 dias").
+- **Testes:**
+  - `test_meus_leads_fase2.js` é novo, com 67 verificações;
+  - `test_leads_kanban.js`, `test_leads_hoje.js` e `test_leads_painel_hoje.js` foram ajustados onde a marcação mudou;
+  - revisão final independente: 3 problemas importantes corrigidos, mais 4 menores que entraram pelo efeito.
+- **Pendências pequenas**, no ledger:
+  - o cabeçalho da Lista não fica fixo;
+  - o Convertido aberto alarga a coluna;
+  - retorno de hoje com hora já passada fica verde no Quadro, porque `retorno_em` é só a data;
+  - detalhes de acessibilidade;
+  - código antigo sem uso (`kbStChip`, `.kbIcone` e o sprite).
+- **Publicação (28/10, 20:17, ok do Rafael):**
+  - O painel do ar era `c9b37188…`, a §126.1.
+  - Painel novo MD5 `a098a4eb…`.
+  - Backup `~/deploy_backups/painel_clientes_apex_20261028_201706_antes_meus_leads_redesign_fase2.html`.
+  - Vigia aceito.
+  - **Para voltar atrás:** republicar o backup.
