@@ -366,6 +366,21 @@ try{
   kbTrocarAba('todos');
   await espera(80);
   eq(document.querySelectorAll('#kbTodos tbody tr').length, 3, 'aba Todos continua com todos os leads');
+  // ==== Redistribuir com o visual do Classificar (pedido 28/10) ====
+  currentUser = { id: 'u-sup', nome: 'Zzksup Teste', role: 'supervisor', operacao: 'apex' };
+  kbEstado.consultores = [{ profile_id: 'u-a', nome_planilha: 'Zza' }, { profile_id: 'u-b', nome_planilha: 'Zzb' }, { profile_id: 'u-c', nome_planilha: 'Zzc' }];
+  kbEstado.leads = [{ aba: 'OUTUBRO', lead_id: 'rd1', nome: 'Zz Redistribuir', categoria: 'sem_contato', livre: false, dono_id: 'u-a', dono_nome: 'Zza Teste', cidade: 'Campinas', uf: 'SP' }];
+  kbAbrirRedistribuir('OUTUBRO', 'rd1');
+  const red = document.getElementById('kbRedOverlay');
+  assert(red.classList.contains('active') && red.querySelector('.modal.kbClassModal .kbClassEtiqueta') && red.querySelector('.kbClassRodape'), 'Redistribuir com cabeçalho, etiqueta e rodapé do Classificar');
+  eq(document.getElementById('kbRedTitulo').textContent, 'Zz Redistribuir', 'nome do lead no título');
+  assert(document.getElementById('kbRedSub').textContent.includes('Agora com: Zza Teste'), 'mostra com quem está agora');
+  eq([...red.querySelectorAll('[data-kb-red]')].map(b => b.dataset.kbRed), ['u-b', 'u-c', ''], 'consultores em botões (sem o dono atual) + Devolver aos Livres');
+  red.querySelector('[data-kb-red="u-c"]').click();
+  assert(document.getElementById('kbRedNovo').value === 'u-c' && red.querySelector('[data-kb-red="u-c"]').classList.contains('ativo'), 'clicar escolhe o consultor');
+  red.querySelector('[data-kb-red=""]').click();
+  assert(document.getElementById('kbRedNovo').value === '' && red.querySelector('[data-kb-red=""]').classList.contains('ativo') && !red.querySelector('[data-kb-red="u-c"]').classList.contains('ativo'), 'escolher Livres troca a seleção');
+  fecharOverlay(red);
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');

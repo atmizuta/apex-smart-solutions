@@ -3962,3 +3962,11 @@ Pedido do Rafael: tirar do Quadro os clientes que não respondem e dar a eles um
   - O consultor vê os leads dele; o supervisor vê os da equipe, com o seletor de consultor. Clicar abre a ficha; reclassificado para outro status, o lead volta ao Quadro.
 - **Banco:** sem mudança. **Testes:** `test_leads_painel_hoje.js`, `test_leads_hoje.js` e `test_leads_kanban.js` (o selo "para resgatar" segue no cartão, mas o lead não aparece mais no Quadro).
 - **Publicação (28/10, 16:18, ok do Rafael):** painel MD5 `56d4e502…` (o do ar era `52c30d39…`, a §122), backup `~/deploy_backups/painel_clientes_apex_20261028_161846_antes_sem_resposta.html`.
+
+## 124. Meus leads: Redistribuir com o visual do Classificar (28/10/2026)
+
+Pedido do Rafael: o modal de Redistribuir passa a ter o mesmo desenho do Classificar.
+- Cabeçalho com a etiqueta "Redistribuir lead", o nome do lead em destaque e "Agora com: <consultor> · cidade/UF"; botão × para fechar.
+- Os consultores da equipe de leads (menos o dono atual) viram **botões** no estilo dos chips de status, em "Passar para". Para lead sem status, "Devolver aos Livres" fica num grupo à parte ("Ou"). O escolhido fica destacado.
+- Rodapé fixo com Cancelar e Salvar; Ctrl+Enter salva. A opção que já vem marcada é a mesma de antes (Livres para lead sem status; senão, o primeiro consultor).
+- Sem mudança no banco (`leads_redistribuir` igual). Teste em `test_leads_painel_hoje.js`.

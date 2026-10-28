@@ -855,6 +855,7 @@
   .kbStatusChips{display:flex;flex-wrap:wrap;gap:var(--space-2);}
   .kbStatusChip{padding:7px 12px;border:1px solid var(--c-linha-forte);border-radius:999px;background:var(--c-branco);font:inherit;font-size:var(--fs-sm);color:var(--c-grafite);cursor:pointer;}
   .kbStatusChip:hover{border-color:var(--c-grafite);}
+  .kbStatusChip.ativo{border-color:var(--c-grafite);box-shadow:0 0 0 2px var(--c-branco),0 0 0 4px var(--c-grafite);font-weight:700;}
   .kbClassBloco{background:var(--c-papel);border:1px solid var(--c-linha);border-radius:var(--radius-lg);padding:var(--space-3) var(--space-4);margin-bottom:var(--space-4);}
   .kbAtalhos{display:flex;flex-wrap:wrap;gap:var(--space-2);margin-bottom:var(--space-2);}
   .kbVendaCampos{display:flex;gap:var(--space-4);align-items:flex-end;flex-wrap:wrap;}
@@ -1671,14 +1672,17 @@
     </div>
     <aside class="kbFicha" id="kbFicha" aria-label="Ficha do lead"><div class="kbFichaCorpo" id="kbFichaCorpo"></div></aside>
     <div class="overlay" id="kbRedOverlay">
-      <div class="modal">
-        <h3 style="margin-top:0" id="kbRedTitulo">Redistribuir lead</h3>
-        <label class="field"><span>Passar para</span><select id="kbRedNovo"></select></label>
-        <p class="desc" id="kbRedErro" style="color:var(--c-bordo)"></p>
-        <div style="display:flex;gap:var(--space-2);justify-content:flex-end">
-          <button type="button" class="btn btn-sm btn-outline" id="kbRedCancelar">Cancelar</button>
-          <button type="button" class="btn btn-sm" id="kbRedSalvar">Salvar</button>
+      <div class="modal kbClassModal" role="dialog" aria-labelledby="kbRedTitulo">
+        <div class="mHead"><span class="kbClassEtiqueta">Redistribuir lead</span><h2 id="kbRedTitulo">Lead</h2><div class="mCnpj" id="kbRedSub"></div>
+          <button type="button" class="mClose" id="kbRedFechar" aria-label="Fechar">×</button></div>
+        <div class="mBody">
+          <select id="kbRedNovo" class="kbOculto" aria-hidden="true" tabindex="-1"></select>
+          <div class="kbClassGrupos" id="kbRedGrupos"></div>
+          <p class="desc kbClassErro" id="kbRedErro"></p>
         </div>
+        <div class="kbClassRodape"><span class="kbMeta">Ctrl+Enter salva</span><div class="kbClassBotoes">
+          <button type="button" class="btn btn-sm btn-outline" id="kbRedCancelar">Cancelar</button>
+          <button type="button" class="btn btn-sm" id="kbRedSalvar">Salvar</button></div></div>
       </div>
     </div>
     <section class="panel" id="panel-mailing">
@@ -4305,11 +4309,22 @@ function kbAbrirRedistribuir(aba, id){
   if(!l || !kbGestor()) return;
   kbEstado.redAlvo = { aba, id };
   const semStatus = l.categoria === 'sem_contato';
-  document.getElementById('kbRedNovo').innerHTML = (semStatus ? '<option value="">Devolver aos Livres</option>' : '')
-    + kbEstado.consultores.filter(c => c.profile_id !== l.dono_id).map(c => `<option value="${escapeHtml(c.profile_id)}">${escapeHtml(c.nome_planilha)}</option>`).join('');
-  document.getElementById('kbRedTitulo').textContent = 'Redistribuir — ' + (l.nome || '');
+  const outros = kbEstado.consultores.filter(c => c.profile_id !== l.dono_id);
+  // Pedido 28/10: mesmo visual do Classificar — consultores em botões; o select escondido guarda a escolha
+  document.getElementById('kbRedNovo').innerHTML = (semStatus ? '<option value="">Devolver aos Livres</option>' : '')   // já vem marcado, como antes
+    + outros.map(c => `<option value="${escapeHtml(c.profile_id)}">${escapeHtml(c.nome_planilha)}</option>`).join('');
+  const chip = (v, txt) => `<button type="button" class="kbStatusChip" data-kb-red="${escapeHtml(v)}">${escapeHtml(txt)}</button>`;
+  document.getElementById('kbRedGrupos').innerHTML = `<div class="kbClassGrupo"><span class="kbClassRotulo">Passar para</span><div class="kbStatusChips">${outros.map(c => chip(c.profile_id, c.nome_planilha)).join('') || '<span class="kbMeta">Nenhum outro consultor na equipe de leads.</span>'}</div></div>`
+    + (semStatus ? `<div class="kbClassGrupo"><span class="kbClassRotulo">Ou</span><div class="kbStatusChips">${chip('', 'Devolver aos Livres')}</div></div>` : '');
+  document.getElementById('kbRedTitulo').textContent = l.nome || '(sem nome)';
+  document.getElementById('kbRedSub').textContent = [l.dono_nome ? 'Agora com: ' + l.dono_nome : '', [l.cidade, l.uf].filter(Boolean).join('/')].filter(Boolean).join(' · ');
   document.getElementById('kbRedErro').textContent = '';
+  kbRedEscolher(document.getElementById('kbRedNovo').value);
   document.getElementById('kbRedOverlay').classList.add('active');
+}
+function kbRedEscolher(v){
+  document.getElementById('kbRedNovo').value = v;
+  document.querySelectorAll('#kbRedGrupos [data-kb-red]').forEach(b => b.classList.toggle('ativo', b.dataset.kbRed === v));
 }
 async function kbSalvarRedistribuicao(){
   const alvo = kbEstado.redAlvo;
@@ -4343,6 +4358,9 @@ document.getElementById('kbReescrever').addEventListener('click', async () => {
 function mesAbaAtualKb(){ return ['JANEIRO','FEVEREIRO','MARCO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'][Number(hojeSP().slice(5, 7)) - 1]; }
 document.getElementById('kbRedSalvar').addEventListener('click', kbSalvarRedistribuicao);
 document.getElementById('kbRedCancelar').addEventListener('click', () => fecharOverlay(document.getElementById('kbRedOverlay')));
+document.getElementById('kbRedFechar').addEventListener('click', () => fecharOverlay(document.getElementById('kbRedOverlay')));
+document.getElementById('kbRedGrupos').addEventListener('click', (e) => { const b = e.target.closest('[data-kb-red]'); if(b) kbRedEscolher(b.dataset.kbRed); });
+document.getElementById('kbRedOverlay').addEventListener('keydown', (e) => { if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); kbSalvarRedistribuicao(); } });
 /* ============ BIOMETRIA ============
    06/10/2026 (redesign a pedido do usuário): a aba virou só "nome do cliente -> baixar imagem
    personalizada". O fluxo antigo (link de biometria da Claro + "Enviar no WhatsApp"/"Copiar link")
