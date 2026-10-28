@@ -238,6 +238,50 @@ try{
   await espera(20);
   assert(document.querySelector('#kbEquipe .kbCartaoLista') && document.getElementById('kbEquipe').textContent.includes('Zz P2'), 'número abre a lista do consultor naquela etapa');
   assert(kbEstado.aba === 'equipe', 'clicar no número não troca de aba');
+  // ==== Task 7 ====
+  eq(kbAbasDoPerfil(false), ['hoje', 'quadro', 'todos'], 'consultor: Hoje, Quadro e Todos');
+  eq(kbAbasDoPerfil(true), ['hoje', 'quadro', 'todos', 'equipe'], 'gestor: + Equipe');
+  const L7 = Array.from({ length: 120 }, (_, i) => ({ aba: 'OUTUBRO', lead_id: 't' + i, nome: 'Zz Todos ' + String(i).padStart(3, '0'), categoria: i % 3 ? 'perdido' : 'andamento', status: i % 3 ? 'CNPJ INAPTO' : 'EM NEGOCIAÇÂO',
+    livre: false, dono_id: 'u-pode', ligacoes: i % 2, ultima_ligacao: i % 2 ? '2026-10-2' + (i % 8) + 'T10:00:00-03:00' : null, pego_em: '2026-10-01T10:00:00-03:00', qtd_linhas: (i % 10 + 1) + ' linhas', cidade: i % 2 ? 'Campinas' : 'Santos', telefone: '119000' + String(i).padStart(5, '0'), cnpj: '000000000' + String(i).padStart(5, '0') }));
+  eq(kbOrdenar(L7, 'nome', true)[0].lead_id, 't119', 'ordena por nome (desc)');
+  eq(kbOrdenar(L7, 'linhas', false)[0].qtd_linhas, '1 linhas', 'ordena por linhas pelo número');
+  eq(kbPagina(L7, 3, 50), { itens: L7.slice(100, 120), pagina: 3, total: 3 }, 'página 3 de 3');
+  eq(kbPagina(L7, 9, 50).pagina, 3, 'página além do fim volta para a última');
+  eq(kbPagina([], 1, 50), { itens: [], pagina: 1, total: 1 }, 'lista vazia');
+  eq([kbBuscaLocal(L7[5], 'todos 005'), kbBuscaLocal(L7[5], '11900000005'), kbBuscaLocal(L7[5], '00000000000005'), kbBuscaLocal(L7[5], 'zz x'), kbBuscaLocal(L7[5], 'zz')], [true, true, true, false, true], 'busca por nome (com letras) ou telefone/CNPJ (só dígitos); menos de 3 caracteres não filtra');
+  eq(kbBuscaLocal(L7[70], 'todos 007'), false, 'texto com letras não casa por dígitos do telefone');
+  // tela
+  currentUser = { id: 'u-pode', nome: 'Zzpode Teste', role: 'consultor' };
+  window.__tabelas.leads_equipe = [{ id: 1, pode_pegar: true }];
+  await kbAplicarPermissao();
+  window.__rpcRespostas.leads_kanban3 = (args) => ({ data: args.p_todos ? L7 : [], error: null });
+  kbEstado.filtros = {};
+  kbTrocarAba('todos');
+  await espera(80);
+  assert(window.__rpcCalls.some(c => c.nome === 'leads_kanban3' && c.args.p_todos === true), 'Todos carrega com p_todos');
+  const td = document.getElementById('kbTodos');
+  assert(td.style.display !== 'none' && document.getElementById('kbBoard').style.display === 'none', 'aba Todos aparece');
+  eq(td.querySelectorAll('tbody tr').length, 50, '50 por página');
+  assert(td.textContent.includes('Página 1 de 3') && td.textContent.includes('120 leads'), 'paginação');
+  td.querySelector('[data-kb-pag="2"]').click();
+  assert(document.getElementById('kbTodos').textContent.includes('Página 2 de 3'), 'próxima página');
+  document.querySelector('#kbTodos th[data-kb-ord="nome"]').click();
+  document.querySelector('#kbTodos th[data-kb-ord="nome"]').click();
+  eq(document.querySelector('#kbTodos tbody tr').dataset.kbAbrir, 'OUTUBRO|t119', 'clicar duas vezes no cabeçalho inverte a ordem');
+  const busca = document.getElementById('kbTodosBusca');
+  busca.value = 'todos 007'; busca.dispatchEvent(new window.Event('input'));
+  await espera(350);
+  eq(document.querySelectorAll('#kbTodos tbody tr').length, 1, 'busca na aba Todos');
+  busca.value = ''; busca.dispatchEvent(new window.Event('input'));
+  await espera(350);
+  kbEstado.filtros = { cidade: 'Santos' }; kbAoMudarFiltros();
+  assert(document.getElementById('kbTodos').textContent.includes('60 leads'), 'filtros valem na aba Todos');
+  assert(document.getElementById('kbFiltroBarra').style.display !== 'none', 'barra de filtros na aba Todos');
+  document.querySelector('#kbTodos tbody tr').click();
+  await espera(60);
+  assert(window.__rpcCalls.some(c => c.nome === 'leads_ficha'), 'clicar na linha abre a ficha');
+  kbFecharFicha();
+  kbEstado.filtros = {};
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');

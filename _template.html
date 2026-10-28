@@ -970,6 +970,12 @@
   .kbSem-cinza .kbSemaforo{background:var(--muted);}
   .kbAtiv span{display:block;font-size:var(--fs-xs);}
   .kbTabelaEquipe .kbAtiv{white-space:normal;min-width:190px;}
+  /* §122: aba Todos */
+  .kbTodos .kbBusca{margin-bottom:var(--space-3);}
+  .kbTabelaTodos tbody tr{cursor:pointer;}
+  .kbTabelaTodos td,.kbTabelaTodos th{white-space:nowrap;}
+  .kbOrdenavel{cursor:pointer;user-select:none;}
+  .kbPaginacao{display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:center;margin-top:var(--space-3);}
 </style>
 </head>
 <body>
@@ -1610,6 +1616,7 @@
         <div class="filterPills kbAbas" id="kbAbas">
           <button type="button" class="filterPill" data-kb-aba="hoje">Hoje <span class="kbBadge" id="kbBadgeHoje"></span></button>
           <button type="button" class="filterPill" data-kb-aba="quadro">Quadro</button>
+          <button type="button" class="filterPill" data-kb-aba="todos">Todos</button>
           <button type="button" class="filterPill" data-kb-aba="equipe">Equipe <span class="kbBadge" id="kbBadgeEquipe"></span></button>
         </div>
         <div class="kbAviso" id="kbAviso" style="display:none"></div>
@@ -1617,6 +1624,9 @@
       <div id="kbHoje" class="kbHoje" style="display:none"></div>
       <div id="kbEquipe" class="kbEquipe" style="display:none"></div>
       <div id="kbFiltroBarra" class="kbFiltroBarra card" style="display:none"></div>
+      <div id="kbTodos" class="kbTodos" style="display:none">
+        <div class="card"><input type="search" id="kbTodosBusca" class="kbBusca" placeholder="Buscar nos seus leads por nome, telefone ou CNPJ…" autocomplete="off"><div id="kbTodosTabela"></div></div>
+      </div>
       <div class="kbNavQuadro" id="kbNavQuadro" style="display:none">
         <button type="button" class="kbSeta" data-kb-seta="-1" aria-label="Colunas à esquerda">‹</button>
         <div class="kbNavCols">
@@ -3300,9 +3310,9 @@ function kbResumoMes(leads){
   return { vendas, receita: Math.round(receita * 100) / 100, abertos };
 }
 // §118 (27/10): abas Hoje / Quadro / Equipe, próximo lead, semáforo, linha do tempo e alertas — funções puras.
-const KB_ABAS = ['hoje', 'quadro', 'equipe'];
-const KB_ABA_TITULOS = { hoje: 'Hoje', quadro: 'Quadro', equipe: 'Equipe' };
-function kbAbasDoPerfil(gestor){ return gestor ? KB_ABAS.slice() : ['hoje', 'quadro']; }
+const KB_ABAS = ['hoje', 'quadro', 'todos', 'equipe'];
+const KB_ABA_TITULOS = { hoje: 'Hoje', quadro: 'Quadro', todos: 'Todos', equipe: 'Equipe' };
+function kbAbasDoPerfil(gestor){ return gestor ? KB_ABAS.slice() : ['hoje', 'quadro', 'todos']; }
 function kbAbaPadrao(gestor){ return gestor ? 'equipe' : 'hoje'; }
 // "Próximo lead": pula o lead aberto há menos de 2 min (o consultor já está nele ou acabou de largar).
 const KB_EXCECAO_MS = 2 * 60000;
@@ -3472,6 +3482,31 @@ function kbContagemEquipe(leads, alertas, agoraMs){
   });
   (alertas || []).filter(a => a.tipo === 'retorno_vencido' && a.dono_id).forEach(a => { de(a.dono_id).retornos_atrasados++; });
   return m;
+}
+const KB_TODOS_POR_PAGINA = 50;
+const KB_TODOS_COLUNAS = [['nome', 'Nome'], ['etapa', 'Etapa'], ['status', 'STATUS'], ['contato', 'Último contato'], ['retorno', 'Retorno'], ['linhas', 'Linhas'], ['cidade', 'Cidade'], ['pego', 'Pego em']];
+function kbValorOrdem(l, col){
+  if(col === 'nome') return String(l.nome || '').toLowerCase();
+  if(col === 'etapa') return KB_COLUNAS.indexOf(kbColunaDoLead(l));
+  if(col === 'status') return String(l.status || '');
+  if(col === 'contato') return kbMs(l.ultima_ligacao) || 0;
+  if(col === 'retorno') return String(l.retorno_em || '');
+  if(col === 'linhas') return Number((String(l.qtd_linhas || '').match(/\d+/) || [0])[0]);
+  if(col === 'cidade') return String(l.cidade || '').toLowerCase();
+  if(col === 'pego') return kbMs(l.pego_em) || 0;
+  return '';
+}
+function kbOrdenar(leads, col, desc){ return (leads || []).slice().sort((a, b) => { const x = kbValorOrdem(a, col), y = kbValorOrdem(b, col); const c = x < y ? -1 : x > y ? 1 : 0; return desc ? -c : c; }); }
+function kbPagina(lista, pagina, porPagina){
+  const total = Math.max(1, Math.ceil((lista || []).length / porPagina)), p = Math.min(Math.max(1, pagina || 1), total);
+  return { itens: (lista || []).slice((p - 1) * porPagina, p * porPagina), pagina: p, total };
+}
+function kbBuscaLocal(l, texto){
+  const t = String(texto || '').trim().toLowerCase();
+  if(t.length < 3) return true;
+  if(!/^[\d\s().\/-]+$/.test(t)) return String(l.nome || '').toLowerCase().includes(t);   // com letras: só pelo nome
+  const dig = t.replace(/\D/g, '');
+  return dig.length >= 3 && (String(l.telefone || '').replace(/\D/g, '').includes(dig) || String(l.cnpj || '').replace(/\D/g, '').includes(dig));
 }
 function kbAtrasado(l, agoraMs){
   if(kbColunaDoLead(l) !== 'novos' || l.primeiro_clique || l.primeira_ligacao) return false;
@@ -3825,6 +3860,7 @@ function kbAgendar(){
       if(kbEstado.aba === 'equipe') kbCarregarEquipe(true); else kbCarregarAlertas(true);
       if(kbEstado.aba === 'hoje') kbCarregarHoje();
       if(kbEstado.aba === 'quadro') kbCarregar();
+      if(kbEstado.aba === 'todos') kbCarregarTodos();
     }
   }, 10000);
   kbEstado.timerAlertas = setInterval(() => { if(kbPodeVer() && kbAlertaDeFundo(ativa(), document.visibilityState === 'visible')) kbCarregarAlertas(true); }, 120000);
@@ -3987,8 +4023,10 @@ function kbTrocarAba(aba){
   if(kbEstado.aba === 'quadro' || kbEstado.aba === 'todos') kbRenderFiltroBarra();
   if(kbEstado.aba === 'quadro') kbAjustarAltura();
   document.getElementById('kbEquipe').style.display = kbEstado.aba === 'equipe' ? '' : 'none';
+  document.getElementById('kbTodos').style.display = kbEstado.aba === 'todos' ? '' : 'none';
   if(kbEstado.aba === 'hoje') kbCarregarHoje();
   if(kbEstado.aba === 'equipe') kbCarregarEquipe();
+  if(kbEstado.aba === 'todos') kbCarregarTodos();
 }
 function kbFonteFiltros(){ return kbEstado.aba === 'todos' ? (kbEstado.todos || []) : kbEstado.leads; }
 function kbRenderFiltroBarra(){
@@ -4101,6 +4139,41 @@ function kbRenderEquipe(){
     ${lista}<div class="card"><h4>Alertas da equipe</h4><ul class="kbLista">${alertas}</ul></div>`;
 }
 const KB_EQ_TITULOS = { sem_contato: 'Sem contato', andamento: 'Em andamento', parados3: 'Parados 3+ dias', retorno_atrasado: 'Retornos atrasados', convertido: 'Convertidos no mês' };
+async function kbCarregarTodos(){
+  const r = await ppSeguro(() => sb.rpc('leads_kanban3', { p_dono: kbGestor() && kbEstado.dono ? kbEstado.dono : null, p_todos: true }));
+  if(r && !r.error) kbEstado.todos = r.data || [];
+  kbRenderTodos();
+  kbRenderFiltroBarra();
+}
+function kbRenderTodos(){
+  const st = kbEstado.todosEstado || (kbEstado.todosEstado = { busca: '', col: 'pego', desc: true, pagina: 1 }), agoraMs = Date.now();
+  const lista = kbOrdenar(kbFiltrar(kbEstado.todos || [], kbEstado.filtros, agoraMs).filter(l => kbBuscaLocal(l, st.busca)), st.col, st.desc);
+  const pg = kbPagina(lista, st.pagina, KB_TODOS_POR_PAGINA);
+  st.pagina = pg.pagina;
+  const cab = KB_TODOS_COLUNAS.map(([c, r]) => `<th data-kb-ord="${c}" class="kbOrdenavel">${r}${st.col === c ? (st.desc ? ' ▼' : ' ▲') : ''}</th>`).join('');
+  const linhas = pg.itens.map(l => `<tr data-kb-abrir="${escapeHtml(l.aba)}|${escapeHtml(l.lead_id)}">
+      <td>${escapeHtml(l.nome || '(sem nome)')}${kbGestor() && l.dono_nome ? `<span class="kbMeta"> · ${escapeHtml(l.dono_nome)}</span>` : ''}</td>
+      <td>${escapeHtml(KB_TITULOS[kbColunaDoLead(l)] || '')}</td><td>${l.status ? kbStChip(l.status) : '—'}</td>
+      <td>${l.ultima_ligacao ? escapeHtml(kbTempoDesde(l.ultima_ligacao, agoraMs)) : 'nunca ligado'}</td>
+      <td>${l.retorno_em ? escapeHtml(String(l.retorno_em).split('-').reverse().join('/')) : '—'}</td>
+      <td>${escapeHtml(l.qtd_linhas || '—')}</td><td>${escapeHtml(l.cidade || '—')}</td><td>${l.pego_em ? escapeHtml(kbDataHoraBR(l.pego_em)) : '—'}</td></tr>`).join('');
+  const botoes = Array.from({ length: pg.total }, (_, i) => i + 1).filter(p => p === 1 || p === pg.total || Math.abs(p - pg.pagina) <= 2)
+    .map(p => `<button type="button" class="filterPill${p === pg.pagina ? ' active' : ''}" data-kb-pag="${p}">${p}</button>`).join('');
+  document.getElementById('kbTodosTabela').innerHTML = `<div class="kbTabelaRolagem"><table class="tbl kbTabelaTodos"><thead><tr>${cab}</tr></thead><tbody>${linhas || `<tr><td colspan="8" class="kbMeta">Nenhum lead com esses filtros.</td></tr>`}</tbody></table></div>
+    <div class="kbPaginacao"><span class="kbMeta">${lista.length} leads · Página ${pg.pagina} de ${pg.total}</span>${pg.total > 1 ? botoes : ''}</div>`;
+}
+document.getElementById('kbTodos').addEventListener('click', (e) => {
+  const th = e.target.closest('th[data-kb-ord]');
+  const st = kbEstado.todosEstado || (kbEstado.todosEstado = { busca: '', col: 'pego', desc: true, pagina: 1 });
+  if(th){ const c = th.dataset.kbOrd; if(st.col === c) st.desc = !st.desc; else { st.col = c; st.desc = false; } st.pagina = 1; kbRenderTodos(); return; }
+  const pb = e.target.closest('[data-kb-pag]');
+  if(pb){ st.pagina = Number(pb.dataset.kbPag); kbRenderTodos(); }
+});
+let kbTodosBuscaTimer = null;
+document.getElementById('kbTodosBusca').addEventListener('input', (e) => {
+  clearTimeout(kbTodosBuscaTimer);
+  kbTodosBuscaTimer = setTimeout(() => { const st = kbEstado.todosEstado || (kbEstado.todosEstado = { busca: '', col: 'pego', desc: true, pagina: 1 }); st.busca = e.target.value; st.pagina = 1; kbRenderTodos(); }, 300);
+});
 async function kbCarregarAlertas(notificar){
   if(!kbPodeVer()) return;
   const r = await ppSeguro(() => sb.rpc('leads_alertas', { p_dono: kbGestor() && kbEstado.dono ? kbEstado.dono : null }));
@@ -4214,7 +4287,7 @@ async function kbMesaCard(){
     <p class="desc" style="margin:4px 0 0">${x.livres} livre(s)${escapeHtml(antigo)} · planilha: ${x.fila_pendente ? x.fila_pendente + ' na fila' : 'em dia'}</p>
     ${x.aviso ? `<div class="kbAviso">${escapeHtml(x.aviso)}</div>` : ''}</div>`;
 }
-document.getElementById('kbDono').addEventListener('change', (e) => { kbEstado.dono = e.target.value; kbCarregar(); });
+document.getElementById('kbDono').addEventListener('change', (e) => { kbEstado.dono = e.target.value; kbCarregar(); if(kbEstado.aba === 'todos') kbCarregarTodos(); });
 document.getElementById('kbSoDiverg').addEventListener('click', (e) => { kbEstado.soDivergencias = !kbEstado.soDivergencias; e.target.classList.toggle('active', kbEstado.soDivergencias); kbRender(); });
 document.getElementById('kbReescrever').addEventListener('click', async () => {
   const aba = mesAbaAtualKb();

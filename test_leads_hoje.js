@@ -53,8 +53,8 @@ try{
   const espera = (ms) => new Promise(r => setTimeout(r, ms || 20));
 
   // ==== Task 3: funções puras ====
-  eq(kbAbasDoPerfil(false), ['hoje', 'quadro'], 'consultor: Hoje e Quadro');
-  eq(kbAbasDoPerfil(true), ['hoje', 'quadro', 'equipe'], 'gestor: + Equipe');
+  eq(kbAbasDoPerfil(false), ['hoje', 'quadro', 'todos'], 'consultor: Hoje, Quadro e Todos');
+  eq(kbAbasDoPerfil(true), ['hoje', 'quadro', 'todos', 'equipe'], 'gestor: + Todos e Equipe');
   eq([kbAbaPadrao(false), kbAbaPadrao(true)], ['hoje', 'equipe'], 'aba padrão por perfil');
   const fila = [{ aba: 'OUTUBRO', lead_id: 'a', motivo: 'Novo sem contato' }, { aba: 'OUTUBRO', lead_id: 'b', motivo: 'Esfriando' }];
   const agora = Date.parse('2026-10-27T15:00:00Z');
@@ -101,7 +101,7 @@ try{
   await kbAplicarPermissao();
   await kbCarregar();
   await espera(80);   // Hoje e alertas carregam em segundo plano
-  eq([...document.querySelectorAll('#kbAbas [data-kb-aba]')].filter(b => b.style.display !== 'none').map(b => b.dataset.kbAba), ['hoje', 'quadro'], 'consultor vê Hoje e Quadro');
+  eq([...document.querySelectorAll('#kbAbas [data-kb-aba]')].filter(b => b.style.display !== 'none').map(b => b.dataset.kbAba), ['hoje', 'quadro', 'todos'], 'consultor vê Hoje e Quadro');
   assert(document.getElementById('kbHoje').style.display !== 'none' && document.getElementById('kbBoard').style.display === 'none', 'consultor abre na aba Hoje');
   assert(document.getElementById('kbHoje').textContent.includes('Zz Retorno') && document.querySelector('#kbHoje [data-kb-ver-alertas]'), 'Hoje mostra retornos (Faça agora) e a linha de alertas');
   kbProximo();
