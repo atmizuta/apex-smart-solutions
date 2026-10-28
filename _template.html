@@ -3556,6 +3556,84 @@ function kbFoneBR(v){
 }
 const KB_MOEDA = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 function kbMoeda(n){ return Number(n) ? KB_MOEDA.format(Number(n)) : ''; }
+// ===== §126.1 (redesign de Meus leads, Fase 1): funções puras da ficha nova e da Hoje B =====
+// STATUS em frase normal, siglas em maiúscula (era o bonito() de dentro do Classificar)
+function kbStTexto(t){
+  const x = String(t || '').toLowerCase().replace(/\b(cnpj|cpf|neo|mei|pj|pf)\b/g, m => m.toUpperCase()).replace(/\bclaro\b/g, 'Claro');
+  return x.charAt(0).toUpperCase() + x.slice(1);
+}
+const KB_DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+const KB_MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+function kbDataLongaSP(ms){ const p = kbPartesSP(ms); return `${KB_DIAS_SEMANA[p.dow]}, ${Number(p.dia.slice(8, 10))} de ${KB_MESES[Number(p.dia.slice(5, 7)) - 1]} · ${p.hora}`; }
+// Fila da Hoje B (spec 3.2): cada lead uma vez, no primeiro grupo em que se encaixa. Só leads em aberto (Meus novos,
+// Sem ligação, Em andamento); retorno da Agenda entra mesmo se o lead não veio no Quadro (vale o nome do retorno).
+const KB_FILA_GRUPOS = [['atrasados', 'Atrasados'], ['agora', 'Agora'], ['tarde', 'Mais tarde hoje'], ['nunca', 'Nunca ligados'], ['parados', 'Parados há 3 dias ou mais']];
+function kbFilaHoje(leads, retornos, agoraMs){
+  const meus = (leads || []).filter(l => !l.livre && kbAbertoCol(kbColunaDoLead(l)));
+  const porChave = new Map(meus.map(l => [l.aba + '|' + l.lead_id, l]));
+  const hoje = kbDiaSP(agoraMs), vistos = new Set(), itens = [];
+  const add = (grupo, aba, id, nome, rotulo, classe) => {
+    const chave = aba + '|' + id;
+    if(vistos.has(chave)) return;
+    vistos.add(chave);
+    const l = porChave.get(chave) || null;
+    itens.push({ chave, aba, lead_id: id, nome: (l && l.nome) || nome || '', grupo, rotulo, classe, lead: l });
+  };
+  const rets = (retornos || []).map(r => ({ r, t: kbMs(r.quando) })).filter(x => x.t !== null).sort((a, b) => a.t - b.t);
+  const pego = (l) => kbMs(l.pego_em || l.criado_em_lead) || 0;
+  rets.filter(x => x.r.vencido || x.t <= agoraMs).forEach(({ r, t }) => {
+    const dia = kbDiaSP(t);
+    const rot = dia === hoje ? kbPartesSP(t).hora : dia === kbSomaDias(hoje, -1) ? 'ontem' : dia.slice(8, 10) + '/' + dia.slice(5, 7);
+    add('atrasados', r.aba, r.lead_id, r.nome, rot, 'late');
+  });
+  meus.filter(l => kbColunaDoLead(l) === 'novos').sort((a, b) => pego(a) - pego(b)).forEach(l => add('agora', l.aba, l.lead_id, l.nome, 'novo', 'novo'));
+  const futurosHoje = rets.filter(x => !x.r.vencido && x.t > agoraMs && kbDiaSP(x.t) === hoje);
+  futurosHoje.filter(x => x.t <= agoraMs + 3600000).forEach(({ r, t }) => add('agora', r.aba, r.lead_id, r.nome, kbPartesSP(t).hora, ''));
+  futurosHoje.filter(x => x.t > agoraMs + 3600000).forEach(({ r, t }) => add('tarde', r.aba, r.lead_id, r.nome, kbPartesSP(t).hora, ''));
+  meus.filter(l => kbColunaDoLead(l) === 'semlig').sort((a, b) => pego(a) - pego(b)).forEach(l => add('nunca', l.aba, l.lead_id, l.nome, '—', ''));
+  meus.filter(l => (kbDiasParado(l, agoraMs) || 0) >= 3).sort((a, b) => (kbUltimaAcao(a) || 0) - (kbUltimaAcao(b) || 0))
+    .forEach(l => add('parados', l.aba, l.lead_id, l.nome, kbDiasParado(l, agoraMs) + ' d', ''));
+  return itens;
+}
+// "Salvar e ir para o próximo": o seguinte (na ordem de antes) que ainda está na fila; senão o primeiro que não é o atual.
+function kbProximoHoje(antes, chave, depois){
+  const ainda = new Set(depois || []);
+  const i = (antes || []).indexOf(chave);
+  for(const c of (antes || []).slice(i + 1)) if(c !== chave && ainda.has(c)) return c;
+  return (depois || []).find(c => c !== chave) || null;
+}
+// Atalhos de "Quando ligar de novo?": "Hoje 17h" só antes das 17h; "Próxima semana" = próxima segunda às 10h.
+function kbAtalhosRetorno(agoraMs){
+  const p = kbPartesSP(agoraMs), hoje = p.dia, amanha = kbSomaDias(hoje, 1);
+  const a = [];
+  if(p.min < 17 * 60) a.push({ rotulo: 'Hoje 17h', data: hoje, hora: '17:00' });
+  a.push({ rotulo: 'Amanhã 10h', data: amanha, hora: '10:00' }, { rotulo: 'Amanhã 14h', data: amanha, hora: '14:00' },
+    { rotulo: 'Em 3 dias', data: kbSomaDias(hoje, 3), hora: '10:00' }, { rotulo: 'Próxima semana', data: kbSomaDias(hoje, ((8 - p.dow) % 7) || 7), hora: '10:00' });
+  return a;
+}
+// Decisão 1 do Rafael (28/10): OBS em branco mantém a atual; texto novo substitui (a anterior fica no Histórico).
+function kbObsParaSalvar(digitado, anterior){ const t = String(digitado || '').trim(); return t || String(anterior || ''); }
+// Marcador do topo da ficha: retorno vencido/de hoje, livre, lead novo, nunca ligado, parado há 3+ dias.
+function kbUrgenciaFicha(l, retorno, agoraMs){
+  if(!l) return null;
+  const t = retorno ? kbMs(retorno.quando) : null, hoje = kbDiaSP(agoraMs);
+  if(t !== null){
+    const p = kbPartesSP(t);
+    if(retorno.vencido || t <= agoraMs){
+      const quando = p.dia === hoje ? 'às ' + p.hora : p.dia === kbSomaDias(hoje, -1) ? 'ontem às ' + p.hora : p.dia.slice(8, 10) + '/' + p.dia.slice(5, 7) + ' às ' + p.hora;
+      return { classe: 'late', texto: 'retorno era ' + quando };
+    }
+    if(p.dia === hoje) return { classe: 'ok', texto: 'retorno hoje às ' + p.hora };
+  }
+  const ha = (iso) => { const x = kbTempoDesde(iso, agoraMs); return x === '—' ? '' : x; };
+  if(l.livre){ const x = ha(l.criado_em_lead); return { classe: 'novo', texto: 'livre' + (x ? ' · chegou ' + x : '') }; }
+  const col = kbColunaDoLead(l);
+  if(col === 'novos'){ const x = ha(l.pego_em || l.criado_em_lead); return { classe: 'novo', texto: 'lead novo' + (x ? ' · pego ' + x : '') }; }
+  if(col === 'semlig') return { classe: 'soon', texto: 'classificado, mas nunca ligado' };
+  const d = kbAbertoCol(col) ? kbDiasParado(l, agoraMs) : null;
+  if(d !== null && d >= 3) return { classe: 'soon', texto: `parado há ${d} dias` };
+  return null;
+}
 // Ficha do lead (gaveta lateral). Lead Livre sem dado de contato (consultor) mostra o convite para pegar.
 function kbFichaHtml(f, op){
   const v = (x) => escapeHtml(x == null || x === '' ? '—' : String(x));
