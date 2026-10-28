@@ -899,6 +899,7 @@
   .kbUrg-nada{background:var(--ml-soon);}
   .kbCartAcoes{position:absolute;right:8px;bottom:8px;display:flex;gap:4px;opacity:0;transition:opacity var(--dur-fast);}
   .kbCard:hover .kbCartAcoes,.kbCard:focus-within .kbCartAcoes{opacity:1;}
+  @media (hover:none){ .kbCartAcoes,.kbLnAcoes{opacity:1;} }
   .kbCartAcoes .kbBtnIco{width:28px;height:28px;}
   .kbCardLivre .kbCartRodape .kbBtn{margin-left:auto;}
   .kbBoard.kbCompacto .kbObs,.kbBoard.kbCompacto .kbCartLig,.kbBoard.kbCompacto .kbCartMeta{display:none;}
@@ -3783,6 +3784,14 @@ function kbRetornoTag(l, agoraMs){
   return { classe: '', texto: 'retorno ' + dm };
 }
 // Cor da idade do lead livre: novo até 5 min, neutro até 15, atenção até 30, atrasado depois.
+// Texto da faixa vermelha quando ela não vem do retorno (spec 2.3: cor nunca sozinha) — revisão Fase 2.
+function kbMotivoFaixa(l, agoraMs){
+  if(!kbFaixaVermelha(l, agoraMs) || kbRetornoFaixa(l, agoraMs) === 'late') return null;
+  const col = kbColunaDoLead(l);
+  if(col === 'novos') return 'sem contato ' + kbTempoDesde(l.criado_em_lead, agoraMs);
+  if(col === 'semlig') return 'nunca ligado · pego ' + kbTempoDesde(l.pego_em || l.criado_em_lead, agoraMs);
+  return null;
+}
 function kbCorIdadeLivre(l, agoraMs){
   const t = kbMs(l && l.criado_em_lead);
   if(t === null) return '';
@@ -3961,7 +3970,7 @@ function kbCard(l, agoraMs){
   const col = kbColunaDoLead(l), div = kbDivergencia(l);
   const meta = [[l.cidade, l.uf].filter(Boolean).join('/'), l.qtd_linhas ? l.qtd_linhas + ' linhas' : ''].filter(Boolean).join(' · ');
   const tel = String(l.telefone || '').replace(/\D/g, '');
-  const attrs = `data-aba="${escapeHtml(l.aba)}" data-id="${escapeHtml(l.lead_id)}" data-col="${col}" draggable="true"`;
+  const attrs = `data-aba="${escapeHtml(l.aba)}" data-id="${escapeHtml(l.lead_id)}" data-col="${col}" draggable="true" tabindex="0"`;
   const nome = `<div class="kbNome">${escapeHtml(l.nome || '(sem nome)')}</div>`;
   const metaHtml = meta ? `<div class="kbCartMeta">${escapeHtml(meta)}</div>` : '';
   if(col === 'livres'){
@@ -3973,7 +3982,7 @@ function kbCard(l, agoraMs){
   const extras = [];
   if(plParaResgatar(l)) extras.push('<span class="badge">para resgatar</span>');
   if(col === 'convertido' && (l.receita || l.receita_neo)) extras.push(`<span class="kbCartReceita">${escapeHtml(kbMoeda(l.receita || l.receita_neo))}${l.venda_neo ? ' · ✓ NEO' : ''}</span>`);
-  const ret = kbAbertoCol(col) ? kbRetornoTag(l, agoraMs) : null;
+  const ret = kbAbertoCol(col) ? kbRetornoTag(l, agoraMs) : null, motivo = kbMotivoFaixa(l, agoraMs);
   const lig = l.ultima_ligacao ? `<span class="kbCartLig${l.ultima_atendida ? ' ok' : ''}">${KB_ICO.tel}${escapeHtml('Ligou ' + kbTempoDesde(l.ultima_ligacao, agoraMs))} · ${l.ultima_atendida ? 'atendida' + (l.ultima_seg ? ' · ' + escapeHtml(kbDuracao(l.ultima_seg)) : '') : 'não atendida'}</span>` : '';
   const dono = kbGestor() && l.dono_nome ? `<span class="kbCartDono" title="Com ${escapeHtml(l.dono_nome)}"><b>${escapeHtml(kbIniciais(l.dono_nome))}</b>${escapeHtml(String(l.dono_nome).trim().split(/\s+/)[0])}</span>` : '';
   const acoes = tel ? `<div class="kbCartAcoes"><a class="kbBtn kbBtnP kbBtnIco" title="Ligar pelo ProContact (copia o número)" data-kb-contato="ligar" data-kb-ligar href="#">${KB_ICO.tel}</a><a class="kbBtn kbBtnQ kbBtnIco" title="WhatsApp" data-kb-contato="whatsapp" data-kb-whats href="#">${KB_ICO.wa}</a></div>` : '';
@@ -3981,7 +3990,7 @@ function kbCard(l, agoraMs){
     ${urg ? `<span class="kbUrg kbUrg-${urg}" title="${KB_URG_TITULO[urg]}">${KB_ICO.relogio}</span>` : ''}${nome}${metaHtml}
     <div class="kbCartSt">${st}${extras.join('')}</div>
     ${l.obs ? `<div class="kbObs" title="${escapeHtml(l.obs)}">${escapeHtml(l.obs)}</div>` : ''}${div ? `<div class="kbDiv">⚠ ${escapeHtml(div)}</div>` : ''}
-    <div class="kbCartRodape">${ret ? `<span class="kbTag ${ret.classe}">${escapeHtml(ret.texto)}</span>` : ''}${lig}${dono}<span class="kbTempo" title="Chegada do lead">${escapeHtml(kbTempoDesde(l.criado_em_lead, agoraMs))}</span></div>${acoes}
+    <div class="kbCartRodape">${ret ? `<span class="kbTag ${ret.classe}">${escapeHtml(ret.texto)}</span>` : ''}${motivo ? `<span class="kbTag late">${escapeHtml(motivo)}</span>` : ''}${lig}${dono}<span class="kbTempo" title="Chegada do lead">${escapeHtml(kbTempoDesde(l.criado_em_lead, agoraMs))}</span></div>${acoes}
   </div>`;
 }
 const KB_POR_COLUNA = 100;   // §121: pedido do Rafael, mais clientes por coluna
@@ -4240,6 +4249,15 @@ document.getElementById('kbBoard').addEventListener('click', (e) => {
     kbAbrirFicha(aba, id, { lista: lista ? [...lista.querySelectorAll('.kbCard')].map(c => c.dataset.aba + '|' + c.dataset.id) : null });
   }
 });
+// Revisão Fase 2: Enter (ou espaço) no cartão focado abre a ficha, como o clique.
+document.getElementById('kbBoard').addEventListener('keydown', (e) => {
+  if(e.key !== 'Enter' && e.key !== ' ') return;
+  const card = e.target.closest('.kbCard');
+  if(!card || e.target !== card) return;
+  e.preventDefault();
+  const lista = card.closest('.kbColLista');
+  kbAbrirFicha(card.dataset.aba, card.dataset.id, { lista: lista ? [...lista.querySelectorAll('.kbCard')].map(c => c.dataset.aba + '|' + c.dataset.id) : null });
+});
 // Arraste (ajuste 26/10): durante o arraste as colunas que aceitam o cartão acendem e as outras apagam.
 function kbLimparArraste(){
   const board = document.getElementById('kbBoard');
@@ -4410,6 +4428,7 @@ function kbTrocarAba(aba){
   document.getElementById('kbHoje').style.display = kbEstado.aba === 'hoje' ? '' : 'none';
   document.getElementById('kbBoard').style.display = kbEstado.aba === 'quadro' ? '' : 'none';
   document.getElementById('kbFiltroBarra').style.display = kbEstado.aba === 'quadro' || kbEhTabela(kbEstado.aba) ? '' : 'none';
+  if(kbEstado.aba === 'quadro') kbRender();   // revisão Fase 2: filtro e densidade escolhidos na Lista valem já no Quadro
   if(kbEstado.aba === 'quadro' || kbEhTabela(kbEstado.aba)) kbRenderFiltroBarra();
   if(kbEstado.aba === 'quadro' || kbEstado.aba === 'hoje') kbAjustarAltura();
   document.getElementById('kbEquipe').style.display = kbEstado.aba === 'equipe' ? '' : 'none';
@@ -4422,7 +4441,11 @@ function kbFonteFiltros(){ return kbEstado.aba === 'todos' ? (kbEstado.todos || 
 function kbRenderFiltroBarra(){
   const el = document.getElementById('kbFiltroBarra');
   const html = kbFiltroBarraHtml(kbFonteFiltros(), kbEstado.filtros, Date.now(), { densidade: kbEstado.densidade || 'conforto' });
-  if(el.dataset.html !== html){ el.innerHTML = html; el.dataset.html = html; }
+  if(el.dataset.html !== html){
+    const abertos = [...el.querySelectorAll('details[open]')].map(d => d.dataset.kbMenu);   // revisão Fase 2: menu aberto continua aberto quando os dados mudam
+    el.innerHTML = html; el.dataset.html = html;
+    abertos.forEach(m => { const d = el.querySelector(`details[data-kb-menu="${m}"]`); if(d) d.open = true; });
+  }
 }
 function kbAoMudarFiltros(){
   kbSalvarFiltros();
@@ -4431,6 +4454,7 @@ function kbAoMudarFiltros(){
   kbRenderFiltroBarra();
 }
 document.getElementById('kbFiltroBarra').addEventListener('click', (e) => {
+  if(e.target.closest('[data-kb-filtro],[data-kb-filtro-tirar],[data-kb-filtro-limpar]')) document.querySelectorAll('#kbFiltroBarra details[open]').forEach(d => { d.open = false; });   // escolher fecha o menu
   if(e.target.closest('[data-kb-filtro-limpar]')){ kbEstado.filtros = {}; kbAoMudarFiltros(); return; }
   const dn = e.target.closest('[data-kb-densidade]');
   if(dn){ kbEstado.densidade = dn.dataset.kbDensidade === 'compacto' ? 'compacto' : 'conforto'; kbSalvarDensidade(); if(kbEhTabela(kbEstado.aba)) kbRenderTodos(); else kbRender(); kbRenderFiltroBarra(); return; }
@@ -4584,6 +4608,7 @@ document.getElementById('kbHoje').addEventListener('click', (e) => {
   if(it) kbHojeSelecionar(it.dataset.kbFila);
 });
 async function kbPegarProximoLivre(){
+  if(!kbPodeDescartar()) return;   // revisão Fase 2: não descarta a OBS digitada sem perguntar
   const livre = kbLivresHoje()[0] || (kbEstado.leads || []).filter(l => l.livre).sort((a, b) => (kbMs(a.criado_em_lead) || 0) - (kbMs(b.criado_em_lead) || 0))[0];
   if(!livre){ mostrarAviso('Nenhum lead livre agora.', 'info'); return; }
   const ok = await kbPegar(livre.aba, livre.lead_id);

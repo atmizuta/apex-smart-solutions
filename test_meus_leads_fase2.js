@@ -213,6 +213,55 @@ try{
   kbEstado.todos = LL.map(l => Object.assign({}, l, { dono_nome: 'Zzkcon Teste' })); kbRenderTodos();
   assert([...document.querySelectorAll('#kbTodos thead th[data-kb-ord]')].some(t => t.textContent.includes('Consultor')) && document.querySelector('#kbTodos .kbTd-dono').textContent.includes('Zzkcon'), 'gestor vê a coluna Consultor');
   currentUser = { id: 'u-zz', nome: 'Zzkcon Teste', role: 'consultor' };
+  // ==== Revisão final da Fase 2: correções ====
+  currentUser = { id: 'u-zz', nome: 'Zzkcon Teste', role: 'consultor' };
+  kbEstado.filtros = {}; kbEstado.densidade = 'conforto';
+  window.__rpcRespostas.leads_kanban3 = { data: LQ, error: null };
+  await kbCarregar(); kbTrocarAba('quadro'); await espera(40);
+  // F1: "Pegar próximo" com OBS digitada pergunta antes de descartar
+  await kbAbrirFicha('O', 'q1');
+  document.getElementById('kbClassObs').value = 'Zz anotando';
+  let pergF = 0; window.confirm = () => { pergF++; return false; };
+  window.__rpcRespostas.leads_pegar = { data: { ok: true }, error: null };
+  const nPeg = window.__rpcCalls.filter(c => c.nome === 'leads_pegar').length;
+  document.querySelector('#kbBoard .kbCol[data-kb-col="livres"] [data-kb-pegar-proximo]').click();
+  await espera(60);
+  assert(pergF === 1 && window.__rpcCalls.filter(c => c.nome === 'leads_pegar').length === nPeg && document.getElementById('kbClassObs').value === 'Zz anotando', 'F1: Pegar próximo com OBS digitada pergunta e, com não, não pega');
+  window.confirm = () => true;
+  document.getElementById('kbClassObs').value = '';
+  kbFecharFicha(true);
+  // F2: faixa vermelha sempre com texto (cor nunca sozinha)
+  const cA = kbCard(LA('fa', { categoria: 'sem_contato', status: null, ligacoes: undefined, criado_em_lead: isoC(-40), pego_em: isoC(-40) }), agC);
+  assert(cA.includes('kbAtrasado') && cA.includes('class="kbTag late">sem contato há 40 min'), 'F2: novo sem contato há 40 min: faixa com texto');
+  const cB = kbCard(LA('fb', { ligacoes: 0, pego_em: isoC(-60 * 24 * 2) }), agC);
+  assert(cB.includes('kbAtrasado') && cB.includes('class="kbTag late">nunca ligado · pego há 2 dias'), 'F2: Sem ligação há mais de 1 dia: faixa com texto');
+  // F3: filtro e densidade escolhidos na Lista valem ao voltar para o Quadro
+  kbTrocarAba('todos'); await espera(60);
+  kbEstado.filtros = { cidade: 'Campinas' }; kbAoMudarFiltros();
+  document.querySelector('#kbFiltroBarra [data-kb-densidade="compacto"]').click();
+  kbTrocarAba('quadro');
+  assert(document.getElementById('kbBoard').classList.contains('kbCompacto') && document.querySelector('#kbBoard .kbCol[data-kb-col="andamento"] .kbConta').textContent === '1', 'F3: filtro e densidade da Lista valem ao voltar para o Quadro');
+  kbEstado.filtros = {}; kbAoMudarFiltros();
+  document.querySelector('#kbFiltroBarra [data-kb-densidade="conforto"]').click();
+  // F4: em tela de toque as ações ficam à vista (não há toque invisível registrando contato)
+  const cssF = [...document.querySelectorAll('style')].map(s => s.textContent).join('\\n');
+  assert(cssF.includes('@media (hover:none){ .kbCartAcoes,.kbLnAcoes{opacity:1;} }'), 'F4: ações visíveis em tela de toque');
+  // F5: cartão abre pelo teclado
+  const cardK = document.querySelector('#kbBoard .kbCard[data-id="q2"]');
+  assert(cardK && cardK.getAttribute('tabindex') === '0', 'F5: cartão focável pelo teclado');
+  const nFK = window.__rpcCalls.filter(c => c.nome === 'leads_ficha' && c.args.p_id === 'q2').length;
+  cardK.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+  await espera(60);
+  assert(window.__rpcCalls.filter(c => c.nome === 'leads_ficha' && c.args.p_id === 'q2').length === nFK + 1, 'F5: Enter no cartão abre a ficha');
+  kbFecharFicha(true);
+  // F6: menu de filtro aberto continua aberto quando os dados mudam; escolher uma opção fecha
+  kbRenderFiltroBarra();
+  document.querySelector('#kbFiltroBarra details[data-kb-menu="cidade"]').open = true;
+  kbEstado.leads = kbEstado.leads.concat([LA('novoZ', { cidade: 'Sumaré' })]); kbRenderFiltroBarra();
+  assert(document.querySelector('#kbFiltroBarra details[data-kb-menu="cidade"]').open && document.getElementById('kbFiltroBarra').textContent.includes('Sumaré'), 'F6: menu aberto continua aberto quando os dados mudam');
+  document.querySelector('#kbFiltroBarra [data-kb-filtro="cidade"][data-valor="Sumaré"]').click();
+  assert(kbEstado.filtros.cidade === 'Sumaré' && !document.querySelector('#kbFiltroBarra details[data-kb-menu="cidade"]').open, 'F6: escolher uma opção fecha o menu');
+  kbEstado.filtros = {}; kbAoMudarFiltros();
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
