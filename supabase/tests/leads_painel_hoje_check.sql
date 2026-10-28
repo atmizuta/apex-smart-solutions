@@ -55,6 +55,25 @@ begin
   perform public.leads_redistribuir('JUNHO', 'zp:livre', '00000000-0000-0000-0000-00000000e503');
   assert (select dono_id from public.leads where aba = 'JUNHO' and id = 'zp:livre') = '00000000-0000-0000-0000-00000000e503', 'redistribuir para quem não pega continua valendo';
   -- ===== Task 2 =====
+  -- consultor: Quadro só do mês; Todos traz o perdido de 70 dias atrás, sem livres, com campanha/formulário
+  perform set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-00000000e502', 'role', 'authenticated')::text, true);
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000e502', true);
+  assert not exists (select 1 from public.leads_kanban3(null, false) k where k.lead_id = 'zp:antigo'), 'Quadro não traz perdido de meses atrás';
+  assert exists (select 1 from public.leads_kanban3(null, true) k where k.lead_id = 'zp:antigo' and k.campanha = 'Zz Camp' and k.formulario = 'Zz Form'), 'Todos traz o perdido antigo com campanha e formulário';
+  assert not exists (select 1 from public.leads_kanban3(null, true) k where k.livre), 'Todos não traz livres';
+  assert exists (select 1 from public.leads_kanban3(null, false) k where k.lead_id = 'zp:velho' and k.livre and k.telefone is null), 'Quadro continua com livres (sem telefone para consultor)';
+  begin
+    perform * from public.leads_atividade_equipe();
+    assert false, 'consultor viu a atividade da equipe';
+  exception when insufficient_privilege then null;
+  end;
+  -- supervisor: OBS igual à anterior não conta; quem não tem usuário de telefonia não quebra
+  perform set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-00000000e501', 'role', 'authenticated')::text, true);
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000e501', true);
+  assert (select obs_hoje = 1 and ultima_obs is not null and tem_telefonia and lig_hoje = 1 and ultima_ligacao is not null
+            from public.leads_atividade_equipe() a where a.dono_id = '00000000-0000-0000-0000-00000000e502'), 'atividade: 1 OBS nova e 1 ligação hoje';
+  assert (select not tem_telefonia and lig_hoje = 0 and ultima_ligacao is null and obs_hoje = 0
+            from public.leads_atividade_equipe() a where a.dono_id = '00000000-0000-0000-0000-00000000e503'), 'atividade: sem usuário de telefonia';
   raise notice 'CHECK OK';
 end $$;
 rollback;
