@@ -142,6 +142,57 @@ try{
   kbEstado.filtros = {};
   kbTrocarAba('hoje');
   assert(document.getElementById('kbFiltroBarra').style.display === 'none', 'barra some fora do Quadro/Todos');
+  // ==== Task 5 ====
+  const ag5 = SP('2026-10-28T15:00:00');
+  const L5 = [
+    { aba: 'O', lead_id: 'n1', nome: 'Zz Novo Ligado', categoria: 'sem_contato', livre: false, ligacoes: 1, pego_em: '2026-10-28T09:00:00-03:00', ultima_ligacao: '2026-10-28T09:10:00-03:00' },
+    { aba: 'O', lead_id: 'n2', nome: 'Zz Nunca Ligado', categoria: 'sem_contato', livre: false, ligacoes: 0, pego_em: '2026-10-28T08:00:00-03:00' },
+    { aba: 'O', lead_id: 'a1', nome: 'Zz Parado', categoria: 'andamento', status: 'EM NEGOCIAÇÂO', livre: false, ligacoes: 3, ultima_ligacao: '2026-10-22T10:00:00-03:00' },
+    { aba: 'O', lead_id: 'a2', nome: 'Zz Andando', categoria: 'andamento', status: 'PROPOSTA ENVIADA', livre: false, ligacoes: 2, ultima_ligacao: '2026-10-28T11:00:00-03:00' },
+    { aba: 'O', lead_id: 'c1', nome: 'Zz Venda', categoria: 'convertido', livre: false, receita: 199.9, classificado_em: '2026-10-10T10:00:00-03:00' },
+    { aba: 'O', lead_id: 'l1', nome: 'Zz Livre', categoria: 'sem_contato', livre: true, ligacoes: 0 },
+  ];
+  const R5 = [
+    { aba: 'O', lead_id: 'a2', nome: 'Zz Andando', quando: '2026-10-28T10:00:00-03:00', vencido: true },
+    { aba: 'O', lead_id: 'n1', nome: 'Zz Novo Ligado', quando: '2026-10-28T17:30:00-03:00', vencido: false },
+  ];
+  eq(kbCartoesHoje(L5, R5).map(c => c.chave + ':' + c.n).join(' '), 'sem_contato:2 andamento:2 retorno_hoje:1 retorno_atrasado:1 convertido:1', 'cartões por etapa (livre fora)');
+  eq(kbCartoesHoje(L5, R5)[4].extra.replace(/\\s/g, ' '), 'R$ 199,90', 'convertidos com receita do mês (Intl usa espaço fixo)');
+  eq(kbListaDoCartao('andamento', L5, R5, ag5).map(i => i.lead_id), ['a1', 'a2'], 'lista do cartão Em andamento');
+  eq(kbListaDoCartao('retorno_atrasado', L5, R5, ag5).map(i => i.lead_id), ['a2'], 'lista dos retornos atrasados');
+  eq(kbListaDoCartao('parados3', L5, R5, ag5).map(i => i.lead_id), ['a1'], 'lista dos parados 3+ dias');
+  const fz = kbFacaAgora(L5, R5, ag5, 5);
+  eq(fz.map(i => i.lead_id), ['a2', 'n1', 'n2', 'a1'], 'Faça agora: atrasado → hoje → nunca ligado → parado');
+  eq(fz.map(i => i.motivo), ['Retorno atrasado 5 h', 'Retorno hoje às 17:30', 'Nunca ligado', 'Parado há 6 dias'], 'motivos do Faça agora');
+  eq(kbFacaAgora(L5, R5, ag5, 2).length, 2, 'Faça agora respeita o máximo');
+  const muitos = Array.from({ length: 30 }, (_, i) => ({ aba: 'O', lead_id: 'x' + i, nome: 'Zz ' + i }));
+  const lh = kbListaCartaoHtml(muitos, 20);
+  assert((lh.match(/data-kb-abrir=/g) || []).length === 20 && lh.includes('data-kb-cartao-mais'), 'lista do cartão mostra 20 e "ver mais"');
+  // tela
+  currentUser = { id: 'u-pode', nome: 'Zzpode Teste', role: 'consultor' };
+  kbEstado.leads = L5;
+  window.__rpcRespostas.leads_hoje = { data: { fila: [], retornos: R5, livres: 4, placar: { classificacoes: 7, retornos_hoje: 2, retornos_cumpridos: 1 } }, error: null };
+  window.__rpcRespostas.meu_placar_ligacoes = { data: [{ lig_hoje: 23, meta_ligacoes_dia: 80, tem_telefonia: true, tem_dados: true }], error: null };
+  kbEstado.alertas = [{ tipo: 'parado', aba: 'O', lead_id: 'a1', nome: 'Zz Parado' }];
+  kbTrocarAba('hoje');
+  await espera(80);
+  const hoje = document.getElementById('kbHoje');
+  eq(hoje.querySelectorAll('[data-kb-cartao]').length, 5, 'Hoje mostra 5 cartões');
+  assert(!hoje.textContent.includes('Zz Venda'), 'Hoje não despeja a lista de leads de uma vez');
+  hoje.querySelector('[data-kb-cartao="andamento"]').click();
+  assert(hoje.querySelector('[data-kb-cartao="andamento"]').classList.contains('active') && hoje.textContent.includes('Zz Parado'), 'clicar no cartão abre só aquela lista');
+  hoje.querySelector('[data-kb-cartao="andamento"]').click();
+  assert(!hoje.querySelector('.kbCartaoLista'), 'clicar de novo fecha a lista');
+  eq(hoje.querySelectorAll('.kbFaca [data-kb-abrir]').length, 4, 'Faça agora na tela');
+  assert(hoje.textContent.includes('23') && hoje.textContent.includes('/ 80') && hoje.textContent.includes('7') && hoje.textContent.includes('1 de 2'), 'placar: ligações/meta, classificações, retornos cumpridos');
+  assert(hoje.querySelector('[data-kb-ver-alertas]') && !hoje.querySelector('.kbAlertasLista'), 'alertas recolhidos numa linha');
+  hoje.querySelector('[data-kb-ver-alertas]').click();
+  assert(hoje.querySelector('.kbAlertasLista') && hoje.textContent.includes('Parado em andamento'), 'ver alertas abre a lista');
+  assert(hoje.querySelector('[data-kb-pegar-proximo]') && hoje.textContent.includes('4'), 'quem pega vê "Pegar o próximo livre" com quantos esperam');
+  kbEstado.podePegar = false;
+  kbRenderHoje();
+  assert(!document.querySelector('#kbHoje [data-kb-pegar-proximo]'), 'quem não pega não vê o botão de pegar');
+  kbEstado.podePegar = true;
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');

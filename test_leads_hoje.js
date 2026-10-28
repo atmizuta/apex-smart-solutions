@@ -103,8 +103,8 @@ try{
   await espera(80);   // Hoje e alertas carregam em segundo plano
   eq([...document.querySelectorAll('#kbAbas [data-kb-aba]')].filter(b => b.style.display !== 'none').map(b => b.dataset.kbAba), ['hoje', 'quadro'], 'consultor vê Hoje e Quadro');
   assert(document.getElementById('kbHoje').style.display !== 'none' && document.getElementById('kbBoard').style.display === 'none', 'consultor abre na aba Hoje');
-  assert(document.getElementById('kbHoje').textContent.includes('Zz Retorno') && document.getElementById('kbHoje').textContent.includes('Pego e sem contato'), 'Hoje mostra retornos e alertas');
-  document.querySelector('#kbHoje [data-kb-proximo]').click();
+  assert(document.getElementById('kbHoje').textContent.includes('Zz Retorno') && document.querySelector('#kbHoje [data-kb-ver-alertas]'), 'Hoje mostra retornos (Faça agora) e a linha de alertas');
+  kbProximo();
   await espera(60);
   assert(window.__rpcCalls.some(c => c.nome === 'leads_ficha' && c.args.p_id === 'h1'), 'Próximo lead abre a ficha do primeiro da fila');
   assert(kbEstado.excecoes['OUTUBRO|h1'] > 0, 'lead aberto entra na exceção de 2 min');
