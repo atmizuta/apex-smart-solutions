@@ -42,22 +42,24 @@
 
 ### 2.2 Tokens da aba
 - Ficam declarados em `#panel-meusleads, #kbFicha, .kbFichaPip { … }`, logo no começo do bloco CSS de Meus leads.
-- Hex só aparece nesses tokens e nas cores de STATUS que já existem (§121). Os componentes usam só `var(--…)`.
+- Como pede o CLAUDE.md, **reaproveitam as variáveis do sistema** sempre que existe uma cor equivalente.
+- Só dois tons são novos, e o hex deles aparece apenas na declaração do token: `--ml-ink-2` e `--ml-surface-2`.
+- As cores de STATUS continuam como na §121. Os componentes usam só `var(--…)`.
 
 | Token | Valor | Uso |
 |---|---|---|
 | `--ml-ink` | `var(--c-grafite)` | texto principal |
-| `--ml-ink-2` | `#464A4E` | texto secundário (contraste ≥ 7:1 no branco) |
-| `--ml-ink-3` | `#686C71` | texto de apoio (≥ 4,5:1 no branco) |
-| `--ml-ground` | `#F1F1F3` | fundo da aba |
+| `--ml-ink-2` | `#464A4E` (novo) | texto secundário (contraste ≈ 9:1 no branco); o `--c-cinza` some demais para texto de leitura |
+| `--ml-ink-3` | `var(--c-cinza)` | texto de apoio (≈ 5,7:1 no branco) |
+| `--ml-ground` | `var(--c-papel)` | fundo da aba |
 | `--ml-surface` | `var(--c-branco)` | blocos, cartões, ficha |
-| `--ml-surface-2` | `#F7F7F8` | degrau de tom dentro de um bloco (contato, OBS anterior, cabeçalho de tabela) |
-| `--ml-surface-3` | `#ECECEF` | trilho dos controles segmentados, separadores finos de lista |
-| `--ml-late` / `--ml-late-soft` | `var(--c-sinal-600)` / `#FCE9EA` | atrasado |
-| `--ml-soon` / `--ml-soon-soft` | `#9A4A06` / `#FDF1DC` | atenção (nunca ligado, parado) |
-| `--ml-ok` / `--ml-ok-soft` | `var(--st-ganho)` / `#E5F3EA` | retorno de hoje, ligação atendida |
-| `--ml-info` / `--ml-info-soft` | `#24566B` / `#E4EFF3` | lead novo |
-| `--ml-float` | `0 12px 32px rgba(29,31,32,.16), 0 2px 6px rgba(29,31,32,.08)` | só para o que flutua: gaveta, menu, cartão arrastado |
+| `--ml-surface-2` | `#F7F7F8` (novo) | degrau de tom dentro de um bloco (contato, OBS anterior, cabeçalho de tabela) |
+| `--ml-surface-3` | `var(--c-cinza-claro)` | trilho dos controles segmentados, separadores finos de lista |
+| `--ml-late` / `--ml-late-soft` | `var(--c-sinal-600)` / `var(--st-perdido-bg)` | atrasado |
+| `--ml-soon` / `--ml-soon-soft` | `var(--st-andamento)` / `var(--st-andamento-bg)` | atenção (nunca ligado, parado) |
+| `--ml-ok` / `--ml-ok-soft` | `var(--st-ganho)` / `var(--st-ganho-bg)` | retorno de hoje, ligação atendida (o único verde, como manda o CLAUDE.md) |
+| `--ml-novo` / `--ml-novo-soft` | `var(--c-sinal)` / `var(--c-rosa)` | lead novo |
+| `--ml-float` | `var(--shadow-lg)` mais leve: `0 12px 32px rgba(29,31,32,.16)` | só para o que flutua: gaveta, menu, cartão arrastado |
 
 ### 2.3 Regras
 - **Superfícies.**
