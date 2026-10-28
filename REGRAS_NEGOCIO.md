@@ -3918,4 +3918,5 @@ Pedido do Rafael depois da §120 ("assim do jeito que está está ótimo"):
 - **Cores das tabulações (pedido 20:40):** os chips de status no cartão, na ficha e nos botões do Classificar usam as **cores do menu de STATUS da planilha**, tiradas dos prints do Rafael (a API do Google não expõe a cor dos chips do menu suspenso).
   - Tokens `--kb-st-bg/--kb-st-fg` por `data-st` (chave = status sem acento, em minúsculas, com hífen).
   - "CLIENTE NÃO QUER NO CNPJ" não existe na planilha e fica no cinza.
+- **Publicação do telefone e das cores (27/10, 22:18, ok do Rafael):** painel MD5 `63393bca…` (o do ar era `ce4f7810…`), backup `~/deploy_backups/painel_clientes_apex_20261027_221851_antes_cores_procontact.html`.
 - **Publicação (27/10, 20:32, ok do Rafael):** painel MD5 `ce4f7810…` (o do ar era `fa6c0cef…`, a correção das 20:08), backup `~/deploy_backups/painel_clientes_apex_20261027_203220_antes_sem_ligacao.html`.
