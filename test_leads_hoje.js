@@ -143,12 +143,17 @@ try{
   // gestor: Equipe com semáforo; clicar na linha filtra o Quadro
   currentUser = { id: 'u-sup', nome: 'Zzksup Teste', role: 'supervisor', operacao: 'apex' };
   window.__rpcRespostas.leads_equipe_resumo = { data: [{ dono_id: 'u-zz', nome: 'Zzkcon Teste', em_aberto: 5, sem_contato: 1, retornos_vencidos: 0, parados: 0, perdas_suspeitas: 0, pegos_mes: 20, convertidos_mes: 5, receita_mes: 899.9, tempo_medio_1o_contato_min: 4.5 }], error: null };
+  window.__rpcRespostas.leads_atividade_equipe = { data: [{ dono_id: 'u-zz', nome: 'Zzkcon Teste', tem_telefonia: true, ultima_ligacao: null, lig_hoje: 0, ultima_obs: null, obs_hoje: 0 }], error: null };
+  window.__rpcRespostas.leads_kanban3 = { data: [{ aba: 'OUTUBRO', lead_id: 'h9', nome: 'Zz Venda', dono_id: 'u-zz', categoria: 'convertido', livre: false, receita: 10, pego_em: new Date().toISOString(), classificado_em: new Date().toISOString() },
+    { aba: 'OUTUBRO', lead_id: 'h8', nome: 'Zz Aberto', dono_id: 'u-zz', categoria: 'andamento', livre: false, ligacoes: 1, pego_em: new Date().toISOString() },
+    { aba: 'OUTUBRO', lead_id: 'h7', nome: 'Zz Aberto 2', dono_id: 'u-zz', categoria: 'andamento', livre: false, ligacoes: 1, pego_em: new Date().toISOString() },
+    { aba: 'OUTUBRO', lead_id: 'h6', nome: 'Zz Aberto 3', dono_id: 'u-zz', categoria: 'andamento', livre: false, ligacoes: 1, pego_em: new Date().toISOString() }], error: null };
   await kbAplicarPermissao();
   await kbCarregar();
   await espera(80);   // Equipe carrega em segundo plano
   assert(document.getElementById('kbEquipe').style.display !== 'none', 'gestor abre na aba Equipe');
   const linhaEq = document.querySelector('#kbEquipe tr[data-kb-dono="u-zz"]');
-  assert(linhaEq && linhaEq.classList.contains('kbSem-vermelho') && linhaEq.textContent.includes('25%'), 'Equipe: semáforo e conversão');
+  assert(linhaEq && linhaEq.querySelector('.kbSemaforo') && linhaEq.textContent.includes('25%'), 'Equipe: semáforo e conversão');
   linhaEq.click();
   await espera(60);
   assert(kbEstado.aba === 'quadro' && kbEstado.dono === 'u-zz', 'clicar no consultor abre o Quadro filtrado');

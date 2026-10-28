@@ -193,6 +193,51 @@ try{
   kbRenderHoje();
   assert(!document.querySelector('#kbHoje [data-kb-pegar-proximo]'), 'quem não pega não vê o botão de pegar');
   kbEstado.podePegar = true;
+  // ==== Task 6 ====
+  eq(kbAtividade(null, null, SP('2026-10-28T12:59:00')), { cor: 'cinza', min: null }, 'antes das 13h: fora do expediente (Review Focus 3)');
+  eq(kbAtividade(null, null, SP('2026-10-28T21:00:00')), { cor: 'cinza', min: null }, '21:00: fora do expediente');
+  eq(kbAtividade(null, null, SP('2026-10-31T15:00:00')), { cor: 'cinza', min: null }, 'sábado: fora do expediente');
+  eq(kbAtividade('2026-10-27T20:50:00-03:00', null, SP('2026-10-28T13:10:00')), { cor: 'verde', min: 10 }, '13:10 conta a partir das 13:00, não de ontem');
+  eq(kbAtividade('2026-10-28T14:00:00-03:00', '2026-10-28T14:20:00-03:00', SP('2026-10-28T14:49:00')), { cor: 'verde', min: 29 }, 'vale a ação mais recente (OBS)');
+  eq(kbAtividade('2026-10-28T14:00:00-03:00', null, SP('2026-10-28T14:30:00')), { cor: 'amarelo', min: 30 }, '30 min: amarelo');
+  eq(kbAtividade('2026-10-28T14:00:00-03:00', null, SP('2026-10-28T15:00:00')), { cor: 'vermelho', min: 60 }, '60 min: vermelho');
+  const ag6 = SP('2026-10-28T15:00:00');
+  eq(kbAtividadeTexto({ tem_telefonia: true, ultima_ligacao: '2026-10-28T14:48:00-03:00', lig_hoje: 34, ultima_obs: null, obs_hoje: 0 }, ag6),
+     { lig: 'ligou há 12 min · 34 hoje', obs: 'nenhuma OBS recente · 0 hoje' }, 'texto da atividade');
+  eq(kbAtividadeTexto({ tem_telefonia: false, ultima_ligacao: null, lig_hoje: 0, ultima_obs: '2026-10-28T14:20:00-03:00', obs_hoje: 9 }, ag6),
+     { lig: 'sem usuário de telefonia', obs: 'OBS há 40 min · 9 hoje' }, 'sem usuário de telefonia (Review Focus 4)');
+  const L6 = [
+    { aba: 'O', lead_id: 'p1', nome: 'Zz P1', dono_id: 'u-zz', categoria: 'sem_contato', livre: false, ligacoes: 0, pego_em: '2026-10-28T09:00:00-03:00' },
+    { aba: 'O', lead_id: 'p2', nome: 'Zz P2', dono_id: 'u-zz', categoria: 'andamento', livre: false, ligacoes: 1, ultima_ligacao: '2026-10-20T10:00:00-03:00', pego_em: '2026-10-15T09:00:00-03:00' },
+    { aba: 'O', lead_id: 'p3', nome: 'Zz P3', dono_id: 'u-zz', categoria: 'convertido', livre: false, receita: 100, pego_em: '2026-10-02T09:00:00-03:00', classificado_em: '2026-10-05T10:00:00-03:00' },
+    { aba: 'O', lead_id: 'p4', nome: 'Zz P4', dono_id: 'u-zz', categoria: 'perdido', livre: false, pego_em: '2026-09-25T09:00:00-03:00', classificado_em: '2026-10-03T10:00:00-03:00' },
+    { aba: 'O', lead_id: 'q1', nome: 'Zz Q1', dono_id: 'u-yy', categoria: 'andamento', livre: false, ligacoes: 1, ultima_ligacao: '2026-10-28T10:00:00-03:00', pego_em: '2026-10-28T09:00:00-03:00' },
+    { aba: 'O', lead_id: 'l9', nome: 'Zz Livre', categoria: 'sem_contato', livre: true },
+  ];
+  const A6 = [{ tipo: 'retorno_vencido', aba: 'O', lead_id: 'p2', nome: 'Zz P2', dono_id: 'u-zz', dono_nome: 'Zzkcon Teste', desde: '2026-10-28T10:00:00-03:00' }];
+  eq(kbContagemEquipe(L6, A6, ag6)['u-zz'], { sem_contato: 1, andamento: 1, parados3: 1, retornos_atrasados: 1, convertidos: 1, receita: 100, pegos_mes: 3 }, 'contagens por consultor');
+  eq(kbContagemEquipe(L6, A6, ag6)['u-yy'].parados3, 0, 'quem ligou hoje não está parado');
+  // tela do gestor
+  currentUser = { id: 'u-sup', nome: 'Zzksup Teste', role: 'supervisor', operacao: 'apex' };
+  window.__rpcRespostas.leads_kanban3 = { data: L6, error: null };
+  window.__rpcRespostas.leads_alertas = { data: A6, error: null };
+  window.__rpcRespostas.leads_atividade_equipe = { data: [
+    { dono_id: 'u-zz', nome: 'Zzkcon Teste', tem_telefonia: true, ultima_ligacao: new Date(Date.now() - 5 * 60000).toISOString(), lig_hoje: 34, ultima_obs: null, obs_hoje: 0 },
+    { dono_id: 'u-yy', nome: 'Zzyy Teste', tem_telefonia: false, ultima_ligacao: null, lig_hoje: 0, ultima_obs: null, obs_hoje: 0 },
+  ], error: null };
+  await kbAplicarPermissao();
+  kbEstado.aba = null;
+  await kbCarregar();
+  await espera(100);
+  const eqEl = document.getElementById('kbEquipe');
+  assert(eqEl.style.display !== 'none' && eqEl.querySelector('tr[data-kb-dono="u-zz"]') && eqEl.querySelector('tr[data-kb-dono="u-yy"]'), 'Equipe lista os consultores da atividade');
+  assert(eqEl.textContent.includes('34 hoje') && eqEl.textContent.includes('sem usuário de telefonia'), 'Equipe mostra a atividade');
+  assert(eqEl.querySelector('tr[data-kb-dono="u-zz"] .kbSemaforo'), 'bolinha do semáforo na linha');
+  assert(eqEl.textContent.includes('Ligações chegam do ProContact de hora em hora'), 'rodapé avisa do atraso das ligações');
+  eqEl.querySelector('[data-kb-eq="u-zz|parados3"]').click();
+  await espera(20);
+  assert(document.querySelector('#kbEquipe .kbCartaoLista') && document.getElementById('kbEquipe').textContent.includes('Zz P2'), 'número abre a lista do consultor naquela etapa');
+  assert(kbEstado.aba === 'equipe', 'clicar no número não troca de aba');
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
