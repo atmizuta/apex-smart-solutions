@@ -3923,5 +3923,6 @@ Pedido do Rafael depois da §120 ("assim do jeito que está está ótimo"):
   - Lead pego e sem status fica em **"Meus novos"**, como antes: pegar = arrastar dos Livres para "Meus novos".
   - O relógio de atrasado e a mensagem de primeiro contato do WhatsApp voltam a ser só de "Meus novos".
   - Em 28/10 eram 22 leads em andamento sem ligação: Giovanna 8, Caio 4, Lucas 3, Manuella 3, Luria 2, Gabriel 1, Bianca 1.
+  - Publicado em 28/10, 13:45, com ok do Rafael: painel MD5 `7d2d83c9…` (o do ar era `63393bca…`), backup `~/deploy_backups/painel_clientes_apex_20261028_134500_antes_semlig_andamento.html`.
 - **Publicação do telefone e das cores (27/10, 22:18, ok do Rafael):** painel MD5 `63393bca…` (o do ar era `ce4f7810…`), backup `~/deploy_backups/painel_clientes_apex_20261027_221851_antes_cores_procontact.html`.
 - **Publicação (27/10, 20:32, ok do Rafael):** painel MD5 `ce4f7810…` (o do ar era `fa6c0cef…`, a correção das 20:08), backup `~/deploy_backups/painel_clientes_apex_20261027_203220_antes_sem_ligacao.html`.
