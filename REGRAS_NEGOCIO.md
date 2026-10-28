@@ -3980,3 +3980,10 @@ O Rafael corrigiu: "Sem resposta" tinha que ser uma **coluna do Quadro (kanban)*
 - Atalho "Sem resposta" no topo do Quadro; o Quadro passou a ter 7 colunas.
 - **Banco:** migration `20261028170000_leads_kanban3_semresp.sql`: o Quadro (`leads_kanban3` com `p_todos = false`) passa a trazer esses dois status também de meses anteriores. Check em `supabase/tests/leads_painel_hoje_check.sql`.
 - **Publicação (28/10, 16:38, ok do Rafael):** migration `20261028170000` aplicada antes; painel MD5 `8e4060e5…` (o do ar era `0c8061f8…`, a §124), backup `~/deploy_backups/painel_clientes_apex_20261028_163843_antes_semresp_coluna.html`.
+
+## 125. Meus leads: ordem por chegada nas colunas e cartão parado ao classificar (28/10/2026)
+
+Pedido do Rafael (com print da coluna Em andamento):
+- **Ordem por coluna:** "Em andamento", "Sem resposta" e "Convertido" ganham no cabeçalho um botão que alterna **"↑ Mais antigo"** e **"↓ Mais novo"**. A ordem é pela **chegada do lead** (o "há N dias" do rodapé do cartão). Padrão: mais antigo primeiro. A escolha fica guardada no navegador.
+- **Cartão parado ao classificar:** antes, "Em andamento" ordenava pela data de retorno e "Convertido" pela data da classificação, então reclassificar fazia o cartão pular. Agora a chegada não muda, e o cartão fica no mesmo lugar. A rolagem de cada coluna também é mantida quando o Quadro atualiza. Só muda de lugar o lead que troca de coluna (por exemplo, de Em andamento para Sem resposta).
+- As outras colunas (Livres, Sem ligação, Meus novos, Perdido) continuam com a ordem de antes. Sem mudança no banco. Testes em `test_leads_painel_hoje.js`.

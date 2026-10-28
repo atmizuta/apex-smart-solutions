@@ -135,10 +135,11 @@ try{
   eq(Object.keys(kbEstado.filtros).length, 0, 'Limpar zera os filtros');
   window.localStorage.setItem('kbFiltros', '{"cidade":"Santos"}');
   eq(kbLerFiltros(), { cidade: 'Santos' }, 'lê os filtros guardados');
+  const lsReal = window.localStorage;
   Object.defineProperty(window, 'localStorage', { get(){ throw new Error('bloqueado'); }, configurable: true });
   eq(kbLerFiltros(), {}, 'localStorage bloqueado não quebra (Review Focus 5)');
   kbSalvarFiltros();
-  delete window.localStorage;   // volta para o localStorage do jsdom (getter do protótipo)
+  Object.defineProperty(window, 'localStorage', { value: lsReal, configurable: true, writable: true });   // devolve o localStorage do jsdom
   kbEstado.filtros = {};
   kbTrocarAba('hoje');
   assert(document.getElementById('kbFiltroBarra').style.display === 'none', 'barra some fora do Quadro/Todos');
@@ -375,6 +376,30 @@ try{
   red.querySelector('[data-kb-red=""]').click();
   assert(document.getElementById('kbRedNovo').value === '' && red.querySelector('[data-kb-red=""]').classList.contains('ativo') && !red.querySelector('[data-kb-red="u-c"]').classList.contains('ativo'), 'escolher Livres troca a seleção');
   fecharOverlay(red);
+  // ==== Ordem por chegada nas colunas + cartão parado ao classificar (pedido 28/10) ====
+  const OD = (id, dias, extra) => Object.assign({ aba: 'OUTUBRO', lead_id: id, nome: 'Zz ' + id, categoria: 'andamento', status: 'EM NEGOCIAÇÂO', livre: false, ligacoes: 1,
+    criado_em_lead: new Date(Date.now() - dias * 86400000).toISOString() }, extra || {});
+  const LO = [OD('o2', 2, { retorno_em: '2026-11-01' }), OD('o9', 9), OD('o5', 5, { retorno_em: '2026-10-29' })];
+  eq(kbMontar(LO, { andamento: 'antigo' }).andamento.map(l => l.lead_id), ['o9', 'o5', 'o2'], 'Em andamento: mais antigo primeiro (pela chegada)');
+  eq(kbMontar(LO, { andamento: 'novo' }).andamento.map(l => l.lead_id), ['o2', 'o5', 'o9'], 'Em andamento: mais novo primeiro');
+  const LO2 = LO.map(l => l.lead_id === 'o5' ? Object.assign({}, l, { status: 'AGENDADO RETORNO', retorno_em: '2026-12-30', classificado_em: new Date().toISOString() }) : l);
+  eq(kbMontar(LO2, { andamento: 'antigo' }).andamento.map(l => l.lead_id), ['o9', 'o5', 'o2'], 'reclassificar não muda a posição do cartão');
+  const LC = [OD('c1', 3, { categoria: 'convertido' }), OD('c2', 8, { categoria: 'convertido', classificado_em: new Date().toISOString() })];
+  eq(kbMontar(LC, { convertido: 'antigo' }).convertido.map(l => l.lead_id), ['c2', 'c1'], 'Convertido também ordena pela chegada');
+  // tela: botão no cabeçalho das 3 colunas, alterna e guarda
+  currentUser = { id: 'u-pode', nome: 'Zzpode Teste', role: 'consultor' };
+  kbEstado.filtros = {};
+  kbEstado.leads = LO;
+  kbTrocarAba('quadro');
+  kbRender();
+  eq([...document.querySelectorAll('#kbBoard [data-kb-ordem]')].map(b => b.dataset.kbOrdem), ['andamento', 'semresp', 'convertido'], 'botão de ordem só em Em andamento, Sem resposta e Convertido');
+  const bOrd = document.querySelector('#kbBoard [data-kb-ordem="andamento"]');
+  const antesOrd = kbEstado.ordens.andamento;
+  bOrd.click();
+  assert(kbEstado.ordens.andamento !== antesOrd, 'clicar troca a ordem');
+  eq([...document.querySelectorAll('#kbBoard .kbCol[data-kb-col="andamento"] .kbCard')].map(c => c.dataset.id), kbEstado.ordens.andamento === 'novo' ? ['o2', 'o5', 'o9'] : ['o9', 'o5', 'o2'], 'coluna redesenha na ordem escolhida');
+  assert(document.querySelector('#kbBoard [data-kb-ordem="andamento"]').textContent.includes(kbEstado.ordens.andamento === 'novo' ? 'Mais novo' : 'Mais antigo'), 'rótulo do botão acompanha');
+  assert(String(window.localStorage.getItem('kbOrdens')).includes('"andamento"'), 'ordem guardada no navegador');
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');

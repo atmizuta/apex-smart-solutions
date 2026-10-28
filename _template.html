@@ -810,6 +810,8 @@
   .kbCol[data-kb-col="convertido"]{--kb-cor:var(--st-ganho);}
   .kbCol[data-kb-col="perdido"]{--kb-cor:var(--st-perdido);}
   .kbColTopo{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-3);}
+  .kbOrdem{margin-left:auto;margin-right:var(--space-2);padding:2px 6px;border:0;background:none;font:inherit;font-size:var(--fs-xs);font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;}
+  .kbOrdem:hover{color:var(--c-grafite);}
   .kbColTopo h4{margin:0;font-family:var(--font-head);font-size:var(--fs-md);font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--c-grafite);}
   .kbConta{min-width:26px;padding:2px 8px;border-radius:999px;background:var(--kb-cor);color:var(--c-branco);font-size:var(--fs-xs);font-weight:700;text-align:center;}
   .kbBoard.kbArrastando .kbCol{opacity:.45;}
@@ -3247,7 +3249,18 @@ function kbColunaDoLead(l){
   return 'novos';
 }
 function kbMs(v){ const t = v ? Date.parse(v) : NaN; return isNaN(t) ? null : t; }
-function kbMontar(leads){
+// Pedido 28/10: Em andamento, Sem resposta e Convertido ordenam pela CHEGADA do lead (o "há N dias" do cartão), do mais antigo
+// ao mais novo ou ao contrário. A chegada não muda ao classificar, então o cartão fica parado no lugar.
+const KB_COL_ORDEM = ['andamento', 'semresp', 'convertido'];
+function kbPorChegada(ordem){
+  return (a, b) => { const d = ((kbMs(a.criado_em_lead) || 0) - (kbMs(b.criado_em_lead) || 0)) || String(a.lead_id).localeCompare(String(b.lead_id)); return ordem === 'novo' ? -d : d; };
+}
+function kbLerOrdens(){
+  const pad = { andamento: 'antigo', semresp: 'antigo', convertido: 'antigo' };
+  try { const v = JSON.parse(window.localStorage.getItem('kbOrdens') || '{}'); return Object.assign(pad, v && typeof v === 'object' ? v : {}); } catch(_e) { return pad; }
+}
+function kbSalvarOrdens(){ try { window.localStorage.setItem('kbOrdens', JSON.stringify(kbEstado.ordens || {})); } catch(_e) {} }
+function kbMontar(leads, ordens){
   const c = { livres: [], semlig: [], novos: [], andamento: [], semresp: [], convertido: [], perdido: [] };
   (leads || []).forEach(l => c[kbColunaDoLead(l)].push(l));
   const desc = (a, b) => (kbMs(b.classificado_em || b.criado_em_lead) || 0) - (kbMs(a.classificado_em || a.criado_em_lead) || 0);
@@ -3258,6 +3271,7 @@ function kbMontar(leads){
   c.semresp.sort((a, b) => (kbUltimaAcao(a) || 0) - (kbUltimaAcao(b) || 0));   // mais tempo sem contato primeiro
   c.convertido.sort(desc);
   c.perdido.sort(desc);
+  if(ordens) KB_COL_ORDEM.forEach(col => c[col].sort(kbPorChegada(ordens[col])));
   return c;
 }
 function kbDivergencia(l){
@@ -3677,14 +3691,15 @@ function kbListaHtml(col, todos, agoraMs){
 }
 function kbGarantirColunas(board){
   if(board.querySelector('.kbColLista')) return;
-  board.innerHTML = KB_COLUNAS.map(col => `<div class="kbCol" data-kb-col="${col}"><div class="kbColTopo"><h4>${KB_TITULOS[col]}</h4><span class="kbConta">0</span></div><div class="kbColLista"></div></div>`).join('');
+  board.innerHTML = KB_COLUNAS.map(col => `<div class="kbCol" data-kb-col="${col}"><div class="kbColTopo"><h4>${KB_TITULOS[col]}</h4>${KB_COL_ORDEM.includes(col) ? `<button type="button" class="kbOrdem" data-kb-ordem="${col}" title="Ordem pela chegada do lead"></button>` : ''}<span class="kbConta">0</span></div><div class="kbColLista"></div></div>`).join('');
   kbEstado.colHtml = {};
 }
 function kbRender(){
   const agoraMs = Date.now();
   let leads = kbEstado.leads;
   if(kbEstado.soDivergencias) leads = leads.filter(l => kbDivergencia(l));
-  const c = kbMontar(kbFiltrar(leads, kbEstado.filtros, agoraMs));
+  kbEstado.ordens = kbEstado.ordens || kbLerOrdens();
+  const c = kbMontar(kbFiltrar(leads, kbEstado.filtros, agoraMs), kbEstado.ordens);
   const board = document.getElementById('kbBoard');
   kbGarantirColunas(board);
   kbEstado.colHtml = kbEstado.colHtml || {};
@@ -3694,7 +3709,9 @@ function kbRender(){
     el.querySelector('.kbConta').textContent = c[col].length;
     el.classList.toggle('kbFechada', col === 'perdido' && !kbEstado.perdidoAberto);
     const html = kbListaHtml(col, c[col], agoraMs);
-    if(kbEstado.colHtml[col] !== html){ el.querySelector('.kbColLista').innerHTML = html; kbEstado.colHtml[col] = html; }
+    const ob = el.querySelector('[data-kb-ordem]');
+    if(ob) ob.textContent = kbEstado.ordens[col] === 'novo' ? '↓ Mais novo' : '↑ Mais antigo';
+    if(kbEstado.colHtml[col] !== html){ const lista = el.querySelector('.kbColLista'), topo = lista.scrollTop; lista.innerHTML = html; lista.scrollTop = topo; kbEstado.colHtml[col] = html; }   // rolagem fica onde estava
     const nav = document.querySelector(`#kbNavQuadro [data-kb-ir="${col}"] b`);
     if(nav) nav.textContent = c[col].length;
     if(nav && nav.parentElement) nav.parentElement.style.display = col === 'livres' && !kbVeLivres() ? 'none' : '';
@@ -3890,6 +3907,8 @@ function kbParar(){
   try { alAtualizarTitulo(agAgora()); } catch(_e) {}
 }
 document.getElementById('kbBoard').addEventListener('click', (e) => {
+  const ord = e.target.closest('[data-kb-ordem]');
+  if(ord){ const col = ord.dataset.kbOrdem; kbEstado.ordens[col] = kbEstado.ordens[col] === 'novo' ? 'antigo' : 'novo'; kbSalvarOrdens(); kbRender(); return; }
   const card = e.target.closest('.kbCard');
   const vm = e.target.closest('[data-kb-vermais]');
   if(vm){ const col = vm.dataset.kbVermais; if(col === 'livres') kbEstado.verTodosLivres = true; else { kbEstado.limites = kbEstado.limites || {}; kbEstado.limites[col] = ((kbEstado.limites[col]) || KB_POR_COLUNA) + KB_POR_COLUNA; } kbRender(); return; }
