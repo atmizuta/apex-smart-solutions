@@ -946,6 +946,9 @@
   .kbFicha.flutuante{position:static;transform:none;width:auto;height:100vh;box-shadow:none;}
   .kbFicha.noPainel{position:static;transform:none;width:auto;height:100%;min-height:0;box-shadow:none;z-index:auto;transition:none;}
   .kbFicha[hidden]{display:none;}
+  .kbFicha.flutuante.noPainel{height:100vh;}
+  .kbFicha.flutuante [data-kb-ficha-fechar]{display:inline-flex;}
+  .kbFicha.flutuante [data-kb-ficha-flutuar]{display:none;}
   .kbFichaCorpo{display:flex;flex-direction:column;min-height:0;height:100%;}
   .kbFichaRolagem{flex:1;min-height:0;overflow-y:auto;padding:var(--space-4) var(--space-6) var(--space-3);}
   .kbFichaBarra{display:flex;align-items:center;gap:4px;margin-bottom:var(--space-2);}
@@ -1046,7 +1049,7 @@
   .kbMetaN{font-size:20px;color:var(--ml-ink-3);}
   .kbMedidor{display:block;height:6px;margin-top:8px;border-radius:999px;background:var(--ml-surface-3);overflow:hidden;}
   .kbMedidor i{display:block;height:100%;background:var(--ml-ink);border-radius:999px;}
-  .kbHojeArea{display:grid;grid-template-columns:380px minmax(0,1fr);background:var(--ml-surface);border-radius:var(--radius-lg);overflow:hidden;height:var(--kb-hoje-altura,calc(100vh - 300px));min-height:600px;}
+  .kbHojeArea{display:grid;grid-template-columns:380px minmax(0,1fr);background:var(--ml-surface);border-radius:var(--radius-lg);overflow:hidden;height:var(--kb-hoje-altura,calc(100vh - 300px));min-height:400px;}
   .kbFilaLado{display:flex;flex-direction:column;min-height:0;background:var(--ml-surface-2);box-shadow:inset -1px 0 0 var(--ml-surface-3);}
   .kbFilaAbas{margin:var(--space-3) var(--space-3) var(--space-1);align-self:flex-start;}
   .kbFilaLista{flex:1;min-height:0;overflow-y:auto;padding:var(--space-1) 10px var(--space-3);}
@@ -3716,14 +3719,16 @@ function kbClassificarHtml(f, opcoes, op){
       `<button type="button" class="kbStatusChip kbSt${x.status === atual ? ' ativo' : ''}" data-st="${escapeHtml(kbStSlug(x.status))}" data-kb-status="${escapeHtml(x.status)}">${escapeHtml(kbStTexto(x.status))}</button>`).join('')}</div></div>` : '';
   }).join('');
   const atalhos = kbAtalhosRetorno(o.agoraMs || Date.now()).map(a => `<button type="button" class="kbAtalho" data-kb-ret-data="${a.data}" data-kb-ret-hora="${a.hora}">${a.rotulo}</button>`).join('');
-  const retData = f.retorno_em ? String(f.retorno_em).slice(0, 10) : '';
+  const tRet = o.retorno ? kbMs(o.retorno.quando) : null, pRet = tRet !== null ? kbPartesSP(tRet) : null;
+  const retData = f.retorno_em ? String(f.retorno_em).slice(0, 10) : (pRet ? pRet.dia : '');
+  const retHora = pRet && pRet.dia === retData ? pRet.hora : '10:00';   // revisão final: salvar só a OBS não muda a hora do retorno
   const receita = f.receita ? String(f.receita).replace('.', ',') : (f.receita_neo ? String(f.receita_neo).replace('.', ',') : '');
   return `<div class="kbClass" id="kbClassForm">${select}
     <p class="kbComoFoi">Como foi?</p>
     <div class="kbClassGrupos" id="kbClassGrupos">${grupos}</div>
     <div class="kbClassBloco" id="kbClassRetornoBox" style="display:${atual === 'AGENDADO RETORNO' ? '' : 'none'}"><span class="kbClassRotulo">Quando ligar de novo?</span>
       <div class="kbAtalhos">${atalhos}</div>
-      <div class="kbRetornoCampos"><label class="field"><span>Data</span><input type="date" id="kbClassRetorno" value="${escapeHtml(retData)}"></label><label class="field"><span>Hora</span><input type="time" id="kbClassHora" value="10:00"></label></div></div>
+      <div class="kbRetornoCampos"><label class="field"><span>Data</span><input type="date" id="kbClassRetorno" value="${escapeHtml(retData)}"></label><label class="field"><span>Hora</span><input type="time" id="kbClassHora" value="${retHora}"></label></div></div>
     <div class="kbClassBloco" id="kbClassVenda" style="display:${grupoAtual === 'convertido' ? '' : 'none'}"><span class="kbClassRotulo">Venda</span>
       <div class="kbVendaCampos"><label class="field"><span>Receita (R$)</span><input type="text" id="kbClassReceita" inputmode="decimal" placeholder="0,00" value="${escapeHtml(receita)}"></label>
       <label class="kbCheck"><input type="checkbox" id="kbClassConverteu"${f.converteu || f.venda_neo ? ' checked' : ''}> Converteu</label></div>
@@ -3777,7 +3782,7 @@ function kbFichaHtml(f, op){
   const corpo = f.livre
     ? `<div class="kbFichaSecao"><h5>Anúncio</h5><div id="kbFichaAnuncio"></div></div>`
     : `<nav class="kbSeg kbFichaAbas" aria-label="Partes da ficha"><button type="button" class="active" data-kb-ficha-aba="classificar">Classificar</button><button type="button" data-kb-ficha-aba="historico">Histórico</button><button type="button" data-kb-ficha-aba="anuncio">Anúncio</button></nav>
-      <div data-kb-ficha-pane="classificar">${kbClassificarHtml(f, o.opcoes || [], { grupo: o.grupo, agoraMs })}<div class="kbFichaUltimos" id="kbFichaUltimos"></div></div>
+      <div data-kb-ficha-pane="classificar">${kbClassificarHtml(f, o.opcoes || [], { grupo: o.grupo, agoraMs, retorno: o.retorno || null })}<div class="kbFichaUltimos" id="kbFichaUltimos"></div></div>
       <div data-kb-ficha-pane="historico" hidden><div id="kbLinhaTempo"></div></div>
       <div data-kb-ficha-pane="anuncio" hidden><div id="kbFichaAnuncio"></div></div>`;
   const rodape = f.livre ? '' : `<div class="kbFichaRodape">${o.naHoje
@@ -3910,7 +3915,7 @@ function kbRender(){
 }
 // Altura do Quadro = o que sobra da tela (a rolagem lateral fica sempre à vista, sem descer a página)
 function kbAjustarAltura(){
-  [['kbBoard', '--kb-altura', 420], ['kbHojeArea', '--kb-hoje-altura', 600]].forEach(([id, varCss, minimo]) => {
+  [['kbBoard', '--kb-altura', 420], ['kbHojeArea', '--kb-hoje-altura', 400]].forEach(([id, varCss, minimo]) => {
     const b = id === 'kbHojeArea' ? document.querySelector('#kbHoje .kbHojeArea') : document.getElementById(id);
     if(!b || b.offsetParent === null || !b.getBoundingClientRect) return;
     const topo = Math.max(0, b.getBoundingClientRect().top);
@@ -3988,6 +3993,8 @@ function kbClassAjustar(){
 function kbClassEscolher(st){
   const sel = kbFichaEl('kbClassStatus');
   if(!sel) return;
+  const f = kbEstado.fichaLead, original = f && f.status && [...sel.options].some(o => o.value === f.status) ? f.status : '';
+  if(sel.value === st && st !== original){ sel.value = original; kbFichaEl('kbClassErro').textContent = ''; kbClassAjustar(); return; }   // clicar de novo desfaz a escolha
   sel.value = st;
   if(st === 'AGENDADO RETORNO' && !kbFichaEl('kbClassRetorno').value){
     const a = kbAtalhosRetorno(Date.now()).find(x => x.rotulo === 'Amanhã 10h');
@@ -4004,6 +4011,11 @@ function kbFichaSuja(){
   const atual = f && f.status && [...sel.options].some(o => o.value === f.status) ? f.status : '';
   return !!obs.value.trim() || sel.value !== atual;
 }
+// Revisão final (I1/I2): antes de trocar, fechar ou reabrir a ficha, se há status escolhido ou OBS digitada sem salvar, pergunta.
+function kbPodeDescartar(){
+  if(!kbEstado.fichaAlvo || !kbFichaSuja()) return true;
+  return window.confirm('Você escolheu um status ou escreveu na OBS e não salvou. Descartar e continuar?');
+}
 function kbFichaTrocarAba(nome){
   const no = kbFichaNo();
   no.querySelectorAll('.kbFichaAbas [data-kb-ficha-aba]').forEach(b => b.classList.toggle('active', b.dataset.kbFichaAba === nome));
@@ -4012,12 +4024,11 @@ function kbFichaTrocarAba(nome){
 function kbFichaMover(d){
   const lista = kbEstado.fichaLista || [], alvo = kbEstado.fichaAlvo;
   if(!alvo || !lista.length) return;
-  if(kbFichaSuja()){ mostrarAviso('Salve ou apague o que digitou antes de trocar de lead.', 'info'); return; }
   const prox = lista[lista.indexOf(alvo.aba + '|' + alvo.id) + d];
-  if(!prox) return;
-  if(typeof kbHojeSelecionar === 'function' && kbEstado.aba === 'hoje' && kbFichaNo().classList.contains('noPainel')){ kbHojeSelecionar(prox); return; }
+  if(!prox || !kbPodeDescartar()) return;
+  if(typeof kbHojeSelecionar === 'function' && kbEstado.aba === 'hoje' && kbFichaNo().classList.contains('noPainel')){ kbHojeSelecionar(prox, { forcar: true }); return; }
   const [aba, id] = prox.split('|');
-  kbAbrirFicha(aba, id);
+  kbAbrirFicha(aba, id, { forcar: true });
 }
 async function kbSalvarClassificacao(opc){
   const alvo = kbEstado.fichaAlvo, el = kbFichaEl;
@@ -4085,6 +4096,11 @@ function kbParar(){
   kbEstado.timer = null; kbEstado.timerAlertas = null;
   kbEstado.aba = null; kbEstado.hoje = null; kbEstado.filaAba = 'fazer'; kbEstado.hojeSel = null; kbEstado.filaHoje = []; kbEstado.notificados = new Set(); kbEstado.alertas = [];
   kbEstado.leadNovoIniciado = false;
+  // revisão final (I3): sair limpa a ficha e a Hoje — o próximo usuário na mesma aba não vê o lead de quem saiu
+  if(kbEstado.fichaJanela) kbFecharFicha(true);
+  kbEstado.fichaAlvo = null; kbEstado.fichaLead = null; kbEstado.fichaLista = null; kbEstado.salvando = false;
+  kbFichaNo().classList.remove('aberta');
+  ['kbFichaCorpo', 'kbFilaLista', 'kbHojeTopo'].forEach(id => { const el = document.getElementById(id); if(el){ el.innerHTML = ''; delete el.dataset.html; } });
   ['kbBadgeHoje', 'kbBadgeEquipe', 'kbBadgeMenu'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = ''; });
   try { alAtualizarTitulo(agAgora()); } catch(_e) {}
 }
@@ -4153,6 +4169,7 @@ function kbFichaNo(){ return kbEstado.fichaNo || (kbEstado.fichaNo = document.ge
 function kbFichaEl(id){ const no = kbFichaNo(); return no ? no.querySelector('#' + id) : null; }
 async function kbAbrirFicha(aba, id, opc){
   const o = opc || {};
+  if(!o.forcar && !kbPodeDescartar()) return;
   kbEstado.fichaAlvo = { aba, id };
   if('lista' in o) kbEstado.fichaLista = o.lista || null;
   if(typeof kbFichaLugar === 'function') kbFichaLugar();
@@ -4177,8 +4194,9 @@ async function kbAbrirFicha(aba, id, opc){
   if(o.grupo){ const g = kbFichaNo().querySelector(`[data-kb-grupo="${o.grupo}"]`); if(g && g.scrollIntoView) g.scrollIntoView({ block: 'center' }); }
   await kbCarregarDetalhes(aba, id);
 }
-function kbFecharFicha(){
-  if(kbEstado.fichaJanela){ try { kbEstado.fichaJanela.close(); } catch(_e) {} kbRecolherFicha(); return; }
+function kbFecharFicha(forcar){
+  if(!forcar && !kbPodeDescartar()) return;
+  if(kbEstado.fichaJanela){ const w = kbEstado.fichaJanela; kbRecolherFicha(); try { w.close(); } catch(_e) {} }
   kbEstado.fichaAlvo = null; kbFichaNo().classList.remove('aberta');
 }
 // Ficha flutuante: a mesma gaveta vai para uma janela por cima das outras (como o Caderno, seção 72)
@@ -4198,21 +4216,24 @@ async function kbFlutuarFicha(){
   d.body.appendChild(d.adoptNode(no));
   kbEstado.fichaJanela = win;
   win.addEventListener('pagehide', kbRecolherFicha, { once: true });
-  if(kbEstado.fichaAlvo) kbAbrirFicha(kbEstado.fichaAlvo.aba, kbEstado.fichaAlvo.id);
+  if(kbEstado.aba === 'hoje') kbRenderHoje();   // revisão final (I1): a ficha vai como está, sem recarregar (o CSS esconde o Flutuar)
 }
+// Fechar a janela flutuante devolve a ficha com o mesmo lead e o que foi digitado (revisão final, I1).
 function kbRecolherFicha(){
   if(!kbEstado.fichaJanela) return;
   const no = kbFichaNo();
-  kbEstado.fichaJanela = null; kbEstado.fichaAlvo = null;
-  no.classList.remove('flutuante', 'aberta');
+  kbEstado.fichaJanela = null;
+  no.classList.remove('flutuante');
   (kbEstado.fichaPai || document.body).appendChild(document.adoptNode(no));
-  kbFichaLugar(); if(kbEstado.aba === 'hoje') kbRenderHoje();
+  kbFichaLugar();
+  no.classList.toggle('aberta', !!kbEstado.fichaAlvo);
+  if(kbEstado.aba === 'hoje') kbRenderHoje();
 }
 async function kbApagarLead(aba, id, motivo){
   const r = await ppSeguro(() => sb.rpc('leads_apagar', { p_aba: aba, p_id: id, p_motivo: motivo || null }));
   if(!r || r.error){ mostrarAviso('Não foi possível apagar: ' + ((r && r.error && r.error.message) || 'tente de novo'), 'erro'); return; }
   mostrarAviso('Lead apagado do painel. A planilha não muda.', 'ok');
-  kbFecharFicha();
+  kbFecharFicha(true);
   agAvisarMudou();
   await kbCarregar();
 }
@@ -4358,7 +4379,7 @@ function kbRenderHoje(){
   const linha = (chave, rot, classe, nome, det) => `<button type="button" class="kbFilaItem${chave === sel ? ' sel' : ''}" data-kb-fila="${escapeHtml(chave)}"><span class="kbFilaHora ${classe}">${escapeHtml(rot)}</span><span class="kbFilaTexto"><b>${escapeHtml(nome || '(sem nome)')}</b><small>${escapeHtml(det)}</small></span></button>`;
   let html = '';
   if(kbEstado.filaAba === 'livres'){
-    html = livres.length ? `<button type="button" class="kbBtn kbBtnP kbFilaPegar" data-kb-pegar-proximo>${KB_ICO.mao}Pegar o próximo livre</button>`
+    html = livres.length ? (kbPodePegar() ? `<button type="button" class="kbBtn kbBtnP kbFilaPegar" data-kb-pegar-proximo>${KB_ICO.mao}Pegar o próximo livre</button>` : '')
         + livres.map(l => linha(l.aba + '|' + l.lead_id, kbTempoDesde(l.criado_em_lead, agoraMs).replace(/^há /, ''), '', l.nome, [l.cidade, l.qtd_linhas ? l.qtd_linhas + ' linhas' : ''].filter(Boolean).join(' · '))).join('')
       : '<p class="kbFilaVazia">Nenhum lead livre agora. Quando chegar um, ele aparece aqui e o painel avisa.</p>';
   } else if(kbEstado.filaAba === 'alertas'){
@@ -4375,12 +4396,14 @@ function kbRenderHoje(){
   }
   const lista = document.getElementById('kbFilaLista');
   if(lista.dataset.html !== html){ const topo = lista.scrollTop; lista.innerHTML = html; lista.dataset.html = html; lista.scrollTop = topo; }
+  kbAjustarAltura();   // revisão final: mede depois do placar desenhado (senão o botão de salvar cai abaixo da dobra)
   kbHojeSincronizar(fila);
 }
 // Sem ficha aberta: na aba Fazer agora abre o primeiro da fila; sem fila, mostra o "Tudo em dia" no lugar da ficha.
 function kbHojeSincronizar(fila){
   if(kbEstado.aba !== 'hoje' || !kbEstado.hoje) return;   // sem os retornos (leads_hoje) a fila está incompleta: não escolhe nada ainda
   const no = kbFichaNo(), vazio = document.getElementById('kbHojeVazio'), slot = document.getElementById('kbHojeFicha');
+  if(kbEstado.fichaJanela){ vazio.hidden = false; vazio.innerHTML = '<div class="kbEmDia"><h3>A ficha está na janela flutuante</h3><p>Feche a janela para ela voltar para cá.</p></div>'; return; }
   if(!kbEstado.fichaAlvo && kbEstado.filaAba === 'fazer' && fila.length && !(kbGestor() && !kbEstado.dono)){ kbHojeSelecionar(fila[0].chave); return; }
   const mostrarVazio = !kbEstado.fichaAlvo;
   vazio.hidden = !mostrarVazio;
@@ -4398,12 +4421,14 @@ function kbHojeVazioHtml(){
     <p>Nenhum retorno vencido e nenhum lead sem ligação.${prox ? ` Seu próximo retorno é ${escapeHtml(ppFmtDia(String(prox.retorno_em).slice(0, 10)))} (${escapeHtml(prox.nome || '')}).` : ''}</p>
     ${livres ? `<button type="button" class="kbBtn kbBtnP kbBtnLg" data-kb-pegar-proximo>${KB_ICO.mao}Pegar o próximo livre (${livres} esperando)</button>` : ''}</div>`;
 }
-function kbHojeSelecionar(chave){
-  if(kbEstado.fichaAlvo && kbEstado.fichaAlvo.aba + '|' + kbEstado.fichaAlvo.id !== chave && kbFichaSuja()){ mostrarAviso('Salve ou apague o que digitou antes de trocar de lead.', 'info'); return; }
+function kbHojeSelecionar(chave, opc){
+  const forcar = !!(opc && opc.forcar), mesmo = !!kbEstado.fichaAlvo && kbEstado.fichaAlvo.aba + '|' + kbEstado.fichaAlvo.id === chave;
+  if(!forcar && !mesmo && !kbPodeDescartar()) return;
   kbEstado.hojeSel = chave;
   document.querySelectorAll('#kbFilaLista [data-kb-fila]').forEach(b => b.classList.toggle('sel', b.dataset.kbFila === chave));
+  if(mesmo && !forcar) return;   // o mesmo lead já está aberto: não redesenha (não perde o que foi digitado)
   const [aba, id] = chave.split('|');
-  kbAbrirFicha(aba, id, { lista: kbEstado.filaAba === 'fazer' ? kbEstado.filaHoje : null });
+  kbAbrirFicha(aba, id, { lista: kbEstado.filaAba === 'fazer' ? kbEstado.filaHoje : null, forcar: true });
 }
 // A ficha é um nó só: na Hoje mora no painel da direita; nas outras abas volta para a casa e abre como gaveta.
 function kbFichaLugar(){
@@ -4423,15 +4448,15 @@ async function kbDepoisDeSalvar(alvo, opc){
   if(naHoje && opc && opc.proximo){
     const prox = kbProximoHoje(antes, chave, kbEstado.filaHoje || []);
     kbEstado.fichaAlvo = null;
-    if(prox){ kbHojeSelecionar(prox); return; }
+    if(prox){ kbHojeSelecionar(prox, { forcar: true }); return; }
     kbEstado.hojeSel = null; kbRenderHoje(); return;
   }
-  await kbAbrirFicha(alvo.aba, alvo.id);
+  await kbAbrirFicha(alvo.aba, alvo.id, { forcar: true });
 }
 async function kbDepoisDePegar(alvo){
   mostrarAviso('Lead pego. Ele já está na sua fila: ligue agora.', 'ok');
   if(kbEstado.aba === 'hoje'){ kbEstado.filaAba = 'fazer'; kbEstado.hojeSel = alvo.aba + '|' + alvo.id; kbRenderHoje(); }
-  await kbAbrirFicha(alvo.aba, alvo.id, { lista: kbEstado.aba === 'hoje' ? kbEstado.filaHoje : null });
+  await kbAbrirFicha(alvo.aba, alvo.id, { lista: kbEstado.aba === 'hoje' ? kbEstado.filaHoje : null, forcar: true });
 }
 document.getElementById('kbHoje').addEventListener('click', (e) => {
   const ab = e.target.closest('[data-kb-fila-aba]');
@@ -4561,7 +4586,7 @@ async function kbCarregarAlertas(notificar){
     kbEstado.notificados.add(a.aba + '|' + a.lead_id);
     const texto = a.tipo === 'lead_novo' ? kbTextoLeadNovo(a, kbEstado.leads) : `${kbAlertaTexto(a)}: ${a.nome || 'lead'}${kbGestor() && a.dono_nome ? ' (' + a.dono_nome + ')' : ''}`;
     mostrarAviso(texto, 'info');
-    if('Notification' in window && Notification.permission === 'granted'){ try { const nt = new Notification('Meus leads', { body: texto, tag: 'lead-' + a.lead_id }); nt.onclick = () => { window.focus(); kbAbrirFicha(a.aba, a.lead_id); }; } catch(_e) {} }
+    if('Notification' in window && Notification.permission === 'granted'){ try { const nt = new Notification('Meus leads', { body: texto, tag: 'lead-' + a.lead_id }); nt.onclick = () => { window.focus(); const bt = document.querySelector('#tabsNav button[data-tab="meusleads"]'); if(bt) bt.click(); kbAbrirFicha(a.aba, a.lead_id); }; } catch(_e) {} }
     if(typeof alBip === 'function') try { alBip(); } catch(_e) {}
   });
   try { alAtualizarTitulo(agAgora()); } catch(_e) {}
@@ -4682,7 +4707,12 @@ async function kbMesaCard(){
     <p class="desc" style="margin:4px 0 0">${x.livres} livre(s)${escapeHtml(antigo)} · planilha: ${x.fila_pendente ? x.fila_pendente + ' na fila' : 'em dia'}</p>
     ${x.aviso ? `<div class="kbAviso">${escapeHtml(x.aviso)}</div>` : ''}</div>`;
 }
-document.getElementById('kbDono').addEventListener('change', (e) => { kbEstado.dono = e.target.value; kbCarregar(); if(kbEhTabela(kbEstado.aba)) kbCarregarTodos(); });
+document.getElementById('kbDono').addEventListener('change', (e) => {
+  if(kbEstado.aba === 'hoje' && !kbPodeDescartar()){ e.target.value = kbEstado.dono || ''; return; }
+  kbEstado.dono = e.target.value;
+  if(kbEstado.aba === 'hoje'){ kbEstado.fichaAlvo = null; kbEstado.hojeSel = null; }   // revisão final: a ficha do consultor anterior não fica aberta
+  kbCarregar(); if(kbEhTabela(kbEstado.aba)) kbCarregarTodos();
+});
 document.getElementById('kbSoDiverg').addEventListener('click', (e) => { kbEstado.soDivergencias = !kbEstado.soDivergencias; e.target.classList.toggle('active', kbEstado.soDivergencias); kbRender(); });
 document.getElementById('kbReescrever').addEventListener('click', async () => {
   const aba = mesAbaAtualKb();

@@ -220,9 +220,11 @@ try{
   await espera(60);
   assert(kbEstado.fichaAlvo.id === 'f4' && document.getElementById('kbFicha').textContent.includes('Zz Segundo'), 'seta para baixo abre o próximo da lista');
   document.getElementById('kbClassObs').value = 'Zz pendente';
+  window.confirm = () => false;   // revisão final: o painel pergunta antes de descartar; 'não' mantém o lead
   document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
   await espera(40);
-  assert(kbEstado.fichaAlvo.id === 'f4', 'com OBS digitada a seta não troca de lead');
+  assert(kbEstado.fichaAlvo.id === 'f4', 'com OBS digitada e resposta não, a seta não troca de lead');
+  window.confirm = () => true;
   document.getElementById('kbClassObs').value = '';
   document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   assert(!document.getElementById('kbFicha').classList.contains('aberta'), 'Esc fecha a gaveta');
@@ -263,9 +265,11 @@ try{
   await espera(60);
   assert(kbEstado.fichaAlvo.id === 'h3' && lista4.querySelector('[data-kb-fila="OUTUBRO|h3"]').classList.contains('sel'), 'clicar na fila abre o lead ao lado');
   document.getElementById('kbClassObs').value = 'Zz digitando';
+  window.confirm = () => false;
   lista4.querySelector('[data-kb-fila="OUTUBRO|h1"]').click();
   await espera(40);
-  assert(kbEstado.fichaAlvo.id === 'h3', 'com OBS digitada, clicar em outro lead não troca');
+  assert(kbEstado.fichaAlvo.id === 'h3', 'com OBS digitada e resposta não, clicar em outro lead não troca');
+  window.confirm = () => true;
   // a recarga de 10 s não apaga o que foi digitado
   const nFicha = window.__rpcCalls.filter(c => c.nome === 'leads_ficha').length;
   await kbCarregar();
@@ -341,6 +345,88 @@ try{
   kbTrocarAba('hoje'); await espera(80);
   assert(document.getElementById('kbFilaLista').textContent.includes('Escolha um consultor'), 'gestor sem consultor escolhido vê o aviso');
   currentUser = { id: 'u-zz', nome: 'Zzkcon Teste', role: 'consultor' };
+  document.getElementById('panel-meusleads').classList.remove('active');
+  // ==== Revisão final: correções ====
+  currentUser = { id: 'u-zz', nome: 'Zzkcon Teste', role: 'consultor' };
+  kbEstado.dono = '';
+  document.getElementById('panel-meusleads').classList.add('active');
+  window.__rpcRespostas.leads_kanban3 = { data: L4, error: null };
+  window.__rpcRespostas.leads_hoje = { data: { fila: [], retornos: R4, livres: 2, placar: {} }, error: null };
+  window.__rpcRespostas.leads_ficha = (a) => ({ data: [Object.assign({ telefone: '11900000041' }, L4.find(l => l.lead_id === a.p_id) || { aba: 'OUTUBRO', lead_id: a.p_id, nome: 'Zz ?', categoria: 'andamento' })], error: null });
+  await kbCarregar();
+  kbTrocarAba('quadro'); kbFecharFicha();
+  // I1: abrir outro lead com algo digitado pergunta antes; "não" mantém tudo
+  await kbAbrirFicha('OUTUBRO', 'h3');
+  document.getElementById('kbClassObs').value = 'Zz nao pode sumir';
+  let perguntas = 0; window.confirm = () => { perguntas++; return false; };
+  await kbAbrirFicha('OUTUBRO', 'h1');
+  assert(perguntas === 1 && kbEstado.fichaAlvo.id === 'h3' && document.getElementById('kbClassObs').value === 'Zz nao pode sumir', 'I1: abrir outro lead com OBS digitada pergunta e, com "não", mantém tudo');
+  window.confirm = () => true;
+  await kbAbrirFicha('OUTUBRO', 'h1');
+  assert(kbEstado.fichaAlvo.id === 'h1', 'I1: com "sim", abre o outro lead');
+  // I1: flutuar leva a ficha como está (sem recarregar); fechar a janela devolve o mesmo lead com o texto
+  document.getElementById('kbClassObs').value = 'Zz anotando';
+  const pipF = document.implementation.createHTMLDocument('pip');
+  const winF = { document: pipF, addEventListener: (ev, fn) => { if(ev === 'pagehide') winF._ph = fn; }, close(){ if(winF._ph) winF._ph(); } };
+  window.documentPictureInPicture = { requestWindow: async () => winF };
+  const nFichaF = window.__rpcCalls.filter(c => c.nome === 'leads_ficha').length;
+  await kbFlutuarFicha(); await espera(40);
+  assert(pipF.getElementById('kbClassObs') && pipF.getElementById('kbClassObs').value === 'Zz anotando' && window.__rpcCalls.filter(c => c.nome === 'leads_ficha').length === nFichaF, 'I1: flutuar leva a ficha como está, sem recarregar');
+  winF.close(); await espera(40);
+  assert(document.getElementById('kbClassObs').value === 'Zz anotando' && kbEstado.fichaAlvo && kbEstado.fichaAlvo.id === 'h1' && document.getElementById('kbFicha').classList.contains('aberta'), 'I1: fechar a janela flutuante devolve a ficha com o lead e o texto');
+  delete window.documentPictureInPicture;
+  // I2: status escolhido por engano se desfaz clicando de novo
+  document.getElementById('kbClassObs').value = '';
+  const fichaN = document.getElementById('kbFicha');
+  fichaN.querySelector('[data-kb-status="EM NEGOCIAÇÂO"]').click();
+  assert(kbFichaSuja(), 'pré: escolher status deixa a ficha alterada');
+  fichaN.querySelector('[data-kb-status="EM NEGOCIAÇÂO"]').click();
+  assert(!kbFichaSuja() && document.getElementById('kbClassStatus').value === '', 'I2: clicar de novo no status escolhido desfaz a escolha');
+  // retorno: a hora do retorno marcado vem preenchida (salvar só a OBS não muda o horário)
+  const hRet = kbClassificarHtml({ status: 'AGENDADO RETORNO', retorno_em: '2026-10-28' }, OPC, { agoraMs: ag1, retorno: { quando: '2026-10-28T15:30:00-03:00', vencido: false } });
+  assert(hRet.includes('id="kbClassHora" value="15:30"') && hRet.includes('id="kbClassRetorno" value="2026-10-28"'), 'retorno: data e hora do retorno marcado vêm preenchidas');
+  assert(kbClassificarHtml({ status: 'EM NEGOCIAÇÂO' }, OPC, { agoraMs: ag1 }).includes('id="kbClassHora" value="10:00"'), 'retorno: sem retorno marcado a hora padrão é 10:00');
+  assert(kbFichaHtml(Object.assign({}, F3, { retorno_em: '2026-10-28' }), { gestor: false, agoraMs: ag1, opcoes: OPC, retorno: { quando: '2026-10-28T15:30:00-03:00', vencido: false } }).includes('id="kbClassHora" value="15:30"'), 'retorno: a ficha repassa o retorno ao Classificar');
+  // I4: clicar na notificação leva para a aba Meus leads
+  window.Notification = function(){ window.__notif = this; }; window.Notification.permission = 'granted';
+  window.__rpcRespostas.leads_alertas = { data: [{ tipo: 'lead_novo', aba: 'OUTUBRO', lead_id: 'h3', nome: 'Zz Notif', desde: iso(0) }], error: null };
+  kbEstado.leadNovoIniciado = true; kbEstado.notificados = new Set(); window.__notif = null;
+  await kbCarregarAlertas(true);
+  document.getElementById('panel-meusleads').classList.remove('active');
+  assert(window.__notif && typeof window.__notif.onclick === 'function', 'pré: notificação criada');
+  window.__notif.onclick(); await espera(120);
+  assert(document.getElementById('panel-meusleads').classList.contains('active'), 'I4: clicar na notificação abre a aba Meus leads');
+  delete window.Notification;
+  window.__rpcRespostas.leads_alertas = { data: [], error: null };
+  // I5: ficha flutuante aberta pela Hoje
+  document.getElementById('panel-meusleads').classList.add('active');
+  kbTrocarAba('hoje'); await espera(120);
+  const pipH = document.implementation.createHTMLDocument('pip');
+  const winH = { document: pipH, addEventListener: (ev, fn) => { if(ev === 'pagehide') winH._ph = fn; }, close(){ if(winH._ph) winH._ph(); } };
+  window.documentPictureInPicture = { requestWindow: async () => winH };
+  await kbFlutuarFicha(); await espera(60);
+  assert(!document.getElementById('kbHojeVazio').hidden && document.getElementById('kbHojeVazio').textContent.includes('janela flutuante'), 'I5: a Hoje avisa que a ficha está na janela flutuante');
+  const cssRF = [...document.querySelectorAll('style')].map(s => s.textContent).join('\\n');
+  assert(cssRF.includes('.kbFicha.flutuante.noPainel{height:100vh;}') && cssRF.includes('.kbFicha.flutuante [data-kb-ficha-fechar]{display:inline-flex;}') && cssRF.includes('.kbFicha.flutuante [data-kb-ficha-flutuar]{display:none;}'), 'I5: no PiP a ficha rola por dentro, tem Fechar e não mostra Flutuar');
+  winH.close(); await espera(60);
+  delete window.documentPictureInPicture;
+  // gestor: trocar o consultor no seletor fecha a ficha do anterior; Livres sem "Pegar" para quem não pega
+  currentUser = { id: 'u-sup', nome: 'Zzksup Teste', role: 'supervisor', operacao: 'apex' };
+  const selDono = document.getElementById('kbDono');
+  selDono.innerHTML = '<option value="">Todos</option><option value="u-zz">Zz</option>';
+  selDono.value = 'u-zz'; kbEstado.dono = 'u-zz';
+  await kbAbrirFicha('OUTUBRO', 'h2');
+  selDono.value = ''; selDono.dispatchEvent(new window.Event('change'));
+  assert(!kbEstado.fichaAlvo && !kbEstado.hojeSel, 'gestor: trocar o consultor fecha a ficha do anterior');
+  kbEstado.filaAba = 'livres'; kbRenderHoje();
+  assert(document.querySelector('#kbFilaLista [data-kb-fila]') && !document.querySelector('#kbFilaLista [data-kb-pegar-proximo]'), 'gestor: Livres sem o botão Pegar (ele não pega)');
+  kbEstado.filaAba = 'fazer'; kbEstado.dono = ''; selDono.value = '';
+  currentUser = { id: 'u-zz', nome: 'Zzkcon Teste', role: 'consultor' };
+  // I3: sair zera ficha, fila e placar (outro usuário entra na mesma aba do navegador)
+  kbTrocarAba('hoje'); await espera(120);
+  assert(kbEstado.fichaAlvo, 'pré: Hoje com ficha aberta');
+  kbParar();
+  assert(!kbEstado.fichaAlvo && !kbEstado.fichaLead && !kbEstado.fichaLista && document.getElementById('kbFichaCorpo').innerHTML === '' && document.getElementById('kbFilaLista').innerHTML === '' && document.getElementById('kbHojeTopo').innerHTML === '', 'I3: sair limpa ficha, fila e placar');
   document.getElementById('panel-meusleads').classList.remove('active');
   // ==== mais testes entram aqui ====
 
