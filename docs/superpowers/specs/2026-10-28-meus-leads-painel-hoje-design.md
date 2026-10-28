@@ -36,7 +36,7 @@ Entrega: **tudo numa publicação só**.
 - **Banco:** coluna `leads_equipe.pode_pegar boolean not null default false`; `true` para Luria, Lucas, Caio e Mariana (pelo `profile_id`).
 - `leads_pegar`: depois de achar o membro, se `pode_pegar` for falso → erro `42501` "você não está liberado para pegar leads". Nada mais muda nela.
 - `leads_redistribuir`: **não muda** (o gestor manda para qualquer membro).
-- `leads_hoje` devolve também `pode_pegar` (bool do usuário logado; gestor = `true`).
+- O painel lê `pode_pegar` da própria `leads_equipe` em `kbAplicarPermissao` (já consulta a linha do consultor). Gestor não pega lead (como hoje) e continua vendo a coluna Livres para redistribuir.
 - **Painel**, para quem não pode pegar: some a coluna **Livres** do Quadro, o botão "Pegar o próximo livre", o "Pegar" da ficha e o arrastar para pegar. Os leads que ele já tem seguem iguais.
 
 ### 1. Hoje do consultor (substitui a tela atual)
@@ -72,7 +72,8 @@ Uma linha por membro da `leads_equipe`, colunas:
   - **Minutos parado** = agora − maior entre (última ligação, última OBS, hoje 13:00 SP). Verde < 30, amarelo 30–59, vermelho ≥ 60.
   - Fora do expediente (antes das 13h, depois das 21h, sábado e domingo): bolinha cinza "fora do expediente".
   - Rodapé da tabela: "Ligações chegam do ProContact de hora em hora; a última ligação pode estar até 1 h atrasada."
-- `leads_equipe_resumo` ganha as colunas `andamento`, `parados_3d`, `ultima_ligacao`, `lig_hoje`, `ultima_obs`, `obs_hoje`. A conta do semáforo fica na tela (função pura testável). A tabela continua atualizando junto com os alertas.
+- As contagens por etapa saem dos leads carregados na tela (`leads_kanban3(null, false)`, a equipe toda), pela mesma função dos cartões da Hoje, então os números da Equipe e da Hoje batem. Retornos atrasados vêm dos alertas (`retorno_vencido`), que a Equipe já carrega.
+- Função nova `leads_atividade_equipe()` (só gestor): `dono_id, nome, tem_telefonia, ultima_ligacao, lig_hoje, ultima_obs, obs_hoje`. Ligações pela mesma regra da `mesa_ligacoes_hoje` (usuário de telefonia); quem não tem usuário de telefonia aparece "sem usuário de telefonia" na coluna de ligação. A conta do semáforo fica na tela (função pura testável). A tabela continua atualizando junto com os alertas.
 - As colunas antigas que saem da vista: "Sem contato +15 min", "Perdidos sem ligação", "Pegos no mês", "1º contato" (continuam nos alertas da equipe, abaixo da tabela, que fica como está).
 
 ### 3. Filtros no Quadro (e na aba Todos)
@@ -96,7 +97,8 @@ Nova aba `todos` (consultor e gestor), entre Quadro e Equipe.
 - Tabela: Nome · Etapa · STATUS (chip com a cor) · Último contato · Retorno · Linhas · Cidade · Pego em.
 - Busca (nome, CNPJ, telefone, igual à pesquisa atual), ordenação clicando no cabeçalho, os mesmos filtros da seção 3, **50 por página**.
 - Clique na linha abre a ficha.
-- Consultor: só os dele (já é o que `leads_kanban2` devolve para ele). Gestor: os da equipe, com o seletor de consultor ("Todos" = todos os donos).
+- O Quadro só carrega perdidos/convertidos do mês. A aba Todos chama `leads_kanban3(p_dono, p_todos => true)`, que traz todas as etapas de todos os meses, uma vez ao abrir a aba e de novo a cada 60 s só enquanto ela estiver aberta.
+- Consultor: só os dele. Gestor: os da equipe, com o seletor de consultor ("Todos" = todos os donos).
 - Sem livres e sem apagados.
 
 ### 5a. Aviso de lead novo (só quem pode pegar)
@@ -104,7 +106,7 @@ Nova aba `todos` (consultor e gestor), entre Quadro e Equipe.
 - `leads_alertas` ganha o tipo **`lead_novo`**: lead livre (`dono_id is null`, `categoria = 'sem_contato'`, não apagado) criado há menos de 2 h, só para quem tem `pode_pegar` (o gestor não recebe).
 - `kbAlertasParaNotificar` passa a incluir `lead_novo`. Texto: "Lead novo: <nome> · <linhas> linhas". Som (`alBip`) + aviso + notificação do Windows; clique abre a ficha.
 - Ao abrir o painel, os leads novos que já estavam lá **não** apitam de uma vez: o primeiro carregamento só marca como vistos.
-- **Título da aba do navegador** ganha o número de livres: "(3) Painel…".
+- **Título da aba do navegador** ganha o número de leads novos: "[3 novos] Painel…". A Agenda já usa "(n)" para os retornos; os dois convivem ("[3 novos] (1) Painel…") por uma função única que monta o título.
 - Tempo de chegada do aviso: até 10 s com o painel à vista, até 2 min minimizado/em outra aba. Com o painel fechado não chega (era a 5b, fora deste escopo).
 - O lead some do alerta assim que alguém pega.
 
@@ -115,11 +117,8 @@ O "Copiar" da linha Telefone da ficha copia o número normalizado, pela mesma re
 ## Banco (resumo das mudanças)
 
 Uma migration por bloco, aplicada com `execute_sql` em `begin/commit` (sem `drop`), com check em `supabase/tests/`:
-1. `leads_equipe.pode_pegar` + marcar os 4 + `leads_pegar` com a trava.
-2. `leads_hoje` + `pode_pegar` e `placar`.
-3. `leads_alertas` + tipo `lead_novo`.
-4. `leads_equipe_resumo` + colunas novas. A troca do tipo de retorno exige recriar a função: fazer com nome novo `leads_equipe_resumo2` para não precisar de `drop` (o conector falha com `drop`), e o painel passa a chamar a nova.
-5. `leads_kanban2` + `campanha`, `formulario`: mesmo cuidado, `leads_kanban3`.
+1. `20261028100000_leads_pode_pegar.sql`: `leads_equipe.pode_pegar` + marcar os 4 + `leads_pegar` com a trava + `leads_hoje` com `placar` + `leads_alertas` com `lead_novo`.
+2. `20261028100100_leads_kanban3_atividade.sql`: `leads_kanban3(p_dono, p_todos)` (= `leads_kanban2` + `campanha`, `formulario` e o modo todos; nome novo porque mudar o retorno exige `drop`, que o conector não aceita) + `leads_atividade_equipe()`.
 
 Funções antigas ficam no banco até a publicação estar estável (o painel do ar ainda chama as antigas durante a troca).
 
