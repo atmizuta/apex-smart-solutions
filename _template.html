@@ -3338,9 +3338,9 @@ function kbLinhaTempoHtml(eventos, limite){
   return `<ul class="kbLinhaTempo">${itens}</ul>${mais}`;
 }
 function kbBuscaValida(t){ return String(t || '').trim().length >= 3; }
-const KB_ALERTA_TEXTO = { sem_contato: 'Pego e sem contato', retorno_vencido: 'Retorno vencido', parado: 'Parado em andamento', perda_suspeita: 'Perdido sem nenhuma ligação' };
+const KB_ALERTA_TEXTO = { sem_contato: 'Pego e sem contato', retorno_vencido: 'Retorno vencido', parado: 'Parado em andamento', perda_suspeita: 'Perdido sem nenhuma ligação', lead_novo: 'Lead novo' };
 function kbAlertaTexto(a){ return KB_ALERTA_TEXTO[a.tipo] || a.tipo; }
-function kbAlertasParaNotificar(alertas, ja){ return (alertas || []).filter(a => a.tipo === 'sem_contato' && !ja.has(a.aba + '|' + a.lead_id)); }
+function kbAlertasParaNotificar(alertas, ja){ return (alertas || []).filter(a => (a.tipo === 'sem_contato' || a.tipo === 'lead_novo') && !ja.has(a.aba + '|' + a.lead_id)); }
 // Alertas em segundo plano (revisão final): aba fechada ou janela escondida/minimizada — o laço de 10 s só roda com a aba à vista.
 function kbAlertaDeFundo(ativa, visivel){ return !ativa || !visivel; }
 function kbQuandoSP(dataIso, hora){ return `${dataIso}T${/^\d{2}:\d{2}$/.test(hora || '') ? hora : '10:00'}:00-03:00`; }
@@ -3508,6 +3508,12 @@ function kbBuscaLocal(l, texto){
   const dig = t.replace(/\D/g, '');
   return dig.length >= 3 && (String(l.telefone || '').replace(/\D/g, '').includes(dig) || String(l.cnpj || '').replace(/\D/g, '').includes(dig));
 }
+function kbTextoLeadNovo(a, leads){
+  const l = (leads || []).find(x => x.aba === a.aba && x.lead_id === a.lead_id);
+  return `Lead novo: ${a.nome || 'lead'}${l && l.qtd_linhas ? ' · ' + l.qtd_linhas + ' linhas' : ''}`;
+}
+// Título da aba do navegador: "[3 novos] " antes do "(n)" dos retornos da Agenda (alAtualizarTitulo monta os dois).
+function kbPrefixoTitulo(){ const n = (kbEstado.alertas || []).filter(a => a.tipo === 'lead_novo').length; return n ? `[${n} novo${n === 1 ? '' : 's'}] ` : ''; }
 function kbAtrasado(l, agoraMs){
   if(kbColunaDoLead(l) !== 'novos' || l.primeiro_clique || l.primeira_ligacao) return false;
   const t = kbMs(l.criado_em_lead);
@@ -3870,7 +3876,9 @@ function kbParar(){
   clearInterval(kbEstado.timer); clearInterval(kbEstado.timerAlertas);
   kbEstado.timer = null; kbEstado.timerAlertas = null;
   kbEstado.aba = null; kbEstado.hoje = null; kbEstado.excecoes = {}; kbEstado.notificados = new Set(); kbEstado.alertas = [];
+  kbEstado.leadNovoIniciado = false;
   ['kbBadgeHoje', 'kbBadgeEquipe', 'kbBadgeMenu'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = ''; });
+  try { alAtualizarTitulo(agAgora()); } catch(_e) {}
 }
 document.getElementById('kbBoard').addEventListener('click', (e) => {
   const card = e.target.closest('.kbCard');
@@ -4187,13 +4195,17 @@ async function kbCarregarAlertas(notificar){
   if(!bm){ bm = document.createElement('span'); bm.id = 'kbBadgeMenu'; bm.className = 'kbBadge'; document.getElementById('tabBtnMeusLeads').appendChild(bm); }
   bm.textContent = n ? String(n) : '';
   if(kbEstado.aba === 'equipe' && document.getElementById('kbEquipe').innerHTML) kbRenderEquipe();
+  // §122: no primeiro carregamento os leads novos que já estavam lá ficam como vistos (não apita tudo de uma vez)
+  if(!kbEstado.leadNovoIniciado){ kbEstado.alertas.filter(a => a.tipo === 'lead_novo').forEach(a => kbEstado.notificados.add(a.aba + '|' + a.lead_id)); kbEstado.leadNovoIniciado = true; }
   if(notificar) kbAlertasParaNotificar(kbEstado.alertas, kbEstado.notificados).forEach(a => {
     kbEstado.notificados.add(a.aba + '|' + a.lead_id);
-    const texto = `${kbAlertaTexto(a)}: ${a.nome || 'lead'}${kbGestor() && a.dono_nome ? ' (' + a.dono_nome + ')' : ''}`;
+    const texto = a.tipo === 'lead_novo' ? kbTextoLeadNovo(a, kbEstado.leads) : `${kbAlertaTexto(a)}: ${a.nome || 'lead'}${kbGestor() && a.dono_nome ? ' (' + a.dono_nome + ')' : ''}`;
     mostrarAviso(texto, 'info');
     if('Notification' in window && Notification.permission === 'granted'){ try { const nt = new Notification('Meus leads', { body: texto, tag: 'lead-' + a.lead_id }); nt.onclick = () => { window.focus(); kbAbrirFicha(a.aba, a.lead_id); }; } catch(_e) {} }
     if(typeof alBip === 'function') try { alBip(); } catch(_e) {}
   });
+  try { alAtualizarTitulo(agAgora()); } catch(_e) {}
+
   if(kbEstado.aba === 'hoje' && document.getElementById('kbHoje').innerHTML) kbRenderHoje();
 }
 async function kbCarregarDetalhes(aba, id){
@@ -17146,9 +17158,9 @@ function alNotificar(r){
   alBip();
 }
 function alAtualizarTitulo(agora){
-  if(!alEstado.tituloBase) alEstado.tituloBase = document.title.replace(/^\(\d+\)\s*/, '');
-  const n = alEstado.proximos.filter(r => r.status === 'pendente' && new Date(r.quando).getTime() - AL_ANTES_MS <= agora).length;
-  document.title = (n ? '(' + n + ') ' : '') + alEstado.tituloBase;
+  if(!alEstado.tituloBase) alEstado.tituloBase = document.title.replace(/^(\[\d+ novos?\]\s*)?(\(\d+\)\s*)?/, '');
+  const n = (alEstado.proximos || []).filter(r => r.status === 'pendente' && new Date(r.quando).getTime() - AL_ANTES_MS <= agora).length;
+  document.title = (typeof kbPrefixoTitulo === 'function' ? kbPrefixoTitulo() : '') + (n ? '(' + n + ') ' : '') + alEstado.tituloBase;
 }
 function alVerificar(){
   if(!currentUser) return;

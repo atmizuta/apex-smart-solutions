@@ -282,6 +282,31 @@ try{
   assert(window.__rpcCalls.some(c => c.nome === 'leads_ficha'), 'clicar na linha abre a ficha');
   kbFecharFicha();
   kbEstado.filtros = {};
+  // ==== Task 8 ====
+  eq(kbAlertaTexto({ tipo: 'lead_novo' }), 'Lead novo', 'texto do alerta lead_novo');
+  const al8 = [{ tipo: 'lead_novo', aba: 'O', lead_id: 'n1' }, { tipo: 'parado', aba: 'O', lead_id: 'p1' }, { tipo: 'sem_contato', aba: 'O', lead_id: 's1' }];
+  eq(kbAlertasParaNotificar(al8, new Set()).map(a => a.lead_id), ['n1', 's1'], 'notifica lead_novo e sem_contato');
+  eq(kbTextoLeadNovo({ nome: 'Zz Padaria' }, [{ aba: 'O', lead_id: 'n1', qtd_linhas: '6 a 10' }]), 'Lead novo: Zz Padaria', 'texto sem linhas quando não acha o lead');
+  eq(kbTextoLeadNovo({ aba: 'O', lead_id: 'n1', nome: 'Zz Padaria' }, [{ aba: 'O', lead_id: 'n1', qtd_linhas: '6 a 10' }]), 'Lead novo: Zz Padaria · 6 a 10 linhas', 'texto com as linhas');
+  // primeiro carregamento não apita; o lead que chega depois apita uma vez; título ganha o contador
+  currentUser = { id: 'u-pode', nome: 'Zzpode Teste', role: 'consultor' };
+  kbParar();
+  const bips = []; const bipOrig = alBip; alBip = () => bips.push(1);
+  const antes8 = (window.__alertas || []).length;
+  window.__rpcRespostas.leads_alertas = { data: Array.from({ length: 10 }, (_, i) => ({ tipo: 'lead_novo', aba: 'O', lead_id: 'v' + i, nome: 'Zz Velho ' + i, desde: new Date().toISOString() })), error: null };
+  await kbCarregarAlertas(true);
+  eq(bips.length, 0, 'primeiro carregamento com 10 leads novos não apita (Review Focus 2)');
+  assert(/^\\[10 novos\\] /.test(document.title), 'título com o contador de leads novos: ' + document.title);
+  window.__rpcRespostas.leads_alertas = { data: [{ tipo: 'lead_novo', aba: 'O', lead_id: 'v0', nome: 'Zz Velho 0', desde: new Date().toISOString() }, { tipo: 'lead_novo', aba: 'O', lead_id: 'z1', nome: 'Zz Chegou Agora', desde: new Date().toISOString() }], error: null };
+  await kbCarregarAlertas(true);
+  await kbCarregarAlertas(true);
+  eq(bips.length, 1, 'lead que chegou depois apita uma vez');
+  assert((window.__alertas || []).slice(antes8).some(m => m.includes('Lead novo: Zz Chegou Agora')), 'aviso com o nome do lead');
+  assert(/^\\[2 novos\\] /.test(document.title), 'título atualiza para 2');
+  window.__rpcRespostas.leads_alertas = { data: [], error: null };
+  await kbCarregarAlertas(true);
+  assert(!/^\\[/.test(document.title), 'sem lead novo, título volta ao normal');
+  alBip = bipOrig;
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
