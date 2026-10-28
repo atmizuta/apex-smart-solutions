@@ -96,6 +96,52 @@ try{
   assert(kbCard({ aba: 'O', lead_id: 'l1', nome: 'Zz Livre', livre: true, categoria: 'sem_contato' }, Date.now()).includes('data-kb-pegar'), 'cartão livre com Pegar');
   const fichaPode = kbFichaHtml({ aba: 'O', lead_id: 'l1', nome: 'Zz Livre', livre: true, categoria: 'sem_contato' }, { gestor: false, agoraMs: Date.now(), podePegar: true });
   assert(fichaPode.includes('data-kb-ficha-pegar'), 'ficha de livre com Pegar para quem pode');
+  // ==== Task 4 ====
+  const ag4 = SP('2026-10-28T15:00:00');   // quarta
+  const L4 = [
+    { aba: 'OUTUBRO', lead_id: 'a', nome: 'Zz A', categoria: 'andamento', livre: false, ligacoes: 0, pego_em: '2026-10-28T10:00:00-03:00', retorno_em: '2026-10-27', cidade: 'Campinas', qtd_linhas: '1 a 5', tipo_empresa: 'MEI', campanha: 'Zz C1', formulario: 'Zz F1' },
+    { aba: 'OUTUBRO', lead_id: 'b', nome: 'Zz B', categoria: 'andamento', livre: false, ligacoes: 2, ultima_ligacao: '2026-10-25T10:00:00-03:00', retorno_em: '2026-10-28', cidade: 'Santos', qtd_linhas: '6 a 10', tipo_empresa: 'LTDA', campanha: 'Zz C2', formulario: 'Zz F1' },
+    { aba: 'SETEMBRO', lead_id: 'c', nome: 'Zz C', categoria: 'sem_contato', livre: false, ligacoes: 1, ultima_ligacao: '2026-10-20T10:00:00-03:00', retorno_em: '2026-11-01', cidade: 'Campinas', qtd_linhas: '1 a 5', tipo_empresa: 'MEI', campanha: 'Zz C1', formulario: 'Zz F2' },
+    { aba: 'OUTUBRO', lead_id: 'l', nome: 'Zz Livre', categoria: 'sem_contato', livre: true, ligacoes: 0, cidade: 'Campinas', qtd_linhas: '1 a 5', campanha: 'Zz C1', formulario: 'Zz F1' },
+  ];
+  const ids = (ls) => ls.map(l => l.lead_id).join(',');
+  eq(ids(kbFiltrar(L4, { parado: 'hoje' }, ag4)), 'a,l', 'parado hoje (livre não é filtrado por parado)');
+  eq(ids(kbFiltrar(L4, { parado: '3-4' }, ag4)), 'b,l', 'parado 3–4 dias');
+  eq(ids(kbFiltrar(L4, { parado: '5+' }, ag4)), 'c,l', 'parado 5+ dias');
+  eq(ids(kbFiltrar(L4, { ligacao: 'nunca' }, ag4)), 'a,l', 'nunca ligado');
+  eq(ids(kbFiltrar(L4, { retorno: 'atrasado' }, ag4)), 'a,l', 'retorno atrasado');
+  eq(ids(kbFiltrar(L4, { retorno: 'hoje' }, ag4)), 'b,l', 'retorno hoje');
+  eq(ids(kbFiltrar(L4, { retorno: 'semana' }, ag4)), 'b,c,l', 'retorno esta semana (hoje até domingo 01/11)');
+  eq(ids(kbFiltrar(L4, { cidade: 'Campinas', linhas: '1 a 5' }, ag4)), 'a,c,l', 'filtros se somam');
+  eq(ids(kbFiltrar(L4, { cidade: 'Campinas', mes: 'OUTUBRO', campanha: 'Zz C1', formulario: 'Zz F1', tipo: 'MEI' }, ag4)), 'a', 'origem, mês e tipo');
+  eq(kbOpcoesFiltro(L4, 'parado', {}, ag4).map(o => o.valor + ':' + o.n).join(' '), 'hoje:1 1-2:0 3-4:1 5+:1', 'contagem por opção (sem livres)');
+  eq(kbOpcoesFiltro(L4, 'cidade', { linhas: '6 a 10' }, ag4).map(o => o.valor + ':' + o.n).join(' '), 'Santos:1', 'contagem respeita os outros filtros');
+  eq(kbFiltrar(L4, { parado: '1-2' }, ag4).filter(l => !l.livre).length, 0, 'filtro que zera (Review Focus 5)');
+  // tela: barra aparece no Quadro, filtra as colunas, Limpar volta, guarda no navegador
+  kbEstado.leads = L4.map(l => Object.assign({}, l, { criado_em_lead: '2026-10-20T10:00:00-03:00' }));
+  kbTrocarAba('quadro');
+  kbRender();
+  const barra = document.getElementById('kbFiltroBarra');
+  assert(barra.style.display !== 'none' && barra.querySelector('[data-kb-filtro="parado"][data-valor="5+"]'), 'barra de filtros no Quadro');
+  barra.querySelector('[data-kb-filtro="parado"][data-valor="5+"]').click();
+  eq(kbEstado.filtros.parado, '5+', 'clicar no botão liga o filtro');
+  eq(document.querySelector('#kbBoard .kbCol[data-kb-col="novos"] .kbConta').textContent, '1', 'coluna filtrada');
+  eq(document.querySelector('#kbBoard .kbCol[data-kb-col="andamento"] .kbConta').textContent, '0', 'coluna zerada mostra 0');
+  const cidadeSel = barra.querySelector('select[data-kb-filtro="cidade"]');
+  cidadeSel.value = 'Campinas'; cidadeSel.dispatchEvent(new window.Event('change', { bubbles: true }));
+  eq(kbEstado.filtros.cidade, 'Campinas', 'select liga o filtro');
+  assert(String(window.localStorage.getItem('kbFiltros')).includes('Campinas'), 'filtros guardados no navegador');
+  barra.querySelector('[data-kb-filtro-limpar]').click();
+  eq(Object.keys(kbEstado.filtros).length, 0, 'Limpar zera os filtros');
+  window.localStorage.setItem('kbFiltros', '{"cidade":"Santos"}');
+  eq(kbLerFiltros(), { cidade: 'Santos' }, 'lê os filtros guardados');
+  Object.defineProperty(window, 'localStorage', { get(){ throw new Error('bloqueado'); }, configurable: true });
+  eq(kbLerFiltros(), {}, 'localStorage bloqueado não quebra (Review Focus 5)');
+  kbSalvarFiltros();
+  delete window.localStorage;   // volta para o localStorage do jsdom (getter do protótipo)
+  kbEstado.filtros = {};
+  kbTrocarAba('hoje');
+  assert(document.getElementById('kbFiltroBarra').style.display === 'none', 'barra some fora do Quadro/Todos');
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');

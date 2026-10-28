@@ -949,6 +949,12 @@
     .kbColLista{max-height:70vh;}
     .kbCol[data-kb-col="livres"]{position:sticky;left:0;z-index:1;}
   }
+  /* §122: filtros do Quadro e da aba Todos */
+  .kbFiltroBarra{display:flex;flex-wrap:wrap;gap:var(--space-3);align-items:flex-end;margin-bottom:var(--space-3);}
+  .kbFiltroGrupo{display:flex;flex-wrap:wrap;gap:var(--space-1);align-items:center;}
+  .kbFiltroGrupo .kbMeta{margin-right:var(--space-1);}
+  .kbFiltroCampo{margin:0;min-width:150px;}
+  .kbFiltroBarra .filterPill b{margin-left:4px;font-weight:700;}
 </style>
 </head>
 <body>
@@ -1595,6 +1601,7 @@
       </div>
       <div id="kbHoje" class="kbHoje" style="display:none"></div>
       <div id="kbEquipe" class="kbEquipe" style="display:none"></div>
+      <div id="kbFiltroBarra" class="kbFiltroBarra card" style="display:none"></div>
       <div class="kbNavQuadro" id="kbNavQuadro" style="display:none">
         <button type="button" class="kbSeta" data-kb-seta="-1" aria-label="Colunas à esquerda">‹</button>
         <div class="kbNavCols">
@@ -3325,6 +3332,59 @@ function kbTelCopiar(v){ return String(v || '').replace(/\D/g, '').replace(/^55(
 function kbUltimaAcao(l){ const t = [l.ultima_ligacao, l.classificado_em, l.pego_em].map(kbMs).filter(x => x !== null); return t.length ? Math.max(...t) : null; }
 function kbDiasParado(l, agoraMs){ const u = kbUltimaAcao(l); return u === null ? null : kbDiasEntre(kbDiaSP(u), kbDiaSP(agoraMs)); }
 function kbAbertoCol(col){ return col === 'novos' || col === 'semlig' || col === 'andamento'; }
+function kbRetornoNaFaixa(l, v, agoraMs){
+  if(!l.retorno_em) return false;
+  const r = String(l.retorno_em).slice(0, 10), hoje = kbDiaSP(agoraMs);
+  if(v === 'atrasado') return r < hoje;
+  if(v === 'hoje') return r === hoje;
+  if(v === 'semana') return r >= hoje && r <= kbSomaDias(hoje, (7 - kbPartesSP(agoraMs).dow) % 7);   // até domingo
+  return false;
+}
+function kbFaixaParado(l, agoraMs){ const d = kbDiasParado(l, agoraMs); return d === null ? null : d <= 0 ? 'hoje' : d <= 2 ? '1-2' : d <= 4 ? '3-4' : '5+'; }
+// Grupos fixos têm opções; os dinâmicos montam as opções a partir dos leads carregados. Parado/ligação/retorno não se aplicam a Livres.
+const KB_FILTROS = {
+  parado: { rotulo: 'Parado há', opcoes: [['hoje', 'Hoje'], ['1-2', '1–2 dias'], ['3-4', '3–4 dias'], ['5+', '5+ dias']], testa: (l, v, ag) => kbFaixaParado(l, ag) === v, soDono: true },
+  ligacao: { rotulo: 'Ligação', opcoes: [['nunca', 'Nunca ligado']], testa: (l) => Number(l.ligacoes || 0) === 0, soDono: true },
+  retorno: { rotulo: 'Retorno', opcoes: [['atrasado', 'Atrasado'], ['hoje', 'Hoje'], ['semana', 'Esta semana']], testa: kbRetornoNaFaixa, soDono: true },
+  linhas: { rotulo: 'Linhas', campo: l => l.qtd_linhas },
+  tipo: { rotulo: 'Tipo de empresa', campo: l => l.tipo_empresa },
+  cidade: { rotulo: 'Cidade', campo: l => l.cidade },
+  campanha: { rotulo: 'Campanha', campo: l => l.campanha },
+  formulario: { rotulo: 'Formulário', campo: l => l.formulario },
+  mes: { rotulo: 'Mês', campo: l => l.aba },
+};
+function kbPassaFiltros(l, filtros, agoraMs, ignorar){
+  return Object.keys(filtros || {}).every(g => {
+    const def = KB_FILTROS[g], v = filtros[g];
+    if(g === ignorar || !def || !v) return true;
+    if(def.soDono) return l.livre ? true : def.testa(l, v, agoraMs);
+    return String(def.campo(l) || '').trim() === v;
+  });
+}
+function kbFiltrar(leads, filtros, agoraMs){ return (leads || []).filter(l => kbPassaFiltros(l, filtros, agoraMs)); }
+function kbOpcoesFiltro(leads, grupo, filtros, agoraMs){
+  const def = KB_FILTROS[grupo];
+  const base = (leads || []).filter(l => kbPassaFiltros(l, filtros, agoraMs, grupo) && !(def.soDono && l.livre));
+  if(def.soDono) return def.opcoes.map(([v, r]) => ({ valor: v, rotulo: r, n: base.filter(l => def.testa(l, v, agoraMs)).length }));
+  const m = new Map();
+  base.forEach(l => { const v = String(def.campo(l) || '').trim(); if(v) m.set(v, (m.get(v) || 0) + 1); });
+  return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([v, n]) => ({ valor: v, rotulo: v, n }));
+}
+function kbFiltroBarraHtml(leads, filtros, agoraMs){
+  const f = filtros || {};
+  const grupos = Object.keys(KB_FILTROS).map(g => {
+    const def = KB_FILTROS[g], ops = kbOpcoesFiltro(leads, g, f, agoraMs);
+    if(def.soDono) return `<div class="kbFiltroGrupo"><span class="kbMeta">${def.rotulo}</span>${ops.map(o =>
+      `<button type="button" class="filterPill${f[g] === o.valor ? ' active' : ''}" data-kb-filtro="${g}" data-valor="${escapeHtml(o.valor)}">${escapeHtml(o.rotulo)} <b>${o.n}</b></button>`).join('')}</div>`;
+    if(!ops.length && !f[g]) return '';
+    return `<label class="field kbFiltroCampo"><span>${def.rotulo}</span><select data-kb-filtro="${g}"><option value="">Todos</option>${ops.map(o =>
+      `<option value="${escapeHtml(o.valor)}"${f[g] === o.valor ? ' selected' : ''}>${escapeHtml(o.rotulo)} (${o.n})</option>`).join('')}</select></label>`;
+  }).join('');
+  const ativos = Object.keys(f).filter(g => f[g]).length;
+  return grupos + (ativos ? `<button type="button" class="btn btn-sm btn-outline" data-kb-filtro-limpar>Limpar filtros (${ativos})</button>` : '');
+}
+function kbLerFiltros(){ try { const v = JSON.parse(window.localStorage.getItem('kbFiltros') || '{}'); return v && typeof v === 'object' ? v : {}; } catch(_e) { return {}; } }
+function kbSalvarFiltros(){ try { window.localStorage.setItem('kbFiltros', JSON.stringify(kbEstado.filtros || {})); } catch(_e) {} }
 function kbAtrasado(l, agoraMs){
   if(kbColunaDoLead(l) !== 'novos' || l.primeiro_clique || l.primeira_ligacao) return false;
   const t = kbMs(l.criado_em_lead);
@@ -3486,7 +3546,7 @@ function kbRender(){
   const agoraMs = Date.now();
   let leads = kbEstado.leads;
   if(kbEstado.soDivergencias) leads = leads.filter(l => kbDivergencia(l));
-  const c = kbMontar(leads);
+  const c = kbMontar(kbFiltrar(leads, kbEstado.filtros, agoraMs));
   const board = document.getElementById('kbBoard');
   kbGarantirColunas(board);
   kbEstado.colHtml = kbEstado.colHtml || {};
@@ -3505,6 +3565,7 @@ function kbRender(){
   const rm = kbResumoMes(leads), equipe = kbGestor() && !kbEstado.dono;
   document.getElementById('kbResumo').innerHTML = `<span><strong>${escapeHtml(kbMoeda(rm.receita) || 'R$ 0,00')}</strong>em ${rm.vendas} venda${rm.vendas === 1 ? '' : 's'} no mês${equipe ? ' (equipe)' : ''}</span><span><strong>${rm.abertos}</strong>lead${rm.abertos === 1 ? '' : 's'} em aberto</span>`;
   if(kbGestor()) ppSeguro(() => sb.from('config').select('valor').eq('chave', 'leads_espelho_aviso').maybeSingle()).then(r => { const a = r && r.data ? String(r.data.valor || '') : ''; const el = document.getElementById('kbAviso'); el.style.display = a ? '' : 'none'; el.textContent = a; });
+  if(kbEstado.aba === 'quadro') kbRenderFiltroBarra();
 }
 // Altura do Quadro = o que sobra da tela (a rolagem lateral fica sempre à vista, sem descer a página)
 function kbAjustarAltura(){
@@ -3823,6 +3884,7 @@ document.getElementById('kbClassSalvar').addEventListener('click', kbSalvarClass
 document.getElementById('kbClassCancelar').addEventListener('click', () => fecharOverlay(document.getElementById('kbClassOverlay')));
 // ===== §118: abas, Hoje, Equipe, pesquisa, detalhes da ficha, alertas =====
 kbEstado.aba = null; kbEstado.excecoes = {}; kbEstado.notificados = new Set(); kbEstado.alertas = []; kbEstado.hoje = null; kbEstado.equipe = [];
+kbEstado.filtros = kbLerFiltros();
 function kbTrocarAba(aba){
   const abas = kbAbasDoPerfil(kbGestor());
   kbEstado.aba = abas.includes(aba) ? aba : kbAbaPadrao(kbGestor());
@@ -3833,11 +3895,39 @@ function kbTrocarAba(aba){
   document.getElementById('kbHoje').style.display = kbEstado.aba === 'hoje' ? '' : 'none';
   document.getElementById('kbBoard').style.display = kbEstado.aba === 'quadro' ? '' : 'none';
   document.getElementById('kbNavQuadro').style.display = kbEstado.aba === 'quadro' ? '' : 'none';
+  document.getElementById('kbFiltroBarra').style.display = kbEstado.aba === 'quadro' || kbEstado.aba === 'todos' ? '' : 'none';
+  if(kbEstado.aba === 'quadro' || kbEstado.aba === 'todos') kbRenderFiltroBarra();
   if(kbEstado.aba === 'quadro') kbAjustarAltura();
   document.getElementById('kbEquipe').style.display = kbEstado.aba === 'equipe' ? '' : 'none';
   if(kbEstado.aba === 'hoje') kbCarregarHoje();
   if(kbEstado.aba === 'equipe') kbCarregarEquipe();
 }
+function kbFonteFiltros(){ return kbEstado.aba === 'todos' ? (kbEstado.todos || []) : kbEstado.leads; }
+function kbRenderFiltroBarra(){
+  const el = document.getElementById('kbFiltroBarra');
+  const html = kbFiltroBarraHtml(kbFonteFiltros(), kbEstado.filtros, Date.now());
+  if(el.dataset.html !== html){ el.innerHTML = html; el.dataset.html = html; }
+}
+function kbAoMudarFiltros(){
+  kbSalvarFiltros();
+  if(kbEstado.aba === 'todos'){ (kbEstado.todosEstado || {}).pagina = 1; if(typeof kbRenderTodos === 'function') kbRenderTodos(); }
+  else kbRender();
+  kbRenderFiltroBarra();
+}
+document.getElementById('kbFiltroBarra').addEventListener('click', (e) => {
+  if(e.target.closest('[data-kb-filtro-limpar]')){ kbEstado.filtros = {}; kbAoMudarFiltros(); return; }
+  const b = e.target.closest('button[data-kb-filtro]');
+  if(!b) return;
+  const g = b.dataset.kbFiltro, v = b.dataset.valor;
+  if(kbEstado.filtros[g] === v) delete kbEstado.filtros[g]; else kbEstado.filtros[g] = v;
+  kbAoMudarFiltros();
+});
+document.getElementById('kbFiltroBarra').addEventListener('change', (e) => {
+  const s = e.target.closest('select[data-kb-filtro]');
+  if(!s) return;
+  if(s.value) kbEstado.filtros[s.dataset.kbFiltro] = s.value; else delete kbEstado.filtros[s.dataset.kbFiltro];
+  kbAoMudarFiltros();
+});
 async function kbCarregarHoje(){
   const r = await ppSeguro(() => sb.rpc('leads_hoje', { p_dono: kbGestor() && kbEstado.dono ? kbEstado.dono : null }));
   kbEstado.hoje = r && !r.error ? r.data : null;
