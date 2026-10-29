@@ -53,7 +53,7 @@
 `supabase/functions/verificar-cnpj/verificar.test.ts`:
 
 ```ts
-// Testa a lógica da Edge Function verificar-cnpj (REGRAS §127). Roda com: node --test verificar.test.ts
+// Testa a lógica da Edge Function verificar-cnpj (REGRAS §128). Roda com: node --test verificar.test.ts
 // DADOS FICTÍCIOS (repo público).
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -214,7 +214,7 @@ Expected: FAIL — `Cannot find module ... verificar.ts`
 `supabase/functions/verificar-cnpj/verificar.ts`:
 
 ```ts
-// Edge Function verificar-cnpj (REGRAS_NEGOCIO.md §127) — lógica pura, dependências injetadas.
+// Edge Function verificar-cnpj (REGRAS_NEGOCIO.md §128) — lógica pura, dependências injetadas.
 // Spec: docs/superpowers/specs/2026-10-29-verificar-cnpj-design.md.
 // Log: só status, fonte e situação — nunca CNPJ, razão social, aba ou lead (repo e logs públicos).
 export type Situacao = "ATIVA" | "BAIXADA" | "INAPTA" | "SUSPENSA" | "NULA" | "NAO_ENCONTRADO";
@@ -324,7 +324,7 @@ Expected: PASS — `ℹ pass 13`, `ℹ fail 0`
 
 ```bash
 git add supabase/functions/verificar-cnpj/verificar.ts supabase/functions/verificar-cnpj/verificar.test.ts
-git commit -m "feat(verificar-cnpj): logica da consulta na Receita com reserva, cache e permissao (secao 127)
+git commit -m "feat(verificar-cnpj): logica da consulta na Receita com reserva, cache e permissao (secao 128)
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 ```
@@ -346,7 +346,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 `supabase/migrations/20261029120000_cnpj_consultas.sql`:
 
 ```sql
--- §127: última consulta da situação cadastral de cada CNPJ na Receita (Edge Function verificar-cnpj).
+-- §128: última consulta da situação cadastral de cada CNPJ na Receita (Edge Function verificar-cnpj).
 -- Spec: docs/superpowers/specs/2026-10-29-verificar-cnpj-design.md. Só a Edge Function grava (service role); quem está logado lê.
 -- Sem DROP; não mexe em tabela existente.
 create table if not exists public.cnpj_consultas (
@@ -373,7 +373,7 @@ grant select on public.cnpj_consultas to authenticated;
 `supabase/functions/verificar-cnpj/index.ts`:
 
 ```ts
-// Edge Function: verificar-cnpj (REGRAS_NEGOCIO.md §127) — situação do CNPJ do lead na Receita, só quando alguém clica.
+// Edge Function: verificar-cnpj (REGRAS_NEGOCIO.md §128) — situação do CNPJ do lead na Receita, só quando alguém clica.
 // Spec: docs/superpowers/specs/2026-10-29-verificar-cnpj-design.md. Publicar com verify_jwt = true.
 // Recebe { aba, lead_id }; nunca o CNPJ. Log: só status, fonte e situação.
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -454,7 +454,7 @@ Expected: grep sem saída; `ℹ fail 0`
 
 ```bash
 git add supabase/functions/verificar-cnpj/index.ts supabase/migrations/20261029120000_cnpj_consultas.sql
-git commit -m "feat(verificar-cnpj): endpoint da Edge Function e tabela cnpj_consultas (secao 127)
+git commit -m "feat(verificar-cnpj): endpoint da Edge Function e tabela cnpj_consultas (secao 128)
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 ```
@@ -489,7 +489,7 @@ Expected: `Junção criada para node_modules <<===>> ..\..\node_modules` (ao rem
 `test_verificar_cnpj.js`:
 
 ```js
-// Testa o §127 (verificar CNPJ na Receita pela ficha do lead). Spec: docs/superpowers/specs/2026-10-29-verificar-cnpj-design.md.
+// Testa o §128 (verificar CNPJ na Receita pela ficha do lead). Spec: docs/superpowers/specs/2026-10-29-verificar-cnpj-design.md.
 // DADOS FICTÍCIOS (repo público).
 const fs = require('fs');
 const { JSDOM } = require('jsdom');
@@ -629,7 +629,7 @@ with:
 Right after the closing `}` of `kbFichaHtml` (before `const kbEstado = {`), add:
 
 ```js
-// §127: situação do CNPJ do lead na Receita, só quando alguém clica (Edge Function verificar-cnpj; resultado em cnpj_consultas).
+// §128: situação do CNPJ do lead na Receita, só quando alguém clica (Edge Function verificar-cnpj; resultado em cnpj_consultas).
 // Spec: docs/superpowers/specs/2026-10-29-verificar-cnpj-design.md.
 const KB_CNPJ_COLUNAS = ['novos', 'semlig', 'andamento', 'semresp'];
 const KB_CNPJ_SELO = {
@@ -680,7 +680,7 @@ Expected: `--- RESULTADO: N passaram, 0 falharam ---` nos dois.
 
 ```bash
 git add _template.html test_verificar_cnpj.js
-git commit -m "feat(meus-leads): selo e aviso do CNPJ na Receita na ficha (funcoes puras) (secao 127)
+git commit -m "feat(meus-leads): selo e aviso do CNPJ na Receita na ficha (funcoes puras) (secao 128)
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 ```
@@ -825,7 +825,7 @@ with:
 
 ```js
   if(sel) sel.addEventListener('change', kbClassAjustar);
-  kbCnpjCarregar(aba, id);   // §127: sem await — não atrasa o resumo e o histórico
+  kbCnpjCarregar(aba, id);   // §128: sem await — não atrasa o resumo e o histórico
 ```
 
 In the `kbFichaNo().addEventListener('click', …)` handler, right after the line that starts with `  if(cp){ try {` (copiar), add:
@@ -849,17 +849,17 @@ Expected: `0 falharam` nos dois.
 
 ```bash
 git add _template.html test_verificar_cnpj.js
-git commit -m "feat(meus-leads): botao Verificar na Receita na ficha e resultado salvo ao abrir (secao 127)
+git commit -m "feat(meus-leads): botao Verificar na Receita na ficha e resultado salvo ao abrir (secao 128)
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
 
-### Task 5: Verificação, prévia, ida ao ar e REGRAS §127
+### Task 5: Verificação, prévia, ida ao ar e REGRAS §128
 
 **Files:**
-- Modify: `REGRAS_NEGOCIO.md` (seção nova §127 no fim, depois da §126.3; e a linha no histórico de mudanças no mesmo formato das últimas)
+- Modify: `REGRAS_NEGOCIO.md` (seção nova §128 no fim, depois da §126.3; e a linha no histórico de mudanças no mesmo formato das últimas)
 - Generated: `painel_clientes_apex.html` (via `build_painel.py`)
 
 Cada passo de ida ao ar (banco, função, painel, push) **só com ok do Rafael naquele momento**.
@@ -903,13 +903,13 @@ Seguir o procedimento da memória "Publicação do painel": comparar o painel do
 
 Com o Rafael (ou um consultor), abrir um lead em aberto no painel publicado e clicar em "Verificar na Receita". Conferir o selo, a linha em `cnpj_consultas` (`select situacao, fonte, consultado_em from cnpj_consultas order by consultado_em desc limit 1`) e o log da função (`get_logs` edge-function: só status/fonte/situação).
 
-- [ ] **Step 8: REGRAS §127 e push**
+- [ ] **Step 8: REGRAS §128 e push**
 
-Escrever a §127 no `REGRAS_NEGOCIO.md` (o que faz, onde aparece, quem pode, colunas com botão, tabela `cnpj_consultas`, função `verificar-cnpj`, fontes e cache, o que não faz — sem verificação automática nem selo no Quadro —, MD5 publicado e backup) e a linha no histórico. Depois:
+Escrever a §128 no `REGRAS_NEGOCIO.md` (o que faz, onde aparece, quem pode, colunas com botão, tabela `cnpj_consultas`, função `verificar-cnpj`, fontes e cache, o que não faz — sem verificação automática nem selo no Quadro —, MD5 publicado e backup) e a linha no histórico. Depois:
 
 ```bash
 git add REGRAS_NEGOCIO.md
-git commit -m "docs(regras): verificar CNPJ na Receita pela ficha do lead (secao 127)
+git commit -m "docs(regras): verificar CNPJ na Receita pela ficha do lead (secao 128)
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 git fetch oficial && git rebase oficial/main && bash run_tests.sh test_verificar_cnpj.js && git push oficial HEAD:main

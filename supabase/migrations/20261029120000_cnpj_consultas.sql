@@ -1,4 +1,4 @@
--- §127: última consulta da situação cadastral de cada CNPJ na Receita (Edge Function verificar-cnpj).
+-- §128: última consulta da situação cadastral de cada CNPJ na Receita (Edge Function verificar-cnpj).
 -- Spec: docs/superpowers/specs/2026-10-29-verificar-cnpj-design.md. Só a Edge Function grava (service role).
 -- Lê só quem trabalha com leads: admin, supervisor ou quem está na leads_equipe (revisão final 29/10: a lista de CNPJs
 -- verificados mostra o funil de prospecção, que não é público).

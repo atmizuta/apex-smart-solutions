@@ -1,4 +1,4 @@
-// Testa o §127 (verificar CNPJ na Receita pela ficha do lead). Spec: docs/superpowers/specs/2026-10-29-verificar-cnpj-design.md.
+// Testa o §128 (verificar CNPJ na Receita pela ficha do lead). Spec: docs/superpowers/specs/2026-10-29-verificar-cnpj-design.md.
 // DADOS FICTÍCIOS (repo público).
 const fs = require('fs');
 const { JSDOM } = require('jsdom');

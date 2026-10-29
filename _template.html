@@ -4052,7 +4052,7 @@ function kbFichaHtml(f, op){
   return `<div class="kbFichaRolagem">${barra}${apagar}${cab}${contato}<p class="kbFichaResumo" id="kbFichaResumo"></p>${aviso}${obsAnt}${corpo}</div>${rodape}`;
 }
 
-// §127: situação do CNPJ do lead na Receita, só quando alguém clica (Edge Function verificar-cnpj; resultado em cnpj_consultas).
+// §128: situação do CNPJ do lead na Receita, só quando alguém clica (Edge Function verificar-cnpj; resultado em cnpj_consultas).
 // Spec: docs/superpowers/specs/2026-10-29-verificar-cnpj-design.md.
 const KB_CNPJ_COLUNAS = ['novos', 'semlig', 'andamento', 'semresp'];
 const KB_CNPJ_SELO = {
@@ -4526,7 +4526,7 @@ async function kbAbrirFicha(aba, id, opc){
   if(!f) return;
   const sel = kbFichaEl('kbClassStatus');
   if(sel) sel.addEventListener('change', kbClassAjustar);
-  kbCnpjCarregar(aba, id);   // §127: sem await — não atrasa o resumo e o histórico
+  kbCnpjCarregar(aba, id);   // §128: sem await — não atrasa o resumo e o histórico
   if(o.grupo){ const g = kbFichaNo().querySelector(`[data-kb-grupo="${o.grupo}"]`); if(g && g.scrollIntoView) g.scrollIntoView({ block: 'center' }); }
   await kbCarregarDetalhes(aba, id);
 }

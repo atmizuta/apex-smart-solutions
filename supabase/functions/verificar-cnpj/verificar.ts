@@ -1,4 +1,4 @@
-// Edge Function verificar-cnpj (REGRAS_NEGOCIO.md §127) — lógica pura, dependências injetadas.
+// Edge Function verificar-cnpj (REGRAS_NEGOCIO.md §128) — lógica pura, dependências injetadas.
 // Spec: docs/superpowers/specs/2026-10-29-verificar-cnpj-design.md.
 // Log: só status, fonte e situação — nunca CNPJ, razão social, aba ou lead (repo e logs públicos).
 export type Situacao = "ATIVA" | "BAIXADA" | "INAPTA" | "SUSPENSA" | "NULA" | "NAO_ENCONTRADO";

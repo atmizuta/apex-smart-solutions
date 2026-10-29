@@ -1,4 +1,4 @@
-// Edge Function: verificar-cnpj (REGRAS_NEGOCIO.md §127) — situação do CNPJ do lead na Receita, só quando alguém clica.
+// Edge Function: verificar-cnpj (REGRAS_NEGOCIO.md §128) — situação do CNPJ do lead na Receita, só quando alguém clica.
 // Spec: docs/superpowers/specs/2026-10-29-verificar-cnpj-design.md. Publicar com verify_jwt = true.
 // Recebe { aba, lead_id }; nunca o CNPJ. Log: só status, fonte e situação.
 import { createClient } from "npm:@supabase/supabase-js@2";

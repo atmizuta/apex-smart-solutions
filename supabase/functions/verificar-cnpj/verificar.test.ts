@@ -1,4 +1,4 @@
-// Testa a lógica da Edge Function verificar-cnpj (REGRAS §127). Roda com: node --test verificar.test.ts
+// Testa a lógica da Edge Function verificar-cnpj (REGRAS §128). Roda com: node --test verificar.test.ts
 // DADOS FICTÍCIOS (repo público).
 import { test } from "node:test";
 import assert from "node:assert/strict";

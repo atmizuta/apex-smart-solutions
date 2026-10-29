@@ -1,6 +1,6 @@
 # Verificar CNPJ na Receita (Meus leads) — design
 
-Data: 29/10/2026 · Pedido: Rafael · Seção do REGRAS: **§127**
+Data: 29/10/2026 · Pedido: Rafael · Seção do REGRAS: **§128**
 
 ## 1. Objetivo
 
@@ -94,6 +94,6 @@ Log: só status, fonte e tempo — **nunca o CNPJ, a razão social ou o lead_id*
 1. Aplicar a migration `cnpj_consultas` (execute_sql com begin/commit; policy por do-block "if not exists").
 2. Publicar a Edge Function `verificar-cnpj` e testar com um lead real.
 3. Publicar o painel (comparar com o ar, backup, MD5 no mesmo comando, vigia).
-4. Registrar §127 no REGRAS_NEGOCIO.md e push no oficial (fetch antes, sem force).
+4. Registrar §128 no REGRAS_NEGOCIO.md e push no oficial (fetch antes, sem force).
 
 Se a função ou a tabela faltarem, o painel mostra o estado de erro e a ficha segue funcionando; nada existente depende da tabela nova.
