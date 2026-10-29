@@ -12,7 +12,7 @@ Fora do escopo: verificação automática na chegada, verificação em massa, se
 
 ## 2. O que o consultor vê (ficha do lead)
 
-Lugar: na linha do CNPJ da ficha (`.kbFichaOutros`, montada em `kbFichaHtml`), ao lado do "Copiar".
+Lugar: logo abaixo da linha do CNPJ da ficha (bloco `#kbCnpjRec` depois de `.kbFichaOutros`, montada em `kbFichaHtml`; a linha é uma grade de 3 colunas e não comporta mais um item).
 
 **Quando o botão aparece:** lead com CNPJ visível e coluna `novos`, `semlig`, `andamento` ou `semresp` (de `kbColunaDoLead`). Não aparece em `convertido`, `perdido` nem `livres` (no Livre o CNPJ só aparece depois de pegar o lead).
 
@@ -25,7 +25,7 @@ Lugar: na linha do CNPJ da ficha (`.kbFichaOutros`, montada em `kbFichaHtml`), a
 | ATIVA | selo verde "Ativa na Receita · consultado DD/MM HH:MM" + link "Verificar de novo" |
 | SUSPENSA | selo amarelo, mesmo formato |
 | BAIXADA, INAPTA, NULA | selo vermelho + aviso (abaixo) |
-| Não encontrado | selo vermelho "CNPJ não existe na Receita — confira com o cliente" |
+| Não encontrado | selo vermelho "CNPJ não existe na Receita: confira com o cliente" (sem aviso nem atalho) |
 | CNPJ sem 14 dígitos | "CNPJ inválido (N dígitos)", sem botão |
 | Fora do ar / erro | "Não foi possível consultar agora. Tente de novo em alguns minutos." e o botão volta |
 
@@ -60,7 +60,7 @@ Guarda só a última consulta (upsert pelo `cnpj`). RLS ligado: `select` para `a
 
 `supabase/functions/verificar-cnpj/`, publicada com `verify_jwt = true`. Lógica separada em módulo puro (`verificar.ts`, com dependências injetadas) e `index.ts` fino, no padrão da `sync-producao`/`mailing-api`.
 
-Entrada: `{ lead_id }`. **Nunca recebe o CNPJ do painel.**
+Entrada: `{ aba, lead_id }` (a chave da `leads` é `(aba, id)`). **Nunca recebe o CNPJ do painel.** Sem `aba` ou `lead_id` → 400.
 
 1. Valida o token no Auth (`auth.getUser`), como a `mailing-api`. Sem usuário → 401.
 2. Lê o lead (service role) e o perfil de quem clicou. Pode verificar: o dono do lead (`dono_id`), supervisor ou admin. Senão → 403. Lead apagado ou inexistente → 404.
@@ -73,14 +73,14 @@ Entrada: `{ lead_id }`. **Nunca recebe o CNPJ do painel.**
 
 Situação é normalizada para maiúsculas sem acento (`Ativa` → `ATIVA`). Valor fora da lista → tratado como erro de resposta (não grava).
 
-Log: só status, fonte e tempo — **nunca o CNPJ, a razão social ou o lead_id**. O repo é público: o código não leva nenhum CNPJ (os testes usam números fictícios gerados com dígito verificador).
+Log: só status, fonte e tempo — **nunca o CNPJ, a razão social ou o lead_id**. O repo é público: o código não leva nenhum CNPJ (os testes usam números fictícios (ex.: `00000000000131`, o mesmo padrão dos testes da §126); o dígito verificador não é conferido).
 
 ## 5. Painel (`_template.html`)
 
 - Funções puras novas (testáveis em `test_verificar_cnpj.js`): mostrar ou não o botão pela coluna; validar CNPJ; selo (classe + texto) por situação; texto do aviso com data em pt-BR e motivo; estado de erro.
 - `kbFichaHtml` ganha o lugar do selo/botão na linha do CNPJ e o aviso.
 - Ao abrir a ficha: busca `cnpj_consultas` pelo CNPJ (via `ppSeguro`) e preenche o selo.
-- Clique: `sb.functions.invoke('verificar-cnpj', { body: { lead_id } })`; atualiza a ficha aberta com o resultado. Trocar de lead no meio da consulta não pinta o resultado no lead errado (confere o `lead_id` na volta).
+- Clique: `sb.functions.invoke('verificar-cnpj', { body: { aba, lead_id } })`; atualiza a ficha aberta com o resultado. Trocar de lead no meio da consulta não pinta o resultado no lead errado (confere o `lead_id` na volta).
 - Atalho "Classificar como CNPJ INAPTO": seleciona a opção de status "CNPJ INAPTO" no Classificar da ficha (se existir em `kbEstado.opcoes`; senão o atalho não aparece) e marca a ficha como alterada, sem salvar.
 
 ## 6. Testes
