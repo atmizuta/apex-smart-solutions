@@ -212,7 +212,7 @@ try{
   currentUser = { id: 'u-sup', nome: 'Zzksup Teste', role: 'supervisor', operacao: 'apex' };
   window.__rpcRespostas.leads_kanban3 = { data: L6, error: null };
   window.__rpcRespostas.leads_alertas = { data: A6, error: null };
-  window.__rpcRespostas.leads_atividade_equipe = { data: [
+  window.__rpcRespostas.leads_atividade_equipe2 = { data: [
     { dono_id: 'u-zz', nome: 'Zzkcon Teste', tem_telefonia: true, ultima_ligacao: new Date(Date.now() - 5 * 60000).toISOString(), lig_hoje: 34, ultima_obs: null, obs_hoje: 0 },
     { dono_id: 'u-yy', nome: 'Zzyy Teste', tem_telefonia: false, ultima_ligacao: null, lig_hoje: 0, ultima_obs: null, obs_hoje: 0 },
   ], error: null };
@@ -223,7 +223,7 @@ try{
   const eqEl = document.getElementById('kbEquipe');
   assert(eqEl.style.display !== 'none' && eqEl.querySelector('tr[data-kb-dono="u-zz"]') && eqEl.querySelector('tr[data-kb-dono="u-yy"]'), 'Equipe lista os consultores da atividade');
   assert(eqEl.textContent.includes('34 hoje') && eqEl.textContent.includes('sem usuário de telefonia'), 'Equipe mostra a atividade');
-  assert(eqEl.querySelector('tr[data-kb-dono="u-zz"] .kbSemaforo'), 'bolinha do semáforo na linha');
+  assert(eqEl.querySelector('tr[data-kb-dono="u-zz"] .kbEqSem .kbSemaforo'), 'semáforo escrito com a bolinha na linha');
   assert(eqEl.textContent.includes('Ligações chegam do ProContact de hora em hora'), 'rodapé avisa do atraso das ligações');
   eqEl.querySelector('[data-kb-eq="u-zz|parados3"]').click();
   await espera(20);
@@ -321,7 +321,7 @@ try{
   kbEstado.dono = 'u-zz'; window.__rpcCalls.length = 0;
   window.__rpcRespostas.leads_alertas = (args) => ({ data: args.p_dono ? [] : [{ tipo: 'retorno_vencido', aba: 'O', lead_id: 'e1', nome: 'Zz E1', dono_id: 'u-yy', dono_nome: 'Zzyy Teste', desde: new Date(Date.now() - 3600000).toISOString() }], error: null });
   kbEstado.atividade = [{ dono_id: 'u-yy', nome: 'Zzyy Teste', tem_telefonia: false, lig_hoje: 0, obs_hoje: 0 }];
-  window.__rpcRespostas.leads_atividade_equipe = { data: kbEstado.atividade, error: null };
+  window.__rpcRespostas.leads_atividade_equipe2 = { data: kbEstado.atividade, error: null };
   kbEstado.equipeLista = null;
   await kbCarregarEquipe();
   assert(document.querySelector('#kbEquipe [data-kb-eq="u-yy|retorno_atrasado"]'), 'Equipe conta retorno atrasado de outro consultor com o seletor em u-zz');

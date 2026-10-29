@@ -132,7 +132,7 @@ try{
   // gestor: Equipe com semáforo; clicar na linha filtra o Quadro
   currentUser = { id: 'u-sup', nome: 'Zzksup Teste', role: 'supervisor', operacao: 'apex' };
   window.__rpcRespostas.leads_equipe_resumo = { data: [{ dono_id: 'u-zz', nome: 'Zzkcon Teste', em_aberto: 5, sem_contato: 1, retornos_vencidos: 0, parados: 0, perdas_suspeitas: 0, pegos_mes: 20, convertidos_mes: 5, receita_mes: 899.9, tempo_medio_1o_contato_min: 4.5 }], error: null };
-  window.__rpcRespostas.leads_atividade_equipe = { data: [{ dono_id: 'u-zz', nome: 'Zzkcon Teste', tem_telefonia: true, ultima_ligacao: null, lig_hoje: 0, ultima_obs: null, obs_hoje: 0 }], error: null };
+  window.__rpcRespostas.leads_atividade_equipe2 = { data: [{ dono_id: 'u-zz', nome: 'Zzkcon Teste', tem_telefonia: true, ultima_ligacao: null, lig_hoje: 0, ultima_obs: null, obs_hoje: 0, lig_por_hora: [0,0,0,0,0,0,0,0], meta_dia: 80, pode_pegar: true }], error: null };
   window.__rpcRespostas.leads_kanban3 = { data: [{ aba: 'OUTUBRO', lead_id: 'h9', nome: 'Zz Venda', dono_id: 'u-zz', categoria: 'convertido', livre: false, receita: 10, pego_em: new Date().toISOString(), classificado_em: new Date().toISOString() },
     { aba: 'OUTUBRO', lead_id: 'h8', nome: 'Zz Aberto', dono_id: 'u-zz', categoria: 'andamento', livre: false, ligacoes: 1, pego_em: new Date().toISOString() },
     { aba: 'OUTUBRO', lead_id: 'h7', nome: 'Zz Aberto 2', dono_id: 'u-zz', categoria: 'andamento', livre: false, ligacoes: 1, pego_em: new Date().toISOString() },

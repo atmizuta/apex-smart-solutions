@@ -81,8 +81,76 @@ try{
   eq(kbMenosCarga([], {}), null, 'ninguém');
   eq(kbDividirIgual(['k1', 'k2', 'k3', 'k4'], pes, { a: 1, b: 0, c: 3 }).map(x => x.para), ['b', 'b', 'a', 'b'], 'dividir igual: cada lead vai para quem está com menos (somando o que já recebeu; empate pelo nome)');
   eq(kbDividirIgual(['k1'], [], {}), [], 'dividir sem ninguém: nada');
+  // ==== Task 3: tela da Equipe (relógio fixo: quarta 15:00) ====
+  const dnReal = Date.now, agE = SP('2026-10-28T15:00:00');
+  Date.now = () => agE;
+  const isoE = (min) => new Date(agE + min * 60000).toISOString();
+  currentUser = { id: 'u-sup', nome: 'Zzksup Teste', role: 'supervisor', operacao: 'apex' };
+  window.__tabelas.config = [{ valor: 'painel' }];
+  window.__tabelas.leads_equipe = [{ id: 1, profile_id: 'u1', nome_planilha: 'ZZLUCAS', pode_pegar: true }, { id: 2, profile_id: 'u2', nome_planilha: 'ZZLURIA', pode_pegar: true }];
+  window.__tabelas.leads_status_opcoes = [{ status: 'EM NEGOCIAÇÂO', grupo: 'andamento', ordem: 1 }];
+  const LQ = [
+    { aba: 'O', lead_id: 's1', nome: 'Zz Sem Um', dono_id: 'u1', dono_nome: 'Zz Lucas', categoria: 'sem_contato', livre: false, pego_em: isoE(-100) },
+    { aba: 'O', lead_id: 's2', nome: 'Zz Sem Dois', dono_id: 'u1', dono_nome: 'Zz Lucas', categoria: 'sem_contato', livre: false, pego_em: isoE(-90) },
+    { aba: 'O', lead_id: 'a1', nome: 'Zz Andando', dono_id: 'u1', dono_nome: 'Zz Lucas', categoria: 'andamento', status: 'EM NEGOCIAÇÂO', livre: false, ligacoes: 1, ultima_ligacao: isoE(-60), pego_em: isoE(-600) },
+    { aba: 'O', lead_id: 'a2', nome: 'Zz Andando Dois', dono_id: 'u2', dono_nome: 'Zz Luria', categoria: 'andamento', status: 'EM NEGOCIAÇÂO', livre: false, ligacoes: 1, ultima_ligacao: isoE(-30), pego_em: isoE(-600) },
+    { aba: 'O', lead_id: 'lv', nome: 'Zz Livre', categoria: 'sem_contato', livre: true, criado_em_lead: isoE(-25) },
+  ];
+  const ATV = [
+    { dono_id: 'u1', nome: 'Zz Lucas', tem_telefonia: true, ultima_ligacao: isoE(-75), lig_hoje: 19, ultima_obs: null, obs_hoje: 0, lig_por_hora: [6, 3, 0, 0, 0, 0, 0, 0], meta_dia: 80, pode_pegar: true },
+    { dono_id: 'u2', nome: 'Zz Luria', tem_telefonia: true, ultima_ligacao: isoE(-3), lig_hoje: 57, ultima_obs: isoE(-9), obs_hoje: 4, lig_por_hora: [20, 15, 12, 0, 0, 0, 0, 0], meta_dia: 80, pode_pegar: true },
+  ];
+  window.__rpcRespostas.leads_kanban3 = { data: LQ, error: null };
+  window.__rpcRespostas.leads_alertas = { data: [{ tipo: 'sem_contato', aba: 'O', lead_id: 's1', nome: 'Zz Sem Um', dono_id: 'u1', dono_nome: 'Zz Lucas', desde: isoE(-100) },
+    { tipo: 'retorno_vencido', aba: 'O', lead_id: 'a1', nome: 'Zz Andando', dono_id: 'u1', dono_nome: 'Zz Lucas', desde: isoE(-50) },
+    { tipo: 'perda_suspeita', aba: 'O', lead_id: 'pz', nome: 'Zz Perdido', dono_id: 'u2', dono_nome: 'Zz Luria', desde: isoE(-500) }], error: null };
+  window.__rpcRespostas.leads_atividade_equipe2 = { data: ATV, error: null };
+  window.__rpcRespostas.leads_hoje = { data: { fila: [], retornos: [], livres: 1, placar: {} }, error: null };
+  await kbAplicarPermissao();
+  kbEstado.aba = null; await kbCarregar(); await espera(120);
+  const EQ = document.getElementById('kbEquipe');
+  assert(kbEstado.aba === 'equipe' && window.__rpcCalls.some(c => c.nome === 'leads_atividade_equipe2') && kbEstado.atividadeV2, 'Equipe usa a função nova');
+  eq([...EQ.querySelectorAll('[data-kb-eqk]')].map(b => b.dataset.kbEqk), ['ligacoes', 'livres', 'sem_contato', 'retorno_atrasado', 'convertido'], 'cinco números no topo');
+  eq(EQ.querySelector('[data-kb-eqk="ligacoes"] .kbNumGrande').textContent.replace(/\\s+/g, ' ').trim(), '76 / 160', 'ligações da equipe / meta × consultores com telefonia');
+  assert(EQ.querySelector('[data-kb-eqk="livres"] .kbNumGrande').textContent === '1' && EQ.querySelector('[data-kb-eqk="livres"]').textContent.includes('mais antigo há 25 min'), 'livres com o mais antigo');
+  eq(EQ.querySelector('[data-kb-eqk="sem_contato"] .kbNumGrande').textContent, '2', 'pegos e sem contato');
+  const faixa = EQ.querySelector('.kbEqAtencao');
+  assert(faixa && faixa.textContent.includes('Zz Lucas está há 1 h 15 min sem ligar nem escrever OBS') && faixa.textContent.includes('2 leads sem contato'), 'faixa de atenção com o texto da spec');
+  assert(faixa.querySelector('[data-kb-eq="u1|sem_contato"]').textContent.includes('Ver os leads dele') && faixa.querySelector('[data-kb-eq-redist="u1"]').textContent.includes('Redistribuir 2'), 'faixa com Ver os leads dele e Redistribuir N');
+  assert(EQ.querySelectorAll('.kbEqAtencao').length === 1, 'só uma faixa (Luria está verde)');
+  const linha1 = EQ.querySelector('tr[data-kb-dono="u1"]');
+  assert(linha1.querySelector('.kbEqSem.r .kbSemaforo') && linha1.textContent.includes('parado 1 h 15 min'), 'semáforo escrito vermelho, com a bolinha');
+  eq([...linha1.querySelectorAll('.kbCalor i')].map(i => i.className), ['l2', 'l1', 'l0', 'fut', 'fut', 'fut', 'fut', 'fut'], 'mapa por hora: 6 → l2, 3 → l1, a hora atual conta, as futuras vazadas');
+  assert(linha1.querySelector('.kbEqHoje').textContent.includes('19') && linha1.querySelector('.kbEqHoje').textContent.includes('/ 80') && linha1.textContent.includes('19 hoje') && linha1.textContent.includes('pega leads'), 'Hoje: ligações / meta; atividade em texto pequeno; pega leads');
+  assert(EQ.querySelector('tr[data-kb-dono="u2"] .kbEqSem.v').textContent.includes('ligou há 3 min'), 'verde: ligou há 3 min');
+  assert(linha1.querySelector('[data-kb-eq="u1|sem_contato"].ruim') && !EQ.querySelector('tr[data-kb-dono="u2"] [data-kb-eq="u2|sem_contato"]'), 'número com problema em vermelho; zero não é botão');
+  eq([...EQ.querySelectorAll('.kbEqAlertas .kbEqBloco h3')].map(h => h.firstChild.textContent.trim()), ['Pegos e sem contato', 'Retornos atrasados', 'Perdidos sem nenhuma ligação'], 'alertas em três blocos');
+  assert(EQ.querySelector('.kbEqAlertas [data-kb-passar-um="O|s1"]') && EQ.querySelectorAll('.kbEqAlertas .kbEqBloco')[1].querySelector('[data-kb-abrir="O|a1"]'), 'Passar no bloco sem contato; Abrir nos outros');
+  // números e faixa abrem a lista com seleção
+  faixa.querySelector('[data-kb-eq-redist="u1"]').click();
+  const barra = () => document.getElementById('kbLoteBarra');
+  assert(kbEstado.equipeLista.dono === 'u1' && kbEstado.equipeLista.chave === 'sem_contato' && kbEstado.loteSel.size === 2 && !barra().hidden && barra().textContent.includes('2 leads selecionados'), 'Redistribuir N abre a lista com os sem contato dele já selecionados');
+  assert(barra().querySelector('[data-kb-lote-livres]') && barra().querySelector('[data-kb-lote-passar]'), 'barra escura com Devolver aos livres e Passar para…');
+  EQ.querySelector('[data-kb-lote="O|s2"]').click();
+  assert(kbEstado.loteSel.size === 1 && barra().textContent.includes('1 lead selecionado') && !EQ.querySelector('[data-kb-lote="O|s2"]').checked, 'desmarcar tira da seleção');
+  EQ.querySelector('[data-kb-lote-todos]').click();
+  eq(kbEstado.loteSel.size, 2, 'Selecionar todos');
+  EQ.querySelector('[data-kb-lote-limpar]').click();
+  assert(kbEstado.loteSel.size === 0 && barra().hidden, 'Limpar seleção esconde a barra');
+  EQ.querySelector('[data-kb-eqk="sem_contato"]').click();
+  assert(kbEstado.equipeLista.dono === '' && EQ.querySelector('.kbEqLista h3').textContent === 'Equipe · Sem contato' && EQ.querySelector('.kbEqLista').textContent.includes('Zz · pego'), 'número do topo abre a lista da equipe toda, com o primeiro nome do dono');
+  EQ.querySelector('[data-kb-eq-fechar]').click();
+  assert(!EQ.querySelector('.kbEqLista') && kbEstado.loteSel.size === 0, 'Fechar tira a lista e a seleção');
+  // RF1: sem a função nova, cai para a antiga (sem mapa por hora)
+  window.__rpcRespostas.leads_atividade_equipe2 = { data: null, error: { message: 'function public.leads_atividade_equipe2() does not exist' } };
+  window.__rpcRespostas.leads_atividade_equipe = { data: ATV.map(a => { const b = Object.assign({}, a); delete b.lig_por_hora; delete b.meta_dia; delete b.pode_pegar; return b; }), error: null };
+  await kbCarregarEquipe();
+  assert(!kbEstado.atividadeV2 && EQ.querySelector('tr[data-kb-dono="u1"] .kbCalorSem') && EQ.querySelector('[data-kb-eqk="ligacoes"]').textContent.includes('160') && EQ.querySelector('tr[data-kb-dono="u1"] .kbEqSem.r'), 'RF1: sem a função nova a Equipe abre com a antiga (mapa "—", meta padrão 80, semáforo igual)');
+  window.__rpcRespostas.leads_atividade_equipe2 = { data: ATV, error: null };
+  await kbCarregarEquipe();
   // ==== mais testes entram aqui ====
 
+  Date.now = dnReal;
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
   process.exit(fail > 0 ? 1 : 0);
 }catch(err){
