@@ -4003,7 +4003,7 @@ Pedido do Rafael (com print da coluna Em andamento):
   - **126.2:** Quadro e Lista;
   - **126.3:** Equipe, que é a única fase que mexe no banco.
 
-**Documentos:** spec `docs/superpowers/specs/2026-10-28-meus-leads-redesign-design.md`; plano da Fase 1 `docs/superpowers/plans/2026-10-28-meus-leads-redesign-fase1.md`.
+**Documentos:** spec `docs/superpowers/specs/2026-10-28-meus-leads-redesign-design.md`; planos das fases em `docs/superpowers/plans/2026-10-28-meus-leads-redesign-fase1.md`, `-fase2.md` e `-fase3.md`.
 
 **O que não muda em nenhuma fase:**
 - o shell: menu bordô, cabeçalho e o bloco "SISTEMA VISUAL SINAL DE ÁPICE";
@@ -4145,3 +4145,110 @@ Plano em `docs/superpowers/plans/2026-10-28-meus-leads-redesign-fase2.md`. Sem m
   - Backup `~/deploy_backups/painel_clientes_apex_20261028_201706_antes_meus_leads_redesign_fase2.html`.
   - Vigia aceito.
   - **Para voltar atrás:** republicar o backup.
+
+### 126.3 Fase 3: Equipe e "Passar para" (29/10/2026)
+
+- **Plano:** `docs/superpowers/plans/2026-10-28-meus-leads-redesign-fase3.md`.
+- **Banco:** é a única mudança de banco do redesign, e é só leitura.
+
+**Banco: função nova `leads_atividade_equipe2()`**
+- Migration `supabase/migrations/20261028200000_leads_atividade_equipe2.sql`, aplicada em 29/10 com o ok do Rafael.
+- **O que devolve:** o mesmo que a `leads_atividade_equipe()` (§122), mais:
+  - **`lig_por_hora`:** 8 números, das 13h às 20h, no horário de SP. É a mesma conta de `ligacoes_manuais` por `usuario_telefonia` desde o começo do dia;
+  - **`meta_dia`:** a `meta_ligacoes_dia` de `config.monitor_leads_metas`, com 80 de padrão;
+  - **`pode_pegar`.**
+- **Acesso:** só admin ou supervisor; `security definer`; `revoke` de public/anon e `grant` para authenticated.
+- **Sem DROP:** a função antiga continua.
+- **Se a nova não existir** (por exemplo, painel publicado antes do banco), o painel cai para a antiga e a Equipe abre sem o mapa por hora.
+- **Conferência:** `supabase/tests/leads_atividade_equipe2_check.sql`, que termina em ROLLBACK. Rodou sem erro. Depois de aplicada, chamada como supervisor, devolveu as 11 pessoas da equipe, e a soma das horas bateu com as ligações do dia.
+
+**Tela da Equipe (supervisor)**
+- **Cinco números no topo:**
+  - **ligações da equipe hoje / meta**, com barra. A meta é a `meta_dia` × consultores com telefonia. Esse número não abre lista;
+  - **leads livres**, com o mais antigo. Abre o Quadro da equipe toda;
+  - **pegos e sem contato;**
+  - **retornos atrasados;**
+  - **vendas no mês**, com a receita.
+
+  Os três últimos abrem a lista da equipe toda, com o primeiro nome do dono em cada lead.
+- **Faixa "precisa de atenção"**, uma por consultor com o semáforo vermelho:
+  - **Texto:** "Lucas está há 1 h 12 min sem ligar nem escrever OBS e tem 4 leads sem contato".
+  - **"Ver os leads dele"** abre a lista.
+  - **"Redistribuir N"** abre a lista com os sem contato dele já selecionados.
+- **Tabela por consultor:**
+  - **Consultor:** iniciais, nome e "pega leads" / "só os que já tem".
+  - **Agora:** semáforo escrito ("ligou há 4 min", "OBS há 9 min", "parado 38 min", "parado 1 h 12 min", "nenhuma ação ainda", "sem telefonia", "fora do expediente"). Embaixo, a atividade em texto pequeno (§122).
+    - Sem telefonia, vale só a OBS.
+    - Sem OBS desde as 13h, fica cinza "sem telefonia" e não entra na faixa vermelha.
+  - **Ligações por hora (13h–21h):** 8 quadradinhos com intensidade, e as horas que ainda não chegaram ficam vazadas.
+  - **Hoje:** ligações / meta, com barra:
+    - vermelha abaixo de 30% da meta proporcional à hora;
+    - verde acima de 70%;
+    - neutra até as 14h, porque as ligações chegam do ProContact com até 1 h de atraso.
+  - **Contagens:** Sem contato, Em andamento, Parados 3+ d, Retornos atrasados, Vendas no mês e Conversão.
+    - Os números abrem a lista.
+    - Os que indicam problema ficam em vermelho quando passam de 0.
+    - Clicar no resto da linha leva ao Quadro daquele consultor, como antes.
+  - Sai a coluna Receita da tabela; a receita está no número do topo.
+- **Alertas em três blocos lado a lado:**
+  - **Pegos e sem contato**, com "Passar";
+  - **Retornos atrasados**, com "Abrir";
+  - **Perdidos sem nenhuma ligação**, com "Abrir".
+
+**Redistribuir em lote e menu "Passar para"**
+- **Seleção:**
+  - as listas da Equipe têm caixas de seleção e "Selecionar todos";
+  - a seleção só guarda o que está na lista aberta;
+  - a **barra escura** mostra "N leads selecionados", Limpar seleção, **Devolver aos livres** (só se todos estão sem status, a regra de hoje) e **Passar para…**;
+  - "Devolver aos livres" abre o menu já marcado: nada volta sem confirmar.
+- **Menu "Passar para"** (sai a janela `#kbRedOverlay` da §124):
+  - **Lista:** os consultores da `leads_equipe` menos o dono, cada um com "N em andamento".
+  - **Sugestão:** o de menor carga leva o selo **"menos carga"** e vem marcado.
+    - Nunca é sugerido quem já é dono de um dos leads.
+    - Num lote só com os donos, nada vem marcado.
+  - **"Dividir igual entre os que pegam":** os leads vão, um a um, para quem estiver com menos carga naquele momento; o empate vai pela ordem do nome. Nunca devolve um lead ao próprio dono.
+  - **Lead que já é de quem foi escolhido:** não é passado de novo, e o aviso conta "N já era de quem você escolheu".
+  - **Posição:** o menu abre junto do botão (embaixo ou acima) e cabe na tela. O botão de confirmar fica sempre visível, acima do botão flutuante.
+  - **Fechar:** Esc ou clique fora.
+- **Execução:**
+  - chama `leads_redistribuir` lead a lead, em sequência, com progresso ("Passando 2 de 4…");
+  - no fim, avisa "4 de 4 passados";
+  - **se algum falha:** o menu continua aberto só com os que falharam e o motivo de cada um, e tentar de novo não repete os que já passaram;
+  - **depois:** `agAvisarMudou()` e recarga da Equipe;
+  - **proteções:** dois cliques executam uma vez só; não abre outro menu no meio; sair do painel interrompe.
+- **Um lead só**, pelo "⋯" da ficha (Redistribuir) e pelo "Passar" dos alertas, usa o mesmo menu. Na Hoje a ficha fica aberta; na gaveta, a gaveta fecha como antes.
+- **Regras de `leads_redistribuir`:** não mudaram (§124). Só o gestor; "Devolver aos livres" só para lead sem status; o consultor precisa estar na `leads_equipe`.
+
+**Testes e revisão**
+- **Testes:**
+  - `test_meus_leads_fase3.js` é novo, com 81 verificações e relógio fixo;
+  - `test_leads_painel_hoje.js`, `test_leads_hoje.js`, `test_leads_kanban.js` e `test_meus_leads_redesign.js` foram ajustados onde a janela e a tabela antigas eram usadas.
+- **Revisão final independente:** 1 problema grave e 5 importantes, todos corrigidos:
+  - o menu abria cortado;
+  - a Equipe não recarregava depois de passar;
+  - a barra Hoje ficava sem cor;
+  - a barra ficava vermelha na primeira hora;
+  - o dono era sugerido no lote misto;
+  - dava para reabrir o menu no meio da execução.
+
+  A prévia achou mais 4, também corrigidos:
+  - a tabela cortada em 1366/1440;
+  - o nome quebrado no menu;
+  - o texto da barra escura sumindo no hover;
+  - a seleção com lead que saiu da lista.
+- **Pendências pequenas, no ledger:**
+  - "Pegos e sem contato" com contagens diferentes no topo e no bloco de alertas;
+  - "Perdidos sem nenhuma ligação" sem "Ver os N";
+  - "Selecionar todos" só marca os 50 à vista;
+  - detalhes de acessibilidade (foco ao redesenhar);
+  - o menu sem o "Agora com: dono · cidade" da janela antiga;
+  - uma `meta_ligacoes_dia` que não seja número inteiro derruba a função nova, e o painel cai para a antiga.
+
+**Publicação (29/10, 15:06, ok do Rafael)**
+- O painel do ar era `a098a4eb…`, a §126.2; ninguém tinha publicado por fora.
+- O painel novo tem MD5 `91def474…`.
+- Backup: `~/deploy_backups/painel_clientes_apex_20261029_150640_antes_meus_leads_redesign_fase3.html`.
+- Vigia aceito.
+- **Para voltar atrás:**
+  - **painel:** republicar o backup;
+  - **banco:** a função nova pode ficar. Ela é só leitura e o painel antigo não a usa.
