@@ -355,17 +355,16 @@ try{
   currentUser = { id: 'u-sup', nome: 'Zzksup Teste', role: 'supervisor', operacao: 'apex' };
   kbEstado.consultores = [{ profile_id: 'u-a', nome_planilha: 'Zza' }, { profile_id: 'u-b', nome_planilha: 'Zzb' }, { profile_id: 'u-c', nome_planilha: 'Zzc' }];
   kbEstado.leads = [{ aba: 'OUTUBRO', lead_id: 'rd1', nome: 'Zz Redistribuir', categoria: 'sem_contato', livre: false, dono_id: 'u-a', dono_nome: 'Zza Teste', cidade: 'Campinas', uf: 'SP' }];
+  kbEstado.atividade = []; kbEstado.leadsEquipe = [];   // sem a Equipe carregada, o menu usa os consultores
   kbAbrirRedistribuir('OUTUBRO', 'rd1');
-  const red = document.getElementById('kbRedOverlay');
-  assert(red.classList.contains('active') && red.querySelector('.modal.kbClassModal .kbClassEtiqueta') && red.querySelector('.kbClassRodape'), 'Redistribuir com cabeçalho, etiqueta e rodapé do Classificar');
-  eq(document.getElementById('kbRedTitulo').textContent, 'Zz Redistribuir', 'nome do lead no título');
-  assert(document.getElementById('kbRedSub').textContent.includes('Agora com: Zza Teste'), 'mostra com quem está agora');
-  eq([...red.querySelectorAll('[data-kb-red]')].map(b => b.dataset.kbRed), ['u-b', 'u-c', ''], 'consultores em botões (sem o dono atual) + Devolver aos Livres');
-  red.querySelector('[data-kb-red="u-c"]').click();
-  assert(document.getElementById('kbRedNovo').value === 'u-c' && red.querySelector('[data-kb-red="u-c"]').classList.contains('ativo'), 'clicar escolhe o consultor');
-  red.querySelector('[data-kb-red=""]').click();
-  assert(document.getElementById('kbRedNovo').value === '' && red.querySelector('[data-kb-red=""]').classList.contains('ativo') && !red.querySelector('[data-kb-red="u-c"]').classList.contains('ativo'), 'escolher Livres troca a seleção');
-  fecharOverlay(red);
+  const red = document.getElementById('kbPassar');
+  assert(!red.hidden && red.textContent.includes('Passar "Zz Redistribuir" para'), 'Passar para com o nome do lead');
+  eq([...red.querySelectorAll('[data-kb-passar-para]')].map(b => b.dataset.kbPassarPara), ['u-b', 'u-c', '__livres'], 'consultores (sem o dono atual) + Devolver aos livres');
+  red.querySelector('[data-kb-passar-para="u-c"]').click();
+  assert(kbEstado.passar.escolha === 'u-c' && red.querySelector('[data-kb-passar-para="u-c"]').classList.contains('ativo'), 'clicar escolhe o consultor');
+  red.querySelector('[data-kb-passar-para="__livres"]').click();
+  assert(kbEstado.passar.escolha === '__livres' && !red.querySelector('[data-kb-passar-para="u-c"]').classList.contains('ativo'), 'escolher Livres troca a seleção');
+  kbPassarFechar();
   // ==== Ordem por chegada nas colunas + cartão parado ao classificar (pedido 28/10) ====
   const OD = (id, dias, extra) => Object.assign({ aba: 'OUTUBRO', lead_id: id, nome: 'Zz ' + id, categoria: 'andamento', status: 'EM NEGOCIAÇÂO', livre: false, ligacoes: 1,
     criado_em_lead: new Date(Date.now() - dias * 86400000).toISOString() }, extra || {});

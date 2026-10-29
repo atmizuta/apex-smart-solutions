@@ -792,7 +792,7 @@
 <style id="kbStyles">
   /* Meus leads — Kanban (§112; visual refeito em 26/10 à noite a pedido do Rafael). Só tokens do design, nenhuma cor fixa. */
   /* §126 (redesign 28/10, pedido do Rafael): tokens da aba. Hex novo só em --ml-ink-2 e --ml-surface-2; o resto reaproveita o sistema. */
-  #panel-meusleads,#kbFicha{--ml-ink:var(--c-grafite);--ml-ink-2:#464A4E;--ml-ink-3:var(--c-cinza);--ml-ground:var(--c-papel);--ml-surface:var(--c-branco);--ml-surface-2:#F7F7F8;--ml-surface-3:var(--c-cinza-claro);--ml-late:var(--c-sinal-600);--ml-late-soft:var(--st-perdido-bg);--ml-soon:var(--st-andamento);--ml-soon-soft:var(--st-andamento-bg);--ml-ok:var(--st-ganho);--ml-ok-soft:var(--st-ganho-bg);--ml-novo:var(--c-sinal);--ml-novo-soft:var(--c-rosa);--ml-float:0 12px 32px rgba(29,31,32,.16);}
+  #panel-meusleads,#kbFicha,#kbPassar{--ml-ink:var(--c-grafite);--ml-ink-2:#464A4E;--ml-ink-3:var(--c-cinza);--ml-ground:var(--c-papel);--ml-surface:var(--c-branco);--ml-surface-2:#F7F7F8;--ml-surface-3:var(--c-cinza-claro);--ml-late:var(--c-sinal-600);--ml-late-soft:var(--st-perdido-bg);--ml-soon:var(--st-andamento);--ml-soon-soft:var(--st-andamento-bg);--ml-ok:var(--st-ganho);--ml-ok-soft:var(--st-ganho-bg);--ml-novo:var(--c-sinal);--ml-novo-soft:var(--c-rosa);--ml-float:0 12px 32px rgba(29,31,32,.16);}
   /* §126: botões planos de 8 px (decididos uma vez), controle segmentado, marcadores e contadores */
   .kbBtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 14px;border:0;border-radius:var(--radius-lg);font:inherit;font-size:var(--fs-base);font-weight:600;line-height:1;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background var(--dur-fast) var(--ease-out),color var(--dur-fast),transform var(--dur-fast);}
   .kbBtn:active{transform:translateY(1px);}
@@ -913,7 +913,20 @@
   .kbVazio{color:var(--muted);font-size:var(--fs-sm);text-align:center;padding:var(--space-6) var(--space-2);border:1px dashed var(--c-linha-forte);border-radius:var(--radius-lg);}
   .kbDiv{margin-top:var(--space-2);font-size:var(--fs-xs);color:var(--c-sinal);font-weight:600;}
   /* modal Classificar (§120): tabulações em botões por grupo, atalhos de data, rodapé fixo */
-  #kbRedOverlay{backdrop-filter:none;}
+  /* §126.3: menu "Passar para" (um lead ou vários) */
+  .kbPassar{position:fixed;top:30%;left:calc(50% - 150px);width:300px;max-height:70vh;overflow-y:auto;z-index:60;padding:12px;border-radius:var(--radius-lg);background:var(--ml-surface);color:var(--ml-ink);box-shadow:var(--ml-float);}
+  .kbPassar[hidden]{display:none;}
+  .kbPassar h4{margin:0 0 8px;font:600 var(--fs-sm)/1.3 var(--font-body);color:var(--ml-ink-2);text-transform:none;letter-spacing:0;}
+  .kbPassarOp{display:flex;align-items:center;gap:10px;width:100%;padding:7px 8px;border:0;border-radius:6px;background:none;font:inherit;text-align:left;cursor:pointer;color:var(--ml-ink);}
+  .kbPassarOp:hover,.kbPassarOp.ativo{background:var(--ml-surface-2);}
+  .kbPassarOp.ativo{box-shadow:inset 3px 0 0 var(--c-sinal);}
+  .kbPassarOp:focus-visible{outline:2px solid var(--c-sinal);outline-offset:-2px;}
+  .kbPassarOp .kbEqAv{width:26px;height:26px;font-size:11px;}
+  .kbPassarNome{flex:1;font-weight:600;}
+  .kbPassarOp small{color:var(--ml-ink-3);font-size:var(--fs-xs);}
+  .kbSelo{font-size:11px;font-weight:700;color:var(--st-ganho);background:var(--st-ganho-bg);border-radius:5px;padding:1px 6px;}
+  .kbPassarFalhas{margin:8px 0;padding:8px 10px;border-radius:6px;background:var(--st-perdido-bg);color:var(--st-perdido);font-size:var(--fs-sm);display:flex;flex-direction:column;gap:2px;}
+  .kbPassarRodape{display:flex;justify-content:flex-end;gap:6px;margin-top:10px;}
   .kbClassModal{max-width:640px;}
   .kbClassEtiqueta{display:block;font-size:var(--fs-xs);font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--c-sinal);margin-bottom:4px;}
   .kbClassModal .mHead h2{font-size:var(--fs-lg);text-transform:none;padding-right:40px;}
@@ -1875,20 +1888,7 @@
       <div class="kbBoard" id="kbBoard"></div>
     </section>
     <div id="kbFichaCasa"><aside class="kbFicha" id="kbFicha" aria-label="Ficha do lead"><div class="kbFichaCorpo" id="kbFichaCorpo"></div></aside></div>
-    <div class="overlay" id="kbRedOverlay">
-      <div class="modal kbClassModal" role="dialog" aria-labelledby="kbRedTitulo">
-        <div class="mHead"><span class="kbClassEtiqueta">Redistribuir lead</span><h2 id="kbRedTitulo">Lead</h2><div class="mCnpj" id="kbRedSub"></div>
-          <button type="button" class="mClose" id="kbRedFechar" aria-label="Fechar">×</button></div>
-        <div class="mBody">
-          <select id="kbRedNovo" class="kbOculto" aria-hidden="true" tabindex="-1"></select>
-          <div class="kbClassGrupos" id="kbRedGrupos"></div>
-          <p class="desc kbClassErro" id="kbRedErro"></p>
-        </div>
-        <div class="kbClassRodape"><span class="kbMeta">Ctrl+Enter salva</span><div class="kbClassBotoes">
-          <button type="button" class="btn btn-sm btn-outline" id="kbRedCancelar">Cancelar</button>
-          <button type="button" class="btn btn-sm" id="kbRedSalvar">Salvar</button></div></div>
-      </div>
-    </div>
+    <div class="kbPassar" id="kbPassar" role="dialog" aria-label="Passar leads para outro consultor" hidden></div>
     <section class="panel" id="panel-mailing">
       <div class="card">
         <h3 style="margin:0">Mailing</h3>
@@ -4338,6 +4338,7 @@ function kbParar(){
   kbEstado.timer = null; kbEstado.timerAlertas = null;
   kbEstado.aba = null; kbEstado.hoje = null; kbEstado.filaAba = 'fazer'; kbEstado.hojeSel = null; kbEstado.filaHoje = []; kbEstado.notificados = new Set(); kbEstado.alertas = [];
   kbEstado.leadNovoIniciado = false;
+  if(kbEstado.passar) kbPassarFechar(); kbEstado.loteSel = new Set(); kbEstado.equipeLista = null;
   // revisão final (I3): sair limpa a ficha e a Hoje — o próximo usuário na mesma aba não vê o lead de quem saiu
   if(kbEstado.fichaJanela) kbFecharFicha(true);
   kbEstado.fichaAlvo = null; kbEstado.fichaLead = null; kbEstado.fichaLista = null; kbEstado.salvando = false;
@@ -4511,7 +4512,12 @@ kbFichaNo().addEventListener('click', async (e) => {
   if(e.target.closest('[data-kb-apagar-cancelar]')){ if(caixa) caixa.hidden = true; return; }
   if(e.target.closest('[data-kb-apagar-confirmar]')){ kbApagarLead(alvo.aba, alvo.id, caixa ? caixa.querySelector('input').value : ''); return; }
   if(e.target.closest('[data-kb-ficha-pegar]')){ const ok = await kbPegar(alvo.aba, alvo.id); if(ok !== false) await kbDepoisDePegar(alvo); return; }
-  if(e.target.closest('[data-kb-ficha-redistribuir]')){ if(!kbFichaNo().classList.contains('noPainel')) kbFecharFicha(); kbAbrirRedistribuir(alvo.aba, alvo.id); return; }
+  if(e.target.closest('[data-kb-ficha-redistribuir]')){
+    const casa = kbFichaNo().classList.contains('noPainel');   // na Hoje a ficha fica e o menu abre ao lado do botão; na gaveta, a gaveta fecha como antes
+    if(!casa) kbFecharFicha();
+    kbPassarAbrir([alvo.aba + '|' + alvo.id], casa ? e.target.closest('[data-kb-ficha-redistribuir]') : null);
+    return;
+  }
   const ct = e.target.closest('[data-kb-contato]');
   if(ct && ct.hasAttribute('data-kb-ligar')){ e.preventDefault(); if(kbEstado.fichaLead) kbLigar(kbEstado.fichaLead.telefone); }
   if(ct) ppSeguro(() => sb.rpc('registrar_contato_lead', { p_aba: alvo.aba, p_lead_id: alvo.id, p_canal: ct.dataset.kbContato }));
@@ -4977,6 +4983,12 @@ document.getElementById('panel-meusleads').addEventListener('click', (e) => {
   if(lt){ const k = lt.dataset.kbLote; if(kbEstado.loteSel.has(k)) kbEstado.loteSel.delete(k); else kbEstado.loteSel.add(k); kbRenderEquipe(); return; }
   if(e.target.closest('[data-kb-lote-todos]')){ document.querySelectorAll('#kbEquipe [data-kb-lote]').forEach(x => kbEstado.loteSel.add(x.dataset.kbLote)); kbRenderEquipe(); return; }
   if(e.target.closest('[data-kb-lote-limpar]')){ kbEstado.loteSel = new Set(); kbRenderEquipe(); return; }
+  const pu = e.target.closest('[data-kb-passar-um]');
+  if(pu){ kbPassarAbrir([pu.dataset.kbPassarUm], pu); return; }
+  const lp = e.target.closest('[data-kb-lote-passar]');
+  if(lp){ kbPassarAbrir([...kbEstado.loteSel], lp); return; }
+  const ll = e.target.closest('[data-kb-lote-livres]');
+  if(ll){ kbPassarAbrir([...kbEstado.loteSel], ll, '__livres'); return; }
   const ab = e.target.closest('[data-kb-abrir]');
   if(ab){
     const [aba, id] = ab.dataset.kbAbrir.split('|'), tabela = ab.closest('#kbTodosTabela');
@@ -4999,40 +5011,87 @@ async function kbCarregarFiltros(){
   sel.innerHTML = '<option value="">Todos</option>' + kbEstado.consultores.map(c => `<option value="${escapeHtml(c.profile_id)}">${escapeHtml(c.nome_planilha)}</option>`).join('');
   sel.value = kbEstado.dono || '';
 }
-function kbAbrirRedistribuir(aba, id){
-  const l = kbAcharLead(aba, id);
-  if(!l || !kbGestor()) return;
-  kbEstado.redAlvo = { aba, id };
-  const semStatus = l.categoria === 'sem_contato';
-  const outros = kbEstado.consultores.filter(c => c.profile_id !== l.dono_id);
-  // Pedido 28/10: mesmo visual do Classificar — consultores em botões; o select escondido guarda a escolha
-  document.getElementById('kbRedNovo').innerHTML = (semStatus ? '<option value="">Devolver aos Livres</option>' : '')   // já vem marcado, como antes
-    + outros.map(c => `<option value="${escapeHtml(c.profile_id)}">${escapeHtml(c.nome_planilha)}</option>`).join('');
-  const chip = (v, txt) => `<button type="button" class="kbStatusChip" data-kb-red="${escapeHtml(v)}">${escapeHtml(txt)}</button>`;
-  document.getElementById('kbRedGrupos').innerHTML = `<div class="kbClassGrupo"><span class="kbClassRotulo">Passar para</span><div class="kbStatusChips">${outros.map(c => chip(c.profile_id, c.nome_planilha)).join('') || '<span class="kbMeta">Nenhum outro consultor na equipe de leads.</span>'}</div></div>`
-    + (semStatus ? `<div class="kbClassGrupo"><span class="kbClassRotulo">Ou</span><div class="kbStatusChips">${chip('', 'Devolver aos Livres')}</div></div>` : '');
-  document.getElementById('kbRedTitulo').textContent = l.nome || '(sem nome)';
-  document.getElementById('kbRedSub').textContent = [l.dono_nome ? 'Agora com: ' + l.dono_nome : '', [l.cidade, l.uf].filter(Boolean).join('/')].filter(Boolean).join(' · ');
-  document.getElementById('kbRedErro').textContent = '';
-  kbRedEscolher(document.getElementById('kbRedNovo').value);
-  document.getElementById('kbRedOverlay').classList.add('active');
+// §126.3: "Passar para" — um menu só para um lead ou vários (sai a janela Redistribuir). Executa leads_redistribuir lead a lead.
+function kbPassarPessoas(){
+  const at = kbEstado.atividade || [];
+  if(at.length) return at.map(a => ({ id: a.dono_id, nome: a.nome || '', pode: a.pode_pegar === true }));
+  return (kbEstado.consultores || []).map(c => ({ id: c.profile_id, nome: c.nome_planilha || '', pode: c.pode_pegar === true }));
 }
-function kbRedEscolher(v){
-  document.getElementById('kbRedNovo').value = v;
-  document.querySelectorAll('#kbRedGrupos [data-kb-red]').forEach(b => b.classList.toggle('ativo', b.dataset.kbRed === v));
+function kbPassarLead(chave){
+  const i = chave.indexOf('|'), aba = chave.slice(0, i), id = chave.slice(i + 1);
+  return (kbEstado.leadsEquipe || []).find(l => l.aba === aba && l.lead_id === id) || kbAcharLead(aba, id) || { aba, lead_id: id, nome: '', categoria: '' };
 }
-async function kbSalvarRedistribuicao(){
-  const alvo = kbEstado.redAlvo;
-  if(!alvo) return;
-  const novo = document.getElementById('kbRedNovo').value || null;
-  const r = await ppSeguro(() => sb.rpc('leads_redistribuir', { p_aba: alvo.aba, p_id: alvo.id, p_novo: novo }));
-  if(!r || r.error){ document.getElementById('kbRedErro').textContent = (r && r.error && r.error.message) || 'Não foi possível salvar agora.'; return; }
-  fecharOverlay(document.getElementById('kbRedOverlay'));
-  kbEstado.redAlvo = null;
-  mostrarAviso(novo ? 'Lead passado para outro consultor.' : 'Lead devolvido aos Livres.', 'ok');
-  agAvisarMudou();
-  await kbCarregar();
+function kbPassarCarga(){
+  const base = kbEstado.leadsEquipe && kbEstado.leadsEquipe.length ? kbEstado.leadsEquipe : kbEstado.leads;
+  const c = kbContagemEquipe(base, [], Date.now()), carga = {};
+  Object.keys(c).forEach(k => { carga[k] = c[k].andamento || 0; });
+  return carga;
 }
+function kbPassarAbrir(chaves, ancora, escolha){
+  if(!kbGestor() || !(chaves || []).length) return;
+  const alvos = chaves.map(kbPassarLead);
+  const donos = new Set(alvos.map(l => l.dono_id).filter(Boolean));
+  const pessoas = kbPassarPessoas().filter(p => !(donos.size === 1 && donos.has(p.id)));
+  const carga = kbPassarCarga(), menos = kbMenosCarga(pessoas, carga);
+  kbEstado.passar = { alvos, pessoas, carga, menos, escolha: escolha || menos || '', executando: false, falhas: [], progresso: '' };
+  kbPassarDesenhar();
+  const m = document.getElementById('kbPassar');
+  m.hidden = false;
+  if(ancora && ancora.getBoundingClientRect){
+    const r = ancora.getBoundingClientRect();
+    m.style.top = Math.max(8, Math.min(window.innerHeight - 320, r.bottom + 6)) + 'px';
+    m.style.left = Math.max(8, Math.min(window.innerWidth - 308, r.right - 300)) + 'px';
+  } else { m.style.top = ''; m.style.left = ''; }
+  const foco = m.querySelector('.kbPassarOp.ativo') || m.querySelector('[data-kb-passar-cancelar]');
+  if(foco) foco.focus();
+}
+function kbPassarDesenhar(){
+  const p = kbEstado.passar, m = document.getElementById('kbPassar');
+  if(!p) return;
+  const n = p.alvos.length, semStatus = p.alvos.every(l => l.categoria === 'sem_contato');
+  const titulo = n === 1 ? `Passar "${escapeHtml(p.alvos[0].nome || 'lead')}" para` : `Passar ${n} leads para`;
+  const op = (v, nome, info, av) => `<button type="button" class="kbPassarOp${p.escolha === v ? ' ativo' : ''}" data-kb-passar-para="${escapeHtml(v)}"${p.executando ? ' disabled' : ''}>${av ? `<span class="kbEqAv">${escapeHtml(av)}</span>` : ''}<span class="kbPassarNome">${escapeHtml(nome)}</span>${info}</button>`;
+  const pessoas = p.pessoas.map(x => op(x.id, x.nome, `<small>${p.carga[x.id] || 0} em andamento</small>${x.id === p.menos ? '<span class="kbSelo">menos carga</span>' : ''}`, kbIniciais(x.nome))).join('');
+  const podem = p.pessoas.filter(x => x.pode);
+  const extra = (n > 1 && podem.length > 1 ? op('__igual', 'Dividir igual entre os que pegam', '') : '') + (semStatus ? op('__livres', 'Devolver aos livres', '') : '');
+  const escolhido = p.escolha === '__igual' ? `Dividir ${n} leads` : p.escolha === '__livres' ? 'Devolver aos livres' : ('Passar para ' + ((p.pessoas.find(x => x.id === p.escolha) || {}).nome || ''));
+  const falhas = p.falhas.length ? `<div class="kbPassarFalhas"><b>Não foi possível passar:</b>${p.falhas.map(f => `<span>${escapeHtml(f.nome)}: ${escapeHtml(f.motivo)}</span>`).join('')}</div>` : '';
+  m.innerHTML = `<h4>${titulo}</h4>${pessoas || '<p class="kbMuted">Nenhum outro consultor na equipe de leads.</p>'}${extra}${falhas}
+    <div class="kbPassarRodape"><button type="button" class="kbBtn kbBtnG kbBtnSm" data-kb-passar-cancelar${p.executando ? ' disabled' : ''}>Cancelar</button><button type="button" class="kbBtn kbBtnP kbBtnSm" data-kb-passar-ok${p.escolha && !p.executando ? '' : ' disabled'}>${escapeHtml(p.executando ? (p.progresso || 'Passando…') : escolhido)}</button></div>`;
+}
+function kbPassarEscolher(v){ const p = kbEstado.passar; if(p && !p.executando){ p.escolha = v; kbPassarDesenhar(); } }
+function kbPassarFechar(){ kbEstado.passar = null; const m = document.getElementById('kbPassar'); m.hidden = true; m.innerHTML = ''; }
+async function kbPassarExecutar(){
+  const p = kbEstado.passar;
+  if(!p || p.executando || !p.escolha) return { ok: 0, falhas: [] };
+  p.executando = true; p.falhas = [];
+  const chaves = p.alvos.map(l => l.aba + '|' + l.lead_id);
+  const plano = p.escolha === '__igual' ? kbDividirIgual(chaves, p.pessoas.filter(x => x.pode), p.carga)
+    : chaves.map(chave => ({ chave, para: p.escolha === '__livres' ? null : p.escolha }));
+  let ok = 0;
+  for(let i = 0; i < plano.length; i++){
+    p.progresso = `Passando ${i + 1} de ${plano.length}…`; kbPassarDesenhar();
+    const l = kbPassarLead(plano[i].chave);
+    const r = await ppSeguro(() => sb.rpc('leads_redistribuir', { p_aba: l.aba, p_id: l.lead_id, p_novo: plano[i].para }));
+    if(r && !r.error) ok++;
+    else p.falhas.push({ chave: plano[i].chave, nome: l.nome || l.lead_id, motivo: (r && r.error && r.error.message) || 'sem resposta do servidor' });
+  }
+  p.executando = false; p.progresso = '';
+  const res = { ok, falhas: p.falhas.slice() };
+  mostrarAviso(`${ok} de ${plano.length} passado${plano.length === 1 ? '' : 's'}.`, p.falhas.length ? 'info' : 'ok');
+  if(ok) agAvisarMudou();
+  kbEstado.loteSel = new Set();
+  if(p.falhas.length){
+    const falhou = new Set(p.falhas.map(f => f.chave));
+    p.alvos = p.alvos.filter(l => falhou.has(l.aba + '|' + l.lead_id));   // tentar de novo só refaz o que falhou
+    kbPassarDesenhar();
+  } else kbPassarFechar();
+  await kbCarregar();   // na aba Equipe, o kbCarregar também recarrega a Equipe
+  return res;
+}
+// Nomes antigos (ficha e testes): um lead só abre o mesmo menu.
+function kbAbrirRedistribuir(aba, id){ kbPassarAbrir([aba + '|' + id]); }
+async function kbSalvarRedistribuicao(){ return kbPassarExecutar(); }
 async function kbMesaCard(){
   if(kbEstado.modo !== 'painel') return '';   // antes da virada ninguém tem dono no banco: os números enganariam
   const r = await ppSeguro(() => sb.rpc('leads_kanban_resumo'));
@@ -5056,11 +5115,19 @@ document.getElementById('kbReescrever').addEventListener('click', async () => {
   mostrarAviso(r && !r.error ? `${r.data} lead(s) de ${aba} na fila para reescrever na planilha.` : 'Não foi possível pedir a reescrita.', r && !r.error ? 'ok' : 'erro');
 });
 function mesAbaAtualKb(){ return ['JANEIRO','FEVEREIRO','MARCO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'][Number(hojeSP().slice(5, 7)) - 1]; }
-document.getElementById('kbRedSalvar').addEventListener('click', kbSalvarRedistribuicao);
-document.getElementById('kbRedCancelar').addEventListener('click', () => fecharOverlay(document.getElementById('kbRedOverlay')));
-document.getElementById('kbRedFechar').addEventListener('click', () => fecharOverlay(document.getElementById('kbRedOverlay')));
-document.getElementById('kbRedGrupos').addEventListener('click', (e) => { const b = e.target.closest('[data-kb-red]'); if(b) kbRedEscolher(b.dataset.kbRed); });
-document.getElementById('kbRedOverlay').addEventListener('keydown', (e) => { if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); kbSalvarRedistribuicao(); } });
+document.getElementById('kbPassar').addEventListener('click', (e) => {
+  const pp = e.target.closest('[data-kb-passar-para]');
+  if(pp){ kbPassarEscolher(pp.dataset.kbPassarPara); return; }
+  if(e.target.closest('[data-kb-passar-ok]')){ kbPassarExecutar(); return; }
+  if(e.target.closest('[data-kb-passar-cancelar]')) kbPassarFechar();
+});
+// Clicar fora ou Esc fecha. composedPath: o clique que redesenha o menu por dentro tira o alvo do DOM, mas o caminho guardado continua valendo.
+document.addEventListener('click', (e) => {
+  if(!kbEstado.passar || kbEstado.passar.executando) return;
+  const dentro = e.composedPath().some(n => n.nodeType === 1 && (n.id === 'kbPassar' || n.hasAttribute('data-kb-passar-um') || n.hasAttribute('data-kb-lote-passar') || n.hasAttribute('data-kb-lote-livres') || n.hasAttribute('data-kb-ficha-redistribuir')));
+  if(!dentro) kbPassarFechar();
+});
+document.addEventListener('keydown', (e) => { if(e.key === 'Escape' && kbEstado.passar && !kbEstado.passar.executando) kbPassarFechar(); });
 /* ============ BIOMETRIA ============
    06/10/2026 (redesign a pedido do usuário): a aba virou só "nome do cliente -> baixar imagem
    personalizada". O fluxo antigo (link de biometria da Claro + "Enviar no WhatsApp"/"Copiar link")

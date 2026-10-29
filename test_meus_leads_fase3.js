@@ -148,6 +148,67 @@ try{
   assert(!kbEstado.atividadeV2 && EQ.querySelector('tr[data-kb-dono="u1"] .kbCalorSem') && EQ.querySelector('[data-kb-eqk="ligacoes"]').textContent.includes('160') && EQ.querySelector('tr[data-kb-dono="u1"] .kbEqSem.r'), 'RF1: sem a função nova a Equipe abre com a antiga (mapa "—", meta padrão 80, semáforo igual)');
   window.__rpcRespostas.leads_atividade_equipe2 = { data: ATV, error: null };
   await kbCarregarEquipe();
+  // ==== Task 4: menu Passar para (relógio ainda fixo) ====
+  kbEstado.equipeLista = { dono: 'u1', chave: 'sem_contato' }; kbEstado.loteSel = new Set(['O|s1', 'O|s2']); kbRenderEquipe();
+  document.querySelector('#kbLoteBarra [data-kb-lote-passar]').click();
+  const PM = document.getElementById('kbPassar');
+  assert(!PM.hidden && PM.textContent.includes('Passar 2 leads para'), 'menu abre para o lote');
+  eq([...PM.querySelectorAll('[data-kb-passar-para]')].map(b => b.dataset.kbPassarPara), ['u2', '__livres'], 'sem o dono atual; Devolver aos livres (todos sem status); sem Dividir com uma pessoa só');
+  const opU2 = PM.querySelector('[data-kb-passar-para="u2"]');
+  assert(opU2.textContent.includes('menos carga') && opU2.textContent.includes('1 em andamento') && opU2.classList.contains('ativo'), 'quem tem menos carga vem marcado, com o selo e a carga');
+  eq(PM.querySelector('[data-kb-passar-ok]').textContent, 'Passar para Zz Luria', 'botão diz para quem vai');
+  // escolher não fecha o menu (o clique redesenha o menu por dentro)
+  PM.querySelector('[data-kb-passar-para="__livres"]').click();
+  assert(!PM.hidden && kbEstado.passar.escolha === '__livres' && PM.querySelector('[data-kb-passar-ok]').textContent === 'Devolver aos livres', 'escolher troca a opção e o menu continua aberto');
+  PM.querySelector('[data-kb-passar-para="u2"]').click();
+  // RF3 e execução em sequência
+  const chamadas = []; window.__rpcRespostas.leads_redistribuir = (a) => { chamadas.push(a.p_id + '>' + a.p_novo); return { data: null, error: null }; };
+  let mud = 0; document.addEventListener('agenda:mudou', () => mud++);
+  PM.querySelector('[data-kb-passar-ok]').click(); PM.querySelector('[data-kb-passar-ok]').click();
+  await espera(150);
+  eq(chamadas, ['s1>u2', 's2>u2'], 'RF3: dois cliques = uma execução, lead a lead');
+  assert(PM.hidden && kbEstado.loteSel.size === 0 && mud >= 1 && window.__alertas.some(m => m.includes('2 de 2 passados')), 'fecha, limpa a seleção, avisa a Agenda e mostra o resultado');
+  // clicar fora fecha; Esc fecha
+  kbPassarAbrir(['O|s1']); document.body.click();
+  assert(PM.hidden, 'clicar fora fecha o menu');
+  kbPassarAbrir(['O|s1']); document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape' }));
+  assert(PM.hidden, 'Esc fecha o menu');
+  // Devolver aos livres pela barra abre o menu já marcado
+  kbEstado.loteSel = new Set(['O|s1']); kbRenderEquipe();
+  document.querySelector('#kbLoteBarra [data-kb-lote-livres]').click();
+  assert(!PM.hidden && kbEstado.passar.escolha === '__livres', 'Devolver aos livres da barra abre o menu com a opção marcada (confirma antes)');
+  kbPassarFechar(); kbEstado.loteSel = new Set();
+  // Dividir igual entre os que pegam
+  window.__rpcRespostas.leads_atividade_equipe2 = { data: ATV.concat([{ dono_id: 'u3', nome: 'Zz Mariana', tem_telefonia: true, lig_hoje: 0, lig_por_hora: [0,0,0,0,0,0,0,0], meta_dia: 80, pode_pegar: true }]), error: null };
+  await kbCarregarEquipe();
+  chamadas.length = 0;
+  kbPassarAbrir(['O|s1', 'O|s2']);
+  assert(PM.querySelector('[data-kb-passar-para="__igual"]'), 'Dividir igual aparece com dois ou mais que pegam');
+  kbPassarEscolher('__igual');
+  eq(PM.querySelector('[data-kb-passar-ok]').textContent, 'Dividir 2 leads', 'botão de dividir');
+  await kbPassarExecutar();
+  eq(chamadas.slice().sort(), ['s1>u3', 's2>u2'], 'dividir igual: cada um para quem está com menos carga (u3 com 0, depois empate pelo nome)');
+  // RF2: falha parcial
+  chamadas.length = 0;
+  window.__rpcRespostas.leads_redistribuir = (a) => { chamadas.push(a.p_id); return a.p_id === 's2' ? { data: null, error: { message: 'lead com status não volta aos Livres; passe para outro consultor' } } : { data: null, error: null }; };
+  kbPassarAbrir(['O|s1', 'O|s2']); kbPassarEscolher('__livres');
+  const res = await kbPassarExecutar();
+  assert(res.ok === 1 && res.falhas.length === 1 && !PM.hidden && PM.querySelector('.kbPassarFalhas').textContent.includes('Zz Sem Dois') && PM.textContent.includes('não volta aos Livres'), 'RF2: falha parcial lista o lead e o motivo, e o menu fica aberto');
+  assert(window.__alertas.some(m => m.includes('1 de 2 passados')), 'RF2: aviso com o resultado parcial');
+  chamadas.length = 0; kbPassarEscolher('u2'); await kbPassarExecutar();
+  eq(chamadas, ['s2'], 'RF2: tentar de novo só refaz o que falhou');
+  // um lead só (alerta Passar) usa o mesmo menu
+  window.__rpcRespostas.leads_redistribuir = { data: null, error: null };
+  kbRenderEquipe();
+  document.querySelector('#kbEquipe .kbEqAlertas [data-kb-passar-um="O|s1"]').click();
+  assert(!PM.hidden && PM.textContent.includes('Passar "Zz Sem Um" para'), 'Passar no alerta abre o menu para um lead');
+  kbPassarFechar();
+  // RF5: único consultor
+  kbEstado.atividade = [ATV[0]];
+  kbPassarAbrir(['O|a1']);
+  assert(PM.textContent.includes('Nenhum outro consultor na equipe de leads.') && PM.querySelector('[data-kb-passar-ok]').disabled, 'RF5: sem outro consultor não dá para confirmar');
+  kbPassarFechar();
+  assert(!document.getElementById('kbRedOverlay'), 'a janela Redistribuir saiu');
   // ==== mais testes entram aqui ====
 
   Date.now = dnReal;

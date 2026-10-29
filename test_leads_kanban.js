@@ -161,7 +161,7 @@ try{
   document.getElementById('kbSoDiverg').click();
   window.__rpcRespostas.leads_redistribuir = { data: null, error: null };
   kbAbrirRedistribuir('OUTUBRO', 'm1');
-  document.getElementById('kbRedNovo').value = 'u-zz2';
+  kbPassarEscolher('u-zz2');
   await kbSalvarRedistribuicao();
   const red = window.__rpcCalls.filter(c => c.nome === 'leads_redistribuir').pop();
   eq([red.args.p_id, red.args.p_novo], ['m1', 'u-zz2'], 'redistribuir manda o novo dono');
@@ -184,10 +184,9 @@ try{
   assert(document.getElementById('kbClassObs').value === '', 'depois de salvar a ficha reabre com a OBS em branco');
   kbFecharFicha();
   kbAbrirRedistribuir('OUTUBRO', 'm9');
-  assert(aberto('kbRedOverlay'), 'Redistribuir abre');
-  document.getElementById('kbRedCancelar').click();
-  await espera(200);
-  assert(!aberto('kbRedOverlay'), 'Redistribuir fecha no Cancelar');
+  assert(!document.getElementById('kbPassar').hidden, 'Passar para abre');
+  document.querySelector('#kbPassar [data-kb-passar-cancelar]').click();
+  assert(document.getElementById('kbPassar').hidden, 'Passar para fecha no Cancelar');
   // ==== Revisão final: receita com ponto decimal; card da Mesa só depois da virada ====
   eq([kbNumeroBR('1234.56'), kbNumeroBR('1.234'), kbNumeroBR('1.234,50'), kbNumeroBR('99,9'), kbNumeroBR('1.234.567')], [1234.56, 1234, 1234.5, 99.9, 1234567], 'receita: ponto decimal, milhar e formato BR');
   kbEstado.modo = 'planilha';

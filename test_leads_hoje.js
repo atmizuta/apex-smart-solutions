@@ -169,6 +169,7 @@ try{
   window.__rpcRespostas.leads_redistribuir = { data: null, error: null };
   kbEstado.consultores = [{ profile_id: 'u-zz', nome_planilha: 'ZZKCON' }, { profile_id: 'u-out', nome_planilha: 'ZZOUT' }];
   kbEstado.leads = [{ aba: 'OUTUBRO', lead_id: 'h1', nome: 'Zz Hoje Um', categoria: 'andamento', dono_id: 'u-zz' }];
+  kbEstado.atividade = []; kbEstado.leadsEquipe = [];   // sem a Equipe carregada, o menu usa os consultores
   kbAbrirRedistribuir('OUTUBRO', 'h1');
   await kbSalvarRedistribuicao();
   eq(mudou, 2, 'classificar e redistribuir avisam a Agenda');
@@ -276,7 +277,7 @@ try{
   // §120 (correção 27/10 20h): o modal novo deixou dois </div> sobrando e as abas saíram da área principal (Dashboard aparecendo em tudo)
   const pais = new Set([...document.querySelectorAll('section.panel')].map(p => p.parentElement));
   assert(pais.size === 1, 'todas as abas (section.panel) dentro do mesmo contêiner — HTML sem </div> sobrando');
-  assert(document.getElementById('kbFichaCasa').parentElement === document.getElementById('kbRedOverlay').parentElement, 'ficha e Redistribuir no mesmo lugar');
+  assert(document.getElementById('kbFichaCasa').parentElement === document.getElementById('kbPassar').parentElement, 'ficha e Passar para no mesmo lugar');
   // ==== §121: coluna "Sem ligação", última ligação e OBS no cartão, mais cartões por coluna ====
   const SL = (o) => Object.assign({ aba: 'OUTUBRO', lead_id: 'x', nome: 'Zz', livre: false, categoria: 'sem_contato', status: null }, o);
   eq([kbColunaDoLead(SL({ ligacoes: 0 })), kbColunaDoLead(SL({ ligacoes: 0, categoria: 'andamento', status: 'EM NEGOCIAÇÂO' })),
