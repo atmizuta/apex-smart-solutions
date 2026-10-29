@@ -54,7 +54,7 @@ Migration `supabase/migrations/20261029120000_cnpj_consultas.sql` — só `creat
 | `consultado_em` | timestamptz not null default now() | |
 | `consultado_por` | uuid | `auth.users.id` de quem clicou |
 
-Guarda só a última consulta (upsert pelo `cnpj`). RLS ligado: `select` para `authenticated`; nenhuma policy de escrita (só a Edge Function, com service role, grava). CNPJ e situação cadastral são dados públicos da Receita.
+Guarda só a última consulta (upsert pelo `cnpj`). RLS ligado: `select` só para admin, supervisor ou quem está na `leads_equipe` (revisão final 29/10: a lista de CNPJs verificados mostra o funil de prospecção); nenhuma policy de escrita (só a Edge Function, com service role, grava). CNPJ e situação cadastral são dados públicos da Receita.
 
 ## 4. Edge Function `verificar-cnpj`
 
@@ -66,8 +66,8 @@ Entrada: `{ aba, lead_id }` (a chave da `leads` é `(aba, id)`). **Nunca recebe 
 2. Lê o lead (service role) e o perfil de quem clicou. Pode verificar: o dono do lead (`dono_id`), supervisor ou admin. Senão → 403. Lead apagado ou inexistente → 404.
 3. Normaliza o CNPJ do lead (só dígitos). Diferente de 14 dígitos → 422 `cnpj_invalido` (o painel já não mostra o botão, isto é defesa).
 4. Se `cnpj_consultas` tem a linha com `consultado_em` há **menos de 10 minutos**, devolve ela sem consultar fora.
-5. Consulta a **BrasilAPI** (`https://brasilapi.com.br/api/cnpj/v1/{cnpj}`, limite 8 s). Mapeia `descricao_situacao_cadastral`, `data_situacao_cadastral`, `descricao_motivo_situacao_cadastral`, `razao_social`. HTTP 404 → `NAO_ENCONTRADO`.
-6. Se a BrasilAPI falhar (erro de rede, tempo, 5xx, 429), tenta a **publica.cnpj.ws** (`https://publica.cnpj.ws/cnpj/{cnpj}`, 8 s): `estabelecimento.situacao_cadastral`, `estabelecimento.data_situacao_cadastral`, `estabelecimento.motivo_situacao_cadastral.descricao`, `razao_social`. 404 → `NAO_ENCONTRADO`.
+5. Consulta a **BrasilAPI** (`https://brasilapi.com.br/api/cnpj/v1/{cnpj}`, limite 8 s). Mapeia `descricao_situacao_cadastral`, `data_situacao_cadastral`, `descricao_motivo_situacao_cadastral`, `razao_social`. HTTP 400 (dígito verificador errado) → 422 `cnpj_invalido`. HTTP 404 → tenta a reserva (a base da BrasilAPI é mensal).
+6. Se a BrasilAPI falhar (erro de rede, tempo, 5xx, 429), tenta a **publica.cnpj.ws** (`https://publica.cnpj.ws/cnpj/{cnpj}`, 8 s): `estabelecimento.situacao_cadastral`, `estabelecimento.data_situacao_cadastral`, `estabelecimento.motivo_situacao_cadastral.descricao`, `razao_social`. 400 → 422 `cnpj_invalido`. `NAO_ENCONTRADO` só quando as duas fontes dizem 404.
 7. Resultado válido → upsert em `cnpj_consultas` e devolve `{ ok: true, consulta }`.
 8. As duas falharam → **não grava nada**, devolve 503 `fora_do_ar`.
 
