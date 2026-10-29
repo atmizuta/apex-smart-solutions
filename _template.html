@@ -914,7 +914,7 @@
   .kbDiv{margin-top:var(--space-2);font-size:var(--fs-xs);color:var(--c-sinal);font-weight:600;}
   /* modal Classificar (§120): tabulações em botões por grupo, atalhos de data, rodapé fixo */
   /* §126.3: menu "Passar para" (um lead ou vários) */
-  .kbPassar{position:fixed;top:30%;left:calc(50% - 150px);width:300px;max-height:70vh;overflow-y:auto;z-index:60;padding:12px;border-radius:var(--radius-lg);background:var(--ml-surface);color:var(--ml-ink);box-shadow:var(--ml-float);}
+  .kbPassar{position:fixed;top:30%;left:calc(50% - 150px);width:300px;max-height:calc(100vh - 16px);overflow-y:auto;z-index:96;padding:12px 12px 0;border-radius:var(--radius-lg);background:var(--ml-surface);color:var(--ml-ink);box-shadow:var(--ml-float);}
   .kbPassar[hidden]{display:none;}
   .kbPassar h4{margin:0 0 8px;font:600 var(--fs-sm)/1.3 var(--font-body);color:var(--ml-ink-2);text-transform:none;letter-spacing:0;}
   .kbPassarOp{display:flex;align-items:center;gap:10px;width:100%;padding:7px 8px;border:0;border-radius:6px;background:none;font:inherit;text-align:left;cursor:pointer;color:var(--ml-ink);}
@@ -922,11 +922,12 @@
   .kbPassarOp.ativo{box-shadow:inset 3px 0 0 var(--c-sinal);}
   .kbPassarOp:focus-visible{outline:2px solid var(--c-sinal);outline-offset:-2px;}
   .kbPassarOp .kbEqAv{width:26px;height:26px;font-size:11px;}
-  .kbPassarNome{flex:1;font-weight:600;}
+  .kbPassarNome{flex:1;min-width:0;font-weight:600;}
+  .kbPassarNome small{display:block;font-weight:500;}
   .kbPassarOp small{color:var(--ml-ink-3);font-size:var(--fs-xs);}
   .kbSelo{font-size:11px;font-weight:700;color:var(--st-ganho);background:var(--st-ganho-bg);border-radius:5px;padding:1px 6px;}
   .kbPassarFalhas{margin:8px 0;padding:8px 10px;border-radius:6px;background:var(--st-perdido-bg);color:var(--st-perdido);font-size:var(--fs-sm);display:flex;flex-direction:column;gap:2px;}
-  .kbPassarRodape{display:flex;justify-content:flex-end;gap:6px;margin-top:10px;}
+  .kbPassarRodape{position:sticky;bottom:0;display:flex;justify-content:flex-end;gap:6px;margin-top:10px;padding:10px 0 12px;background:var(--ml-surface);}
   .kbClassModal{max-width:640px;}
   .kbClassEtiqueta{display:block;font-size:var(--fs-xs);font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--c-sinal);margin-bottom:4px;}
   .kbClassModal .mHead h2{font-size:var(--fs-lg);text-transform:none;padding-right:40px;}
@@ -1049,8 +1050,8 @@
   .kbEqAv{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:var(--radius-lg);background:var(--c-bordo);color:var(--c-branco);font-size:12px;font-weight:700;flex:none;}
   .kbEqTabela{background:var(--ml-surface);border-radius:var(--radius-lg);overflow-x:auto;margin-bottom:var(--space-4);}
   .kbEqTabela table{width:100%;border-collapse:collapse;}
-  .kbEqTabela th{background:var(--ml-surface-2);text-align:left;font-size:var(--fs-xs);font-weight:600;color:var(--ml-ink-2);padding:10px 12px;white-space:nowrap;text-transform:none;letter-spacing:0;}
-  .kbEqTabela td{padding:10px 12px;border-top:1px solid var(--ml-surface-3);vertical-align:middle;white-space:nowrap;font-size:var(--fs-base);}
+  .kbEqTabela th{background:var(--ml-surface-2);text-align:left;font-size:var(--fs-xs);font-weight:600;color:var(--ml-ink-2);padding:8px 10px;white-space:normal;vertical-align:bottom;line-height:1.25;text-transform:none;letter-spacing:0;}
+  .kbEqTabela td{padding:10px 10px;border-top:1px solid var(--ml-surface-3);vertical-align:middle;white-space:nowrap;font-size:var(--fs-base);}
   .kbEqTabela .r{text-align:right;}
   .kbEqTabela tbody tr{cursor:pointer;transition:background var(--dur-fast);}
   .kbEqTabela tbody tr:hover{background:var(--ml-surface-2);}
@@ -1073,8 +1074,8 @@
   .kbCalor i.fut{background:none;box-shadow:inset 0 0 0 1px var(--ml-surface-3);}
   .kbEqHoje{min-width:120px;font-variant-numeric:tabular-nums;}
   .kbEqHoje .kbMedidor{display:block;width:90px;margin-top:5px;}
-  .kbMed-red i{background:var(--ml-late);}
-  .kbMed-green i{background:var(--ml-ok);}
+  .kbMedidor.kbMed-red i{background:var(--ml-late);}
+  .kbMedidor.kbMed-green i{background:var(--ml-ok);}
   .kbEqNum{border:0;background:none;padding:2px 6px;border-radius:6px;font:inherit;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ml-ink);cursor:pointer;}
   .kbEqNum:hover{background:var(--ml-surface-3);}
   .kbEqNum.ruim{color:var(--ml-late);}
@@ -1092,6 +1093,7 @@
   .kbLoteBarra[hidden]{display:none;}
   .kbLoteAcoes{margin-left:auto;display:flex;gap:6px;}
   .kbLoteBarra .kbBtnG{color:var(--c-branco);}
+  .kbLoteBarra .kbBtnG:hover{background:none;color:var(--c-branco);text-decoration:underline;}
   .kbLoteBarra .kbBtnQ{background:var(--c-branco);color:var(--ml-ink);}
   .kbEqAlertas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}
   .kbEqBloco{background:var(--ml-surface);border-radius:var(--radius-lg);padding:14px 16px;}
@@ -3906,9 +3908,9 @@ function kbHoraAtualIdx(agoraMs){ const h = Math.floor(kbPartesSP(agoraMs).min /
 // Barra de "Hoje": vermelha abaixo de 30% da meta proporcional à hora do expediente (13h–21h, seg–sex), verde acima de 70%.
 function kbCorBarraLig(lig, meta, agoraMs){
   const p = kbPartesSP(agoraMs);
-  if(!meta || p.dow === 0 || p.dow === 6) return '';
+  // revisão final (I3): a primeira hora do expediente fica neutra — as ligações chegam do ProContact com até 1 h de atraso
+  if(!meta || p.dow === 0 || p.dow === 6 || p.min < KB_EXPEDIENTE.ini + 60) return '';
   const f = Math.min(1, Math.max(0, (p.min - KB_EXPEDIENTE.ini) / (KB_EXPEDIENTE.fim - KB_EXPEDIENTE.ini)));
-  if(f <= 0) return '';
   const r = (Number(lig) || 0) / (meta * f);
   return r < 0.3 ? 'red' : r > 0.7 ? 'green' : '';
 }
@@ -3930,10 +3932,21 @@ function kbMenosCarga(pessoas, carga){
   const lista = (pessoas || []).slice().sort((x, y) => (cg[x.id] || 0) - (cg[y.id] || 0) || String(x.nome).localeCompare(String(y.nome)));
   return lista.length ? lista[0].id : null;
 }
-function kbDividirIgual(chaves, pessoas, carga){
+function kbDividirIgual(chaves, pessoas, carga, donoDe){
   if(!(pessoas || []).length) return [];
   const atual = {}; pessoas.forEach(p => { atual[p.id] = (carga || {})[p.id] || 0; });
-  return (chaves || []).map(chave => { const para = kbMenosCarga(pessoas, atual); atual[para] += 1; return { chave, para }; });
+  return (chaves || []).map(chave => {
+    const dono = (donoDe || {})[chave];   // revisão final (I4): nunca devolve o lead ao próprio dono
+    const para = kbMenosCarga(pessoas.filter(p => p.id !== dono), atual);
+    if(para) atual[para] += 1;
+    return { chave, para };
+  });
+}
+// Posição do menu "Passar para" junto da âncora: embaixo se couber, senão acima; maior que a tela começa no topo e rola por dentro.
+function kbPassarPosicao(r, h, vw, vh){
+  const abaixo = r.bottom + 6, acima = r.top - 6 - h;
+  const top = abaixo + h <= vh - 8 ? abaixo : acima >= 8 ? acima : Math.max(8, vh - 8 - h);
+  return { top: Math.round(top), left: Math.round(Math.max(8, Math.min(vw - 308, r.right - 300))) };
 }
 // Ficha do lead (gaveta lateral). Lead Livre sem dado de contato (consultor) mostra o convite para pegar.
 // §126: ícones da ficha (traço de 2 px, mesmo desenho do mockup aprovado)
@@ -4807,8 +4820,11 @@ function kbRenderEquipe(){
       const l = leadsDono.find(x => x.aba === i.aba && x.lead_id === i.lead_id) || ret.find(x => x.aba === i.aba && x.lead_id === i.lead_id) || {};
       return Object.assign({}, i, { detalhe: [primeiro(l.dono_nome), i.detalhe].filter(Boolean).join(' · ') });
     });
+    const visiveis = new Set(itens.map(i => i.aba + '|' + i.lead_id));
+    kbEstado.loteSel = new Set([...kbEstado.loteSel].filter(ch => visiveis.has(ch)));   // revisão final: a seleção só guarda o que está na lista
     lista = `<div class="kbEqLista"><div class="kbEqListaTopo"><h3>${escapeHtml(quem)} · ${escapeHtml(KB_EQ_TITULOS[sel.chave] || '')}</h3><button type="button" class="kbLink" data-kb-lote-todos>Selecionar todos</button><button type="button" class="kbBtn kbBtnG kbBtnSm" data-kb-eq-fechar>Fechar</button></div>${kbListaCartaoHtml(itens, kbEstado.equipeMax || 50, { lote: true, sel: kbEstado.loteSel })}</div>`;
   }
+  if(!sel) kbEstado.loteSel = new Set();
   const n = kbEstado.loteSel.size;
   const todosSemStatus = n > 0 && [...kbEstado.loteSel].every(ch => { const l = (kbEstado.leadsEquipe || []).find(x => x.aba + '|' + x.lead_id === ch); return !!l && l.categoria === 'sem_contato'; });
   const lote = `<div class="kbLoteBarra" id="kbLoteBarra"${n ? '' : ' hidden'}><b>${n} lead${n === 1 ? '' : 's'} selecionado${n === 1 ? '' : 's'}</b><span class="kbLoteAcoes"><button type="button" class="kbBtn kbBtnG kbBtnSm" data-kb-lote-limpar>Limpar seleção</button>${todosSemStatus ? '<button type="button" class="kbBtn kbBtnQ kbBtnSm" data-kb-lote-livres>Devolver aos livres</button>' : ''}<button type="button" class="kbBtn kbBtnP kbBtnSm" data-kb-lote-passar>Passar para…</button></span></div>`;
@@ -5029,18 +5045,18 @@ function kbPassarCarga(){
 }
 function kbPassarAbrir(chaves, ancora, escolha){
   if(!kbGestor() || !(chaves || []).length) return;
+  if(kbEstado.passar && kbEstado.passar.executando) return;   // revisão final (I5): não abre outro menu no meio de uma execução
   const alvos = chaves.map(kbPassarLead);
   const donos = new Set(alvos.map(l => l.dono_id).filter(Boolean));
   const pessoas = kbPassarPessoas().filter(p => !(donos.size === 1 && donos.has(p.id)));
-  const carga = kbPassarCarga(), menos = kbMenosCarga(pessoas, carga);
+  const carga = kbPassarCarga(), menos = kbMenosCarga(pessoas.filter(p => !donos.has(p.id)), carga);   // (I4) a sugestão nunca é dono de um dos leads
   kbEstado.passar = { alvos, pessoas, carga, menos, escolha: escolha || menos || '', executando: false, falhas: [], progresso: '' };
   kbPassarDesenhar();
   const m = document.getElementById('kbPassar');
   m.hidden = false;
   if(ancora && ancora.getBoundingClientRect){
-    const r = ancora.getBoundingClientRect();
-    m.style.top = Math.max(8, Math.min(window.innerHeight - 320, r.bottom + 6)) + 'px';
-    m.style.left = Math.max(8, Math.min(window.innerWidth - 308, r.right - 300)) + 'px';
+    const pos = kbPassarPosicao(ancora.getBoundingClientRect(), m.offsetHeight, window.innerWidth, window.innerHeight);   // (C1) mede o menu já desenhado
+    m.style.top = pos.top + 'px'; m.style.left = pos.left + 'px';
   } else { m.style.top = ''; m.style.left = ''; }
   const foco = m.querySelector('.kbPassarOp.ativo') || m.querySelector('[data-kb-passar-cancelar]');
   if(foco) foco.focus();
@@ -5050,8 +5066,8 @@ function kbPassarDesenhar(){
   if(!p) return;
   const n = p.alvos.length, semStatus = p.alvos.every(l => l.categoria === 'sem_contato');
   const titulo = n === 1 ? `Passar "${escapeHtml(p.alvos[0].nome || 'lead')}" para` : `Passar ${n} leads para`;
-  const op = (v, nome, info, av) => `<button type="button" class="kbPassarOp${p.escolha === v ? ' ativo' : ''}" data-kb-passar-para="${escapeHtml(v)}"${p.executando ? ' disabled' : ''}>${av ? `<span class="kbEqAv">${escapeHtml(av)}</span>` : ''}<span class="kbPassarNome">${escapeHtml(nome)}</span>${info}</button>`;
-  const pessoas = p.pessoas.map(x => op(x.id, x.nome, `<small>${p.carga[x.id] || 0} em andamento</small>${x.id === p.menos ? '<span class="kbSelo">menos carga</span>' : ''}`, kbIniciais(x.nome))).join('');
+  const op = (v, nome, info, av, selo) => `<button type="button" class="kbPassarOp${p.escolha === v ? ' ativo' : ''}" data-kb-passar-para="${escapeHtml(v)}"${p.executando ? ' disabled' : ''}>${av ? `<span class="kbEqAv">${escapeHtml(av)}</span>` : ''}<span class="kbPassarNome">${escapeHtml(nome)}${info}</span>${selo || ''}</button>`;
+  const pessoas = p.pessoas.map(x => op(x.id, x.nome, `<small>${p.carga[x.id] || 0} em andamento</small>`, kbIniciais(x.nome), x.id === p.menos ? '<span class="kbSelo">menos carga</span>' : '')).join('');
   const podem = p.pessoas.filter(x => x.pode);
   const extra = (n > 1 && podem.length > 1 ? op('__igual', 'Dividir igual entre os que pegam', '') : '') + (semStatus ? op('__livres', 'Devolver aos livres', '') : '');
   const escolhido = p.escolha === '__igual' ? `Dividir ${n} leads` : p.escolha === '__livres' ? 'Devolver aos livres' : ('Passar para ' + ((p.pessoas.find(x => x.id === p.escolha) || {}).nome || ''));
@@ -5065,11 +5081,15 @@ async function kbPassarExecutar(){
   const p = kbEstado.passar;
   if(!p || p.executando || !p.escolha) return { ok: 0, falhas: [] };
   p.executando = true; p.falhas = [];
-  const chaves = p.alvos.map(l => l.aba + '|' + l.lead_id);
-  const plano = p.escolha === '__igual' ? kbDividirIgual(chaves, p.pessoas.filter(x => x.pode), p.carga)
+  const chaves = p.alvos.map(l => l.aba + '|' + l.lead_id), donoDe = {};
+  p.alvos.forEach(l => { donoDe[l.aba + '|' + l.lead_id] = l.dono_id || null; });
+  const tudo = p.escolha === '__igual' ? kbDividirIgual(chaves, p.pessoas.filter(x => x.pode), p.carga, donoDe)
     : chaves.map(chave => ({ chave, para: p.escolha === '__livres' ? null : p.escolha }));
+  const plano = tudo.filter(x => !(x.para && x.para === donoDe[x.chave]) && !(p.escolha === '__igual' && !x.para));   // (I4) o que já é de quem foi escolhido não é passado de novo
+  const pulados = tudo.length - plano.length;
   let ok = 0;
   for(let i = 0; i < plano.length; i++){
+    if(kbEstado.passar !== p) break;   // (I5) saiu do painel no meio: para aqui
     p.progresso = `Passando ${i + 1} de ${plano.length}…`; kbPassarDesenhar();
     const l = kbPassarLead(plano[i].chave);
     const r = await ppSeguro(() => sb.rpc('leads_redistribuir', { p_aba: l.aba, p_id: l.lead_id, p_novo: plano[i].para }));
@@ -5078,7 +5098,8 @@ async function kbPassarExecutar(){
   }
   p.executando = false; p.progresso = '';
   const res = { ok, falhas: p.falhas.slice() };
-  mostrarAviso(`${ok} de ${plano.length} passado${plano.length === 1 ? '' : 's'}.`, p.falhas.length ? 'info' : 'ok');
+  if(kbEstado.passar !== p) return res;   // (I5) o menu foi fechado por fora (sair): não mexe em mais nada
+  mostrarAviso(`${ok} de ${plano.length} passado${plano.length === 1 ? '' : 's'}.` + (pulados ? ` ${pulados} já ${pulados === 1 ? 'era' : 'eram'} de quem você escolheu.` : ''), p.falhas.length ? 'info' : 'ok');
   if(ok) agAvisarMudou();
   kbEstado.loteSel = new Set();
   if(p.falhas.length){
@@ -5086,7 +5107,7 @@ async function kbPassarExecutar(){
     p.alvos = p.alvos.filter(l => falhou.has(l.aba + '|' + l.lead_id));   // tentar de novo só refaz o que falhou
     kbPassarDesenhar();
   } else kbPassarFechar();
-  await kbCarregar();   // na aba Equipe, o kbCarregar também recarrega a Equipe
+  if(kbEstado.aba === 'equipe') await kbCarregarEquipe(); else await kbCarregar();   // (I1) o kbCarregar não recarrega a Equipe
   return res;
 }
 // Nomes antigos (ficha e testes): um lead só abre o mesmo menu.

@@ -209,6 +209,54 @@ try{
   assert(PM.textContent.includes('Nenhum outro consultor na equipe de leads.') && PM.querySelector('[data-kb-passar-ok]').disabled, 'RF5: sem outro consultor não dá para confirmar');
   kbPassarFechar();
   assert(!document.getElementById('kbRedOverlay'), 'a janela Redistribuir saiu');
+  // ==== Revisão final (correções) ====
+  const cssR = [...document.querySelectorAll('style')].map(s => s.textContent).join('\\n');
+  // C1: o menu cabe na tela (abre acima da âncora quando não cabe embaixo), rodapé sempre à vista e acima do botão flutuante
+  eq(kbPassarPosicao({ top: 850, bottom: 880, right: 1400 }, 560, 1440, 900), { top: 284, left: 1100 }, 'C1: âncora perto do rodapé → menu abre acima');
+  eq(kbPassarPosicao({ top: 100, bottom: 130, right: 500 }, 300, 1440, 900), { top: 136, left: 200 }, 'C1: cabe embaixo → abre embaixo');
+  eq(kbPassarPosicao({ top: 400, bottom: 430, right: 900 }, 1000, 1366, 768).top, 8, 'C1: maior que a tela → começa no topo (rola por dentro)');
+  assert(cssR.includes('max-height:calc(100vh - 16px)') && cssR.includes('.kbPassarRodape{position:sticky;bottom:0;') && cssR.includes('z-index:96;'), 'C1: altura máxima da tela, rodapé fixo e acima do botão flutuante');
+  // I2: as cores da barra Hoje vencem a regra geral do medidor
+  assert(cssR.includes('.kbMedidor.kbMed-red i{') && cssR.includes('.kbMedidor.kbMed-green i{'), 'I2: cor da barra com especificidade maior que .kbMedidor i');
+  // I3: primeira hora do expediente neutra (ligações chegam com até 1 h de atraso)
+  eq([kbCorBarraLig(0, 80, SP('2026-10-28T13:10:00')), kbCorBarraLig(0, 80, SP('2026-10-28T13:59:00')), kbCorBarraLig(2, 80, SP('2026-10-28T14:30:00'))], ['', '', 'red'], 'I3: neutra até as 14h; depois vale a regra');
+  // I4: dividir igual nunca devolve o lead ao próprio dono
+  eq(kbDividirIgual(['k1', 'k2'], pes, {}, { k1: 'b', k2: 'a' }).map(x => x.para), ['c', 'b'], 'I4: dividir exclui o dono de cada lead');
+  kbEstado.atividade = ATV.slice();
+  kbPassarAbrir(['O|s1', 'O|a2']);
+  eq(kbEstado.passar.escolha, '', 'I4: com donos diferentes e só os donos na equipe, nada vem marcado (antes marcava o dono de s1)');
+  kbPassarFechar();
+  kbEstado.atividade = ATV.concat([{ dono_id: 'u3', nome: 'Zz Mariana', tem_telefonia: true, lig_hoje: 0, lig_por_hora: [0,0,0,0,0,0,0,0], meta_dia: 80, pode_pegar: true }]);
+  kbPassarAbrir(['O|s1', 'O|a2']);
+  eq(kbEstado.passar.escolha, 'u3', 'I4: com donos diferentes, a sugestão não é dono de nenhum dos leads');
+  assert(PM.querySelector('.kbPassarNome small') && PM.querySelector('[data-kb-passar-para="u3"] .kbPassarNome small').textContent === '0 em andamento', 'menu: a carga fica embaixo do nome (o nome não quebra)');
+  const chamI4 = []; window.__rpcRespostas.leads_redistribuir = (a) => { chamI4.push(a.p_id + '>' + a.p_novo); return { data: null, error: null }; };
+  kbPassarEscolher('u1');
+  await kbPassarExecutar();
+  eq(chamI4, ['a2>u1'], 'I4: o lead que já é de quem foi escolhido não é "passado" de novo');
+  assert(window.__alertas.some(m => m.includes('1 de 1 passado') && m.includes('1 já era de quem você escolheu')), 'I4: o aviso conta o que já era dele');
+  // I1: depois de passar, na aba Equipe, a Equipe recarrega
+  kbEstado.aba = 'equipe';
+  const antesEq = window.__rpcCalls.filter(c => c.nome === 'leads_atividade_equipe2').length;
+  kbPassarAbrir(['O|s2']); kbPassarEscolher('u2'); await kbPassarExecutar(); await espera(30);
+  assert(window.__rpcCalls.filter(c => c.nome === 'leads_atividade_equipe2').length > antesEq, 'I1: a Equipe recarrega depois de passar');
+  // I5: com uma execução em andamento, não abre outro menu; sair (kbParar) interrompe o laço
+  let solta = null; const chamI5 = [];
+  window.__rpcRespostas.leads_redistribuir = (a) => { chamI5.push(a.p_id); return new Promise(r => { solta = () => r({ data: null, error: null }); }); };
+  kbPassarAbrir(['O|s1', 'O|s2']); kbPassarEscolher('u2');
+  const exI5 = kbPassarExecutar(); await espera(10);
+  kbPassarAbrir(['O|a1']);
+  assert(kbEstado.passar && kbEstado.passar.executando && kbEstado.passar.alvos.length === 2, 'I5: não abre outro menu durante a execução');
+  kbPassarFechar(); solta(); await exI5;
+  assert(chamI5.length === 1 && PM.hidden && !kbEstado.passar, 'I5: fechar (sair) no meio interrompe e não reabre nada');
+  window.__rpcRespostas.leads_redistribuir = { data: null, error: null };
+  // M1→Important: a seleção só guarda o que está na lista aberta
+  kbEstado.equipeLista = { dono: 'u1', chave: 'sem_contato' }; kbEstado.loteSel = new Set(['O|s1', 'O|zz-sumiu']); kbRenderEquipe();
+  assert(kbEstado.loteSel.has('O|s1') && !kbEstado.loteSel.has('O|zz-sumiu') && document.getElementById('kbLoteBarra').textContent.includes('1 lead selecionado'), 'seleção some quando o lead sai da lista');
+  kbEstado.equipeLista = null; kbRenderEquipe();
+  eq(kbEstado.loteSel.size, 0, 'sem lista aberta, sem seleção');
+  // tabela cabe em 1366/1440 (cabeçalho quebra em duas linhas) e o hover da barra escura não apaga o texto
+  assert(cssR.includes('.kbEqTabela th{') && /\\.kbEqTabela th\\{[^}]*white-space:normal/.test(cssR) && cssR.includes('.kbLoteBarra .kbBtnG:hover{'), 'cabeçalho da tabela quebra linha; hover na barra escura');
   // ==== mais testes entram aqui ====
 
   Date.now = dnReal;
