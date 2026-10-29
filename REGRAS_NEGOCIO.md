@@ -4252,3 +4252,17 @@ Plano em `docs/superpowers/plans/2026-10-28-meus-leads-redesign-fase2.md`. Sem m
 - **Para voltar atrás:**
   - **painel:** republicar o backup;
   - **banco:** a função nova pode ficar. Ela é só leitura e o painel antigo não a usa.
+
+## 127. Robô ProContact: chamadas manuais de 15 em 15 minutos (28–29/10/2026)
+
+Pedido do Rafael: as chamadas manuais chegam ao painel de 15 em 15 min, e não mais só de hora em hora. O Discador continua de hora em hora.
+- **Por que não só encurtar o horário:** a rodada de hora em hora leva de 4 a 14 min (manuais do mês inteiro ~1,5 min; discador de ontem+hoje ~6 min, dos quais ~4 min só para o ProContact gerar o Excel) e regrava ~46 mil linhas por hora (upsert por id regrava a linha mesmo sem mudança). Rodar tudo a cada 15 min encostaria uma rodada na outra e multiplicaria por 4 as gravações (risco para a cota de IO do disco, ver 21/10).
+- **Duas rodadas:**
+  - **Completa** (job `robo-procontact-disparo`, minuto 17, §69): igual a antes = manuais do dia 1 do mês até hoje + discador (§93).
+  - **Rápida** (job novo `robo-procontact-rapido`, minutos 02, 32 e 47, migration `20261028180000_robo_procontact_rapido_pgcron.sql`): dispara o workflow com `rapido=sim` → o robô puxa **só as manuais de hoje** (00:00–23:59) e **não roda o discador**.
+- **Expediente:** o disparo pela API sempre chega com `FORCAR=true`, então a rodada completa roda em qualquer horário que o pg_cron mandar. A rápida **sempre** respeita seg–sáb, 07–22h (São Paulo), mesmo forçada.
+- **Robô** (`rafaangelao/apex-robo-procontact`): input `rapido` (`nao`/`sim`) no workflow → `RAPIDO`; `periodoHoje()` em `src/periodo.js`; `rodaDiscador()` em `src/main.js`. Testes em `test/main.test.js` e `test/periodo.test.js`.
+- **Fila:** o workflow tem `concurrency: procontact` sem cancelar a que está rodando; se uma rodada passar de 15 min, a seguinte espera.
+- **Painel:** sem mudança. O aviso de "sincronização das ligações parada" (§67) olha o último `ligacoes_sync_log` ok, que agora fica a no máximo ~15 min.
+- **Teste e ligação (29/10, ok do Rafael):** robô `af9d498` na main. Execução `dry` com `rapido=sim` às 15:29: exportação em 18 s (contra 64 s do mês inteiro), 161 linhas de hoje (160 válidas; o banco tinha 145, 15 a chegar), discador não rodou, ~1 min no total. Job `robo-procontact-rapido` (jobid 25) criado às ~15:35 pela migration acima.
+- **Reverter:** `select cron.unschedule('robo-procontact-rapido');` (a rodada de hora em hora segue sozinha).
