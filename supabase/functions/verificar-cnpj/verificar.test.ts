@@ -120,12 +120,29 @@ test("BrasilAPI com falha de rede, 500 ou 429 → usa a publica.cnpj.ws", async 
   }
 });
 
-test("BrasilAPI 404 → NAO_ENCONTRADO gravado, sem chamar a reserva", async () => {
-  const { deps, chamadas } = criar({ respostas: { brasilapi: { status: 404, corpo: { message: "não encontrado" } } } });
-  const r = await pedir(deps);
+test("BrasilAPI 404 confirma na publica.cnpj.ws: NAO_ENCONTRADO só se as duas dizem 404", async () => {
+  const ambas = criar({ respostas: { brasilapi: { status: 404, corpo: null }, cnpjws: { status: 404, corpo: null } } });
+  const r = await pedir(ambas.deps);
   assert.equal(r.status, 200);
-  assert.equal(chamadas.salvar[0].situacao, "NAO_ENCONTRADO");
-  assert.equal(chamadas.buscar.length, 1);
+  assert.equal(ambas.chamadas.salvar[0].situacao, "NAO_ENCONTRADO");
+  assert.equal(ambas.chamadas.buscar.length, 2);
+  const nova = criar({ respostas: { brasilapi: { status: 404, corpo: null }, cnpjws: { status: 200, corpo: WS } } });
+  await pedir(nova.deps);
+  assert.equal(nova.chamadas.salvar[0].situacao, "ATIVA", "empresa nova que a BrasilAPI ainda não tem");
+  const caiu = criar({ respostas: { brasilapi: { status: 404, corpo: null }, cnpjws: "falha" } });
+  assert.equal((await pedir(caiu.deps)).status, 503, "404 de uma só não vira NAO_ENCONTRADO");
+  assert.equal(caiu.chamadas.salvar.length, 0);
+});
+
+test("CNPJ com dígito errado (HTTP 400 da fonte) → 422 cnpj_invalido sem gravar", async () => {
+  const a = criar({ respostas: { brasilapi: { status: 400, corpo: { message: "inválido" } } } });
+  const r = await pedir(a.deps);
+  assert.equal(r.status, 422);
+  assert.equal(r.corpo.erro, "cnpj_invalido");
+  assert.equal(a.chamadas.salvar.length, 0);
+  assert.equal(a.chamadas.buscar.length, 1);
+  const b = criar({ respostas: { brasilapi: "falha", cnpjws: { status: 400, corpo: null } } });
+  assert.equal((await pedir(b.deps)).status, 422);
 });
 
 test("as duas fontes falham ou respondem situação desconhecida → 503 e nada é gravado", async () => {

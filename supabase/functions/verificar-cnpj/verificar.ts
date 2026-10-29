@@ -56,12 +56,16 @@ const FONTES: { nome: Fonte; url: (cnpj: string) => string; ler: (corpo: unknown
 ];
 const naoEncontrado = (fonte: Fonte): Resultado => ({ situacao: "NAO_ENCONTRADO", situacao_desde: null, motivo: null, razao_social: null, fonte });
 
-// BrasilAPI primeiro; falha de rede, tempo, HTTP diferente de 200/404 ou situação desconhecida → tenta a próxima fonte.
-async function consultarFora(cnpj: string, deps: Deps): Promise<Resultado | null> {
+// BrasilAPI primeiro; falha de rede, tempo, 404, outro HTTP ou situação desconhecida → tenta a próxima fonte.
+// 400 = dígito verificador errado (as duas fontes recusam). NAO_ENCONTRADO só quando TODAS dizem 404: a base da
+// BrasilAPI é mensal e pode não ter empresa aberta há pouco (revisão final, 29/10).
+async function consultarFora(cnpj: string, deps: Deps): Promise<Resultado | "invalido" | null> {
+  let naoAchou = 0;
   for (const f of FONTES) {
     try {
       const r = await deps.buscar(f.url(cnpj), TEMPO_LIMITE_MS);
-      if (r.status === 404) return naoEncontrado(f.nome);
+      if (r.status === 400) return "invalido";
+      if (r.status === 404) { naoAchou++; deps.log(`${f.nome}: não encontrado`); continue; }
       if (r.status === 200) {
         const lido = f.ler(r.corpo);
         if (lido) return lido;
@@ -71,7 +75,7 @@ async function consultarFora(cnpj: string, deps: Deps): Promise<Resultado | null
       deps.log(`${f.nome}: falha de rede ou tempo`);
     }
   }
-  return null;
+  return naoAchou === FONTES.length ? naoEncontrado(FONTES[FONTES.length - 1].nome) : null;
 }
 
 const resp = (status: number, corpo: Record<string, unknown>) => ({ status, corpo });
@@ -91,6 +95,7 @@ export async function verificar(entrada: { auth: string | null; aba: string; lea
     return resp(200, { ok: true, consulta: salva });
   }
   const r = await consultarFora(cnpj, deps);
+  if (r === "invalido") { deps.log("cnpj recusado pela fonte (400)"); return resp(422, { ok: false, erro: "cnpj_invalido" }); }
   if (!r) { deps.log("fora do ar"); return resp(503, { ok: false, erro: "fora_do_ar" }); }
   const consulta: Consulta = { cnpj, ...r, consultado_em: deps.agora().toISOString(), consultado_por: uid };
   await deps.salvar(consulta);
