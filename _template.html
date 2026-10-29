@@ -1000,6 +1000,9 @@
   .kbFichaTel .kbBtnQ{background:var(--ml-surface);}
   .kbFichaDir{margin-left:auto;display:flex;gap:6px;}
   .kbFichaOutros{display:grid;grid-template-columns:auto 1fr auto;gap:4px var(--space-3);align-items:center;margin-top:var(--space-3);font-size:var(--fs-sm);}
+  .kbCnpjRec{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2);margin-top:var(--space-2);font-size:var(--fs-sm);}
+  .kbCnpjRec:empty{display:none;}
+  .kbCnpjRec .kbFichaAviso{flex-basis:100%;margin:0;}
   .kbFichaOutros span{color:var(--ml-ink-3);}
   .kbFichaOutros b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ml-ink);}
   .kbFichaResumo{margin:var(--space-2) 2px 0;font-size:var(--fs-sm);color:var(--ml-ink-2);}
@@ -4032,7 +4035,7 @@ function kbFichaHtml(f, op){
     contato = `<div class="kbFichaContato">${tel ? `<div class="kbFichaTel"><strong>${escapeHtml(kbFoneBR(f.telefone))}</strong>
         <button type="button" class="kbBtn kbBtnQ kbBtnSm" data-kb-ficha-copiar="${escapeHtml(kbTelCopiar(f.telefone))}">${KB_ICO.copiar}Copiar</button>
         <span class="kbFichaDir"><a class="kbBtn kbBtnP" data-kb-contato="ligar" data-kb-ligar href="#" title="Copia o número e abre o ProContact">${KB_ICO.tel}Ligar</a><a class="kbBtn kbBtnQ" data-kb-contato="whatsapp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}?text=${msg}">${KB_ICO.wa}WhatsApp</a></span></div>` : '<p class="kbMeta">Lead sem celular.</p>'}
-      <div class="kbFichaOutros">${copiar('E-mail', f.email)}${copiar('CNPJ', f.cnpj)}</div></div>`
+      <div class="kbFichaOutros">${copiar('E-mail', f.email)}${copiar('CNPJ', f.cnpj)}</div><div class="kbCnpjRec" id="kbCnpjRec">${kbCnpjHtml(f, {})}</div></div>`
       + (f.livre ? `<div class="kbFichaBotoes"><button type="button" class="kbBtn kbBtnP" data-kb-ficha-pegar>${KB_ICO.mao}Pegar este lead</button></div>` : '');
   }
   const obsAnt = f.obs ? `<p class="kbObsAnt"><small>Última OBS${f.classificado_em ? ' · ' + escapeHtml(kbDataHoraBR(f.classificado_em)) : ''}</small>${escapeHtml(f.obs)}</p>` : '';
@@ -4047,6 +4050,47 @@ function kbFichaHtml(f, op){
       ? `<button type="button" class="kbBtn kbBtnP kbBtnLg" id="kbClassSalvarProx" data-kb-salvar="prox">Salvar e ir para o próximo${KB_ICO.seta}</button><button type="button" class="kbBtn kbBtnG" id="kbClassSalvar" data-kb-salvar="so">Só salvar</button>`
       : `<button type="button" class="kbBtn kbBtnP kbBtnLg" id="kbClassSalvar" data-kb-salvar="so">Salvar</button>`}<span class="kbMeta">Ctrl+Enter</span></div>`;
   return `<div class="kbFichaRolagem">${barra}${apagar}${cab}${contato}<p class="kbFichaResumo" id="kbFichaResumo"></p>${aviso}${obsAnt}${corpo}</div>${rodape}`;
+}
+
+// §127: situação do CNPJ do lead na Receita, só quando alguém clica (Edge Function verificar-cnpj; resultado em cnpj_consultas).
+// Spec: docs/superpowers/specs/2026-10-29-verificar-cnpj-design.md.
+const KB_CNPJ_COLUNAS = ['novos', 'semlig', 'andamento', 'semresp'];
+const KB_CNPJ_SELO = {
+  ATIVA: ['ok', 'Ativa na Receita'], SUSPENSA: ['soon', 'Suspensa na Receita'], BAIXADA: ['late', 'Baixada na Receita'],
+  INAPTA: ['late', 'Inapta na Receita'], NULA: ['late', 'Nula na Receita'], NAO_ENCONTRADO: ['late', 'CNPJ não existe na Receita: confira com o cliente'],
+};
+const KB_CNPJ_PROBLEMA = ['BAIXADA', 'INAPTA', 'NULA'];
+function kbCnpjDigitos(v){ return String(v == null ? '' : v).replace(/\D/g, ''); }
+function kbCnpjMostra(f){ return !!f && !f.livre && !!kbCnpjDigitos(f.cnpj) && KB_CNPJ_COLUNAS.includes(kbColunaDoLead(f)); }
+function kbCnpjDataBR(iso){ const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || '')); return m ? `${m[3]}/${m[2]}/${m[1]}` : ''; }
+function kbCnpjSelo(c){
+  const s = c && KB_CNPJ_SELO[c.situacao];
+  if(!s) return null;
+  const quando = c.situacao === 'NAO_ENCONTRADO' ? '' : kbDataHoraBR(c.consultado_em);
+  return { classe: s[0], texto: s[1] + (quando ? ' · consultado ' + quando : '') };
+}
+function kbCnpjAviso(c){
+  if(!c || !KB_CNPJ_PROBLEMA.includes(c.situacao)) return null;
+  const desde = kbCnpjDataBR(c.situacao_desde);
+  return { titulo: `Empresa ${c.situacao} na Receita${desde ? ' desde ' + desde : ''}`, motivo: c.motivo ? String(c.motivo).toLowerCase() : '',
+    texto: 'Confirme com o cliente se ele tem outro CNPJ ativo antes de seguir.' };
+}
+function kbCnpjMsgErro(status){
+  if(status === 403) return 'Só o dono do lead, o supervisor ou o admin podem verificar.';
+  if(status === 422) return 'CNPJ inválido.';
+  return 'Não foi possível consultar agora. Tente de novo em alguns minutos.';
+}
+function kbCnpjHtml(f, est){
+  if(!kbCnpjMostra(f)) return '';
+  const e = est || {}, dig = kbCnpjDigitos(f.cnpj);
+  if(dig.length !== 14) return `<span class="kbMeta">CNPJ inválido (${dig.length} dígitos)</span>`;
+  if(e.carregando) return '<button type="button" class="kbBtn kbBtnQ kbBtnSm" disabled>Consultando…</button>';
+  const selo = kbCnpjSelo(e.consulta), aviso = kbCnpjAviso(e.consulta);
+  const erro = e.erro ? `<span class="kbMeta">${escapeHtml(e.erro)}</span>` : '';
+  if(!selo) return `<button type="button" class="kbBtn kbBtnP kbBtnSm" data-kb-cnpj-verificar>Verificar na Receita</button>${erro}`;
+  const atalho = aviso && e.podeInapto ? ' <button type="button" class="kbLink" data-kb-cnpj-inapto>Classificar como CNPJ INAPTO</button>' : '';
+  return `<span class="kbTag ${selo.classe}">${escapeHtml(selo.texto)}</span><button type="button" class="kbLink" data-kb-cnpj-verificar>Verificar de novo</button>${erro}`
+    + (aviso ? `<p class="kbFichaAviso">⚠ <strong>${escapeHtml(aviso.titulo)}</strong>${aviso.motivo ? ' (motivo: ' + escapeHtml(aviso.motivo) + ')' : ''}. ${escapeHtml(aviso.texto)}${atalho}</p>` : '');
 }
 
 const kbEstado = { geracao: 0, naEquipe: false, modo: 'planilha', versao: '', leads: [], opcoes: [], dono: '', timer: null, verTodosLivres: false, soDivergencias: false, classAlvo: null, consultores: [], loteSel: new Set(), passar: null };
