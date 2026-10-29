@@ -3816,6 +3816,61 @@ function kbSalvarColAbertas(){ try { window.localStorage.setItem('kbColAbertas',
 function kbColAberta(col){ return !KB_COL_RECOLHIVEIS.includes(col) || !!(kbEstado.colAbertas || {})[col]; }
 function kbLerDensidade(){ try { return window.localStorage.getItem('kbDensidade') === 'compacto' ? 'compacto' : 'conforto'; } catch(_e) { return 'conforto'; } }
 function kbSalvarDensidade(){ try { window.localStorage.setItem('kbDensidade', kbEstado.densidade === 'compacto' ? 'compacto' : 'conforto'); } catch(_e) {} }
+// ===== §126.3 (Fase 3): Equipe e "Passar para" — funções puras =====
+function kbDuracaoMin(min){
+  if(min === null || min === undefined || isNaN(min)) return '';
+  const m = Math.max(0, Math.round(min)), h = Math.floor(m / 60), r = m % 60;
+  return h ? `${h} h${r ? ' ' + r + ' min' : ''}` : `${m} min`;
+}
+// Semáforo escrito da Equipe (spec 5.1): verde diz a última ação de hoje; amarelo/vermelho dizem há quanto tempo está parado.
+// Sem telefonia vale só a OBS; sem OBS hoje fica cinza ("sem telefonia"), porque não há como medir.
+function kbAgoraEquipe(a, agoraMs){
+  const s = kbAtividade(a.ultima_ligacao, a.ultima_obs, agoraMs);
+  if(s.cor === 'cinza') return { cor: 'cinza', texto: 'fora do expediente' };
+  const ini = Date.parse(kbPartesSP(agoraMs).dia + 'T00:00:00-03:00') + KB_EXPEDIENTE.ini * 60000;
+  const deHoje = (v) => { const t = kbMs(v); return t !== null && t >= ini ? t : null; };
+  const tl = a.tem_telefonia ? deHoje(a.ultima_ligacao) : null, to = deHoje(a.ultima_obs);
+  if(!a.tem_telefonia && to === null) return { cor: 'cinza', texto: 'sem telefonia' };
+  if(s.cor !== 'verde') return { cor: s.cor, texto: 'parado ' + kbDuracaoMin(s.min) };
+  if(tl === null && to === null) return { cor: 'verde', texto: 'nenhuma ação ainda' };
+  return to !== null && (tl === null || to > tl) ? { cor: 'verde', texto: 'OBS ' + kbTempoDesde(a.ultima_obs, agoraMs) } : { cor: 'verde', texto: 'ligou ' + kbTempoDesde(a.ultima_ligacao, agoraMs) };
+}
+// Mapa de ligações por hora: 0, 1–4, 5–9, 10–14, 15+ (a meta de 80/dia dá 10 por hora).
+function kbNivelHora(n){ const x = Number(n) || 0; return x <= 0 ? 0 : x < 5 ? 1 : x < 10 ? 2 : x < 15 ? 3 : 4; }
+// Hora atual no mapa: -1 antes das 13h, 0 = 13h … 7 = 20h, 8 depois das 21h.
+function kbHoraAtualIdx(agoraMs){ const h = Math.floor(kbPartesSP(agoraMs).min / 60); return h < 13 ? -1 : h > 20 ? 8 : h - 13; }
+// Barra de "Hoje": vermelha abaixo de 30% da meta proporcional à hora do expediente (13h–21h, seg–sex), verde acima de 70%.
+function kbCorBarraLig(lig, meta, agoraMs){
+  const p = kbPartesSP(agoraMs);
+  if(!meta || p.dow === 0 || p.dow === 6) return '';
+  const f = Math.min(1, Math.max(0, (p.min - KB_EXPEDIENTE.ini) / (KB_EXPEDIENTE.fim - KB_EXPEDIENTE.ini)));
+  if(f <= 0) return '';
+  const r = (Number(lig) || 0) / (meta * f);
+  return r < 0.3 ? 'red' : r > 0.7 ? 'green' : '';
+}
+function kbFaixasAtencao(atividade, cont, agoraMs){
+  return (atividade || []).filter(a => kbAgoraEquipe(a, agoraMs).cor === 'vermelho')
+    .map(a => ({ dono_id: a.dono_id, nome: a.nome || '', min: kbAtividade(a.ultima_ligacao, a.ultima_obs, agoraMs).min, sem_contato: ((cont || {})[a.dono_id] || {}).sem_contato || 0 }));
+}
+function kbKpisEquipe(atividade, leads, cont, agoraMs){
+  const comTel = (atividade || []).filter(a => a.tem_telefonia), c = Object.values(cont || {});
+  const livres = (leads || []).filter(l => l.livre), datas = livres.map(l => l.criado_em_lead).filter(Boolean).sort((x, y) => (kbMs(x) || 0) - (kbMs(y) || 0));
+  return { lig: comTel.reduce((s, a) => s + (Number(a.lig_hoje) || 0), 0), meta: comTel.reduce((s, a) => s + (Number(a.meta_dia) || 80), 0),
+    livres: livres.length, livreAntigo: datas[0] || null,
+    semContato: c.reduce((s, x) => s + (x.sem_contato || 0), 0), retornosAtras: c.reduce((s, x) => s + (x.retornos_atrasados || 0), 0),
+    vendas: c.reduce((s, x) => s + (x.convertidos || 0), 0), receita: Math.round(c.reduce((s, x) => s + (Number(x.receita) || 0), 0) * 100) / 100 };
+}
+// "Passar para": quem está com menos carga (empate pelo nome) e a divisão igual (cada lead vai para quem estiver com menos naquele momento).
+function kbMenosCarga(pessoas, carga){
+  const cg = carga || {};
+  const lista = (pessoas || []).slice().sort((x, y) => (cg[x.id] || 0) - (cg[y.id] || 0) || String(x.nome).localeCompare(String(y.nome)));
+  return lista.length ? lista[0].id : null;
+}
+function kbDividirIgual(chaves, pessoas, carga){
+  if(!(pessoas || []).length) return [];
+  const atual = {}; pessoas.forEach(p => { atual[p.id] = (carga || {})[p.id] || 0; });
+  return (chaves || []).map(chave => { const para = kbMenosCarga(pessoas, atual); atual[para] += 1; return { chave, para }; });
+}
 // Ficha do lead (gaveta lateral). Lead Livre sem dado de contato (consultor) mostra o convite para pegar.
 // §126: ícones da ficha (traço de 2 px, mesmo desenho do mockup aprovado)
 const KB_ICO = {
