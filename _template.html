@@ -4093,6 +4093,31 @@ function kbCnpjHtml(f, est){
     + (aviso ? `<p class="kbFichaAviso">⚠ <strong>${escapeHtml(aviso.titulo)}</strong>${aviso.motivo ? ' (motivo: ' + escapeHtml(aviso.motivo) + ')' : ''}. ${escapeHtml(aviso.texto)}${atalho}</p>` : '');
 }
 
+function kbCnpjMesmaFicha(aba, id){ return !!kbEstado.fichaAlvo && kbEstado.fichaAlvo.aba === aba && kbEstado.fichaAlvo.id === id; }
+function kbCnpjPintar(est){
+  const no = kbFichaEl('kbCnpjRec'), f = kbEstado.fichaLead;
+  if(!no || !f) return;
+  no.innerHTML = kbCnpjHtml(f, Object.assign({ podeInapto: (kbEstado.opcoes || []).some(o => o.status === 'CNPJ INAPTO') }, est));
+}
+// Ao abrir a ficha: mostra a última consulta salva daquele CNPJ (qualquer lead). Sem tabela ou com erro, fica o botão.
+async function kbCnpjCarregar(aba, id){
+  kbEstado.cnpjConsulta = null;
+  const f = kbEstado.fichaLead, dig = kbCnpjDigitos(f && f.cnpj);
+  if(!kbCnpjMostra(f) || dig.length !== 14) return;
+  const r = await ppSeguro(() => sb.from('cnpj_consultas').select('situacao,situacao_desde,motivo,consultado_em').eq('cnpj', dig).maybeSingle());
+  if(!kbCnpjMesmaFicha(aba, id) || !r || r.error || !r.data) return;
+  kbEstado.cnpjConsulta = r.data;
+  kbCnpjPintar({ consulta: r.data });
+}
+async function kbCnpjVerificar(aba, id){
+  const antes = kbEstado.cnpjConsulta || null;
+  kbCnpjPintar({ carregando: true });
+  const r = await ppSeguro(() => sb.functions.invoke('verificar-cnpj', { body: { aba, lead_id: id } }));
+  if(!kbCnpjMesmaFicha(aba, id)) return;   // trocou de lead no meio: não pinta o resultado no lead errado
+  if(r && !r.error && r.data && r.data.ok && r.data.consulta){ kbEstado.cnpjConsulta = r.data.consulta; kbCnpjPintar({ consulta: r.data.consulta }); return; }
+  const status = r && r.error && r.error.context ? r.error.context.status : null;
+  kbCnpjPintar({ consulta: antes, erro: kbCnpjMsgErro(status) });
+}
 const kbEstado = { geracao: 0, naEquipe: false, modo: 'planilha', versao: '', leads: [], opcoes: [], dono: '', timer: null, verTodosLivres: false, soDivergencias: false, classAlvo: null, consultores: [], loteSel: new Set(), passar: null };
 function kbGestor(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor') && veAbasDaApex(); }
 // Antes da virada (config.leads_modo = 'planilha') só o admin vê a aba, para conferir; depois, equipe de leads + gestores.
@@ -4501,6 +4526,7 @@ async function kbAbrirFicha(aba, id, opc){
   if(!f) return;
   const sel = kbFichaEl('kbClassStatus');
   if(sel) sel.addEventListener('change', kbClassAjustar);
+  kbCnpjCarregar(aba, id);   // §127: sem await — não atrasa o resumo e o histórico
   if(o.grupo){ const g = kbFichaNo().querySelector(`[data-kb-grupo="${o.grupo}"]`); if(g && g.scrollIntoView) g.scrollIntoView({ block: 'center' }); }
   await kbCarregarDetalhes(aba, id);
 }
@@ -4564,6 +4590,13 @@ kbFichaNo().addEventListener('click', async (e) => {
   if(sv){ kbSalvarClassificacao({ proximo: sv.dataset.kbSalvar === 'prox' }); return; }
   const cp = e.target.closest('[data-kb-ficha-copiar]');
   if(cp){ try { await (kbFichaNo().ownerDocument.defaultView || window).navigator.clipboard.writeText(cp.dataset.kbFichaCopiar); mostrarAviso('Copiado.', 'ok'); } catch(_) { mostrarAviso('Não foi possível copiar.', 'erro'); } return; }
+  if(e.target.closest('[data-kb-cnpj-verificar]')){ kbCnpjVerificar(alvo.aba, alvo.id); return; }
+  if(e.target.closest('[data-kb-cnpj-inapto]')){
+    kbFichaTrocarAba('classificar');
+    const st = kbFichaEl('kbClassStatus');
+    if(st && st.value !== 'CNPJ INAPTO') kbClassEscolher('CNPJ INAPTO');   // só preenche; quem salva é o consultor
+    return;
+  }
   const caixa = kbFichaNo().querySelector('[data-kb-apagar-box]');
   if(e.target.closest('[data-kb-ficha-apagar]')){ if(caixa){ caixa.hidden = false; const i = caixa.querySelector('input'); if(i) i.focus(); } return; }
   if(e.target.closest('[data-kb-apagar-cancelar]')){ if(caixa) caixa.hidden = true; return; }

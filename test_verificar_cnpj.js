@@ -95,6 +95,79 @@ try{
   const fichaA = kbFichaHtml(F3, { gestor: false, agoraMs: Date.now(), opcoes: OPC });
   assert(fichaA.includes('id="kbCnpjRec"') && fichaA.includes('data-kb-cnpj-verificar'), 'ficha em andamento tem o bloco com o botão');
   assert(!kbFichaHtml(Object.assign({}, F3, { categoria: 'convertido' }), { gestor: false, agoraMs: Date.now(), opcoes: OPC }).includes('data-kb-cnpj-verificar'), 'ficha convertida sem botão');
+  // ==== Task 4: ficha de verdade ====
+  currentUser = { id: 'u-zz', nome: 'Zzkcon Teste', role: 'consultor' };
+  window.__tabelas.config = [{ valor: 'painel' }];
+  window.__tabelas.leads_equipe = [{ id: 1, profile_id: 'u-zz', nome_planilha: 'ZZKCON', pode_pegar: true }];
+  window.__tabelas.leads_status_opcoes = OPC;
+  window.__tabelas.cnpj_consultas = [];
+  window.__rpcRespostas.leads_kanban3 = { data: [Object.assign({}, F3), Object.assign({}, F3, { lead_id: 'f4', nome: 'Zz Segundo', cnpj: '00000000000132' })], error: null };
+  window.__rpcRespostas.leads_hoje = { data: { fila: [], retornos: [], livres: 0, placar: {} }, error: null };
+  window.__rpcRespostas.leads_alertas = { data: [], error: null };
+  window.__rpcRespostas.leads_ficha = (a) => ({ data: [Object.assign({}, F3, { lead_id: a.p_id, nome: a.p_id === 'f4' ? 'Zz Segundo' : 'Zz Padaria' })], error: null });
+  window.__rpcRespostas.leads_ficha_detalhes = { data: { anuncio: {}, resumo: { ligacoes: 3, atendidas: 1, cliques: 0, ultimo: null }, eventos: [] }, error: null };
+  await kbAplicarPermissao();
+  await kbCarregar();
+  kbTrocarAba('quadro');
+  await espera(60);
+  const rec = () => document.getElementById('kbCnpjRec');
+  const invocacoes = [];
+  let resposta = { data: { ok: true, consulta: BAIXADA }, error: null };
+  sb.functions.invoke = async (nome, op) => { invocacoes.push({ nome, body: op && op.body }); return typeof resposta === 'function' ? resposta() : resposta; };
+  // nunca verificado: botão, e abrir a ficha não chama a função
+  await kbAbrirFicha('OUTUBRO', 'f3', { forcar: true });
+  await espera(40);
+  assert(rec() && rec().querySelector('[data-kb-cnpj-verificar]') && rec().textContent.includes('Verificar na Receita'), 'ficha nova mostra o botão');
+  eq(invocacoes.length, 0, 'abrir a ficha não consulta a Receita');
+  // clique: chama a função com aba e lead, pinta selo e aviso
+  rec().querySelector('[data-kb-cnpj-verificar]').click();
+  await espera(40);
+  eq(invocacoes, [{ nome: 'verificar-cnpj', body: { aba: 'OUTUBRO', lead_id: 'f3' } }], 'clique chama verificar-cnpj com aba e lead_id (sem CNPJ)');
+  assert(rec().textContent.includes('Baixada na Receita') && rec().textContent.includes('Empresa BAIXADA na Receita desde 12/03/2024'), 'selo e aviso de baixada');
+  // atalho só preenche o status
+  const nClass = window.__rpcCalls.filter(c => c.nome === 'leads_classificar').length;
+  rec().querySelector('[data-kb-cnpj-inapto]').click();
+  eq(document.getElementById('kbClassStatus').value, 'CNPJ INAPTO', 'atalho escolhe CNPJ INAPTO');
+  assert(!document.querySelector('#kbFicha [data-kb-ficha-pane="classificar"]').hidden, 'atalho mostra a aba Classificar');
+  eq(window.__rpcCalls.filter(c => c.nome === 'leads_classificar').length, nClass, 'atalho não salva');
+  rec().querySelector('[data-kb-cnpj-inapto]').click();
+  eq(document.getElementById('kbClassStatus').value, 'CNPJ INAPTO', 'clicar no atalho de novo não desfaz a escolha');
+  // resultado salvo aparece ao abrir, sem consultar
+  window.__tabelas.cnpj_consultas = [ATIVA];
+  await kbAbrirFicha('OUTUBRO', 'f4', { forcar: true });
+  await espera(40);
+  assert(rec().textContent.includes('Ativa na Receita') && rec().textContent.includes('Verificar de novo'), 'consulta salva aparece ao abrir');
+  eq(invocacoes.length, 1, 'abrir com consulta salva não chama a função');
+  // erro ao verificar de novo: mantém o selo e mostra a mensagem
+  resposta = { data: null, error: { message: 'Edge Function returned a non-2xx status code', context: { status: 503 } } };
+  rec().querySelector('[data-kb-cnpj-verificar]').click();
+  await espera(40);
+  assert(rec().textContent.includes('Ativa na Receita') && rec().textContent.includes('Não foi possível consultar agora'), 'erro 503: selo fica e aparece a mensagem');
+  resposta = { data: null, error: { message: 'x', context: { status: 403 } } };
+  rec().querySelector('[data-kb-cnpj-verificar]').click();
+  await espera(40);
+  assert(rec().textContent.includes('Só o dono do lead'), 'erro 403: mensagem de permissão');
+  // trocar de lead durante a consulta: o resultado não vai para o lead errado
+  window.__tabelas.cnpj_consultas = [];
+  let soltar;
+  resposta = () => new Promise(r => { soltar = () => r({ data: { ok: true, consulta: BAIXADA }, error: null }); });
+  rec().querySelector('[data-kb-cnpj-verificar]').click();
+  await espera(10);
+  await kbAbrirFicha('OUTUBRO', 'f3', { forcar: true });
+  await espera(40);
+  soltar();
+  await espera(40);
+  assert(kbEstado.fichaAlvo.id === 'f3' && !rec().textContent.includes('Baixada') && rec().querySelector('[data-kb-cnpj-verificar]'), 'resposta atrasada do outro lead não pinta esta ficha');
+  // tabela ainda não criada: ficha abre normal com o botão
+  const fromOrig = sb.from;
+  sb.from = (t) => t === 'cnpj_consultas'
+    ? { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: { message: 'relation "cnpj_consultas" does not exist' } }) }) }) }
+    : fromOrig(t);
+  await kbAbrirFicha('OUTUBRO', 'f4', { forcar: true });
+  await espera(40);
+  assert(rec().querySelector('[data-kb-cnpj-verificar]') && document.getElementById('kbFichaResumo'), 'sem a tabela: ficha abre e o botão fica');
+  sb.from = fromOrig;
+  kbFecharFicha(true);
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
