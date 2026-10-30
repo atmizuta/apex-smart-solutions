@@ -188,8 +188,17 @@ try{
   eq([...document.querySelectorAll('#kbTodos tbody tr')].map(t => t.dataset.kbAbrir).sort(), ['O|t1', 'O|t2'], 'visão Em aberto filtra a tabela');
   document.querySelector('#kbVisoes [data-kb-visao="todos"]').click();
   const ths = [...document.querySelectorAll('#kbTodos thead th[data-kb-ord]')].map(t => t.textContent.replace(/[▲▼]/g, '').trim());
-  eq(ths, ['Empresa', 'Etapa', 'STATUS', 'Último contato', 'Próximo retorno', 'Linhas', 'Pego em'], 'colunas da Lista (consultor)');
+  eq(ths, ['Empresa', 'Telefone', 'Etapa', 'STATUS', 'Último contato', 'Próximo retorno', 'Linhas', 'Pego em'], 'colunas da Lista (consultor)');
   const lt1 = document.querySelector('#kbTodos tr[data-kb-abrir="O|t1"]');
+  // Telefone na Lista: já limpo (sem "P:55"), copia sem abrir a ficha
+  const celP = kbCelulaTabela(LA('tp', { telefone: 'P:5511900000039' }), 'telefone', agC);
+  assert(celP.includes('data-kb-copiar-tel="11900000039"') && !/P:|55119/.test(celP), 'telefone "P:55..." aparece só com DDD e número');
+  assert(kbCelulaTabela(LA('tv', { telefone: '' }), 'telefone', agC).includes('kbMuted'), 'lead sem telefone mostra traço');
+  const copiados = []; Object.defineProperty(window.navigator, 'clipboard', { value: { writeText: async (t) => { copiados.push(t); } }, configurable: true });
+  const nFT = window.__rpcCalls.filter(c => c.nome === 'leads_ficha').length;
+  lt1.querySelector('.kbTd-telefone [data-kb-copiar-tel]').click();
+  await espera(40);
+  assert(copiados[0] === '11900000031' && window.__rpcCalls.filter(c => c.nome === 'leads_ficha').length === nFT, 'clicar no telefone copia o número sem abrir a ficha');
   assert(lt1.querySelector('.kbTd-nome').textContent.includes('Campinas/SP · Zz Camp') && lt1.querySelector('.kbTd-etapa .kbEtapa') && lt1.querySelector('.kbTd-status .kbStP'), 'Empresa com cidade e campanha; etapa e STATUS com marcador');
   assert(lt1.querySelector('.kbTd-contato').textContent.includes('atendida · 4 min') && lt1.querySelector('.kbTd-retorno .kbTag.late') && lt1.querySelector('.kbTd-linhas').textContent.trim() === '12', 'último contato, retorno atrasado e linhas');
   assert(document.querySelector('#kbTodos tr[data-kb-abrir="O|t2"] .kbTd-contato').textContent.includes('nunca ligado'), 'nunca ligado');
