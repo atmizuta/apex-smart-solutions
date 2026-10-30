@@ -4295,3 +4295,16 @@ Pedido do usuário: *"na projeção de ganho, coloque o ticket medio de cada pro
 - **Publicado (30/10/2026, 16:23:59 SP, ok do Rafael):** antes de enviar, o painel no ar (`0d21c102…`, §128) era idêntico ao gerado do `oficial/main` 22d89b8 — nada publicado por fora. Publicado **`9662295bf76d5f633cb8cc5beba78b89`** (gerado = servidor = site, com e sem `www`).
 - Backup: `~/deploy_backups/painel_clientes_apex_20261030_162356_antes_projecao_ticket_portabilidade.html` (MD5 `0d21c102…`).
 - **Reverter:** copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. Não há mudança de banco nem de função.
+
+## 130. Meus leads: telefone na Lista, pronto para copiar (30/10/2026)
+
+Pedido do Rafael: na sub-aba **Lista** de Meus leads, mostrar o telefone do lead já pronto para copiar, sem o "P:55", para o consultor não precisar abrir a ficha.
+
+- **Coluna nova "Telefone"** logo depois de Empresa. Para o supervisor, ela fica depois de Consultor. Mostra só DDD + número: tira tudo que não é dígito e o 55 do país, com a mesma regra do Copiar da ficha (`kbTelCopiar`).
+- **Clicar no número copia** para a área de transferência e avisa "Número … copiado.". Não abre a ficha e não registra contato, porque copiar não é ligar. Lead sem telefone mostra "—". A coluna ordena pelo número.
+- Mostra o mesmo telefone que os botões Ligar/WhatsApp da linha já usavam, sem dado novo nem mudança de banco.
+- **Código:** `KB_TODOS_COLUNAS` (+ `telefone`), `kbValorOrdem`, `kbCelulaTabela` (botão `.kbTelCel` com `data-kb-copiar-tel`) e o clique em `#kbTodos`.
+- **Testes:** `test_meus_leads_fase2.js` com 70 verificações (coluna, "P:55" limpo, sem telefone, copiar sem abrir a ficha). Suíte inteira: só as falhas que já existem no `oficial/main`: `test_leads_painel_hoje`, `test_producao_filtro_pessoas` e `test_redesign_shell`, mais as que dependem de `docx`/`exceljs`.
+- **Publicado (30/10/2026, 17:09:21 SP, ok do Rafael):** antes de enviar, o painel no ar (`9662295b…`, §129) era idêntico ao gerado do `oficial/main` 6c3a400, sem nada publicado por fora. Publicado **`6255d88d7b33d1bd6171f24a341d2874`** (gerado = servidor = site, com e sem `www`).
+- Backup: `~/deploy_backups/painel_clientes_apex_20261030_170921_antes_lista_telefone.html` (MD5 `9662295b…`).
+- **Reverter:** copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`.
