@@ -4292,4 +4292,6 @@ Pedido do usuário: *"na projeção de ganho, coloque o ticket medio de cada pro
 - **Conferência com os dados reais (outubro até 29/10, Apex + Campinas, etapas com peso):** Portabilidade em andamento acrescenta 19 linhas e R$ 804,84 brutos (10 de portabilidade, 5 de migração, 1 linha nova e 3 SVA). Ticket médio: Linha Nova R$ 52,16 · Portabilidade R$ 46,04 · Migração R$ 51,28 · Banda Larga R$ 71,57 · Renovação R$ 39,11 · Claro Monitor R$ 5,00.
 - **Código:** `PROJ_FAIXAS`, `projQuebraTipos` (guarda `bruto` e `ticket`), `projTotalTipos`, `projTiposHtml` e `gerarExcelProjecao` no dashboard embutido.
 - **Testes:** `test_projecao_ganho.js` com 251 verificações (peso da portabilidade em andamento, PDU intacto, ticket por tipo e total, coluna na tela e no Excel). Suíte inteira: só as 4 falhas que já existem no `oficial/main` (`test_leads_painel_hoje`, `test_pedidos_alerta`, `test_producao_filtro_pessoas`, `test_redesign_shell`).
-- **Publicação:** pendente de autorização.
+- **Publicado (30/10/2026, 16:23:59 SP, ok do Rafael):** antes de enviar, o painel no ar (`0d21c102…`, §128) era idêntico ao gerado do `oficial/main` 22d89b8 — nada publicado por fora. Publicado **`9662295bf76d5f633cb8cc5beba78b89`** (gerado = servidor = site, com e sem `www`).
+- Backup: `~/deploy_backups/painel_clientes_apex_20261030_162356_antes_projecao_ticket_portabilidade.html` (MD5 `0d21c102…`).
+- **Reverter:** copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. Não há mudança de banco nem de função.
