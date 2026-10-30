@@ -85,7 +85,8 @@ secao('Task 1', () => {
   assert(w.projFaixa('VALIDAÇÃO ESIM (NEOCRM)'.normalize('NFD')).k === 'entrega', 'acento em NFD cai na mesma faixa');
   assert(w.projFaixa('  entrega (neocrm) ').k === 'entrega', 'espaços e minúsculas não atrapalham');
   assert(w.projPeso('ANTIFRAUDE (NEOCRM)') === 0.5 && w.projPeso('BIOMETRIA (NEOCRM)') === 0.5, 'Antifraude e Biometria = 50%');
-  ['TERRITORIO (NEOCRM)', 'FATURAMENTO (NEOCRM)', 'PORTABILIDADE EM ANDAMENTO (NEOCRM)', 'NEGOCIACAO (NEOCRM)', 'VENDA PERDIDA (NEOCRM)', null, undefined]
+  assert(w.projPeso('PORTABILIDADE EM ANDAMENTO (NEOCRM)') === 1 && w.projFaixa('PORTABILIDADE EM ANDAMENTO (NEOCRM)').k === 'portabilidade', 'Portabilidade em andamento = 100% (seção 129)');
+  ['TERRITORIO (NEOCRM)', 'FATURAMENTO (NEOCRM)', 'PORTABILIDADE EM TRATATIVA (NEOCRM)', 'NEGOCIACAO (NEOCRM)', 'VENDA PERDIDA (NEOCRM)', null, undefined]
     .forEach(e => assert(w.projPeso(e) === 0, 'peso 0 para ' + e));
   assert(w.projFaixa('TERRITORIO (NEOCRM)') === null, 'Território não tem faixa');
   assert(w.projFaixa('CONCLUIDO (NEOCRM)').k === 'concluido' && w.projFaixa('ANTIFRAUDE (NEOCRM)').k === 'antifraude' && w.projFaixa('BIOMETRIA (NEOCRM)').k === 'biometria', 'chaves das faixas');
@@ -222,7 +223,7 @@ secao('Task 3', () => {
   // (a projeção por tipo de venda tem a seção própria logo abaixo: "Tipos de venda")
 
   const e = k => p.etapas.find(x => x.k === k);
-  assert(JSON.stringify(p.etapas.map(x => x.k)) === '["concluido","entrega","antifraude","biometria"]', 'etapas na ordem');
+  assert(JSON.stringify(p.etapas.map(x => x.k)) === '["concluido","entrega","portabilidade","antifraude","biometria"]', 'etapas na ordem');
   assert(e('concluido').contratos === 2 && perto(e('concluido').bruto, 235) && perto(e('concluido').valor, 235), 'Concluído: 2 linhas móveis (A1, A8); a BL da convergência não conta como linha, mas o R$ sim');
   assert(e('entrega').contratos === 3 && perto(e('entrega').valor, 130), 'Entrega + eSIM: A2, A3 e M1');
   assert(e('antifraude').contratos === 1 && perto(e('antifraude').bruto, 90) && perto(e('antifraude').valor, 45), 'Antifraude: bruto 90, ponderado 45');
@@ -263,6 +264,22 @@ secao('Tipos de venda', () => {
   const tot = w.projTotalTipos(p.tipos);
   assert(par(tot.realizado, 440, 10) && perto(tot.ritmo.valor, 40) && perto(tot.semana.valor, 200) && perto(tot.mes.valor, 840), 'total em R$ bate com os cards — ' + JSON.stringify(tot));
   assert(perto(tot.mes.qtd, 10 / 11 * 21), 'total de linhas do mês');
+  // seção 129: ticket médio = valor bruto (sem o peso da etapa) ÷ linhas até ontem
+  assert(perto(novo.ticket, 265 / 5), 'ticket médio da Linha Nova = bruto 265 ÷ 5 linhas — ' + novo.ticket);
+  assert(perto(t('VOZ - Tranf. Titularidade').ticket, 80) && ren.ticket === null, 'ticket da migração (bruto 80, Antifraude) e tipo zerado sem ticket');
+  assert(perto(tot.ticket, 515 / 10), 'ticket médio do total = bruto 515 ÷ 10 linhas — ' + tot.ticket);
+  // seção 129: Portabilidade em andamento entra com 100%
+  const comPort = mp(FIX_APEX.concat([ped({ numero_pedido: 'PA1', grupo: 'VOZ - Portabilidade', etapa: 'PORTABILIDADE EM ANDAMENTO (NEOCRM)', cadastro: dia('2026-10-15'), valor: 90 })]),
+    { mes: '2026-10', hoje: '2026-10-19', operacao: 'apex' });
+  const port = comPort.tipos.find(x => x.grupo === 'VOZ - Portabilidade');
+  assert(par(port.realizado, 40 + 90, 2) && perto(port.ticket, 65), 'portabilidade em andamento soma 100% no tipo — ' + JSON.stringify(port.realizado));
+  assert(perto(comPort.total.realizado.valor, 440 + 90) && perto(comPort.total.mes.valor, (440 + 90) / 11 * 21), 'cards somam a portabilidade em andamento');
+  const etPort = comPort.etapas.find(e => e.k === 'portabilidade');
+  assert(etPort && etPort.peso === 1 && perto(etPort.valor, 90) && etPort.contratos === 1, 'etapa Portabilidade em andamento no quadro por etapa');
+  const pduCom = w.montarProjecaoPdu(FIX_APEX.concat([ped({ numero_pedido: 'PA1', grupo: 'VOZ - Portabilidade', etapa: 'PORTABILIDADE EM ANDAMENTO (NEOCRM)', cadastro: dia('2026-10-15'), valor: 90 })]),
+    { mes: '2026-10', hoje: '2026-10-19', operacao: 'apex' });
+  assert(perto(pduCom.total.realizado.valor, w.montarProjecaoPdu(FIX_APEX, { mes: '2026-10', hoje: '2026-10-19', operacao: 'apex' }).total.realizado.valor),
+    'PDU não muda: portabilidade em andamento ainda não está ativada');
   const comTerritorio = mp(FIX_APEX.concat([ped({ numero_pedido: 'T1', grupo: 'NET - TV', etapa: 'TERRITORIO (NEOCRM)', cadastro: dia('2026-10-08') })]),
     { mes: '2026-10', hoje: '2026-10-19', operacao: 'apex' });
   assert(!comTerritorio.tipos.some(x => x.grupo === 'NET - TV'), 'grupo fora da lista só com etapa de peso 0 não aparece');
@@ -380,7 +397,8 @@ secao('Task 4', () => {
   assert(txt(d.getElementById('projTitulo').textContent) === 'Projeção de Ganho · Operação Apex', 'título com a operação');
   const opts = [...d.querySelectorAll('#projMes option')].map(o => o.value);
   assert(JSON.stringify(opts) === '["2026-10","2026-09"]' && d.getElementById('projMes').value === '2026-10', 'seletor de mês abre no mês atual');
-  assert(/Antifraude 50%/.test(txt(d.getElementById('projRegra').textContent)) && /Demais etapas 0%/.test(txt(d.getElementById('projRegra').textContent)), 'selos da regra');
+  assert(/Antifraude 50%/.test(txt(d.getElementById('projRegra').textContent)) && /Demais etapas 0%/.test(txt(d.getElementById('projRegra').textContent))
+    && /Portabilidade em andamento 100%/.test(txt(d.getElementById('projRegra').textContent)), 'selos da regra');
 
   const cards = [...d.querySelectorAll('#projCards .card')];
   const lab = i => txt(cards[i].querySelector('.label').textContent), val = i => txt(cards[i].querySelector('.value').textContent), sub = i => txt(cards[i].querySelector('.proj-card-sub').textContent);
@@ -404,8 +422,8 @@ secao('Task 4', () => {
   assert(semRows.length === 6 && /01\/10–04\/10/.test(txt(semRows[0].textContent)) && /R\$ 160,00/.test(txt(semRows[0].textContent)), 'semanas + total');
   assert(semRows[3].classList.contains('proj-atual') && /R\$ 840,00/.test(txt(semRows[5].textContent)), 'semana atual marcada e total do mês');
   const etRows = d.querySelectorAll('#projEtapas tbody tr');
-  assert(etRows.length === 5 && /Concluído/.test(etRows[0].textContent) && /R\$ 235,00/.test(txt(etRows[0].textContent)) && /100%/.test(etRows[0].textContent), 'etapas: Concluído');
-  assert(/Antifraude/.test(etRows[2].textContent) && /50%/.test(etRows[2].textContent) && /R\$ 45,00/.test(txt(etRows[2].textContent)), 'etapas: Antifraude');
+  assert(etRows.length === 6 && /Portabilidade em andamento/.test(etRows[2].textContent) && /Concluído/.test(etRows[0].textContent) && /R\$ 235,00/.test(txt(etRows[0].textContent)) && /100%/.test(etRows[0].textContent), 'etapas: Concluído');
+  assert(/Antifraude/.test(etRows[3].textContent) && /50%/.test(etRows[3].textContent) && /R\$ 45,00/.test(txt(etRows[3].textContent)), 'etapas: Antifraude');
   const coRows = d.querySelectorAll('#projConsultores tbody tr');
   assert(!/Operação/.test(d.querySelector('#projConsultores thead').textContent), 'sem coluna Operação numa operação só');
   assert(coRows.length === 2 && /BRUNO TESTE/.test(coRows[0].textContent) && /R\$ 448,64/.test(txt(coRows[0].textContent)), 'consultores: Bruno primeiro');
@@ -417,14 +435,14 @@ secao('Task 4', () => {
   assert(/Projeção por tipo de venda/.test(d.getElementById('tabProjecao').textContent), 'título da seção');
   assert(/19\/10 a 23\/10/.test(d.getElementById('projTiposSub').textContent) && !/cada operação/.test(d.getElementById('projTiposSub').textContent), 'subtítulo com a semana');
   const cabTipos = txt(tabTipos.querySelector('thead').textContent);
-  assert(/Realizado \(até ontem\)/.test(cabTipos) && /Ritmo \/ dia útil/.test(cabTipos) && /Projeção semana/.test(cabTipos) && /Projeção mês/.test(cabTipos), 'cabeçalho: ' + cabTipos);
+  assert(/Realizado \(até ontem\)/.test(cabTipos) && /Ritmo \/ dia útil/.test(cabTipos) && /Projeção semana/.test(cabTipos) && /Projeção mês/.test(cabTipos) && /Ticket médio/.test(cabTipos), 'cabeçalho: ' + cabTipos);
   const tiRows = d.querySelectorAll('#projTipos tbody tr');
   const celulas = tr => [...tr.querySelectorAll('td')].map(c => txt(c.textContent));
   assert(tiRows.length === 10, '9 tipos + total — ' + tiRows.length);
-  assert(JSON.stringify(celulas(tiRows[0])) === JSON.stringify(['Linha Nova', '5', 'R$ 245,00', '0,5', 'R$ 22,27', '2', 'R$ 111,36', '10', 'R$ 467,73']),
+  assert(JSON.stringify(celulas(tiRows[0])) === JSON.stringify(['Linha Nova', 'R$ 53,00', '5', 'R$ 245,00', '0,5', 'R$ 22,27', '2', 'R$ 111,36', '10', 'R$ 467,73']),
     'linha da Linha Nova: ' + JSON.stringify(celulas(tiRows[0])));
-  assert(tiRows[6].classList.contains('proj-zero') && !tiRows[6].hasAttribute('data-proj') && celulas(tiRows[6])[0] === 'Renovação', 'tipo zerado em cinza, sem clique');
-  assert(tiRows[9].classList.contains('proj-total') && JSON.stringify(celulas(tiRows[9]).slice(1)) === JSON.stringify(['10', 'R$ 440,00', '0,9', 'R$ 40,00', '5', 'R$ 200,00', '19', 'R$ 840,00']),
+  assert(tiRows[6].classList.contains('proj-zero') && !tiRows[6].hasAttribute('data-proj') && celulas(tiRows[6])[0] === 'Renovação' && celulas(tiRows[6])[1] === '—', 'tipo zerado em cinza, sem clique, sem ticket');
+  assert(tiRows[9].classList.contains('proj-total') && JSON.stringify(celulas(tiRows[9]).slice(1)) === JSON.stringify(['R$ 51,50', '10', 'R$ 440,00', '0,9', 'R$ 40,00', '5', 'R$ 200,00', '19', 'R$ 840,00']),
     'total: ' + JSON.stringify(celulas(tiRows[9])));
   tiRows[0].dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
   assert(d.getElementById('drilldownTitle').textContent === 'Projeção — Linha Nova' && /^5 linha\(s\)/.test(d.getElementById('drilldownSub').textContent), 'analítico do tipo');
@@ -445,7 +463,7 @@ secao('Task 4', () => {
   const cabFechado = txt(d.querySelector('#projTipos thead').textContent);
   assert(/Mês fechado/.test(cabFechado) && /Média \/ dia útil/.test(cabFechado), 'tipos em mês fechado: ' + cabFechado);
   const novoSet = [...d.querySelectorAll('#projTipos tbody tr')[0].querySelectorAll('td')].map(c => txt(c.textContent));
-  assert(novoSet[0] === 'Linha Nova' && novoSet[5] === '—' && novoSet[6] === '—' && novoSet[8] === 'R$ 70,00', 'tipos em mês fechado: semana "—", mês = realizado — ' + JSON.stringify(novoSet));
+  assert(novoSet[0] === 'Linha Nova' && novoSet[1] === 'R$ 70,00' && novoSet[6] === '—' && novoSet[7] === '—' && novoSet[9] === 'R$ 70,00', 'tipos em mês fechado: semana "—", mês = realizado — ' + JSON.stringify(novoSet));
   // atualização de 1 h mantém o mês escolhido
   w.atualizarDadosDashboard(FIX_APEX.concat([ped({ numero_pedido: 'A11', cadastro: dia('2026-10-16'), valor: 110 })]), '19/10/2026, 15:59:02');
   assert(d.getElementById('projMes').value === '2026-09', 'atualização de 1 h não troca o mês escolhido');
@@ -464,7 +482,7 @@ secao('Task 4', () => {
   assert(/Operação/.test(dt.querySelector('#projConsultores thead').textContent) && dt.querySelectorAll('#projConsultores tbody tr').length === 3, 'consultores com a coluna Operação');
   assert(/cada operação com o seu/.test(dt.getElementById('projTiposSub').textContent), 'subtítulo dos tipos em Apex + Campinas');
   const totTod = [...dt.querySelector('#projTipos tr.proj-total').querySelectorAll('td')].map(c => txt(c.textContent));
-  assert(totTod[8] === 'R$ 1.200,00' && totTod[2] === 'R$ 600,00', 'tipos em Apex + Campinas: total 1.200 — ' + JSON.stringify(totTod));
+  assert(totTod[9] === 'R$ 1.200,00' && totTod[3] === 'R$ 600,00', 'tipos em Apex + Campinas: total 1.200 — ' + JSON.stringify(totTod));
   // Jaime: só Campinas
   const wc = montarDashboard({ operacao: 'campinas', data: FIX_CAMP });
   const cc = wc.document.querySelector('#projCards .card');
@@ -517,7 +535,8 @@ async function testarExcel(){
   assert(ss.actualRowCount === 3 + 5 + 1 && ss.getCell('A9').value === 'Mês' && perto(ss.getCell('D9').value, 840), 'semanas + linha do mês');
   const et = wb.getWorksheet('Por etapa');
   assert(et.getCell('A4').value === 'Concluído' && et.getCell('D4').value === 1 && et.getCell('D4').numFmt === '0%' && et.getCell('D4').fill.fgColor.argb === 'FF1F7A45', 'peso 100% verde');
-  assert(et.getCell('D6').value === 0.5 && et.getCell('D6').fill.fgColor.argb === 'FFEAB308', 'peso 50% amarelo');
+  assert(et.getCell('A6').value === 'Portabilidade em andamento' && et.getCell('D6').value === 1, 'Excel: etapa Portabilidade em andamento 100%');
+  assert(et.getCell('D7').value === 0.5 && et.getCell('D7').fill.fgColor.argb === 'FFEAB308', 'peso 50% amarelo');
   const pe = wb.getWorksheet('Pedidos');
   assert(pe.actualRowCount === 3 + 10, '10 pedidos (M1 numa linha só, C1 e C2 separados)');
   let m1 = null, c1 = null, a9 = null;
@@ -527,9 +546,10 @@ async function testarExcel(){
   const ti = wb.getWorksheet('Por tipo de venda');
   const cabTi = []; ti.getRow(3).eachCell(c => cabTi.push(c.value));
   assert(JSON.stringify(cabTi) === JSON.stringify(['Tipo', 'Grupo no NeoCRM', 'Linhas até ontem', 'R$ até ontem', 'Linhas / dia útil', 'R$ / dia útil',
-    'Linhas semana', 'R$ semana', 'Linhas mês', 'R$ mês']), 'Excel: colunas dos tipos — ' + JSON.stringify(cabTi));
+    'Linhas semana', 'R$ semana', 'Linhas mês', 'R$ mês', 'Ticket médio']), 'Excel: colunas dos tipos — ' + JSON.stringify(cabTi));
   assert(ti.getCell('A4').value === 'Linha Nova' && ti.getCell('B4').value === 'VOZ - Novo' && ti.getCell('C4').value === 5 && perto(ti.getCell('D4').value, 245),
     'Excel: Linha Nova realizado');
+  assert(perto(ti.getCell('K4').value, 53) && String(ti.getCell('K4').numFmt).indexOf('R$') >= 0 && perto(ti.getCell('K13').value, 51.5), 'Excel: ticket médio da Linha Nova e do total');
   assert(Math.abs(ti.getCell('E4').value - 5 / 11) < 0.06 && perto(ti.getCell('F4').value, 245 / 11) && perto(ti.getCell('H4').value, 245 / 11 * 5) && perto(ti.getCell('J4').value, 245 / 11 * 21),
     'Excel: Linha Nova ritmo, semana e mês');
   assert(ti.getCell('C4').numFmt === '0' && ti.getCell('E4').numFmt === '0.0' && String(ti.getCell('J4').numFmt).indexOf('R$') >= 0, 'Excel: linhas inteiras, taxa com 1 casa, R$ como moeda');
