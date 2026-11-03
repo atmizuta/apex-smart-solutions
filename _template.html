@@ -5147,7 +5147,9 @@ function kbPassarAbrir(chaves, ancora, escolha){
   if(ancora && ancora.getBoundingClientRect){
     const pos = kbPassarPosicao(ancora.getBoundingClientRect(), m.offsetHeight, window.innerWidth, window.innerHeight);   // (C1) mede o menu já desenhado
     m.style.top = pos.top + 'px'; m.style.left = pos.left + 'px';
-  } else { m.style.top = ''; m.style.left = ''; }
+  } else {   // sem botão de referência (ficha na gaveta: Quadro/Lista): centraliza pela altura medida — com top 30% fixo, a equipe grande empurrava o botão de enviar para fora da tela
+    m.style.top = Math.round(Math.max(8, (window.innerHeight - m.offsetHeight) / 2)) + 'px'; m.style.left = '';
+  }
   const foco = m.querySelector('.kbPassarOp.ativo') || m.querySelector('[data-kb-passar-cancelar]');
   if(foco) foco.focus();
 }

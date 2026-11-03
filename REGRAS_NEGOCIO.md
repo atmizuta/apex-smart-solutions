@@ -4308,3 +4308,15 @@ Pedido do Rafael: na sub-aba **Lista** de Meus leads, mostrar o telefone do lead
 - **Publicado (30/10/2026, 17:09:21 SP, ok do Rafael):** antes de enviar, o painel no ar (`9662295b…`, §129) era idêntico ao gerado do `oficial/main` 6c3a400, sem nada publicado por fora. Publicado **`6255d88d7b33d1bd6171f24a341d2874`** (gerado = servidor = site, com e sem `www`).
 - Backup: `~/deploy_backups/painel_clientes_apex_20261030_170921_antes_lista_telefone.html` (MD5 `9662295b…`).
 - **Reverter:** copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`.
+
+## 131. Meus leads: botão de enviar do "Passar para" fora da tela; Bianca pega leads (03/11/2026)
+
+Pedido do Rafael: tirar do Lucas o acesso de pegar leads e dar para a Bia Bovo, e arrumar o "Redistribuir" da ficha, em que *"consigo selecionar para onde eu quero colocar mas não consigo enviar"* (*"por ter muitos consultores, quando abro, a tela come a parte do botão"*).
+
+- **Causa:** sem botão de referência, o menu "Passar para" (§126.3) abria fixo a 30% do topo da tela. Isso acontece quando ele vem da ficha em gaveta, no Quadro e na Lista. Com os 11 consultores, o rodapé com o botão de enviar ficava abaixo da borda: em 1440×900 terminava em 955 px. Pela Equipe e pela Hoje o menu já se posicionava pela altura (`kbPassarPosicao`) e funcionava. Banco e `leads_redistribuir` estavam certos: testados como admin numa transação desfeita.
+- **Correção:** em `kbPassarAbrir`, o caminho sem âncora agora centraliza o menu pela altura medida: `top = max(8, (altura da janela − altura do menu) / 2)`. Junto com o `max-height` e o rodapé fixo que já existiam, o botão sempre fica visível. "Devolver aos livres" estava no mesmo menu e voltou junto.
+- **Conferência:** simulador de supervisor com o painel do ar, testado no Quadro, na Lista e na Hoje, em 1440×900, 1366×650 e 1280×600. O botão ficou visível e clicável em todos, e a chamada `leads_redistribuir` saiu certa (passar e devolver). Testes: `test_leads_kanban` (79), `test_meus_leads_redesign` (116), `test_meus_leads_fase2` (70) e `test_meus_leads_fase3` (81), sem falhas.
+- **Equipe de leads (banco, 03/11):** `leads_equipe.pode_pegar` = false no Lucas (id 9) e true na Bianca (id 12). Os leads que o Lucas já tem continuam com ele. A Bianca também entrou no semáforo da Equipe (`monitorar` = true, `desde` = 03/11), e o Lucas continua lá. Pegam agora: Caio, Luria, Mariana e Bianca.
+- **Publicado (03/11/2026, 17:55:14 SP, ok do Rafael):** antes de enviar, o painel no ar (`6255d88d…`, §130) era idêntico ao gerado do `oficial/main` c54d258. Publicado **`fb13a91702e2dc6c119a9de7b861732c`**.
+- Backup: `~/deploy_backups/painel_clientes_apex_20261103_175514_antes_passar_menu_altura.html` (MD5 `6255d88d…`).
+- **Reverter:** copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. A troca Lucas/Bianca se desfaz no `leads_equipe`.
