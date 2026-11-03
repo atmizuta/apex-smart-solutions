@@ -4320,3 +4320,34 @@ Pedido do Rafael: tirar do Lucas o acesso de pegar leads e dar para a Bia Bovo, 
 - **Publicado (03/11/2026, 17:55:14 SP, ok do Rafael):** antes de enviar, o painel no ar (`6255d88d…`, §130) era idêntico ao gerado do `oficial/main` c54d258. Publicado **`fb13a91702e2dc6c119a9de7b861732c`**.
 - Backup: `~/deploy_backups/painel_clientes_apex_20261103_175514_antes_passar_menu_altura.html` (MD5 `6255d88d…`).
 - **Reverter:** copiar o backup de volta para `domains/apexsmart.com.br/public_html/painel_clientes_apex.html`. A troca Lucas/Bianca se desfaz no `leads_equipe`.
+
+## 132. Meus leads: bloquear todos de pegar leads e escolher quem pega (03/11/2026)
+
+Pedido do Rafael: *"um botão na aba meus leads, que bloqueie todos de pegarem leads, para aumentar o meu controle, e também uma função que eu consiga permitir quem pega lead e quem não pega"*. Quem usa: admin e supervisor.
+
+- **Faixa "Pegar leads" no topo da Equipe:** "Liberado" (diz quantos consultores pegam) com o botão **Bloquear todos**. Bloqueado, a faixa fica vermelha, mostra quem bloqueou e há quanto tempo, e o botão vira **Liberar**. Um clique muda, sem janela de confirmação, e desfazer é outro clique.
+- **Chave "Pega leads" em cada consultor** (tabela da Equipe), no lugar do texto "pega leads" / "só os que já tem". Ela grava `leads_equipe.pode_pegar` e não abre a lista do consultor. Os leads que a pessoa já tem continuam com ela. A v1 da função da Equipe não traz `pode_pegar`, e nesse caso a chave não aparece.
+- **O bloqueio é separado da lista:** fica na chave `config.leads_pegar_bloqueado` (`{"bloqueado", "por", "em"}`) e não mexe no `pode_pegar`. Ao liberar, volta a valer a mesma lista.
+- **Com o bloqueio ligado:**
+  - **Consultor:** some o "Pegar" (cartão, "Pegar próximo", "Pegar o próximo livre", arrastar dos Livres) e aparece o aviso "Pegar leads está pausado pelo supervisor". Os Livres continuam visíveis, com a legenda "Pegar está pausado pelo supervisor", e o alerta de lead novo para.
+  - **Atraso:** o painel aberto recebe o bloqueio e a liberação em até 1 min (volta de 60 s), sem F5.
+  - **Banco:** o `leads_pegar` recusa com "pegar leads está pausado pelo supervisor", e isso vale até para aba aberta com o painel antigo. A mensagem aparece no aviso.
+  - **Gestor:** redistribuir e devolver aos Livres (`leads_redistribuir`) continuam funcionando.
+- **Banco (migration `20261103180000_leads_pegar_bloqueio`, sem DROP):**
+  - `leads_pegar_bloqueado()`;
+  - `leads_pegar_bloquear(p_bloqueado)`, só admin/supervisor, devolve o JSON gravado;
+  - `leads_definir_pode_pegar(p_profile, p_pode)`, só admin/supervisor, com erro se o consultor estiver fora da equipe de leads;
+  - `leads_pegar` igual à §122, mais a trava.
+
+  As funções novas não ficam acessíveis para anon. Conferência: `supabase/tests/leads_pegar_bloqueio_check.sql`, com 9 cenários numa transação desfeita, todos ok.
+- **Código:** `kbBloqueioDe`, `kbPegarBloqueado`, `kbCarregarBloqueio`, `kbPodePegar`/`kbVeLivres`, `kbFaixaPegarHtml`, `kbChavePegaHtml`, `kbPegarBloquear`, `kbDefinirPodePegar`, `#kbPausaAviso` e CSS `.kbEqPegar`/`.kbPegaChave` (só variáveis).
+- **Testes:**
+  - `test_leads_bloqueio.js`: 31 verificações.
+  - `test_meus_leads_fase3.js`: a verificação do texto "pega leads" virou a da chave.
+  - Kanban, redesign e fase2 sem falhas.
+  - Suíte inteira: só as falhas que já existem no `oficial/main` (`test_leads_painel_hoje`, `test_producao_filtro_pessoas`, `test_redesign_shell`, as que dependem de `exceljs`/`docx` e a instável `test_conversao_vendas`).
+- **Publicado (03/11/2026, 18:59:09 SP, ok do Rafael):** banco aplicado antes, começando liberado. Antes de enviar, o painel no ar (`fb13a917…`, §131) era idêntico ao `oficial/main` 377aff8. Publicado **`b2a11f74dd22580212c5e966989a595d`** (gerado = servidor = site, com e sem `www`).
+- Backup: `~/deploy_backups/painel_clientes_apex_20261103_185909_antes_leads_bloqueio.html` (MD5 `fb13a917…`).
+- **Reverter:**
+  - **Painel:** copiar o backup de volta.
+  - **Banco:** basta deixar `leads_pegar_bloqueado` em `{"bloqueado":false}`. As funções podem ficar, porque o painel antigo não as usa.
