@@ -16,9 +16,10 @@ Pedido do Rafael: *"no final do dia, na aba equipe, quando eu clicar em algum do
 
 ### Placar
 
-- **Seletor e data:** a tabela de consultores ganha um seletor **Hoje / Mês** (`kbSeg`) e um campo **data**, que começa em hoje e não aceita data futura.
-  - **Mês:** a tabela de hoje, sem nenhuma mudança.
-  - **Hoje** (ou o dia escolhido): colunas do dia.
+- **Seletor e data:** a tabela de consultores ganha um seletor **Dia / Mês** (`kbSeg`) e, no modo Dia, um campo **data**, que começa em hoje e não aceita data futura.
+  - **Mês:** a tabela de hoje, sem nenhuma mudança. É o modo em que a Equipe abre da primeira vez.
+  - **Dia** (hoje ou o dia escolhido): colunas do dia.
+  - A última escolha fica salva no navegador (`localStorage kbEqModo`, com try/catch).
 - **Colunas do dia:**
 
   | Coluna | Mostra |
