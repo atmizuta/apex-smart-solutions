@@ -4351,3 +4351,21 @@ Pedido do Rafael: *"um botão na aba meus leads, que bloqueie todos de pegarem l
 - **Reverter:**
   - **Painel:** copiar o backup de volta.
   - **Banco:** basta deixar `leads_pegar_bloqueado` em `{"bloqueado":false}`. As funções podem ficar, porque o painel antigo não as usa.
+
+## 133. Meus leads: Livres na Equipe com seleção em lote (03/11/2026)
+
+Pedido do Rafael: *"adicione uma função que eu consiga selecionar/redistribuir vários leads de uma vez"*. Ele escolheu fazer isso nos Livres, dentro da aba Equipe. Contexto: em 03/11, 29 leads entraram atrasados de uma vez (a guia de novembro se chamava "... - NOV" e a planilha-espelho não a reconhecia) e só dava para passar um por um. Quem usa: admin e supervisor.
+
+- **Número "leads livres" no topo da Equipe:** abre a lista **Livres** na própria Equipe, com o mais antigo primeiro e "chegou há …" em cada lead. Antes, esse número levava ao Quadro, e esse atalho saiu. A coluna Livres continua no Quadro.
+- **Na lista:** a mesma seleção em lote da §126.3, com caixinha, **Selecionar todos**, "Passar" em cada linha e a barra **Passar para…**. Dá para escolher uma pessoa ou **Dividir igual entre os que pegam**.
+- **"Devolver aos livres" não aparece quando todos os selecionados já são livres:** some da barra e do menu.
+- **Bloqueio da §132 ligado:** continua funcionando, porque o gestor pode passar leads.
+- **Banco:** sem mudança. O `leads_redistribuir` já aceitava lead livre: grava dono e `pego_em`, registra "redistribuir" no histórico e põe o lead na fila da planilha.
+- **Código:** `kbListaDoCartao('livres')`, filtro da lista em `kbRenderEquipe`, `KB_EQ_TITULOS.livres`, clique em `[data-kb-eqk]`, `todosSemStatus` e `kbPassarDesenhar` (sem `__livres` quando só há livres).
+- **Testes:**
+  - `test_meus_leads_fase3.js`: 86 verificações, 5 delas novas.
+  - Suíte inteira: só as mesmas 8 falhas que já existem no `oficial/main` db3e5b7, conferidas lado a lado. A `test_leads_painel_hoje` falha igual nas duas versões.
+- **Publicado (03/11/2026, 18:00:31 SP, ok do Rafael):** antes de enviar, o painel no ar (`b2a11f74…`, §132) era idêntico ao `oficial/main` db3e5b7. O MD5 do ar foi conferido no mesmo comando do envio. Publicado **`78c640b1c7a8f680df751c0fe3aa0def`** (gerado = servidor = site, com e sem `www`).
+- Backup: `~/deploy_backups/painel_clientes_apex_20261103_180031_antes_133_livres_lote.html` (MD5 `b2a11f74…`).
+- **Reverter:** copiar o backup de volta.
+- **Guia do mês da planilha:** o título precisa ter "CLARO B2B" e o mês **por extenso** (ex.: `LEADS CLARO B2B APEX - DEZEMBRO`). Com abreviação, a planilha-espelho não acha a guia: os leads novos não entram no painel e a escrita na planilha fica parada (aviso em `config.leads_espelho_aviso`, erro em `leads_espelho.ultimo_erro`).
