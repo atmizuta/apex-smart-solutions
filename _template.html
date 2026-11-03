@@ -3661,6 +3661,8 @@ function kbListaDoCartao(chave, leads, retornos, agoraMs){
   const meus = (leads || []).filter(l => !l.livre), col = (l) => kbColunaDoLead(l);
   const deLead = (l, detalhe) => ({ aba: l.aba, lead_id: l.lead_id, nome: l.nome, detalhe });
   const deRet = (x) => ({ aba: x.aba, lead_id: x.lead_id, nome: x.nome, detalhe: (x.vencido ? 'era às ' : 'às ') + kbPartesSP(kbMs(x.quando)).hora });
+  if(chave === 'livres') return (leads || []).filter(l => l.livre).sort((a, b) => (kbMs(a.criado_em_lead) || 0) - (kbMs(b.criado_em_lead) || 0))
+    .map(l => deLead(l, 'chegou ' + kbTempoDesde(l.criado_em_lead, agoraMs)));   // §133: o mais antigo primeiro
   if(chave === 'sem_contato') return meus.filter(l => col(l) === 'novos').map(l => deLead(l, 'pego ' + kbTempoDesde(l.pego_em, agoraMs)));
   if(chave === 'andamento') return meus.filter(l => col(l) === 'andamento' || col(l) === 'semlig').map(l => deLead(l, l.status || ''));
   if(chave === 'parados3') return meus.filter(l => kbAbertoCol(col(l)) && (kbDiasParado(l, agoraMs) || 0) >= 3).map(l => deLead(l, 'parado há ' + kbDiasParado(l, agoraMs) + ' dias'));
@@ -4969,7 +4971,7 @@ function kbRenderEquipe(){
   const sel = kbEstado.equipeLista;
   let lista = '';
   if(sel){
-    const leadsDono = (kbEstado.leadsEquipe || []).filter(l => !l.livre && (!sel.dono || l.dono_id === sel.dono));
+    const leadsDono = (kbEstado.leadsEquipe || []).filter(l => sel.chave === 'livres' ? l.livre : (!l.livre && (!sel.dono || l.dono_id === sel.dono)));   // §133: Livres também abre aqui
     const ret = alEq.filter(a => a.tipo === 'retorno_vencido' && (!sel.dono || a.dono_id === sel.dono)).map(a => ({ aba: a.aba, lead_id: a.lead_id, nome: a.nome, quando: a.desde, vencido: true, dono_nome: a.dono_nome }));
     const quem = sel.dono ? ((ativ.find(a => a.dono_id === sel.dono) || {}).nome || '') : 'Equipe';
     const primeiro = (n) => String(n || '').split(/\s+/)[0];
@@ -4984,7 +4986,7 @@ function kbRenderEquipe(){
   }
   if(!sel) kbEstado.loteSel = new Set();
   const n = kbEstado.loteSel.size;
-  const todosSemStatus = n > 0 && [...kbEstado.loteSel].every(ch => { const l = (kbEstado.leadsEquipe || []).find(x => x.aba + '|' + x.lead_id === ch); return !!l && l.categoria === 'sem_contato'; });
+  const todosSemStatus = n > 0 && [...kbEstado.loteSel].every(ch => { const l = (kbEstado.leadsEquipe || []).find(x => x.aba + '|' + x.lead_id === ch); return !!l && !l.livre && l.categoria === 'sem_contato'; });   // §133: livre já está nos livres
   const lote = `<div class="kbLoteBarra" id="kbLoteBarra"${n ? '' : ' hidden'}><b>${n} lead${n === 1 ? '' : 's'} selecionado${n === 1 ? '' : 's'}</b><span class="kbLoteAcoes"><button type="button" class="kbBtn kbBtnG kbBtnSm" data-kb-lote-limpar>Limpar seleção</button>${todosSemStatus ? '<button type="button" class="kbBtn kbBtnQ kbBtnSm" data-kb-lote-livres>Devolver aos livres</button>' : ''}<button type="button" class="kbBtn kbBtnP kbBtnSm" data-kb-lote-passar>Passar para…</button></span></div>`;
   const bloco = (tipo, titulo, comPassar) => {
     const it = alEq.filter(a => a.tipo === tipo);
@@ -4998,7 +5000,7 @@ function kbRenderEquipe(){
   const alertas = `<div class="kbEqAlertas">${bloco('sem_contato', 'Pegos e sem contato', true)}${bloco('retorno_vencido', 'Retornos atrasados', false)}${bloco('perda_suspeita', 'Perdidos sem nenhuma ligação', false)}</div>`;
   document.getElementById('kbEquipe').innerHTML = kbFaixaPegarHtml(kbEstado.pegarBloqueio, ativ, agoraMs) + topo + faixas + tabela + lista + lote + alertas;
 }
-const KB_EQ_TITULOS = { sem_contato: 'Sem contato', andamento: 'Em andamento', parados3: 'Parados 3+ dias', retorno_atrasado: 'Retornos atrasados', convertido: 'Convertidos no mês' };
+const KB_EQ_TITULOS = { livres: 'Livres', sem_contato: 'Sem contato', andamento: 'Em andamento', parados3: 'Parados 3+ dias', retorno_atrasado: 'Retornos atrasados', convertido: 'Convertidos no mês' };
 async function kbCarregarTodos(){
   const r = await ppSeguro(() => sb.rpc('leads_kanban3', { p_dono: kbGestor() && kbEstado.dono ? kbEstado.dono : null, p_todos: true }));
   if(r && !r.error) kbEstado.todos = r.data || [];
@@ -5154,8 +5156,8 @@ document.getElementById('panel-meusleads').addEventListener('click', (e) => {
   const kq = e.target.closest('[data-kb-eqk]');
   if(kq){
     const c = kq.dataset.kbEqk;
-    if(c === 'livres'){ kbEstado.dono = ''; const s = document.getElementById('kbDono'); if(s) s.value = ''; kbTrocarAba('quadro'); kbCarregar(); }
-    else if(c !== 'ligacoes'){ kbEstado.equipeLista = { dono: '', chave: c }; kbEstado.equipeMax = 50; kbEstado.loteSel = new Set(); kbRenderEquipe(); }
+    // §133: Livres abre a lista aqui mesmo (com seleção), não mais o Quadro
+    if(c !== 'ligacoes'){ kbEstado.equipeLista = { dono: '', chave: c }; kbEstado.equipeMax = 50; kbEstado.loteSel = new Set(); kbRenderEquipe(); }
     return;
   }
   const rd = e.target.closest('[data-kb-eq-redist]');
@@ -5236,7 +5238,7 @@ function kbPassarAbrir(chaves, ancora, escolha){
 function kbPassarDesenhar(){
   const p = kbEstado.passar, m = document.getElementById('kbPassar');
   if(!p) return;
-  const n = p.alvos.length, semStatus = p.alvos.every(l => l.categoria === 'sem_contato');
+  const n = p.alvos.length, semStatus = p.alvos.every(l => l.categoria === 'sem_contato') && !p.alvos.every(l => l.livre);   // §133: só livres não tem Devolver
   const titulo = n === 1 ? `Passar "${escapeHtml(p.alvos[0].nome || 'lead')}" para` : `Passar ${n} leads para`;
   const op = (v, nome, info, av, selo) => `<button type="button" class="kbPassarOp${p.escolha === v ? ' ativo' : ''}" data-kb-passar-para="${escapeHtml(v)}"${p.executando ? ' disabled' : ''}>${av ? `<span class="kbEqAv">${escapeHtml(av)}</span>` : ''}<span class="kbPassarNome">${escapeHtml(nome)}${info}</span>${selo || ''}</button>`;
   const pessoas = p.pessoas.map(x => op(x.id, x.nome, `<small>${p.carga[x.id] || 0} em andamento</small>`, kbIniciais(x.nome), x.id === p.menos ? '<span class="kbSelo">menos carga</span>' : '')).join('');

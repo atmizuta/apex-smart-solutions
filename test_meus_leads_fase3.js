@@ -257,6 +257,23 @@ try{
   eq(kbEstado.loteSel.size, 0, 'sem lista aberta, sem seleção');
   // tabela cabe em 1366/1440 (cabeçalho quebra em duas linhas) e o hover da barra escura não apaga o texto
   assert(cssR.includes('.kbEqTabela th{') && /\\.kbEqTabela th\\{[^}]*white-space:normal/.test(cssR) && cssR.includes('.kbLoteBarra .kbBtnG:hover{'), 'cabeçalho da tabela quebra linha; hover na barra escura');
+  // ==== §133: Livres na Equipe com seleção em lote ====
+  eq(kbListaDoCartao('livres', [
+    { aba: 'O', lead_id: 'n2', nome: 'Zz Novo', livre: true, criado_em_lead: isoE(-5) },
+    { aba: 'O', lead_id: 'n1', nome: 'Zz Velho', livre: true, criado_em_lead: isoE(-90) },
+    { aba: 'O', lead_id: 'd1', nome: 'Zz Com Dono', livre: false, dono_id: 'u1', criado_em_lead: isoE(-200) },
+  ], [], Date.now()).map(i => i.lead_id + ' ' + i.detalhe), ['n1 chegou há 1 h', 'n2 chegou há 5 min'], 'lista de livres: só sem dono, o mais antigo primeiro');
+  kbEstado.equipeLista = null; kbEstado.loteSel = new Set(); kbRenderEquipe();
+  document.querySelector('#kbEquipe [data-kb-eqk="livres"]').click();
+  const EQL = document.getElementById('kbEquipe');
+  assert(kbEstado.aba === 'equipe' && kbEstado.equipeLista && kbEstado.equipeLista.chave === 'livres' && EQL.querySelector('.kbEqLista h3').textContent.includes('Livres'), 'número de livres abre a lista Livres na própria Equipe');
+  assert(EQL.querySelector('[data-kb-lote="O|lv"]') && EQL.querySelector('[data-kb-passar-um="O|lv"]') && EQL.querySelector('[data-kb-lote-todos]'), 'livres com caixinha, Passar e Selecionar todos');
+  EQL.querySelector('[data-kb-lote-todos]').click();
+  const barraL = document.getElementById('kbLoteBarra');
+  assert(kbEstado.loteSel.has('O|lv') && !barraL.hidden && barraL.querySelector('[data-kb-lote-passar]') && !barraL.querySelector('[data-kb-lote-livres]'), 'barra com Passar para… e sem Devolver aos livres');
+  kbPassarAbrir([...kbEstado.loteSel]);
+  assert(!document.querySelector('#kbPassar [data-kb-passar-para="__livres"]') && document.querySelector('#kbPassar [data-kb-passar-para="u1"]') && document.querySelector('#kbPassar [data-kb-passar-para="u2"]'), 'menu do livre: todos os consultores e sem Devolver aos livres');
+  kbPassarFechar(); kbEstado.equipeLista = null; kbEstado.loteSel = new Set(); kbRenderEquipe();
   // ==== mais testes entram aqui ====
 
   Date.now = dnReal;
