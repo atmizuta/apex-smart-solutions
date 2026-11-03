@@ -121,7 +121,7 @@ try{
   const linha1 = EQ.querySelector('tr[data-kb-dono="u1"]');
   assert(linha1.querySelector('.kbEqSem.r .kbSemaforo') && linha1.textContent.includes('parado 1 h 15 min'), 'semáforo escrito vermelho, com a bolinha');
   eq([...linha1.querySelectorAll('.kbCalor i')].map(i => i.className), ['l2', 'l1', 'l0', 'fut', 'fut', 'fut', 'fut', 'fut'], 'mapa por hora: 6 → l2, 3 → l1, a hora atual conta, as futuras vazadas');
-  assert(linha1.querySelector('.kbEqHoje').textContent.includes('19') && linha1.querySelector('.kbEqHoje').textContent.includes('/ 80') && linha1.textContent.includes('19 hoje') && linha1.textContent.includes('pega leads'), 'Hoje: ligações / meta; atividade em texto pequeno; pega leads');
+  assert(linha1.querySelector('.kbEqHoje').textContent.includes('19') && linha1.querySelector('.kbEqHoje').textContent.includes('/ 80') && linha1.textContent.includes('19 hoje') && !!linha1.querySelector('.kbPegaChave.on[data-kb-pode-pegar="u1"]'), 'Hoje: ligações / meta; atividade em texto pequeno; chave Pega leads ligada (§132)');
   assert(EQ.querySelector('tr[data-kb-dono="u2"] .kbEqSem.v').textContent.includes('ligou há 3 min'), 'verde: ligou há 3 min');
   assert(linha1.querySelector('[data-kb-eq="u1|sem_contato"].ruim') && !EQ.querySelector('tr[data-kb-dono="u2"] [data-kb-eq="u2|sem_contato"]'), 'número com problema em vermelho; zero não é botão');
   eq([...EQ.querySelectorAll('.kbEqAlertas .kbEqBloco h3')].map(h => h.firstChild.textContent.trim()), ['Pegos e sem contato', 'Retornos atrasados', 'Perdidos sem nenhuma ligação'], 'alertas em três blocos');

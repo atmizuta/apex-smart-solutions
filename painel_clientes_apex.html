@@ -1062,6 +1062,19 @@
   .kbEqPessoa b{display:block;font-weight:600;}
   .kbEqPessoa small,.kbEqAtivTxt{display:block;font-size:var(--fs-xs);color:var(--ml-ink-3);}
   .kbEqAtivTxt{margin-top:4px;white-space:normal;max-width:240px;}
+  .kbEqPegar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 16px;margin-top:var(--space-3);border-radius:var(--radius-lg);background:var(--ml-surface);border-left:4px solid var(--ml-ok);color:var(--ml-ink);}
+  .kbEqPegar.bloq{background:var(--ml-late-soft);border-left-color:var(--ml-late);}
+  .kbEqPegar b{display:block;font-weight:600;}
+  .kbEqPegar small{display:block;font-size:var(--fs-sm);color:var(--ml-ink-2);}
+  .kbEqPegar .kbBtn{margin-left:auto;}
+  .kbPegaChave{display:inline-flex;align-items:center;gap:6px;margin-top:4px;padding:0;border:0;background:none;font:inherit;font-size:var(--fs-xs);color:var(--ml-ink-3);cursor:pointer;}
+  .kbPegaChave i{position:relative;width:26px;height:14px;border-radius:999px;background:var(--ml-surface-3);transition:background var(--dur-fast);flex:none;}
+  .kbPegaChave i::after{content:'';position:absolute;top:2px;left:2px;width:10px;height:10px;border-radius:50%;background:var(--ml-surface);transition:transform var(--dur-fast);}
+  .kbPegaChave.on{color:var(--ml-ink-2);}
+  .kbPegaChave.on i{background:var(--ml-ok);}
+  .kbPegaChave.on i::after{transform:translateX(12px);}
+  .kbPegaChave:focus-visible{outline:2px solid var(--c-sinal);outline-offset:2px;}
+  .kbPausaAviso{flex-basis:100%;}
   .kbEqSem{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;font-size:var(--fs-sm);font-weight:600;}
   .kbSemaforo{width:8px;height:8px;border-radius:50%;background:currentColor;flex:none;}
   .kbEqSem.v{background:var(--ml-ok-soft);color:var(--ml-ok);}
@@ -1864,6 +1877,7 @@
           <button type="button" data-kb-aba="todos">Lista</button>
         </nav>
         <span class="kbStatusLinha" id="kbStatus"></span>
+        <div class="kbAviso kbPausaAviso" id="kbPausaAviso" role="status" hidden>Pegar leads está pausado pelo supervisor. Os leads que você já tem continuam aqui.</div>
         <div class="kbBuscaBox"><svg class="kbBuscaIco" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="search" id="kbBusca" class="kbBusca" placeholder="Buscar lead por nome, CNPJ ou telefone" autocomplete="off" aria-label="Buscar lead"><span class="kbAtalhoTecla" aria-hidden="true">/</span><div class="kbBuscaRes" id="kbBuscaRes"></div></div>
         <div class="kbFiltros" id="kbFiltrosGestor" style="display:none">
           <select id="kbDono" class="kbDono" aria-label="Consultor"></select>
@@ -4132,8 +4146,21 @@ function kbPodeVer(){
   return kbEstado.modo === 'painel' && (kbGestor() || kbEstado.naEquipe);
 }
 // §122: só quem tem leads_equipe.pode_pegar pega lead (Luria, Lucas, Caio e Mariana). O gestor não pega, mas vê os Livres para redistribuir.
-function kbPodePegar(){ return !kbGestor() && !!kbEstado.podePegar; }
-function kbVeLivres(){ return kbGestor() || kbPodePegar(); }
+// §132: o gestor bloqueia todos de pegar (config leads_pegar_bloqueado); quem é liberado continua vendo os Livres, sem o botão Pegar.
+function kbBloqueioDe(valor){
+  let v = null;
+  try { v = typeof valor === 'string' ? JSON.parse(valor) : valor; } catch(_e) { v = null; }
+  return { bloqueado: !!(v && v.bloqueado === true), por: (v && v.por) || '', em: (v && v.em) || null };
+}
+function kbPegarBloqueado(){ return !!(kbEstado.pegarBloqueio && kbEstado.pegarBloqueio.bloqueado); }
+async function kbCarregarBloqueio(){
+  const r = await ppSeguro(() => sb.from('config').select('valor').eq('chave', 'leads_pegar_bloqueado').maybeSingle());
+  if(r && !r.error) kbEstado.pegarBloqueio = kbBloqueioDe(r.data ? r.data.valor : null);   // falha de rede: mantém o que já sabia (o banco trava de qualquer jeito)
+  const av = document.getElementById('kbPausaAviso');
+  if(av) av.hidden = !(kbPegarBloqueado() && !kbGestor() && kbEstado.podePegar);
+}
+function kbPodePegar(){ return !kbGestor() && !!kbEstado.podePegar && !kbPegarBloqueado(); }
+function kbVeLivres(){ return kbGestor() || !!kbEstado.podePegar; }
 async function kbAplicarPermissao(){
   kbEstado.naEquipe = false; kbEstado.podePegar = false;
   kbEstado.aba = null;
@@ -4145,6 +4172,7 @@ async function kbAplicarPermissao(){
     kbEstado.naEquipe = !!linhas.length;
     kbEstado.podePegar = linhas.some(x => x.pode_pegar === true);
   }
+  if(kbPodeVer()) await kbCarregarBloqueio();
   document.getElementById('tabBtnMeusLeads').style.display = kbPodeVer() ? 'inline-block' : 'none';
   document.getElementById('kbFiltrosGestor').style.display = kbGestor() ? '' : 'none';
   document.getElementById('kbReescrever').style.display = currentUser && currentUser.role === 'admin' ? '' : 'none';
@@ -4157,6 +4185,7 @@ async function kbCarregar(){
   const [lds, ops] = await Promise.all([
     ppSeguro(() => sb.rpc('leads_kanban3', { p_dono: kbGestor() && kbEstado.dono ? kbEstado.dono : null, p_todos: false })),
     kbEstado.opcoes.length ? Promise.resolve(null) : ppSeguro(() => sb.from('leads_status_opcoes').select('status,grupo,ordem').eq('ativo', true)),
+    kbCarregarBloqueio(),   // §132: o bloqueio do gestor chega a quem está com o painel aberto
   ]);
   if(geracao !== kbEstado.geracao) return;
   if(ops && !ops.error) kbEstado.opcoes = ops.data || [];
@@ -4244,6 +4273,7 @@ function kbRender(){
     if(faixa) faixa.textContent = col === 'convertido' ? `${c[col].length} · ${kbMoeda(c[col].reduce((s, l) => s + (Number(l.receita || l.receita_neo) || 0), 0)) || 'R$ 0,00'}` : String(c[col].length);
     const pp = el.querySelector('.kbColAcoes [data-kb-pegar-proximo]');
     if(pp) pp.style.display = kbPodePegar() ? '' : 'none';
+    if(col === 'livres'){ const sub = el.querySelector('.kbColSub'); if(sub) sub.textContent = kbPegarBloqueado() && !kbGestor() ? 'Pegar está pausado pelo supervisor' : KB_COL_SUB.livres; }   // §132
     const html = kbListaHtml(col, c[col], agoraMs);
     const ob = el.querySelector('[data-kb-ordem]');
     if(ob) ob.textContent = kbEstado.ordens[col] === 'novo' ? '↓ Mais novo' : '↑ Mais antigo';
@@ -4268,7 +4298,12 @@ let kbAlturaPendente = false;
 window.addEventListener('resize', () => { if(kbAlturaPendente) return; kbAlturaPendente = true; requestAnimationFrame(() => { kbAlturaPendente = false; kbAjustarAltura(); }); });
 async function kbPegar(aba, id){
   const r = await ppSeguro(() => sb.rpc('leads_pegar', { p_aba: aba, p_id: id }));
-  if(!r || r.error){ mostrarAviso('Não foi possível pegar o lead agora.', 'erro'); return false; }
+  if(!r || r.error){
+    const msg = r && r.error && /pausado|liberado/.test(r.error.message || '') ? r.error.message.charAt(0).toUpperCase() + r.error.message.slice(1) + '.' : 'Não foi possível pegar o lead agora.';
+    mostrarAviso(msg, 'erro');
+    if(/pausado/.test(msg)){ await kbCarregarBloqueio(); kbRender(); }   // §132: painel aberto antes do bloqueio tira o botão na hora
+    return false;
+  }
   const ok = !(r.data && r.data.ok === false);
   if(!ok) mostrarAviso(`Esse lead já foi pego por ${r.data.dono}`, 'info');
   await kbCarregar();
@@ -4411,6 +4446,10 @@ function kbAgendar(){
     if(!ativa() || document.visibilityState !== 'visible') return;
     kbVerificarVersao();
     if(++voltas % 6 === 0){
+      if(!kbGestor()){   // §132: bloqueio/liberação do gestor chega em até 1 min sem precisar de F5
+        const antes = kbPegarBloqueado();
+        kbCarregarBloqueio().then(() => { if(kbPegarBloqueado() !== antes){ kbRender(); if(kbEstado.aba === 'hoje') kbCarregarHoje(); } });
+      }
       if(kbEstado.aba === 'equipe') kbCarregarEquipe(true); else kbCarregarAlertas(true);
       if(kbEstado.aba === 'hoje') kbCarregarHoje();
       if(kbEstado.aba === 'quadro') kbCarregar();
@@ -4842,6 +4881,7 @@ async function kbCarregarEquipe(notificar){
     ppSeguro(() => sb.rpc('leads_atividade_equipe2')),   // §126.3: com ligações por hora, meta e pode_pegar
     ppSeguro(() => sb.rpc('leads_alertas', { p_dono: null })),   // a Equipe é sempre da equipe toda, mesmo com consultor no seletor
     kbCarregarAlertas(!!notificar),
+    kbCarregarBloqueio(),
   ]);
   let atv = at;
   kbEstado.atividadeV2 = !!(at && !at.error);
@@ -4849,6 +4889,42 @@ async function kbCarregarEquipe(notificar){
   if(lds && !lds.error) kbEstado.leadsEquipe = lds.data || [];
   if(ale && !ale.error) kbEstado.alertasEquipe = ale.data || [];
   if(atv && !atv.error) kbEstado.atividade = atv.data || [];
+  kbRenderEquipe();
+}
+// §132: faixa "Pegar leads" no topo da Equipe (Bloquear todos / Liberar) e chave "Pega leads" em cada consultor.
+function kbFaixaPegarHtml(bloq, ativ, agoraMs){
+  const b = bloq || { bloqueado: false }, pegam = (ativ || []).filter(a => a.pode_pegar === true).length;
+  const quem = b.por ? ` por ${escapeHtml(String(b.por).split(/\s+/)[0])}` : '', quando = b.em ? ` ${escapeHtml(kbTempoDesde(b.em, agoraMs))}` : '';
+  const det = b.bloqueado ? `Bloqueado${quem}${quando}. Ninguém pega; você ainda pode passar leads para quem quiser.`
+    : `${pegam} consultor${pegam === 1 ? '' : 'es'} pega${pegam === 1 ? '' : 'm'} leads. Ligue ou desligue na chave de cada um.`;
+  return `<div class="kbEqPegar${b.bloqueado ? ' bloq' : ''}"><span><b>Pegar leads: ${b.bloqueado ? 'Bloqueado' : 'Liberado'}</b><small>${det}</small></span>`
+    + `<button type="button" class="kbBtn ${b.bloqueado ? 'kbBtnP' : 'kbBtnG'} kbBtnSm" data-kb-pegar-bloquear="${b.bloqueado ? '0' : '1'}">${b.bloqueado ? 'Liberar' : 'Bloquear todos'}</button></div>`;
+}
+function kbChavePegaHtml(a){
+  if(a.pode_pegar !== true && a.pode_pegar !== false) return '';
+  const on = a.pode_pegar === true;
+  return `<button type="button" class="kbPegaChave${on ? ' on' : ''}" role="switch" aria-checked="${on}" data-kb-pode-pegar="${escapeHtml(a.dono_id)}" title="${on ? 'Pega leads: clique para tirar' : 'Não pega leads: clique para liberar'}"><i></i>Pega leads</button>`;
+}
+async function kbPegarBloquear(bloquear){
+  if(kbEstado.pegarMudando) return;
+  kbEstado.pegarMudando = true;
+  const r = await ppSeguro(() => sb.rpc('leads_pegar_bloquear', { p_bloqueado: bloquear }));
+  kbEstado.pegarMudando = false;
+  if(!r || r.error){ mostrarAviso('Não foi possível mudar o bloqueio agora.', 'erro'); return; }
+  kbEstado.pegarBloqueio = kbBloqueioDe(r.data);
+  mostrarAviso(bloquear ? 'Pegar leads bloqueado para todos.' : 'Pegar leads liberado.', 'ok');
+  kbRenderEquipe();
+}
+async function kbDefinirPodePegar(dono){
+  const a = (kbEstado.atividade || []).find(x => x.dono_id === dono);
+  if(!a || kbEstado.pegarMudando) return;
+  const novo = a.pode_pegar !== true;
+  kbEstado.pegarMudando = true;
+  const r = await ppSeguro(() => sb.rpc('leads_definir_pode_pegar', { p_profile: dono, p_pode: novo }));
+  kbEstado.pegarMudando = false;
+  if(!r || r.error){ mostrarAviso('Não foi possível mudar quem pega agora.', 'erro'); return; }
+  a.pode_pegar = novo;
+  mostrarAviso(`${String(a.nome || '').split(/\s+/)[0]} ${novo ? 'agora pega leads' : 'não pega mais leads (os que já tem continuam)'}.`, 'ok');
   kbRenderEquipe();
 }
 // §126.3: Equipe — números do topo, faixa de atenção, tabela com semáforo escrito e mapa por hora, lista com seleção em lote, alertas em três blocos.
@@ -4879,8 +4955,8 @@ function kbRenderEquipe(){
     const hoje = a.tem_telefonia
       ? `<b>${lig}</b><span class="kbMuted"> / ${meta}</span><span class="kbMedidor kbMed-${kbCorBarraLig(lig, meta, agoraMs) || 'neutro'}"><i style="width:${Math.min(100, Math.round(100 * lig / meta))}%"></i></span>`
       : '<span class="kbMuted">—</span>';
-    const pega = a.pode_pegar === true ? 'pega leads' : a.pode_pegar === false ? 'só os que já tem' : '';
-    return `<tr data-kb-dono="${escapeHtml(a.dono_id)}"><td><span class="kbEqPessoa"><span class="kbEqAv">${escapeHtml(kbIniciais(a.nome))}</span><span><b>${escapeHtml(a.nome || '')}</b>${pega ? `<small>${pega}</small>` : ''}</span></span></td>
+    const pega = kbChavePegaHtml(a);   // §132: chave liga/desliga de quem pega (a v1 da função não traz pode_pegar: sem chave)
+    return `<tr data-kb-dono="${escapeHtml(a.dono_id)}"><td><span class="kbEqPessoa"><span class="kbEqAv">${escapeHtml(kbIniciais(a.nome))}</span><span><b>${escapeHtml(a.nome || '')}</b>${pega}</span></span></td>
       <td><span class="kbEqSem ${corCls}"><span class="kbSemaforo"></span>${escapeHtml(s.texto)}</span><small class="kbEqAtivTxt">${escapeHtml(t.lig)} · ${escapeHtml(t.obs)}</small></td>
       <td>${calor}</td><td class="kbEqHoje">${hoje}</td>
       <td class="r">${num(a.dono_id, 'sem_contato', c.sem_contato, true)}</td><td class="r">${num(a.dono_id, 'andamento', c.andamento)}</td>
@@ -4920,7 +4996,7 @@ function kbRenderEquipe(){
     return `<div class="kbEqBloco"><h3>${titulo} <span>${it.length}</span></h3>${linhasAl || '<p class="kbMuted">Nada aqui.</p>'}${verTodos}</div>`;
   };
   const alertas = `<div class="kbEqAlertas">${bloco('sem_contato', 'Pegos e sem contato', true)}${bloco('retorno_vencido', 'Retornos atrasados', false)}${bloco('perda_suspeita', 'Perdidos sem nenhuma ligação', false)}</div>`;
-  document.getElementById('kbEquipe').innerHTML = topo + faixas + tabela + lista + lote + alertas;
+  document.getElementById('kbEquipe').innerHTML = kbFaixaPegarHtml(kbEstado.pegarBloqueio, ativ, agoraMs) + topo + faixas + tabela + lista + lote + alertas;
 }
 const KB_EQ_TITULOS = { sem_contato: 'Sem contato', andamento: 'Em andamento', parados3: 'Parados 3+ dias', retorno_atrasado: 'Retornos atrasados', convertido: 'Convertidos no mês' };
 async function kbCarregarTodos(){
@@ -5000,7 +5076,7 @@ async function kbCarregarAlertas(notificar){
   if(!kbPodeVer()) return;
   const r = await ppSeguro(() => sb.rpc('leads_alertas', { p_dono: kbGestor() && kbEstado.dono ? kbEstado.dono : null }));
   if(!r || r.error) return;   // falha de rede: mantém o que já estava na tela
-  kbEstado.alertas = r.data || [];
+  kbEstado.alertas = (r.data || []).filter(a => !(a.tipo === 'lead_novo' && kbPegarBloqueado()));   // §132: pegar pausado não avisa lead novo
   const n = kbEstado.alertas.length;
   document.getElementById('kbBadgeHoje').textContent = n ? String(n) : '';
   document.getElementById('kbBadgeEquipe').textContent = kbGestor() && n ? String(n) : '';
@@ -5066,6 +5142,10 @@ document.addEventListener('keydown', (e) => {
 });
 document.getElementById('kbAbas').addEventListener('click', (e) => { const b = e.target.closest('[data-kb-aba]'); if(b) kbTrocarAba(b.dataset.kbAba); });
 document.getElementById('panel-meusleads').addEventListener('click', (e) => {
+  const pb = e.target.closest('[data-kb-pegar-bloquear]');
+  if(pb){ kbPegarBloquear(pb.dataset.kbPegarBloquear === '1'); return; }
+  const pc = e.target.closest('[data-kb-pode-pegar]');
+  if(pc){ kbDefinirPodePegar(pc.dataset.kbPodePegar); return; }   // antes do clique na linha (que abre os leads do consultor)
   const eqn = e.target.closest('[data-kb-eq]');
   if(eqn){ const [dono, chave] = eqn.dataset.kbEq.split('|'); kbEstado.equipeLista = { dono, chave }; kbEstado.equipeMax = 50; kbEstado.loteSel = new Set(); kbRenderEquipe(); return; }
   if(e.target.closest('[data-kb-eq-fechar]')){ kbEstado.equipeLista = null; kbEstado.loteSel = new Set(); kbRenderEquipe(); return; }
