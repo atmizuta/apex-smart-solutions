@@ -506,7 +506,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
   assert(RD.querySelector('[data-kb-rel-cartao="primeiro_contato"] .kbRelSeta.melhor').textContent === '▼', '1ª ligação abaixo da média é melhor');
   eq(RD.querySelectorAll('.kbRelHora').length, 8, '8 barras de hora');
   assert(RD.querySelector('.kbRelParados').textContent.includes('15:10–16:02 (52 min)'), 'parado com horário e duração');
-  const RDtxt = RD.textContent.replace(/\s+/g, ' ');   // kbMoeda usa espaço inquebrável depois do R$
+  const RDtxt = RD.textContent.replace(/\\s+/g, ' ');   // kbMoeda usa espaço inquebrável depois do R$
   assert(RD.querySelector('[data-kb-abrir="NOVEMBRO|l:1"]') && RDtxt.includes('venda R$ 100,00') && RD.textContent.includes('recebeu de Zz Caio') && RD.textContent.includes('sem contato'), 'leads do dia');
   assert(RD.querySelector('.kbRelPerdidos').textContent.includes('ZZCAIO') && RD.querySelector('.kbRelPendencias [data-kb-abrir="NOVEMBRO|l:4"]'), 'perdidos e pendências');
   const vazio = document.createElement('div'); vazio.innerHTML = kbRelatorioHtml({ dados: Object.assign({}, R, { numeros: null, leads: [], perdidos: [], parados: [] }), erro: false, carregando: false }, 'Zz Luria');
