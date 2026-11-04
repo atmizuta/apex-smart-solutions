@@ -105,6 +105,79 @@ try{
   assert(er.textContent.includes('Não foi possível carregar o relatório') && er.querySelector('[data-kb-relatorio-fechar]'), 'erro no relatório com Fechar');
   const ca = document.createElement('div'); ca.innerHTML = kbRelatorioHtml({ dados: null, erro: false, carregando: true }, 'Zz Lucas');
   assert(ca.textContent.includes('Carregando'), 'carregando');
+  // ==== Task 4: Equipe com Dia/Mês e relatório ====
+  currentUser = { id: 'u-sup', nome: 'Zzksup Teste', role: 'supervisor', operacao: 'apex' };
+  window.__tabelas.config = [{ valor: 'painel' }];
+  window.__tabelas.leads_equipe = [{ id: 1, profile_id: 'u1', nome_planilha: 'ZZLUCAS', pode_pegar: true }, { id: 2, profile_id: 'u2', nome_planilha: 'ZZLURIA', pode_pegar: true }];
+  window.__tabelas.leads_status_opcoes = [{ status: 'EM NEGOCIAÇÂO', grupo: 'andamento', ordem: 1 }];
+  window.__rpcRespostas.leads_kanban3 = { data: [{ aba: 'O', lead_id: 's1', nome: 'Zz Sem Um', dono_id: 'u1', dono_nome: 'Zz Lucas', categoria: 'sem_contato', livre: false, pego_em: new Date(ag - 6e6).toISOString() }], error: null };
+  window.__rpcRespostas.leads_alertas = { data: [], error: null };
+  window.__rpcRespostas.leads_atividade_equipe2 = { data: [
+    { dono_id: 'u1', nome: 'Zz Lucas', tem_telefonia: true, ultima_ligacao: null, lig_hoje: 0, ultima_obs: null, obs_hoje: 0, lig_por_hora: [0,0,0,0,0,0,0,0], meta_dia: 80, pode_pegar: true },
+    { dono_id: 'u2', nome: 'Zz Luria', tem_telefonia: false, ultima_ligacao: null, lig_hoje: 0, ultima_obs: null, obs_hoje: 0, lig_por_hora: [0,0,0,0,0,0,0,0], meta_dia: 80, pode_pegar: true }], error: null };
+  window.__rpcRespostas.leads_hoje = { data: { fila: [], retornos: [], livres: 0, placar: {} }, error: null };
+  window.__rpcRespostas.leads_dia_equipe = (a) => ({ data: [Object.assign({}, L1, { dia: a.p_dia }), L2], error: null });
+  window.__rpcRespostas.leads_dia_consultor = (a) => ({ data: Object.assign({}, R, { dia: a.p_dia }), error: null });
+  try { window.localStorage.removeItem('kbEqModo'); } catch(_e) {}
+  await kbAplicarPermissao();
+  kbEstado.aba = null; await kbCarregar(); await espera(120);
+  const EQ = document.getElementById('kbEquipe');
+  assert(kbEstado.aba === 'equipe' && kbEstado.equipeModo === 'mes' && EQ.querySelector('tr[data-kb-dono="u1"]'), 'abre no Mês, tabela de sempre');
+  assert(EQ.querySelector('[data-kb-eq-modo="dia"]') && EQ.querySelector('[data-kb-eq-modo="mes"].active') && !EQ.querySelector('#kbEqDia'), 'seletor Dia/Mês, sem data no Mês');
+  EQ.querySelector('[data-kb-eq-modo="dia"]').click(); await espera(60);
+  const cDia = window.__rpcCalls.filter(c => c.nome === 'leads_dia_equipe').pop();
+  assert(kbEstado.equipeModo === 'dia' && cDia && cDia.args.p_dia === '2026-11-03', 'Dia chama leads_dia_equipe com hoje');
+  assert(EQ.querySelector('#kbEqDia').value === '2026-11-03' && EQ.querySelector('#kbEqDia').max === '2026-11-03', 'campo de data com hoje e sem futuro');
+  assert(EQ.querySelector('tr[data-kb-relatorio="u1"] .kbDiaPos').textContent === '1º' && !EQ.querySelector('tr[data-kb-dono]'), 'tabela do dia no lugar da do mês');
+  assert(EQ.textContent.includes('até 1 h atrasadas'), 'aviso de hoje');
+  let lsModo = null; try { lsModo = window.localStorage.getItem('kbEqModo'); } catch(_e) {}
+  assert(lsModo === null || lsModo === 'dia', 'lembra o modo (quando o navegador deixa)');
+  // relatório
+  EQ.querySelector('button[data-kb-relatorio="u1"]').click(); await espera(60);
+  const cRel = window.__rpcCalls.filter(c => c.nome === 'leads_dia_consultor').pop();
+  assert(cRel && cRel.args.p_dono === 'u1' && cRel.args.p_dia === '2026-11-03' && EQ.querySelector('.kbRel h3').textContent.includes('Zz Lucas · dia 03/11'), 'clicar no nome abre o relatório do dia');
+  EQ.querySelector('[data-kb-relatorio-fechar]').click();
+  assert(!EQ.querySelector('.kbRel') && !kbEstado.relatorio, 'Fechar');
+  // corrida: dois cliques rápidos, a resposta do primeiro chega depois
+  let soltaU1;
+  window.__rpcRespostas.leads_dia_consultor = (a) => a.p_dono === 'u1'
+    ? new Promise(res => { soltaU1 = () => res({ data: Object.assign({}, R, { dia: a.p_dia }), error: null }); })
+    : { data: Object.assign({}, R, { dia: a.p_dia, numeros: Object.assign({}, L2, { pegos: 1, jornada_inicio: '2026-11-03T16:00:00Z', jornada_fim: '2026-11-03T17:00:00Z' }) }), error: null };
+  const p1 = kbAbrirRelatorio('u1'); await espera(10);
+  await kbAbrirRelatorio('u2'); soltaU1(); await p1; await espera(20);
+  assert(kbEstado.relatorio && kbEstado.relatorio.dono === 'u2' && EQ.querySelector('.kbRel h3').textContent.includes('Zz Luria'), 'dois cliques rápidos: fica o último');
+  window.__rpcRespostas.leads_dia_consultor = (a) => ({ data: Object.assign({}, R, { dia: a.p_dia }), error: null });
+  // trocar a data (inclusive futura ou vazia) e o relatório acompanha
+  const inp = EQ.querySelector('#kbEqDia'); inp.value = '2026-10-20'; inp.dispatchEvent(new window.Event('change', { bubbles: true })); await espera(60);
+  assert(kbEstado.equipeDia === '2026-10-20' && window.__rpcCalls.filter(c => c.nome === 'leads_dia_equipe').pop().args.p_dia === '2026-10-20'
+    && window.__rpcCalls.filter(c => c.nome === 'leads_dia_consultor').pop().args.p_dia === '2026-10-20' && EQ.textContent.includes('a partir de 27/10/2026'), 'trocar a data recarrega placar e relatório; aviso antes do histórico');
+  const nAntes = window.__rpcCalls.length;
+  const inp2 = EQ.querySelector('#kbEqDia'); inp2.value = '2026-12-01'; inp2.dispatchEvent(new window.Event('change', { bubbles: true })); await espera(60);
+  assert(kbEstado.equipeDia === '2026-11-03' && !window.__rpcCalls.slice(nAntes).some(c => c.args && c.args.p_dia === '2026-12-01'), 'data no futuro volta para hoje sem chamar o banco com ela');
+  const inp3 = EQ.querySelector('#kbEqDia'); inp3.value = ''; inp3.dispatchEvent(new window.Event('change', { bubbles: true })); await espera(60);
+  assert(kbEstado.equipeDia === '2026-11-03', 'data vazia volta para hoje');
+  // dia passado não pula para hoje com o timer da Equipe
+  const inp4 = EQ.querySelector('#kbEqDia'); inp4.value = '2026-10-30'; inp4.dispatchEvent(new window.Event('change', { bubbles: true })); await espera(60);
+  await kbCarregarEquipe(); await espera(30);
+  assert(kbEstado.equipeDia === '2026-10-30' && window.__rpcCalls.filter(c => c.nome === 'leads_dia_equipe').pop().args.p_dia === '2026-10-30', 'atualização da Equipe mantém o dia escolhido');
+  // lista e relatório não aparecem juntos
+  kbEstado.relatorio = null; await kbAbrirRelatorio('u1'); await espera(20);
+  kbEquipeModo('mes'); await espera(30);
+  assert(!kbEstado.relatorio && EQ.querySelector('tr[data-kb-dono="u1"]'), 'voltar ao Mês fecha o relatório e mostra a tabela de sempre');
+  EQ.querySelector('[data-kb-eq="u1|sem_contato"]').click();
+  assert(kbEstado.equipeLista && !kbEstado.relatorio && EQ.querySelector('.kbEqLista'), 'número da linha (Mês) abre a lista, como antes');
+  const pegaAntes = window.__rpcCalls.length;
+  EQ.querySelector('[data-kb-pode-pegar="u1"]').click(); await espera(30);
+  assert(window.__rpcCalls.slice(pegaAntes).some(c => c.nome === 'leads_definir_pode_pegar') && !kbEstado.relatorio, 'chave Pega leads não abre relatório');
+  // erro e função ausente
+  window.__rpcRespostas.leads_dia_equipe = { data: null, error: { code: '500', message: 'falhou' } };
+  window.__avisos = []; const mAv = mostrarAviso; mostrarAviso = (m, t) => window.__avisos.push(t + ':' + m);
+  await kbEquipeModo('dia'); await espera(30);
+  assert(window.__avisos.some(a => a.includes('Não foi possível carregar o dia agora.')) && EQ.querySelector('tr[data-kb-dono="u1"]') && EQ.querySelector('[data-kb-eq-modo]'), 'erro na carga do dia: aviso e a tabela do Mês continua');
+  window.__rpcRespostas.leads_dia_equipe = { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.leads_dia_equipe' } };
+  await kbEquipeModo('dia'); await espera(30);
+  assert(kbEstado.diaDisponivel === false && kbEstado.equipeModo === 'mes' && !EQ.querySelector('[data-kb-eq-modo]') && EQ.querySelector('tr[data-kb-dono="u1"]'), 'sem a função no banco: some o seletor e a Equipe fica como antes');
+  mostrarAviso = mAv;
   // ==== mais testes entram aqui ====
 
   Date.now = dnReal;
