@@ -21,7 +21,7 @@
 - Cursor: a busca sempre volta **15 min** antes do cursor; sem cursor, busca as últimas **24 h**; o cursor só anda depois de uma rodada inteira ok e nunca volta.
 - Limites do aviso: **30 min** sem rodada ok no `paralelo`, **5 min** no `principal`; no `ensaio` não há limite de tempo.
 - Cron a cada 1 min (`* * * * *`), `x-cron-secret` do Vault `sync_producao_cron_secret` (a função lê `SYNC_CRON_SECRET`), `timeout_milliseconds := 50000`.
-- O painel só muda na linha do aviso do gestor; consultor não vê nada novo. Mudar `_template.html` e `painel_clientes_apex.html` igual.
+- O painel só muda na linha do aviso do gestor; consultor não vê nada novo. Editar **só** o `_template.html`; o `painel_clientes_apex.html` é gerado com `python build_painel.py` (nunca à mão). Testes do painel: `bash run_tests.sh`.
 - Publicação do painel só com ok do Rafael, seguindo o processo de sempre (comparar com o ar, backup, MD5 no mesmo comando, vigia).
 
 ## Review Focus
@@ -47,7 +47,7 @@
 | `supabase/functions/leads-meta/meta.ts` + `.test.ts` (criar) | cliente mínimo da Graph API |
 | `supabase/functions/leads-meta/rodada.ts` + `.test.ts` (criar) | uma rodada: modos, cursor, status, checagem de formulários |
 | `supabase/functions/leads-meta/index.ts` (criar) | porta, config, deps reais |
-| `_template.html` e `painel_clientes_apex.html` (linha ~4381) | aviso do gestor lê também `leads_meta_aviso()` |
+| `_template.html` (linha ~4381) → `painel_clientes_apex.html` gerado por `build_painel.py` | aviso do gestor lê também `leads_meta_aviso()` |
 | `REGRAS_NEGOCIO.md` | §137 |
 
 ---
@@ -1092,7 +1092,7 @@ git commit -m "feat(leads-meta): porta da Edge Function com config, secret e dep
 **Files:**
 - Create: `supabase/migrations/20261104200100_leads_meta_cron.sql`
 - Modify: `_template.html` (linha com `leads_espelho_aviso`, ~4381)
-- Modify: `painel_clientes_apex.html` (a mesma linha, ~4381)
+- Regenerate: `painel_clientes_apex.html` (`python build_painel.py`)
 - Modify: `REGRAS_NEGOCIO.md` (nova §137 no fim; atualizar "Próxima livre")
 
 **Interfaces:**
@@ -1115,9 +1115,9 @@ select cron.schedule('leads-meta', '* * * * *', $job$
 $job$);
 ```
 
-- [ ] **Step 2: Trocar a linha do aviso nos dois HTMLs**
+- [ ] **Step 2: Trocar a linha do aviso no template e gerar o painel**
 
-Em `_template.html` e em `painel_clientes_apex.html`, trocar exatamente esta linha:
+Em `_template.html` (só nele), trocar exatamente esta linha:
 
 ```js
   if(kbGestor()) ppSeguro(() => sb.from('config').select('valor').eq('chave', 'leads_espelho_aviso').maybeSingle()).then(r => { const a = r && r.data ? String(r.data.valor || '') : ''; const el = document.getElementById('kbAviso'); el.style.display = a ? '' : 'none'; el.textContent = a; });
@@ -1133,7 +1133,9 @@ por:
   ]).then(([r, m]) => { const a = [r && r.data ? String(r.data.valor || '') : '', m && !m.error && m.data ? String(m.data) : ''].filter(Boolean).join(' · '); const el = document.getElementById('kbAviso'); el.style.display = a ? '' : 'none'; el.textContent = a; });
 ```
 
-- [ ] **Step 3: Conferir os dois arquivos**
+Depois: `python build_painel.py` (gera o `painel_clientes_apex.html`).
+
+- [ ] **Step 3: Conferir o template, o painel gerado e os testes**
 
 Run: `grep -c "sb.rpc('leads_meta_aviso')" _template.html painel_clientes_apex.html`
 Expected: `_template.html:1` e `painel_clientes_apex.html:1`
@@ -1143,6 +1145,9 @@ Expected: em cada arquivo, `agora` igual a `antes` (a troca não mexe em `<div>`
 
 Run: `git diff --stat`
 Expected: só `_template.html` e `painel_clientes_apex.html`, poucas linhas cada.
+
+Run: `bash run_tests.sh` (precisa de `npm install` na worktree: `jsdom`, `jspdf`, `jszip`, `xlsx`, `papaparse`)
+Expected: o mesmo resultado da `oficial/main` antes da troca (rodar uma vez antes para ter a base; falhas que já existiam continuam iguais, nenhuma nova).
 
 - [ ] **Step 4: Escrever a §137 no REGRAS**
 
