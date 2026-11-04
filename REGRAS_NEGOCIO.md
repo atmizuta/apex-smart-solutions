@@ -4472,4 +4472,17 @@ Pedido do Rafael: um lead aparecia como *Inapta desde 2022* no painel, mas estav
 - **Próximo passo (escolhido pelo Rafael, "os dois"):** API **paga** com a situação na hora (CNPJá com consulta online, ou SERPRO) como primeira fonte em `FONTES` de `verificar.ts`, com as grátis de reserva. A chave fica como segredo da Edge Function e nunca vai para o repositório. Depende de o Rafael criar a conta.
 - **Reverter:** copiar o backup de volta.
 
-Próxima livre: §137.
+## 137. Leads direto da Meta no painel: Edge Function `leads-meta` (04/11/2026)
+
+- **Situação (04/11):** código, testes e migrations prontos na branch `feat/leads-meta`; nada aplicado no banco nem publicado. Ensaio depende do acesso da agência (token do usuário do sistema).
+- **Pedido (04/11, Rafael):** tirar a planilha da entrada dos leads. O lead do formulário da Meta cai direto no painel, sem depender da guia do mês.
+- **Como funciona:** a Edge Function `leads-meta` roda a cada 1 min (cron `leads-meta`) e busca na Graph API os leads dos formulários em `config.leads_meta.form_ids`, desde 15 min antes do cursor. Converte para o formato da planilha (`l:`/`ag:`/`as:`/`c:`/`f:`, `p:` no telefone, `CREATED`) e grava pela `leads_entrada2(p_leads, p_espelho, p_origem)`. A `leads_entrada(jsonb)` da planilha chama a 2 com `(true, 'planilha')`.
+- **Modos (`config.leads_meta.modo`):** `desligado` (sai cedo) · `ensaio` (não grava; `leads_meta_status.ensaio` com id/aba/ja_existia) · `paralelo` (grava sem pôr na fila da planilha; a integração nativa Meta→Sheets continua escrevendo a linha) · `principal` (grava e põe na fila; só depois de desligar a integração nativa).
+- **Colunas novas:** `leads.origem_entrada` (`planilha`/`meta`) e `leads.meta_visto_em`. Relatório do paralelo: `supabase/tests/leads_meta_paralelo.sql`.
+- **Aviso ao gestor** (Meus leads, junto do aviso da planilha; `kbCarregarAviso`, teste `test_leads_meta_aviso.js`): `leads_meta_aviso()` — busca parada há mais de 30 min (paralelo) ou 5 min (principal), formulário ativo fora da busca, pergunta nova no formulário.
+- **Segredo:** `META_PAGE_TOKEN` (usuário do sistema do Business Manager dono da Página, com `leads_retrieval`, `pages_show_list`, `pages_read_engagement`). Nunca no repo.
+- **Trocar de modo:** `update config set valor = jsonb_set(valor::jsonb, '{modo}', '"paralelo"')::text where chave = 'leads_meta';`
+- **Reverter:** `modo = desligado` (a planilha segue sozinha). Depois da troca: religar a integração nativa e `modo = paralelo`. Tudo: `supabase/rollback/20261104200000_leads_meta_rollback.sql`.
+- **Spec/plano:** `docs/superpowers/specs/2026-11-04-leads-meta-entrada-design.md`, `docs/superpowers/plans/2026-11-04-leads-meta-entrada.md`.
+
+Próxima livre: §138.

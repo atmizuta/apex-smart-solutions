@@ -4350,6 +4350,18 @@ function kbGarantirColunas(board){
   }).join('');
   kbEstado.colHtml = {};
 }
+// §137: aviso do gestor = o da planilha (leads_espelho_aviso) + o da busca na Meta (leads_meta_aviso); erro numa fonte não esconde a outra
+function kbCarregarAviso(){
+  return Promise.all([
+    ppSeguro(() => sb.from('config').select('valor').eq('chave', 'leads_espelho_aviso').maybeSingle()),
+    ppSeguro(() => sb.rpc('leads_meta_aviso'))
+  ]).then(([r, m]) => {
+    const a = [r && r.data ? String(r.data.valor || '') : '', m && !m.error && m.data ? String(m.data) : ''].filter(Boolean).join(' · ');
+    const el = document.getElementById('kbAviso');
+    el.style.display = a ? '' : 'none';
+    el.textContent = a;
+  });
+}
 function kbRender(){
   const agoraMs = Date.now();
   let leads = kbEstado.leads;
@@ -4378,7 +4390,7 @@ function kbRender(){
   document.getElementById('kbStatus').textContent = `${c.livres.length} livre(s) · ${c.novos.length} novo(s) seu(s) · atualiza sozinho`;
   const rm = kbResumoMes(leads), equipe = kbGestor() && !kbEstado.dono;
   document.getElementById('kbResumo').innerHTML = `<span><strong>${escapeHtml(kbMoeda(rm.receita) || 'R$ 0,00')}</strong>em ${rm.vendas} venda${rm.vendas === 1 ? '' : 's'} no mês${equipe ? ' (equipe)' : ''}</span><span><strong>${rm.abertos}</strong>lead${rm.abertos === 1 ? '' : 's'} em aberto</span>`;
-  if(kbGestor()) ppSeguro(() => sb.from('config').select('valor').eq('chave', 'leads_espelho_aviso').maybeSingle()).then(r => { const a = r && r.data ? String(r.data.valor || '') : ''; const el = document.getElementById('kbAviso'); el.style.display = a ? '' : 'none'; el.textContent = a; });
+  if(kbGestor()) kbCarregarAviso();
   if(kbEstado.aba === 'quadro') kbRenderFiltroBarra();
 }
 // Altura do Quadro = o que sobra da tela (a rolagem lateral fica sempre à vista, sem descer a página)
