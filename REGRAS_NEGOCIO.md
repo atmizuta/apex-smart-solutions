@@ -4460,4 +4460,16 @@ Pedido do Rafael (03/11): *"no final do dia, na aba equipe, quando eu clicar em 
   - **Banco:** as funções podem ficar, porque o painel antigo não as usa.
 - **Observação de 04/11:** nenhuma ligação manual foi importada desde 03/11 15:17 SP. Por isso o placar de hoje mostra 0 ligações para todos. É um problema do robô ProContact, fora desta seção.
 
-Próxima livre: §136.
+## 136. Verificar CNPJ: base pública mensal e link para o comprovante da Receita (04/11/2026)
+
+Pedido do Rafael: um lead aparecia como *Inapta desde 2022* no painel, mas estava **ativo** no site da Receita.
+- **Causa:** o código da §128 estava certo. As fontes grátis leem os **dados abertos da Receita**, que saem uma vez por mês. Em 04/11 sete fontes deram a mesma resposta para o CNPJ do caso: BrasilAPI, publica.cnpj.ws, MinhaReceita, OpenCNPJ, ReceitaWS, CNPJá aberta e a usada no painel. O último retrato era de ~10/10/2026, então empresa regularizada depois disso (caso típico: MEI inapto por falta de declarações que entrega as declarações) continua Inapta até a próxima carga. Por isso "Verificar de novo" não resolve.
+- **Painel (só `_template.html`, sem mudar a Edge Function nem o banco):**
+  - Depois que existe uma consulta, ao lado do selo aparece o link **Conferir no site da Receita** (`KB_CNPJ_RECEITA_URL`, comprovante oficial `Cnpjreva_Solicitacao.asp?cnpj=<14 dígitos>`). Ele abre em nova aba e copia o CNPJ para colar lá, já que a página da Receita tem captcha e pode não vir preenchida.
+  - O aviso de Baixada/Inapta/Nula agora diz que a base pública é atualizada só uma vez por mês e que a empresa pode já ter se regularizado: confira no site da Receita. Se continuar assim, confirme com o cliente se ele tem outro CNPJ. O atalho *Classificar como CNPJ INAPTO* continua igual.
+- **Testes:** `test_verificar_cnpj.js` com 39 (3 novos para o link). As 8 falhas da suíte já existiam na oficial/main.
+- **Publicação (04/11 19:36, ok do Rafael):** o do ar era `11a0774f…` (igual à oficial/main). Novo MD5 `b2b8f849…`. Backup `~/deploy_backups/painel_clientes_apex_20261104_193659_antes_cnpj_base_receita.html`.
+- **Próximo passo (escolhido pelo Rafael, "os dois"):** API **paga** com a situação na hora (CNPJá com consulta online, ou SERPRO) como primeira fonte em `FONTES` de `verificar.ts`, com as grátis de reserva. A chave fica como segredo da Edge Function e nunca vai para o repositório. Depende de o Rafael criar a conta.
+- **Reverter:** copiar o backup de volta.
+
+Próxima livre: §137.
