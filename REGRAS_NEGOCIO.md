@@ -4389,3 +4389,75 @@ Pedido do Rafael: *"adicione uma função que eu consiga selecionar/redistribuir
 - **Limpeza da tabela:** a `mailing.linha` não passava por autovacuum desde 21/10, porque o padrão só limpa com 20% de linhas mortas (~2,4 mi). O job `pg_cron` **`mailing-linha-autovacuum-ajuste`** (id 26, 21:00 SP de 04/11) roda `alter table mailing.linha set (autovacuum_vacuum_scale_factor = 0.01, autovacuum_vacuum_threshold = 10000)` e se remove. Daí em diante o banco limpa sozinho a cada ~133 mil linhas mortas. Isso deixa o índice de uso respondendo sem ler a tabela.
 - **Testes:** `test_mailing.js` 203 ok (6 novos: repete o mesmo trecho e completa, desiste depois de 3, não repete 400), `test_mailing_sql.js` 132 ok, `consulta.test.ts` + `api.test.ts` 58 ok.
 - **Publicado (04/11/2026, 14:55 SP, ok do Rafael):** antes de enviar, o ar (`65832fcd…`, §134) era idêntico ao `oficial/main`. O MD5 do ar foi conferido no mesmo comando do envio. Publicado **`71fde41621a68361edb8051901368195`**. Backup: `~/deploy_backups/painel_clientes_apex_20261104_175529_antes_134_1_repeticao.html` (hora do Hostinger, que está em UTC).
+
+## 135. Meus leads: placar do dia e relatório do consultor na Equipe (04/11/2026)
+
+Pedido do Rafael (03/11): *"no final do dia, na aba equipe, quando eu clicar em algum dos consultores, me gerar um relatório de como aquele consultor agiu aquele dia, quantos leads pegou, quantas vendas, quantas ligações e etc"*, mais um **placar do dia**. Quem vê: só admin e supervisor, na Equipe. Fica na tela, sem PDF. Spec: `docs/superpowers/specs/2026-11-03-equipe-placar-relatorio-dia-design.md`. Plano: `docs/superpowers/plans/2026-11-03-equipe-placar-relatorio-dia.md`.
+
+- **Seletor Dia / Mês** acima da tabela de consultores:
+  - **Mês:** a tabela de sempre. A Equipe abre nele da primeira vez, e a última escolha fica salva no navegador.
+  - **Dia:** campo de data, que começa em hoje e vai de 01/09/2026 até hoje. Só a data de hoje se atualiza sozinha.
+  - **Datas digitadas:** a tela espera 400 ms depois da última tecla. Data inválida ou fora do intervalo volta para hoje.
+- **Placar do dia:** uma linha por consultor, na ordem de mais vendas, depois mais ligações atendidas, depois nome. Colunas:
+  - posição;
+  - pegos + recebidos;
+  - ligações / atendidas e WhatsApp;
+  - minutos falados;
+  - **1ª ligação**: mediana do tempo entre pegar o lead e o primeiro contato (ligação para o telefone do lead ou clique em WhatsApp/Ligar);
+  - sem ligar;
+  - classificados / OBS;
+  - retornos feitos / atrasados;
+  - vendas;
+  - receita;
+  - jornada (primeira e última atividade).
+
+  Avisos: hoje, "ligações chegam do ProContact de hora em hora"; antes de 27/10, "pegos, classificados e vendas só existem a partir de 27/10/2026".
+- **Relatório:** clicar no consultor abre, abaixo da tabela:
+  - cartões com média da equipe e ▲▼ (verde quando é melhor);
+  - **Ritmo:** ligações por hora, das 13h às 20h;
+  - **Parado:** intervalos de mais de 30 min sem ligação, clique, pegar ou classificar, das 13h às 21h, seg–sex. Hoje, o trecho entre a última atividade e agora **não** conta, porque as ligações chegam com até 1 h de atraso;
+  - **Leads do dia:** pegou ou recebeu de quem, 1º contato, ligações, status e venda. Clicar abre a ficha;
+  - **Perdidos no dia;**
+  - **Ficou para trás (agora):** retornos atrasados **de lead** e leads sem contato.
+
+  Botão Fechar. Abrir a lista de um número fecha o relatório, e vice-versa. Clique rápido em dois consultores ou troca rápida de data não deixa números de outro consultor ou de outro dia na tela.
+- **Regras:**
+  - **Venda:** o lead começou o dia sem venda na 1ª classificação daquele consultor e terminou com venda na última classificação do lead no dia, feita por qualquer pessoa. Se o supervisor desmarca, não conta.
+  - **Receita:** a da última classificação.
+  - **Retornos do placar:** contam toda a agenda do consultor, inclusive o Caderno.
+  - **Média da equipe:** só entre quem teve atividade no dia.
+- **Banco:** migration `20261103210000_leads_dia.sql`, aplicada em 04/11 ~16:06 SP com ok do Rafael, por `execute_sql` em begin/commit. Não altera função existente. Funções:
+  - `leads_dia_leads(p_dia)`: interna, fechada até para authenticated;
+  - `leads_dia_equipe(p_dia)`: o placar;
+  - `leads_dia_consultor(p_dono, p_dia)`: o relatório, em jsonb.
+
+  Todas são `security definer`, só admin/supervisor (42501), com "data no futuro" (22023) e sem acesso para anon. O placar real leva **27 ms**.
+- **Conferência:** `supabase/tests/leads_dia_check.sql`, com usuários fictícios, desfeita no fim.
+  - **Rodada com o SQL antigo:** falhou nos casos que a revisão apontou (venda desmarcada por outro, retorno do Caderno nas pendências, parado em aberto hoje).
+  - **Rodada com o SQL corrigido:** 18/18 ok. Conferi que nada persistiu.
+- **Usuário de telefonia:** Gabriel = `apex.gabriels` e Vitoria = `apex.vitorib` estavam vazios em `leads_equipe`, e as ligações deles não apareciam nem na Equipe. Gravados em 04/11 16:27 com ok do Rafael.
+- **Código:**
+  - funções puras: `kbFmtMin`, `kbHoraSP`, `kbDiaBR`, `kbSetaMedia`, `kbAvisoDiaHtml`, `kbTabelaDiaHtml`, `kbRelatorioHtml`;
+  - estado e carga: `kbCarregarDia`, `kbEquipeModo`, `kbEquipeTrocarDia`, `kbCarregarRelatorio`, `kbAbrirRelatorio`, `KB_DIA_MIN`;
+  - CSS `.kbDia*` e `.kbRel*`, só com variáveis.
+- **Testes:**
+  - `test_leads_dia.js`: 53 ok;
+  - fase3 86, bloqueio 31, fase2 70, kanban 79;
+  - suíte inteira: só as 8 falhas que já existem no `oficial/main`.
+  - Uma revisão independente do branch achou 5 pontos importantes (corrida de data, campo de data por tecla, dia passado recarregando, pendências do Caderno, conferência que não rodava), mais "parado" falso hoje e venda desmarcada por outro. Todos foram corrigidos com teste que falhou antes.
+- **Ficou para depois (menores):**
+  - feriado conta como dia útil nos "parados";
+  - consultor sem telefonia mostra 0 em vez de "—";
+  - sair não limpa o estado do relatório;
+  - médias com ponto;
+  - a função recalcula partes do placar;
+  - a conferência copia o corpo da migration;
+  - "de" e "para" saem em formatos de nome diferentes.
+- **Publicado (04/11/2026, 16:27 SP, ok do Rafael):** antes de enviar, o ar (`71fde416…`, §134.1) era idêntico ao `oficial/main`. O MD5 do ar foi conferido no mesmo comando do envio. Publicado **`11a0774f1a5d380324484949d5d3890b`** (gerado = servidor = site, com e sem `www`).
+- Backup: `~/deploy_backups/painel_clientes_apex_20261104_162742_antes_135_placar_dia.html` (MD5 `71fde416…`).
+- **Reverter:**
+  - **Painel:** copiar o backup de volta.
+  - **Banco:** as funções podem ficar, porque o painel antigo não as usa.
+- **Observação de 04/11:** nenhuma ligação manual foi importada desde 03/11 15:17 SP. Por isso o placar de hoje mostra 0 ligações para todos. É um problema do robô ProContact, fora desta seção.
+
+Próxima livre: §136.

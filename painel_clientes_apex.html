@@ -1119,6 +1119,22 @@
   .kbEqAlerta + .kbEqAlerta{border-top:1px solid var(--ml-surface-3);}
   .kbEqAlerta > span{flex:1;min-width:0;}
   .kbEqAlerta small{display:block;color:var(--ml-ink-3);font-size:var(--fs-xs);}
+  .kbDiaControles{display:flex;align-items:center;gap:10px;margin-bottom:var(--space-2);}
+  .kbDiaData{font:inherit;padding:6px 10px;border:1px solid var(--ml-surface-3);border-radius:var(--radius-lg);background:var(--ml-surface);color:var(--ml-ink);}
+  .kbDiaPos{font-weight:700;color:var(--ml-ink-3);width:36px;}
+  .kbRel{background:var(--ml-surface);border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:var(--space-3);}
+  .kbRel h4{margin:14px 0 6px;font:600 var(--fs-base)/1.2 var(--font-body);text-transform:none;}
+  .kbRelCartoes{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin:8px 0 6px;}
+  .kbRelCartao{cursor:default;background:var(--ml-surface-2);}
+  .kbRelCartao small{color:var(--ml-ink-3);font-size:var(--fs-xs);}
+  .kbRelSeta.melhor{color:var(--st-ganho);}
+  .kbRelSeta.pior{color:var(--c-bordo);}
+  .kbRelHoras{display:flex;align-items:flex-end;gap:8px;height:120px;}
+  .kbRelHora{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:2px;font-size:var(--fs-xs);color:var(--ml-ink-3);}
+  .kbRelHora i{display:block;width:100%;max-width:36px;min-height:2px;background:var(--c-sinal);border-radius:4px 4px 0 0;}
+  .kbRelParados{margin-top:6px;font-size:var(--fs-sm);color:var(--ml-ink-2);}
+  .kbRelGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;}
+  @media (max-width: 1100px){ .kbRelCartoes{grid-template-columns:repeat(2,minmax(0,1fr));} .kbRelGrid{grid-template-columns:1fr;} }
   @media (max-width: 1100px){ .kbEqTopo{grid-template-columns:repeat(2,minmax(0,1fr));} .kbEqAlertas{grid-template-columns:1fr;} }
   .kbLista{list-style:none;margin:0;padding:0;}
   .kbLista li{display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--c-linha);font-size:var(--fs-sm);}
@@ -3912,6 +3928,81 @@ function kbDuracaoMin(min){
   const m = Math.max(0, Math.round(min)), h = Math.floor(m / 60), r = m % 60;
   return h ? `${h} h${r ? ' ' + r + ' min' : ''}` : `${m} min`;
 }
+// ===== §135: placar do dia e relatório do consultor (Equipe) — funções puras =====
+function kbFmtMin(v){ return (v === null || v === undefined || v === '' || isNaN(Number(v))) ? '—' : kbDuracaoMin(Number(v)); }
+function kbHoraSP(iso){ const t = kbMs(iso); return t === null ? '' : kbPartesSP(t).hora; }
+function kbDiaBR(dia){ const p = String(dia || '').split('-'); return p.length === 3 ? p[2] + '/' + p[1] : ''; }
+function kbSetaMedia(valor, media, maiorMelhor){
+  if(media === null || media === undefined || valor === null || valor === undefined || Number(valor) === Number(media)) return { txt: '', cls: '' };
+  const acima = Number(valor) > Number(media);
+  return { txt: acima ? '▲' : '▼', cls: acima === !!maiorMelhor ? 'melhor' : 'pior' };
+}
+function kbAvisoDiaHtml(dia, hoje){
+  if(dia && dia < '2026-10-27') return 'Pegos, classificados e vendas só existem a partir de 27/10/2026.';
+  if(dia === hoje) return 'Ligações chegam do ProContact de hora em hora; podem estar até 1 h atrasadas.';
+  return '';
+}
+function kbTabelaDiaHtml(linhas){
+  const n = (v) => Number(v) || 0;
+  const tr = (linhas || []).map(d => {
+    const dono = escapeHtml(d.dono_id);
+    const cont = d.tem_telefonia ? `<b>${n(d.ligacoes)}</b><span class="kbMuted"> / ${n(d.atendidas)} atend.</span>` : '<span class="kbMuted">—</span>';
+    const wpp = n(d.whatsapp) ? ` <small class="kbEqAtivTxt">${n(d.whatsapp)} WhatsApp</small>` : '';
+    const jorn = d.jornada_inicio ? `${kbHoraSP(d.jornada_inicio)}–${kbHoraSP(d.jornada_fim)}` : '—';
+    return `<tr data-kb-relatorio="${dono}"><td class="kbDiaPos">${n(d.posicao)}º</td>`
+      + `<td><button type="button" class="kbLink" data-kb-relatorio="${dono}"><b>${escapeHtml(d.nome || '')}</b></button></td>`
+      + `<td class="r">${n(d.pegos)}${n(d.recebidos) ? ' + ' + n(d.recebidos) : ''}</td><td>${cont}${wpp}</td><td class="r">${n(d.min_falados)}</td>`
+      + `<td class="r">${kbFmtMin(d.primeiro_contato_mediana_min)}</td>`
+      + `<td class="r">${n(d.sem_ligar) ? `<span class="kbEqNum ruim">${n(d.sem_ligar)}</span>` : '0'}</td>`
+      + `<td class="r">${n(d.classificados)} / ${n(d.obs)}</td><td class="r">${n(d.retornos_feitos)} / ${n(d.retornos_atrasados)}</td>`
+      + `<td class="r"><b>${n(d.vendas)}</b></td><td class="r">${escapeHtml(kbMoeda(d.receita) || 'R$ 0,00')}</td><td>${jorn}</td></tr>`;
+  }).join('');
+  return '<table><thead><tr><th>#</th><th>Consultor</th><th class="r">Pegos</th><th>Contatos</th><th class="r">Min falados</th><th class="r">1ª ligação</th>'
+    + '<th class="r">Sem ligar</th><th class="r">Classif. / OBS</th><th class="r">Retornos feitos / atras.</th><th class="r">Vendas</th><th class="r">Receita</th><th>Jornada</th></tr></thead>'
+    + `<tbody>${tr || '<tr><td colspan="12" class="kbMuted">Sem consultores na equipe de leads.</td></tr>'}</tbody></table>`;
+}
+function kbRelatorioHtml(rel, nome){
+  if(!rel) return '';
+  const fechar = '<button type="button" class="kbBtn kbBtnG kbBtnSm" data-kb-relatorio-fechar>Fechar</button>';
+  const r = rel.dados;
+  const topo = (dia) => `<div class="kbEqListaTopo"><h3>${escapeHtml(nome || '')}${dia ? ' · dia ' + escapeHtml(kbDiaBR(dia)) : ''}</h3>${fechar}</div>`;
+  if(rel.carregando) return `<div class="kbRel">${topo('')}<p class="kbMuted">Carregando…</p></div>`;
+  if(rel.erro || !r) return `<div class="kbRel">${topo('')}<p class="kbMuted">Não foi possível carregar o relatório agora.</p></div>`;
+  const d = r.numeros, m = r.media_equipe || {}, n = (v) => Number(v) || 0;
+  if(!d || (!d.jornada_inicio && !n(d.pegos) && !n(d.recebidos))) return `<div class="kbRel">${topo(r.dia)}<p class="kbMuted">Sem atividade registrada neste dia.</p></div>`;
+  const cart = (chave, rot, val, med, maior, fmt) => {
+    const f = fmt || ((x) => String(n(x))), s = kbSetaMedia(val, med, maior);
+    return `<div class="kbEqKpi kbRelCartao" data-kb-rel-cartao="${chave}"><strong class="kbNumGrande">${escapeHtml(f(val))}</strong><span>${rot}</span>`
+      + `<small>equipe ${med === null || med === undefined ? '—' : escapeHtml(f(med))}${s.txt ? ` <b class="kbRelSeta ${s.cls}">${s.txt}</b>` : ''}</small></div>`;
+  };
+  const moeda = (x) => kbMoeda(x) || 'R$ 0,00', um = (x) => String(Math.round(Number(x) * 10) / 10 || 0);
+  const cartoes = '<div class="kbRelCartoes">'
+    + cart('pegos', 'pegos + recebidos', n(d.pegos) + n(d.recebidos), m.pegos, true, um)
+    + cart('ligacoes', 'ligações', d.ligacoes, m.ligacoes, true, um) + cart('atendidas', 'atendidas', d.atendidas, m.atendidas, true, um)
+    + cart('min_falados', 'min falados', d.min_falados, m.min_falados, true, um) + cart('whatsapp', 'WhatsApp', d.whatsapp, m.whatsapp, true, um)
+    + cart('primeiro_contato', '1ª ligação (mediana)', d.primeiro_contato_mediana_min, m.primeiro_contato_mediana_min, false, kbFmtMin)
+    + cart('sem_ligar', 'sem ligar', d.sem_ligar, m.sem_ligar, false, um) + cart('classificados', 'classificados', d.classificados, m.classificados, true, um)
+    + cart('obs', 'OBS escritas', d.obs, m.obs, true, um) + cart('retornos', 'retornos feitos', d.retornos_feitos, m.retornos_feitos, true, um)
+    + cart('vendas', 'vendas', d.vendas, m.vendas, true, um) + cart('receita', 'receita', d.receita, m.receita, true, moeda) + '</div>';
+  const horas = r.por_hora || [], maxH = Math.max(1, ...horas.map(h => n(h.ligacoes)));
+  const ritmo = `<h4>Ritmo</h4><div class="kbRelHoras">${horas.map(h => `<span class="kbRelHora" title="${n(h.h)}h: ${n(h.ligacoes)} ligações, ${n(h.atendidas)} atendidas"><b>${n(h.ligacoes)}</b><i style="height:${Math.round(100 * n(h.ligacoes) / maxH)}%"></i><small>${n(h.h)}h</small></span>`).join('')}</div>`
+    + `<div class="kbRelParados">${(r.parados || []).length ? 'Parado: ' + r.parados.map(p => `${kbHoraSP(p.de)}–${kbHoraSP(p.ate)} (${n(p.min)} min)`).join(' · ') : 'Sem intervalos parados de mais de 30 min.'}</div>`;
+  const li = (aba, id, nomeL, meta) => `<li>${aba && id ? `<button type="button" class="kbLink" data-kb-abrir="${escapeHtml(aba)}|${escapeHtml(id)}">${escapeHtml(nomeL || '(sem nome)')}</button>` : `<span>${escapeHtml(nomeL || '(sem nome)')}</span>`}<span class="kbMeta">${escapeHtml(meta)}</span></li>`;
+  const quandoRet = (q) => (kbDiaSP(q) && kbDiaSP(q) !== kbHojeSP() ? kbDiaBR(kbDiaSP(q)) + ' ' : '') + kbHoraSP(q);   // retorno de outro dia mostra a data
+  const leads = (r.leads || []).map(l => li(l.aba, l.lead_id, l.nome, [
+    (l.como === 'recebeu' ? 'recebeu' + (l.de_nome ? ' de ' + l.de_nome : '') : 'pegou') + ' ' + kbHoraSP(l.em),
+    l.primeiro_contato_min === null || l.primeiro_contato_min === undefined ? 'sem contato' : '1º contato ' + kbFmtMin(l.primeiro_contato_min),
+    n(l.ligacoes) + (n(l.ligacoes) === 1 ? ' ligação' : ' ligações'), l.status || 'sem status', l.vendeu ? 'venda ' + moeda(l.receita) : ''
+  ].filter(Boolean).join(' · '))).join('');
+  const perd = (r.perdidos || []).map(p => li(p.aba, p.lead_id, p.nome, kbHoraSP(p.em) + ' → ' + (p.para_nome || ''))).join('');
+  const pend = r.pendencias || {};
+  const pendLi = (pend.retornos_atrasados || []).map(x => li(x.aba, x.lead_id, x.nome, 'retorno era ' + quandoRet(x.quando)))
+    .concat((pend.sem_contato || []).map(x => li(x.aba, x.lead_id, x.nome, 'pego ' + kbTempoDesde(x.pego_em, Date.now()) + ', sem contato'))).join('');
+  return `<div class="kbRel">${topo(r.dia)}${cartoes}${ritmo}<div class="kbRelGrid">`
+    + `<div><h4>Leads do dia (${(r.leads || []).length})</h4><ul class="kbLista kbCartaoLista">${leads || '<li class="kbMeta">Nenhum lead pego ou recebido.</li>'}</ul></div>`
+    + `<div><h4>Perdidos no dia (${(r.perdidos || []).length})</h4><ul class="kbLista kbCartaoLista kbRelPerdidos">${perd || '<li class="kbMeta">Nenhum.</li>'}</ul>`
+    + `<h4>Ficou para trás (agora)</h4><ul class="kbLista kbCartaoLista kbRelPendencias">${pendLi || '<li class="kbMeta">Nada pendente.</li>'}</ul></div></div></div>`;
+}
 // Semáforo escrito da Equipe (spec 5.1): verde diz a última ação de hoje; amarelo/vermelho dizem há quanto tempo está parado.
 // Sem telefonia vale só a OBS; sem OBS hoje fica cinza ("sem telefonia"), porque não há como medir.
 function kbAgoraEquipe(a, agoraMs){
@@ -4139,7 +4230,7 @@ async function kbCnpjVerificar(aba, id){
   const status = r && r.error && r.error.context ? r.error.context.status : null;
   kbCnpjPintar({ consulta: antes, erro: kbCnpjMsgErro(status) });
 }
-const kbEstado = { geracao: 0, naEquipe: false, modo: 'planilha', versao: '', leads: [], opcoes: [], dono: '', timer: null, verTodosLivres: false, soDivergencias: false, classAlvo: null, consultores: [], loteSel: new Set(), passar: null };
+const kbEstado = { geracao: 0, naEquipe: false, modo: 'planilha', versao: '', leads: [], opcoes: [], dono: '', timer: null, verTodosLivres: false, soDivergencias: false, classAlvo: null, consultores: [], loteSel: new Set(), passar: null, equipeModo: null, equipeDia: null, diaEquipe: null, diaDisponivel: null, relatorio: null };
 function kbGestor(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor') && veAbasDaApex(); }
 // Antes da virada (config.leads_modo = 'planilha') só o admin vê a aba, para conferir; depois, equipe de leads + gestores.
 function kbPodeVer(){
@@ -4876,6 +4967,52 @@ async function kbPegarProximoLivre(){
   const ok = await kbPegar(livre.aba, livre.lead_id);
   if(ok !== false) await kbDepoisDePegar({ aba: livre.aba, id: livre.lead_id });
 }
+// §135: placar do dia (Dia/Mês) e relatório do consultor
+function kbHojeSP(){ return kbPartesSP(Date.now()).dia; }
+function kbLerModoEquipe(){ try { return window.localStorage.getItem('kbEqModo') === 'dia' ? 'dia' : 'mes'; } catch(_e) { return 'mes'; } }
+const KB_DIA_MIN = '2026-09-01';   // primeiras ligações importadas
+async function kbCarregarDia(manter){
+  const dia = kbEstado.equipeDia || kbHojeSP();
+  const r = await ppSeguro(() => sb.rpc('leads_dia_equipe', { p_dia: dia }));
+  if(dia !== (kbEstado.equipeDia || kbHojeSP())) return false;   // trocou de dia no meio: a resposta é de outro dia, descarta
+  if(!r || r.error){
+    const faltou = !!(r && r.error && (r.error.code === 'PGRST202' || r.error.code === '42883'));
+    if(faltou){ kbEstado.diaDisponivel = false; kbEstado.equipeModo = 'mes'; kbEstado.relatorio = null; }
+    else if(manter && Array.isArray(kbEstado.diaEquipe)) return false;   // atualização automática falhou: fica com os números de antes, sem aviso
+    else if(kbEstado.equipeModo === 'dia') mostrarAviso('Não foi possível carregar o dia agora.', 'erro');
+    kbEstado.diaEquipe = null;
+    return false;
+  }
+  kbEstado.diaDisponivel = true; kbEstado.diaEquipe = r.data || [];
+  return true;
+}
+async function kbEquipeModo(m){
+  kbEstado.equipeModo = m === 'dia' ? 'dia' : 'mes';
+  try { window.localStorage.setItem('kbEqModo', kbEstado.equipeModo); } catch(_e) {}
+  if(kbEstado.equipeModo === 'dia'){ kbEstado.equipeDia = kbEstado.equipeDia || kbHojeSP(); await kbCarregarDia(); }
+  else kbEstado.relatorio = null;
+  kbRenderEquipe();
+}
+async function kbEquipeTrocarDia(dia){
+  const hoje = kbHojeSP();
+  kbEstado.equipeDia = /^\d{4}-\d{2}-\d{2}$/.test(dia || '') && dia >= KB_DIA_MIN && dia <= hoje ? dia : hoje;
+  await kbCarregarDia();
+  if(kbEstado.relatorio) await kbCarregarRelatorio(kbEstado.relatorio.dono);
+  kbRenderEquipe();
+}
+async function kbCarregarRelatorio(dono){
+  const dia = kbEstado.equipeDia || kbHojeSP();
+  const r = await ppSeguro(() => sb.rpc('leads_dia_consultor', { p_dono: dono, p_dia: dia }));
+  if(!kbEstado.relatorio || kbEstado.relatorio.dono !== dono || dia !== (kbEstado.equipeDia || kbHojeSP())) return;   // outro consultor, outro dia ou fechou no meio: descarta
+  kbEstado.relatorio = { dono, dados: r && !r.error ? r.data : null, erro: !r || !!r.error, carregando: false };
+}
+async function kbAbrirRelatorio(dono){
+  kbEstado.equipeLista = null; kbEstado.loteSel = new Set();
+  kbEstado.relatorio = { dono, dados: null, erro: false, carregando: true };
+  kbRenderEquipe();
+  await kbCarregarRelatorio(dono);
+  kbRenderEquipe();
+}
 async function kbCarregarEquipe(notificar){
   if(!kbGestor()) return;
   const [lds, at, ale] = await Promise.all([
@@ -4891,6 +5028,12 @@ async function kbCarregarEquipe(notificar){
   if(lds && !lds.error) kbEstado.leadsEquipe = lds.data || [];
   if(ale && !ale.error) kbEstado.alertasEquipe = ale.data || [];
   if(atv && !atv.error) kbEstado.atividade = atv.data || [];
+  if(kbEstado.equipeModo === null) kbEstado.equipeModo = kbLerModoEquipe();
+  if(kbEstado.diaDisponivel === null) await kbCarregarDia();   // §135: no 1º carregamento descobre se o banco tem a função
+  else if(kbEstado.equipeModo === 'dia' && (kbEstado.equipeDia || kbHojeSP()) === kbHojeSP()){   // só hoje se atualiza sozinho
+    await kbCarregarDia(true);
+    if(kbEstado.relatorio) await kbCarregarRelatorio(kbEstado.relatorio.dono);
+  }
   kbRenderEquipe();
 }
 // §132: faixa "Pegar leads" no topo da Equipe (Bloquear todos / Liberar) e chave "Pega leads" em cada consultor.
@@ -4968,6 +5111,14 @@ function kbRenderEquipe(){
   const tabela = `<div class="kbEqTabela"><table><thead><tr><th>Consultor</th><th>Agora</th><th>Ligações por hora (13h–21h)</th><th>Hoje</th><th class="r">Sem contato</th><th class="r">Em andamento</th><th class="r">Parados 3+ d</th><th class="r">Retornos atras.</th><th class="r">Vendas mês</th><th class="r">Conversão</th></tr></thead>
     <tbody>${linhas || '<tr><td colspan="10" class="kbMuted">Sem consultores na equipe de leads.</td></tr>'}</tbody></table>
     <p class="kbEqLegenda">Verde: ligou ou escreveu OBS há menos de 30 min · amarelo: 30 min · vermelho: 1 h. Conta de 13h às 21h, seg–sex. Ligações chegam do ProContact de hora em hora; a última ligação pode estar até 1 h atrasada. Clique num número para ver os leads e selecionar para redistribuir.</p></div>`;
+  const modoDia = kbEstado.equipeModo === 'dia' && kbEstado.diaDisponivel !== false && Array.isArray(kbEstado.diaEquipe);
+  const hojeSP = kbHojeSP(), diaSel = kbEstado.equipeDia || hojeSP;
+  const controles = kbEstado.diaDisponivel ? `<div class="kbDiaControles"><nav class="kbSeg" aria-label="Período da tabela">`
+      + `<button type="button" data-kb-eq-modo="dia"${kbEstado.equipeModo === 'dia' ? ' class="active"' : ''}>Dia</button>`
+      + `<button type="button" data-kb-eq-modo="mes"${kbEstado.equipeModo !== 'dia' ? ' class="active"' : ''}>Mês</button></nav>`
+      + (kbEstado.equipeModo === 'dia' ? `<input type="date" class="kbDiaData" id="kbEqDia" value="${escapeHtml(diaSel)}" min="${KB_DIA_MIN}" max="${escapeHtml(hojeSP)}" aria-label="Dia do placar">` : '') + '</div>' : '';
+  const avisoDia = modoDia ? kbAvisoDiaHtml(diaSel, hojeSP) : '';
+  const tabelaUsada = modoDia ? `<div class="kbEqTabela">${kbTabelaDiaHtml(kbEstado.diaEquipe)}${avisoDia ? `<p class="kbEqLegenda">${escapeHtml(avisoDia)}</p>` : ''}</div>` : tabela;
   const sel = kbEstado.equipeLista;
   let lista = '';
   if(sel){
@@ -4984,6 +5135,10 @@ function kbRenderEquipe(){
     kbEstado.loteSel = new Set([...kbEstado.loteSel].filter(ch => visiveis.has(ch)));   // revisão final: a seleção só guarda o que está na lista
     lista = `<div class="kbEqLista"><div class="kbEqListaTopo"><h3>${escapeHtml(quem)} · ${escapeHtml(KB_EQ_TITULOS[sel.chave] || '')}</h3><button type="button" class="kbLink" data-kb-lote-todos>Selecionar todos</button><button type="button" class="kbBtn kbBtnG kbBtnSm" data-kb-eq-fechar>Fechar</button></div>${kbListaCartaoHtml(itens, kbEstado.equipeMax || 50, { lote: true, sel: kbEstado.loteSel })}</div>`;
   }
+  if(kbEstado.relatorio){
+    const rnome = ((kbEstado.diaEquipe || []).find(x => x.dono_id === kbEstado.relatorio.dono) || (kbEstado.atividade || []).find(x => x.dono_id === kbEstado.relatorio.dono) || {}).nome || '';
+    lista = kbRelatorioHtml(kbEstado.relatorio, rnome);
+  }
   if(!sel) kbEstado.loteSel = new Set();
   const n = kbEstado.loteSel.size;
   const todosSemStatus = n > 0 && [...kbEstado.loteSel].every(ch => { const l = (kbEstado.leadsEquipe || []).find(x => x.aba + '|' + x.lead_id === ch); return !!l && !l.livre && l.categoria === 'sem_contato'; });   // §133: livre já está nos livres
@@ -4998,7 +5153,7 @@ function kbRenderEquipe(){
     return `<div class="kbEqBloco"><h3>${titulo} <span>${it.length}</span></h3>${linhasAl || '<p class="kbMuted">Nada aqui.</p>'}${verTodos}</div>`;
   };
   const alertas = `<div class="kbEqAlertas">${bloco('sem_contato', 'Pegos e sem contato', true)}${bloco('retorno_vencido', 'Retornos atrasados', false)}${bloco('perda_suspeita', 'Perdidos sem nenhuma ligação', false)}</div>`;
-  document.getElementById('kbEquipe').innerHTML = kbFaixaPegarHtml(kbEstado.pegarBloqueio, ativ, agoraMs) + topo + faixas + tabela + lista + lote + alertas;
+  document.getElementById('kbEquipe').innerHTML = kbFaixaPegarHtml(kbEstado.pegarBloqueio, ativ, agoraMs) + topo + faixas + controles + tabelaUsada + lista + lote + alertas;
 }
 const KB_EQ_TITULOS = { livres: 'Livres', sem_contato: 'Sem contato', andamento: 'Em andamento', parados3: 'Parados 3+ dias', retorno_atrasado: 'Retornos atrasados', convertido: 'Convertidos no mês' };
 async function kbCarregarTodos(){
@@ -5148,8 +5303,13 @@ document.getElementById('panel-meusleads').addEventListener('click', (e) => {
   if(pb){ kbPegarBloquear(pb.dataset.kbPegarBloquear === '1'); return; }
   const pc = e.target.closest('[data-kb-pode-pegar]');
   if(pc){ kbDefinirPodePegar(pc.dataset.kbPodePegar); return; }   // antes do clique na linha (que abre os leads do consultor)
+  const md = e.target.closest('[data-kb-eq-modo]');
+  if(md){ kbEquipeModo(md.dataset.kbEqModo); return; }   // §135
+  if(e.target.closest('[data-kb-relatorio-fechar]')){ kbEstado.relatorio = null; kbRenderEquipe(); return; }
+  const rl = e.target.closest('#kbEquipe [data-kb-relatorio]');
+  if(rl){ kbAbrirRelatorio(rl.dataset.kbRelatorio); return; }
   const eqn = e.target.closest('[data-kb-eq]');
-  if(eqn){ const [dono, chave] = eqn.dataset.kbEq.split('|'); kbEstado.equipeLista = { dono, chave }; kbEstado.equipeMax = 50; kbEstado.loteSel = new Set(); kbRenderEquipe(); return; }
+  if(eqn){ const [dono, chave] = eqn.dataset.kbEq.split('|'); kbEstado.equipeLista = { dono, chave }; kbEstado.relatorio = null; kbEstado.equipeMax = 50; kbEstado.loteSel = new Set(); kbRenderEquipe(); return; }
   if(e.target.closest('[data-kb-eq-fechar]')){ kbEstado.equipeLista = null; kbEstado.loteSel = new Set(); kbRenderEquipe(); return; }
   if(e.target.closest('#kbEquipe [data-kb-cartao-mais]')){ kbEstado.equipeMax = (kbEstado.equipeMax || 50) + 50; kbRenderEquipe(); return; }
   // §126.3: números do topo, faixa de atenção e seleção em lote
@@ -5157,13 +5317,13 @@ document.getElementById('panel-meusleads').addEventListener('click', (e) => {
   if(kq){
     const c = kq.dataset.kbEqk;
     // §133: Livres abre a lista aqui mesmo (com seleção), não mais o Quadro
-    if(c !== 'ligacoes'){ kbEstado.equipeLista = { dono: '', chave: c }; kbEstado.equipeMax = 50; kbEstado.loteSel = new Set(); kbRenderEquipe(); }
+    if(c !== 'ligacoes'){ kbEstado.equipeLista = { dono: '', chave: c }; kbEstado.relatorio = null; kbEstado.equipeMax = 50; kbEstado.loteSel = new Set(); kbRenderEquipe(); }
     return;
   }
   const rd = e.target.closest('[data-kb-eq-redist]');
   if(rd){
     const dono = rd.dataset.kbEqRedist;
-    kbEstado.equipeLista = { dono, chave: 'sem_contato' }; kbEstado.equipeMax = 50;
+    kbEstado.equipeLista = { dono, chave: 'sem_contato' }; kbEstado.relatorio = null; kbEstado.equipeMax = 50;
     kbEstado.loteSel = new Set((kbEstado.leadsEquipe || []).filter(l => !l.livre && l.dono_id === dono && kbColunaDoLead(l) === 'novos').map(l => l.aba + '|' + l.lead_id));
     kbRenderEquipe(); return;
   }
@@ -5187,6 +5347,12 @@ document.getElementById('panel-meusleads').addEventListener('click', (e) => {
   if(e.target.closest('[data-kb-pegar-proximo]')){ kbPegarProximoLivre(); return; }
   const tr = e.target.closest('#kbEquipe tr[data-kb-dono]');
   if(tr){ kbEstado.dono = tr.dataset.kbDono; const sel = document.getElementById('kbDono'); if(sel) sel.value = kbEstado.dono; kbTrocarAba('quadro'); kbCarregar(); }
+});
+let kbDiaTimer = null;
+document.getElementById('kbEquipe').addEventListener('change', (e) => {   // §135: espera parar de digitar (cada tecla no campo de data dispara change)
+  if(e.target.id !== 'kbEqDia') return;
+  const v = e.target.value; clearTimeout(kbDiaTimer);
+  kbDiaTimer = setTimeout(() => kbEquipeTrocarDia(v), 400);
 });
 kbFichaNo().addEventListener('click', (e) => {
   if(e.target.closest('[data-kb-ver-tudo]')){ const el = kbFichaEl('kbLinhaTempo'); if(el) el.innerHTML = kbLinhaTempoHtml(kbEstado.fichaEventos, 1000); }
