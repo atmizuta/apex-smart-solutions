@@ -3987,7 +3987,8 @@ function kbRelatorioHtml(rel, nome){
   const horas = r.por_hora || [], maxH = Math.max(1, ...horas.map(h => n(h.ligacoes)));
   const ritmo = `<h4>Ritmo</h4><div class="kbRelHoras">${horas.map(h => `<span class="kbRelHora" title="${n(h.h)}h: ${n(h.ligacoes)} ligações, ${n(h.atendidas)} atendidas"><b>${n(h.ligacoes)}</b><i style="height:${Math.round(100 * n(h.ligacoes) / maxH)}%"></i><small>${n(h.h)}h</small></span>`).join('')}</div>`
     + `<div class="kbRelParados">${(r.parados || []).length ? 'Parado: ' + r.parados.map(p => `${kbHoraSP(p.de)}–${kbHoraSP(p.ate)} (${n(p.min)} min)`).join(' · ') : 'Sem intervalos parados de mais de 30 min.'}</div>`;
-  const li = (aba, id, nomeL, meta) => `<li><button type="button" class="kbLink" data-kb-abrir="${escapeHtml(aba)}|${escapeHtml(id)}">${escapeHtml(nomeL || '(sem nome)')}</button><span class="kbMeta">${escapeHtml(meta)}</span></li>`;
+  const li = (aba, id, nomeL, meta) => `<li>${aba && id ? `<button type="button" class="kbLink" data-kb-abrir="${escapeHtml(aba)}|${escapeHtml(id)}">${escapeHtml(nomeL || '(sem nome)')}</button>` : `<span>${escapeHtml(nomeL || '(sem nome)')}</span>`}<span class="kbMeta">${escapeHtml(meta)}</span></li>`;
+  const quandoRet = (q) => (kbDiaSP(q) && kbDiaSP(q) !== kbHojeSP() ? kbDiaBR(kbDiaSP(q)) + ' ' : '') + kbHoraSP(q);   // retorno de outro dia mostra a data
   const leads = (r.leads || []).map(l => li(l.aba, l.lead_id, l.nome, [
     (l.como === 'recebeu' ? 'recebeu' + (l.de_nome ? ' de ' + l.de_nome : '') : 'pegou') + ' ' + kbHoraSP(l.em),
     l.primeiro_contato_min === null || l.primeiro_contato_min === undefined ? 'sem contato' : '1º contato ' + kbFmtMin(l.primeiro_contato_min),
@@ -3995,7 +3996,7 @@ function kbRelatorioHtml(rel, nome){
   ].filter(Boolean).join(' · '))).join('');
   const perd = (r.perdidos || []).map(p => li(p.aba, p.lead_id, p.nome, kbHoraSP(p.em) + ' → ' + (p.para_nome || ''))).join('');
   const pend = r.pendencias || {};
-  const pendLi = (pend.retornos_atrasados || []).map(x => li(x.aba, x.lead_id, x.nome, 'retorno era ' + kbHoraSP(x.quando)))
+  const pendLi = (pend.retornos_atrasados || []).map(x => li(x.aba, x.lead_id, x.nome, 'retorno era ' + quandoRet(x.quando)))
     .concat((pend.sem_contato || []).map(x => li(x.aba, x.lead_id, x.nome, 'pego ' + kbTempoDesde(x.pego_em, Date.now()) + ', sem contato'))).join('');
   return `<div class="kbRel">${topo(r.dia)}${cartoes}${ritmo}<div class="kbRelGrid">`
     + `<div><h4>Leads do dia (${(r.leads || []).length})</h4><ul class="kbLista kbCartaoLista">${leads || '<li class="kbMeta">Nenhum lead pego ou recebido.</li>'}</ul></div>`
@@ -4969,12 +4970,15 @@ async function kbPegarProximoLivre(){
 // §135: placar do dia (Dia/Mês) e relatório do consultor
 function kbHojeSP(){ return kbPartesSP(Date.now()).dia; }
 function kbLerModoEquipe(){ try { return window.localStorage.getItem('kbEqModo') === 'dia' ? 'dia' : 'mes'; } catch(_e) { return 'mes'; } }
-async function kbCarregarDia(){
+const KB_DIA_MIN = '2026-09-01';   // primeiras ligações importadas
+async function kbCarregarDia(manter){
   const dia = kbEstado.equipeDia || kbHojeSP();
   const r = await ppSeguro(() => sb.rpc('leads_dia_equipe', { p_dia: dia }));
+  if(dia !== (kbEstado.equipeDia || kbHojeSP())) return false;   // trocou de dia no meio: a resposta é de outro dia, descarta
   if(!r || r.error){
     const faltou = !!(r && r.error && (r.error.code === 'PGRST202' || r.error.code === '42883'));
     if(faltou){ kbEstado.diaDisponivel = false; kbEstado.equipeModo = 'mes'; kbEstado.relatorio = null; }
+    else if(manter && Array.isArray(kbEstado.diaEquipe)) return false;   // atualização automática falhou: fica com os números de antes, sem aviso
     else if(kbEstado.equipeModo === 'dia') mostrarAviso('Não foi possível carregar o dia agora.', 'erro');
     kbEstado.diaEquipe = null;
     return false;
@@ -4991,7 +4995,7 @@ async function kbEquipeModo(m){
 }
 async function kbEquipeTrocarDia(dia){
   const hoje = kbHojeSP();
-  kbEstado.equipeDia = /^\d{4}-\d{2}-\d{2}$/.test(dia || '') && dia <= hoje ? dia : hoje;
+  kbEstado.equipeDia = /^\d{4}-\d{2}-\d{2}$/.test(dia || '') && dia >= KB_DIA_MIN && dia <= hoje ? dia : hoje;
   await kbCarregarDia();
   if(kbEstado.relatorio) await kbCarregarRelatorio(kbEstado.relatorio.dono);
   kbRenderEquipe();
@@ -4999,7 +5003,7 @@ async function kbEquipeTrocarDia(dia){
 async function kbCarregarRelatorio(dono){
   const dia = kbEstado.equipeDia || kbHojeSP();
   const r = await ppSeguro(() => sb.rpc('leads_dia_consultor', { p_dono: dono, p_dia: dia }));
-  if(!kbEstado.relatorio || kbEstado.relatorio.dono !== dono) return;   // clicou em outro (ou fechou) no meio: descarta
+  if(!kbEstado.relatorio || kbEstado.relatorio.dono !== dono || dia !== (kbEstado.equipeDia || kbHojeSP())) return;   // outro consultor, outro dia ou fechou no meio: descarta
   kbEstado.relatorio = { dono, dados: r && !r.error ? r.data : null, erro: !r || !!r.error, carregando: false };
 }
 async function kbAbrirRelatorio(dono){
@@ -5025,9 +5029,10 @@ async function kbCarregarEquipe(notificar){
   if(ale && !ale.error) kbEstado.alertasEquipe = ale.data || [];
   if(atv && !atv.error) kbEstado.atividade = atv.data || [];
   if(kbEstado.equipeModo === null) kbEstado.equipeModo = kbLerModoEquipe();
-  if(kbEstado.equipeModo === 'dia' || kbEstado.diaDisponivel === null){   // §135: no 1º carregamento descobre se o banco tem a função
-    await kbCarregarDia();
-    if(kbEstado.equipeModo === 'dia' && kbEstado.relatorio && (kbEstado.equipeDia || kbHojeSP()) === kbHojeSP()) await kbCarregarRelatorio(kbEstado.relatorio.dono);
+  if(kbEstado.diaDisponivel === null) await kbCarregarDia();   // §135: no 1º carregamento descobre se o banco tem a função
+  else if(kbEstado.equipeModo === 'dia' && (kbEstado.equipeDia || kbHojeSP()) === kbHojeSP()){   // só hoje se atualiza sozinho
+    await kbCarregarDia(true);
+    if(kbEstado.relatorio) await kbCarregarRelatorio(kbEstado.relatorio.dono);
   }
   kbRenderEquipe();
 }
@@ -5111,7 +5116,7 @@ function kbRenderEquipe(){
   const controles = kbEstado.diaDisponivel ? `<div class="kbDiaControles"><nav class="kbSeg" aria-label="Período da tabela">`
       + `<button type="button" data-kb-eq-modo="dia"${kbEstado.equipeModo === 'dia' ? ' class="active"' : ''}>Dia</button>`
       + `<button type="button" data-kb-eq-modo="mes"${kbEstado.equipeModo !== 'dia' ? ' class="active"' : ''}>Mês</button></nav>`
-      + (kbEstado.equipeModo === 'dia' ? `<input type="date" class="kbDiaData" id="kbEqDia" value="${escapeHtml(diaSel)}" max="${escapeHtml(hojeSP)}" aria-label="Dia do placar">` : '') + '</div>' : '';
+      + (kbEstado.equipeModo === 'dia' ? `<input type="date" class="kbDiaData" id="kbEqDia" value="${escapeHtml(diaSel)}" min="${KB_DIA_MIN}" max="${escapeHtml(hojeSP)}" aria-label="Dia do placar">` : '') + '</div>' : '';
   const avisoDia = modoDia ? kbAvisoDiaHtml(diaSel, hojeSP) : '';
   const tabelaUsada = modoDia ? `<div class="kbEqTabela">${kbTabelaDiaHtml(kbEstado.diaEquipe)}${avisoDia ? `<p class="kbEqLegenda">${escapeHtml(avisoDia)}</p>` : ''}</div>` : tabela;
   const sel = kbEstado.equipeLista;
@@ -5343,7 +5348,12 @@ document.getElementById('panel-meusleads').addEventListener('click', (e) => {
   const tr = e.target.closest('#kbEquipe tr[data-kb-dono]');
   if(tr){ kbEstado.dono = tr.dataset.kbDono; const sel = document.getElementById('kbDono'); if(sel) sel.value = kbEstado.dono; kbTrocarAba('quadro'); kbCarregar(); }
 });
-document.getElementById('kbEquipe').addEventListener('change', (e) => { if(e.target.id === 'kbEqDia') kbEquipeTrocarDia(e.target.value); });   // §135
+let kbDiaTimer = null;
+document.getElementById('kbEquipe').addEventListener('change', (e) => {   // §135: espera parar de digitar (cada tecla no campo de data dispara change)
+  if(e.target.id !== 'kbEqDia') return;
+  const v = e.target.value; clearTimeout(kbDiaTimer);
+  kbDiaTimer = setTimeout(() => kbEquipeTrocarDia(v), 400);
+});
 kbFichaNo().addEventListener('click', (e) => {
   if(e.target.closest('[data-kb-ver-tudo]')){ const el = kbFichaEl('kbLinhaTempo'); if(el) el.innerHTML = kbLinhaTempoHtml(kbEstado.fichaEventos, 1000); }
 });

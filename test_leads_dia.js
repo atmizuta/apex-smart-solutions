@@ -148,16 +148,16 @@ try{
   assert(kbEstado.relatorio && kbEstado.relatorio.dono === 'u2' && EQ.querySelector('.kbRel h3').textContent.includes('Zz Luria'), 'dois cliques rápidos: fica o último');
   window.__rpcRespostas.leads_dia_consultor = (a) => ({ data: Object.assign({}, R, { dia: a.p_dia }), error: null });
   // trocar a data (inclusive futura ou vazia) e o relatório acompanha
-  const inp = EQ.querySelector('#kbEqDia'); inp.value = '2026-10-20'; inp.dispatchEvent(new window.Event('change', { bubbles: true })); await espera(60);
+  const inp = EQ.querySelector('#kbEqDia'); inp.value = '2026-10-20'; inp.dispatchEvent(new window.Event('change', { bubbles: true })); await espera(460);
   assert(kbEstado.equipeDia === '2026-10-20' && window.__rpcCalls.filter(c => c.nome === 'leads_dia_equipe').pop().args.p_dia === '2026-10-20'
     && window.__rpcCalls.filter(c => c.nome === 'leads_dia_consultor').pop().args.p_dia === '2026-10-20' && EQ.textContent.includes('a partir de 27/10/2026'), 'trocar a data recarrega placar e relatório; aviso antes do histórico');
   const nAntes = window.__rpcCalls.length;
-  const inp2 = EQ.querySelector('#kbEqDia'); inp2.value = '2026-12-01'; inp2.dispatchEvent(new window.Event('change', { bubbles: true })); await espera(60);
+  const inp2 = EQ.querySelector('#kbEqDia'); inp2.value = '2026-12-01'; inp2.dispatchEvent(new window.Event('change', { bubbles: true })); await espera(460);
   assert(kbEstado.equipeDia === '2026-11-03' && !window.__rpcCalls.slice(nAntes).some(c => c.args && c.args.p_dia === '2026-12-01'), 'data no futuro volta para hoje sem chamar o banco com ela');
-  const inp3 = EQ.querySelector('#kbEqDia'); inp3.value = ''; inp3.dispatchEvent(new window.Event('change', { bubbles: true })); await espera(60);
+  const inp3 = EQ.querySelector('#kbEqDia'); inp3.value = ''; inp3.dispatchEvent(new window.Event('change', { bubbles: true })); await espera(460);
   assert(kbEstado.equipeDia === '2026-11-03', 'data vazia volta para hoje');
   // dia passado não pula para hoje com o timer da Equipe
-  const inp4 = EQ.querySelector('#kbEqDia'); inp4.value = '2026-10-30'; inp4.dispatchEvent(new window.Event('change', { bubbles: true })); await espera(60);
+  const inp4 = EQ.querySelector('#kbEqDia'); inp4.value = '2026-10-30'; inp4.dispatchEvent(new window.Event('change', { bubbles: true })); await espera(460);
   await kbCarregarEquipe(); await espera(30);
   assert(kbEstado.equipeDia === '2026-10-30' && window.__rpcCalls.filter(c => c.nome === 'leads_dia_equipe').pop().args.p_dia === '2026-10-30', 'atualização da Equipe mantém o dia escolhido');
   // lista e relatório não aparecem juntos
@@ -169,6 +169,53 @@ try{
   const pegaAntes = window.__rpcCalls.length;
   EQ.querySelector('[data-kb-pode-pegar="u1"]').click(); await espera(30);
   assert(window.__rpcCalls.slice(pegaAntes).some(c => c.nome === 'leads_definir_pode_pegar') && !kbEstado.relatorio, 'chave Pega leads não abre relatório');
+  // ==== correções da revisão final ====
+  // I3: retorno de outro dia mostra a data; item sem lead (Caderno) não vira link quebrado
+  const RP = Object.assign({}, R, { pendencias: { retornos_atrasados: [{ aba: 'NOVEMBRO', lead_id: 'l:5', nome: 'Zz Lead E', quando: '2026-10-28T17:00:00Z' }, { aba: null, lead_id: null, nome: 'Zz Caderno', quando: '2026-11-03T17:00:00Z' }], sem_contato: [] } });
+  const RPD = document.createElement('div'); RPD.innerHTML = kbRelatorioHtml({ dados: RP, erro: false, carregando: false }, 'Zz Lucas');
+  assert(RPD.querySelector('.kbRelPendencias').textContent.includes('retorno era 28/10 14:00') && !RPD.querySelector('[data-kb-abrir="null|null"]') && RPD.querySelector('.kbRelPendencias').textContent.includes('Zz Caderno'), 'I3: retorno antigo com data; sem link quebrado');
+  // I2: corrida de data no placar
+  kbEquipeModo('mes'); await espera(20); await kbEquipeModo('dia'); await espera(20);
+  let soltaD29;
+  window.__rpcRespostas.leads_dia_equipe = (a) => a.p_dia === '2026-10-29'
+    ? new Promise(res => { soltaD29 = () => res({ data: [Object.assign({}, L1, { dia: a.p_dia }), L2], error: null }); })
+    : { data: [Object.assign({}, L1, { dia: a.p_dia }), L2], error: null };
+  const pd29 = kbEquipeTrocarDia('2026-10-29'); await espera(10);
+  await kbEquipeTrocarDia('2026-10-30'); soltaD29(); await pd29; await espera(20);
+  assert(kbEstado.equipeDia === '2026-10-30' && kbEstado.diaEquipe[0].dia === '2026-10-30', 'I2: resposta atrasada de outro dia não substitui o placar');
+  // I2: corrida de data no relatório
+  window.__rpcRespostas.leads_dia_equipe = (a) => ({ data: [Object.assign({}, L1, { dia: a.p_dia }), L2], error: null });
+  await kbAbrirRelatorio('u1'); await espera(20);
+  let soltaR29;
+  window.__rpcRespostas.leads_dia_consultor = (a) => a.p_dia === '2026-10-29'
+    ? new Promise(res => { soltaR29 = () => res({ data: Object.assign({}, R, { dia: a.p_dia }), error: null }); })
+    : { data: Object.assign({}, R, { dia: a.p_dia }), error: null };
+  const pr29 = kbEquipeTrocarDia('2026-10-29'); await espera(10);
+  await kbEquipeTrocarDia('2026-10-31'); soltaR29(); await pr29; await espera(20);
+  assert(kbEstado.relatorio && kbEstado.relatorio.dados && kbEstado.relatorio.dados.dia === '2026-10-31', 'I2: relatório não fica com outro dia');
+  window.__rpcRespostas.leads_dia_consultor = (a) => ({ data: Object.assign({}, R, { dia: a.p_dia }), error: null });
+  // I5: teclas no campo de data: espera parar de digitar e não manda data absurda
+  const nI5 = window.__rpcCalls.length;
+  const di = () => EQ.querySelector('#kbEqDia');
+  di().value = '0002-10-29'; di().dispatchEvent(new window.Event('change', { bubbles: true })); await espera(50);
+  di().value = '2026-10-28'; di().dispatchEvent(new window.Event('change', { bubbles: true })); await espera(460);
+  const diasI5 = window.__rpcCalls.slice(nI5).filter(c => c.nome === 'leads_dia_equipe').map(c => c.args.p_dia);
+  eq(diasI5, ['2026-10-28'], 'I5: duas mudanças seguidas viram uma chamada, só com a última data');
+  assert(di().min === '2026-09-01', 'I5: campo com data mínima');
+  di().value = '2026-08-15'; di().dispatchEvent(new window.Event('change', { bubbles: true })); await espera(460);
+  assert(kbEstado.equipeDia === '2026-11-03', 'I5: data antes das primeiras ligações volta para hoje');
+  // M1: dia passado não recarrega com o timer; falha no refresh de hoje mantém os números
+  kbEstado.relatorio = null; await kbEquipeTrocarDia('2026-10-30');
+  const nM1 = window.__rpcCalls.length;
+  await kbCarregarEquipe(); await espera(20);
+  assert(!window.__rpcCalls.slice(nM1).some(c => c.nome === 'leads_dia_equipe'), 'M1: dia passado não é recarregado pelo timer');
+  await kbEquipeTrocarDia('2026-11-03');
+  window.__rpcRespostas.leads_dia_equipe = { data: null, error: { code: '500', message: 'falhou' } };
+  window.__avisos = []; const mAv2 = mostrarAviso; mostrarAviso = (m, t) => window.__avisos.push(t + ':' + m);
+  await kbCarregarEquipe(); await espera(20);
+  assert(Array.isArray(kbEstado.diaEquipe) && kbEstado.diaEquipe.length === 2 && EQ.querySelector('tr[data-kb-relatorio="u1"]') && !window.__avisos.length, 'M1: falha no refresh de hoje mantém o placar, sem aviso a cada minuto');
+  mostrarAviso = mAv2;
+  window.__rpcRespostas.leads_dia_equipe = (a) => ({ data: [Object.assign({}, L1, { dia: a.p_dia }), L2], error: null });
   // erro e função ausente
   window.__rpcRespostas.leads_dia_equipe = { data: null, error: { code: '500', message: 'falhou' } };
   window.__avisos = []; const mAv = mostrarAviso; mostrarAviso = (m, t) => window.__avisos.push(t + ':' + m);
