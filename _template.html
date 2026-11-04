@@ -1119,6 +1119,22 @@
   .kbEqAlerta + .kbEqAlerta{border-top:1px solid var(--ml-surface-3);}
   .kbEqAlerta > span{flex:1;min-width:0;}
   .kbEqAlerta small{display:block;color:var(--ml-ink-3);font-size:var(--fs-xs);}
+  .kbDiaControles{display:flex;align-items:center;gap:10px;margin-bottom:var(--space-2);}
+  .kbDiaData{font:inherit;padding:6px 10px;border:1px solid var(--ml-surface-3);border-radius:var(--radius-lg);background:var(--ml-surface);color:var(--ml-ink);}
+  .kbDiaPos{font-weight:700;color:var(--ml-ink-3);width:36px;}
+  .kbRel{background:var(--ml-surface);border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:var(--space-3);}
+  .kbRel h4{margin:14px 0 6px;font:600 var(--fs-base)/1.2 var(--font-body);text-transform:none;}
+  .kbRelCartoes{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin:8px 0 6px;}
+  .kbRelCartao{cursor:default;background:var(--ml-surface-2);}
+  .kbRelCartao small{color:var(--ml-ink-3);font-size:var(--fs-xs);}
+  .kbRelSeta.melhor{color:var(--st-ganho);}
+  .kbRelSeta.pior{color:var(--c-bordo);}
+  .kbRelHoras{display:flex;align-items:flex-end;gap:8px;height:120px;}
+  .kbRelHora{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:2px;font-size:var(--fs-xs);color:var(--ml-ink-3);}
+  .kbRelHora i{display:block;width:100%;max-width:36px;min-height:2px;background:var(--c-sinal);border-radius:4px 4px 0 0;}
+  .kbRelParados{margin-top:6px;font-size:var(--fs-sm);color:var(--ml-ink-2);}
+  .kbRelGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;}
+  @media (max-width: 1100px){ .kbRelCartoes{grid-template-columns:repeat(2,minmax(0,1fr));} .kbRelGrid{grid-template-columns:1fr;} }
   @media (max-width: 1100px){ .kbEqTopo{grid-template-columns:repeat(2,minmax(0,1fr));} .kbEqAlertas{grid-template-columns:1fr;} }
   .kbLista{list-style:none;margin:0;padding:0;}
   .kbLista li{display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--c-linha);font-size:var(--fs-sm);}
@@ -3911,6 +3927,80 @@ function kbDuracaoMin(min){
   if(min === null || min === undefined || isNaN(min)) return '';
   const m = Math.max(0, Math.round(min)), h = Math.floor(m / 60), r = m % 60;
   return h ? `${h} h${r ? ' ' + r + ' min' : ''}` : `${m} min`;
+}
+// ===== §135: placar do dia e relatório do consultor (Equipe) — funções puras =====
+function kbFmtMin(v){ return (v === null || v === undefined || v === '' || isNaN(Number(v))) ? '—' : kbDuracaoMin(Number(v)); }
+function kbHoraSP(iso){ const t = kbMs(iso); return t === null ? '' : kbPartesSP(t).hora; }
+function kbDiaBR(dia){ const p = String(dia || '').split('-'); return p.length === 3 ? p[2] + '/' + p[1] : ''; }
+function kbSetaMedia(valor, media, maiorMelhor){
+  if(media === null || media === undefined || valor === null || valor === undefined || Number(valor) === Number(media)) return { txt: '', cls: '' };
+  const acima = Number(valor) > Number(media);
+  return { txt: acima ? '▲' : '▼', cls: acima === !!maiorMelhor ? 'melhor' : 'pior' };
+}
+function kbAvisoDiaHtml(dia, hoje){
+  if(dia && dia < '2026-10-27') return 'Pegos, classificados e vendas só existem a partir de 27/10/2026.';
+  if(dia === hoje) return 'Ligações chegam do ProContact de hora em hora; podem estar até 1 h atrasadas.';
+  return '';
+}
+function kbTabelaDiaHtml(linhas){
+  const n = (v) => Number(v) || 0;
+  const tr = (linhas || []).map(d => {
+    const dono = escapeHtml(d.dono_id);
+    const cont = d.tem_telefonia ? `<b>${n(d.ligacoes)}</b><span class="kbMuted"> / ${n(d.atendidas)} atend.</span>` : '<span class="kbMuted">—</span>';
+    const wpp = n(d.whatsapp) ? ` <small class="kbEqAtivTxt">${n(d.whatsapp)} WhatsApp</small>` : '';
+    const jorn = d.jornada_inicio ? `${kbHoraSP(d.jornada_inicio)}–${kbHoraSP(d.jornada_fim)}` : '—';
+    return `<tr data-kb-relatorio="${dono}"><td class="kbDiaPos">${n(d.posicao)}º</td>`
+      + `<td><button type="button" class="kbLink" data-kb-relatorio="${dono}"><b>${escapeHtml(d.nome || '')}</b></button></td>`
+      + `<td class="r">${n(d.pegos)}${n(d.recebidos) ? ' + ' + n(d.recebidos) : ''}</td><td>${cont}${wpp}</td><td class="r">${n(d.min_falados)}</td>`
+      + `<td class="r">${kbFmtMin(d.primeiro_contato_mediana_min)}</td>`
+      + `<td class="r">${n(d.sem_ligar) ? `<span class="kbEqNum ruim">${n(d.sem_ligar)}</span>` : '0'}</td>`
+      + `<td class="r">${n(d.classificados)} / ${n(d.obs)}</td><td class="r">${n(d.retornos_feitos)} / ${n(d.retornos_atrasados)}</td>`
+      + `<td class="r"><b>${n(d.vendas)}</b></td><td class="r">${escapeHtml(kbMoeda(d.receita) || 'R$ 0,00')}</td><td>${jorn}</td></tr>`;
+  }).join('');
+  return '<table><thead><tr><th>#</th><th>Consultor</th><th class="r">Pegos</th><th>Contatos</th><th class="r">Min falados</th><th class="r">1ª ligação</th>'
+    + '<th class="r">Sem ligar</th><th class="r">Classif. / OBS</th><th class="r">Retornos feitos / atras.</th><th class="r">Vendas</th><th class="r">Receita</th><th>Jornada</th></tr></thead>'
+    + `<tbody>${tr || '<tr><td colspan="12" class="kbMuted">Sem consultores na equipe de leads.</td></tr>'}</tbody></table>`;
+}
+function kbRelatorioHtml(rel, nome){
+  if(!rel) return '';
+  const fechar = '<button type="button" class="kbBtn kbBtnG kbBtnSm" data-kb-relatorio-fechar>Fechar</button>';
+  const r = rel.dados;
+  const topo = (dia) => `<div class="kbEqListaTopo"><h3>${escapeHtml(nome || '')}${dia ? ' · dia ' + escapeHtml(kbDiaBR(dia)) : ''}</h3>${fechar}</div>`;
+  if(rel.carregando) return `<div class="kbRel">${topo('')}<p class="kbMuted">Carregando…</p></div>`;
+  if(rel.erro || !r) return `<div class="kbRel">${topo('')}<p class="kbMuted">Não foi possível carregar o relatório agora.</p></div>`;
+  const d = r.numeros, m = r.media_equipe || {}, n = (v) => Number(v) || 0;
+  if(!d || (!d.jornada_inicio && !n(d.pegos) && !n(d.recebidos))) return `<div class="kbRel">${topo(r.dia)}<p class="kbMuted">Sem atividade registrada neste dia.</p></div>`;
+  const cart = (chave, rot, val, med, maior, fmt) => {
+    const f = fmt || ((x) => String(n(x))), s = kbSetaMedia(val, med, maior);
+    return `<div class="kbEqKpi kbRelCartao" data-kb-rel-cartao="${chave}"><strong class="kbNumGrande">${escapeHtml(f(val))}</strong><span>${rot}</span>`
+      + `<small>equipe ${med === null || med === undefined ? '—' : escapeHtml(f(med))}${s.txt ? ` <b class="kbRelSeta ${s.cls}">${s.txt}</b>` : ''}</small></div>`;
+  };
+  const moeda = (x) => kbMoeda(x) || 'R$ 0,00', um = (x) => String(Math.round(Number(x) * 10) / 10 || 0);
+  const cartoes = '<div class="kbRelCartoes">'
+    + cart('pegos', 'pegos + recebidos', n(d.pegos) + n(d.recebidos), m.pegos, true, um)
+    + cart('ligacoes', 'ligações', d.ligacoes, m.ligacoes, true, um) + cart('atendidas', 'atendidas', d.atendidas, m.atendidas, true, um)
+    + cart('min_falados', 'min falados', d.min_falados, m.min_falados, true, um) + cart('whatsapp', 'WhatsApp', d.whatsapp, m.whatsapp, true, um)
+    + cart('primeiro_contato', '1ª ligação (mediana)', d.primeiro_contato_mediana_min, m.primeiro_contato_mediana_min, false, kbFmtMin)
+    + cart('sem_ligar', 'sem ligar', d.sem_ligar, m.sem_ligar, false, um) + cart('classificados', 'classificados', d.classificados, m.classificados, true, um)
+    + cart('obs', 'OBS escritas', d.obs, m.obs, true, um) + cart('retornos', 'retornos feitos', d.retornos_feitos, m.retornos_feitos, true, um)
+    + cart('vendas', 'vendas', d.vendas, m.vendas, true, um) + cart('receita', 'receita', d.receita, m.receita, true, moeda) + '</div>';
+  const horas = r.por_hora || [], maxH = Math.max(1, ...horas.map(h => n(h.ligacoes)));
+  const ritmo = `<h4>Ritmo</h4><div class="kbRelHoras">${horas.map(h => `<span class="kbRelHora" title="${n(h.h)}h: ${n(h.ligacoes)} ligações, ${n(h.atendidas)} atendidas"><b>${n(h.ligacoes)}</b><i style="height:${Math.round(100 * n(h.ligacoes) / maxH)}%"></i><small>${n(h.h)}h</small></span>`).join('')}</div>`
+    + `<div class="kbRelParados">${(r.parados || []).length ? 'Parado: ' + r.parados.map(p => `${kbHoraSP(p.de)}–${kbHoraSP(p.ate)} (${n(p.min)} min)`).join(' · ') : 'Sem intervalos parados de mais de 30 min.'}</div>`;
+  const li = (aba, id, nomeL, meta) => `<li><button type="button" class="kbLink" data-kb-abrir="${escapeHtml(aba)}|${escapeHtml(id)}">${escapeHtml(nomeL || '(sem nome)')}</button><span class="kbMeta">${escapeHtml(meta)}</span></li>`;
+  const leads = (r.leads || []).map(l => li(l.aba, l.lead_id, l.nome, [
+    (l.como === 'recebeu' ? 'recebeu' + (l.de_nome ? ' de ' + l.de_nome : '') : 'pegou') + ' ' + kbHoraSP(l.em),
+    l.primeiro_contato_min === null || l.primeiro_contato_min === undefined ? 'sem contato' : '1º contato ' + kbFmtMin(l.primeiro_contato_min),
+    n(l.ligacoes) + (n(l.ligacoes) === 1 ? ' ligação' : ' ligações'), l.status || 'sem status', l.vendeu ? 'venda ' + moeda(l.receita) : ''
+  ].filter(Boolean).join(' · '))).join('');
+  const perd = (r.perdidos || []).map(p => li(p.aba, p.lead_id, p.nome, kbHoraSP(p.em) + ' → ' + (p.para_nome || ''))).join('');
+  const pend = r.pendencias || {};
+  const pendLi = (pend.retornos_atrasados || []).map(x => li(x.aba, x.lead_id, x.nome, 'retorno era ' + kbHoraSP(x.quando)))
+    .concat((pend.sem_contato || []).map(x => li(x.aba, x.lead_id, x.nome, 'pego ' + kbTempoDesde(x.pego_em, Date.now()) + ', sem contato'))).join('');
+  return `<div class="kbRel">${topo(r.dia)}${cartoes}${ritmo}<div class="kbRelGrid">`
+    + `<div><h4>Leads do dia (${(r.leads || []).length})</h4><ul class="kbLista kbCartaoLista">${leads || '<li class="kbMeta">Nenhum lead pego ou recebido.</li>'}</ul></div>`
+    + `<div><h4>Perdidos no dia (${(r.perdidos || []).length})</h4><ul class="kbLista kbCartaoLista kbRelPerdidos">${perd || '<li class="kbMeta">Nenhum.</li>'}</ul>`
+    + `<h4>Ficou para trás (agora)</h4><ul class="kbLista kbCartaoLista kbRelPendencias">${pendLi || '<li class="kbMeta">Nada pendente.</li>'}</ul></div></div></div>`;
 }
 // Semáforo escrito da Equipe (spec 5.1): verde diz a última ação de hoje; amarelo/vermelho dizem há quanto tempo está parado.
 // Sem telefonia vale só a OBS; sem OBS hoje fica cinza ("sem telefonia"), porque não há como medir.

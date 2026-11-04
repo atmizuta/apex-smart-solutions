@@ -54,6 +54,57 @@ try{
   const SP = (s) => Date.parse(s + '-03:00');
   const dnReal = Date.now, ag = SP('2026-11-03T18:00:00');   // terça 18:00
   Date.now = () => ag;
+  // ==== Task 3: funções puras ====
+  eq([kbFmtMin(null), kbFmtMin(6), kbFmtMin(13.4), kbFmtMin(72), kbFmtMin(0)], ['—', '6 min', '13 min', '1 h 12 min', '0 min'], 'formata minutos');
+  eq([kbHoraSP('2026-11-03T16:04:00Z'), kbHoraSP(null)], ['13:04', ''], 'hora de SP');
+  eq(kbDiaBR('2026-11-03'), '03/11', 'dia dd/mm');
+  eq(kbSetaMedia(5, 3, true), { txt: '▲', cls: 'melhor' }, 'acima da média, maior é melhor');
+  eq(kbSetaMedia(5, 3, false), { txt: '▲', cls: 'pior' }, 'acima da média, menor é melhor');
+  eq(kbSetaMedia(2, 3, true), { txt: '▼', cls: 'pior' }, 'abaixo da média');
+  eq(kbSetaMedia(3, 3, true), { txt: '', cls: '' }, 'igual à média');
+  eq(kbSetaMedia(3, null, true), { txt: '', cls: '' }, 'sem média');
+  assert(kbAvisoDiaHtml('2026-11-03', '2026-11-03').includes('até 1 h atrasadas'), 'aviso de hoje');
+  assert(kbAvisoDiaHtml('2026-10-20', '2026-11-03').includes('a partir de 27/10/2026'), 'aviso antes do histórico');
+  eq(kbAvisoDiaHtml('2026-10-30', '2026-11-03'), '', 'dia passado depois do histórico: sem aviso');
+  const L1 = { dono_id: 'u1', nome: 'Zz Lucas', tem_telefonia: true, pegos: 8, recebidos: 3, perdidos: 1, ligacoes: 70, atendidas: 21, min_falados: 95, whatsapp: 4,
+    primeiro_contato_mediana_min: 6, sem_ligar: 2, classificados: 12, obs: 9, retornos_feitos: 3, retornos_atrasados: 1, vendas: 2, receita: 180.5,
+    jornada_inicio: '2026-11-03T16:04:00Z', jornada_fim: '2026-11-03T23:51:00Z', posicao: 1 };
+  const L2 = { dono_id: 'u2', nome: 'Zz Luria', tem_telefonia: false, pegos: 0, recebidos: 0, perdidos: 0, ligacoes: 0, atendidas: 0, min_falados: 0, whatsapp: 0,
+    primeiro_contato_mediana_min: null, sem_ligar: 0, classificados: 0, obs: 0, retornos_feitos: 0, retornos_atrasados: 0, vendas: 0, receita: 0,
+    jornada_inicio: null, jornada_fim: null, posicao: 2 };
+  const TD = document.createElement('div'); TD.innerHTML = kbTabelaDiaHtml([L1, L2]);
+  const tr1 = TD.querySelector('tr[data-kb-relatorio="u1"]');
+  assert(tr1 && tr1.querySelector('button.kbLink[data-kb-relatorio="u1"]').textContent.includes('Zz Lucas'), 'linha com o nome clicável');
+  const cel = [...tr1.querySelectorAll('td')].map(t => t.textContent.replace(/\\s+/g, ' ').trim());
+  eq(cel, ['1º', 'Zz Lucas', '8 + 3', '70 / 21 atend. 4 WhatsApp', '95', '6 min', '2', '12 / 9', '3 / 1', '2', 'R$ 180,50', '13:04–20:51'], 'colunas do dia');
+  assert(tr1.querySelector('.kbEqNum.ruim'), 'sem ligar > 0 em vermelho');
+  const cel2 = [...TD.querySelectorAll('tr[data-kb-relatorio="u2"] td')].map(t => t.textContent.replace(/\\s+/g, ' ').trim());
+  eq([cel2[2], cel2[3], cel2[5], cel2[10], cel2[11]], ['0', '—', '—', 'R$ 0,00', '—'], 'sem telefonia e sem atividade: traços e zeros');
+  eq(TD.querySelectorAll('thead th').length, 12, '12 colunas');
+  const R = { dia: '2026-11-03', historico_desde: '2026-10-27', numeros: L1,
+    media_equipe: { pegos: 6, ligacoes: 50, atendidas: 15, min_falados: 60, whatsapp: 2, sem_ligar: 1, classificados: 10, obs: 7, retornos_feitos: 2, retornos_atrasados: 2, vendas: 1, receita: 90, primeiro_contato_mediana_min: 9 },
+    por_hora: [13, 14, 15, 16, 17, 18, 19, 20].map((h, i) => ({ h, ligacoes: i === 0 ? 10 : 5, atendidas: i === 0 ? 4 : 1 })),
+    parados: [{ de: '2026-11-03T18:10:00Z', ate: '2026-11-03T19:02:00Z', min: 52 }],
+    leads: [{ aba: 'NOVEMBRO', lead_id: 'l:1', nome: 'Zz Lead A', como: 'pegou', de_nome: null, em: '2026-11-03T16:05:00Z', primeiro_contato_min: 6, ligacoes: 2, status: 'FECHADO', vendeu: true, receita: 100 },
+            { aba: 'NOVEMBRO', lead_id: 'l:2', nome: 'Zz Lead B', como: 'recebeu', de_nome: 'Zz Caio', em: '2026-11-03T17:00:00Z', primeiro_contato_min: null, ligacoes: 0, status: null, vendeu: false, receita: null }],
+    perdidos: [{ aba: 'NOVEMBRO', lead_id: 'l:3', nome: 'Zz Lead C', em: '2026-11-03T19:00:00Z', para_nome: 'ZZCAIO' }],
+    pendencias: { retornos_atrasados: [{ aba: 'NOVEMBRO', lead_id: 'l:4', nome: 'Zz Lead D', quando: '2026-11-03T17:00:00Z' }], sem_contato: [] } };
+  const RD = document.createElement('div'); RD.innerHTML = kbRelatorioHtml({ dados: R, erro: false, carregando: false }, 'Zz Lucas');
+  assert(RD.querySelector('.kbRel h3').textContent.includes('Zz Lucas · dia 03/11') && RD.querySelector('[data-kb-relatorio-fechar]'), 'título e Fechar');
+  const cv = RD.querySelector('[data-kb-rel-cartao="vendas"]');
+  assert(cv && cv.textContent.includes('2') && cv.textContent.includes('equipe 1') && cv.querySelector('.kbRelSeta.melhor').textContent === '▲', 'cartão de vendas com média e seta');
+  assert(RD.querySelector('[data-kb-rel-cartao="primeiro_contato"] .kbRelSeta.melhor').textContent === '▼', '1ª ligação abaixo da média é melhor');
+  eq(RD.querySelectorAll('.kbRelHora').length, 8, '8 barras de hora');
+  assert(RD.querySelector('.kbRelParados').textContent.includes('15:10–16:02 (52 min)'), 'parado com horário e duração');
+  const RDtxt = RD.textContent.replace(/\\s+/g, ' ');   // kbMoeda usa espaço inquebrável depois do R$
+  assert(RD.querySelector('[data-kb-abrir="NOVEMBRO|l:1"]') && RDtxt.includes('venda R$ 100,00') && RD.textContent.includes('recebeu de Zz Caio') && RD.textContent.includes('sem contato'), 'leads do dia');
+  assert(RD.querySelector('.kbRelPerdidos').textContent.includes('ZZCAIO') && RD.querySelector('.kbRelPendencias [data-kb-abrir="NOVEMBRO|l:4"]'), 'perdidos e pendências');
+  const vazio = document.createElement('div'); vazio.innerHTML = kbRelatorioHtml({ dados: Object.assign({}, R, { numeros: null, leads: [], perdidos: [], parados: [] }), erro: false, carregando: false }, 'Zz Luria');
+  assert(vazio.textContent.includes('Sem atividade registrada neste dia') && vazio.querySelector('[data-kb-relatorio-fechar]'), 'sem atividade (numeros nulo) não quebra');
+  const er = document.createElement('div'); er.innerHTML = kbRelatorioHtml({ dados: null, erro: true, carregando: false }, 'Zz Lucas');
+  assert(er.textContent.includes('Não foi possível carregar o relatório') && er.querySelector('[data-kb-relatorio-fechar]'), 'erro no relatório com Fechar');
+  const ca = document.createElement('div'); ca.innerHTML = kbRelatorioHtml({ dados: null, erro: false, carregando: true }, 'Zz Lucas');
+  assert(ca.textContent.includes('Carregando'), 'carregando');
   // ==== mais testes entram aqui ====
 
   Date.now = dnReal;
