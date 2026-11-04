@@ -1,6 +1,6 @@
 # Equipe: placar do dia e relatório do dia por consultor — design
 
-Data: 03/11/2026 · Seção do REGRAS_NEGOCIO: **§134** · DADOS FICTÍCIOS nos exemplos (repo público).
+Data: 03/11/2026 · Seção do REGRAS_NEGOCIO: **§135** · DADOS FICTÍCIOS nos exemplos (repo público).
 
 ## Pedido e objetivo
 
@@ -176,7 +176,7 @@ Uma migration nova (`supabase/migrations/20261103xxxxxx_leads_dia.sql`), sem DRO
    - backup;
    - MD5 no mesmo comando do envio;
    - conferir com e sem `www`.
-4. §134 no REGRAS_NEGOCIO, push no oficial e `vigia_painel.ps1 -Aceitar`.
+4. §135 no REGRAS_NEGOCIO, push no oficial e `vigia_painel.ps1 -Aceitar`.
 
 **Reverter:**
 - **Painel:** copiar o backup de volta.

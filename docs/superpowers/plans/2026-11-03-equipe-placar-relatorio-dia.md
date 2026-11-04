@@ -70,7 +70,7 @@
 - [ ] **Step 1: Escrever a migration** `supabase/migrations/20261103210000_leads_dia.sql`
 
 ```sql
--- §134: placar do dia (leads_dia_equipe) e relatório do consultor (leads_dia_consultor) na aba Equipe.
+-- §135: placar do dia (leads_dia_equipe) e relatório do consultor (leads_dia_consultor) na aba Equipe.
 -- Só leitura, sem tabela nova, sem DROP. Spec: docs/superpowers/specs/2026-11-03-equipe-placar-relatorio-dia-design.md
 
 -- Interna: um item por (consultor, lead) que ele pegou ou recebeu no dia, com o primeiro contato depois disso
@@ -376,7 +376,7 @@ end $$;
 
 ```bash
 git add supabase/migrations/20261103210000_leads_dia.sql supabase/tests/leads_dia_check.sql
-git commit -m "feat(leads): funcoes do placar e relatorio do dia (secao 134)
+git commit -m "feat(leads): funcoes do placar e relatorio do dia (secao 135)
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 ```
@@ -397,7 +397,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 Copie as linhas 1–46 de `test_meus_leads_fase3.js` sem mudar nada, trocando só a 1ª linha de comentário por:
 
 ```js
-// Testa o §134 (Equipe: placar do dia e relatório do consultor). DADOS FICTÍCIOS (repo público).
+// Testa o §135 (Equipe: placar do dia e relatório do consultor). DADOS FICTÍCIOS (repo público).
 ```
 
 Depois do ``const testScript = ` `` copiado, cole:
@@ -525,7 +525,7 @@ Expected: `FALHA: ReferenceError: kbFmtMin is not defined`
 - [ ] **Step 3: Implementar.** Logo depois de `function kbDuracaoMin(min){…}` em `_template.html`:
 
 ```js
-// ===== §134: placar do dia e relatório do consultor (Equipe) — funções puras =====
+// ===== §135: placar do dia e relatório do consultor (Equipe) — funções puras =====
 function kbFmtMin(v){ return (v === null || v === undefined || v === '' || isNaN(Number(v))) ? '—' : kbDuracaoMin(Number(v)); }
 function kbHoraSP(iso){ const t = kbMs(iso); return t === null ? '' : kbPartesSP(t).hora; }
 function kbDiaBR(dia){ const p = String(dia || '').split('-'); return p.length === 3 ? p[2] + '/' + p[1] : ''; }
@@ -635,7 +635,7 @@ Expected: `--- RESULTADO: 34 passaram, 0 falharam ---`. O número exato pode var
 
 ```bash
 git add _template.html test_leads_dia.js
-git commit -m "feat(leads): tabela do dia e relatorio do consultor (funcoes puras, secao 134)
+git commit -m "feat(leads): tabela do dia e relatorio do consultor (funcoes puras, secao 135)
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 ```
@@ -752,7 +752,7 @@ O resultado fica `… loteSel: new Set(), passar: null, equipeModo: null, equipe
 - [ ] **Step 4: Carga.** Logo antes de `async function kbCarregarEquipe(notificar){`, colar:
 
 ```js
-// §134: placar do dia (Dia/Mês) e relatório do consultor
+// §135: placar do dia (Dia/Mês) e relatório do consultor
 function kbHojeSP(){ return kbPartesSP(Date.now()).dia; }
 function kbLerModoEquipe(){ try { return window.localStorage.getItem('kbEqModo') === 'dia' ? 'dia' : 'mes'; } catch(_e) { return 'mes'; } }
 async function kbCarregarDia(){
@@ -801,7 +801,7 @@ Dentro de `kbCarregarEquipe`, logo depois de `if(atv && !atv.error) kbEstado.ati
 
 ```js
   if(kbEstado.equipeModo === null) kbEstado.equipeModo = kbLerModoEquipe();
-  if(kbEstado.equipeModo === 'dia' || kbEstado.diaDisponivel === null){   // §134: no 1º carregamento descobre se o banco tem a função
+  if(kbEstado.equipeModo === 'dia' || kbEstado.diaDisponivel === null){   // §135: no 1º carregamento descobre se o banco tem a função
     await kbCarregarDia();
     if(kbEstado.equipeModo === 'dia' && kbEstado.relatorio && (kbEstado.equipeDia || kbHojeSP()) === kbHojeSP()) await kbCarregarRelatorio(kbEstado.relatorio.dono);
   }
@@ -849,7 +849,7 @@ por:
 
 ```js
   const md = e.target.closest('[data-kb-eq-modo]');
-  if(md){ kbEquipeModo(md.dataset.kbEqModo); return; }   // §134
+  if(md){ kbEquipeModo(md.dataset.kbEqModo); return; }   // §135
   if(e.target.closest('[data-kb-relatorio-fechar]')){ kbEstado.relatorio = null; kbRenderEquipe(); return; }
   const rl = e.target.closest('#kbEquipe [data-kb-relatorio]');
   if(rl){ kbAbrirRelatorio(rl.dataset.kbRelatorio); return; }
@@ -860,7 +860,7 @@ por:
 (c) Depois do fechamento `});` desse handler de clique, colar:
 
 ```js
-document.getElementById('kbEquipe').addEventListener('change', (e) => { if(e.target.id === 'kbEqDia') kbEquipeTrocarDia(e.target.value); });   // §134
+document.getElementById('kbEquipe').addEventListener('change', (e) => { if(e.target.id === 'kbEqDia') kbEquipeTrocarDia(e.target.value); });   // §135
 ```
 
 - [ ] **Step 7: Rodar o teste do dia e o da Equipe**
@@ -878,7 +878,7 @@ Expected: os três com `0 falharam`.
 
 ```bash
 git add _template.html test_leads_dia.js
-git commit -m "feat(leads): Dia/Mes na Equipe, data e relatorio do consultor (secao 134)
+git commit -m "feat(leads): Dia/Mes na Equipe, data e relatorio do consultor (secao 135)
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 ```
@@ -934,7 +934,7 @@ Dizer ao Rafael: "Posso publicar o painel com o placar do dia? Antes confiro que
 R=domains/apexsmart.com.br/public_html/painel_clientes_apex.html; TS=$(ssh hostinger 'TZ=America/Sao_Paulo date +%Y%m%d_%H%M%S')
 AR=$(ssh hostinger "md5sum $R | cut -d' ' -f1"); echo "ar=$AR ts=$TS"
 if [ "$AR" = "78c640b1c7a8f680df751c0fe3aa0def" ]; then
-  ssh hostinger "cp $R ~/deploy_backups/painel_clientes_apex_${TS}_antes_134_placar_dia.html" && scp -q painel_clientes_apex.html hostinger:$R && ssh hostinger "md5sum $R"
+  ssh hostinger "cp $R ~/deploy_backups/painel_clientes_apex_${TS}_antes_135_placar_dia.html" && scp -q painel_clientes_apex.html hostinger:$R && ssh hostinger "md5sum $R"
 else echo "AR MUDOU - NAO ENVIADO"; fi
 md5sum painel_clientes_apex.html
 for u in https://apexsmart.com.br/painel_clientes_apex.html https://www.apexsmart.com.br/painel_clientes_apex.html; do curl -s "$u?nc=$RANDOM" | md5sum; done
@@ -942,15 +942,15 @@ for u in https://apexsmart.com.br/painel_clientes_apex.html https://www.apexsmar
 
 O MD5 tem que ser o mesmo nos quatro lugares: gerado, servidor e site com e sem www.
 
-- [ ] **Step 5: Registrar a §134, fazer o push e aceitar no vigia**
+- [ ] **Step 5: Registrar a §135, fazer o push e aceitar no vigia**
 
 Acrescentar ao fim de `REGRAS_NEGOCIO.md`:
-- a seção `## 134. Meus leads: placar do dia e relatório do consultor na Equipe (03/11/2026)`, no formato das §132/§133, com pedido, o que mudou, regras dos números (resumo da spec), banco, código, testes, publicação (MD5, backup, horário SP) e como reverter;
-- a linha "Próxima livre: §135".
+- a seção `## 135. Meus leads: placar do dia e relatório do consultor na Equipe (03/11/2026)`, no formato das §132/§133, com pedido, o que mudou, regras dos números (resumo da spec), banco, código, testes, publicação (MD5, backup, horário SP) e como reverter;
+- a linha "Próxima livre: §136".
 
 ```bash
 git add painel_clientes_apex.html REGRAS_NEGOCIO.md docs/superpowers/plans/2026-11-03-equipe-placar-relatorio-dia.md
-git commit -m "docs(regras): placar do dia e relatorio do consultor, publicado (secao 134)
+git commit -m "docs(regras): placar do dia e relatorio do consultor, publicado (secao 135)
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 git fetch -q oficial && git log --oneline HEAD..oficial/main   # vazio
