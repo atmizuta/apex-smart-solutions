@@ -81,16 +81,18 @@ O nome exato das perguntas no `field_data` só se confirma com o primeiro lead r
 |---|---|
 | `desligado` | sai cedo (estado inicial no deploy) |
 | `ensaio` | busca e converte, **não grava** em `leads`. Guarda em `leads_meta_status.ensaio` os últimos 50 `{ id, aba, ja_existia }`, sem nome, telefone, e-mail nem CNPJ |
-| `paralelo` | grava com `p_espelho = false` e `p_origem = 'meta'`. A planilha continua recebendo a linha pela integração da Meta, e o espelho só a atualiza quando o consultor classificar |
+| `paralelo` | grava pela `leads_entrada2` com `p_espelho = false` e `p_origem = 'meta'`. A planilha continua recebendo a linha pela integração da Meta, e o espelho só a atualiza quando o consultor classificar |
 | `principal` | grava com `p_espelho = true` e `p_origem = 'meta'`. Vale depois que a integração nativa Meta→Sheets for desligada: o espelho passa a acrescentar o lead novo na guia do mês |
 
 ### 3.5 Banco (uma migration, com rollback)
 
-1. **`leads_entrada(p_leads jsonb, p_espelho boolean default true, p_origem text default 'planilha')`**
+1. **`leads_entrada2(p_leads jsonb, p_espelho boolean, p_origem text)`** (nova; a lógica da `leads_entrada` mudou para cá)
    - lead novo: insere como hoje, mais `origem_entrada = p_origem` e `meta_visto_em = now()` quando `p_origem = 'meta'`; só chama `leads_espelho_enfileirar` se `p_espelho`;
    - lead que já existe e `p_origem = 'meta'`: `update leads set meta_visto_em = now() where id = … and meta_visto_em is null` (marca que a Meta também o viu);
-   - a chamada atual da `planilha-espelho` (só `p_leads`) continua idêntica.
-   - Troca da assinatura: `drop function leads_entrada(jsonb)` e `create` da nova no mesmo `begin/commit`; `revoke` de `public, anon, authenticated`, como hoje.
+   - `p_origem` fora de `planilha`/`meta` é recusado.
+   - **`leads_entrada(p_leads jsonb)`** continua existindo e passa a chamar `leads_entrada2(p_leads, true, 'planilha')`: a `planilha-espelho` não muda.
+   - Sem `DROP` (o conector do Supabase recusa comando com `DROP`); `revoke` de `public, anon, authenticated` nas duas, como hoje.
+   - **`leads_meta_cursor(p_cursor timestamptz)`**: grava só o `cursor` dentro de `config.leads_meta` (`jsonb_set`) e nunca para trás, para não desfazer uma troca de `modo` feita no meio de uma rodada. Só service role.
 2. **`leads.origem_entrada text`** (`'planilha'` | `'meta'`, `null` nos leads antigos) e **`leads.meta_visto_em timestamptz`**.
 3. **`config`**:
    - `leads_meta` = `{ "modo": "desligado", "page_id": "", "form_ids": [], "cursor": null }`;
