@@ -4172,6 +4172,8 @@ const KB_CNPJ_SELO = {
   INAPTA: ['late', 'Inapta na Receita'], NULA: ['late', 'Nula na Receita'], NAO_ENCONTRADO: ['late', 'CNPJ não existe na Receita: confira com o cliente'],
 };
 const KB_CNPJ_PROBLEMA = ['BAIXADA', 'INAPTA', 'NULA'];
+// §136: as fontes grátis leem os dados abertos da Receita (1 vez por mês); o comprovante oficial mostra a situação na hora.
+const KB_CNPJ_RECEITA_URL = 'https://solucoes.receita.fazenda.gov.br/Servicos/cnpjreva/Cnpjreva_Solicitacao.asp?cnpj=';
 function kbCnpjDigitos(v){ return String(v == null ? '' : v).replace(/\D/g, ''); }
 function kbCnpjMostra(f){ return !!f && !f.livre && !!kbCnpjDigitos(f.cnpj) && KB_CNPJ_COLUNAS.includes(kbColunaDoLead(f)); }
 function kbCnpjDataBR(iso){ const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || '')); return m ? `${m[3]}/${m[2]}/${m[1]}` : ''; }
@@ -4185,7 +4187,7 @@ function kbCnpjAviso(c){
   if(!c || !KB_CNPJ_PROBLEMA.includes(c.situacao)) return null;
   const desde = kbCnpjDataBR(c.situacao_desde);
   return { titulo: `Empresa ${c.situacao} na Receita${desde ? ' desde ' + desde : ''}`, motivo: c.motivo ? String(c.motivo).toLowerCase() : '',
-    texto: 'Confirme com o cliente se ele tem outro CNPJ ativo antes de seguir.' };
+    texto: 'A base pública da Receita é atualizada só uma vez por mês e a empresa pode já ter se regularizado: confira no site da Receita. Se continuar assim, confirme com o cliente se ele tem outro CNPJ ativo antes de seguir.' };
 }
 function kbCnpjMsgErro(status){
   if(status === 403) return 'Só o dono do lead, o supervisor ou o admin podem verificar.';
@@ -4201,7 +4203,8 @@ function kbCnpjHtml(f, est){
   const erro = e.erro ? `<span class="kbMeta">${escapeHtml(e.erro)}</span>` : '';
   if(!selo) return `<button type="button" class="kbBtn kbBtnP kbBtnSm" data-kb-cnpj-verificar>Verificar na Receita</button>${erro}`;
   const atalho = aviso && e.podeInapto ? ' <button type="button" class="kbLink" data-kb-cnpj-inapto>Classificar como CNPJ INAPTO</button>' : '';
-  return `<span class="kbTag ${selo.classe}">${escapeHtml(selo.texto)}</span><button type="button" class="kbLink" data-kb-cnpj-verificar>Verificar de novo</button>${erro}`
+  const receita = `<a class="kbLink" href="${KB_CNPJ_RECEITA_URL}${dig}" target="_blank" rel="noopener" data-kb-cnpj-receita="${dig}">Conferir no site da Receita</a>`;
+  return `<span class="kbTag ${selo.classe}">${escapeHtml(selo.texto)}</span><button type="button" class="kbLink" data-kb-cnpj-verificar>Verificar de novo</button>${receita}${erro}`
     + (aviso ? `<p class="kbFichaAviso">⚠ <strong>${escapeHtml(aviso.titulo)}</strong>${aviso.motivo ? ' (motivo: ' + escapeHtml(aviso.motivo) + ')' : ''}. ${escapeHtml(aviso.texto)}${atalho}</p>` : '');
 }
 
@@ -4728,6 +4731,8 @@ kbFichaNo().addEventListener('click', async (e) => {
   const cp = e.target.closest('[data-kb-ficha-copiar]');
   if(cp){ try { await (kbFichaNo().ownerDocument.defaultView || window).navigator.clipboard.writeText(cp.dataset.kbFichaCopiar); mostrarAviso('Copiado.', 'ok'); } catch(_) { mostrarAviso('Não foi possível copiar.', 'erro'); } return; }
   if(e.target.closest('[data-kb-cnpj-verificar]')){ kbCnpjVerificar(alvo.aba, alvo.id); return; }
+  const rf = e.target.closest('[data-kb-cnpj-receita]');   // o link abre a Receita; o CNPJ vai copiado para colar lá
+  if(rf){ try { await (kbFichaNo().ownerDocument.defaultView || window).navigator.clipboard.writeText(rf.dataset.kbCnpjReceita); mostrarAviso('CNPJ copiado: cole no site da Receita.', 'ok'); } catch(_) {} return; }
   if(e.target.closest('[data-kb-cnpj-inapto]')){
     kbFichaTrocarAba('classificar');
     const st = kbFichaEl('kbClassStatus');

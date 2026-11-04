@@ -72,7 +72,7 @@ try{
   eq(kbCnpjSelo({ situacao: 'NAO_ENCONTRADO' }).texto, 'CNPJ não existe na Receita: confira com o cliente', 'selo de não encontrado');
   eq([kbCnpjSelo(null), kbCnpjSelo({ situacao: 'XYZ' })], [null, null], 'sem consulta ou situação estranha: sem selo');
   eq(kbCnpjAviso(BAIXADA), { titulo: 'Empresa BAIXADA na Receita desde 12/03/2024', motivo: 'extincao por encerramento',
-     texto: 'Confirme com o cliente se ele tem outro CNPJ ativo antes de seguir.' }, 'aviso de baixada com data e motivo');
+     texto: 'A base pública da Receita é atualizada só uma vez por mês e a empresa pode já ter se regularizado: confira no site da Receita. Se continuar assim, confirme com o cliente se ele tem outro CNPJ ativo antes de seguir.' }, 'aviso de baixada com data e motivo');
   eq(kbCnpjAviso({ situacao: 'INAPTA', situacao_desde: null, motivo: null }).titulo, 'Empresa INAPTA na Receita', 'aviso sem data');
   eq([kbCnpjAviso(ATIVA), kbCnpjAviso({ situacao: 'SUSPENSA' }), kbCnpjAviso({ situacao: 'NAO_ENCONTRADO' }), kbCnpjAviso(null)], [null, null, null, null],
      'sem aviso para ativa, suspensa, não encontrado ou sem consulta');
@@ -86,6 +86,13 @@ try{
   assert(hB.includes('kbTag late') && hB.includes('Verificar de novo') && hB.includes('kbFichaAviso') && hB.includes('desde 12/03/2024')
      && hB.includes('(motivo: extincao por encerramento)') && hB.includes('data-kb-cnpj-inapto'), 'baixada: selo vermelho, aviso e atalho');
   assert(!kbCnpjHtml(F3, { consulta: BAIXADA, podeInapto: false }).includes('data-kb-cnpj-inapto'), 'sem a opção CNPJ INAPTO: sem atalho');
+  // §136: link para o comprovante oficial (situação na hora), com o CNPJ só em dígitos; não aparece antes da 1ª consulta.
+  const dF3 = String(F3.cnpj).replace(/\\D/g, '');
+  assert(hB.includes('href="https://solucoes.receita.fazenda.gov.br/Servicos/cnpjreva/Cnpjreva_Solicitacao.asp?cnpj=' + dF3 + '"')
+     && hB.includes('target="_blank"') && hB.includes('rel="noopener"') && hB.includes('data-kb-cnpj-receita="' + dF3 + '"')
+     && hB.includes('Conferir no site da Receita'), 'baixada: link para o site da Receita');
+  assert(kbCnpjHtml(F3, { consulta: ATIVA }).includes('Conferir no site da Receita'), 'ativa: link também aparece');
+  assert(!h0.includes('data-kb-cnpj-receita'), 'nunca verificado: só o botão, sem link');
   const hA = kbCnpjHtml(F3, { consulta: ATIVA, erro: kbCnpjMsgErro(503) });
   assert(hA.includes('kbTag ok') && !hA.includes('kbFichaAviso') && hA.includes('Não foi possível consultar agora'), 'erro ao reverificar mantém o selo e mostra a mensagem');
   eq(kbCnpjHtml(Object.assign({}, F3, { cnpj: '123.456.789-0' }), {}), '<span class="kbMeta">CNPJ inválido (10 dígitos)</span>', 'CNPJ sem 14 dígitos');
