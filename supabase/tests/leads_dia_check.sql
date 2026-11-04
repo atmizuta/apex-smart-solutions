@@ -1,5 +1,5 @@
 -- §135: conferência da migration 20261103210000 (tudo desfeito no fim: o DO termina com exceção de propósito).
--- Rodar no execute_sql. O resultado vem na mensagem 'RESULTADO: ...'.
+-- Rodar no execute_sql. O resultado vem na mensagem 'RESULTADO: ...'. Ao mudar a migration, recopiar o corpo dela aqui.
 
 begin;
 -- §135: placar do dia (leads_dia_equipe) e relatório do consultor (leads_dia_consultor) na aba Equipe.
@@ -72,11 +72,14 @@ begin
     select c.profile_id as pid, c.em as t, c.canal from public.leads_contatos c where c.em >= v_ini and c.em < v_fim
   ), ld as (
     select * from public.leads_dia_leads(p_dia)
-  ), vend as (   -- venda: o dia começou sem venda (antes da 1ª classificação) e terminou com venda (depois da última)
+  ), vend as (   -- venda: o dia começou sem venda (antes da 1ª classificação dele) e terminou com venda
+                 -- (última classificação do lead no dia, de qualquer pessoa: se o supervisor desmarca, não conta)
     select v.por as v_por, count(*)::int as n, coalesce(sum(v.rec), 0) as rec from (
       select distinct on (x.por, x.lead_aba, x.lead_id) x.por,
-             coalesce((x.depois ->> 'converteu')::boolean, false) as fim_conv,
-             nullif(x.depois ->> 'receita', '')::numeric as rec,
+             (select coalesce((z.depois ->> 'converteu')::boolean, false) from h z
+               where z.acao = 'classificar' and z.lead_aba = x.lead_aba and z.lead_id = x.lead_id order by z.em desc limit 1) as fim_conv,
+             (select nullif(z.depois ->> 'receita', '')::numeric from h z
+               where z.acao = 'classificar' and z.lead_aba = x.lead_aba and z.lead_id = x.lead_id order by z.em desc limit 1) as rec,
              (select coalesce((y.antes ->> 'converteu')::boolean, false) from h y
                where y.acao = 'classificar' and y.por = x.por and y.lead_aba = x.lead_aba and y.lead_id = x.lead_id
                order by y.em limit 1) as ini_conv
@@ -174,7 +177,7 @@ begin
       union all select c.em from public.leads_contatos c where c.profile_id = p_dono and c.em > v_exp and c.em < v_corte
       union all select h.em from public.leads_historico h
                  where h.por = p_dono and h.acao in ('pegar', 'classificar') and h.em > v_exp and h.em < v_corte
-      union all select v_corte
+      union all select v_corte where p_dia < v_hoje   -- hoje: o trecho até agora não conta (ligações chegam com até 1 h de atraso)
     ), g as (select t.em as de, lead(t.em) over (order by t.em) as ate from t)
     select coalesce(jsonb_agg(jsonb_build_object('de', g.de, 'ate', g.ate, 'min', floor(extract(epoch from g.ate - g.de) / 60)::int) order by g.de), '[]'::jsonb)
       into v_par from g where g.ate is not null and g.ate - g.de > interval '30 minutes';
@@ -204,7 +207,8 @@ begin
 
   v_pend := jsonb_build_object(
     'retornos_atrasados', (select coalesce(jsonb_agg(jsonb_build_object('aba', a.lead_aba, 'lead_id', a.lead_id, 'nome', a.nome, 'quando', a.quando) order by a.quando), '[]'::jsonb)
-                             from public.agenda_retornos a where a.consultor_id = p_dono and a.status = 'pendente' and a.quando < now()),
+                             from public.agenda_retornos a join public.leads l on l.aba = a.lead_aba and l.id = a.lead_id and l.apagado_em is null
+                            where a.consultor_id = p_dono and a.status = 'pendente' and a.quando < now()),   -- só retornos de lead (o Caderno não tem ficha)
     'sem_contato', (select coalesce(jsonb_agg(jsonb_build_object('aba', l.aba, 'lead_id', l.id, 'nome', l.full_name, 'pego_em', l.pego_em) order by l.pego_em), '[]'::jsonb)
                       from public.leads l where l.dono_id = p_dono and l.categoria = 'sem_contato' and l.apagado_em is null));
 
@@ -218,59 +222,100 @@ revoke execute on function public.leads_dia_consultor(uuid, date) from public, a
 grant execute on function public.leads_dia_equipe(date) to authenticated;
 grant execute on function public.leads_dia_consultor(uuid, date) to authenticated;
 
+-- Dados fictícios (repo público). Dia de teste: 2026-10-05 (segunda), anterior ao histórico de leads (27/10),
+-- então só estes dados entram em pegos/classificados/vendas. Usuários fictícios criados aqui (padrão da leads_atividade_equipe2_check).
+insert into auth.users (id, instance_id, aud, role, email) values
+('00000000-0000-0000-0000-00000000e701', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'zz.dia.a@teste.invalid'),
+('00000000-0000-0000-0000-00000000e702', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'zz.dia.b@teste.invalid'),
+('00000000-0000-0000-0000-00000000e703', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'zz.dia.sup@teste.invalid');
+insert into public.profiles (id, nome, username, role, operacao) values
+('00000000-0000-0000-0000-00000000e701', 'Zzdiaa Teste', 'zz.dia.a', 'consultor', 'apex'),
+('00000000-0000-0000-0000-00000000e702', 'Zzdiab Teste', 'zz.dia.b', 'consultor', 'apex'),
+('00000000-0000-0000-0000-00000000e703', 'Zzdiasup Teste', 'zz.dia.sup', 'supervisor', 'apex')
+on conflict (id) do update set nome = excluded.nome, role = excluded.role, operacao = excluded.operacao;
+insert into public.leads_equipe (nome_planilha, profile_id, monitorar, pode_pegar, usuario_telefonia) values
+('ZZDIAA', '00000000-0000-0000-0000-00000000e701', false, false, 'zz.dia.a.tel'),
+('ZZDIAB', '00000000-0000-0000-0000-00000000e702', false, false, null);
+insert into public.leads (aba, id, full_name, phone_number, criado_em_lead, categoria) values
+('ZZTESTE', 'zz1', 'Zz Lead Um', '+5511900000071', '2026-10-05 12:00-03', 'sem_contato'),
+('ZZTESTE', 'zz2', 'Zz Lead Dois', '+5511900000072', '2026-10-05 12:00-03', 'sem_contato'),
+('ZZTESTE', 'zz3', 'Zz Lead Tres', '+5511900000073', '2026-10-05 12:00-03', 'sem_contato'),
+('ZZTESTE', 'zz4', 'Zz Lead Quatro', '+5511900000074', '2026-10-05 12:00-03', 'sem_contato'),
+('ZZTESTE', 'zz5', 'Zz Lead Cinco', '+5511900000075', '2026-10-05 12:00-03', 'sem_contato');
+insert into public.leads_historico (lead_aba, lead_id, acao, por, em, antes, depois) values
+('ZZTESTE', 'zz1', 'pegar', '00000000-0000-0000-0000-00000000e701', '2026-10-05 13:00-03', null, '{"consultor":"ZZDIAA"}'),
+('ZZTESTE', 'zz1', 'classificar', '00000000-0000-0000-0000-00000000e701', '2026-10-05 13:10-03', '{"obs":null,"converteu":false}', '{"obs":"ok","converteu":true,"receita":"100","status":"FECHADO"}'),
+('ZZTESTE', 'zz2', 'redistribuir', '00000000-0000-0000-0000-00000000e703', '2026-10-05 14:00-03', '{"dono_id":"00000000-0000-0000-0000-00000000e702"}', '{"dono_id":"00000000-0000-0000-0000-00000000e701","consultor":"ZZDIAA"}'),
+('ZZTESTE', 'zz2', 'classificar', '00000000-0000-0000-0000-00000000e701', '2026-10-05 14:30-03', '{"converteu":false}', '{"converteu":true,"receita":"50"}'),
+('ZZTESTE', 'zz2', 'classificar', '00000000-0000-0000-0000-00000000e701', '2026-10-05 14:40-03', '{"converteu":true}', '{"converteu":false,"status":"EM NEGOCIAÇÂO"}'),
+('ZZTESTE', 'zz3', 'pegar', '00000000-0000-0000-0000-00000000e701', '2026-10-05 15:00-03', null, '{"consultor":"ZZDIAA"}'),
+('ZZTESTE', 'zz3', 'redistribuir', '00000000-0000-0000-0000-00000000e703', '2026-10-05 16:00-03', '{"dono_id":"00000000-0000-0000-0000-00000000e701"}', '{"dono_id":"00000000-0000-0000-0000-00000000e702","consultor":"ZZDIAB"}'),
+-- zz5: A marca venda e o supervisor desmarca no mesmo dia → não conta para A (spec)
+('ZZTESTE', 'zz5', 'classificar', '00000000-0000-0000-0000-00000000e701', '2026-10-05 16:50-03', '{"converteu":false}', '{"converteu":true,"receita":"70"}'),
+('ZZTESTE', 'zz5', 'classificar', '00000000-0000-0000-0000-00000000e703', '2026-10-05 16:55-03', '{"converteu":true}', '{"converteu":false}'),
+-- zz4: B vende 1 sem nenhuma ligação → empata em vendas com A e fica atrás pelas atendidas
+('ZZTESTE', 'zz4', 'classificar', '00000000-0000-0000-0000-00000000e702', '2026-10-05 15:30-03', '{"converteu":false}', '{"converteu":true,"receita":"10"}');
+insert into public.ligacoes_manuais (id, usuario, telefone, chave_tel, gerada_em, atendida, seg_falados, tabulacao) values
+(999710001, 'zz.dia.a.tel', '11900000071', public.chave_tel('+5511900000071'), '2026-10-05 13:06-03', true, 120, 'ZZ TAB'),
+(999710002, 'ZZ.DIA.A.TEL ', '11900000099', public.chave_tel('11900000099'), '2026-10-05 17:00-03', false, 0, 'ZZ TAB'),
+(999710003, 'zz.dia.a.tel', '11900000098', public.chave_tel('11900000098'), (date_trunc('day', now() at time zone 'America/Sao_Paulo') + interval '13 hours 30 seconds') at time zone 'America/Sao_Paulo', false, 0, 'ZZ TAB');
+insert into public.leads_contatos (lead_aba, lead_id, profile_id, canal, em) values
+('ZZTESTE', 'zz2', '00000000-0000-0000-0000-00000000e701', 'whatsapp', '2026-10-05 14:20-03');
+insert into public.agenda_retornos (id, consultor_id, nome, telefone, chave_tel, quando, tipo, status, origem, lead_aba, lead_id) values
+(gen_random_uuid(), '00000000-0000-0000-0000-00000000e701', 'Zz Lead Um', '11900000071', public.chave_tel('11900000071'), '2026-10-05 18:00-03', 'ligacao', 'feito', 'manual', 'ZZTESTE', 'zz1'),
+(gen_random_uuid(), '00000000-0000-0000-0000-00000000e701', 'Zz Lead Dois', '11900000072', public.chave_tel('11900000072'), '2026-10-05 19:00-03', 'ligacao', 'pendente', 'manual', 'ZZTESTE', 'zz2'),
+-- retorno do Caderno (sem lead), atrasado em outro dia: entra no placar do dia dele, não nas pendências com link
+(gen_random_uuid(), '00000000-0000-0000-0000-00000000e701', 'Zz Caderno', '11900000097', public.chave_tel('11900000097'), '2026-10-06 10:00-03', 'ligacao', 'pendente', 'manual', null, null);
+
 do $$
 declare
-  v_adm uuid := (select id from public.profiles where role = 'admin' order by created_at limit 1);
-  v_cons uuid := (select profile_id from public.leads_equipe where profile_id is not null order by id limit 1);
-  v_outro uuid := gen_random_uuid();
+  a uuid := '00000000-0000-0000-0000-00000000e701'; b uuid := '00000000-0000-0000-0000-00000000e702';
+  sup uuid := '00000000-0000-0000-0000-00000000e703';
   d date := '2026-10-05'; t timestamptz := '2026-10-05 00:00:00-03';
-  r record; j jsonb; v_out text := '';
+  hoje date := (now() at time zone 'America/Sao_Paulo')::date;
+  min_sp int := extract(hour from now() at time zone 'America/Sao_Paulo')::int * 60 + extract(minute from now() at time zone 'America/Sao_Paulo')::int;
+  r record; rb record; j jsonb; v_out text := '';
 begin
-  perform set_config('request.jwt.claims', json_build_object('sub', v_adm, 'role', 'authenticated')::text, true);
-  insert into public.leads_equipe (nome_planilha, usuario_telefonia, profile_id, pode_pegar) values ('ZZTESTE', 'zz.teste.dia', v_adm, false);
-  insert into public.leads (aba, id, full_name, phone_number, criado_em_lead, categoria) values
-    ('ZZTESTE', 'zz1', 'Zz Lead Um', '+5511900000001', t + interval '12 hours', 'sem_contato'),
-    ('ZZTESTE', 'zz2', 'Zz Lead Dois', '+5511900000002', t + interval '12 hours', 'sem_contato'),
-    ('ZZTESTE', 'zz3', 'Zz Lead Tres', '+5511900000003', t + interval '12 hours', 'sem_contato');
-  insert into public.leads_historico (lead_aba, lead_id, acao, por, em, antes, depois) values
-    ('ZZTESTE', 'zz1', 'pegar', v_adm, t + interval '13 hours', null, '{"consultor":"ZZTESTE"}'),
-    ('ZZTESTE', 'zz1', 'classificar', v_adm, t + interval '13 hours 10 minutes', '{"obs":null,"converteu":false}', '{"obs":"ok","converteu":true,"receita":"100","status":"FECHADO"}'),
-    ('ZZTESTE', 'zz2', 'redistribuir', v_cons, t + interval '14 hours', json_build_object('dono_id', v_outro)::jsonb, json_build_object('dono_id', v_adm, 'consultor', 'ZZTESTE')::jsonb),
-    ('ZZTESTE', 'zz2', 'classificar', v_adm, t + interval '14 hours 30 minutes', '{"converteu":false}', '{"converteu":true,"receita":"50"}'),
-    ('ZZTESTE', 'zz2', 'classificar', v_adm, t + interval '14 hours 40 minutes', '{"converteu":true}', '{"converteu":false,"status":"EM NEGOCIAÇÂO"}'),
-    ('ZZTESTE', 'zz3', 'pegar', v_adm, t + interval '15 hours', null, '{"consultor":"ZZTESTE"}'),
-    ('ZZTESTE', 'zz3', 'redistribuir', v_cons, t + interval '16 hours', json_build_object('dono_id', v_adm)::jsonb, json_build_object('dono_id', v_outro, 'consultor', 'ZZOUTRO')::jsonb);
-  insert into public.ligacoes_manuais (usuario, telefone, chave_tel, gerada_em, atendida, seg_falados) values
-    ('zz.teste.dia', '11900000001', public.chave_tel('+5511900000001'), t + interval '13 hours 6 minutes', true, 120),
-    ('zz.teste.dia', '11900000099', public.chave_tel('11900000099'), t + interval '17 hours', false, 0);
-  insert into public.leads_contatos (lead_aba, lead_id, profile_id, canal, em) values ('ZZTESTE', 'zz2', v_adm, 'whatsapp', t + interval '14 hours 20 minutes');
-  insert into public.agenda_retornos (consultor_id, nome, telefone, chave_tel, quando, tipo, status, origem, lead_aba, lead_id) values
-    (v_adm, 'Zz Lead Um', '11900000001', public.chave_tel('11900000001'), t + interval '18 hours', 'retorno', 'feito', 'teste', 'ZZTESTE', 'zz1'),
-    (v_adm, 'Zz Lead Dois', '11900000002', public.chave_tel('11900000002'), t + interval '19 hours', 'retorno', 'pendente', 'teste', 'ZZTESTE', 'zz2');
-
-  select * into r from public.leads_dia_equipe(d) x where x.dono_id = v_adm;
+  execute 'set local role authenticated';
+  perform set_config('request.jwt.claims', json_build_object('sub', sup, 'role', 'authenticated')::text, true);
+  perform set_config('request.jwt.claim.sub', sup::text, true);
+  select * into r from public.leads_dia_equipe(d) x where x.dono_id = a;
+  select * into rb from public.leads_dia_equipe(d) x where x.dono_id = b;
   v_out := v_out || case when r.pegos = 2 and r.recebidos = 1 and r.perdidos = 1 then '1 ok; ' else format('1 FALHOU %s/%s/%s; ', r.pegos, r.recebidos, r.perdidos) end;
   v_out := v_out || case when r.ligacoes = 2 and r.atendidas = 1 and r.min_falados = 2 and r.whatsapp = 1 then '2 ok; ' else format('2 FALHOU %s/%s/%s/%s; ', r.ligacoes, r.atendidas, r.min_falados, r.whatsapp) end;
   v_out := v_out || case when r.primeiro_contato_mediana_min = 13.0 and r.sem_ligar = 1 then '3 ok; ' else format('3 FALHOU %s/%s; ', r.primeiro_contato_mediana_min, r.sem_ligar) end;
-  v_out := v_out || case when r.classificados = 3 and r.obs = 1 then '4 ok; ' else format('4 FALHOU %s/%s; ', r.classificados, r.obs) end;
+  v_out := v_out || case when r.classificados = 4 and r.obs = 1 then '4 ok; ' else format('4 FALHOU %s/%s; ', r.classificados, r.obs) end;
   v_out := v_out || case when r.retornos_feitos = 1 and r.retornos_atrasados = 1 then '5 ok; ' else format('5 FALHOU %s/%s; ', r.retornos_feitos, r.retornos_atrasados) end;
-  v_out := v_out || case when r.vendas = 1 and r.receita = 100 then '6 ok; ' else format('6 FALHOU %s/%s; ', r.vendas, r.receita) end;
-  v_out := v_out || case when r.jornada_inicio = t + interval '13 hours' and r.jornada_fim = t + interval '17 hours' and r.posicao = 1 then '7 ok; ' else format('7 FALHOU %s/%s/%s; ', r.jornada_inicio, r.jornada_fim, r.posicao) end;
+  v_out := v_out || case when r.vendas = 1 and r.receita = 100 then '6 ok; ' else format('6 FALHOU (venda desmarcada por outro) %s/%s; ', r.vendas, r.receita) end;
+  v_out := v_out || case when r.jornada_inicio = t + interval '13 hours' and r.jornada_fim = t + interval '17 hours' then '7 ok; ' else format('7 FALHOU %s/%s; ', r.jornada_inicio, r.jornada_fim) end;
+  v_out := v_out || case when r.posicao < rb.posicao and rb.vendas = 1 and not rb.tem_telefonia and rb.ligacoes = 0 then '7b ok; ' else format('7b FALHOU A=%s B=%s/%s; ', r.posicao, rb.posicao, rb.vendas) end;
 
-  j := public.leads_dia_consultor(v_adm, d);
+  j := public.leads_dia_consultor(a, d);
   v_out := v_out || case when jsonb_array_length(j -> 'leads') = 3 and (select count(*) from jsonb_array_elements(j -> 'leads') e where e ->> 'como' = 'recebeu') = 1
                           and jsonb_array_length(j -> 'perdidos') = 1 then '8 ok; ' else '8 FALHOU ' || (j -> 'leads')::text || '; ' end;
   v_out := v_out || case when jsonb_array_length(j -> 'parados') = 3 and (j -> 'parados' -> 0 ->> 'min')::int = 70 then '9 ok; ' else '9 FALHOU ' || (j -> 'parados')::text || '; ' end;
   v_out := v_out || case when (j -> 'por_hora' -> 0 ->> 'ligacoes')::int = 1 and (j -> 'por_hora' -> 0 ->> 'atendidas')::int = 1
                           and (j -> 'por_hora' -> 4 ->> 'ligacoes')::int = 1 and j ->> 'historico_desde' = '2026-10-27' then '10 ok; ' else '10 FALHOU ' || (j -> 'por_hora')::text || '; ' end;
   v_out := v_out || case when (j -> 'numeros' ->> 'vendas')::int = 1 and j -> 'media_equipe' ? 'vendas' then '11 ok; ' else '11 FALHOU; ' end;
+  v_out := v_out || case when jsonb_array_length(j -> 'pendencias' -> 'retornos_atrasados') = 1 and j -> 'pendencias' -> 'retornos_atrasados' -> 0 ->> 'lead_id' = 'zz2'
+                          then '14 ok; ' else '14 FALHOU (retorno sem lead nas pendências) ' || (j -> 'pendencias')::text || '; ' end;
+  -- hoje: o trecho entre a última atividade conhecida e agora não vira "parado" (ligações chegam com até 1 h de atraso)
+  if extract(isodow from hoje) < 6 and min_sp between 13 * 60 + 31 and 21 * 60 - 1 then
+    j := public.leads_dia_consultor(a, hoje);
+    v_out := v_out || case when jsonb_array_length(j -> 'parados') = 0 then '15 ok; ' else '15 FALHOU (parado em aberto hoje) ' || (j -> 'parados')::text || '; ' end;
+  else
+    v_out := v_out || '15 pulado (fora de 13:31–21:00 seg–sex); ';
+  end if;
 
-  begin perform public.leads_dia_equipe(current_date + 2); v_out := v_out || '12 FALHOU; ';
+  begin perform public.leads_dia_equipe(hoje + 2); v_out := v_out || '12 FALHOU; ';
   exception when others then v_out := v_out || case when sqlerrm = 'data no futuro' then '12 ok; ' else '12 FALHOU ' || sqlerrm || '; ' end; end;
-  perform set_config('request.jwt.claims', json_build_object('sub', v_cons, 'role', 'authenticated')::text, true);
+  begin perform public.leads_dia_leads(d); v_out := v_out || '16 FALHOU (interna acessível); ';
+  exception when insufficient_privilege then v_out := v_out || '16 ok; '; end;
+  perform set_config('request.jwt.claims', json_build_object('sub', a, 'role', 'authenticated')::text, true);
+  perform set_config('request.jwt.claim.sub', a::text, true);
   begin perform public.leads_dia_equipe(d); v_out := v_out || '13 FALHOU; ';
   exception when others then v_out := v_out || case when sqlerrm = 'sem permissão' then '13 ok; ' else '13 FALHOU ' || sqlerrm || '; ' end; end;
-  begin perform public.leads_dia_consultor(v_adm, d); v_out := v_out || '13b FALHOU';
+  begin perform public.leads_dia_consultor(a, d); v_out := v_out || '13b FALHOU';
   exception when others then v_out := v_out || case when sqlerrm = 'sem permissão' then '13b ok' else '13b FALHOU ' || sqlerrm end; end;
   raise exception 'RESULTADO: %', v_out;
 end $$;

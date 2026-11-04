@@ -68,11 +68,14 @@ begin
     select c.profile_id as pid, c.em as t, c.canal from public.leads_contatos c where c.em >= v_ini and c.em < v_fim
   ), ld as (
     select * from public.leads_dia_leads(p_dia)
-  ), vend as (   -- venda: o dia começou sem venda (antes da 1ª classificação) e terminou com venda (depois da última)
+  ), vend as (   -- venda: o dia começou sem venda (antes da 1ª classificação dele) e terminou com venda
+                 -- (última classificação do lead no dia, de qualquer pessoa: se o supervisor desmarca, não conta)
     select v.por as v_por, count(*)::int as n, coalesce(sum(v.rec), 0) as rec from (
       select distinct on (x.por, x.lead_aba, x.lead_id) x.por,
-             coalesce((x.depois ->> 'converteu')::boolean, false) as fim_conv,
-             nullif(x.depois ->> 'receita', '')::numeric as rec,
+             (select coalesce((z.depois ->> 'converteu')::boolean, false) from h z
+               where z.acao = 'classificar' and z.lead_aba = x.lead_aba and z.lead_id = x.lead_id order by z.em desc limit 1) as fim_conv,
+             (select nullif(z.depois ->> 'receita', '')::numeric from h z
+               where z.acao = 'classificar' and z.lead_aba = x.lead_aba and z.lead_id = x.lead_id order by z.em desc limit 1) as rec,
              (select coalesce((y.antes ->> 'converteu')::boolean, false) from h y
                where y.acao = 'classificar' and y.por = x.por and y.lead_aba = x.lead_aba and y.lead_id = x.lead_id
                order by y.em limit 1) as ini_conv
@@ -170,7 +173,7 @@ begin
       union all select c.em from public.leads_contatos c where c.profile_id = p_dono and c.em > v_exp and c.em < v_corte
       union all select h.em from public.leads_historico h
                  where h.por = p_dono and h.acao in ('pegar', 'classificar') and h.em > v_exp and h.em < v_corte
-      union all select v_corte
+      union all select v_corte where p_dia < v_hoje   -- hoje: o trecho até agora não conta (ligações chegam com até 1 h de atraso)
     ), g as (select t.em as de, lead(t.em) over (order by t.em) as ate from t)
     select coalesce(jsonb_agg(jsonb_build_object('de', g.de, 'ate', g.ate, 'min', floor(extract(epoch from g.ate - g.de) / 60)::int) order by g.de), '[]'::jsonb)
       into v_par from g where g.ate is not null and g.ate - g.de > interval '30 minutes';
@@ -200,7 +203,8 @@ begin
 
   v_pend := jsonb_build_object(
     'retornos_atrasados', (select coalesce(jsonb_agg(jsonb_build_object('aba', a.lead_aba, 'lead_id', a.lead_id, 'nome', a.nome, 'quando', a.quando) order by a.quando), '[]'::jsonb)
-                             from public.agenda_retornos a where a.consultor_id = p_dono and a.status = 'pendente' and a.quando < now()),
+                             from public.agenda_retornos a join public.leads l on l.aba = a.lead_aba and l.id = a.lead_id and l.apagado_em is null
+                            where a.consultor_id = p_dono and a.status = 'pendente' and a.quando < now()),   -- só retornos de lead (o Caderno não tem ficha)
     'sem_contato', (select coalesce(jsonb_agg(jsonb_build_object('aba', l.aba, 'lead_id', l.id, 'nome', l.full_name, 'pego_em', l.pego_em) order by l.pego_em), '[]'::jsonb)
                       from public.leads l where l.dono_id = p_dono and l.categoria = 'sem_contato' and l.apagado_em is null));
 
