@@ -213,7 +213,9 @@ select coalesce(m.socio_nome, '') as nome, coalesce(m.razao_social, '') as descr
 // Mesmo resultado da consulta única: menos usados primeiro, sorteio fixo entre iguais.
 export const TRECHO_PAGINAS_MIN = 1024;
 export const TRECHO_PAGINAS_MAX = 32768; // ~256 MB: ~19 s com o disco no mínimo
-export const TRECHO_USADAS = 250_000; // linhas do índice de uso por chamada na fase 2
+// 04/11 (seção 134): era 250 mil. Sem vacuum, o "index only scan" da janela lê a tabela linha por linha (250 mil leituras,
+// 92 s medidos) e, somado ao trecho, passou de 150 s: 504 no meio do pedido do Guilherme. 50 mil ≈ 1/5 do tempo por chamada.
+export const TRECHO_USADAS = 50_000; // linhas do índice de uso por chamada na fase 2
 const MAX_PAGINA = 100_000_000;
 
 export type Cursor = { ue: string; so: number };

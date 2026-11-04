@@ -395,22 +395,21 @@ try{
   document.getElementById('btnMbExportar').click(); await ateTerminar();
   eq(chamadas.map(c => c.body.acao).slice(0, 2), ['neo', 'extrair'], 'busca a lista do NeoSales antes de extrair');
   eq(extrairChamadas().map(b => b.quantidade), [6, 4, 1], 'removidos não contam: pede de novo até completar');
-  eq(baixados.map(b => b.nome), ['NEO_2026-10-22.csv', 'NEO_2026-10-22_REMOVIDOS.csv'], 'mailing e REMOVIDOS');
+  eq(baixados.map(b => b.nome), ['NEO_2026-10-22.csv'], 'só o mailing: REMOVIDOS não é baixado (seção 134)');
   const ficamEsperado = [L('00000000000272', '11900000002'), L('00000000000434', '11900000003'), L('00000000000596', '11900000004'),
     L('00000000000677', '11900000005'), L('00000000000758', '11900000006'), L('00000000000839', '11900000007')];
   eq(baixados[0] && baixados[0].blob.size, mbParaCp1252(mbMontarCsv(colsExp, ficamEsperado)).length, 'mailing com as 6 linhas que ficaram');
   const remEsperado = mbClassificar(colsExp, respostasNeo().flat(), { neo: new Map([['00000000000191', empresaNeo]]), duplicados: true }, { vistos: new Map() }).removidos;
   eq(remEsperado.map(r => r.motivo), ['Pedido no NeoSales', 'Telefone repetido', 'Telefone repetido'], 'repetido entre trechos também sai');
-  eq(baixados[1] && baixados[1].blob.size, mbParaCp1252(mbMontarRemovidos(remEsperado)).length, 'REMOVIDOS com as 3 linhas');
   eq(chamadas.filter(c => c.body.acao === 'fechar_parte').map(c => [c.body.parte, c.body.neo, c.body.repetidos]), [[1, 1, 2]], 'histórico recebe as removidas da parte');
   assert(avisos[0] && avisos[0][0] === 'ok' && avisos[0][1].includes('6 linhas') && avisos[0][1].includes('1 com pedido no NeoSales')
     && avisos[0][1].includes('2 telefones repetidos'), 'aviso com as removidas por motivo');
 
-  // tudo removido num trecho e o filtro acaba: não trava e baixa só o REMOVIDOS
+  // tudo removido num trecho e o filtro acaba: não trava e não baixa nada
   window.__fnRespostas.extrair = extrairNeo([[L('00000000000191', '11900000001')]], 'SO_2026-10-22.csv');
   baixados.length = 0; avisos.length = 0; chamadas.length = 0;
   document.getElementById('btnMbExportar').click(); await ateTerminar();
-  eq(baixados.map(b => b.nome), ['SO_2026-10-22_REMOVIDOS.csv'], 'tudo removido: só o arquivo REMOVIDOS');
+  eq(baixados.map(b => b.nome), [], 'tudo removido: nenhum arquivo');
   assert(avisos[0] && avisos[0][0] === 'info' && avisos[0][1].includes('Nenhuma linha ficou'), 'aviso de que nada ficou');
   eq(chamadas.filter(c => c.body.acao === 'fechar_parte').map(c => [c.body.parte, c.body.neo, c.body.repetidos]), [[1, 1, 0]], 'histórico recebe as removidas mesmo sem arquivo');
 
@@ -419,7 +418,7 @@ try{
   window.__fnRespostas.extrair = extrairNeo(respostasNeo(), 'NEO_2026-10-22.csv');
   baixados.length = 0; avisos.length = 0;
   document.getElementById('btnMbExportar').click(); await ateTerminar();
-  assert(baixados.length === 2 && avisos[0] && avisos[0][0] === 'ok' && avisos[0][1].includes('histórico não registrou'), 'falha no histórico não perde os arquivos');
+  assert(baixados.length === 1 && avisos[0] && avisos[0][0] === 'ok' && avisos[0][1].includes('histórico não registrou'), 'falha no histórico não perde os arquivos');
   window.__fnRespostas.fechar_parte = { data: { ok: true }, error: null };
 
   // sem a lista do NeoSales o pedido não começa
@@ -461,7 +460,7 @@ try{
   document.getElementById('mbCarga').value = 'GRANDE'; document.getElementById('mbQtd').value = '200000';
   document.getElementById('btnMbExportar').click(); await ateTerminar();
   eq(extrairChamadas().map(b => [b.quantidade, b.parte]), [[100000, 1], [1, 1], [1, 1], [100000, 2], [1, 2]], 'pede de novo o que foi removido, na parte certa');
-  eq(baixados.map(b => b.nome), ['GRANDE_2026-10-22_parte1de2.csv', 'GRANDE_2026-10-22_parte2de2.csv', 'GRANDE_2026-10-22_REMOVIDOS.csv'], 'dois arquivos de 100 mil e o REMOVIDOS');
+  eq(baixados.map(b => b.nome), ['GRANDE_2026-10-22_parte1de2.csv', 'GRANDE_2026-10-22_parte2de2.csv'], 'dois arquivos de 100 mil, sem REMOVIDOS');
   eq(chamadas.filter(c => c.body.acao === 'fechar_parte').map(c => [c.body.parte, c.body.neo, c.body.repetidos]), [[1, 1, 1], [2, 0, 1]], 'removidas registradas em cada parte');
   assert(avisos[0] && avisos[0][1].includes('200.000 linhas em 2 arquivos'), 'aviso com as 200 mil linhas');
 
@@ -473,16 +472,15 @@ try{
   const arq = (name, buf) => ({ name, arrayBuffer: async () => buf });
   const cp = t => mbParaCp1252(t).slice().buffer;
   const comMarca = t => { const b = mbParaCp1252(t); const u = new Uint8Array(b.length + 3); u.set([0xEF, 0xBB, 0xBF]); u.set(b, 3); return u.buffer; };
-  const hojeSP = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
   baixados.length = 0; avisos.length = 0;
   await mbLimparArquivos([arq('A.csv', cp(csvA)), arq('B.csv', comMarca(csvB.replace('documento2', 'DOCUMENTO2')))], 'duplicados');
-  eq(baixados.map(b => b.nome), ['A_LIMPO.csv', 'B_LIMPO.csv', 'REMOVIDOS_' + hojeSP + '.csv'], 'um LIMPO por arquivo e um REMOVIDOS');
+  eq(baixados.map(b => b.nome), ['A_LIMPO.csv', 'B_LIMPO.csv'], 'um LIMPO por arquivo, sem REMOVIDOS');
   eq(baixados[1] && baixados[1].blob.size, mbParaCp1252(mbMontarCsv(colsExp, [L('00000000000434', '11900000003')])).length,
     'repetido entre arquivos sai do segundo (UTF-8 com marca e cabeçalho em maiúsculas lidos certo)');
   assert(avisos[0] && avisos[0][0] === 'ok' && avisos[0][1].includes('2 arquivos limpos') && avisos[0][1].includes('removidas: 1'), 'aviso da limpeza');
   baixados.length = 0; avisos.length = 0;
   await mbLimparArquivos([arq('A.csv', cp(csvA))], 'neo');
-  eq(baixados.map(b => b.nome), ['A_LIMPO.csv', 'REMOVIDOS_' + hojeSP + '.csv'], 'Cruzar com o NEO num arquivo antigo');
+  eq(baixados.map(b => b.nome), ['A_LIMPO.csv'], 'Cruzar com o NEO num arquivo antigo');
   eq(baixados[0] && baixados[0].blob.size, mbParaCp1252(mbMontarCsv(colsExp, [L('00000000000272', '11900000002')])).length, 'tirou a empresa com pedido');
   baixados.length = 0; avisos.length = 0;
   await mbLimparArquivos([arq('X.csv', cp('a;b\\r\\n1;2\\r\\n'))], 'duplicados');
