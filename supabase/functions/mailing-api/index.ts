@@ -36,6 +36,8 @@ function hojeSP(): string {
     .format(new Date());
 }
 
+const LIMITE_TRECHO_MS = 110_000; // abaixo dos 150 s do gateway, com folga para conexão e resposta
+
 function criarDeps(sql: postgres.Sql): DepsApi {
   const p = (w: SqlParte) => w.params as never[];
   return {
@@ -70,17 +72,24 @@ function criarDeps(sql: postgres.Sql): DepsApi {
       });
     },
     // 22/10 (seção 102.10): um trecho limitado por chamada; o painel repete até completar o pedido
+    // 04/11 (seção 134.1): a chamada inteira cabe em LIMITE_TRECHO_MS. Antes eram 100 s por comando: dois comandos lentos
+    // passaram dos 150 s do gateway (504 sem resposta). Agora o banco desiste antes, desfaz tudo (nenhuma linha fica marcada
+    // sem ir para o arquivo) e a função responde 504 "demorou demais" — o painel tenta o mesmo trecho de novo.
     async extrairTrecho(w, ped, reg) {
+      const comeco = Date.now();
       return await sql.begin(async (tx) => {
-        await tx.unsafe("set local statement_timeout = '100s'");
+        const prazo = () => tx.unsafe(`set local statement_timeout = ${Math.max(1000, LIMITE_TRECHO_MS - (Date.now() - comeco))}`);
+        await prazo();
         await tx.unsafe("set local work_mem = '64MB'");
         // um trecho por vez: o seguinte já enxerga o que o anterior marcou
         await tx.unsafe("select pg_advisory_xact_lock(hashtext('mailing.extracao'))");
+        await prazo();
         const [parte] = await tx.unsafe(SQL_PARTE, [reg.pedido, reg.parte, reg.user_id] as never[]);
         // estimativa do registro: antes de marcar, como na extração de uma vez
         const total = parte ? 0 : Number((await tx.unsafe(sqlTotalFiltro(w), p(w)))[0].n);
         let linhas: (LinhaExport & Record<string, unknown>)[] = [];
         let resultado: ResultadoTrecho;
+        await prazo();
         if (ped.trecho.fase === 1) {
           const [pg] = await tx.unsafe(SQL_PAGINAS);
           const paginas = Number(pg.n), de = ped.trecho.pagina;
@@ -94,6 +103,7 @@ function criarDeps(sql: postgres.Sql): DepsApi {
           const j = sqlJanelaUsadas(ped.inicio, ped.trecho.apos);
           const [jan] = await tx.unsafe(j.sql, j.params as never[]);
           const fim = jan ? { ue: String(jan.ue), so: Number(jan.so) } : null;
+          await prazo();
           if (fim) {
             const q = sqlTrechoUsadas(w, ped.inicio, ped.trecho.apos, fim, ped.quantidade);
             linhas = [...(await tx.unsafe(q.sql, q.params as never[]))] as unknown as typeof linhas;

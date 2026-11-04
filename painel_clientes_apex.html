@@ -16445,9 +16445,23 @@ async function mbChamar(acao, extra){
       const ctx = r.error.context;
       if(ctx && typeof ctx.json === 'function'){ const j = await ctx.json(); if(j && j.erro) msg = String(j.erro); }
     }catch(_){}
-    return { erro: msg };
+    const status = r.error.context && Number(r.error.context.status) || 0;
+    return { erro: msg, status };
   }
   return { data: r.data || {} };
+}
+// 04/11 (seção 134.1): uma chamada da extração que falha por tempo, servidor ou rede é repetida (o banco desfaz a chamada
+// que não terminou, então repetir o mesmo trecho não perde nem duplica linha). Erro de pedido (400/403) não é repetido.
+let MB_REPETIR_ESPERAS = [5000, 15000, 30000];
+async function mbChamarRepetindo(acao, extra, aoRepetir){
+  let r = await mbChamar(acao, extra);
+  for(let i = 0; r.erro && !(r.status >= 400 && r.status < 500) && i < MB_REPETIR_ESPERAS.length && !mbEstado.parar; i++){
+    if(aoRepetir) aoRepetir(i + 1, MB_REPETIR_ESPERAS.length);
+    await new Promise(ok => setTimeout(ok, MB_REPETIR_ESPERAS[i]));
+    if(mbEstado.parar) break;
+    r = await mbChamar(acao, extra);
+  }
+  return r;
 }
 function mbOpcoesDo(tipo){ return (mbEstado.opcoes || []).filter(o => o.tipo === tipo); }
 function mbSelecionados(id, numero){ return Array.from(document.getElementById(id).selectedOptions).map(o => numero ? Number(o.value) : o.value); }
@@ -16860,7 +16874,9 @@ async function mbExportarPedido(carga, total, filtros, opcoes){
       const faltam = Math.min(MB_MAX_QTD - buf.length, total - entregue - buf.length);
       if(faltam <= 0) break;
       const t = trecho.fase === 1 ? { fase: 1, pagina: trecho.pagina, paginas: mbPaginasTrecho(faltam, lidas, achadas) } : trecho;
-      const r = await mbChamar('extrair', { filtros: f, quantidade: faltam, nome_carga: carga, pedido, parte: arquivos + 1, trecho: t });
+      const r = await mbChamarRepetindo('extrair', { filtros: f, quantidade: faltam, nome_carga: carga, pedido, parte: arquivos + 1, trecho: t },
+        (i, n) => { txt.textContent = 'A base demorou para responder. Tentando de novo (' + i + ' de ' + n + ')… · '
+          + mbFmtNum(entregue + buf.length) + ' de ' + mbFmtNum(total) + ' linhas.'; });
       if(r.erro){ erro = r.erro; break; }
       const d = r.data, linhas = d.linhas || [];
       colunas = d.colunas; nome = d.nome_arquivo;

@@ -53,6 +53,7 @@ try{
   const espera = (ms) => new Promise(r => setTimeout(r, ms || 20));
   const avisos = [];
   mostrarAviso = (msg, tipo) => avisos.push([tipo, String(msg)]);
+  MB_REPETIR_ESPERAS = [1, 1, 1]; // seção 134.1: sem esperar segundos entre as tentativas nos testes
 
   // ==== TASK 4: funções puras ====
   eq(mbFiltrosPadrao(), { situacao: ['ATIVA'], excluir_obito: true }, 'filtros padrão (a base só tem celular do mailing: tipo e origem não entram)');
@@ -373,6 +374,34 @@ try{
   document.getElementById('btnMbExportar').click(); await ateTerminar();
   eq(baixados.length, 1, 'erro no meio: baixa as linhas que já saíram');
   assert(avisos[0] && avisos[0][0] === 'erro' && avisos[0][1].includes('Falha ao consultar') && avisos[0][1].includes('500 linhas'), 'aviso de erro com o que já foi baixado');
+
+  // 04/11 (seção 134.1): 504 no meio do pedido não para — repete o mesmo trecho e completa
+  pedidos = 0;
+  const base3 = baseFalsa(9000, 500);
+  const demorou = { data: null, error: { context: { status: 504, json: async () => ({ erro: 'A consulta demorou demais. Refine os filtros e tente de novo.' }) } } };
+  let falhas = 0;
+  window.__fnRespostas.extrair = (body) => { pedidos++; if(pedidos === 2 || pedidos === 3){ falhas++; return demorou; } return base3(body); };
+  baixados.length = 0; avisos.length = 0; chamadas.length = 0;
+  document.getElementById('mbQtd').value = '1500';
+  document.getElementById('btnMbExportar').click(); await ateTerminar();
+  const ext = extrairChamadas();
+  eq([falhas, ext.length], [2, 5], 'duas falhas de tempo repetidas: 3 trechos bons + 2 repetições');
+  eq(JSON.stringify(ext[1].trecho) === JSON.stringify(ext[2].trecho) && JSON.stringify(ext[2].trecho) === JSON.stringify(ext[3].trecho), true, 'repete o mesmo trecho');
+  assert(baixados.length === 1 && avisos[0] && avisos[0][0] === 'ok' && avisos[0][1].includes('1.500 linhas'), 'pedido completo depois das repetições');
+
+  // falha de tempo que não passa: desiste depois de 3 repetições e baixa o que saiu
+  pedidos = 0;
+  window.__fnRespostas.extrair = (body) => pedidos++ === 0 ? base3(body) : demorou;
+  baixados.length = 0; avisos.length = 0; chamadas.length = 0;
+  document.getElementById('btnMbExportar').click(); await ateTerminar();
+  eq(extrairChamadas().length, 5, '1 trecho bom + 1 falha + 3 repetições');
+  assert(baixados.length === 1 && avisos[0] && avisos[0][0] === 'erro' && avisos[0][1].includes('demorou demais'), 'desiste e avisa');
+
+  // erro do pedido (400) não é repetido
+  window.__fnRespostas.extrair = { data: null, error: { context: { status: 400, json: async () => ({ erro: 'trecho inválido' }) } } };
+  baixados.length = 0; avisos.length = 0; chamadas.length = 0;
+  document.getElementById('btnMbExportar').click(); await ateTerminar();
+  eq(extrairChamadas().length, 1, '400 não repete');
 
   // 22/10 (seção 102.12): exportar tirando empresas com pedido no NeoSales e telefones repetidos, completando a quantidade
   document.getElementById('mbCruzarNeo').checked = true; document.getElementById('mbRemoverDuplicados').checked = true;
