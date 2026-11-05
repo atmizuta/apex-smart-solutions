@@ -4779,6 +4779,91 @@ document.addEventListener('keydown', (e) => {
   e.preventDefault();
   kbFichaMover(e.key === 'ArrowDown' ? 1 : -1);
 });
+// ===== §138.1: Conversão (Meus leads) — funções puras. Spec 2026-11-05-conversao-leads-design.md seções 4 e 5 =====
+const CV_MESES = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
+const CV_MIN_LEADS = 10;   // abaixo disso a taxa oscila demais: cor neutra e "poucos leads"
+function cvNorm(s){ return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim(); }
+function cvEhRepique(aba){ return cvNorm(aba) === 'REPIQUE'; }
+function cvRotuloMes(aba){ const s = String(aba || '').trim(); return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : ''; }
+function cvPartesSP(agoraMs){
+  const p = {};
+  new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: 'numeric', day: 'numeric' })
+    .formatToParts(new Date(agoraMs)).forEach(x => { if(x.type !== 'literal') p[x.type] = Number(x.value); });
+  return { ano: p.year, mes: p.month, dia: p.day, diasNoMes: new Date(Date.UTC(p.year, p.month, 0)).getUTCDate() };
+}
+function cvMesesDe(linhas){
+  const por = new Map();
+  (linhas || []).forEach(r => {
+    if(!r || !r.aba) return;
+    const m = por.get(r.aba) || { aba: r.aba, ordem: r.ordem || null, leads: 0, convertidos: 0, receita: 0, convSemReceita: 0, repique: cvEhRepique(r.aba) };
+    m.leads += Number(r.leads) || 0;
+    m.convertidos += Number(r.convertidos) || 0;
+    m.receita += Number(r.receita) || 0;
+    m.convSemReceita += Number(r.conv_sem_receita) || 0;
+    if(r.ordem && (!m.ordem || String(r.ordem) < String(m.ordem))) m.ordem = r.ordem;
+    por.set(r.aba, m);
+  });
+  const todos = [...por.values()].map(m => Object.assign(m, { receita: Math.round(m.receita * 100) / 100 }));
+  const normais = todos.filter(m => !m.repique).sort((a, b) => String(a.ordem || '').localeCompare(String(b.ordem || '')) || a.aba.localeCompare(b.aba));
+  return normais.concat(todos.filter(m => m.repique));
+}
+// A guia não tem ano (§138, Review Focus 1): "em andamento" = a guia com o nome do mês atual de SP.
+function cvMesAtual(meses, agoraMs){
+  const alvo = cvNorm(CV_MESES[cvPartesSP(agoraMs).mes - 1]);
+  const m = (meses || []).find(x => !x.repique && cvNorm(x.aba) === alvo);
+  return m ? m.aba : null;
+}
+function cvMesPadrao(meses, agoraMs){
+  const atual = cvMesAtual(meses, agoraMs);
+  if(atual) return atual;
+  const normais = (meses || []).filter(m => !m.repique);
+  if(normais.length) return normais[normais.length - 1].aba;
+  return meses && meses.length ? meses[0].aba : null;
+}
+function cvAnterior(meses, aba){
+  const normais = (meses || []).filter(m => !m.repique);
+  const i = normais.findIndex(m => m.aba === aba);
+  return i > 0 ? normais[i - 1] : null;
+}
+function cvTaxa(conv, leads){ const l = Number(leads) || 0; return l > 0 ? (Number(conv) || 0) / l : null; }
+function cvVariacao(a, b){ const x = Number(b) || 0; return x > 0 ? Math.round(((Number(a) || 0) - x) / x * 100) : null; }
+function cvComparar(mes, anterior){
+  if(!mes || !anterior) return null;
+  const t1 = cvTaxa(mes.convertidos, mes.leads), t0 = cvTaxa(anterior.convertidos, anterior.leads);
+  return {
+    leads: cvVariacao(mes.leads, anterior.leads),
+    convertidos: cvVariacao(mes.convertidos, anterior.convertidos),
+    receita: cvVariacao(mes.receita, anterior.receita),
+    taxaPp: t1 === null || t0 === null ? null : Math.round((t1 - t0) * 1000) / 10,
+  };
+}
+function cvCorTaxa(taxa, media, leads){
+  if((Number(leads) || 0) < CV_MIN_LEADS) return 'poucos';
+  if(taxa === null || taxa === undefined || media === null || media === undefined) return '';
+  if(taxa >= media) return 'hi';
+  if(taxa < media * 0.8) return 'lo';
+  return '';
+}
+function cvRanking(linhas, aba){
+  const doMes = (linhas || []).filter(r => r && r.aba === aba);
+  const num = (r) => ({ consultor: r.consultor || null, leads: Number(r.leads) || 0, convertidos: Number(r.convertidos) || 0, receita: Math.round((Number(r.receita) || 0) * 100) / 100 });
+  const total = { leads: 0, convertidos: 0, receita: 0 };
+  doMes.map(num).forEach(r => { total.leads += r.leads; total.convertidos += r.convertidos; total.receita += r.receita; });
+  total.receita = Math.round(total.receita * 100) / 100;
+  total.taxa = cvTaxa(total.convertidos, total.leads);
+  const lista = doMes.filter(r => r.consultor).map(num)
+    .sort((a, b) => (b.receita - a.receita) || (b.convertidos - a.convertidos) || a.consultor.localeCompare(b.consultor, 'pt-BR'))
+    .map((r, i) => { const t = cvTaxa(r.convertidos, r.leads); return Object.assign(r, { pos: i + 1, taxa: t, cor: cvCorTaxa(t, total.taxa, r.leads) }); });
+  const sem = doMes.filter(r => !r.consultor).map(num);
+  const semConsultor = sem.length ? sem.reduce((a, r) => ({ consultor: null, leads: a.leads + r.leads, convertidos: a.convertidos + r.convertidos, receita: Math.round((a.receita + r.receita) * 100) / 100 })) : null;
+  return { linhas: lista, semConsultor, total };
+}
+function cvPct(t){ return t === null || t === undefined ? '—' : (Math.round(t * 1000) / 10).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'; }
+function cvBRL0(v){ return 'R$ ' + Math.round(Number(v) || 0).toLocaleString('pt-BR'); }
+function cvVar(v, sufixo){
+  if(v === null || v === undefined) return '';
+  return (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + sufixo;
+}
 // ===== §118: abas, Hoje, Equipe, pesquisa, detalhes da ficha, alertas =====
 kbEstado.aba = null; kbEstado.filaAba = 'fazer'; kbEstado.hojeSel = null; kbEstado.filaHoje = []; kbEstado.notificados = new Set(); kbEstado.alertas = []; kbEstado.hoje = null; kbEstado.equipe = [];
 kbEstado.filtros = kbLerFiltros();
