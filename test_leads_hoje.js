@@ -96,7 +96,7 @@ try{
   await kbAplicarPermissao();
   await kbCarregar();
   await espera(80);   // Hoje e alertas carregam em segundo plano
-  eq([...document.querySelectorAll('#kbAbas [data-kb-aba]')].filter(b => b.style.display !== 'none').map(b => b.dataset.kbAba), ['hoje', 'quadro', 'todos'], 'consultor vê Hoje e Quadro');
+  eq([...document.querySelectorAll('#kbAbas [data-kb-aba]')].filter(b => b.style.display !== 'none').map(b => b.dataset.kbAba), ['hoje', 'quadro', 'todos', 'conversao'], 'consultor vê Hoje, Quadro, Lista e Conversão (§138.1)');
   assert(document.getElementById('kbHoje').style.display !== 'none' && document.getElementById('kbBoard').style.display === 'none', 'consultor abre na aba Hoje');
   const filaTxt = document.getElementById('kbFilaLista').textContent;
   assert(filaTxt.includes('Atrasados') && filaTxt.includes('Zz Retorno') && filaTxt.includes('Agora') && filaTxt.includes('Zz Hoje Um'), 'Hoje mostra a fila em grupos (retorno vencido em Atrasados, novo em Agora)');

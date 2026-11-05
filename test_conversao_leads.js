@@ -97,6 +97,60 @@ try{
   eq([cvBRL0(19552.01), cvBRL0(0)], ['R$ 19.552', 'R$ 0'], 'receita sem centavos nos cartões');
   eq([cvVar(12, '%'), cvVar(-1.1, ' pp'), cvVar(0, '%'), cvVar(null, '%')], ['+12%', '−1,1 pp', '0%', ''], 'variação com sinal');
 
+  // ==== Task 4: tela e permissões ====
+  const agora = SP('2026-11-04T15:00:00');
+  const base = { linhas: L, meses: cvMesesDe(L), sel: 'OUTUBRO', agoraMs: agora, gestor: true, atualizadoEm: agora };
+  const div = document.createElement('div');
+  div.innerHTML = cvHtml(base);
+  eq([...div.querySelectorAll('[data-cv-mes]')].map(b => b.dataset.cvMes), ['SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'REPIQUE'], 'cartões dos meses (Repique no fim)');
+  assert(div.querySelector('[data-cv-mes="OUTUBRO"]').classList.contains('on'), 'mês escolhido marcado');
+  assert(/em andamento/.test(div.querySelector('[data-cv-mes="NOVEMBRO"]').textContent), 'novembro "em andamento"');
+  assert(/recontato/.test(div.querySelector('[data-cv-mes="REPIQUE"]').textContent), 'Repique "recontato"');
+  eq([...div.querySelectorAll('.cvRank tbody tr')].map(t => t.querySelector('.cvNome').textContent), ['Zz Ana', 'Zz Bia', 'Zz Caio', 'Ainda sem consultor'], 'ranking + linha sem consultor no fim');
+  assert(/poucos leads/.test(div.querySelector('.cvRank tbody tr:nth-child(3)').textContent), 'Zz Caio com "poucos leads"');
+  assert(/vs setembro/i.test(div.querySelector('.cvKpis').textContent), 'mês fechado compara com o anterior');
+  assert(/2 convertidos de Outubro estão sem receita/.test(div.querySelector('.cvAviso').textContent), 'aviso de gestor');
+  div.innerHTML = cvHtml(Object.assign({}, base, { gestor: false }));
+  assert(!div.querySelector('.cvAviso'), 'agência/consultor não veem o aviso de receita');
+  div.innerHTML = cvHtml(Object.assign({}, base, { sel: 'NOVEMBRO' }));
+  assert(/dia 4 de 30/.test(div.querySelector('.cvKpis').textContent) && !/vs /.test(div.querySelector('.cvKpis').textContent), 'mês em andamento: sem comparação, com "dia 4 de 30"');
+  div.innerHTML = cvHtml(Object.assign({}, base, { linhas: [{ aba: 'OUTUBRO', ordem: 'x', consultor: '<b>Zz "x"</b>', leads: 12, convertidos: 1, receita: 1 }], meses: cvMesesDe([{ aba: 'OUTUBRO', ordem: 'x', leads: 12, convertidos: 1, receita: 1 }]) }));
+  assert(!div.querySelector('.cvRank b') && div.querySelector('.cvNome').textContent === '<b>Zz "x"</b>', 'Review Focus 3: nome escapado');
+  div.innerHTML = cvHtml({ erro: true });
+  assert(!!div.querySelector('[data-cv-tentar]'), 'erro com "Tentar de novo"');
+  div.innerHTML = cvHtml({ linhas: [], meses: [], agoraMs: agora });
+  assert(/Nenhum lead/.test(div.textContent), 'sem leads');
+
+  // permissões (Review Focus 4)
+  currentUser = { id: 'u-c', nome: 'Zz Cons', role: 'consultor', operacao: 'campinas' };
+  assert(!cvPodeVer(), 'consultor de Campinas não vê a Conversão');
+  currentUser = { id: 'u-c', nome: 'Zz Cons', role: 'consultor', operacao: 'apex' };
+  kbEstado.modo = 'painel'; kbEstado.naEquipe = false;
+  assert(cvPodeVer() && cvSoConversao(), 'consultor da Apex fora da equipe: só Conversão');
+  eq(kbAbasVisiveis(), ['conversao'], 'abas do consultor fora da equipe');
+  kbEstado.naEquipe = true;
+  eq(kbAbasVisiveis(), ['hoje', 'quadro', 'todos', 'conversao'], 'consultor da equipe: + Conversão');
+  currentUser = { id: 'u-s', nome: 'Zz Sup', role: 'supervisor', operacao: 'apex' };
+  eq(kbAbasVisiveis(), ['hoje', 'quadro', 'todos', 'equipe', 'conversao'], 'supervisor: todas + Conversão');
+  eq(kbAbasDoPerfil(false), ['hoje', 'quadro', 'todos'], 'kbAbasDoPerfil antigo intacto');
+
+  // carga e troca de mês
+  window.__rpcRespostas.conversao_resumo = { data: L, error: null };
+  window.__rpcCalls.length = 0;
+  kbTrocarAba('conversao');
+  await espera(30);
+  eq(window.__rpcCalls.filter(c => c.nome === 'conversao_resumo').length, 1, 'abrir a sub-aba chama conversao_resumo uma vez');
+  assert(document.getElementById('cvConversao').style.display === '' && document.getElementById('kbBoard').style.display === 'none', 'só a Conversão aparece');
+  assert(document.getElementById('panel-meusleads').classList.contains('cvAtiva'), 'painel marca cvAtiva (esconde busca/resumo)');
+  document.querySelector('#cvConversao [data-cv-mes="SETEMBRO"]').click();
+  eq([cvEstado.sel, window.__rpcCalls.filter(c => c.nome === 'conversao_resumo').length], ['SETEMBRO', 1], 'trocar de mês não chama o banco de novo');
+  document.querySelector('#cvConversao [data-cv-lista]').click();
+  eq([kbEstado.aba, kbEstado.filtros.mes, kbEstadoTabela().visao], ['todos', 'SETEMBRO', 'convertido'], 'ver na Lista: Convertidos + filtro do mês');
+  window.__rpcRespostas.conversao_resumo = { data: null, error: { message: 'x' } };
+  cvEstado.linhas = null;
+  kbTrocarAba('conversao'); await espera(30);
+  assert(!!document.querySelector('#cvConversao [data-cv-tentar]'), 'erro do banco mostra "Tentar de novo"');
+
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');

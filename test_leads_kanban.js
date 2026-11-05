@@ -87,7 +87,7 @@ try{
   window.__tabelas.leads_equipe = [{ id: 1 }];
   window.__tabelas.config = [{ valor: 'planilha' }];
   await kbAplicarPermissao();
-  assert(document.getElementById('tabBtnMeusLeads').style.display === 'none', 'antes da virada (modo planilha) consultor não vê a aba');
+  assert(document.getElementById('tabBtnMeusLeads').style.display !== 'none' && JSON.stringify(kbAbasVisiveis()) === '["conversao"]', 'antes da virada (modo planilha) consultor vê Meus leads só com a Conversão (§138.1)');
   window.__tabelas.config = [{ valor: 'painel' }];
   window.__tabelas.leads_status_opcoes = [{ status: 'EM NEGOCIAÇÂO', grupo: 'andamento', ordem: 1 }, { status: 'AGENDADO RETORNO', grupo: 'andamento', ordem: 2 },
     { status: 'PEDIDO CONCLUIDO (VENDA)', grupo: 'convertido', ordem: 10 }, { status: 'CNPJ INAPTO', grupo: 'perdido', ordem: 24 }];
@@ -143,7 +143,7 @@ try{
   // consultor fora da equipe não vê a aba
   window.__tabelas.leads_equipe = [];
   await kbAplicarPermissao();
-  assert(document.getElementById('tabBtnMeusLeads').style.display === 'none', 'fora da equipe não vê');
+  assert(document.getElementById('tabBtnMeusLeads').style.display !== 'none' && JSON.stringify(kbAbasVisiveis()) === '["conversao"]', 'fora da equipe vê só a Conversão (§138.1)');
 
   // ==== Task 10: supervisão ====
   currentUser = { id: 'u-sup', nome: 'Zzksup Teste', role: 'supervisor', operacao: 'apex' };

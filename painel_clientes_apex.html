@@ -1262,6 +1262,51 @@
   @keyframes kbSai{to{opacity:0;transform:translateX(-12px);}}
   @media (prefers-reduced-motion: reduce){ .kbFilaItem.kbSaindo{animation:none;} }
   @media (max-width: 900px){ .kbHojeArea{grid-template-columns:1fr;height:auto;} .kbFilaLista{max-height:50vh;} }
+  /* §138.1: Conversão (Meus leads) — linguagem da §126, só tokens; cantos 8 px */
+  #panel-meusleads.cvAtiva #kbResumo,#panel-meusleads.cvAtiva #kbAviso,#panel-meusleads.cvAtiva #kbStatus,#panel-meusleads.cvAtiva .kbBuscaBox,#panel-meusleads.cvAtiva #kbFiltrosGestor,#panel-meusleads.cvAtiva #kbPausaAviso{display:none !important;}
+  .cvConversao{display:flex;flex-direction:column;gap:14px;padding-top:14px;color:var(--ml-ink);}
+  .cvMeses{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;scroll-snap-type:x proximity;}
+  .cvMes{flex:0 0 210px;scroll-snap-align:end;display:flex;flex-direction:column;gap:3px;text-align:left;background:var(--ml-surface);border:2px solid transparent;border-radius:var(--radius-lg);padding:12px 14px;cursor:pointer;font:inherit;color:var(--ml-ink);}
+  .cvMes:hover{background:var(--ml-surface-2);}
+  .cvMes.on{border-color:var(--c-sinal);}
+  .cvMes.cvRepique{background:var(--ml-surface-2);}
+  .cvMesLb{display:flex;justify-content:space-between;align-items:center;gap:6px;font-family:var(--font-head);font-weight:600;font-size:var(--fs-sm);letter-spacing:.06em;text-transform:uppercase;color:var(--ml-ink-3);}
+  .cvTag{font-family:var(--font-body);font-size:var(--fs-xs);font-weight:600;letter-spacing:0;text-transform:none;background:var(--ml-soon-soft);color:var(--ml-soon);border-radius:999px;padding:0 8px;}
+  .cvMesRv{font-family:var(--font-head);font-weight:700;font-size:var(--fs-xl);line-height:1.1;}
+  .cvMesSm{font-size:var(--fs-sm);color:var(--ml-ink-2);}
+  .cvMini{display:block;height:5px;margin-top:6px;background:var(--ml-surface-3);border-radius:var(--radius-sm);}
+  .cvMini i{display:block;height:100%;background:var(--c-sinal);border-radius:var(--radius-sm);}
+  .cvKpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;}
+  .cvKpi{background:var(--ml-surface);border-radius:var(--radius-lg);padding:14px 16px;}
+  .cvKpiLb{font-size:var(--fs-sm);font-weight:600;color:var(--ml-ink-3);}
+  .cvKpiV{font-family:var(--font-head);font-weight:700;font-size:var(--fs-kpi);line-height:1.1;margin-top:2px;}
+  .cvKpiD{font-size:var(--fs-sm);color:var(--ml-ink-2);margin-top:2px;}
+  .cvUp{color:var(--ml-ok);font-weight:600;}
+  .cvDn{color:var(--ml-late);font-weight:600;}
+  .cvAviso{background:var(--ml-soon-soft);color:var(--ml-soon);border-radius:var(--radius-lg);padding:10px 14px;font-size:var(--fs-sm);font-weight:600;}
+  .cvLink{border:0;background:none;padding:0;font:inherit;color:var(--c-sinal-600);font-weight:700;cursor:pointer;text-decoration:underline;}
+  .cvCard{background:var(--ml-surface);border-radius:var(--radius-lg);overflow:hidden;}
+  .cvCard h3{margin:0;padding:14px 16px 2px;font-family:var(--font-head);font-weight:700;font-size:var(--fs-lg);text-transform:uppercase;letter-spacing:.02em;}
+  .cvSub{padding:0 16px 10px;color:var(--ml-ink-3);font-size:var(--fs-sm);}
+  .cvRank{width:100%;border-collapse:collapse;}
+  .cvRank th{text-align:left;font-size:var(--fs-xs);font-weight:600;color:var(--ml-ink-3);text-transform:uppercase;letter-spacing:.06em;padding:8px 16px;background:var(--ml-surface-2);}
+  .cvRank td{padding:11px 16px;border-top:1px solid var(--ml-surface-3);font-variant-numeric:tabular-nums;}
+  .cvRank .r{text-align:right;}
+  .cvPos{width:34px;font-family:var(--font-head);font-weight:700;color:var(--ml-ink-3);}
+  .cvPos.top{color:var(--c-sinal);}
+  .cvNome{font-weight:600;}
+  .cvSem .cvNome{font-weight:500;color:var(--ml-ink-3);}
+  .cvTaxa{display:inline-block;min-width:56px;text-align:center;border-radius:999px;padding:1px 8px;font-weight:600;font-size:var(--fs-sm);background:var(--ml-surface-2);}
+  .cvTaxa.hi{background:var(--ml-ok-soft);color:var(--ml-ok);}
+  .cvTaxa.lo{background:var(--ml-late-soft);color:var(--ml-late);}
+  .cvPoucos{display:block;font-size:var(--fs-xs);color:var(--ml-ink-3);font-weight:500;}
+  .cvBarra{display:inline-flex;align-items:center;gap:10px;justify-content:flex-end;}
+  .cvBarra .t{width:140px;height:8px;background:var(--ml-surface-3);border-radius:var(--radius-sm);}
+  .cvBarra .t i{display:block;height:100%;background:var(--c-sinal);border-radius:var(--radius-sm);}
+  .cvRank tfoot td{font-weight:700;background:var(--ml-surface-2);}
+  .cvRodape{font-size:var(--fs-xs);color:var(--ml-ink-3);text-align:right;}
+  .cvVazio{background:var(--ml-surface);border-radius:var(--radius-lg);padding:28px;text-align:center;color:var(--ml-ink-2);}
+  @media (max-width:760px){ .cvKpis{grid-template-columns:repeat(2,minmax(0,1fr));} .cvBarra .t{display:none;} .cvRank th,.cvRank td{padding:9px 10px;} }
 </style>
 </head>
 <body>
@@ -1891,6 +1936,7 @@
           <button type="button" data-kb-aba="hoje">Hoje <span class="kbBadge" id="kbBadgeHoje"></span></button>
           <button type="button" data-kb-aba="quadro">Quadro</button>
           <button type="button" data-kb-aba="todos">Lista</button>
+          <button type="button" data-kb-aba="conversao">Conversão</button>
         </nav>
         <span class="kbStatusLinha" id="kbStatus"></span>
         <div class="kbAviso kbPausaAviso" id="kbPausaAviso" role="status" hidden>Pegar leads está pausado pelo supervisor. Os leads que você já tem continuam aqui.</div>
@@ -1923,6 +1969,7 @@
         <div class="kbListaTopo"><nav class="kbVisoes" id="kbVisoes" aria-label="Visões da lista"></nav><input type="search" id="kbTodosBusca" class="kbBusca kbListaBusca" placeholder="Buscar na lista por nome, telefone ou CNPJ" autocomplete="off" aria-label="Buscar na lista"></div>
         <div class="kbListaTabela" id="kbTodosTabela"></div>
       </div>
+      <div id="cvConversao" class="cvConversao" style="display:none" aria-live="polite"></div>
       <svg class="kbSprite" aria-hidden="true" style="display:none"><symbol id="kbIcoTel" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></symbol><symbol id="kbIcoWhats" viewBox="0 0 24 24"><path d="M3 21l1.7-5A8.5 8.5 0 1 1 8 19.3z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1.5-1.5-2-1-1 1a4 4 0 0 1-2.5-2.5l1-1-1-2z"/></symbol></svg>
       <div class="kbBoard" id="kbBoard"></div>
     </section>
@@ -3458,7 +3505,10 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
   if(btn.dataset.tab === 'movimentacao') loadMovimentacao();
   if(btn.dataset.tab === 'producao') loadProducaoDashboard();
   if(btn.dataset.tab === 'conversao') loadConversaoVendas();
-    if(btn.dataset.tab === 'meusleads'){ kbCarregar(); kbAgendar(); }
+    if(btn.dataset.tab === 'meusleads'){
+      if(cvSoConversao()) kbTrocarAba('conversao');
+      else { kbCarregar(); kbAgendar(); if(kbEstado.aba === 'conversao') cvCarregar(); }
+    }
   if(btn.dataset.tab === 'fechamento') loadFechamento();
   if(btn.dataset.tab === 'config') carregarEmailConfigStatus();
   if(btn.dataset.tab === 'mesa') loadMesa(true);
@@ -3575,7 +3625,7 @@ function kbResumoMes(leads){
 }
 // §118 (27/10): abas Hoje / Quadro / Equipe, próximo lead, semáforo, linha do tempo e alertas — funções puras.
 const KB_ABAS = ['hoje', 'quadro', 'todos', 'equipe'];
-const KB_ABA_TITULOS = { hoje: 'Hoje', quadro: 'Quadro', todos: 'Lista', equipe: 'Equipe' };   // §126.2: Todos vira Lista (chave interna continua 'todos')
+const KB_ABA_TITULOS = { hoje: 'Hoje', quadro: 'Quadro', todos: 'Lista', equipe: 'Equipe', conversao: 'Conversão' };   // §126.2: Todos vira Lista (chave interna continua 'todos')
 function kbAbasDoPerfil(gestor){ return gestor ? KB_ABAS.slice() : ['hoje', 'quadro', 'todos']; }
 function kbAbaPadrao(gestor){ return gestor ? 'equipe' : 'hoje'; }
 function kbSemaforo(l){
@@ -4269,7 +4319,7 @@ async function kbAplicarPermissao(){
     kbEstado.podePegar = linhas.some(x => x.pode_pegar === true);
   }
   if(kbPodeVer()) await kbCarregarBloqueio();
-  document.getElementById('tabBtnMeusLeads').style.display = kbPodeVer() ? 'inline-block' : 'none';
+  document.getElementById('tabBtnMeusLeads').style.display = kbPodeVer() || cvPodeVer() ? 'inline-block' : 'none';
   document.getElementById('kbFiltrosGestor').style.display = kbGestor() ? '' : 'none';
   document.getElementById('kbReescrever').style.display = currentUser && currentUser.role === 'admin' ? '' : 'none';
   if(kbGestor()) kbCarregarFiltros().catch(err => console.error(err));
@@ -4864,13 +4914,111 @@ function cvVar(v, sufixo){
   if(v === null || v === undefined) return '';
   return (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + sufixo;
 }
+// ===== §138.1: Conversão — tela =====
+const cvEstado = { linhas: null, meses: [], sel: null, carregando: false, erro: false, atualizadoEm: null, geracao: 0 };
+function cvPodeVer(){
+  if(!currentUser) return false;
+  const r = currentUser.role;
+  return r === 'admin' || r === 'agencia' || ((r === 'supervisor' || r === 'consultor') && veAbasDaApex());
+}
+function cvSoConversao(){ return !!currentUser && (currentUser.role === 'agencia' || (!kbPodeVer() && cvPodeVer())); }
+function cvGestor(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
+function kbAbasVisiveis(){
+  if(cvSoConversao()) return ['conversao'];
+  const abas = kbAbasDoPerfil(kbGestor());
+  return cvPodeVer() ? abas.concat('conversao') : abas;
+}
+function kbAbaInicial(){ return cvSoConversao() ? 'conversao' : kbAbaPadrao(kbGestor()); }
+function cvHtml(est){
+  if(est.carregando) return '<div class="cvVazio">Carregando a conversão…</div>';
+  if(est.erro) return '<div class="cvVazio">Não foi possível carregar a conversão. <button type="button" class="kbBtn kbBtnQ kbBtnSm" data-cv-tentar>Tentar de novo</button></div>';
+  const meses = est.meses || [];
+  if(!meses.length) return '<div class="cvVazio">Nenhum lead ainda.</div>';
+  const atual = cvMesAtual(meses, est.agoraMs);
+  const mes = meses.find(m => m.aba === est.sel) || meses[meses.length - 1];
+  const maxRec = Math.max(1, ...meses.map(m => m.receita));
+  const cartoes = meses.map(m => {
+    const tag = m.repique ? '<span class="cvTag">recontato</span>' : m.aba === atual ? '<span class="cvTag">em andamento</span>' : '';
+    return `<button type="button" class="cvMes${m.aba === mes.aba ? ' on' : ''}${m.repique ? ' cvRepique' : ''}" data-cv-mes="${escapeHtml(m.aba)}" aria-pressed="${m.aba === mes.aba}">`
+      + `<span class="cvMesLb">${escapeHtml(cvRotuloMes(m.aba))}${tag}</span>`
+      + `<span class="cvMesRv">${cvBRL0(m.receita)}</span>`
+      + `<span class="cvMesSm">${m.convertidos} de ${m.leads} leads · ${cvPct(cvTaxa(m.convertidos, m.leads))}</span>`
+      + `<span class="cvMini"><i style="width:${Math.round(m.receita / maxRec * 100)}%"></i></span></button>`;
+  }).join('');
+  const rk = cvRanking(est.linhas, mes.aba);
+  const ant = cvAnterior(meses, mes.aba);
+  const emAndamento = mes.aba === atual;
+  const cmp = !emAndamento && !mes.repique ? cvComparar(mes, ant) : null;
+  const sp = cvPartesSP(est.agoraMs);
+  const delta = (v, suf) => {
+    if(mes.repique) return 'lote de recontato';
+    if(emAndamento) return `em andamento: dia ${sp.dia} de ${sp.diasNoMes}`;
+    if(!cmp || v === null) return '';
+    return `<span class="${v > 0 ? 'cvUp' : v < 0 ? 'cvDn' : ''}">${cvVar(v, suf)}</span> vs ${escapeHtml(cvRotuloMes(ant.aba).toLowerCase())}`;
+  };
+  const tkt = mes.convertidos > 0 ? ` · ticket médio ${fmtBRL(mes.receita / mes.convertidos)}` : '';
+  const kpi = (lb, v, d) => `<div class="cvKpi"><div class="cvKpiLb">${lb}</div><div class="cvKpiV">${v}</div><div class="cvKpiD">${d || '&nbsp;'}</div></div>`;
+  const kpis = '<div class="cvKpis">'
+    + kpi('Leads recebidos', mes.leads.toLocaleString('pt-BR'), delta(cmp && cmp.leads, '%'))
+    + kpi('Convertidos', mes.convertidos.toLocaleString('pt-BR'), delta(cmp && cmp.convertidos, '%'))
+    + kpi('Taxa de conversão', cvPct(cvTaxa(mes.convertidos, mes.leads)), delta(cmp && cmp.taxaPp, ' pp'))
+    + kpi('Receita', cvBRL0(mes.receita), (delta(cmp && cmp.receita, '%') || '') + tkt)
+    + '</div>';
+  const aviso = est.gestor && mes.convSemReceita > 0
+    ? `<div class="cvAviso">${mes.convSemReceita} convertido${mes.convSemReceita > 1 ? 's' : ''} de ${escapeHtml(cvRotuloMes(mes.aba))} ${mes.convSemReceita > 1 ? 'estão' : 'está'} sem receita · <button type="button" class="cvLink" data-cv-lista="${escapeHtml(mes.aba)}">ver na Lista</button></div>` : '';
+  const topo = rk.linhas.length ? rk.linhas[0].receita : 0;
+  const linha = (r) => `<tr${r.pos ? '' : ' class="cvSem"'}><td class="cvPos${r.pos && r.pos <= 3 ? ' top' : ''}">${r.pos || ''}</td>`
+    + `<td class="cvNome">${r.consultor ? escapeHtml(r.consultor) : 'Ainda sem consultor'}</td>`
+    + `<td class="r">${r.leads}</td><td class="r">${r.convertidos}</td>`
+    + `<td class="r">${r.pos ? `<span class="cvTaxa ${r.cor === 'poucos' ? '' : r.cor}">${cvPct(r.taxa)}</span>${r.cor === 'poucos' ? '<span class="cvPoucos">poucos leads</span>' : ''}` : ''}</td>`
+    + `<td class="r"><span class="cvBarra">${fmtBRL(r.receita)}<span class="t"><i style="width:${topo > 0 ? Math.round(r.receita / topo * 100) : 0}%"></i></span></span></td></tr>`;
+  const corpo = rk.linhas.map(linha).join('') + (rk.semConsultor ? linha(rk.semConsultor) : '');
+  const tabela = `<div class="cvCard"><h3>Consultores em ${escapeHtml(cvRotuloMes(mes.aba).toLowerCase())}</h3>`
+    + '<div class="cvSub">Ordenado por receita. Taxa em verde: na média do mês ou acima; em vermelho: bem abaixo.</div>'
+    + '<table class="cvRank"><thead><tr><th></th><th>Consultor</th><th class="r">Leads</th><th class="r">Convertidos</th><th class="r">Taxa</th><th class="r">Receita</th></tr></thead>'
+    + `<tbody>${corpo || '<tr><td colspan="6">Nenhum lead neste mês ainda.</td></tr>'}</tbody>`
+    + `<tfoot><tr><td></td><td>Total</td><td class="r">${rk.total.leads}</td><td class="r">${rk.total.convertidos}</td><td class="r">${cvPct(rk.total.taxa)}</td><td class="r">${fmtBRL(rk.total.receita)}</td></tr></tfoot></table></div>`;
+  const hora = est.atualizadoEm ? new Date(est.atualizadoEm).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }) : '';
+  return `<div class="cvMeses">${cartoes}</div>${kpis}${aviso}${tabela}${hora ? `<div class="cvRodape">Atualizado às ${hora}</div>` : ''}`;
+}
+function cvRender(){
+  const el = document.getElementById('cvConversao');
+  if(el) el.innerHTML = cvHtml(Object.assign({}, cvEstado, { agoraMs: Date.now(), gestor: cvGestor() }));
+}
+async function cvCarregar(){
+  if(!cvPodeVer()) return;
+  const g = ++cvEstado.geracao;
+  cvEstado.carregando = !cvEstado.linhas; cvEstado.erro = false;
+  cvRender();
+  const r = await ppSeguro(() => sb.rpc('conversao_resumo'));
+  if(g !== cvEstado.geracao) return;
+  cvEstado.carregando = false;
+  if(!r || r.error){ console.error(r && r.error); cvEstado.erro = !cvEstado.linhas; cvRender(); return; }
+  cvEstado.linhas = r.data || [];
+  cvEstado.meses = cvMesesDe(cvEstado.linhas);
+  if(!cvEstado.sel || !cvEstado.meses.some(m => m.aba === cvEstado.sel)) cvEstado.sel = cvMesPadrao(cvEstado.meses, Date.now());
+  cvEstado.atualizadoEm = Date.now();
+  cvRender();
+}
+document.getElementById('cvConversao').addEventListener('click', function(e){
+  const m = e.target.closest('[data-cv-mes]');
+  if(m){ cvEstado.sel = m.dataset.cvMes; cvRender(); return; }
+  if(e.target.closest('[data-cv-tentar]')){ cvCarregar(); return; }
+  const l = e.target.closest('[data-cv-lista]');
+  if(l){
+    kbEstado.filtros = Object.assign({}, kbEstado.filtros || {}, { mes: l.dataset.cvLista });
+    kbSalvarFiltros();
+    Object.assign(kbEstadoTabela(), { visao: 'convertido', pagina: 1 });
+    kbTrocarAba('todos');
+  }
+});
 // ===== §118: abas, Hoje, Equipe, pesquisa, detalhes da ficha, alertas =====
 kbEstado.aba = null; kbEstado.filaAba = 'fazer'; kbEstado.hojeSel = null; kbEstado.filaHoje = []; kbEstado.notificados = new Set(); kbEstado.alertas = []; kbEstado.hoje = null; kbEstado.equipe = [];
 kbEstado.filtros = kbLerFiltros();
 kbEstado.colAbertas = kbLerColAbertas(); kbEstado.densidade = kbLerDensidade();
 function kbTrocarAba(aba){
-  const abas = kbAbasDoPerfil(kbGestor());
-  kbEstado.aba = abas.includes(aba) ? aba : kbAbaPadrao(kbGestor());
+  const abas = kbAbasVisiveis();
+  kbEstado.aba = abas.includes(aba) ? aba : kbAbaInicial();
   // §126: saindo da Hoje a ficha volta a ser gaveta; fecha, a não ser que tenha algo digitado
   const no = kbFichaNo();
   if(kbEstado.aba !== 'hoje' && no.classList.contains('noPainel') && !kbEstado.fichaJanela && !kbFichaSuja()){ kbEstado.fichaAlvo = null; no.classList.remove('aberta'); }
@@ -4888,9 +5036,13 @@ function kbTrocarAba(aba){
   if(kbEstado.aba === 'quadro' || kbEstado.aba === 'hoje') kbAjustarAltura();
   document.getElementById('kbEquipe').style.display = kbEstado.aba === 'equipe' ? '' : 'none';
   document.getElementById('kbTodos').style.display = kbEhTabela(kbEstado.aba) ? '' : 'none';
+  document.getElementById('cvConversao').style.display = kbEstado.aba === 'conversao' ? '' : 'none';
+  document.getElementById('panel-meusleads').classList.toggle('cvAtiva', kbEstado.aba === 'conversao');
+  document.getElementById('kbAbas').style.display = abas.length > 1 ? '' : 'none';   // agência/consultor fora da equipe: sem barra de uma aba só
   if(kbEstado.aba === 'hoje') kbCarregarHoje();
   if(kbEstado.aba === 'equipe') kbCarregarEquipe();
   if(kbEhTabela(kbEstado.aba)) kbCarregarTodos();
+  if(kbEstado.aba === 'conversao') cvCarregar();
 }
 function kbFonteFiltros(){ return kbEstado.aba === 'todos' ? (kbEstado.todos || []) : kbEstado.leads; }
 function kbRenderFiltroBarra(){
