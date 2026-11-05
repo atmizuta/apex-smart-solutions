@@ -151,6 +151,40 @@ try{
   kbTrocarAba('conversao'); await espera(30);
   assert(!!document.querySelector('#cvConversao [data-cv-tentar]'), 'erro do banco mostra "Tentar de novo"');
 
+  // ==== Task 5: entrada da agência ====
+  const jwt = (o) => 'x.' + btoa(JSON.stringify(o)).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '') + '.y';
+  eq([papelDoToken({ access_token: jwt({ role: 'agencia' }) }), papelDoToken({ access_token: jwt({ role: 'authenticated' }) }), papelDoToken(null), papelDoToken({ access_token: 'lixo' })],
+     ['agencia', 'authenticated', null, null], 'papel lido do token');
+  eq(ROLE_LABELS.agencia, 'Agência', 'rótulo do perfil');
+  currentUser = { id: 'u-adm', nome: 'Zz Adm', role: 'admin', operacao: 'apex' };
+  assert(canManageUser('agencia'), 'admin cria Agência');
+  currentUser = { id: 'u-s', nome: 'Zz Sup', role: 'supervisor', operacao: 'apex' };
+  assert(!canManageUser('agencia'), 'supervisor não cria Agência');
+
+  // login com o gancho ligado: perfil vem do meu_perfil, nunca da tabela profiles
+  window.__sessao = { access_token: jwt({ role: 'agencia', sub: 'u-ag' }) };
+  window.__rpcRespostas.meu_perfil = { data: [{ id: 'u-ag', nome: 'Zz Agência', username: 'zz-ag', role: 'agencia', operacao: 'apex' }], error: null };
+  window.__rpcRespostas.conversao_resumo = { data: L, error: null };
+  window.__fromCalls.length = 0; window.__rpcCalls.length = 0;
+  await loadProfileAndEnter({ id: 'u-ag', email: 'zz-ag@exemplo.invalid' });
+  await espera(60);
+  eq(currentUser.role, 'agencia', 'agência entrou');
+  eq(window.__fromCalls.filter(t => t !== 'leads_status_opcoes'), [], 'agência não lê nenhuma tabela direto');
+  eq([...new Set(window.__rpcCalls.map(c => c.nome))].sort(), ['conversao_resumo', 'meu_perfil'], 'agência só chama meu_perfil e conversao_resumo');
+  const visiveis = [...document.querySelectorAll('#tabsNav button[data-tab]')].filter(b => b.style.display !== 'none').map(b => b.dataset.tab);
+  eq(visiveis, ['meusleads'], 'menu da agência: só Meus leads');
+  assert(document.getElementById('panel-meusleads').classList.contains('active') && kbEstado.aba === 'conversao', 'abre direto em Meus leads → Conversão');
+  assert(!document.querySelector('#cvConversao .cvAviso'), 'agência não vê aviso de gestor');
+
+  // Review Focus 5: gancho desligado (token "authenticated"), perfil 'agencia' pela tabela → mesmo caminho fechado
+  window.__sessao = { access_token: jwt({ role: 'authenticated', sub: 'u-ag' }) };
+  window.__tabelas.profiles = [{ id: 'u-ag', nome: 'Zz Agência', username: 'zz-ag', role: 'agencia', operacao: 'apex' }];
+  window.__rpcCalls.length = 0; window.__fromCalls.length = 0;
+  await loadProfileAndEnter({ id: 'u-ag', email: 'zz-ag@exemplo.invalid' });
+  await espera(60);
+  eq([...new Set(window.__rpcCalls.map(c => c.nome))].sort(), ['conversao_resumo'], 'gancho desligado: ainda só a conversão');
+  eq(window.__fromCalls, ['profiles'], 'gancho desligado: só leu o próprio perfil');
+
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');

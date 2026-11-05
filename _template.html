@@ -3205,8 +3205,27 @@ document.getElementById('signupForm').addEventListener('submit', async function(
   await loadProfileAndEnter(signInData.user);
 });
 
+// §138.1: com o gancho de token ligado, a agência entra no banco com o papel 'agencia' (não lê a tabela profiles).
+function papelDoToken(sessao){
+  try{
+    const t = sessao && sessao.access_token;
+    if(!t) return null;
+    const b64 = t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const p = JSON.parse(atob(b64 + '='.repeat((4 - b64.length % 4) % 4)));
+    return p && typeof p.role === 'string' ? p.role : null;
+  }catch(_e){ return null; }
+}
+
 async function loadProfileAndEnter(authUser){
-  const { data: profile, error } = await sb.from('profiles').select('*').eq('id', authUser.id).single();
+  const { data: sess } = await sb.auth.getSession();
+  let profile = null, error = null;
+  if(papelDoToken(sess && sess.session) === 'agencia'){
+    const r = await sb.rpc('meu_perfil');
+    error = r.error; profile = r.data && r.data[0] ? r.data[0] : null;
+  } else {
+    const r = await sb.from('profiles').select('*').eq('id', authUser.id).single();
+    error = r.error; profile = r.data;
+  }
   if(error || !profile){
     await sb.auth.signOut();
     const errEl = document.getElementById('loginError');
@@ -3217,7 +3236,7 @@ async function loadProfileAndEnter(authUser){
   currentUser = { id: authUser.id, email: authUser.email, nome: profile.nome, username: profile.username, role: profile.role,
     operacao: profile.operacao || 'apex' }; // seção 78
   operacaoSelecionada = 'apex'; // admin: sempre abre na Operação Apex
-  await carregarVendedoresOperacao(); // seção 78: antes do Dashboard (página inicial) e do Boletim
+  if(currentUser.role !== 'agencia') await carregarVendedoresOperacao(); // seção 78; §138.1: a agência não lê vendedores
   enterApp();
 }
 
@@ -3233,7 +3252,15 @@ document.getElementById('btnLogout').addEventListener('click', async function(){
   document.getElementById('loginBlock').style.display = 'block';
 });
 
-const ROLE_LABELS = {admin:'Administrador', supervisor:'Supervisor', consultor:'Consultor'};
+const ROLE_LABELS = {admin:'Administrador', supervisor:'Supervisor', consultor:'Consultor', agencia:'Agência'};
+
+// §138.1: entrada do perfil Agência — esconde o menu todo menos Meus leads e abre direto na Conversão.
+function agEntrar(){
+  document.querySelectorAll('#tabsNav button[data-tab]').forEach(b => { b.style.display = b.dataset.tab === 'meusleads' ? 'inline-block' : 'none'; });
+  document.querySelectorAll('#tabsNav .navGroupLabel').forEach(g => { g.style.display = 'none'; });
+  document.querySelector('#tabsNav button[data-tab="meusleads"]').click();
+  setTimeout(() => ApexMotion.loader.hide(), 300);
+}
 
 function enterApp(){
   ApexMotion.loader.show('Entrando');
@@ -3242,6 +3269,7 @@ function enterApp(){
     appEl.style.display = 'block';
     document.getElementById('ubName').textContent = currentUser.nome;
     document.getElementById('ubRole').textContent = ROLE_LABELS[currentUser.role] || currentUser.role;
+    if(currentUser.role === 'agencia'){ agEntrar(); return; }   // §138.1: só Meus leads → Conversão, nenhum outro carregador
 
     // seção 78: Usuários (cadastro/edição de acessos) só para quem é da Apex — supervisor de outra operação não mexe nos consultores da Apex
     const canSeeConsultores = (currentUser.role === 'admin' || currentUser.role === 'supervisor') && veAbasDaApex();
@@ -3268,7 +3296,7 @@ function enterApp(){
     document.getElementById('btnConversaoSync').style.display = canSyncConversao() ? 'inline-block' : 'none';
 
     document.getElementById('newRole').innerHTML = '<option value="consultor">Consultor</option>'
-      + (currentUser.role === 'admin' ? '<option value="supervisor">Supervisor</option><option value="admin">Administrador</option>' : '');
+      + (currentUser.role === 'admin' ? '<option value="supervisor">Supervisor</option><option value="admin">Administrador</option><option value="agencia">Agência</option>' : '');
 
     document.getElementById('searchInput').value = '';
     renderResults('');
@@ -10940,7 +10968,7 @@ document.getElementById('btnSaveProfile').addEventListener('click', async functi
 
 /* ============ CONSULTORES (admin / supervisor) ============ */
 function canManageUser(targetRole){
-  if(currentUser.role === 'admin') return targetRole === 'admin' || targetRole === 'supervisor' || targetRole === 'consultor';
+  if(currentUser.role === 'admin') return targetRole === 'admin' || targetRole === 'supervisor' || targetRole === 'consultor' || targetRole === 'agencia';
   if(currentUser.role === 'supervisor') return targetRole === 'consultor';
   return false;
 }
