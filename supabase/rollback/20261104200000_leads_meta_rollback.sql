@@ -41,6 +41,8 @@ $$;
 drop function if exists public.leads_entrada2(jsonb, boolean, text);
 drop function if exists public.leads_meta_registrar(jsonb, jsonb);
 drop function if exists public.leads_meta_erro(text);
+drop function if exists public.leads_meta_token_confere(text);
+delete from vault.secrets where name = 'leads_webhook_token';
 drop table if exists public.leads_webhook_log;
 drop function if exists public.leads_meta_aviso();
 alter table public.leads drop column if exists origem_entrada;

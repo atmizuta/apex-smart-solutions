@@ -1,7 +1,7 @@
 // Edge Function: leads-meta (§137). Webhook que RECEBE os leads do formulário da Meta, enviados pela agência
-// (Connect Max) com Authorization: Bearer <LEADS_WEBHOOK_TOKEN>. Grava pela leads_entrada2 e registra cada lead
+// (Connect Max) com Authorization: Bearer <token>. O token fica no Vault (leads_webhook_token); a RPC leads_meta_token_confere compara o hash. Grava pela leads_entrada2 e registra cada lead
 // em leads_webhook_log (sem dado pessoal). Modo em config.leads_meta (desligado | ensaio | paralelo | principal).
-// Publicar: deploy_edge_function (index.ts, recebimento.ts, converter.ts), verify_jwt=false. Secret: LEADS_WEBHOOK_TOKEN.
+// Publicar: deploy_edge_function (index.ts, recebimento.ts, converter.ts), verify_jwt=false. Sem secret próprio.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { receber } from "./recebimento.ts";
 import type { DepsReceb, Modo } from "./recebimento.ts";
@@ -20,8 +20,12 @@ Deno.serve(async (req) => {
     let modo: Modo = "desligado";
     try { modo = (JSON.parse(cfg.data?.valor || "{}").modo ?? "desligado") as Modo; } catch { /* JSON errado: fica desligado (503) e o aviso mostra */ }
     const deps: DepsReceb = {
-      token: Deno.env.get("LEADS_WEBHOOK_TOKEN") ?? "",
       modo,
+      async conferirToken(token) {
+        const r = await sb.rpc("leads_meta_token_confere", { p_token: token });
+        falha("conferir token", r.error);
+        return r.data === true;
+      },
       async idsExistentes(ids) {
         const r = await sb.from("leads").select("id").in("id", ids);
         falha("conferir ids", r.error);

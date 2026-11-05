@@ -148,6 +148,14 @@ begin
   return array_to_string(partes, ' · ');
 end $$;
 
+-- confere o token do webhook com o guardado no Vault (leads_webhook_token), comparando o hash SHA-256 (sem vazar por tempo).
+-- O token é criado fora do repo: select vault.create_secret('<token>', 'leads_webhook_token');
+create or replace function public.leads_meta_token_confere(p_token text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select coalesce((select sha256(convert_to(s.decrypted_secret, 'UTF8')) = sha256(convert_to(coalesce(p_token, ''), 'UTF8'))
+                     from vault.decrypted_secrets s where s.name = 'leads_webhook_token' limit 1), false);
+$$;
+
 -- o aviso entra na versão (só o hash): o quadro do gestor recarrega quando ele aparece, muda ou some
 create or replace function public.leads_kanban_versao()
  returns text language sql stable security definer set search_path to 'public' as $$
@@ -161,6 +169,7 @@ revoke all on function public.leads_entrada2(jsonb, boolean, text) from public, 
 revoke all on function public.leads_entrada(jsonb) from public, anon, authenticated;
 revoke all on function public.leads_meta_registrar(jsonb, jsonb) from public, anon, authenticated;
 revoke all on function public.leads_meta_erro(text) from public, anon, authenticated;
+revoke all on function public.leads_meta_token_confere(text) from public, anon, authenticated;
 revoke all on function public.leads_meta_aviso() from public, anon;
 grant execute on function public.leads_meta_aviso() to authenticated;
 revoke all on table public.leads_webhook_log from anon, authenticated;

@@ -13,9 +13,10 @@ const pedido = (corpo: unknown, auth: string | null = `Bearer ${TOKEN}`, metodo 
   ({ metodo, auth, corpo: typeof corpo === "string" ? corpo : JSON.stringify(corpo) });
 
 function deps(o: { modo?: Modo; existentes?: string[]; falharInserir?: boolean } = {}) {
-  const log = { inseridos: [] as { leads: LeadEntrada[]; espelho: boolean }[], registros: [] as { itens: ItemLog[]; campos: string[] }[], erros: [] as string[] };
+  const log = { inseridos: [] as { leads: LeadEntrada[]; espelho: boolean }[], registros: [] as { itens: ItemLog[]; campos: string[] }[], erros: [] as string[], conferidos: [] as string[] };
   const d: DepsReceb = {
-    token: TOKEN, modo: o.modo ?? "paralelo",
+    modo: o.modo ?? "paralelo",
+    async conferirToken(t) { log.conferidos.push(t); return t === TOKEN; },
     async idsExistentes(ids) { return new Set(ids.filter((i) => (o.existentes ?? []).includes(i))); },
     async inserir(leads, espelho) {
       if (o.falharInserir) throw new Error("gravar leads (código 57014)");
@@ -122,4 +123,13 @@ test("falha no banco: 500 (a agência reenvia), erro registrado sem dado pessoal
 test("corpo grande demais: 413", async () => {
   const { d } = deps();
   assert.equal((await receber(pedido("x".repeat(1_000_001)), d)).status, 413);
+});
+
+test("token: só o que vem depois de 'Bearer ' vai para a conferência; sem Bearer nem chama", async () => {
+  const a = deps();
+  await receber(pedido(lead("1")), a.d);
+  assert.deepEqual(a.log.conferidos, [TOKEN]);
+  const b = deps();
+  assert.equal((await receber(pedido(lead("1"), "Basic xyz"), b.d)).status, 401);
+  assert.deepEqual(b.log.conferidos, []);
 });

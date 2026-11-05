@@ -3,7 +3,7 @@
 - **Data:** 04/11/2026
 - **Pedido do Rafael:** tirar a planilha da **entrada** dos leads. O lead do formulário da Meta cai direto no painel, sem depender da guia do mês.
 - **Seção do REGRAS:** §137 (a próxima livre em 04/11; §134, §135 e §136 já foram usadas).
-- **Status:** design aprovado no brainstorming de 04/11 (abordagem A: busca a cada 1 min), aguardando a revisão desta spec.
+- **Status:** abordagem A (busca na Graph API) **substituída em 05/11** pelo webhook da agência — ver o adendo no fim. As seções 3.1–3.2, 3.7 e 8 valem só como histórico.
 - **Fora desta spec:** desligar o espelho da planilha (supervisão e diretoria) e o botão "Baixar leads (Excel)". Isso vira outra spec depois que esta estiver de pé.
 
 ## 1. Contexto (como funciona hoje)
@@ -169,3 +169,14 @@ Só o acesso. Todo o resto (código, testes, migration e deploy em `desligado`) 
 - O nome exato das perguntas no `field_data`. É provável que seja igual ao cabeçalho da planilha, mas só se confirma no ensaio.
 - Se a Graph API devolve `phone_number` já com `+55`. A planilha mostra `p:+55…`.
 - O limite de chamadas da Graph API para o token escolhido. Com ~30 leads/dia e 1 chamada por minuto por formulário, a expectativa é ficar muito abaixo dele.
+
+## Adendo de 05/11: a agência envia por webhook
+
+A agência (Connect Max) respondeu que **não libera acesso** à Página, ao BM nem à Central de Acesso a Leads (contrato), e que ela mesma **envia cada lead por webhook** (1–2 min após o cadastro), avisando quando houver formulário ou campo novo. O Rafael pediu tudo pronto e ativo.
+
+- **O que mudou:** a `leads-meta` virou receptor (`recebimento.ts` + `index.ts`). Saíram `meta.ts`, `rodada.ts`, cursor, checagem de formulários, cron e `META_PAGE_TOKEN`.
+- **Autenticação:** `Authorization: Bearer <token>`. O token fica no **Vault** (`leads_webhook_token`), porque o conector do Supabase não grava valor de secret de Edge Function; a RPC `leads_meta_token_confere` compara o SHA-256.
+- **Formato:** o lead no formato nativo da Meta (o mesmo da planilha), então o `converter.ts` e o dedupe por id seguem iguais. A hora pode vir em ISO, `+0000` ou segundos/ms.
+- **Entrega:** 200 só depois de gravado; qualquer outra resposta, a agência reenvia. Reenvio do mesmo id responde 200 sem duplicar.
+- **Rede de segurança (sem cursor):** `leads_webhook_log` (sem dado pessoal) + aviso: no paralelo, lead da planilha que não veio pelo webhook; no principal, silêncio > 4 h em horário comercial; envio recusado; campo novo.
+- **Modos e transição:** os mesmos (ensaio → paralelo → principal). A troca final é a agência desligar a gravação na planilha e nós passarmos para `principal` no mesmo momento.

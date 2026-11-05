@@ -8,7 +8,8 @@ import type { LeadEntrada, LeadMeta } from "./converter.ts";
 export type Modo = "desligado" | "ensaio" | "paralelo" | "principal";
 export type ItemLog = { lead_id: string; aba: string; criado_em: string; modo: Modo; resultado: "novo" | "repetido" | "ensaio"; ja_existia: boolean };
 export type DepsReceb = {
-  token: string; modo: Modo;
+  modo: Modo;
+  conferirToken(token: string): Promise<boolean>;   // compara com o token guardado no Vault (hash)
   idsExistentes(ids: string[]): Promise<Set<string>>;
   inserir(leads: LeadEntrada[], espelho: boolean): Promise<{ inseridos: number; vistos: number }>;
   registrar(itens: ItemLog[], campos: string[]): Promise<void>;   // log por lead (sem dado pessoal) + status
@@ -19,16 +20,10 @@ export type Resposta = { status: number; corpo: Record<string, unknown> };
 
 export const MAX_CORPO = 1_000_000;
 
-function iguais(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let d = 0;
-  for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return d === 0;
-}
-
 export async function receber(p: Pedido, d: DepsReceb): Promise<Resposta> {
   if (p.metodo !== "POST") return { status: 405, corpo: { error: "use POST" } };
-  if (!d.token || !iguais(p.auth ?? "", `Bearer ${d.token}`)) {
+  const m = /^Bearer (\S+)$/.exec((p.auth ?? "").trim());
+  if (!m || !(await d.conferirToken(m[1]))) {
     await d.registrarErro("token inválido ou ausente (401)");
     return { status: 401, corpo: { error: "não autorizado" } };
   }

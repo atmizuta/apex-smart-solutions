@@ -4472,18 +4472,20 @@ Pedido do Rafael: um lead aparecia como *Inapta desde 2022* no painel, mas estav
 - **Próximo passo (escolhido pelo Rafael, "os dois"):** API **paga** com a situação na hora (CNPJá com consulta online, ou SERPRO) como primeira fonte em `FONTES` de `verificar.ts`, com as grátis de reserva. A chave fica como segredo da Edge Function e nunca vai para o repositório. Depende de o Rafael criar a conta.
 - **Reverter:** copiar o backup de volta.
 
-## 137. Leads direto da Meta no painel: Edge Function `leads-meta` (04/11/2026)
+## 137. Leads da Meta direto no painel: webhook da agência (`leads-meta`) (04–05/11/2026)
 
-- **Situação (04/11):** código, testes e migrations prontos na branch `feat/leads-meta`; nada aplicado no banco nem publicado. Ensaio depende do acesso da agência (token do usuário do sistema).
-- **Pedido (04/11, Rafael):** tirar a planilha da entrada dos leads. O lead do formulário da Meta cai direto no painel, sem depender da guia do mês.
-- **Como funciona:** a Edge Function `leads-meta` roda a cada 1 min (cron `leads-meta`) e busca na Graph API os leads dos formulários em `config.leads_meta.form_ids`, desde 15 min antes do cursor. Converte para o formato da planilha (`l:`/`ag:`/`as:`/`c:`/`f:`, `p:` no telefone, `CREATED`) e grava pela `leads_entrada2(p_leads, p_espelho, p_origem)`. A `leads_entrada(jsonb)` da planilha chama a 2 com `(true, 'planilha')`.
-- **Modos (`config.leads_meta.modo`):** `desligado` (sai cedo) · `ensaio` (não grava; `leads_meta_status.ensaio` com id/aba/ja_existia) · `paralelo` (grava sem pôr na fila da planilha; a integração nativa Meta→Sheets continua escrevendo a linha) · `principal` (grava e põe na fila; só depois de desligar a integração nativa).
-- **Colunas novas:** `leads.origem_entrada` (`planilha`/`meta`) e `leads.meta_visto_em`. Relatório do paralelo: `supabase/tests/leads_meta_paralelo.sql`.
-- **Aviso ao gestor** (Meus leads, junto do aviso da planilha; `kbCarregarAviso`, teste `test_leads_meta_aviso.js`): `leads_meta_aviso()` — busca parada há mais de 30 min (paralelo) ou 5 min (principal), formulário ativo fora da busca, pergunta nova no formulário.
-- **Segredo:** `META_PAGE_TOKEN` (usuário do sistema do Business Manager dono da Página, com `leads_retrieval`, `pages_show_list`, `pages_read_engagement`). Nunca no repo.
-- **Formulário novo:** incluir o id em `form_ids`. Na 1ª rodada ele busca as últimas 24 h (`leads_meta_status.forms_buscados`). Se ele estava ativo havia mais de 24 h, voltar o cursor à mão: `update config set valor = jsonb_set(valor::jsonb, '{cursor}', '"<desde quando>"')::text where chave = 'leads_meta';` (o dedupe por id segura o que já entrou).
-- **Trocar de modo:** `update config set valor = jsonb_set(valor::jsonb, '{modo}', '"paralelo"')::text where chave = 'leads_meta';`
-- **Reverter:** `modo = desligado` (a planilha segue sozinha). Depois da troca: religar a integração nativa e `modo = paralelo`. Tudo: `supabase/rollback/20261104200000_leads_meta_rollback.sql`.
-- **Spec/plano:** `docs/superpowers/specs/2026-11-04-leads-meta-entrada-design.md`, `docs/superpowers/plans/2026-11-04-leads-meta-entrada.md`.
+- **Pedido (04/11, Rafael):** tirar a planilha da entrada dos leads. O lead do formulário da Meta cai direto no painel.
+- **Mudança de 05/11:** a agência (Connect Max) não libera acesso à Página/BM (contrato). Em vez de buscarmos na Graph API, **a agência envia cada lead por webhook** (em até 1–2 min do cadastro).
+- **Endpoint:** `POST https://mdgfboijyqfkggcrhptn.supabase.co/functions/v1/leads-meta`, `Authorization: Bearer <token>`, corpo = 1 lead (ou lista) no formato nativo da Meta (`id`, `created_time`, campos de anúncio, `form_id`, `form_name`, `is_organic`, `platform`, `field_data[{name, values}]`). Sem bloqueio por IP.
+- **Token:** no Vault (`leads_webhook_token`; cópia local em `apex-segredos/leads_webhook_token.txt`). A RPC `leads_meta_token_confere` compara o hash SHA-256. Trocar o token: `update vault.secrets set secret = '<novo>' where name = 'leads_webhook_token';` (via `vault.update_secret`).
+- **Respostas:** 200 gravado (reenvio do mesmo id também 200, sem duplicar) · 400 JSON/lead inválido · 401 token · 405 não-POST · 413 corpo > 1 MB · 503 desligado · 500 falha nossa. Tudo que não é 200 a agência deve reenviar.
+- **Conversão:** formato da planilha (`l:`/`ag:`/`as:`/`c:`/`f:`, `p:` no telefone, `CREATED`); hora aceita ISO, `+0000` ou segundos/ms. Grava pela `leads_entrada2(p_leads, p_espelho, p_origem)`; a `leads_entrada(jsonb)` da planilha chama a 2 com `(true, 'planilha')`.
+- **Modos (`config.leads_meta.modo`):** `desligado` (503) · `ensaio` (recebe e registra, **não grava** em leads) · `paralelo` (grava sem pôr na fila da planilha; a integração antiga continua escrevendo a linha) · `principal` (grava e põe na fila; só depois de a agência desligar a gravação na planilha).
+- **Registro:** `leads_webhook_log` (um por lead recebido, sem dado pessoal; RLS sem policy) e `config.leads_meta_status` (`ultimo_recebido_em`, `recebidos`, `ultimo_erro`, `campos_desconhecidos`). Colunas novas em leads: `origem_entrada` e `meta_visto_em`.
+- **Aviso ao gestor** (Meus leads; `kbCarregarAviso`, teste `test_leads_meta_aviso.js`; RPC `leads_meta_aviso`, entra como md5 na `leads_kanban_versao`): envio recusado nas últimas 24 h · no paralelo, lead que chegou pela planilha e não pelo webhook (15 min de folga) · no principal, nenhum lead há mais de `alerta_horas` (4) entre 9h e 20h · campo novo no envio (24 h).
+- **Trocar de modo:** `update config set valor = jsonb_set(valor::jsonb, '{modo}', '"paralelo"')::text where chave = 'leads_meta';` (no paralelo, gravar também `paralelo_desde`). Relatório: `supabase/tests/leads_meta_paralelo.sql`.
+- **No ar (05/11):** migration aplicada e conferida (`leads_meta_check.sql`: OK 1–12), Edge Function `leads-meta` v1 (verify_jwt=false), modo **ensaio**. Painel ainda **não** republicado (o aviso novo só aparece depois; o receptor não depende dele).
+- **Reverter:** `modo = desligado` (a planilha segue sozinha). Tudo: `supabase/rollback/20261104200000_leads_meta_rollback.sql` + apagar a função.
+- **Spec/plano:** `docs/superpowers/specs/2026-11-04-leads-meta-entrada-design.md` (adendo de 05/11), `docs/superpowers/plans/2026-11-04-leads-meta-entrada.md` (versão Graph API, substituída pelo adendo).
 
 Próxima livre: §138.
