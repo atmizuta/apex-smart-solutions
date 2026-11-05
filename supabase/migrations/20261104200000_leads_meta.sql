@@ -50,7 +50,7 @@ begin
     end if;
     v_ts := nullif(r ->> 'criado_em_lead', '')::timestamptz;
     v_aba := public.leads_mes_aba(v_ts);
-    -- cron de 10 s (planilha) e de 1 min (Meta): os dois podem trazer o mesmo lead ao mesmo tempo
+    -- planilha (cron de 10 s) e webhook da agência podem trazer o mesmo lead ao mesmo tempo
     insert into public.leads (aba, id, criado_em_lead, ad_id, ad_name, adset_id, adset_name, campaign_id, campaign_name,
                               form_id, form_name, is_organic, platform, tipo_empresa, qtd_linhas, cnpj, email, full_name,
                               city, state, phone_number, lead_status, categoria, converteu, receita, atualizado_em, primeira_sync_em,
