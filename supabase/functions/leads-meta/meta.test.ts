@@ -64,3 +64,22 @@ test("nomeForm e forms", async () => {
   assert.equal(chamadas[0].url, `${G}/444?fields=name`);
   assert.equal(chamadas[1].url, `${G}/999/leadgen_forms?fields=id%2Cname%2Cstatus&limit=100`);
 });
+
+test("revisão: next com access_token é limpo antes de seguir", async () => {
+  const { f, chamadas } = falso([
+    { url: "", corpo: { data: [], paging: { next: `${G}/444/leads?access_token=tokzz&after=zz` } } },
+    { url: "", corpo: { data: [] } },
+  ]);
+  await criarMeta("tokzz", f).leadsDesde("444", 0);
+  assert.doesNotMatch(chamadas[1].url, /tokzz|access_token/);
+  assert.match(chamadas[1].url, /after=zz/);
+});
+
+test("revisão: erro de rede com a URL na mensagem não leva o token", async () => {
+  const f = async (url: string) => { throw new Error(`error sending request for url (${url}?access_token=tokzz): dns error`); };
+  await assert.rejects(criarMeta("tokzz", f).nomeForm("444"), (e: Error) => {
+    assert.doesNotMatch(e.message, /tokzz/);
+    assert.match(e.message, /^Graph rede: /);
+    return true;
+  });
+});

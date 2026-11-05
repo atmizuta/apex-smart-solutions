@@ -117,7 +117,7 @@ Uma mudança só, em `_template.html` (por volta da linha 4381, onde o gestor l�
 |---|---|---|---|
 | **Deploy** | — | migration, função e cron com `modo = desligado` | checagem SQL ok; rodada sai cedo sem erro |
 | **0. Ensaio** | 1–2 dias úteis | token no secret, `page_id` e `form_ids` no `config`, `modo = ensaio` | os nomes do `field_data` batem; todo lead que a planilha recebeu no período está no ensaio; um lead conferido à mão (CNPJ, telefone, aba iguais aos da planilha) |
-| **1. Paralelo** | ~5 dias úteis | `modo = paralelo` | a checagem diária (seção 6) mostra **zero** lead só-planilha (sem `meta_visto_em`) e zero só-Meta que a planilha nunca recebeu |
+| **1. Paralelo** | ~5 dias úteis | `modo = paralelo` | a checagem diária (seção 6) mostra **zero** lead só-planilha (sem `meta_visto_em`), e todo lead com `origem_entrada = 'meta'` aparece na guia do mês (conferido pela coluna `id`) |
 | **2. Troca** | um momento combinado | desligar a integração nativa Meta→Sheets e, no mesmo minuto, `modo = principal` | o lead seguinte aparece no painel e, pelo espelho, na guia do mês, sem linha duplicada |
 
 Depois da troca, a `planilha-espelho` continua lendo a guia de entrada e as guias do mês, mas não acha nada novo (o banco já tem tudo). Tirar essa leitura fica para a spec do espelho.

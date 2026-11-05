@@ -9,8 +9,9 @@ export type CfgMeta = { modo: Modo; page_id: string; form_ids: string[]; cursor:
 export type StatusMeta = {
   ultima_ok?: string; ultimo_erro?: string; erro_em?: string | null; buscados?: number; inseridos?: number; vistos?: number;
   invalidos?: number; campos_desconhecidos?: string[]; forms_fora?: { id: string; name: string }[]; forms_checado_em?: string;
-  forms_erro?: string; ensaio?: { id: string; aba: string; ja_existia: boolean }[];
+  forms_erro?: string; forms_buscados?: string[]; ensaio?: ItemEnsaio[];
 };
+export type ItemEnsaio = { id: string; aba: string; criado_em: string; ja_existia: boolean };
 export type DepsMeta = {
   meta: Meta; cfg: CfgMeta; status: StatusMeta; agora: Date;
   idsExistentes(ids: string[]): Promise<Set<string>>;
@@ -23,7 +24,7 @@ export type ResultadoRodada = { ok: boolean; modo: Modo; buscados: number; inser
 export const VOLTA_MIN = 15;
 export const SEM_CURSOR_H = 24;
 export const FORMS_A_CADA_MIN = 60;
-export const ENSAIO_MAX = 50;
+export const ENSAIO_MAX = 300;   // ~30 leads/dia: cobre o ensaio inteiro (id/aba/hora não são dado pessoal)
 
 const semF = (id: string) => id.replace(/^f:/, "");
 
@@ -48,11 +49,14 @@ export async function rodar(d: DepsMeta): Promise<ResultadoRodada> {
   try {
     const base = d.cfg.cursor ? Date.parse(d.cfg.cursor) - VOLTA_MIN * 60_000 : d.agora.getTime() - SEM_CURSOR_H * 3600_000;
     const desdeSeg = Math.floor(base / 1000);
+    // formulário incluído depois em form_ids: o cursor é de todos, então na 1ª vez ele busca as últimas 24 h (revisão final)
+    const desde24h = Math.floor((d.agora.getTime() - SEM_CURSOR_H * 3600_000) / 1000);
+    const jaBuscados = d.status.forms_buscados ? new Set(d.status.forms_buscados) : null;
     const leads: LeadEntrada[] = [];
     const desconhecidos = new Set<string>();
     for (const formId of d.cfg.form_ids) {
       const id = semF(formId);
-      const brutos = await d.meta.leadsDesde(id, desdeSeg);
+      const brutos = await d.meta.leadsDesde(id, jaBuscados && !jaBuscados.has(id) ? Math.min(desdeSeg, desde24h) : desdeSeg);
       if (!brutos.length) continue;
       const nome = await d.meta.nomeForm(id);
       r.buscados += brutos.length;
@@ -65,7 +69,13 @@ export async function rodar(d: DepsMeta): Promise<ResultadoRodada> {
     let ensaio: StatusMeta["ensaio"];
     if (modo === "ensaio") {
       const existentes = await d.idsExistentes(leads.map((l) => l.id));
-      ensaio = leads.slice(0, ENSAIO_MAX).map((l) => ({ id: l.id, aba: mesAba(l.criado_em_lead), ja_existia: existentes.has(l.id) }));
+      // acumula entre rodadas (cada rodada só vê ~15 min); ja_existia uma vez verdadeiro fica verdadeiro (revisão final)
+      const junto = new Map((d.status.ensaio ?? []).map((x) => [x.id, x]));
+      for (const l of leads) {
+        const antes = junto.get(l.id);
+        junto.set(l.id, { id: l.id, aba: mesAba(l.criado_em_lead), criado_em: l.criado_em_lead, ja_existia: existentes.has(l.id) || !!antes?.ja_existia });
+      }
+      ensaio = [...junto.values()].sort((a, b) => b.criado_em.localeCompare(a.criado_em)).slice(0, ENSAIO_MAX);
     } else if (leads.length) {
       const g = await d.inserir(leads, modo === "principal");
       r.inseridos = g.inseridos;
@@ -74,7 +84,7 @@ export async function rodar(d: DepsMeta): Promise<ResultadoRodada> {
     const maior = leads.map((l) => l.criado_em_lead).sort().at(-1);
     if (maior && (!d.cfg.cursor || Date.parse(maior) > Date.parse(horaIso(d.cfg.cursor) ?? d.cfg.cursor))) await d.salvarCursor(maior);
     let st: StatusMeta = { ...d.status, ultima_ok: agoraIso, ultimo_erro: "", erro_em: null, buscados: r.buscados, inseridos: r.inseridos,
-      vistos: r.vistos, invalidos: r.invalidos, campos_desconhecidos: [...desconhecidos] };
+      vistos: r.vistos, invalidos: r.invalidos, campos_desconhecidos: [...desconhecidos], forms_buscados: d.cfg.form_ids.map(semF) };
     if (ensaio) st.ensaio = ensaio;
     st = await checarForms(d, st);
     await d.salvarStatus(st);

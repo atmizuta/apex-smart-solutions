@@ -85,19 +85,46 @@ test("erro na Meta: cursor parado, nada gravado, status com erro e ultima_ok pre
   assert.equal(s.ultima_ok, "2026-11-04T22:00:00.000Z");
 });
 
-test("ensaio: não grava, guarda id/aba/ja_existia sem dado pessoal, limite de 50", async () => {
-  const muitos = Array.from({ length: 60 }, (_, i) => lm(String(i)));
-  const { d, log } = deps({ cfg: { modo: "ensaio" }, leads: { "444": muitos }, existentes: ["l:0"] });
+test("ensaio: não grava e guarda id/aba/criado_em/ja_existia sem dado pessoal", async () => {
+  const { d, log } = deps({ cfg: { modo: "ensaio" }, leads: { "444": [lm("1", "2026-11-04T22:01:00+0000"), lm("2", "2026-11-04T22:02:00+0000")] }, existentes: ["l:1"] });
   const r = await rodar(d);
   assert.equal(r.ok, true);
   assert.equal(log.inseridos.length, 0);
-  const e = log.status.at(-1)!.ensaio!;
-  assert.equal(e.length, 50);
-  assert.deepEqual(Object.keys(e[0]).sort(), ["aba", "id", "ja_existia"]);
-  assert.deepEqual(e[0], { id: "l:0", aba: "NOVEMBRO", ja_existia: true });   // os 50 primeiros na ordem da Meta (mais novo primeiro)
-  assert.equal(e[1].ja_existia, false);
+  assert.deepEqual(log.status.at(-1)!.ensaio, [
+    { id: "l:2", aba: "NOVEMBRO", criado_em: "2026-11-04T22:02:00.000Z", ja_existia: false },
+    { id: "l:1", aba: "NOVEMBRO", criado_em: "2026-11-04T22:01:00.000Z", ja_existia: true },
+  ]);
   assert.ok(!JSON.stringify(log.status).includes("Zz "));
   assert.equal(log.cursores.length, 1);
+});
+
+test("revisão: ensaio acumula entre rodadas (não some no minuto seguinte) e ja_existia não volta a false", async () => {
+  const antigo = { id: "l:velho", aba: "NOVEMBRO", criado_em: "2026-11-04T10:00:00.000Z", ja_existia: true };
+  const a = deps({ cfg: { modo: "ensaio" }, status: { ensaio: [antigo, { id: "l:1", aba: "NOVEMBRO", criado_em: "2026-11-04T22:01:00.000Z", ja_existia: true }] },
+    leads: { "444": [lm("1", "2026-11-04T22:01:00+0000"), lm("2", "2026-11-04T22:02:00+0000")] } });
+  await rodar(a.d);
+  assert.deepEqual(a.log.status.at(-1)!.ensaio!.map((x) => [x.id, x.ja_existia]), [["l:2", false], ["l:1", true], ["l:velho", true]]);
+  const b = deps({ cfg: { modo: "ensaio" }, status: { ensaio: [antigo] } });   // rodada sem lead
+  await rodar(b.d);
+  assert.deepEqual(b.log.status.at(-1)!.ensaio, [antigo]);
+});
+
+test("revisão: ensaio guarda até 300, os mais novos", async () => {
+  const muitos = Array.from({ length: 310 }, (_, i) => lm(String(i), new Date(Date.parse("2026-11-04T00:00:00Z") + i * 60_000).toISOString()));
+  const { d, log } = deps({ cfg: { modo: "ensaio", cursor: null }, leads: { "444": muitos } });
+  await rodar(d);
+  const e = log.status.at(-1)!.ensaio!;
+  assert.equal(e.length, 300);
+  assert.equal(e[0].id, "l:309");
+  assert.equal(e.at(-1)!.id, "l:10");
+});
+
+test("revisão: formulário incluído depois é buscado desde 24 h na 1ª vez; os já buscados seguem o cursor", async () => {
+  const { d, log } = deps({ cfg: { form_ids: ["444", "f:777"] }, status: { forms_buscados: ["444"] } });
+  await rodar(d);
+  assert.equal(log.desde[0], Date.parse("2026-11-04T21:45:00Z") / 1000);
+  assert.equal(log.desde[1], Date.parse("2026-11-03T22:10:00Z") / 1000);
+  assert.deepEqual(log.status.at(-1)!.forms_buscados, ["444", "777"]);
 });
 
 test("lead inválido é contado e os outros seguem; pergunta nova vai para o status", async () => {

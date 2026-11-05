@@ -4481,6 +4481,7 @@ Pedido do Rafael: um lead aparecia como *Inapta desde 2022* no painel, mas estav
 - **Colunas novas:** `leads.origem_entrada` (`planilha`/`meta`) e `leads.meta_visto_em`. Relatório do paralelo: `supabase/tests/leads_meta_paralelo.sql`.
 - **Aviso ao gestor** (Meus leads, junto do aviso da planilha; `kbCarregarAviso`, teste `test_leads_meta_aviso.js`): `leads_meta_aviso()` — busca parada há mais de 30 min (paralelo) ou 5 min (principal), formulário ativo fora da busca, pergunta nova no formulário.
 - **Segredo:** `META_PAGE_TOKEN` (usuário do sistema do Business Manager dono da Página, com `leads_retrieval`, `pages_show_list`, `pages_read_engagement`). Nunca no repo.
+- **Formulário novo:** incluir o id em `form_ids`. Na 1ª rodada ele busca as últimas 24 h (`leads_meta_status.forms_buscados`). Se ele estava ativo havia mais de 24 h, voltar o cursor à mão: `update config set valor = jsonb_set(valor::jsonb, '{cursor}', '"<desde quando>"')::text where chave = 'leads_meta';` (o dedupe por id segura o que já entrou).
 - **Trocar de modo:** `update config set valor = jsonb_set(valor::jsonb, '{modo}', '"paralelo"')::text where chave = 'leads_meta';`
 - **Reverter:** `modo = desligado` (a planilha segue sozinha). Depois da troca: religar a integração nativa e `modo = paralelo`. Tudo: `supabase/rollback/20261104200000_leads_meta_rollback.sql`.
 - **Spec/plano:** `docs/superpowers/specs/2026-11-04-leads-meta-entrada-design.md`, `docs/superpowers/plans/2026-11-04-leads-meta-entrada.md`.

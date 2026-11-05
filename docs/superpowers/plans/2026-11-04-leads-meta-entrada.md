@@ -1181,7 +1181,7 @@ git commit -m "feat(leads-meta): cron, aviso do gestor no painel e REGRAS secao 
 Nada aqui é código novo; é a sequência de produção. **Pedir ok antes de cada passo.**
 
 - [ ] **Step 1: Juntar com a oficial** — `git fetch oficial && git merge oficial/main` na worktree (se o REGRAS ganhou seção nova, renumerar a §137 e a "Próxima livre"). Rodar de novo `node --test converter.test.ts meta.test.ts rodada.test.ts` em `supabase/functions/leads-meta`: PASS.
-- [ ] **Step 2: Migration** — aplicar `20261104200000_leads_meta.sql` com `execute_sql` (begin/commit). Depois rodar `supabase/tests/leads_meta_check.sql`. Expected: erro com `RESULTADO: OK 1,2,3,4,5,6,7,8,9,10`.
+- [ ] **Step 2: Migration** — aplicar `20261104200000_leads_meta.sql` com `execute_sql` (begin/commit). Depois rodar `supabase/tests/leads_meta_check.sql`. Expected: erro com `RESULTADO: OK 1,2,3,4,5,6,7,8,9,10,11,12`.
 - [ ] **Step 3: Conferir que a planilha segue igual** — esperar 1 min e conferir `select chave, valor from config where chave in ('leads_sync_erro','leads_espelho_aviso')` (vazios) e que lead novo da planilha entrou com `origem_entrada = 'planilha'`.
 - [ ] **Step 4: Deploy da função** — `deploy_edge_function` `leads-meta` (index.ts, rodada.ts, meta.ts, converter.ts), `verify_jwt=false`. Chamar uma vez com o `x-cron-secret`: Expected `{"ok":true,"modo":"desligado"}`.
 - [ ] **Step 5: Cron** — aplicar `20261104200100_leads_meta_cron.sql`. Conferir `select jobname, schedule, active from cron.job where jobname = 'leads-meta'` e, depois de 2 min, `select status, return_message from cron.job_run_details where jobid = (select jobid from cron.job where jobname='leads-meta') order by start_time desc limit 2` (succeeded).
@@ -1194,6 +1194,6 @@ Depende do token. Cada passo com ok do Rafael; os critérios de passagem são os
 
 - [ ] **Step 1: Secret e config** — `META_PAGE_TOKEN` nas secrets da função; `update config set valor = jsonb_build_object('modo','ensaio','page_id','<id da Página>','form_ids', jsonb_build_array('<id do formulário sem f:>'),'cursor', null)::text where chave = 'leads_meta';`
 - [ ] **Step 2: Ensaio** — depois de 2 min: `select valor from config where chave = 'leads_meta_status'`. Expected: `ultima_ok` recente, `ultimo_erro` vazio, `campos_desconhecidos` vazio (se não, acrescentar o nome em `PERGUNTAS` de `converter.ts` com teste, e redeploy), `ensaio` com os ids das últimas 24 h e `ja_existia = true` nos que a planilha já trouxe. Conferir um lead à mão (CNPJ, telefone, aba) contra a linha da planilha, sem copiar dado pessoal para a conversa.
-- [ ] **Step 3: Paralelo** — `modo = paralelo`. Rodar `leads_meta_paralelo.sql` todo dia por ~5 dias úteis. Passa quando `meta_nao_viu = 0` e nenhum lead `meta` ficou sem linha na planilha.
+- [ ] **Step 3: Paralelo** — `modo = paralelo`. Rodar `leads_meta_paralelo.sql` todo dia por ~5 dias úteis. Passa quando `meta_nao_viu = 0` (1ª consulta) e todo id da 2ª consulta (`ids_da_meta`) aparece na guia do mês. Conferir só a coluna `id` da guia com a conta de serviço, sem copiar dado pessoal.
 - [ ] **Step 4: Troca** — no momento combinado: desligar a integração nativa Meta→Sheets e `modo = principal` no mesmo minuto. Conferir o lead seguinte no painel e na guia do mês (uma linha só).
 - [ ] **Step 5: REGRAS e memória** — anotar as datas do ensaio, do paralelo e da troca na §137.

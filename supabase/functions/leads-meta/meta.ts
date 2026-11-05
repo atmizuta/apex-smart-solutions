@@ -15,15 +15,26 @@ const API = `https://graph.facebook.com/${GRAPH_VERSAO}`;
 const CAMPOS = "id,created_time,ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,form_id,is_organic,platform,field_data";
 
 export function criarMeta(token: string, f: FetchFn): Meta {
+  const limpo = (s: string) => s.split(token).join("…").slice(0, 160);
   async function chamar(url: string): Promise<Record<string, unknown>> {
-    const r = await f(url, { headers: { Authorization: `Bearer ${token}` } });
+    let r: Response;
+    try {
+      r = await f(url, { headers: { Authorization: `Bearer ${token}` } });
+    } catch (e) {
+      // erro de rede do Deno traz a URL: nunca deixar o token chegar ao status/aviso (revisão final)
+      throw new Error(`Graph rede: ${limpo(String((e as Error)?.message ?? e))}`);
+    }
     const corpo = await r.json().catch(() => ({})) as Record<string, unknown>;
     const err = corpo.error as { message?: string; code?: number } | undefined;
-    if (!r.ok || err) {
-      const msg = String(err?.message ?? "sem mensagem").split(token).join("…").slice(0, 160);
-      throw new Error(`Graph ${r.status} (${err?.code ?? "?"}): ${msg}`);
-    }
+    if (!r.ok || err) throw new Error(`Graph ${r.status} (${err?.code ?? "?"}): ${limpo(String(err?.message ?? "sem mensagem"))}`);
     return corpo;
+  }
+  // a Graph pode pôr access_token no link "next": o token vai só no cabeçalho
+  function semToken(next: string | undefined): string | undefined {
+    if (!next) return undefined;
+    const u = new URL(next);
+    u.searchParams.delete("access_token");
+    return u.toString();
   }
   async function paginar<T>(primeira: string): Promise<T[]> {
     const out: T[] = [];
@@ -32,7 +43,7 @@ export function criarMeta(token: string, f: FetchFn): Meta {
       if (p >= MAX_PAGINAS) throw new Error(`Graph: mais de ${MAX_PAGINAS} páginas, parei`);
       const j = await chamar(url);
       out.push(...((j.data as T[]) ?? []));
-      url = (j.paging as { next?: string } | undefined)?.next;
+      url = semToken((j.paging as { next?: string } | undefined)?.next);
     }
     return out;
   }

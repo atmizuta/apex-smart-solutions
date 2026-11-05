@@ -73,8 +73,13 @@ create or replace function public.leads_meta_aviso() returns text
 language plpgsql stable security definer set search_path = public as $$
 declare c jsonb; s jsonb; v_modo text; v_ok timestamptz; v_lim int; partes text[] := '{}';
 begin
-  select valor::jsonb into c from public.config where chave = 'leads_meta';
-  select valor::jsonb into s from public.config where chave = 'leads_meta_status';
+  begin
+    select valor::jsonb into c from public.config where chave = 'leads_meta';
+    select valor::jsonb into s from public.config where chave = 'leads_meta_status';
+  exception when others then
+    -- JSON errado numa edição à mão não pode derrubar a leads_kanban_versao (quadro do gestor parava de atualizar)
+    return 'Leads da Meta: config.leads_meta ou leads_meta_status inválido';
+  end;
   v_modo := coalesce(c ->> 'modo', 'desligado');
   if v_modo not in ('ensaio', 'paralelo', 'principal') then return ''; end if;
   s := coalesce(s, '{}'::jsonb);
@@ -88,6 +93,9 @@ begin
   if jsonb_array_length(coalesce(s -> 'forms_fora', '[]'::jsonb)) > 0 then
     partes := partes || ('Formulário novo na Meta fora da busca: '
       || (select string_agg(x ->> 'name', ', ') from jsonb_array_elements(s -> 'forms_fora') x));
+  end if;
+  if coalesce(s ->> 'forms_erro', '') <> '' then
+    partes := partes || ('Não consegui listar os formulários da Meta (o aviso de formulário novo está parado): ' || (s ->> 'forms_erro'));
   end if;
   if v_modo in ('ensaio', 'paralelo') and jsonb_array_length(coalesce(s -> 'campos_desconhecidos', '[]'::jsonb)) > 0 then
     partes := partes || ('Pergunta nova no formulário da Meta: '

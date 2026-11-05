@@ -65,5 +65,16 @@ begin
   update public.config set valor = '{}' where chave = 'leads_meta_status';
   if public.leads_kanban_versao() = m then raise exception 'FALHOU 10: versão não mudou'; end if;
   ok := ok || '10';
+  -- 11. (revisão) JSON errado em config.leads_meta: aviso claro, sem derrubar a versão do quadro
+  update public.config set valor = '{"modo":"paralelo",' where chave = 'leads_meta';
+  if public.leads_meta_aviso() <> 'Leads da Meta: config.leads_meta ou leads_meta_status inválido' then raise exception 'FALHOU 11: %', public.leads_meta_aviso(); end if;
+  perform public.leads_kanban_versao();
+  ok := ok || '11';
+  -- 12. (revisão) erro ao listar formulários aparece no aviso
+  update public.config set valor = '{"modo":"paralelo","page_id":"zz","form_ids":["1"],"cursor":null}' where chave = 'leads_meta';
+  update public.config set valor = jsonb_build_object('ultima_ok', now(), 'forms_erro', 'Graph 403 (10): zz')::text where chave = 'leads_meta_status';
+  if public.leads_meta_aviso() <> 'Não consegui listar os formulários da Meta (o aviso de formulário novo está parado): Graph 403 (10): zz'
+    then raise exception 'FALHOU 12: %', public.leads_meta_aviso(); end if;
+  ok := ok || '12';
   raise exception 'RESULTADO: OK %', array_to_string(ok, ',');
 end $$;
