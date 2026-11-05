@@ -51,18 +51,23 @@ Esconder abas no painel não protege nada: com a sessão da agência dá para ch
 O Supabase deixa um **gancho de token** (Auth → Hooks → *Custom Access Token*) trocar o claim `role`
 do JWT. O PostgREST faz `SET ROLE` para esse papel em cada requisição. Então:
 
-1. `create role agencia nologin;` e `grant agencia to authenticator;`
-2. `grant usage on schema public to agencia;` e **só** isto:
-   - `grant select on public.profiles to agencia;` (o painel lê o próprio perfil no login; a policy
-     `profiles_select` já limita à própria linha);
-   - `grant execute on function public.conversao_resumo() to agencia;`
-   - `grant execute on function public.get_my_role() to agencia;` (usada pela policy de `profiles`).
-3. Função `public.apex_token_hook(event jsonb) returns jsonb`: se `profiles.role = 'agencia'` para
+1. `create role agencia nologin noinherit;` e `grant agencia to authenticator;`
+2. O papel recebe **só** `execute` em duas funções `security definer`:
+   - `public.meu_perfil()`: devolve a linha do próprio usuário em `profiles`. O login da agência lê o
+     perfil por ela, não pela tabela, porque o esquema `auth` não dá `usage` ao Postgres para repassar,
+     e a policy de `profiles` chama `auth.uid()` (levantamento de 05/11);
+   - `public.conversao_resumo()`.
+   O `usage` no esquema `public` já vem do `PUBLIC`.
+3. **Funções abertas ao `PUBLIC`:** todo papel herda o que o `PUBLIC` tem. Em 05/11, 19 funções nossas
+   (fora as de extensão) davam `execute` ao `PUBLIC`. A migration troca isso por `execute` explícito
+   para `anon, authenticated, service_role` (o comportamento deles não muda) e ajusta os privilégios
+   padrão do esquema, para funções futuras também não nascerem abertas ao `PUBLIC`.
+4. Função `public.apex_token_hook(event jsonb) returns jsonb`: se `profiles.role = 'agencia'` para
    `event->>'user_id'`, troca `claims.role` para `'agencia'`; em **qualquer** outro caso devolve o evento
    intacto. Tem `exception when others then return event` (um erro no gancho nunca derruba o login
    dos outros). `grant execute … to supabase_auth_admin`, `revoke … from authenticated, anon, public`;
    `grant select on public.profiles to supabase_auth_admin` + policy de leitura para ele.
-4. **Ativar o gancho é manual** (Rafael, no dashboard: Authentication → Hooks → Custom Access Token →
+5. **Ativar o gancho é manual** (Rafael, no dashboard: Authentication → Hooks → Custom Access Token →
    `public.apex_token_hook`). Desligar é o mesmo interruptor: é o "voltar atrás" da segurança.
 
 Resultado: tudo que não foi concedido ao papel `agencia` é **negado pelo próprio Postgres**: as 7
@@ -87,6 +92,20 @@ em produção e toda RPC nova precisa lembrar da trava. Fica registrado só como
 - Criação de usuário: o seletor de perfil ganha "Agência" **só para admin**; `podeGerenciar` aceita
   `'agencia'` para admin; o caminho que cria o usuário (localizar no plano) aceita o perfil.
 - Operação: a agência não tem `operacao` relevante; fica `'apex'`.
+- **Edge Functions com `verify_jwt`** (quick-api, reset-password, send-email-lote, caderno-ia,
+  diag-gemini-tmp, mailing-api, verificar-cnpj) não passam pelo papel do banco quando usam a chave de
+  serviço. Cada uma é conferida; a que usa a chave de serviço sem lista de perfis permitidos passa a
+  recusar o token com `role = 'agencia'` (403).
+- Ordem segura: ligar o gancho **antes** de existir qualquer login de agência (para todo o resto ele
+  não muda nada, então dá para conferir que admin, supervisor e consultor continuam entrando), e só
+  depois criar o login da agência.
+
+### 3.6 Achados fora do escopo (avisar o Rafael, tratar à parte)
+
+- `profiles_update` aceita `auth.uid() = id` no `with check` sem travar o `role`: hoje um consultor
+  consegue, pela API, mudar o próprio perfil para admin.
+- 12 funções `security definer` executáveis pelo `anon` (sem login). A migration desta fase mantém
+  o comportamento do `anon` de propósito; revisar em outra tarefa.
 
 ### 3.5 Teste de segurança (obrigatório antes de ativar o gancho)
 
@@ -95,7 +114,8 @@ em produção e toda RPC nova precisa lembrar da trava. Fica registrado só como
 
 - **falha** `select` em `clientes`, `leads`, `producao_pedidos_neo`, `producao_pedidos_manual`, `config`;
 - **falha** `leads_ficha`, `leads_kanban3`, `leads_pegar`, `producao_meus_pedidos`, `reconciliacao_neocrm`;
-- **funciona** `conversao_resumo()` e a leitura do próprio `profiles`.
+- **falha** `select` em `profiles` (a agência lê o perfil só pela `meu_perfil()`);
+- **funciona** `conversao_resumo()` e `meu_perfil()`.
 
 E o gancho é testado chamando `apex_token_hook` com eventos de exemplo de cada perfil (admin,
 supervisor, consultor, agência, usuário sem perfil): só a agência muda de `role`.
@@ -144,7 +164,8 @@ de 10 leads fica sempre neutro com a etiqueta "poucos leads". Linha "Ainda sem c
 (sem posição). Rodapé com o total do mês.
 
 **Aviso de gestor** (admin e supervisor; agência e consultor não veem): "N convertidos de <mês>
-estão sem receita · ver na Lista", que abre Meus leads → Lista filtrada naquele mês e convertidos sem receita.
+estão sem receita · ver na Lista", que abre Meus leads → Lista na visão Convertidos com o filtro
+Mês daquele mês (os sem receita aparecem com receita vazia; não há visão nova).
 
 **Estados:** carregando (esqueleto); erro ("Não foi possível carregar a conversão. Tentar de novo");
 mês sem leads ("Nenhum lead neste mês ainda"). Canto: "Atualizado às HH:MM". Carrega ao abrir a
@@ -205,7 +226,7 @@ comparar com o ar; backup + MD5 do ar no mesmo comando do envio; vigia aceito; �
 Banco e publicação só com ok do Rafael.
 
 - **Fase 1:** migrations (perfil, papel `agencia`, gancho, `conversao_resumo`, policies de profiles) →
-  teste de segurança → painel no ar → Rafael cria o login da agência → **liga o gancho** → teste
+  teste de segurança → painel no ar → Rafael **liga o gancho** (confere que todos ainda entram) → cria o login da agência → teste
   entrando como agência. Volta atrás: desligar o gancho + HTML do backup (o papel e a função podem
   ficar, sem efeito).
 - **Fase 2:** só HTML. Volta atrás: backup.
