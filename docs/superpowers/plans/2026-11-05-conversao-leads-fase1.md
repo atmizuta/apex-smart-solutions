@@ -350,7 +350,7 @@ Observação para quem executa: se alguma linha cair em "(assinatura diferente)"
 - [ ] **Step 3: Rodar a conferência (com ok do Rafael)**
 
 Pedir ok. Rodar `agencia_acesso_check.sql` inteiro com `execute_sql`.
-Expected: `RESULTADO: OK — 12 acessos negados à agência; gancho certo; authenticated intacto`. Se o conector responder `Invalid or expired requestState`, mandar em dois pedaços (passo 1 separado), como diz a memória do conector.
+Expected: `RESULTADO: OK — 10 acessos negados à agência; gancho certo; função nova fechada; anon/authenticated intactos` (revisão final: conferência com asserções genéricas). Se o conector responder `Invalid or expired requestState`, mandar em dois pedaços (passo 1 separado), como diz a memória do conector.
 
 - [ ] **Step 4: Commit**
 
@@ -1140,7 +1140,7 @@ Servir o painel gerado localmente com um mock que devolve o resultado real de `c
 
 - [ ] **Step 3: Banco (com ok)**
 
-Pedir ok. Aplicar, nesta ordem, com `execute_sql`: migration `20261105120000` → o passo 1 (constraint) da `20261105120100` → o resto da `20261105120100`. Rodar de novo `conversao_resumo_check.sql` e `agencia_acesso_check.sql` (agora só confere, as funções já existem) → `RESULTADO: OK`.
+Pedir ok. Aplicar, nesta ordem, com `execute_sql`: migration `20261105120000` → o passo 1 (constraint) da `20261105120100` → o resto da `20261105120100` → **`20261009210000_profiles_trava_role.sql`** (revisão final: trava de cargo nunca aplicada; fecha o consultor→admin antes de existir login externo). Rodar de novo `conversao_resumo_check.sql` e `agencia_acesso_check.sql` (agora só confere, as funções já existem) → `RESULTADO: OK`.
 
 - [ ] **Step 4: Edge Functions (com ok)**
 

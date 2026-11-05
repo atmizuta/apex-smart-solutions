@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mascarar, validarEntrada, montarPrompt, lerRespostaIA, responder, LIMITE_CHAMADAS, ehAgencia } from "./ia.ts";
+import { mascarar, validarEntrada, montarPrompt, lerRespostaIA, responder, LIMITE_CHAMADAS, ehAgencia, bloqueiaAgencia } from "./ia.ts";
 import type { DepsIA } from "./ia.ts";
 
 test("mascarar: CPF, CNPJ, telefone, CEP e e-mail viram marcadores; texto comercial fica", () => {
@@ -139,4 +139,13 @@ test("ehAgencia: lê o papel do token (Bearer) sem quebrar com token ruim", () =
   assert.equal(ehAgencia(""), false);
   assert.equal(ehAgencia("Bearer lixo"), false);
   assert.equal(ehAgencia(null), false);
+});
+
+// §138.1 (revisão final): recusa pelo perfil do banco também — com o gancho desligado o token sai "authenticated".
+test("bloqueiaAgencia: perfil 'agencia' bloqueia mesmo com token comum; token de agência bloqueia sem perfil", () => {
+  const tok = (o: unknown) => "Bearer x." + Buffer.from(JSON.stringify(o)).toString("base64url") + ".y";
+  assert.equal(bloqueiaAgencia(tok({ role: "authenticated" }), "agencia"), true);
+  assert.equal(bloqueiaAgencia(tok({ role: "agencia" }), null), true);
+  assert.equal(bloqueiaAgencia(tok({ role: "authenticated" }), "consultor"), false);
+  assert.equal(bloqueiaAgencia(null, undefined), false);
 });

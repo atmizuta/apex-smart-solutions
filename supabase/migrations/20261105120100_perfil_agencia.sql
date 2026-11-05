@@ -32,7 +32,9 @@ begin
     execute format('revoke execute on function %s from public', f.sig);
   end loop;
 end $$;
-alter default privileges in schema public revoke execute on functions from public;
+-- Global (sem "in schema"): por esquema o Postgres não desfaz o EXECUTE padrão que o PUBLIC ganha em toda função nova
+-- (revisão final 05/11). A concessão por esquema abaixo continua dando EXECUTE a anon/authenticated/service_role em public.
+alter default privileges for role postgres revoke execute on functions from public;
 alter default privileges in schema public grant execute on functions to anon, authenticated, service_role;
 
 grant execute on function public.meu_perfil() to agencia;
@@ -59,6 +61,8 @@ grant select on public.profiles to supabase_auth_admin;
 do $$ begin
   if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'profiles' and policyname = 'profiles_select_token_hook') then
     create policy profiles_select_token_hook on public.profiles for select to supabase_auth_admin using (true);
+    -- using (true) LITERAL de propósito: o gancho lê profiles como supabase_auth_admin; uma expressão aqui faria o gancho
+    -- cair no exception e o token da agência sair como authenticated (o painel e a caderno-ia ainda barram pelo perfil).
   end if;
 end $$;
 

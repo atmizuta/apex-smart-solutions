@@ -170,3 +170,9 @@ export function ehAgencia(authHeader: string | null): boolean {
     return false;
   }
 }
+
+// §138.1 (revisão final): bloqueia pelo token OU pelo perfil gravado (lido com a chave de serviço) — se o gancho de token
+// estiver desligado ou falhar, o token da agência sai como "authenticated" e só o perfil denuncia.
+export function bloqueiaAgencia(authHeader: string | null, papelPerfil: string | null | undefined): boolean {
+  return papelPerfil === "agencia" || ehAgencia(authHeader);
+}

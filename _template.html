@@ -3219,7 +3219,8 @@ function papelDoToken(sessao){
 async function loadProfileAndEnter(authUser){
   const { data: sess } = await sb.auth.getSession();
   let profile = null, error = null;
-  if(papelDoToken(sess && sess.session) === 'agencia'){
+  const papel = papelDoToken(sess && sess.session);
+  if(papel === 'agencia'){
     const r = await sb.rpc('meu_perfil');
     error = r.error; profile = r.data && r.data[0] ? r.data[0] : null;
   } else {
@@ -3230,6 +3231,14 @@ async function loadProfileAndEnter(authUser){
     await sb.auth.signOut();
     const errEl = document.getElementById('loginError');
     errEl.textContent = 'Sua conta não tem mais acesso. Contate o administrador.';
+    errEl.style.display = 'block';
+    return;
+  }
+  // §138.1 (revisão final): sem o gancho de token a agência teria o acesso de qualquer login pela API — fecha por padrão.
+  if(profile.role === 'agencia' && papel !== 'agencia'){
+    await sb.auth.signOut();
+    const errEl = document.getElementById('loginError');
+    errEl.textContent = 'O acesso da agência ainda não foi liberado. Fale com o administrador.';
     errEl.style.display = 'block';
     return;
   }
@@ -3245,6 +3254,7 @@ document.getElementById('btnLogout').addEventListener('click', async function(){
   currentUser = null;
   cadernoResetar(); // seção 72: some o Caderno e para os alertas
   kbParar(); // seção 118: alertas de Meus leads
+  agSair(); // §138.1: menu inteiro de volta depois de uma sessão da agência
   verificarAlertaSyncProducao(); // sem usuário: esconde a faixa
   appEl.style.display = 'none';
   loginScreen.style.display = 'flex';
@@ -3252,12 +3262,18 @@ document.getElementById('btnLogout').addEventListener('click', async function(){
   document.getElementById('loginBlock').style.display = 'block';
 });
 
+// §138.1 (revisão final): ao sair, o menu volta como estava antes da agência (quem entra depois na mesma aba vê tudo).
+function agSair(){
+  document.querySelectorAll('#tabsNav [data-ag-display]').forEach(el => { el.style.display = el.dataset.agDisplay; delete el.dataset.agDisplay; });
+}
+
 const ROLE_LABELS = {admin:'Administrador', supervisor:'Supervisor', consultor:'Consultor', agencia:'Agência'};
 
 // §138.1: entrada do perfil Agência — esconde o menu todo menos Meus leads e abre direto na Conversão.
 function agEntrar(){
-  document.querySelectorAll('#tabsNav button[data-tab]').forEach(b => { b.style.display = b.dataset.tab === 'meusleads' ? 'inline-block' : 'none'; });
-  document.querySelectorAll('#tabsNav .navGroupLabel').forEach(g => { g.style.display = 'none'; });
+  const guardar = (el) => { if(el.dataset.agDisplay === undefined) el.dataset.agDisplay = el.style.display; };   // agSair() devolve no logout
+  document.querySelectorAll('#tabsNav button[data-tab]').forEach(b => { guardar(b); b.style.display = b.dataset.tab === 'meusleads' ? 'inline-block' : 'none'; });
+  document.querySelectorAll('#tabsNav .navGroupLabel').forEach(g => { guardar(g); g.style.display = 'none'; });
   document.querySelector('#tabsNav button[data-tab="meusleads"]').click();
   setTimeout(() => ApexMotion.loader.hide(), 300);
 }

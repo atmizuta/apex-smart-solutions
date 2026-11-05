@@ -176,15 +176,26 @@ try{
   assert(document.getElementById('panel-meusleads').classList.contains('active') && kbEstado.aba === 'conversao', 'abre direto em Meus leads → Conversão');
   assert(!document.querySelector('#cvConversao .cvAviso'), 'agência não vê aviso de gestor');
 
-  // Review Focus 5: gancho desligado (token "authenticated"), perfil 'agencia' pela tabela → mesmo caminho fechado
+  // revisão final #2: depois da agência, quem entra na mesma aba tem o menu inteiro de volta
+  document.getElementById('btnLogout').click();
+  await espera(30);
+  assert([...document.querySelectorAll('#tabsNav .navGroupLabel')].every(g => g.style.display !== 'none'), 'rótulos de grupo voltam depois que a agência sai');
+  assert(document.querySelector('#tabsNav button[data-tab="producao"]').style.display !== 'none', 'Dashboard volta ao menu depois que a agência sai');
+
+  // Review Focus 5 + revisão final #3: gancho desligado (token "authenticated") e perfil 'agencia' → fecha por padrão
   window.__sessao = { access_token: jwt({ role: 'authenticated', sub: 'u-ag' }) };
   window.__tabelas.profiles = [{ id: 'u-ag', nome: 'Zz Agência', username: 'zz-ag', role: 'agencia', operacao: 'apex' }];
   window.__rpcCalls.length = 0; window.__fromCalls.length = 0;
+  let desconectou = false;
+  const signOutOrig = sb.auth.signOut;
+  sb.auth.signOut = async () => { desconectou = true; return {}; };
+  currentUser = null;
   await loadProfileAndEnter({ id: 'u-ag', email: 'zz-ag@exemplo.invalid' });
   await espera(60);
-  eq([...new Set(window.__rpcCalls.map(c => c.nome))].sort(), ['conversao_resumo'], 'gancho desligado: ainda só a conversão');
-  eq(window.__fromCalls, ['profiles'], 'gancho desligado: só leu o próprio perfil');
-
+  sb.auth.signOut = signOutOrig;
+  assert(desconectou && currentUser === null, 'gancho desligado: a agência é desconectada, não entra');
+  assert(/ainda não foi liberado/.test(document.getElementById('loginError').textContent), 'gancho desligado: mensagem para a agência');
+  eq(window.__rpcCalls.map(c => c.nome), [], 'gancho desligado: nenhuma RPC');
   // ==== mais testes entram aqui ====
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');

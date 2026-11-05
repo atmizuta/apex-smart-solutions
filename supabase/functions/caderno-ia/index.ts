@@ -3,7 +3,7 @@
 // Publicar com verify_jwt = true (só usuário logado). Secret: GEMINI_API_KEY (o Rafael cria pelo CLI; nunca no repo).
 // Log: só objeção, status e tempo — nunca o texto do cliente.
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { ehAgencia, responder } from "./ia.ts";
+import { bloqueiaAgencia, responder } from "./ia.ts";
 import type { DepsIA, Objecao } from "./ia.ts";
 
 // 07/10/2026: medido de dentro do Supabase — 3.5-flash-lite com raciocínio "minimal" e saída curta respondeu em
@@ -76,7 +76,9 @@ Deno.serve(async (req: Request) => {
     const admin = createClient(url, service, { auth: { persistSession: false } });
     const { data: u, error: ue } = await admin.auth.getUser(jwt);
     if (ue || !u?.user) return json({ error: "Sessão inválida." }, 401);
-    if (ehAgencia(authHeader)) return json({ error: "Sem permissão." }, 403);   // §138.1: Agência não usa a IA
+    // §138.1: Agência não usa a IA (pelo perfil do banco, que não depende do gancho de token)
+    const { data: pf } = await admin.from("profiles").select("role").eq("id", u.user.id).maybeSingle();
+    if (bloqueiaAgencia(authHeader, (pf as { role?: string } | null)?.role)) return json({ error: "Sem permissão." }, 403);
     const campos = "chave,rotulo,fala,pergunta,alternativa";
     const deps: DepsIA = {
       async buscarObjecao(c) {
