@@ -114,6 +114,7 @@ try{
   assert(!div.querySelector('.cvAviso'), 'agência/consultor não veem o aviso de receita');
   div.innerHTML = cvHtml(Object.assign({}, base, { sel: 'NOVEMBRO' }));
   assert(/dia 4 de 30/.test(div.querySelector('.cvKpis').textContent) && !/vs /.test(div.querySelector('.cvKpis').textContent), 'mês em andamento: sem comparação, com "dia 4 de 30"');
+  eq((div.querySelector('.cvKpis').textContent.match(/em andamento/g) || []).length, 1, 'prévia 05/11: "em andamento" aparece uma vez só, no primeiro número');
   div.innerHTML = cvHtml(Object.assign({}, base, { linhas: [{ aba: 'OUTUBRO', ordem: 'x', consultor: '<b>Zz "x"</b>', leads: 12, convertidos: 1, receita: 1 }], meses: cvMesesDe([{ aba: 'OUTUBRO', ordem: 'x', leads: 12, convertidos: 1, receita: 1 }]) }));
   assert(!div.querySelector('.cvRank b') && div.querySelector('.cvNome').textContent === '<b>Zz "x"</b>', 'Review Focus 3: nome escapado');
   div.innerHTML = cvHtml({ erro: true });
@@ -175,12 +176,14 @@ try{
   eq(visiveis, ['meusleads'], 'menu da agência: só Meus leads');
   assert(document.getElementById('panel-meusleads').classList.contains('active') && kbEstado.aba === 'conversao', 'abre direto em Meus leads → Conversão');
   assert(!document.querySelector('#cvConversao .cvAviso'), 'agência não vê aviso de gestor');
+  eq(document.getElementById('pageSub').textContent, 'Resultado das campanhas, mês a mês', 'prévia 05/11: subtítulo da agência fala de resultado, não de pegar lead');
 
   // revisão final #2: depois da agência, quem entra na mesma aba tem o menu inteiro de volta
   document.getElementById('btnLogout').click();
   await espera(30);
   assert([...document.querySelectorAll('#tabsNav .navGroupLabel')].every(g => g.style.display !== 'none'), 'rótulos de grupo voltam depois que a agência sai');
   assert(document.querySelector('#tabsNav button[data-tab="producao"]').style.display !== 'none', 'Dashboard volta ao menu depois que a agência sai');
+  eq(document.querySelector('#tabsNav button[data-tab="meusleads"]').dataset.sub, 'Pegue e classifique os leads das campanhas', 'subtítulo de Meus leads volta ao normal depois que a agência sai');
 
   // Review Focus 5 + revisão final #3: gancho desligado (token "authenticated") e perfil 'agencia' → fecha por padrão
   window.__sessao = { access_token: jwt({ role: 'authenticated', sub: 'u-ag' }) };

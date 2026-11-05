@@ -3265,6 +3265,7 @@ document.getElementById('btnLogout').addEventListener('click', async function(){
 // §138.1 (revisão final): ao sair, o menu volta como estava antes da agência (quem entra depois na mesma aba vê tudo).
 function agSair(){
   document.querySelectorAll('#tabsNav [data-ag-display]').forEach(el => { el.style.display = el.dataset.agDisplay; delete el.dataset.agDisplay; });
+  document.querySelectorAll('#tabsNav [data-ag-sub]').forEach(el => { el.dataset.sub = el.dataset.agSub; delete el.dataset.agSub; });
 }
 
 const ROLE_LABELS = {admin:'Administrador', supervisor:'Supervisor', consultor:'Consultor', agencia:'Agência'};
@@ -3274,7 +3275,10 @@ function agEntrar(){
   const guardar = (el) => { if(el.dataset.agDisplay === undefined) el.dataset.agDisplay = el.style.display; };   // agSair() devolve no logout
   document.querySelectorAll('#tabsNav button[data-tab]').forEach(b => { guardar(b); b.style.display = b.dataset.tab === 'meusleads' ? 'inline-block' : 'none'; });
   document.querySelectorAll('#tabsNav .navGroupLabel').forEach(g => { guardar(g); g.style.display = 'none'; });
-  document.querySelector('#tabsNav button[data-tab="meusleads"]').click();
+  const bt = document.querySelector('#tabsNav button[data-tab="meusleads"]');
+  if(bt.dataset.agSub === undefined) bt.dataset.agSub = bt.dataset.sub || '';   // prévia 05/11: a agência não pega lead
+  bt.dataset.sub = 'Resultado das campanhas, mês a mês';
+  bt.click();
   setTimeout(() => ApexMotion.loader.hide(), 300);
 }
 
@@ -4994,19 +4998,19 @@ function cvHtml(est){
   const emAndamento = mes.aba === atual;
   const cmp = !emAndamento && !mes.repique ? cvComparar(mes, ant) : null;
   const sp = cvPartesSP(est.agoraMs);
-  const delta = (v, suf) => {
-    if(mes.repique) return 'lote de recontato';
-    if(emAndamento) return `em andamento: dia ${sp.dia} de ${sp.diasNoMes}`;
+  const delta = (v, suf, primeiro) => {   // prévia 05/11: o aviso de mês em andamento vai só no primeiro número
+    if(mes.repique) return primeiro ? 'lote de recontato' : '';
+    if(emAndamento) return primeiro ? `em andamento: dia ${sp.dia} de ${sp.diasNoMes}` : '';
     if(!cmp || v === null) return '';
     return `<span class="${v > 0 ? 'cvUp' : v < 0 ? 'cvDn' : ''}">${cvVar(v, suf)}</span> vs ${escapeHtml(cvRotuloMes(ant.aba).toLowerCase())}`;
   };
   const tkt = mes.convertidos > 0 ? ` · ticket médio ${fmtBRL(mes.receita / mes.convertidos)}` : '';
   const kpi = (lb, v, d) => `<div class="cvKpi"><div class="cvKpiLb">${lb}</div><div class="cvKpiV">${v}</div><div class="cvKpiD">${d || '&nbsp;'}</div></div>`;
   const kpis = '<div class="cvKpis">'
-    + kpi('Leads recebidos', mes.leads.toLocaleString('pt-BR'), delta(cmp && cmp.leads, '%'))
+    + kpi('Leads recebidos', mes.leads.toLocaleString('pt-BR'), delta(cmp && cmp.leads, '%', true))
     + kpi('Convertidos', mes.convertidos.toLocaleString('pt-BR'), delta(cmp && cmp.convertidos, '%'))
     + kpi('Taxa de conversão', cvPct(cvTaxa(mes.convertidos, mes.leads)), delta(cmp && cmp.taxaPp, ' pp'))
-    + kpi('Receita', cvBRL0(mes.receita), (delta(cmp && cmp.receita, '%') || '') + tkt)
+    + kpi('Receita', cvBRL0(mes.receita), (delta(cmp && cmp.receita, '%') || '') + (delta(cmp && cmp.receita, '%') ? tkt : tkt.replace(/^ · /, '')))
     + '</div>';
   const aviso = est.gestor && mes.convSemReceita > 0
     ? `<div class="cvAviso">${mes.convSemReceita} convertido${mes.convSemReceita > 1 ? 's' : ''} de ${escapeHtml(cvRotuloMes(mes.aba))} ${mes.convSemReceita > 1 ? 'estão' : 'está'} sem receita · <button type="button" class="cvLink" data-cv-lista="${escapeHtml(mes.aba)}">ver na Lista</button></div>` : '';
