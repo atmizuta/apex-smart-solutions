@@ -3,7 +3,7 @@
 -- Resultado na mensagem 'RESULTADO: ...'. Perfil, usuário e função de teste são fictícios e somem no rollback.
 begin;
 -- foto de quem executava cada função antes da migration
-create temp table zz_antes on commit drop as
+create temp table zz_antes as
   select p.oid, n.nspname || '.' || p.proname as nome,
          has_function_privilege('anon', p.oid, 'execute') as anon,
          has_function_privilege('authenticated', p.oid, 'execute') as autent
@@ -108,7 +108,7 @@ begin
    where n.nspname = 'public' and c.relkind in ('r', 'v', 'm', 'p', 'f') and has_table_privilege('agencia', c.oid, 'select');
   if v_lista is not null then v_falhou := v_falhou || ('agência lê tabela/visão: ' || v_lista); end if;
   select string_agg(c.relname, ', ') into v_lista from pg_class c join pg_namespace n on n.oid = c.relnamespace
-   where n.nspname = 'public' and c.relkind = 'S' and has_sequence_privilege('agencia', c.oid, 'usage');
+   where n.nspname = 'public' and case when c.relkind = 'S' then has_sequence_privilege('agencia', c.oid, 'usage') else false end;
   if v_lista is not null then v_falhou := v_falhou || ('agência usa sequência: ' || v_lista); end if;
   select string_agg(n.nspname || '.' || p.proname, ', ' order by n.nspname, p.proname) into v_lista
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -136,7 +136,7 @@ begin
     'select 1 from public.producao_pedidos_manual limit 1',
     'select 1 from public.leads_kanban3(null, true)',
     'select 1 from public.producao_meus_pedidos()',
-    'select 1 from public.reconciliacao_neocrm()',
+    'select 1 from public.reconciliacao_neocrm(null::date, null::date, null::text)',
     'select public.get_my_role()'
   ] loop
     begin
