@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mascarar, validarEntrada, montarPrompt, lerRespostaIA, responder, LIMITE_CHAMADAS } from "./ia.ts";
+import { mascarar, validarEntrada, montarPrompt, lerRespostaIA, responder, LIMITE_CHAMADAS, ehAgencia } from "./ia.ts";
 import type { DepsIA } from "./ia.ts";
 
 test("mascarar: CPF, CNPJ, telefone, CEP e e-mail viram marcadores; texto comercial fica", () => {
@@ -129,4 +129,14 @@ test("responder: entrada inválida 400, objeção inexistente 404, limite 429, I
   assert.equal((estranha.log[0] as { status: string }).status, "erro_ia:outro", "status nunca copia a mensagem do erro");
   const lixo = deps({ chamarGemini: async () => "sem json" });
   assert.equal((await responder({ objecao_chave: "caro", contexto: {} }, "u1", lixo)).status, 503);
+});
+
+// §138.1: o perfil Agência só vê a Conversão do painel — não gasta IA nem lê objeções.
+test("ehAgencia: lê o papel do token (Bearer) sem quebrar com token ruim", () => {
+  const tok = (o: unknown) => "x." + Buffer.from(JSON.stringify(o)).toString("base64url") + ".y";
+  assert.equal(ehAgencia("Bearer " + tok({ role: "agencia", sub: "u" })), true);
+  assert.equal(ehAgencia("bearer " + tok({ role: "authenticated" })), false);
+  assert.equal(ehAgencia(""), false);
+  assert.equal(ehAgencia("Bearer lixo"), false);
+  assert.equal(ehAgencia(null), false);
 });

@@ -156,3 +156,17 @@ export async function responder(corpo: unknown, uid: string, deps: DepsIA): Prom
     return { status: 503, body: { error: "ia_indisponivel" } };
   }
 }
+
+// §138.1 (05/11): o perfil Agência (claim role = "agencia", carimbado pelo gancho de token) só vê a Conversão do painel.
+// Esta função usa a chave de serviço depois de validar o login, então a recusa precisa ser feita aqui.
+export function ehAgencia(authHeader: string | null): boolean {
+  try {
+    const t = String(authHeader ?? "").replace(/^Bearer\s+/i, "").trim();
+    const b64 = (t.split(".")[1] ?? "").replace(/-/g, "+").replace(/_/g, "/");
+    if (!b64) return false;
+    const p = JSON.parse(atob(b64 + "=".repeat((4 - b64.length % 4) % 4)));
+    return p?.role === "agencia";
+  } catch (_e) {
+    return false;
+  }
+}
