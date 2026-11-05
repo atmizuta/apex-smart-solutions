@@ -1,7 +1,6 @@
--- Desfaz a §137 (20261104200000_leads_meta.sql e 20261104200100_leads_meta_cron.sql).
+-- Desfaz a §137 (20261104200000_leads_meta.sql). Antes: modo desligado e apagar a Edge Function leads-meta.
 -- Tem DROP: se o conector recusar, rodar no SQL Editor do Supabase.
 begin;
-select cron.unschedule(jobid) from cron.job where jobname = 'leads-meta';
 
 create or replace function public.leads_entrada(p_leads jsonb) returns jsonb
 language plpgsql security definer set search_path = public as $$
@@ -40,7 +39,9 @@ create or replace function public.leads_kanban_versao()
 $$;
 
 drop function if exists public.leads_entrada2(jsonb, boolean, text);
-drop function if exists public.leads_meta_cursor(timestamptz);
+drop function if exists public.leads_meta_registrar(jsonb, jsonb);
+drop function if exists public.leads_meta_erro(text);
+drop table if exists public.leads_webhook_log;
 drop function if exists public.leads_meta_aviso();
 alter table public.leads drop column if exists origem_entrada;
 alter table public.leads drop column if exists meta_visto_em;

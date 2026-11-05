@@ -2,7 +2,7 @@
 // Sem rede e sem Deno: testado com `node --test`.
 export type CampoMeta = { name: string; values?: string[] };
 export type LeadMeta = {
-  id: string; created_time: string; ad_id?: string; ad_name?: string; adset_id?: string; adset_name?: string;
+  id: string; created_time: string | number; form_name?: string; ad_id?: string; ad_name?: string; adset_id?: string; adset_name?: string;
   campaign_id?: string; campaign_name?: string; form_id?: string; is_organic?: boolean; platform?: string; field_data?: CampoMeta[];
 };
 export type LeadEntrada = {
@@ -29,8 +29,12 @@ function prefixo(p: string, v: string | undefined | null): string | null {
 }
 
 // A Graph API manda "+0000" (sem dois-pontos); a planilha, "-05:00". Devolve ISO UTC ou null.
-export function horaIso(s: string): string | null {
-  const t = (s ?? "").trim().replace(/([+-]\d{2})(\d{2})$/, "$1:$2");
+export function horaIso(s: string | number): string | null {
+  const bruto = String(s ?? "").trim();
+  // ferramentas de integração costumam mandar a hora em segundos (ou ms) desde 1970
+  if (/^\d{10}$/.test(bruto)) return new Date(Number(bruto) * 1000).toISOString();
+  if (/^\d{13}$/.test(bruto)) return new Date(Number(bruto)).toISOString();
+  const t = bruto.replace(/([+-]\d{2})(\d{2})$/, "$1:$2");
   const ms = Date.parse(t);
   return isNaN(ms) ? null : new Date(ms).toISOString();
 }
@@ -57,7 +61,7 @@ export function converter(l: LeadMeta, formName: string | null): { lead: LeadEnt
     ad_id: prefixo("ag:", l.ad_id), ad_name: vazio(l.ad_name) ? null : l.ad_name!,
     adset_id: prefixo("as:", l.adset_id), adset_name: vazio(l.adset_name) ? null : l.adset_name!,
     campaign_id: prefixo("c:", l.campaign_id), campaign_name: vazio(l.campaign_name) ? null : l.campaign_name!,
-    form_id: prefixo("f:", l.form_id), form_name: vazio(formName) ? null : formName,
+    form_id: prefixo("f:", l.form_id), form_name: !vazio(formName) ? formName : vazio(l.form_name) ? null : l.form_name!.trim(),
     is_organic: l.is_organic === true, platform: vazio(l.platform) ? null : l.platform!,
     tipo_empresa: perguntas.tipo_empresa ?? null, qtd_linhas: perguntas.qtd_linhas ?? null, cnpj: perguntas.cnpj ?? null,
     email: perguntas.email ?? null, full_name: perguntas.full_name ?? null, city: perguntas.city ?? null, state: perguntas.state ?? null,

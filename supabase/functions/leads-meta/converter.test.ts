@@ -79,3 +79,14 @@ test("mesAba usa o horário de São Paulo (igual leads_mes_aba)", () => {
   assert.equal(mesAba("2026-12-01T04:30:00.000Z"), "DEZEMBRO");   // 01/12 01:30 em SP
   assert.equal(mesAba("2026-03-15T12:00:00.000Z"), "MARCO");
 });
+
+test("webhook: hora em segundos ou milissegundos (formato de ferramenta de integração)", () => {
+  assert.equal(horaIso("1762293000"), "2025-11-04T21:50:00.000Z");
+  assert.equal(horaIso(1762293000 as unknown as string), "2025-11-04T21:50:00.000Z");
+  assert.equal(horaIso("1762293000000"), "2025-11-04T21:50:00.000Z");
+});
+
+test("webhook: form_name vindo no próprio lead é usado quando não passam outro", () => {
+  const { lead } = converter({ ...base(), form_name: "Zz Form no lead" }, null);
+  assert.equal(lead!.form_name, "Zz Form no lead");
+});
