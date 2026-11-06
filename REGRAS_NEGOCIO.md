@@ -4518,6 +4518,9 @@ Pedido da agência, repassado pelo Rafael: "precisamos ter visão de cada lead e
 - **Banco:** função nova `leads_agencia()` (security definer). Só admin e agência podem chamá-la; consultor, supervisor e usuário sem perfil recebem 42501. O execute é dado a `authenticated`, ao papel `agencia` e a `service_role`; `anon` e `PUBLIC` ficam de fora. Ela devolve **todos** os leads não apagados, com contato (telefone, e-mail, CNPJ), ligações (quantidade, primeira e última) e campanha/formulário. Ficam de fora as **anotações (`obs`)** e os dados da produção do NEO. A regra é a mesma da Conversão: consultor = nome da planilha ou o dono do lead; convertido = `converteu` (a etapa vira "convertido" quando `converteu` é sim). Assim a Lista e os cartões da Conversão batem guia por guia. A Lista do admin e da equipe continua na `leads_kanban3`, sem mudança. Migration: `20261106120000_leads_agencia.sql`.
 - **Ao sair**, os leads carregados pela agência são apagados da memória e da tabela (`agSair`).
 - **Conferência** `supabase/tests/leads_agencia_check.sql` (roda e desfaz tudo). Em 06/11 deu OK: 2.576 leads (493 convertidos, 427 Repique, 2 sem consultor), guias iguais às da Conversão, consultor e usuário sem perfil recusados, anon sem acesso, ~1,8 s.
-- **Testes:** `test_agencia_lista.js` (28); `test_conversao_leads.js` (68) segue passando.
+- **Testes:** `test_agencia_lista.js` (28); `test_conversao_leads.js` (68) segue passando. As 8 falhas da suíte são as mesmas da oficial/main.
+- **Banco (06/11, ok do Rafael):** `leads_agencia()` aplicada. Execute para `authenticated`, `agencia` e `service_role`; `anon` sem acesso.
+- **Publicação (06/11 16:30, ok do Rafael):** o painel no ar era `e8b47af8…` (igual à oficial/main). Novo MD5 `4b64381d…`. Backup `~/deploy_backups/painel_clientes_apex_20261106_163033_antes_agencia_lista.html`.
+- **Reverter:** copiar o backup do painel. A função pode ficar no banco, porque só a agência e o admin a chamam.
 
 Próxima livre: §140 (§138.2 e §138.3 reservadas).
