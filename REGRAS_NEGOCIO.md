@@ -4523,4 +4523,16 @@ Pedido da agência, repassado pelo Rafael: "precisamos ter visão de cada lead e
 - **Publicação (06/11 16:30, ok do Rafael):** o painel no ar era `e8b47af8…` (igual à oficial/main). Novo MD5 `4b64381d…`. Backup `~/deploy_backups/painel_clientes_apex_20261106_163033_antes_agencia_lista.html`.
 - **Reverter:** copiar o backup do painel. A função pode ficar no banco, porque só a agência e o admin a chamam.
 
-Próxima livre: §140 (§138.2 e §138.3 reservadas).
+## 140. Meus leads: Lista filtra por etapa do Quadro e venda exige receita (06/11/2026)
+
+Pedido do Rafael: "os consultores precisam conseguir filtrar os leads na lista de cada etapa do quadro" e "o consultor só consegue marcar como venda quando ele colocar a receita". Antes, a conferência de 06/11 achou 14 vendas de outubro/novembro com receita zero.
+
+- **Lista:** visões novas **Meus novos** e **Em andamento**. As antigas continuam, e a ordem segue as colunas do Quadro: Todos · Em aberto · Retornos · Sem ligação · Meus novos · Em andamento · Sem resposta · Convertidos · Perdidos. Em andamento não inclui os "Sem ligação", igual ao Quadro. **Livres não entra:** a Lista (`leads_kanban3` com `p_todos`) só traz lead com dono.
+- **Venda só com receita (tela):** com status do grupo convertido ("PEDIDO CONCLUIDO (VENDA)"), o campo vira "Receita (R$) — obrigatória". Vazio ou zero não salva: aparece "Para marcar como venda, informe a receita (R$)." e o cursor vai para o campo (`kbValidar`/`kbSalvarClassificacao`). Arrastar para Convertido abre a ficha, então passa pela mesma regra.
+- **Venda só com receita (banco):** `leads_classificar` recusa (22023, "informe a receita da venda") quando o grupo é convertido ou `p_converteu` = sim e a receita é nula ou ≤ 0. Assim a aba antiga, sem F5, também não grava venda sem valor. Migration `20261106180000_leads_receita_obrigatoria.sql` (`create or replace`, sem DROP, igual à versão anterior + a checagem). As vendas antigas sem receita só são cobradas quando o lead é salvo de novo.
+- **Testes:** `test_leads_kanban.js` (84) e `test_meus_leads_fase2.js` (72), com os casos novos; `supabase/tests/leads_kanban_check.sql` ganhou venda sem receita (nula e zero). `test_leads_painel_hoje.js` tem 1 falha ("coluna zerada mostra 0") que já existia na oficial/main (depende da data).
+- **Banco (06/11 17:54, ok do Rafael):** função aplicada; execute para `authenticated` e sem `anon`. Teste no banco (desfeito): venda sem receita recusada, com R$ 54,99 aceita.
+- **Publicação (06/11 17:55, ok do Rafael):** o painel no ar era `4b64381d…` (igual à oficial/main). Novo MD5 `84baee55…`. Backup `~/deploy_backups/painel_clientes_apex_20261106_175525_antes_lista_etapas_receita.html`.
+- **Reverter:** copiar o backup do painel e reaplicar `leads_classificar` sem o bloco "informe a receita da venda". Os dois juntos: só o painel antigo, com a trava no banco, mostra "Não foi possível salvar agora" ao salvar venda sem receita.
+
+Próxima livre: §141 (§138.2 e §138.3 reservadas).
