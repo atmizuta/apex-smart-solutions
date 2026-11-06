@@ -4510,4 +4510,14 @@ Pedido do Rafael (04/11): com a planilha saindo (§137), a agência de marketing
 - **Reverter:** desligar o gancho (volta atrás imediato da segurança) e copiar o backup do painel. Papel e funções podem ficar sem efeito.
 - **Spec/plano:** `docs/superpowers/specs/2026-11-05-conversao-leads-design.md`, `docs/superpowers/plans/2026-11-05-conversao-leads-fase1.md`.
 
-Próxima livre: §139 (§138.2 e §138.3 reservadas).
+## 139. Agência vê cada lead e se a Apex converteu (Meus leads → Lista só leitura) (06/11/2026)
+
+Pedido da agência, repassado pelo Rafael: "precisamos ter visão de cada lead e os status se a APEX converteu ou não, para mensurarmos como está o tráfego". Decisões do Rafael: a agência vê **tudo menos as anotações** dos consultores e vê **todos** os leads (inclusive os que ninguém pegou e os do Repique).
+
+- **Tela:** a agência passa a ter duas abas em Meus leads, **Lista** e **Conversão**, e continua abrindo na Conversão. A Lista é **só leitura**: clicar na linha não abre a ficha e não há Ligar/WhatsApp (o número pode ser copiado). As colunas são: Empresa (com cidade e campanha), Chegou em, Consultor, Etapa, STATUS, Receita, Telefone, Último contato e Linhas. Ela tem as mesmas visões prontas, filtros (Mês, Campanha, Formulário, Cidade, Tipo, Linhas…), busca e ordenação da Lista da equipe. O lead livre aparece como **"Sem consultor"**. A receita só aparece em lead convertido. Busca global, resumo e filtros de gestor ficam escondidos para a agência. Na Conversão, a agência ganha o link "Ver os N leads de <mês>, um a um", que abre a Lista já filtrada naquele mês, na visão Todos.
+- **Banco:** função nova `leads_agencia()` (security definer). Só admin e agência podem chamá-la; consultor, supervisor e usuário sem perfil recebem 42501. O execute é dado a `authenticated`, ao papel `agencia` e a `service_role`; `anon` e `PUBLIC` ficam de fora. Ela devolve **todos** os leads não apagados, com contato (telefone, e-mail, CNPJ), ligações (quantidade, primeira e última) e campanha/formulário. Ficam de fora as **anotações (`obs`)** e os dados da produção do NEO. A regra é a mesma da Conversão: consultor = nome da planilha ou o dono do lead; convertido = `converteu` (a etapa vira "convertido" quando `converteu` é sim). Assim a Lista e os cartões da Conversão batem guia por guia. A Lista do admin e da equipe continua na `leads_kanban3`, sem mudança. Migration: `20261106120000_leads_agencia.sql`.
+- **Ao sair**, os leads carregados pela agência são apagados da memória e da tabela (`agSair`).
+- **Conferência** `supabase/tests/leads_agencia_check.sql` (roda e desfaz tudo). Em 06/11 deu OK: 2.576 leads (493 convertidos, 427 Repique, 2 sem consultor), guias iguais às da Conversão, consultor e usuário sem perfil recusados, anon sem acesso, ~1,8 s.
+- **Testes:** `test_agencia_lista.js` (28); `test_conversao_leads.js` (68) segue passando.
+
+Próxima livre: §140 (§138.2 e §138.3 reservadas).

@@ -3266,6 +3266,7 @@ document.getElementById('btnLogout').addEventListener('click', async function(){
 function agSair(){
   document.querySelectorAll('#tabsNav [data-ag-display]').forEach(el => { el.style.display = el.dataset.agDisplay; delete el.dataset.agDisplay; });
   document.querySelectorAll('#tabsNav [data-ag-sub]').forEach(el => { el.dataset.sub = el.dataset.agSub; delete el.dataset.agSub; });
+  kbEstado.todos = []; document.getElementById('kbTodosTabela').innerHTML = '';   // §139: a Lista da agência (com telefones) não fica para quem entra depois
 }
 
 const ROLE_LABELS = {admin:'Administrador', supervisor:'Supervisor', consultor:'Consultor', agencia:'Agência'};
@@ -3829,7 +3830,11 @@ function kbContagemEquipe(leads, alertas, agoraMs){
 }
 const KB_TODOS_POR_PAGINA = 50;
 const KB_TODOS_COLUNAS = [['nome', 'Empresa'], ['telefone', 'Telefone'], ['etapa', 'Etapa'], ['status', 'STATUS'], ['contato', 'Último contato'], ['retorno', 'Próximo retorno'], ['linhas', 'Linhas'], ['pego', 'Pego em']];
+// §139: Lista da agência — quando chegou, quem pegou, em que deu e quanto rendeu.
+const KB_AG_COLUNAS = [['nome', 'Empresa'], ['chegada', 'Chegou em'], ['dono', 'Consultor'], ['etapa', 'Etapa'], ['status', 'STATUS'], ['receita', 'Receita'], ['telefone', 'Telefone'], ['contato', 'Último contato'], ['linhas', 'Linhas']];
 function kbValorOrdem(l, col){
+  if(col === 'chegada') return kbMs(l.criado_em_lead) || 0;
+  if(col === 'receita') return l.converteu ? Number(l.receita) || 0 : -1;
   if(col === 'nome') return String(l.nome || '').toLowerCase();
   if(col === 'etapa') return KB_COLUNAS.indexOf(kbColunaDoLead(l));
   if(col === 'status') return String(l.status || '');
@@ -4971,7 +4976,10 @@ function cvPodeVer(){
 }
 function cvSoConversao(){ return !!currentUser && (currentUser.role === 'agencia' || (!kbPodeVer() && cvPodeVer())); }
 function cvGestor(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
+// §139 (06/11): a agência vê cada lead e se a Apex converteu — Lista só leitura (leads_agencia), além da Conversão.
+function kbAgencia(){ return !!currentUser && currentUser.role === 'agencia'; }
 function kbAbasVisiveis(){
+  if(kbAgencia()) return ['todos', 'conversao'];
   if(cvSoConversao()) return ['conversao'];
   const abas = kbAbasDoPerfil(kbGestor());
   return cvPodeVer() ? abas.concat('conversao') : abas;
@@ -5014,6 +5022,8 @@ function cvHtml(est){
     + '</div>';
   const aviso = est.gestor && mes.convSemReceita > 0
     ? `<div class="cvAviso">${mes.convSemReceita} convertido${mes.convSemReceita > 1 ? 's' : ''} de ${escapeHtml(cvRotuloMes(mes.aba))} ${mes.convSemReceita > 1 ? 'estão' : 'está'} sem receita · <button type="button" class="cvLink" data-cv-lista="${escapeHtml(mes.aba)}">ver na Lista</button></div>` : '';
+  const verLeads = est.agencia   // §139: a agência abre a Lista já no mês do cartão
+    ? `<div><button type="button" class="cvLink" data-cv-leads="${escapeHtml(mes.aba)}">Ver os ${mes.leads.toLocaleString('pt-BR')} leads de ${escapeHtml(cvRotuloMes(mes.aba).toLowerCase())}, um a um</button></div>` : '';
   const topo = rk.linhas.length ? rk.linhas[0].receita : 0;
   const linha = (r) => `<tr${r.pos ? '' : ' class="cvSem"'}><td class="cvPos${r.pos && r.pos <= 3 ? ' top' : ''}">${r.pos || ''}</td>`
     + `<td class="cvNome">${r.consultor ? escapeHtml(r.consultor) : 'Ainda sem consultor'}</td>`
@@ -5027,11 +5037,11 @@ function cvHtml(est){
     + `<tbody>${corpo || '<tr><td colspan="6">Nenhum lead neste mês ainda.</td></tr>'}</tbody>`
     + `<tfoot><tr><td></td><td>Total</td><td class="r">${rk.total.leads}</td><td class="r">${rk.total.convertidos}</td><td class="r">${cvPct(rk.total.taxa)}</td><td class="r">${fmtBRL(rk.total.receita)}</td></tr></tfoot></table></div>`;
   const hora = est.atualizadoEm ? new Date(est.atualizadoEm).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }) : '';
-  return `<div class="cvMeses">${cartoes}</div>${kpis}${aviso}${tabela}${hora ? `<div class="cvRodape">Atualizado às ${hora}</div>` : ''}`;
+  return `<div class="cvMeses">${cartoes}</div>${kpis}${aviso}${verLeads}${tabela}${hora ? `<div class="cvRodape">Atualizado às ${hora}</div>` : ''}`;
 }
 function cvRender(){
   const el = document.getElementById('cvConversao');
-  if(el) el.innerHTML = cvHtml(Object.assign({}, cvEstado, { agoraMs: Date.now(), gestor: cvGestor() }));
+  if(el) el.innerHTML = cvHtml(Object.assign({}, cvEstado, { agoraMs: Date.now(), gestor: cvGestor(), agencia: kbAgencia() }));
 }
 async function cvCarregar(){
   if(!cvPodeVer()) return;
@@ -5057,6 +5067,14 @@ document.getElementById('cvConversao').addEventListener('click', function(e){
     kbEstado.filtros = Object.assign({}, kbEstado.filtros || {}, { mes: l.dataset.cvLista });
     kbSalvarFiltros();
     Object.assign(kbEstadoTabela(), { visao: 'convertido', pagina: 1 });
+    kbTrocarAba('todos');
+    return;
+  }
+  const vl = e.target.closest('[data-cv-leads]');
+  if(vl){   // §139: agência — todos os leads do mês, não só os convertidos
+    kbEstado.filtros = Object.assign({}, kbEstado.filtros || {}, { mes: vl.dataset.cvLeads });
+    kbSalvarFiltros();
+    Object.assign(kbEstadoTabela(), { visao: 'todos', pagina: 1 });
     kbTrocarAba('todos');
   }
 });
@@ -5085,7 +5103,7 @@ function kbTrocarAba(aba){
   document.getElementById('kbEquipe').style.display = kbEstado.aba === 'equipe' ? '' : 'none';
   document.getElementById('kbTodos').style.display = kbEhTabela(kbEstado.aba) ? '' : 'none';
   document.getElementById('cvConversao').style.display = kbEstado.aba === 'conversao' ? '' : 'none';
-  document.getElementById('panel-meusleads').classList.toggle('cvAtiva', kbEstado.aba === 'conversao');
+  document.getElementById('panel-meusleads').classList.toggle('cvAtiva', kbEstado.aba === 'conversao' || kbAgencia());   // §139: a agência não usa busca global nem resumo da equipe
   document.getElementById('kbAbas').style.display = abas.length > 1 ? '' : 'none';   // agência/consultor fora da equipe: sem barra de uma aba só
   if(kbEstado.aba === 'hoje') kbCarregarHoje();
   if(kbEstado.aba === 'equipe') kbCarregarEquipe();
@@ -5459,7 +5477,8 @@ function kbRenderEquipe(){
 }
 const KB_EQ_TITULOS = { livres: 'Livres', sem_contato: 'Sem contato', andamento: 'Em andamento', parados3: 'Parados 3+ dias', retorno_atrasado: 'Retornos atrasados', convertido: 'Convertidos no mês' };
 async function kbCarregarTodos(){
-  const r = await ppSeguro(() => sb.rpc('leads_kanban3', { p_dono: kbGestor() && kbEstado.dono ? kbEstado.dono : null, p_todos: true }));
+  const r = kbAgencia() ? await ppSeguro(() => sb.rpc('leads_agencia'))   // §139: todos os leads, sem anotações
+    : await ppSeguro(() => sb.rpc('leads_kanban3', { p_dono: kbGestor() && kbEstado.dono ? kbEstado.dono : null, p_todos: true }));
   if(r && !r.error) kbEstado.todos = r.data || [];
   kbRenderTodos();
   kbRenderFiltroBarra();
@@ -5471,7 +5490,9 @@ function kbCelulaTabela(l, col, agoraMs){
   const c = kbColunaDoLead(l);
   if(col === 'nome') return `<b>${escapeHtml(l.nome || '(sem nome)')}</b><small>${escapeHtml([[l.cidade, l.uf].filter(Boolean).join('/'), l.campanha].filter(Boolean).join(' · '))}</small>`;
   if(col === 'dono') return l.dono_nome ? `<span class="kbCartDono"><b>${escapeHtml(kbIniciais(l.dono_nome))}</b>${escapeHtml(l.dono_nome)}</span>` : '<span class="kbMuted">—</span>';
-  if(col === 'etapa') return `<span class="kbEtapa kbEt-${c}">${escapeHtml(KB_TITULOS[c] || '')}</span>`;
+  if(col === 'etapa') return `<span class="kbEtapa kbEt-${c}">${escapeHtml(c === 'livres' && kbAgencia() ? 'Sem consultor' : KB_TITULOS[c] || '')}</span>`;
+  if(col === 'chegada') return l.criado_em_lead ? escapeHtml(kbDataHoraBR(l.criado_em_lead)) : '<span class="kbMuted">—</span>';
+  if(col === 'receita') return l.converteu && Number(l.receita) ? `<b>${escapeHtml(kbMoeda(l.receita))}</b>` : '<span class="kbMuted">—</span>';   // mesma regra da Conversão: receita só de convertido
   if(col === 'status') return l.status ? `<span class="kbStP" data-st="${escapeHtml(kbStSlug(l.status))}">${escapeHtml(kbStTexto(l.status))}</span>` : '<span class="kbMuted">—</span>';
   if(col === 'contato') return l.ultima_ligacao ? `${escapeHtml(kbTempoDesde(l.ultima_ligacao, agoraMs))}<small>${l.ultima_atendida ? 'atendida' + (l.ultima_seg ? ' · ' + escapeHtml(kbDuracao(l.ultima_seg)) : '') : 'não atendida'}</small>` : '<span class="kbMuted">nunca ligado</span>';
   if(col === 'retorno'){ const t = kbAbertoCol(c) ? kbRetornoTag(l, agoraMs) : null; return t ? `<span class="kbTag ${t.classe}">${escapeHtml(t.texto.replace(/^retorno /, ''))}</span>` : '<span class="kbMuted">—</span>'; }
@@ -5483,7 +5504,8 @@ function kbCelulaTabela(l, col, agoraMs){
 // Lista (ex-Todos; leads_kanban3 com p_todos): visões prontas, tabela de 52 px (40 no compacto), ações ao passar o mouse.
 function kbRenderTodos(){
   const st = kbEstadoTabela(), agoraMs = Date.now();
-  const cols = kbGestor() ? [KB_TODOS_COLUNAS[0], ['dono', 'Consultor'], ...KB_TODOS_COLUNAS.slice(1)] : KB_TODOS_COLUNAS;
+  const ag = kbAgencia();   // §139: só leitura — sem ficha, sem Ligar/WhatsApp
+  const cols = ag ? KB_AG_COLUNAS : kbGestor() ? [KB_TODOS_COLUNAS[0], ['dono', 'Consultor'], ...KB_TODOS_COLUNAS.slice(1)] : KB_TODOS_COLUNAS;
   const base = kbFiltrar(kbEstado.todos || [], kbEstado.filtros, agoraMs).filter(l => kbBuscaLocal(l, st.busca));
   const n = kbContarVisoes(base);
   document.getElementById('kbVisoes').innerHTML = KB_VISOES.map(([v, t]) => `<button type="button" class="kbVisao${st.visao === v ? ' active' : ''}" data-kb-visao="${v}">${t} <span>${n[v]}</span></button>`).join('');
@@ -5493,8 +5515,8 @@ function kbRenderTodos(){
   const busca = document.getElementById('kbTodosBusca');
   if(busca && document.activeElement !== busca) busca.value = st.busca || '';
   const cab = cols.map(([c, r]) => `<th data-kb-ord="${c}" class="kbOrdenavel${st.col === c ? ' ord' : ''}${c === 'linhas' ? ' num' : ''}">${r}${st.col === c ? `<span class="kbOrdSeta">${st.desc ? '▼' : '▲'}</span>` : ''}</th>`).join('') + '<th aria-label="Ações"></th>';
-  const acoes = (l) => String(l.telefone || '').replace(/\D/g, '') ? `<div class="kbLnAcoes"><a class="kbBtn kbBtnP kbBtnIco" title="Ligar pelo ProContact (copia o número)" data-kb-contato="ligar" data-kb-ligar href="#">${KB_ICO.tel}</a><a class="kbBtn kbBtnQ kbBtnIco" title="WhatsApp" data-kb-contato="whatsapp" data-kb-whats href="#">${KB_ICO.wa}</a></div>` : '';
-  const linhas = pg.itens.map(l => `<tr data-kb-abrir="${escapeHtml(l.aba)}|${escapeHtml(l.lead_id)}">${cols.map(([c]) => `<td class="kbTd-${c}">${kbCelulaTabela(l, c, agoraMs)}</td>`).join('')}<td class="kbTdAcoes">${acoes(l)}</td></tr>`).join('');
+  const acoes = (l) => !ag && String(l.telefone || '').replace(/\D/g, '') ? `<div class="kbLnAcoes"><a class="kbBtn kbBtnP kbBtnIco" title="Ligar pelo ProContact (copia o número)" data-kb-contato="ligar" data-kb-ligar href="#">${KB_ICO.tel}</a><a class="kbBtn kbBtnQ kbBtnIco" title="WhatsApp" data-kb-contato="whatsapp" data-kb-whats href="#">${KB_ICO.wa}</a></div>` : '';
+  const linhas = pg.itens.map(l => `<tr${ag ? '' : ` data-kb-abrir="${escapeHtml(l.aba)}|${escapeHtml(l.lead_id)}"`}>${cols.map(([c]) => `<td class="kbTd-${c}">${kbCelulaTabela(l, c, agoraMs)}</td>`).join('')}<td class="kbTdAcoes">${acoes(l)}</td></tr>`).join('');
   const botoes = Array.from({ length: pg.total }, (_, i) => i + 1).filter(p => p === 1 || p === pg.total || Math.abs(p - pg.pagina) <= 2)
     .map(p => `<button type="button" class="kbFb${p === pg.pagina ? ' on' : ''}" data-kb-pag="${p}">${p}</button>`).join('');
   document.getElementById('kbTodosTabela').innerHTML = `<table class="kbTabelaTodos${kbEstado.densidade === 'compacto' ? ' kbCompacto' : ''}"><thead><tr>${cab}</tr></thead><tbody>${linhas || `<tr><td colspan="${cols.length + 1}" class="kbMuted">Nenhum lead com esses filtros.</td></tr>`}</tbody></table>
