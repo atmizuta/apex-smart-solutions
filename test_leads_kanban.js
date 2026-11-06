@@ -78,6 +78,9 @@ try{
   eq(kbValidar({ status: 'AGENDADO RETORNO', grupo: 'andamento', retorno: '2026-10-25' }, '2026-10-26'), 'A data do retorno não pode ser no passado.', 'retorno no passado');
   eq(kbValidar({ status: 'PEDIDO CONCLUIDO (VENDA)', grupo: 'convertido', receita: '-1' }, '2026-10-26'), 'Receita inválida.', 'receita negativa');
   eq(kbValidar({ status: 'PEDIDO CONCLUIDO (VENDA)', grupo: 'convertido', receita: '1.234,50' }, '2026-10-26'), '', 'receita em formato BR ok');
+  eq([kbValidar({ status: 'PEDIDO CONCLUIDO (VENDA)', grupo: 'convertido', receita: '' }, '2026-10-26'), kbValidar({ status: 'PEDIDO CONCLUIDO (VENDA)', grupo: 'convertido', receita: '0,00' }, '2026-10-26')],
+     ['Para marcar como venda, informe a receita (R$).', 'Para marcar como venda, informe a receita (R$).'], '§140: venda sem receita (vazia ou zero) não salva');
+  eq(kbValidar({ status: 'CNPJ INAPTO', grupo: 'perdido', receita: '' }, '2026-10-26'), '', '§140: só venda exige receita');
   const agora = Date.parse('2026-10-26T12:00:00Z');
   eq([kbTempoDesde('2026-10-26T11:59:40Z', agora), kbTempoDesde('2026-10-26T11:57:00Z', agora), kbTempoDesde('2026-10-26T09:00:00Z', agora), kbTempoDesde('2026-10-23T12:00:00Z', agora)],
      ['agora', 'há 3 min', 'há 3 h', 'há 3 dias'], 'tempo desde');
@@ -125,6 +128,18 @@ try{
   await kbSalvarClassificacao();
   assert(window.__rpcCalls.length === antes, 'AGENDADO RETORNO sem data não chama o banco');
   assert(document.getElementById('kbClassErro').textContent.includes('data do retorno'), 'mostra o erro na ficha');
+  // §140: venda sem receita não chama o banco e põe o cursor na receita
+  document.getElementById('kbClassStatus').value = 'PEDIDO CONCLUIDO (VENDA)';
+  document.getElementById('kbClassReceita').value = '';
+  const antesV = window.__rpcCalls.length;
+  await kbSalvarClassificacao();
+  assert(window.__rpcCalls.length === antesV, '§140: venda sem receita não chama o banco');
+  assert(document.getElementById('kbClassErro').textContent.includes('informe a receita') && document.activeElement === document.getElementById('kbClassReceita'), '§140: mostra o erro e foca a receita');
+  document.getElementById('kbClassReceita').value = '54,99';
+  await kbSalvarClassificacao();
+  const callV = window.__rpcCalls.filter(c => c.nome === 'leads_classificar').pop();
+  eq([callV.args.p_status, callV.args.p_receita], ['PEDIDO CONCLUIDO (VENDA)', 54.99], '§140: com receita a venda salva');
+  await kbAbrirClassificar('OUTUBRO', 'm1', null);
   kbFecharFicha();
   // retorno rápido grava em leads_followups como a tela antiga (§64); perdido "para resgatar" ganha selo
   window.__rpcRespostas.leads_kanban3 = { data: [L('a1', { categoria: 'andamento', status: 'EM NEGOCIAÇÂO', telefone: '11900000001' }),

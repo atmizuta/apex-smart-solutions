@@ -3640,6 +3640,8 @@ function kbValidar(f, hojeIso){
   }
   const r = kbNumeroBR(f.receita);
   if(r !== null && (isNaN(r) || r < 0)) return 'Receita inválida.';
+  // §140 (06/11, Rafael): venda só com receita — o banco (leads_classificar) recusa do mesmo jeito.
+  if(f.grupo === 'convertido' && !(r > 0)) return 'Para marcar como venda, informe a receita (R$).';
   return '';
 }
 function kbTempoDesde(iso, agoraMs){
@@ -4009,7 +4011,10 @@ function kbCorIdadeLivre(l, agoraMs){
   return min <= 5 ? 'novo' : min < 15 ? '' : min < 30 ? 'soon' : 'late';
 }
 // Visões prontas da Lista (spec 4.2).
-const KB_VISOES = [['todos', 'Todos'], ['aberto', 'Em aberto'], ['retornos', 'Retornos'], ['semlig', 'Sem ligação'], ['semresp', 'Sem resposta'], ['convertido', 'Convertidos'], ['perdido', 'Perdidos']];
+// §140 (06/11, Rafael): a Lista filtra também por cada etapa do Quadro (Meus novos e Em andamento), na ordem das colunas.
+// Livres não entra: a Lista (leads_kanban3 com p_todos) só traz lead com dono.
+const KB_VISOES = [['todos', 'Todos'], ['aberto', 'Em aberto'], ['retornos', 'Retornos'], ['semlig', 'Sem ligação'], ['novos', 'Meus novos'],
+  ['andamento', 'Em andamento'], ['semresp', 'Sem resposta'], ['convertido', 'Convertidos'], ['perdido', 'Perdidos']];
 function kbNaVisao(l, visao){
   const col = kbColunaDoLead(l);
   if(!visao || visao === 'todos') return true;
@@ -4206,7 +4211,7 @@ function kbClassificarHtml(f, opcoes, op){
       <div class="kbAtalhos">${atalhos}</div>
       <div class="kbRetornoCampos"><label class="field"><span>Data</span><input type="date" id="kbClassRetorno" value="${escapeHtml(retData)}"></label><label class="field"><span>Hora</span><input type="time" id="kbClassHora" value="${retHora}"></label></div></div>
     <div class="kbClassBloco" id="kbClassVenda" style="display:${grupoAtual === 'convertido' ? '' : 'none'}"><span class="kbClassRotulo">Venda</span>
-      <div class="kbVendaCampos"><label class="field"><span>Receita (R$)</span><input type="text" id="kbClassReceita" inputmode="decimal" placeholder="0,00" value="${escapeHtml(receita)}"></label>
+      <div class="kbVendaCampos"><label class="field"><span>Receita (R$) — obrigatória</span><input type="text" id="kbClassReceita" inputmode="decimal" placeholder="0,00" required value="${escapeHtml(receita)}"></label>
       <label class="kbCheck"><input type="checkbox" id="kbClassConverteu"${f.converteu || f.venda_neo ? ' checked' : ''}> Converteu</label></div>
       <p class="desc" id="kbClassNeo">${f.venda_neo ? 'O NEO tem venda neste CNPJ — conferido e pré-preenchido.' : ''}</p></div>
     <label class="field kbClassObs"><span>OBS</span><textarea id="kbClassObs" rows="3" placeholder="O que o cliente disse e o próximo passo"></textarea></label>
@@ -4615,7 +4620,7 @@ async function kbSalvarClassificacao(opc){
   const form = { status, grupo: op ? op.grupo : null, receita: venda ? el('kbClassReceita').value : '', retorno: el('kbClassRetorno').value };
   const erro = kbValidar(form, hojeSP());
   el('kbClassErro').textContent = erro;
-  if(erro) return false;
+  if(erro){ if(venda && el('kbClassReceita') && !(kbNumeroBR(form.receita) > 0)) el('kbClassReceita').focus(); return false; }
   kbEstado.salvando = true;
   try {
     const hora = el('kbClassHora').value;

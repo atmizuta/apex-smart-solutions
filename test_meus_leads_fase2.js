@@ -73,9 +73,11 @@ try{
   eq([kbCorIdadeLivre(lv(3), ag), kbCorIdadeLivre(lv(10), ag), kbCorIdadeLivre(lv(20), ag), kbCorIdadeLivre(lv(40), ag), kbCorIdadeLivre({ livre: true }, ag)], ['novo', '', 'soon', 'late', ''], 'cor da idade do livre');
   const LV = [LA('a1', { retorno_em: '2026-10-29' }), LA('a2'), LA('s1', { ligacoes: 0 }), LA('n1', { categoria: 'sem_contato', status: null, ligacoes: undefined }),
     LA('r1', { categoria: 'perdido', status: 'CLIENTE NÃO RESPONDE' }), LA('c1', { categoria: 'convertido' }), LA('p1', { categoria: 'perdido', status: 'CNPJ INAPTO' })];
-  eq(kbContarVisoes(LV), { todos: 7, aberto: 4, retornos: 1, semlig: 1, semresp: 1, convertido: 1, perdido: 1 }, 'contagem das visões da Lista');
+  eq(kbContarVisoes(LV), { todos: 7, aberto: 4, retornos: 1, semlig: 1, novos: 1, andamento: 2, semresp: 1, convertido: 1, perdido: 1 }, 'contagem das visões da Lista');
+  eq(LV.filter(l => kbNaVisao(l, 'novos')).map(l => l.lead_id), ['n1'], '§140: visão Meus novos');
+  eq(LV.filter(l => kbNaVisao(l, 'andamento')).map(l => l.lead_id), ['a1', 'a2'], '§140: visão Em andamento (sem os Sem ligação)');
   eq(LV.filter(l => kbNaVisao(l, 'aberto')).map(l => l.lead_id), ['a1', 'a2', 's1', 'n1'], 'Em aberto = Meus novos, Sem ligação e Em andamento');
-  eq(KB_VISOES.map(v => v[1]), ['Todos', 'Em aberto', 'Retornos', 'Sem ligação', 'Sem resposta', 'Convertidos', 'Perdidos'], 'nomes das visões');
+  eq(KB_VISOES.map(v => v[1]), ['Todos', 'Em aberto', 'Retornos', 'Sem ligação', 'Meus novos', 'Em andamento', 'Sem resposta', 'Convertidos', 'Perdidos'], 'nomes das visões');
   kbEstado.colAbertas = {};
   eq([kbColAberta('convertido'), kbColAberta('perdido'), kbColAberta('andamento')], [false, false, true], 'Convertido e Perdido começam recolhidos');
   kbEstado.colAbertas = { perdido: true }; kbSalvarColAbertas();
@@ -182,7 +184,7 @@ try{
   kbEstado.filtros = {};
   kbTrocarAba('todos'); await espera(80);
   const vis = [...document.querySelectorAll('#kbVisoes [data-kb-visao]')];
-  eq(vis.map(b => b.dataset.kbVisao), ['todos', 'aberto', 'retornos', 'semlig', 'semresp', 'convertido', 'perdido'], 'visões prontas');
+  eq(vis.map(b => b.dataset.kbVisao), ['todos', 'aberto', 'retornos', 'semlig', 'novos', 'andamento', 'semresp', 'convertido', 'perdido'], 'visões prontas');
   assert(vis[0].classList.contains('active') && vis[0].textContent.includes('4') && vis[1].textContent.includes('2'), 'visões com contagem');
   vis[1].click();
   eq([...document.querySelectorAll('#kbTodos tbody tr')].map(t => t.dataset.kbAbrir).sort(), ['O|t1', 'O|t2'], 'visão Em aberto filtra a tabela');

@@ -63,6 +63,17 @@ begin
     assert false, 'status inválido aceito';
   exception when invalid_parameter_value then null;
   end;
+  -- §140: venda sem receita recusa (nula ou zero)
+  begin
+    perform public.leads_classificar('JUNHO', 'zz:1', 'PEDIDO CONCLUIDO (VENDA)', 'zz obs', false, null, null);
+    assert false, 'venda sem receita aceita';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    perform public.leads_classificar('JUNHO', 'zz:1', 'PEDIDO CONCLUIDO (VENDA)', 'zz obs', true, 0, null);
+    assert false, 'venda com receita zero aceita';
+  exception when invalid_parameter_value then null;
+  end;
   perform public.leads_classificar('JUNHO', 'zz:1', 'PEDIDO CONCLUIDO (VENDA)', 'zz obs', false, 1234.5, null);
   -- quem não é dono não classifica
   perform set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-00000000e204', 'role', 'authenticated')::text, true);
