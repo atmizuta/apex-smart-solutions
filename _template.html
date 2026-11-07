@@ -999,6 +999,12 @@
   .rnVencido{color:var(--st-perdido);font-weight:600;}
   .rnNome{background:none;border:0;padding:0;font:inherit;font-weight:600;color:inherit;cursor:pointer;text-align:left;}
   .rnNome:hover{text-decoration:underline;}
+  .rnGrupo{border-top:1px solid var(--c-linha);padding:var(--space-2) 0;}
+  .rnGrupo summary{cursor:pointer;font-weight:600;}
+  .rnGrupo dl{display:grid;grid-template-columns:minmax(140px,40%) 1fr;gap:2px var(--space-2);margin:var(--space-2) 0 0;}
+  .rnGrupo dt{color:var(--muted);}
+  .rnGrupo dd{margin:0;overflow-wrap:anywhere;}
+  .rnHist{margin:0;padding-left:1.1em;color:var(--muted);}
   .kbFicha.flutuante [data-kb-ficha-flutuar]{display:none;}
   .kbFichaCorpo{display:flex;flex-direction:column;min-height:0;height:100%;}
   .kbFichaRolagem{flex:1;min-height:0;overflow-y:auto;padding:var(--space-4) var(--space-6) var(--space-3);}
@@ -3883,6 +3889,100 @@ document.querySelectorAll('[data-rn-filtro]').forEach(b => b.addEventListener('c
 }));
 document.getElementById('rnMais').addEventListener('click', () => { rnEstado.pagina++; rnRenderCarteira(); });
 document.getElementById('rnPassar').addEventListener('click', rnRedistribuir);
+// ---- Ficha do cliente ----
+const RN_GRUPOS_FICHA = [
+  ['Contrato e linhas', ['Tempo de contrato (Voz)', 'Tempo de contrato (Banda Larga)', 'Tempo de contrato (Telemetria)', 'Quantidade de linhas (Voz)',
+    'Quantidade de linhas (Banda Larga)', 'Quantidade de linhas (Telemetria)', 'Classificação', 'Desconto Claro', 'APTO RENOVAÇÃO', 'TEMPO APTO RENOVAÇÃO',
+    'Cluster Apto Renovação', 'CLUSTER LINHAS VOZ', 'CLUSTER TMC VOZ', 'VL_CONTR_NO_MSISDN_C_DESC_RET', 'VALOR POR LINHA / ARPU', 'QT LINHAS SILENTES',
+    'Ultima cotação', 'DATA ULTIMA COTAÇÃO', 'RENOVAÇÃO ANTECIPADA', 'SCORE', 'QT LINHAS CHURN VOL.', 'DATA CHURN VOLUNTARIO']],
+  ['Empresa (Receita)', ['Razão Social', 'CNPJ2', 'Segmento', 'NUMERO B2B CNAE', 'CNAE B2B', 'dataAbertura', 'situacaoCadastral', 'naturezaJuridica',
+    'matrizFilial', 'capitalSocial', 'porte', 'PORTE2', 'opcaoSimples', 'opcaoMei', 'socios', 'faixa_faturamento', 'quantidade_funcionarios']],
+  ['Contatos', ['Telefone de Contato', 'Nome do ADM', 'telefone_1', 'telefone_2', 'email', 'outrosTelefones', 'outrosEmails', 'Endereco', 'endereco2',
+    'bairro', 'municipio', 'CIDADE', 'UF', 'cep', 'DDD']],
+  ['Concorrência', ['POSSUI FIXA OI', 'POSSUI FIXA TIM', 'POSSUI FIXA VIVO', 'POSSUI MÓVEL OI', 'POSSUI MÓVEL TIM', 'POSSUI MÓVEL VIVO', 'FOI OU É CLIENTE FIXA?']],
+  ['Fixa e cabeamento', ['CEP CABEADO?', 'PRE_APROVADO_FIXA', 'ÁREA CABEADA ARCGIS', 'COBERTURA 5G', 'INSTALAÇÃO CPF', 'HP CABEADO',
+    'DSC_SITUACAO_COMERCIAL_PTV', 'DSC_SITUACAO_COMERCIAL_VIRTUA', 'DSC_SITUACAO_COMERCIAL', 'DSC_TIPO_REDE_FISICA_HP', 'CEP_LOGRADOURO', 'QTD_HP',
+    'HP_CONECTADO', 'HP LIVRE']],
+];
+function rnGruposFicha(dados){
+  const d = dados || {};
+  const tem = (k) => d[k] !== undefined && d[k] !== null && d[k] !== '';
+  const grupos = RN_GRUPOS_FICHA.map(([t, chaves]) => [t, chaves.filter(tem).map(k => [k, d[k]])]).filter(([, itens]) => itens.length);
+  grupos.push(['Tudo', Object.keys(d).filter(tem).sort((a, b) => a.localeCompare(b, 'pt-BR')).map(k => [k, d[k]])]);
+  return grupos;
+}
+function rnHistoricoTexto(h){
+  const quando = h.criado_em ? new Date(h.criado_em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' }) : '';
+  const quem = h.user_id ? rnNomeConsultor(h.user_id) : 'Sistema';
+  if(h.campo === 'status') return `${quando} · ${quem}: ${rnStatusRotulo(Number(h.de))} → ${rnStatusRotulo(Number(h.para))}`;
+  return `${quando} · ${quem}: passou de ${rnNomeConsultor(h.de)} para ${rnNomeConsultor(h.para)}`;
+}
+async function rnAbrirFicha(id){
+  rnEstado.fichaId = id; rnEstado.ficha = { dados: null, historico: null };
+  document.getElementById('rnFicha').classList.add('aberta');
+  rnRenderFicha();
+  const [d, h] = await Promise.all([
+    ppSeguro(() => sb.from('renovacao_carteira').select('dados_claro').eq('id', id).single()),
+    ppSeguro(() => sb.from('renovacao_historico').select('campo,de,para,user_id,criado_em').eq('carteira_id', id).order('criado_em', { ascending: false })),
+  ]);
+  if(rnEstado.fichaId !== id) return;
+  rnEstado.ficha = { dados: d && !d.error && d.data ? (d.data.dados_claro || {}) : {}, historico: h && !h.error ? (h.data || []) : [] };
+  rnRenderFicha();
+}
+function rnFecharFicha(){ rnEstado.fichaId = null; rnEstado.ficha = null; document.getElementById('rnFicha').classList.remove('aberta'); }
+function rnRenderFicha(){
+  const el = document.getElementById('rnFichaCorpo');
+  const r = rnEstado.lista.find(x => x.id === rnEstado.fichaId);
+  if(!r){ el.innerHTML = ''; return; }
+  const tel = onlyDigits(r.telefone);
+  const cnpj = String(r.cnpj_digits || '').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+  const fic = rnEstado.ficha || {};
+  const campo = (rotulo, html) => `<label class="field">${rotulo}${html}</label>`;
+  el.innerHTML = `
+    <div class="kbFichaTopo" style="display:flex;justify-content:space-between;gap:var(--space-2)">
+      <div><h3>${escapeHtml(r.razao_social || '(sem nome)')}</h3><div class="kbMeta">${escapeHtml(cnpj)}${r.cidade ? ' · ' + escapeHtml(r.cidade) : ''} · ${r.linhas_voz ?? 0} linhas</div></div>
+      <button type="button" class="kbBtn kbBtnG" data-rn-ficha-fechar aria-label="Fechar">&times;</button>
+    </div>
+    <div style="display:flex;gap:var(--space-2);margin:var(--space-2) 0">${tel
+      ? `<a class="kbBtn kbBtnQ" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}">WhatsApp</a><a class="kbBtn kbBtnP" href="tel:${escapeHtml(tel)}">Ligar</a>`
+      : '<span class="kbMeta">Sem telefone.</span>'}</div>
+    <form id="rnFichaForm" class="card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-2)">
+      ${campo('Status', `<select name="status">${rnOpcoes(Object.keys(RN_STATUS).map(k => [k, rnStatusRotulo(+k)]), r.status)}</select>`)}
+      ${campo('Data do contato', `<input type="date" name="data_contato" value="${escapeHtml(r.data_contato || '')}">`)}
+      ${campo('Próx. retorno', `<input type="date" name="prox_retorno" value="${escapeHtml(r.prox_retorno || '')}">`)}
+      ${campo('Canal', `<select name="canal">${rnOpcoes(RN_CANAIS.map(c => [c, c]), r.canal, '—')}</select>`)}
+      ${campo('Linhas renovadas', `<input type="number" min="0" name="linhas_renovadas" value="${r.linhas_renovadas ?? ''}">`)}
+      ${campo('BL vendida (qtd)', `<input type="number" min="0" name="bl_vendida" value="${r.bl_vendida ?? ''}">`)}
+      ${campo('Sol. digitais (R$)', `<input type="number" min="0" step="0.01" name="sol_digitais" value="${r.sol_digitais ?? ''}">`)}
+      ${campo('Motivo da perda', `<select name="motivo_perda">${rnOpcoes(RN_MOTIVOS.map(m => [m, m]), r.motivo_perda, '—')}</select>`)}
+      <label class="field" style="grid-column:1/-1">Observações<textarea name="observacoes" rows="3">${escapeHtml(r.observacoes || '')}</textarea></label>
+      <p class="kbMeta rnVencido" id="rnFichaErro" role="alert" style="grid-column:1/-1"></p>
+      <div style="grid-column:1/-1"><button type="submit" class="btn btn-sm">Salvar atendimento</button></div>
+    </form>
+    ${fic.dados
+      ? rnGruposFicha(fic.dados).map(([t, itens]) => `<details class="rnGrupo"><summary>${escapeHtml(t)} <span class="kbMeta">${itens.length}</span></summary><dl>${itens.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(String(v))}</dd>`).join('')}</dl></details>`).join('')
+      : '<p class="kbMeta">Carregando dados da Claro…</p>'}
+    <h4>Histórico</h4>
+    ${fic.historico
+      ? (fic.historico.length ? '<ul class="rnHist">' + fic.historico.map(h => `<li>${escapeHtml(rnHistoricoTexto(h))}</li>`).join('') + '</ul>' : '<p class="kbMeta">Sem mudanças registradas.</p>')
+      : '<p class="kbMeta">Carregando…</p>'}`;
+}
+document.getElementById('rnFicha').addEventListener('click', (e) => { if(e.target.closest('[data-rn-ficha-fechar]')) rnFecharFicha(); });
+document.getElementById('rnFicha').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const r = rnEstado.lista.find(x => x.id === rnEstado.fichaId);
+  if(!r) return;
+  const els = e.target.elements;
+  const v = (k) => (els[k].value === '' ? null : els[k].value);
+  const num = (k) => (v(k) === null ? null : Number(v(k)));
+  const patch = { status: Number(v('status')), data_contato: v('data_contato'), prox_retorno: v('prox_retorno'), canal: v('canal'),
+    linhas_renovadas: num('linhas_renovadas'), bl_vendida: num('bl_vendida'), sol_digitais: num('sol_digitais'),
+    motivo_perda: v('motivo_perda'), observacoes: (v('observacoes') || '').trim() || null };
+  // legado da planilha (a_completar): mesma regra do banco — só cobra quando o status muda
+  const erro = r.a_completar && patch.status === r.status ? null : rnValidarFechamento(patch.status, patch);
+  if(erro){ document.getElementById('rnFichaErro').textContent = erro; return; }
+  if(await rnSalvar(r.id, patch)) mostrarAviso('Atendimento salvo.', 'ok');
+});
 /* ============ FIM RENOVAÇÃO §143 ============ */
 
 /* ============ MEUS LEADS (KANBAN) — §112 ============
