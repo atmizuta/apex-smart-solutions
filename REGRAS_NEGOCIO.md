@@ -4535,4 +4535,13 @@ Pedido do Rafael: "os consultores precisam conseguir filtrar os leads na lista d
 - **Publicação (06/11 17:55, ok do Rafael):** o painel no ar era `4b64381d…` (igual à oficial/main). Novo MD5 `84baee55…`. Backup `~/deploy_backups/painel_clientes_apex_20261106_175525_antes_lista_etapas_receita.html`.
 - **Reverter:** copiar o backup do painel e reaplicar `leads_classificar` sem o bloco "informe a receita da venda". Os dois juntos: só o painel antigo, com a trava no banco, mostra "Não foi possível salvar agora" ao salvar venda sem receita.
 
-Próxima livre: §141 (§138.2 e §138.3 reservadas).
+## 141. Painel usa a largura toda da tela em todas as abas (07/11/2026)
+
+Pedido do Rafael, de home office: "o layout está desregulado para o meu monitor [...] não é só a aba dos meus leads, é em todas as abas do painel". Em monitor largo, o conteúdo parava em 1200px (teto do "layout centralizado" de 30/09) e sobrava uma faixa vazia à direita. No Quadro de Meus leads, a coluna "Sem resposta" ficava cortada.
+
+- **Mudança:** `main{max-width:1200px}` e `.pageHead{max-width:1200px}` viraram `max-width:none` no `_template.html`. Cores, fontes, menu e espaçamentos não mudaram. Em tela de até ~1200px de área útil, nada muda. `main.mainWide` (Dashboard de Produção) continua no código, mas ficou redundante.
+- **Testes:** só CSS. A rodada de `run_tests.sh` passou de 5 min sem terminar e foi parada; os testes não cobrem largura.
+- **Publicação (07/11 08:51, ok do Rafael):** o painel no ar era `84baee55…` (igual à oficial/main 8d0d6de). Novo MD5 `b0b48242…`. Backup `~/deploy_backups/painel_clientes_apex_20261107_085146_antes_largura_total.html`.
+- **Reverter:** copiar o backup ou voltar os dois `max-width` para `1200px`.
+
+Próxima livre: §142 (§138.2 e §138.3 reservadas).

@@ -158,12 +158,14 @@
   body.sbCollapsed .userbox .ubActions{flex-direction:column;}
   body.sbCollapsed .sbCollapse svg{transform:rotate(180deg);}
   .appBody{margin-left:var(--sb-w);min-height:100vh;background-color:var(--c-papel);background-image:var(--grid-registro);background-size:32px 32px;transition:margin-left var(--dur) var(--ease-out);}
-  .pageHead{position:relative;padding:var(--space-8) var(--space-8) var(--space-5);max-width:1200px;}
+  .pageHead{position:relative;padding:var(--space-8) var(--space-8) var(--space-5);max-width:none;}
   .pageHead::after{content:"";position:absolute;left:var(--space-8);right:var(--space-8);bottom:0;height:3px;background:var(--signal-strip);}
   .pageKicker{color:var(--c-sinal);font-size:var(--fs-xs);font-weight:600;text-transform:uppercase;letter-spacing:.25em;margin-bottom:var(--space-2);}
   .pageHead h1{font-size:40px;text-transform:uppercase;line-height:.95;}
   .pageHead p{margin:var(--space-2) 0 0;color:var(--muted);font-size:var(--fs-md);}
-  main{max-width:1200px;padding:var(--space-6) var(--space-8) var(--space-10);}
+  /* §141 (07/11, pedido do Rafael): todas as abas usam a largura toda da tela — com o teto de 1200px
+     sobrava faixa vazia à direita em monitor largo e o kanban de Meus leads cortava colunas. */
+  main{max-width:none;padding:var(--space-6) var(--space-8) var(--space-10);}
   main.mainWide{max-width:none;}
   body:has(main.mainWide) .pageHead{max-width:none;}
   /* tela estreita (celular), redesenhado em 29/09/2026 (pedido do usuário, com captura de tela
