@@ -1005,6 +1005,8 @@
   .rnGrupo dt{color:var(--muted);}
   .rnGrupo dd{margin:0;overflow-wrap:anywhere;}
   .rnHist{margin:0;padding-left:1.1em;color:var(--muted);}
+  .rnTotal td{font-weight:700;}
+  .rnRetBloco{margin-bottom:var(--space-3);}
   .kbFicha.flutuante [data-kb-ficha-flutuar]{display:none;}
   .kbFichaCorpo{display:flex;flex-direction:column;min-height:0;height:100%;}
   .kbFichaRolagem{flex:1;min-height:0;overflow-y:auto;padding:var(--space-4) var(--space-6) var(--space-3);}
@@ -3983,6 +3985,54 @@ document.getElementById('rnFicha').addEventListener('submit', async (e) => {
   if(erro){ document.getElementById('rnFichaErro').textContent = erro; return; }
   if(await rnSalvar(r.id, patch)) mostrarAviso('Atendimento salvo.', 'ok');
 });
+// ---- Retornos ----
+function rnSomarDias(iso, n){ const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+function rnRetornos(lista, hoje){
+  const abertos = lista.filter(r => r.na_base && r.prox_retorno && r.status !== 6 && r.status !== 7);
+  const limite = rnSomarDias(hoje, 7);
+  const ord = (a, b) => a.prox_retorno.localeCompare(b.prox_retorno) || (b.linhas_voz || 0) - (a.linhas_voz || 0);
+  return {
+    vencidos: abertos.filter(r => r.prox_retorno < hoje).sort(ord),
+    hoje: abertos.filter(r => r.prox_retorno === hoje).sort(ord),
+    proximos: abertos.filter(r => r.prox_retorno > hoje && r.prox_retorno <= limite).sort(ord),
+  };
+}
+function rnRenderRetornos(){
+  const g = rnRetornos(rnEstado.lista, rnHoje());
+  const dm = (iso) => iso.slice(8, 10) + '/' + iso.slice(5, 7);
+  const bloco = (titulo, itens, cls) => `<div class="card rnRetBloco"><h3 class="${cls || ''}">${titulo} <span class="kbN">${itens.length}</span></h3>${itens.length
+    ? '<ul class="rnRetLista">' + itens.map(r => `<li><button type="button" class="rnNome" data-rn-abrir="${r.id}">${escapeHtml(r.razao_social || '(sem nome)')}</button> <span class="kbMeta">${dm(r.prox_retorno)} · ${escapeHtml(rnStatusRotulo(r.status))}${rnGestor() ? ' · ' + escapeHtml(rnNomeConsultor(r.consultor_id)) : ''}</span></li>`).join('') + '</ul>'
+    : '<p class="kbMeta">Nada aqui.</p>'}</div>`;
+  document.getElementById('rnRetornos').innerHTML = bloco('Vencidos', g.vencidos, 'rnVencido') + bloco('Hoje', g.hoje) + bloco('Próximos 7 dias', g.proximos);
+}
+document.getElementById('rnRetornos').addEventListener('click', (e) => { const b = e.target.closest('[data-rn-abrir]'); if(b) rnAbrirFicha(Number(b.dataset.rnAbrir)); });
+
+// ---- Resumo (fórmulas da planilha; a contagem vem da view renovacao_resumo) ----
+function rnLinhasResumo(rows){
+  const pct = (a, b) => (b ? Math.round(a * 1000 / b) / 10 : 0);
+  const linha = (r, nome) => ({ nome, carteira: +r.carteira || 0, contatados: +r.contatados || 0, cobertura: pct(+r.contatados || 0, +r.carteira || 0),
+    efetivo: +r.efetivo_mais || 0, propostas: +r.propostas_mais || 0, renovados: +r.renovados || 0, perdidos: +r.perdidos || 0,
+    conversao: pct(+r.renovados || 0, +r.efetivo_mais || 0), linhas: +r.linhas_renovadas || 0, bl: +r.bl_vendida || 0,
+    digitais: Number(r.sol_digitais || 0), atrasados: +r.retornos_atrasados || 0 });
+  const corpo = rows.map(r => linha(r, r.consultor_id ? (r.consultor_nome || '—') : 'Sem consultor')).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  const tot = {};
+  ['carteira', 'contatados', 'efetivo_mais', 'propostas_mais', 'renovados', 'perdidos', 'linhas_renovadas', 'bl_vendida', 'sol_digitais', 'retornos_atrasados']
+    .forEach(k => { tot[k] = rows.reduce((s, r) => s + Number(r[k] || 0), 0); });
+  return { corpo, total: linha(tot, 'TOTAL') };
+}
+async function rnRenderResumo(){
+  const el = document.getElementById('rnResumo');
+  const r = await ppSeguro(() => sb.from('renovacao_resumo').select('*'));
+  if(rnEstado.aba !== 'resumo') return;
+  if(!r || r.error){ el.innerHTML = '<p class="kbMeta">Não foi possível carregar o resumo agora.</p>'; return; }
+  const { corpo, total } = rnLinhasResumo(r.data || []);
+  const fp = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+  const fr = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const tr = (l, cls) => `<tr class="${cls || ''}"><td>${escapeHtml(l.nome)}</td><td>${l.carteira}</td><td>${l.contatados}</td><td>${fp(l.cobertura)}</td><td>${l.efetivo}</td><td>${l.propostas}</td><td>${l.renovados}</td><td>${l.perdidos}</td><td>${fp(l.conversao)}</td><td>${l.linhas}</td><td>${l.bl}</td><td>${fr(l.digitais)}</td><td class="${l.atrasados ? 'rnVencido' : ''}">${l.atrasados}</td></tr>`;
+  el.innerHTML = `<div class="card" style="overflow-x:auto"><table class="tbl"><thead><tr><th>Consultor</th><th>Carteira</th><th>Contatados</th><th>% Cobertura</th><th>Contato efetivo+</th><th>Propostas+</th><th>Renovados</th><th>Perdidos</th><th>% Conversão</th><th>Linhas renov.</th><th>BL vendidas</th><th>Sol. dig. (R$)</th><th>Retornos atrasados</th></tr></thead><tbody>`
+    + corpo.map(l => tr(l)).join('') + (corpo.length > 1 ? tr(total, 'rnTotal') : '') + '</tbody></table></div>'
+    + (currentUser && currentUser.role === 'admin' && typeof rnImportarHtml === 'function' ? rnImportarHtml() : '');
+}
 /* ============ FIM RENOVAÇÃO §143 ============ */
 
 /* ============ MEUS LEADS (KANBAN) — §112 ============
