@@ -4554,6 +4554,9 @@ Pedido do Rafael: "arrumar o painel dos leads, mandando para cada consultor orga
 - **Quem vê:** o consultor vê só os leads dele; admin/supervisor veem todos (incluindo sem consultor), com um resumo por consultor em botões que filtram e a coluna Consultor. O seletor de consultor do topo também vale.
 - **"Está certo":** quando o painel está certo (pedido com outro CNPJ, venda refeita), o consultor marca com um motivo (mínimo 3 letras) e o lead sai da lista. A marca vale só para a mesma situação (tipo + nº do pedido + etapa); se o NEO mudar, o lead volta. O gestor vê os marcados, com motivo, quem e quando, em "Marcados como certo". Consultor só marca lead dele.
 - **Banco:** migration `20261107120000_leads_conferir_neo.sql` (sem DROP): tabela `leads_neo_ok` (RLS sem policy, só via função), `leads_neo_grupo(etapa)` e `leads_neo_tipo(converteu, categoria, grupo)` (puras), `leads_conferir_neo(p_dono)` e `leads_neo_marcar_ok(aba, id, motivo)` (secdef; fora de PUBLIC/anon; execute para `authenticated`).
-- **Testes:** `test_leads_conferir_neo.js` (43); conferência `supabase/tests/leads_conferir_neo_check.sql` (desfaz tudo).
+- **Testes:** `test_leads_conferir_neo.js` (43) e `test_meus_leads_fase2.js` (72, com a visão nova); conferência `supabase/tests/leads_conferir_neo_check.sql` (desfaz tudo).
+- **Banco (07/11 ~10:30, ok do Rafael):** conferência passou (288 divergências, 40 sem consultor; consultor de teste vê só as 66 dele; Está certo marca e volta quando o NEO muda; 255 ms) e a migration foi aplicada.
+- **Publicação (07/11 10:33, ok do Rafael):** o painel no ar era `b0b48242…` (igual à oficial/main 1f1dd35). Novo MD5 `f3383e15…`. Backup `~/deploy_backups/painel_clientes_apex_20261107_103350_antes_conferir_neo.html`.
+- **Reverter:** copiar o backup do painel. As funções e a tabela novas podem ficar (nada mais as usa).
 
 Próxima livre: §143 (§138.2 e §138.3 reservadas).
