@@ -79,7 +79,8 @@ Funil, Agenda). O pedido: **tudo que tem na planilha passa a existir no painel, 
 
 1. `status = 7` exige `motivo_perda`.
 2. `status = 6` exige `linhas_renovadas >= 1` (BL e digitais podem ser 0 ou vazios).
-3. `status >= 2` e `data_contato` vazia → `data_contato = hoje` (horário de SP).
+3. Status **mudou** para 2 ou mais e `data_contato` vazia → `data_contato = hoje` (horário de SP). Na importação
+   não preenche: contato antigo sem data na planilha continua sem data, em vez de ganhar a data da virada.
 4. As regras 1 e 2 **não valem** para registro com `a_completar = true` que não teve o status
    mudado. Quando o registro passa nas regras, `a_completar` vira false sozinho.
 5. Consultor (não admin/supervisor) não pode mudar `consultor_id`, `dados_claro`, `na_base`
