@@ -134,6 +134,56 @@ begin
   execute 'reset role';
 end $$;
 
--- ===== Task 2 (importação) entra aqui =====
+-- ===== Task 2: importação =====
+do $$
+declare j jsonb; n int; r record;
+begin
+  execute 'set local role authenticated';
+  -- consultor não importa
+  perform set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-00000000f603', 'role', 'authenticated')::text, true); perform set_config('request.jwt.claim.sub', ('00000000-0000-0000-0000-00000000f603')::text, true);
+  begin
+    perform public.renovacao_importar('[{"cnpj_digits": "00000000000199"}]'::jsonb);
+    assert false, 'consultor importou';
+  exception when insufficient_privilege then null; end;
+  begin
+    perform public.renovacao_marcar_fora(array['00000000000101']);
+    assert false, 'consultor marcou fora da base';
+  exception when insufficient_privilege then null; end;
+
+  perform set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-00000000f601', 'role', 'authenticated')::text, true); perform set_config('request.jwt.claim.sub', ('00000000-0000-0000-0000-00000000f601')::text, true);
+  j := public.renovacao_importar(jsonb_build_array(
+    jsonb_build_object('cnpj_digits', '00000000000101', 'razao_social', 'Zz Alfa Novo Nome', 'linhas_voz', 11,
+                       'dados_claro', jsonb_build_object('CIDADE', 'Zz Cidade', 'SCORE', 7),
+                       'status', 1, 'observacoes', 'Zz não pode sobrescrever', 'consultor_id', null),
+    jsonb_build_object('cnpj_digits', '00000000000199', 'razao_social', 'Zz Novo', 'status', 7,
+                       'consultor_id', '00000000-0000-0000-0000-00000000f603', 'origem', 'Nova atribuição'),
+    jsonb_build_object('cnpj_digits', '00000000000199', 'razao_social', 'Zz Novo Repetido')
+  ));
+  assert (j->>'novos')::int = 1 and (j->>'atualizados')::int = 1, 'contagem: ' || j::text;
+  select * into r from public.renovacao_carteira where cnpj_digits = '00000000000101';
+  assert r.razao_social = 'Zz Alfa Novo Nome' and r.linhas_voz = 11 and (r.dados_claro->>'SCORE') = '7', 'dados da Claro atualizados';
+  assert r.status = 7 and r.motivo_perda = 'Preço' and r.consultor_id = '00000000-0000-0000-0000-00000000f604'
+     and r.observacoes is null, 'atendimento e consultor preservados na reimportação: ' || row_to_json(r)::text;
+  select * into r from public.renovacao_carteira where cnpj_digits = '00000000000199';
+  assert r.razao_social = 'Zz Novo' and r.status = 7 and r.a_completar and r.consultor_id = '00000000-0000-0000-0000-00000000f603'
+     and r.origem = 'Nova atribuição', 'novo entra com trabalho e como pendência: ' || row_to_json(r)::text;
+  begin
+    perform public.renovacao_importar('[{"cnpj_digits": "123"}]'::jsonb);
+    assert false, 'CNPJ inválido passou';
+  exception when invalid_parameter_value then null; end;
+  begin
+    perform public.renovacao_marcar_fora(array[]::text[]);
+    assert false, 'lista vazia marcou todo mundo fora';
+  exception when invalid_parameter_value then null; end;
+  n := public.renovacao_marcar_fora(array['00000000000101', '00000000000199']);
+  assert n = 4, 'saíram 102, 103, 104 e 105, veio ' || n;
+  assert not (select na_base from public.renovacao_carteira where cnpj_digits = '00000000000103'), '103 fora da base';
+  assert (select status from public.renovacao_carteira where cnpj_digits = '00000000000103') = 3, 'fora da base não perde o status';
+  select coalesce(sum(carteira), 0) into n from public.renovacao_resumo;
+  assert n = 2, 'resumo só conta quem está na base, veio ' || n;
+  j := public.renovacao_importar('[{"cnpj_digits": "00000000000103", "razao_social": "Zz Gama"}]'::jsonb);
+  assert (select na_base from public.renovacao_carteira where cnpj_digits = '00000000000103'), 'reimportar volta para a base';
+  execute 'reset role';
+end $$;
 
 rollback;
