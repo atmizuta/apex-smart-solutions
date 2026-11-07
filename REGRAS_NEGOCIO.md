@@ -4560,4 +4560,37 @@ Pedido do Rafael: "arrumar o painel dos leads, mandando para cada consultor orga
 - **Reverter:** copiar o backup do painel. As funções e a tabela novas podem ficar (nada mais as usa).
 - **Leads sem consultor (07/11, ok do Rafael):** os 39 divergentes sem dono (eram de quem ficou fora da equipe na virada de 27/10) ganharam dono pelo nome da planilha: Rafael 33 + Danilo 5 (sem login no painel) → Rafael (`rafael santiago`); Isa 1 → Isabelly. Só `dono_id` (sem `pego_em`, sem planilha: `leads` não tem gatilho). A conferência ficou sem o grupo "Sem consultor".
 
-Próxima livre: §143 (§138.2 e §138.3 reservadas).
+## §143 Aba Renovação: a carteira do time de renovação no painel (07/11/2026)
+
+Pedido do Rafael: o time de renovação (vende só para quem já é cliente Claro) trabalhava numa planilha do Google
+(1.242 CNPJs aptos de 24/09, 414 por consultor). Tudo da planilha vem para o painel, com regras que a planilha não tinha.
+Spec: `docs/superpowers/specs/2026-11-07-renovacao-aba-design.md`. Entrega em 2 fases.
+
+### §143.1 Fase 1 — Carteira, Retornos, Resumo, Redistribuir e Importar
+
+- **Quem vê:** quem tem `profiles.equipe = 'renovacao'` (o admin marca na aba Consultores, coluna "Renovação") e
+  admin/supervisor da Apex. O consultor vê e edita só a carteira dele; supervisor e admin veem tudo e redistribuem;
+  só admin importa. Agência e os demais não veem nada (RLS).
+- **Status:** 1-Não contatado · 2-Tentativa s/ retorno · 3-Contato efetivo · 4-Proposta enviada · 5-Em negociação ·
+  6-Renovado · 7-Perdido. Canal: WhatsApp, Ligação, E-mail, Visita. Motivo da perda: Preço, Foi p/ concorrente,
+  Sem interesse, Insatisfeito c/ Claro, Empresa fechada/baixada, Contato inválido, Outro.
+- **Regras no banco** (`renovacao_carteira_validar`): Perdido exige motivo; Renovado exige linhas renovadas (≥ 1);
+  ao sair do status 1 a data do contato é preenchida com o dia (SP); consultor não muda consultor, dados da Claro
+  nem `a_completar`. Toda mudança de status ou de consultor vai para `renovacao_historico`.
+- **Legado da planilha:** perdido sem motivo e renovado sem linhas entram "a completar" (filtro Pendências); a regra
+  passa a valer na próxima mudança de status, e a pendência some quando o registro fica válido.
+- **Resumo** (view `renovacao_resumo`, mesmas fórmulas da planilha): contatados = status ≥ 2; contato efetivo+ = 3 a 6;
+  propostas+ = 4 a 6; % conversão = renovados / efetivo+; retornos atrasados = retorno antes de hoje e status ≠ 6/7.
+  Só conta quem está na base.
+- **Importar base** (admin, Resumo → Importar base): lê o .xlsx no navegador. Junta por CNPJ: novo entra; existente só
+  tem os dados da Claro atualizados; quem sumiu do arquivo fica "fora da base" (não é apagado). Atendimento, consultor e
+  origem nunca são sobrescritos. A planilha do time (abas dos consultores com "STATUS ▼") também traz o atendimento,
+  ligando cada aba ao login pelo primeiro nome. Lotes de 200; se parar no meio, importar o mesmo arquivo de novo.
+- **Ficha:** WhatsApp/Ligar, atendimento, dados da Claro agrupados (Contrato e linhas, Empresa, Contatos, Concorrência,
+  Fixa e cabeamento, Tudo) e histórico.
+- Banco: migrations `20261107150000_renovacao_carteira.sql` e `20261107150100_renovacao_importar.sql`; conferência
+  `supabase/tests/renovacao_check.sql`. Testes JS: `test_renovacao_*.js`.
+- **Fase 2 (§143.2, a fazer):** Kanban, Gerar proposta integrado, Proposta e fatura dentro da aba, trava no funil antigo
+  e abas antigas escondidas para o time.
+
+Próxima livre: §144 (§138.2, §138.3 e §143.2 reservadas).
