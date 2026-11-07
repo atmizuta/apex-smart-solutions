@@ -4033,6 +4033,142 @@ async function rnRenderResumo(){
     + corpo.map(l => tr(l)).join('') + (corpo.length > 1 ? tr(total, 'rnTotal') : '') + '</tbody></table></div>'
     + (currentUser && currentUser.role === 'admin' && typeof rnImportarHtml === 'function' ? rnImportarHtml() : '');
 }
+// ---- Importar base (admin). Os dados vão do navegador direto ao Supabase: nada passa pelo repositório. ----
+function rnChave(s){ return rnNorm(String(s ?? '').replace(/▼/g, '')).replace(/\s+/g, ' ').trim(); }
+function rnLeitor(row){ const m = {}; Object.keys(row).forEach(k => { m[rnChave(k)] = row[k]; }); return (nome) => m[rnChave(nome)]; }
+function rnEhData(v){ return Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v); }
+// SheetJS 0.18.5 devolve data de célula com deriva de segundos para os dois lados (00:00:28 ou 23:59:59,999 do dia anterior):
+// arredonda para o dia mais próximo antes de ler. As datas da planilha são só dia, sem hora.
+function rnIsoLocal(d){ const x = new Date(d.getTime() + 12 * 3600 * 1000); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); }
+function rnTexto(v){ if(v === null || v === undefined) return null; if(rnEhData(v)) return rnIsoLocal(v); const s = String(v).trim(); return s || null; }
+function rnInt(v){ if(typeof v === 'number') return Math.round(v); const n = parseInt(String(v ?? '').trim(), 10); return Number.isFinite(n) ? n : null; }
+function rnNumBR(v){
+  if(typeof v === 'number') return v;
+  const s = String(v ?? '').replace(/R\$|\s/g, '');
+  if(!s) return null;
+  const n = Number(s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s);
+  return Number.isFinite(n) ? n : null;
+}
+function rnDataPlanilha(v){
+  if(rnEhData(v)) return rnIsoLocal(v);
+  const s = String(v ?? '').trim(); let m;
+  if((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/))) return `${m[3].length === 2 ? '20' + m[3] : m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  if((m = s.match(/^(\d{4})-(\d{2})-(\d{2})/))) return `${m[1]}-${m[2]}-${m[3]}`;
+  return null;
+}
+function rnValorCelula(v){
+  if(v === null || v === undefined) return null;
+  if(rnEhData(v)) return rnIsoLocal(v);
+  if(typeof v === 'number' || typeof v === 'boolean') return v;
+  const s = String(v).trim();
+  return s || null;
+}
+function rnStatusPlanilha(v){ const n = parseInt(String(v ?? '').trim(), 10); return n >= 1 && n <= 7 ? n : 1; }
+function rnCnpjPlanilha(v){ const d = onlyDigits(v); return d ? d.padStart(14, '0') : ''; }
+function rnLerArquivo(wb, perfis){
+  const json = (nome) => XLSX.utils.sheet_to_json(wb.Sheets[nome], { defval: '', raw: true });
+  const cabecalho = (nome) => ((XLSX.utils.sheet_to_json(wb.Sheets[nome], { header: 1, defval: '' })[0]) || []).map(rnChave);
+  const tem = (nome, cab) => cabecalho(nome).includes(rnChave(cab));
+  const nomeBase = wb.SheetNames.find(n => rnChave(n) === 'base completa') || wb.SheetNames.find(n => tem(n, 'CNPJ') && tem(n, 'Razão Social'));
+  if(!nomeBase) return { formato: null, linhas: [], erros: ['Não achei a base: falta uma aba com as colunas CNPJ e Razão Social.'], abas: [] };
+  const abasTime = wb.SheetNames.filter(n => n !== nomeBase && tem(n, 'STATUS') && tem(n, 'CNPJ'));
+  const erros = []; const linhas = []; const vistos = new Set();
+  for(const row of json(nomeBase)){
+    const g = rnLeitor(row);
+    const cnpj = rnCnpjPlanilha(g('CNPJ'));
+    if(!cnpj) continue;
+    if(!/^\d{14}$/.test(cnpj)){ erros.push(`CNPJ inválido na base: ${String(g('CNPJ')).slice(0, 20)}`); continue; }
+    if(vistos.has(cnpj)) continue;
+    vistos.add(cnpj);
+    const dados = {};
+    Object.keys(row).forEach(k => { const v = rnValorCelula(row[k]); if(v !== null) dados[String(k).trim()] = v; });
+    linhas.push({ cnpj_digits: cnpj, razao_social: rnTexto(g('Razão Social')), telefone: rnTexto(g('Telefone de Contato')), nome_adm: rnTexto(g('Nome do ADM')),
+      linhas_voz: rnInt(g('Quantidade de linhas (Voz)')), apto: rnTexto(g('APTO RENOVAÇÃO')), cidade: rnTexto(g('CIDADE')), ddd: rnTexto(g('DDD')),
+      tempo_contrato_voz: rnInt(g('Tempo de contrato (Voz)')), classificacao: rnTexto(g('Classificação')), desconto_claro: rnTexto(g('Desconto Claro')),
+      origem: rnTexto(g('ORIGEM')), dados_claro: dados, consultor_id: null, _consultor: rnTexto(g('CONSULTOR')) });
+  }
+  const trabalho = new Map();
+  for(const aba of abasTime){
+    for(const row of json(aba)){
+      const g = rnLeitor(row);
+      const cnpj = rnCnpjPlanilha(g('CNPJ'));
+      if(!/^\d{14}$/.test(cnpj)) continue;
+      const canal = rnTexto(g('CANAL')); const motivo = rnTexto(g('MOTIVO PERDA'));
+      trabalho.set(cnpj, { _aba: aba, status: rnStatusPlanilha(g('STATUS')), data_contato: rnDataPlanilha(g('DATA CONTATO')),
+        prox_retorno: rnDataPlanilha(g('PRÓX. RETORNO')), canal: RN_CANAIS.includes(canal) ? canal : null,
+        linhas_renovadas: rnInt(g('LINHAS RENOV.')), bl_vendida: rnInt(g('BL VENDIDA (qtd)')), sol_digitais: rnNumBR(g('SOL. DIGITAIS (R$)')),
+        motivo_perda: RN_MOTIVOS.includes(motivo) ? motivo : null, observacoes: rnTexto(g('OBSERVAÇÕES')) });
+    }
+  }
+  const primeiro = (s) => rnNorm(s).split(' ')[0];
+  const porNome = (nome) => { const achados = perfis.filter(p => p.equipe === 'renovacao' && primeiro(p.nome) === primeiro(nome)); return achados.length === 1 ? achados[0].id : null; };
+  const semLogin = new Set();
+  linhas.forEach(l => {
+    const t = trabalho.get(l.cnpj_digits);
+    const nome = (t && t._aba) || l._consultor;
+    if(nome){ l.consultor_id = porNome(nome); if(!l.consultor_id) semLogin.add(nome); }
+    delete l._consultor;
+    if(t){ delete t._aba; Object.assign(l, t); }
+  });
+  semLogin.forEach(n => erros.push(`"${n}" não tem login no time de renovação (marque na aba Consultores).`));
+  return { formato: abasTime.length ? 'planilha' : 'base', linhas, erros, abas: abasTime };
+}
+function rnPrevia(linhas, existentes){
+  const mapa = new Map(existentes.map(e => [e.cnpj_digits, e]));
+  const noArquivo = new Set(linhas.map(l => l.cnpj_digits));
+  const novos = linhas.filter(l => !mapa.has(l.cnpj_digits));
+  return { novos: novos.length, atualizados: linhas.length - novos.length,
+    sairam: existentes.filter(e => e.na_base && !noArquivo.has(e.cnpj_digits)).length,
+    completar: novos.filter(l => (l.status === 7 && !l.motivo_perda) || (l.status === 6 && !(l.linhas_renovadas >= 1))).length };
+}
+function rnImportarHtml(){
+  return `<div class="card rnImportar"><h3>Importar base</h3><p class="kbMeta">Base da Claro (.xlsx) ou a planilha do time, com as abas dos consultores. Junta por CNPJ: quem é novo entra, quem já existe só tem os dados da Claro atualizados e quem saiu do arquivo fica "fora da base". O atendimento nunca é apagado.</p><input type="file" id="rnArquivo" accept=".xlsx,.xls"><div id="rnPrevia"></div></div>`;
+}
+async function rnPrepararImportacao(arquivo){
+  const box = document.getElementById('rnPrevia');
+  rnEstado.importacao = null;
+  box.innerHTML = '<p class="kbMeta">Lendo o arquivo…</p>';
+  let wb;
+  try{ wb = XLSX.read(await arquivo.arrayBuffer(), { type: 'array', cellDates: true }); }
+  catch(err){ box.innerHTML = '<p class="kbMeta">Não consegui ler esse arquivo. Use .xlsx.</p>'; return; }
+  const pf = await ppSeguro(() => sb.from('profiles').select('id,nome,equipe').eq('equipe', 'renovacao'));
+  const lido = rnLerArquivo(wb, (pf && !pf.error && pf.data) || []);
+  if(lido.erros.length){ box.innerHTML = `<div class="kbAviso">${lido.erros.slice(0, 10).map(escapeHtml).join('<br>')}</div>`; return; }
+  const ex = await fetchAllRows(() => sb.from('renovacao_carteira').select('cnpj_digits,na_base').order('id'));
+  if(ex.error){ box.innerHTML = '<p class="kbMeta">Não foi possível conferir a carteira atual.</p>'; return; }
+  const p = rnPrevia(lido.linhas, ex.data || []);
+  rnEstado.importacao = lido;
+  box.innerHTML = `<p>${lido.formato === 'planilha' ? 'Planilha do time (' + lido.abas.map(escapeHtml).join(', ') + ')' : 'Base da Claro'}: <b>${lido.linhas.length}</b> CNPJs.</p>`
+    + `<ul><li><b>${p.novos}</b> novos</li><li><b>${p.atualizados}</b> já existem (só dados da Claro)</li><li><b>${p.sairam}</b> saem da base</li>`
+    + (p.completar ? `<li><b>${p.completar}</b> entram como pendência (perdido sem motivo ou renovado sem linhas)</li>` : '')
+    + '</ul><button type="button" class="btn btn-sm" data-rn-importar>Importar</button>';
+}
+async function rnExecutarImportacao(){
+  const lido = rnEstado.importacao;
+  if(!lido) return;
+  const box = document.getElementById('rnPrevia');
+  const btn = box.querySelector('[data-rn-importar]');
+  if(btn) btn.disabled = true;
+  let novos = 0, atualizados = 0;
+  for(let i = 0; i < lido.linhas.length; i += 200){
+    box.querySelector('p').textContent = `Importando ${Math.min(i + 200, lido.linhas.length)} de ${lido.linhas.length}…`;
+    const r = await ppSeguro(() => sb.rpc('renovacao_importar', { p_linhas: lido.linhas.slice(i, i + 200) }));
+    if(!r || r.error){
+      mostrarAviso('A importação parou no meio (' + ((r && r.error && r.error.message) || 'erro') + '). O que já entrou está salvo; importe o mesmo arquivo de novo para terminar.', 'erro');
+      if(btn) btn.disabled = false;
+      return;
+    }
+    novos += (r.data && r.data.novos) || 0; atualizados += (r.data && r.data.atualizados) || 0;
+  }
+  const f = await ppSeguro(() => sb.rpc('renovacao_marcar_fora', { p_cnpjs: lido.linhas.map(l => l.cnpj_digits) }));
+  rnEstado.importacao = null;
+  if(!f || f.error){ mostrarAviso(`Importado: ${novos} novos e ${atualizados} atualizados, mas não consegui marcar quem saiu da base. Importe de novo.`, 'erro'); }
+  else mostrarAviso(`Importado: ${novos} novos, ${atualizados} atualizados, ${f.data || 0} fora da base.`, 'ok');
+  rnEstado.carregado = false;
+  await rnCarregar();
+}
+document.getElementById('rnResumo').addEventListener('change', (e) => { if(e.target.id === 'rnArquivo' && e.target.files && e.target.files[0]) rnPrepararImportacao(e.target.files[0]); });
+document.getElementById('rnResumo').addEventListener('click', (e) => { if(e.target.closest('[data-rn-importar]')) rnExecutarImportacao(); });
 /* ============ FIM RENOVAÇÃO §143 ============ */
 
 /* ============ MEUS LEADS (KANBAN) — §112 ============
