@@ -1200,6 +1200,17 @@
   .kbTd-nome b{display:block;font-weight:600;}
   .kbTd-nome small,.kbTd-contato small{display:block;font-size:var(--fs-xs);color:var(--ml-ink-3);}
   .kbTabelaTodos.kbCompacto .kbTd-nome small,.kbTabelaTodos.kbCompacto .kbTd-contato small{display:none;}
+  /* §142: Conferir com NEO */
+  .kbNeoResumo{display:flex;flex-wrap:wrap;gap:6px;padding:10px 14px 0;}
+  .kbNeoTopo{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;}
+  .kbNeoTopo .kbMeta{margin:0;}
+  .kbTabelaNeo tbody td{white-space:normal;padding-top:8px;padding-bottom:8px;}
+  .kbTd-neo b{display:block;font-weight:600;}
+  .kbTd-neo small,.kbTd-fazer small,.kbTd-neoAcoes small{display:block;font-size:var(--fs-xs);color:var(--ml-ink-3);}
+  .kbTd-fazer small{color:var(--ml-ink-2);}
+  .kbTd-neoAcoes{cursor:default;}
+  .kbNeoMotivo{display:flex;gap:6px;align-items:center;}
+  .kbNeoMotivo input{min-width:200px;height:32px;padding:0 10px;border:1px solid var(--ml-surface-3);border-radius:var(--radius-lg);font:inherit;font-size:var(--fs-sm);background:var(--ml-surface);color:var(--ml-ink);}
   .kbEtapa{display:inline-flex;align-items:center;gap:6px;font-size:var(--fs-sm);color:var(--ml-ink-2);}
   .kbEtapa::before{content:"";width:8px;height:8px;border-radius:2px;background:var(--kb-cor,var(--ml-ink-3));}
   .kbEt-livres{--kb-cor:var(--c-grafite);}
@@ -3268,7 +3279,7 @@ document.getElementById('btnLogout').addEventListener('click', async function(){
 function agSair(){
   document.querySelectorAll('#tabsNav [data-ag-display]').forEach(el => { el.style.display = el.dataset.agDisplay; delete el.dataset.agDisplay; });
   document.querySelectorAll('#tabsNav [data-ag-sub]').forEach(el => { el.dataset.sub = el.dataset.agSub; delete el.dataset.agSub; });
-  kbEstado.todos = []; document.getElementById('kbTodosTabela').innerHTML = '';   // §139: a Lista da agência (com telefones) não fica para quem entra depois
+  kbEstado.todos = []; kbEstado.neo = null; document.getElementById('kbTodosTabela').innerHTML = '';   // §139: a Lista da agência (com telefones) não fica para quem entra depois
 }
 
 const ROLE_LABELS = {admin:'Administrador', supervisor:'Supervisor', consultor:'Consultor', agencia:'Agência'};
@@ -4016,15 +4027,77 @@ function kbCorIdadeLivre(l, agoraMs){
 // §140 (06/11, Rafael): a Lista filtra também por cada etapa do Quadro (Meus novos e Em andamento), na ordem das colunas.
 // Livres não entra: a Lista (leads_kanban3 com p_todos) só traz lead com dono.
 const KB_VISOES = [['todos', 'Todos'], ['aberto', 'Em aberto'], ['retornos', 'Retornos'], ['semlig', 'Sem ligação'], ['novos', 'Meus novos'],
-  ['andamento', 'Em andamento'], ['semresp', 'Sem resposta'], ['convertido', 'Convertidos'], ['perdido', 'Perdidos']];
+  ['andamento', 'Em andamento'], ['semresp', 'Sem resposta'], ['convertido', 'Convertidos'], ['perdido', 'Perdidos'], ['neo', 'Conferir com NEO']];
 function kbNaVisao(l, visao){
   const col = kbColunaDoLead(l);
   if(!visao || visao === 'todos') return true;
+  if(visao === 'neo') return false;   // §142: lista própria (leads_conferir_neo), não filtra a leads_kanban3
   if(visao === 'aberto') return kbAbertoCol(col);
   if(visao === 'retornos') return kbAbertoCol(col) && !!l.retorno_em;
   return col === visao;
 }
 function kbContarVisoes(leads){ const n = {}; KB_VISOES.forEach(([v]) => { n[v] = (leads || []).filter(l => kbNaVisao(l, v)).length; }); return n; }
+// ===== §142: Conferir com NEO — painel × pedido mais recente do CNPJ no NEO (funções puras) =====
+const KB_NEO_TIPOS = {
+  venda_neo_perdido: { titulo: 'Venda no painel, perdida no NEO', fazer: 'Se a venda caiu, troque o status. Se foi refeita, use "Está certo".' },
+  venda_sem_neo: { titulo: 'Venda no painel sem pedido no NEO', fazer: 'Lance o pedido no NEO ou corrija o status (e o CNPJ, se faltar).' },
+  perdido_neo_ganho: { titulo: 'Perdido no painel, venda no NEO', fazer: 'Marque PEDIDO CONCLUIDO (VENDA) com a receita.' },
+  perdido_neo_andamento: { titulo: 'Perdido no painel, pedido andando no NEO', fazer: 'Volte o lead para andamento ou feche o pedido no NEO.' },
+  aberto_neo_ganho: { titulo: 'Em aberto no painel, venda no NEO', fazer: 'Marque PEDIDO CONCLUIDO (VENDA) com a receita.' },
+  aberto_neo_perdido: { titulo: 'Em aberto no painel, perdido no NEO', fazer: 'Troque para o status de perda certo.' },
+  venda_status: { titulo: 'Venda marcada com status que não é de venda', fazer: 'Escolha PEDIDO CONCLUIDO (VENDA) ou tire a venda.' },
+};
+function kbNeoDetalhe(x){
+  if(x.tipo === 'venda_status') return 'Status no painel: ' + (x.status || 'sem status');
+  if(x.sem_cnpj) return 'Lead sem CNPJ: não dá para achar o pedido no NEO.';
+  if(!x.neo_pedido && !x.neo_etapa) return 'Nenhum pedido no NEO com este CNPJ.';
+  const etapa = String(x.neo_etapa || '').replace(/\s*\(NEOCRM\)\s*$/i, '');
+  return `Pedido ${x.neo_pedido || 'sem número'}: ${etapa}` + (x.neo_atualizacao ? ' em ' + kbDiaBR(kbDiaSP(x.neo_atualizacao)) : '')
+    + (Number(x.neo_pedidos) > 1 ? ` (${Number(x.neo_pedidos)} pedidos neste CNPJ)` : '');
+}
+// o: { verOk, dono (undefined = todos; '' = sem consultor), busca }
+function kbNeoVisiveis(itens, o){
+  const op = o || {};
+  return (itens || []).filter(x => (op.verOk ? !!x.ok_em : !x.ok_em)
+    && (op.dono === undefined || op.dono === null || (x.dono_id || '') === op.dono)
+    && kbBuscaLocal(x, op.busca));
+}
+function kbNeoResumo(itens){
+  const m = new Map();
+  (itens || []).forEach(x => { const k = x.dono_id || ''; const r = m.get(k) || { dono: k, nome: x.dono_nome || 'Sem consultor', n: 0 }; r.n++; m.set(k, r); });
+  return [...m.values()].sort((a, b) => b.n - a.n || a.nome.localeCompare(b.nome));
+}
+// o: { gestor, verOk, dono, busca, editando ('aba|id'), carregando, erro }
+function kbNeoHtml(itens, o){
+  if(o.carregando && !itens) return '<p class="kbMuted">Conferindo com o NEO…</p>';
+  if(o.erro && !itens) return '<p class="kbMuted">Não foi possível conferir com o NEO agora.</p>';
+  const abertos = kbNeoVisiveis(itens, { busca: o.busca }), marcados = kbNeoVisiveis(itens, { verOk: true, busca: o.busca });
+  const lista = kbNeoVisiveis(itens, { verOk: o.verOk, dono: o.gestor && !o.verOk ? o.dono : undefined, busca: o.busca });   // marcados: sem chips, mostra todos
+  const chip = (dono, rot, n, on) => `<button type="button" class="kbFb${on ? ' on' : ''}" data-kb-neo-dono="${escapeHtml(dono)}">${escapeHtml(rot)} <span>${n}</span></button>`;
+  const resumo = o.gestor && !o.verOk ? `<div class="kbNeoResumo">${chip('*', 'Todos', abertos.length, o.dono === undefined)}`
+    + kbNeoResumo(abertos).map(r => chip(r.dono, r.nome, r.n, o.dono === r.dono)).join('') + '</div>' : '';
+  const topo = `<div class="kbNeoTopo"><p class="kbMeta">${o.verOk ? 'Leads que alguém marcou como certos. Se o NEO mudar, eles voltam para a lista.'
+      : 'Leads em que o painel e o NEO não batem. Clique no lead para corrigir na ficha; se o painel estiver certo, use "Está certo".'}</p>`
+    + `<button type="button" class="kbBtn kbBtnG kbBtnSm" data-kb-neo-ok>${o.verOk ? 'Voltar para a conferência' : `Marcados como certo (${marcados.length})`}</button></div>`;
+  const acoes = (x) => {
+    const ch = x.aba + '|' + x.lead_id;
+    if(x.ok_em) return `<small>${escapeHtml(x.ok_motivo || '')}</small><small class="kbMuted">${escapeHtml([x.ok_por_nome, kbDiaBR(kbDiaSP(x.ok_em))].filter(Boolean).join(' · '))}</small>`;
+    if(o.editando === ch) return `<div class="kbNeoMotivo"><input type="text" id="kbNeoMotivo" maxlength="200" placeholder="Por que o painel está certo?" aria-label="Motivo">`
+      + `<button type="button" class="kbBtn kbBtnP kbBtnSm" data-kb-neo-salvar="${escapeHtml(ch)}">Salvar</button><button type="button" class="kbBtn kbBtnG kbBtnSm" data-kb-neo-cancelar>Cancelar</button></div>`;
+    return `<button type="button" class="kbBtn kbBtnQ kbBtnSm" data-kb-neo-certo="${escapeHtml(ch)}">Está certo</button>`;
+  };
+  const linhas = lista.map(x => {
+    const t = KB_NEO_TIPOS[x.tipo] || { titulo: x.tipo, fazer: '' };
+    return `<tr data-kb-abrir="${escapeHtml(x.aba)}|${escapeHtml(x.lead_id)}"><td class="kbTd-nome"><b>${escapeHtml(x.nome || '(sem nome)')}</b><small>${escapeHtml([x.status, x.criado_em_lead ? 'chegou ' + kbDiaBR(kbDiaSP(x.criado_em_lead)) : ''].filter(Boolean).join(' · '))}</small></td>`
+      + (o.gestor ? `<td class="kbTd-dono">${x.dono_nome ? escapeHtml(x.dono_nome) : '<span class="kbMuted">Sem consultor</span>'}</td>` : '')
+      + `<td class="kbTd-neo"><b>${escapeHtml(t.titulo)}</b><small>${escapeHtml(kbNeoDetalhe(x))}</small></td><td class="kbTd-fazer"><small>${escapeHtml(t.fazer)}</small></td>`
+      + `<td class="kbTd-neoAcoes" data-kb-neo-acoes>${acoes(x)}</td></tr>`;
+  }).join('');
+  const cab = `<th>Empresa</th>${o.gestor ? '<th>Consultor</th>' : ''}<th>O que não bate</th><th>O que fazer</th><th>${o.verOk ? 'Motivo' : ''}</th>`;
+  const vazio = o.verOk ? 'Nenhum lead marcado como certo.' : 'Tudo certo: painel e NEO batem.';
+  return resumo + topo + `<table class="kbTabelaTodos kbTabelaNeo"><thead><tr>${cab}</tr></thead><tbody>${linhas || `<tr><td colspan="${o.gestor ? 5 : 4}" class="kbMuted">${vazio}</td></tr>`}</tbody></table>`
+    + `<div class="kbPaginacao"><span class="kbMeta">${lista.length} leads</span></div>`;
+}
 // Convertido e Perdido começam recolhidos; a escolha e a densidade ficam guardadas no navegador.
 const KB_COL_RECOLHIVEIS = ['convertido', 'perdido'];
 function kbLerColAbertas(){ try { const v = JSON.parse(window.localStorage.getItem('kbColAbertas') || '{}'); return v && typeof v === 'object' ? v : {}; } catch(_e) { return {}; } }
@@ -5487,8 +5560,29 @@ async function kbCarregarTodos(){
   const r = kbAgencia() ? await ppSeguro(() => sb.rpc('leads_agencia'))   // §139: todos os leads, sem anotações
     : await ppSeguro(() => sb.rpc('leads_kanban3', { p_dono: kbGestor() && kbEstado.dono ? kbEstado.dono : null, p_todos: true }));
   if(r && !r.error) kbEstado.todos = r.data || [];
+  if(!kbAgencia() && kbEstadoTabela().visao === 'neo') await kbCarregarNeo();   // depois de classificar, a conferência também atualiza
   kbRenderTodos();
   kbRenderFiltroBarra();
+}
+// §142: Conferir com NEO — só carrega quando a visão é aberta (não pesa a Lista de sempre).
+async function kbCarregarNeo(){
+  kbEstado.neoCarregando = true; kbEstado.neoErro = false;
+  if(kbEstadoTabela().visao === 'neo') kbRenderTodos();
+  const r = await ppSeguro(() => sb.rpc('leads_conferir_neo', { p_dono: kbGestor() && kbEstado.dono ? kbEstado.dono : null }));
+  kbEstado.neoCarregando = false;
+  if(r && !r.error) kbEstado.neo = r.data || []; else kbEstado.neoErro = true;
+  kbRenderTodos();
+}
+async function kbNeoSalvar(ch){
+  const st = kbEstadoTabela(), inp = document.getElementById('kbNeoMotivo');
+  const motivo = String(inp ? inp.value : '').trim();
+  if(motivo.length < 3){ mostrarAviso('Escreva por que o painel está certo.', 'erro'); if(inp) inp.focus(); return; }
+  const [aba, id] = ch.split('|');
+  const r = await ppSeguro(() => sb.rpc('leads_neo_marcar_ok', { p_aba: aba, p_id: id, p_motivo: motivo }));
+  if(!r || r.error){ mostrarAviso((r && r.error && r.error.message) || 'Não foi possível salvar agora.', 'erro'); return; }
+  st.neoEditando = null;
+  mostrarAviso('Marcado como certo. Se o NEO mudar, o lead volta para a conferência.', 'ok');
+  await kbCarregarNeo();
 }
 function kbEhTabela(aba){ return aba === 'todos'; }
 function kbEstadoTabela(){ return kbEstado.todosEstado || (kbEstado.todosEstado = { busca: '', col: 'pego', desc: true, pagina: 1, visao: 'todos' }); }
@@ -5515,7 +5609,17 @@ function kbRenderTodos(){
   const cols = ag ? KB_AG_COLUNAS : kbGestor() ? [KB_TODOS_COLUNAS[0], ['dono', 'Consultor'], ...KB_TODOS_COLUNAS.slice(1)] : KB_TODOS_COLUNAS;
   const base = kbFiltrar(kbEstado.todos || [], kbEstado.filtros, agoraMs).filter(l => kbBuscaLocal(l, st.busca));
   const n = kbContarVisoes(base);
-  document.getElementById('kbVisoes').innerHTML = KB_VISOES.map(([v, t]) => `<button type="button" class="kbVisao${st.visao === v ? ' active' : ''}" data-kb-visao="${v}">${t} <span>${n[v]}</span></button>`).join('');
+  if(ag && st.visao === 'neo') st.visao = 'todos';
+  n.neo = kbEstado.neo ? kbNeoVisiveis(kbEstado.neo, {}).length : '';   // §142: conta só depois de carregar (ao clicar)
+  document.getElementById('kbVisoes').innerHTML = KB_VISOES.filter(([v]) => !(ag && v === 'neo'))
+    .map(([v, t]) => `<button type="button" class="kbVisao${st.visao === v ? ' active' : ''}" data-kb-visao="${v}">${t} <span>${n[v]}</span></button>`).join('');
+  if(st.visao === 'neo'){
+    document.getElementById('kbTodosTabela').innerHTML = kbNeoHtml(kbEstado.neo, { gestor: kbGestor(), verOk: !!st.neoOk, dono: st.neoDono, busca: st.busca,
+      editando: st.neoEditando, carregando: kbEstado.neoCarregando, erro: kbEstado.neoErro });
+    const mot = document.getElementById('kbNeoMotivo');
+    if(mot && document.activeElement !== mot) mot.focus();
+    return;
+  }
   const lista = kbOrdenar(base.filter(l => kbNaVisao(l, st.visao)), st.col, st.desc);
   const pg = kbPagina(lista, st.pagina, KB_TODOS_POR_PAGINA);
   st.pagina = pg.pagina;
@@ -5548,8 +5652,20 @@ document.getElementById('kbTodos').addEventListener('click', (e) => {
     ppSeguro(() => sb.rpc('registrar_contato_lead', { p_aba: aba, p_lead_id: id, p_canal: ct.dataset.kbContato }));
     return;
   }
+  const na = e.target.closest('[data-kb-neo-acoes]');
+  if(na){   // §142: Está certo / motivo na linha não abrem a ficha
+    e.preventDefault(); e.stopPropagation();
+    const ce = e.target.closest('[data-kb-neo-certo]'), sv = e.target.closest('[data-kb-neo-salvar]');
+    if(ce){ st.neoEditando = ce.dataset.kbNeoCerto; kbRenderTodos(); }
+    else if(sv) kbNeoSalvar(sv.dataset.kbNeoSalvar);
+    else if(e.target.closest('[data-kb-neo-cancelar]')){ st.neoEditando = null; kbRenderTodos(); }
+    return;
+  }
+  const nd = e.target.closest('[data-kb-neo-dono]');
+  if(nd){ st.neoDono = nd.dataset.kbNeoDono === '*' ? undefined : nd.dataset.kbNeoDono; kbRenderTodos(); return; }
+  if(e.target.closest('[data-kb-neo-ok]')){ st.neoOk = !st.neoOk; st.neoEditando = null; kbRenderTodos(); return; }
   const vs = e.target.closest('[data-kb-visao]');
-  if(vs){ st.visao = vs.dataset.kbVisao; st.pagina = 1; kbRenderTodos(); return; }
+  if(vs){ st.visao = vs.dataset.kbVisao; st.pagina = 1; if(st.visao === 'neo') kbCarregarNeo(); else kbRenderTodos(); return; }
   const th = e.target.closest('th[data-kb-ord]');
   if(th){ const c = th.dataset.kbOrd; if(st.col === c) st.desc = !st.desc; else { st.col = c; st.desc = false; } st.pagina = 1; kbRenderTodos(); return; }
   const pb = e.target.closest('[data-kb-pag]');

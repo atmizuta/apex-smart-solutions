@@ -4544,4 +4544,16 @@ Pedido do Rafael, de home office: "o layout está desregulado para o meu monitor
 - **Publicação (07/11 08:51, ok do Rafael):** o painel no ar era `84baee55…` (igual à oficial/main 8d0d6de). Novo MD5 `b0b48242…`. Backup `~/deploy_backups/painel_clientes_apex_20261107_085146_antes_largura_total.html`.
 - **Reverter:** copiar o backup ou voltar os dois `max-width` para `1200px`.
 
-Próxima livre: §142 (§138.2 e §138.3 reservadas).
+## 142. Meus leads: Conferir com NEO (07/11/2026)
+
+Pedido do Rafael: "arrumar o painel dos leads, mandando para cada consultor organizar [...] quais leads são vendas mas não estão no NEO ou vice-versa, quais já foram perdidos e ainda estão em andamento no NEO". Cruzamento de 07/11: cerca de 290 leads divergentes, quase todos com dono, a maioria "venda no painel" com o pedido perdido ou sem pedido no NEO.
+
+- **Onde:** Meus leads → Lista → última visão, **"Conferir com NEO"**. Só carrega quando é clicada (a Lista de sempre não fica mais pesada). Depois de classificar um lead pela ficha, ela atualiza junto. A agência não vê.
+- **Regra do cruzamento:** lead ↔ pedido pelo CNPJ (só dígitos, 11 ou mais), valendo o **pedido mais recente** do CNPJ (`atualizacao`, depois `cadastro`). NEO ganho = Concluído, Entrega, Faturamento, Portabilidade em andamento, Validação eSIM (igual à `reconciliacao_neocrm`); NEO perdido = PERDID/DEVOLVID/CANCELAD (igual à `leads_kanban3`); o resto é andamento. Painel: venda = `converteu`; aberto = categoria sem_contato/andamento; perdido = categoria perdido. Repique fica fora.
+- **Os 7 tipos** (um por lead, nesta ordem): venda × NEO perdido; venda × sem pedido (inclui lead sem CNPJ); perdido × NEO ganho; perdido × NEO andamento; aberto × NEO ganho; aberto × NEO perdido; venda marcada com status que não é de venda. "Venda × NEO andamento" **não** entra (é o caminho normal).
+- **Quem vê:** o consultor vê só os leads dele; admin/supervisor veem todos (incluindo sem consultor), com um resumo por consultor em botões que filtram e a coluna Consultor. O seletor de consultor do topo também vale.
+- **"Está certo":** quando o painel está certo (pedido com outro CNPJ, venda refeita), o consultor marca com um motivo (mínimo 3 letras) e o lead sai da lista. A marca vale só para a mesma situação (tipo + nº do pedido + etapa); se o NEO mudar, o lead volta. O gestor vê os marcados, com motivo, quem e quando, em "Marcados como certo". Consultor só marca lead dele.
+- **Banco:** migration `20261107120000_leads_conferir_neo.sql` (sem DROP): tabela `leads_neo_ok` (RLS sem policy, só via função), `leads_neo_grupo(etapa)` e `leads_neo_tipo(converteu, categoria, grupo)` (puras), `leads_conferir_neo(p_dono)` e `leads_neo_marcar_ok(aba, id, motivo)` (secdef; fora de PUBLIC/anon; execute para `authenticated`).
+- **Testes:** `test_leads_conferir_neo.js` (43); conferência `supabase/tests/leads_conferir_neo_check.sql` (desfaz tudo).
+
+Próxima livre: §143 (§138.2 e §138.3 reservadas).
