@@ -4558,5 +4558,6 @@ Pedido do Rafael: "arrumar o painel dos leads, mandando para cada consultor orga
 - **Banco (07/11 ~10:30, ok do Rafael):** conferência passou (288 divergências, 40 sem consultor; consultor de teste vê só as 66 dele; Está certo marca e volta quando o NEO muda; 255 ms) e a migration foi aplicada.
 - **Publicação (07/11 10:33, ok do Rafael):** o painel no ar era `b0b48242…` (igual à oficial/main 1f1dd35). Novo MD5 `f3383e15…`. Backup `~/deploy_backups/painel_clientes_apex_20261107_103350_antes_conferir_neo.html`.
 - **Reverter:** copiar o backup do painel. As funções e a tabela novas podem ficar (nada mais as usa).
+- **Leads sem consultor (07/11, ok do Rafael):** os 39 divergentes sem dono (eram de quem ficou fora da equipe na virada de 27/10) ganharam dono pelo nome da planilha: Rafael 33 + Danilo 5 (sem login no painel) → Rafael (`rafael santiago`); Isa 1 → Isabelly. Só `dono_id` (sem `pego_em`, sem planilha: `leads` não tem gatilho). A conferência ficou sem o grupo "Sem consultor".
 
 Próxima livre: §143 (§138.2 e §138.3 reservadas).
