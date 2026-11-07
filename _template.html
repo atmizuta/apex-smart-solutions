@@ -3710,6 +3710,179 @@ function rnRender(){
   if(rnEstado.aba === 'retornos' && typeof rnRenderRetornos === 'function') rnRenderRetornos();
   if(rnEstado.aba === 'resumo' && typeof rnRenderResumo === 'function') rnRenderResumo();
 }
+// ---- Carteira ----
+function rnNorm(s){ return String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(); }
+function rnStatusRotulo(s){ return s + '-' + (RN_STATUS[s] || '?'); }
+function rnFiltrar(lista, f, hoje){
+  const busca = rnNorm(f.busca); const buscaDig = onlyDigits(f.busca);
+  return lista.filter(r => {
+    if(f.foraBase ? r.na_base : !r.na_base) return false;
+    if(f.status && String(r.status) !== String(f.status)) return false;
+    if(f.apto && r.apto !== f.apto) return false;
+    if(f.cidade && r.cidade !== f.cidade) return false;
+    if(f.consultor === '-' ? !!r.consultor_id : (f.consultor && r.consultor_id !== f.consultor)) return false;
+    if(f.soVencido && !rnRetornoVencido(r, hoje)) return false;
+    if(f.pendencias && !r.a_completar) return false;
+    if(busca){
+      const achou = (rnNorm(r.razao_social) + ' ' + rnNorm(r.nome_adm)).includes(busca)
+        || (buscaDig.length >= 3 && String(r.cnpj_digits || '').includes(buscaDig));
+      if(!achou) return false;
+    }
+    return true;
+  }).sort((a, b) => (b.linhas_voz || 0) - (a.linhas_voz || 0) || String(a.razao_social || '').localeCompare(String(b.razao_social || ''), 'pt-BR'));
+}
+function rnContadores(lista, hoje){
+  const ativos = lista.filter(r => r.na_base);
+  const nao = ativos.filter(r => r.status === 1).length;
+  return { total: ativos.length, pctNaoContatado: ativos.length ? Math.round(nao * 100 / ativos.length) : 0,
+           vencidos: ativos.filter(r => rnRetornoVencido(r, hoje)).length, pendencias: ativos.filter(r => r.a_completar).length };
+}
+function rnClasseLinha(r){ return r.status === 7 ? 'rnPerdido' : r.status === 6 ? 'rnRenovado' : ''; }
+function rnValidarFechamento(status, d){
+  if(status === 7 && !RN_MOTIVOS.includes(d.motivo_perda)) return 'Escolha o motivo da perda.';
+  if(status === 6 && !(Number(d.linhas_renovadas) >= 1)) return 'Informe quantas linhas foram renovadas.';
+  return null;
+}
+function rnMensagemErro(err){
+  const m = (err && err.message) || '';
+  return /Perdido precisa|Renovado precisa|consultor só altera/.test(m) ? m : 'Não foi possível salvar agora. Tente de novo.';
+}
+async function rnSalvar(id, patch){
+  const r = await ppSeguro(() => sb.from('renovacao_carteira').update(patch).eq('id', id).select(RN_COLS_LISTA).single());
+  if(!r || r.error || !r.data){ mostrarAviso(rnMensagemErro(r && r.error), 'erro'); rnRender(); return false; }
+  const i = rnEstado.lista.findIndex(x => x.id === id);
+  if(i >= 0) rnEstado.lista[i] = r.data;
+  rnAtualizarBadge();
+  rnRender();
+  if(rnEstado.fichaId === id && typeof rnRenderFicha === 'function') rnRenderFicha();
+  return true;
+}
+function rnOpcoes(pares, atual, vazio){
+  return (vazio ? `<option value="">${escapeHtml(vazio)}</option>` : '')
+    + pares.map(([v, t]) => `<option value="${escapeHtml(v)}"${String(v) === String(atual ?? '') ? ' selected' : ''}>${escapeHtml(t)}</option>`).join('');
+}
+function rnPreencherFiltros(){
+  const f = rnEstado.filtros; const gestor = rnGestor();
+  document.getElementById('rnFStatus').innerHTML = rnOpcoes(Object.keys(RN_STATUS).map(k => [k, rnStatusRotulo(+k)]), f.status, 'Status: todos');
+  const cidades = [...new Set(rnEstado.lista.map(r => r.cidade).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  document.getElementById('rnFCidade').innerHTML = rnOpcoes(cidades.map(c => [c, c]), f.cidade, 'Cidade: todas');
+  document.getElementById('rnFApto').value = f.apto;
+  const fc = document.getElementById('rnFConsultor');
+  fc.style.display = gestor ? '' : 'none';
+  if(gestor){
+    fc.innerHTML = rnOpcoes([['-', 'Sem consultor']].concat(rnEstado.perfis.map(p => [p.id, p.nome])), f.consultor, 'Consultor: todos');
+    document.getElementById('rnPassarPara').innerHTML = rnOpcoes(rnEstado.perfis.map(p => [p.id, p.nome]), '', 'Passar para…');
+  }
+  document.querySelectorAll('[data-rn-filtro]').forEach(b => b.classList.toggle('active', !!f[b.dataset.rnFiltro]));
+}
+function rnLinhaHtml(r, hoje, gestor){
+  return `<tr class="${rnClasseLinha(r)}" data-rn-id="${r.id}">
+    ${gestor ? `<td><input type="checkbox" data-rn-sel="${r.id}" aria-label="Selecionar"${rnEstado.selecionados.has(r.id) ? ' checked' : ''}></td>` : ''}
+    <td><button type="button" class="rnNome" data-rn-abrir="${r.id}">${escapeHtml(r.razao_social || '(sem nome)')}</button><div class="kbMeta">${escapeHtml(r.nome_adm || '')}${r.a_completar ? ' · <span class="badge naoapto">completar</span>' : ''}</div></td>
+    ${gestor ? `<td>${escapeHtml(rnNomeConsultor(r.consultor_id))}</td>` : ''}
+    <td>${r.linhas_voz ?? '—'}</td>
+    <td>${escapeHtml(r.apto || '—')}</td>
+    <td><select data-rn-campo="status" aria-label="Status">${rnOpcoes(Object.keys(RN_STATUS).map(k => [k, rnStatusRotulo(+k)]), r.status)}</select></td>
+    <td><input type="date" data-rn-campo="prox_retorno" aria-label="Próximo retorno" value="${escapeHtml(r.prox_retorno || '')}" class="${rnRetornoVencido(r, hoje) ? 'rnVencido' : ''}"></td>
+    <td><select data-rn-campo="canal" aria-label="Canal">${rnOpcoes(RN_CANAIS.map(c => [c, c]), r.canal, '—')}</select></td>
+  </tr>`;
+}
+function rnRenderCarteira(){
+  const hoje = rnHoje(); const gestor = rnGestor();
+  rnPreencherFiltros();
+  const c = rnContadores(rnEstado.lista, hoje);
+  document.getElementById('rnContadores').innerHTML = `<span><b>${c.total}</b> clientes</span><span><b>${c.pctNaoContatado}%</b> não contatados</span>`
+    + `<span class="${c.vencidos ? 'rnVencido' : ''}"><b>${c.vencidos}</b> retornos vencidos</span>${c.pendencias ? `<span><b>${c.pendencias}</b> pendências</span>` : ''}`;
+  const lista = rnFiltrar(rnEstado.lista, rnEstado.filtros, hoje);
+  const mostrar = lista.slice(0, rnEstado.pagina * RN_PAGINA);
+  document.getElementById('rnThead').innerHTML = `<tr>${gestor ? '<th><input type="checkbox" id="rnSelTodos" aria-label="Selecionar todos"></th>' : ''}<th>Razão social / ADM</th>${gestor ? '<th>Consultor</th>' : ''}<th>Linhas</th><th>Apto</th><th>Status</th><th>Próx. retorno</th><th>Canal</th></tr>`;
+  document.getElementById('rnTbody').innerHTML = mostrar.map(r => rnLinhaHtml(r, hoje, gestor)).join('')
+    || `<tr><td colspan="${gestor ? 8 : 6}">Nenhum cliente com esses filtros.</td></tr>`;
+  const mais = document.getElementById('rnMais');
+  mais.style.display = lista.length > mostrar.length ? '' : 'none';
+  mais.textContent = `Mostrar mais (${lista.length - mostrar.length})`;
+  document.getElementById('rnRedistribuir').style.display = gestor && rnEstado.selecionados.size ? '' : 'none';
+  document.getElementById('rnSelN').textContent = rnEstado.selecionados.size + ' selecionado(s)';
+}
+function rnAbrirFechamento(id, status){
+  const r = rnEstado.lista.find(x => x.id === id);
+  if(!r) return;
+  let ov = document.getElementById('rnFechamento');
+  if(!ov){ ov = document.createElement('div'); ov.className = 'overlay'; ov.id = 'rnFechamento'; document.body.appendChild(ov); }
+  const renov = status === 6;
+  ov.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="rnFechTitulo">
+    <div class="mHead"><button type="button" class="mClose" data-rn-fech-cancelar aria-label="Fechar">&times;</button>
+      <h2 id="rnFechTitulo">${renov ? '6-Renovado' : '7-Perdido'}</h2><div class="mCnpj">${escapeHtml(r.razao_social || '')}</div></div>
+    <div class="mBody">
+      ${renov
+        ? `<label class="field">Linhas renovadas *<input type="number" min="1" id="rnFechLinhas" value="${r.linhas_renovadas ?? ''}"></label>
+           <label class="field">BL vendida (qtd)<input type="number" min="0" id="rnFechBl" value="${r.bl_vendida ?? ''}"></label>
+           <label class="field">Soluções digitais (R$)<input type="number" min="0" step="0.01" id="rnFechDig" value="${r.sol_digitais ?? ''}"></label>`
+        : `<label class="field">Motivo da perda *<select id="rnFechMotivo">${rnOpcoes(RN_MOTIVOS.map(m => [m, m]), r.motivo_perda, 'Escolha…')}</select></label>
+           <label class="field">Observação<textarea id="rnFechObs" rows="3">${escapeHtml(r.observacoes || '')}</textarea></label>`}
+      <p class="kbMeta rnVencido" id="rnFechErro" role="alert"></p>
+      <div style="display:flex;gap:var(--space-2);justify-content:flex-end"><button type="button" class="btn btn-outline btn-sm" data-rn-fech-cancelar>Cancelar</button><button type="button" class="btn btn-sm" data-rn-fech-salvar>Salvar</button></div>
+    </div></div>`;
+  ov.classList.add('active');
+  ov.onclick = async (e) => {
+    if(e.target.closest('[data-rn-fech-cancelar]')){ fecharOverlay(ov); rnRender(); return; }
+    if(!e.target.closest('[data-rn-fech-salvar]')) return;
+    const num = (idCampo) => { const v = document.getElementById(idCampo).value; return v === '' ? null : Number(v); };
+    const patch = renov
+      ? { status, linhas_renovadas: num('rnFechLinhas'), bl_vendida: num('rnFechBl'), sol_digitais: num('rnFechDig') }
+      : { status, motivo_perda: document.getElementById('rnFechMotivo').value || null, observacoes: document.getElementById('rnFechObs').value.trim() || null };
+    const erro = rnValidarFechamento(status, patch);
+    if(erro){ document.getElementById('rnFechErro').textContent = erro; return; }
+    if(await rnSalvar(id, patch)) fecharOverlay(ov);
+  };
+}
+async function rnRedistribuir(){
+  const para = document.getElementById('rnPassarPara').value;
+  const ids = [...rnEstado.selecionados];
+  if(!para || !ids.length){ mostrarAviso('Escolha os clientes e para quem passar.', 'info'); return; }
+  const r = await ppSeguro(() => sb.from('renovacao_carteira').update({ consultor_id: para }).in('id', ids));
+  if(!r || r.error){ mostrarAviso('Não foi possível redistribuir agora.', 'erro'); return; }
+  rnEstado.lista.forEach(x => { if(rnEstado.selecionados.has(x.id)) x.consultor_id = para; });
+  rnEstado.selecionados.clear();
+  mostrarAviso(`${ids.length} cliente(s) passados para ${rnNomeConsultor(para)}.`, 'ok');
+  rnRender();
+}
+document.getElementById('rnTbody').addEventListener('change', async (e) => {
+  const tr = e.target.closest('tr[data-rn-id]');
+  if(!tr) return;
+  const id = Number(tr.dataset.rnId);
+  if(e.target.matches('[data-rn-sel]')){
+    if(e.target.checked) rnEstado.selecionados.add(id); else rnEstado.selecionados.delete(id);
+    rnRenderCarteira();
+    return;
+  }
+  const campo = e.target.dataset.rnCampo;
+  if(!campo) return;
+  let valor = e.target.value || null;
+  if(campo === 'status'){
+    valor = Number(valor);
+    if(valor === 6 || valor === 7){ rnAbrirFechamento(id, valor); return; }
+  }
+  await rnSalvar(id, { [campo]: valor });
+});
+document.getElementById('rnTbody').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-rn-abrir]');
+  if(b && typeof rnAbrirFicha === 'function') rnAbrirFicha(Number(b.dataset.rnAbrir));
+});
+document.getElementById('rnThead').addEventListener('change', (e) => {
+  if(e.target.id !== 'rnSelTodos') return;
+  rnFiltrar(rnEstado.lista, rnEstado.filtros, rnHoje()).slice(0, rnEstado.pagina * RN_PAGINA)
+    .forEach(r => { if(e.target.checked) rnEstado.selecionados.add(r.id); else rnEstado.selecionados.delete(r.id); });
+  rnRenderCarteira();
+});
+document.getElementById('rnBusca').addEventListener('input', (e) => { rnEstado.filtros.busca = e.target.value; rnEstado.pagina = 1; rnRenderCarteira(); });
+[['rnFStatus', 'status'], ['rnFApto', 'apto'], ['rnFCidade', 'cidade'], ['rnFConsultor', 'consultor']].forEach(([idEl, k]) =>
+  document.getElementById(idEl).addEventListener('change', (e) => { rnEstado.filtros[k] = e.target.value; rnEstado.pagina = 1; rnRenderCarteira(); }));
+document.querySelectorAll('[data-rn-filtro]').forEach(b => b.addEventListener('click', () => {
+  const k = b.dataset.rnFiltro; rnEstado.filtros[k] = !rnEstado.filtros[k]; rnEstado.pagina = 1; rnRenderCarteira();
+}));
+document.getElementById('rnMais').addEventListener('click', () => { rnEstado.pagina++; rnRenderCarteira(); });
+document.getElementById('rnPassar').addEventListener('click', rnRedistribuir);
 /* ============ FIM RENOVAÇÃO §143 ============ */
 
 /* ============ MEUS LEADS (KANBAN) — §112 ============
