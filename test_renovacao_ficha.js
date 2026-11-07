@@ -33,8 +33,7 @@ require('./renovacao_test_harness.js').rodar(`
   form.elements.observacoes.value = '  Zz ligar de manhã  ';
   form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
   await espera(20);
-  const p = window.__escritas[0].patch;
-  eq([p.status, p.prox_retorno, p.observacoes, p.canal], [3, '2026-11-20', 'Zz ligar de manhã', null], 'grava o atendimento');
+  eq(window.__escritas[0].patch, { prox_retorno: '2026-11-20', observacoes: 'Zz ligar de manhã' }, 'grava só o que mudou no atendimento');
 
   // perdido sem motivo na ficha é barrado...
   window.__escritas.length = 0;

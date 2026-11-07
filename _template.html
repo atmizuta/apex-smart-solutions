@@ -3634,7 +3634,7 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
   if(btn.dataset.tab === 'discador') dcCarregar();
   if(btn.dataset.tab === 'mailing') mbCarregar();
   if(btn.dataset.tab === 'agenda') loadAgenda();
-  if(btn.dataset.tab === 'renovacao'){ if(rnEstado.carregado) rnRender(); else rnCarregar(); }
+  if(btn.dataset.tab === 'renovacao'){ if(rnEstado.carregado && Date.now() - rnEstado.carregadoEm < 120000) rnRender(); else rnCarregar(); }
   if(btn.dataset.tab === 'anotacoes') loadAnotacoes();
 });
 
@@ -3699,6 +3699,7 @@ async function rnCarregar(){
   rnEstado.lista = car.data || [];
   rnEstado.perfis = (pf && !pf.error && pf.data) || [];
   rnEstado.carregado = true;
+  rnEstado.carregadoEm = Date.now();
   rnStatus('');
   rnAtualizarBadge();
   rnRender();
@@ -3865,13 +3866,24 @@ document.getElementById('rnTbody').addEventListener('change', async (e) => {
     return;
   }
   const campo = e.target.dataset.rnCampo;
-  if(!campo) return;
+  if(!campo || campo === 'prox_retorno') return;   // data grava no focusout (abaixo)
   let valor = e.target.value || null;
   if(campo === 'status'){
     valor = Number(valor);
     if(valor === 6 || valor === 7){ rnAbrirFechamento(id, valor); return; }
   }
   await rnSalvar(id, { [campo]: valor });
+});
+// Data digitada: o Chrome dispara change a cada parte do campo; grava só ao sair, se mudou e se o ano faz sentido.
+document.getElementById('rnTbody').addEventListener('focusout', async (e) => {
+  if(!e.target.matches('[data-rn-campo="prox_retorno"]')) return;
+  const tr = e.target.closest('tr[data-rn-id]');
+  const r = tr && rnEstado.lista.find(x => x.id === Number(tr.dataset.rnId));
+  if(!r) return;
+  const valor = e.target.value || null;
+  if(valor === (r.prox_retorno || null)) return;
+  if(valor && valor.slice(0, 4) < '2020'){ rnRender(); return; }
+  await rnSalvar(r.id, { prox_retorno: valor });
 });
 document.getElementById('rnTbody').addEventListener('click', (e) => {
   const b = e.target.closest('[data-rn-abrir]');
@@ -3983,7 +3995,11 @@ document.getElementById('rnFicha').addEventListener('submit', async (e) => {
   // legado da planilha (a_completar): mesma regra do banco — só cobra quando o status muda
   const erro = r.a_completar && patch.status === r.status ? null : rnValidarFechamento(patch.status, patch);
   if(erro){ document.getElementById('rnFichaErro').textContent = erro; return; }
-  if(await rnSalvar(r.id, patch)) mostrarAviso('Atendimento salvo.', 'ok');
+  // só o que mudou: não apaga o que outra pessoa gravou enquanto a ficha estava aberta
+  const mudou = {};
+  Object.keys(patch).forEach(k => { if(String(patch[k] ?? '') !== String(r[k] ?? '')) mudou[k] = patch[k]; });
+  if(!Object.keys(mudou).length){ mostrarAviso('Nada mudou no atendimento.', 'info'); return; }
+  if(await rnSalvar(r.id, mudou)) mostrarAviso('Atendimento salvo.', 'ok');
 });
 // ---- Retornos ----
 function rnSomarDias(iso, n){ const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
@@ -4035,7 +4051,8 @@ async function rnRenderResumo(){
 }
 // ---- Importar base (admin). Os dados vão do navegador direto ao Supabase: nada passa pelo repositório. ----
 function rnChave(s){ return rnNorm(String(s ?? '').replace(/▼/g, '')).replace(/\s+/g, ' ').trim(); }
-function rnLeitor(row){ const m = {}; Object.keys(row).forEach(k => { m[rnChave(k)] = row[k]; }); return (nome) => m[rnChave(nome)]; }
+// Cabeçalho repetido depois de tirar o ▼ ("STATUS ▼" da planilha e "STATUS" da Claro): vale o primeiro, que é a coluna amarela.
+function rnLeitor(row){ const m = {}; Object.keys(row).forEach(k => { const c = rnChave(k); if(!(c in m)) m[c] = row[k]; }); return (nome) => m[rnChave(nome)]; }
 function rnEhData(v){ return Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v); }
 // SheetJS 0.18.5 devolve data de célula com deriva de segundos para os dois lados (00:00:28 ou 23:59:59,999 do dia anterior):
 // arredonda para o dia mais próximo antes de ler. As datas da planilha são só dia, sem hora.
@@ -4105,7 +4122,7 @@ function rnLerArquivo(wb, perfis){
   const semLogin = new Set();
   linhas.forEach(l => {
     const t = trabalho.get(l.cnpj_digits);
-    const nome = (t && t._aba) || l._consultor;
+    const nome = (t && t._aba) || (abasTime.length ? l._consultor : null);   // base nova da Claro: entra sem consultor (spec 4.4)
     if(nome){ l.consultor_id = porNome(nome); if(!l.consultor_id) semLogin.add(nome); }
     delete l._consultor;
     if(t){ delete t._aba; Object.assign(l, t); }
@@ -4117,7 +4134,11 @@ function rnPrevia(linhas, existentes){
   const mapa = new Map(existentes.map(e => [e.cnpj_digits, e]));
   const noArquivo = new Set(linhas.map(l => l.cnpj_digits));
   const novos = linhas.filter(l => !mapa.has(l.cnpj_digits));
+  const conta = (lista, chave) => lista.reduce((o, l) => { const k = chave(l); o[k] = (o[k] || 0) + 1; return o; }, {});
+  const comAtendimento = linhas.filter(l => l.status !== undefined);
   return { novos: novos.length, atualizados: linhas.length - novos.length,
+    ignorados: comAtendimento.filter(l => mapa.has(l.cnpj_digits)).length,
+    porStatus: conta(comAtendimento, l => l.status), porConsultor: conta(linhas, l => l.consultor_id || ''),
     sairam: existentes.filter(e => e.na_base && !noArquivo.has(e.cnpj_digits)).length,
     completar: novos.filter(l => (l.status === 7 && !l.motivo_perda) || (l.status === 6 && !(l.linhas_renovadas >= 1))).length };
 }
@@ -4138,10 +4159,17 @@ async function rnPrepararImportacao(arquivo){
   if(ex.error){ box.innerHTML = '<p class="kbMeta">Não foi possível conferir a carteira atual.</p>'; return; }
   const p = rnPrevia(lido.linhas, ex.data || []);
   rnEstado.importacao = lido;
+  const nomes = {}; ((pf && pf.data) || []).forEach(x => { nomes[x.id] = x.nome; });
+  const porStatus = Object.keys(p.porStatus).sort().map(k => `${escapeHtml(rnStatusRotulo(+k))}: ${p.porStatus[k]}`).join(' · ');
+  const porConsultor = Object.keys(p.porConsultor).map(k => `${escapeHtml(k ? (nomes[k] || '—') : 'Sem consultor')}: ${p.porConsultor[k]}`).join(' · ');
   box.innerHTML = `<p>${lido.formato === 'planilha' ? 'Planilha do time (' + lido.abas.map(escapeHtml).join(', ') + ')' : 'Base da Claro'}: <b>${lido.linhas.length}</b> CNPJs.</p>`
     + `<ul><li><b>${p.novos}</b> novos</li><li><b>${p.atualizados}</b> já existem (só dados da Claro)</li><li><b>${p.sairam}</b> saem da base</li>`
     + (p.completar ? `<li><b>${p.completar}</b> entram como pendência (perdido sem motivo ou renovado sem linhas)</li>` : '')
-    + '</ul><button type="button" class="btn btn-sm" data-rn-importar>Importar</button>';
+    + '</ul>'
+    + (porStatus ? `<p class="kbMeta">Por status: ${porStatus}</p>` : '')
+    + `<p class="kbMeta">Por consultor: ${porConsultor}</p>`
+    + (p.ignorados ? `<div class="kbAviso">O atendimento das abas NÃO será aplicado a ${p.ignorados} cliente(s) que já existem na carteira (a importação nunca sobrescreve o trabalho do time).</div>` : '')
+    + '<button type="button" class="btn btn-sm" data-rn-importar>Importar</button>';
 }
 async function rnExecutarImportacao(){
   const lido = rnEstado.importacao;

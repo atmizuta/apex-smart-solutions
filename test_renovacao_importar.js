@@ -56,8 +56,8 @@ require('./renovacao_test_harness.js').rodar(`
 
   // prévia
   const linhas = rnLerArquivo(montar([['Base Completa', base], ['Zzbruno', time]]), PERFIS).linhas;
-  eq(rnPrevia(linhas, [{ cnpj_digits: '00000000000103', na_base: true }, { cnpj_digits: '00000000000999', na_base: true }, { cnpj_digits: '00000000000998', na_base: false }]),
-     { novos: 2, atualizados: 1, sairam: 1, completar: 1 }, 'prévia: novos, já existem, saem, pendências');
+  const pv = rnPrevia(linhas, [{ cnpj_digits: '00000000000103', na_base: true }, { cnpj_digits: '00000000000999', na_base: true }, { cnpj_digits: '00000000000998', na_base: false }]);
+  eq([pv.novos, pv.atualizados, pv.sairam, pv.completar], [2, 1, 1, 1], 'prévia: novos, já existem, saem, pendências');
 
   // ==== tela: admin escolhe o arquivo, vê a prévia e importa em lotes ====
   currentUser = { id: 'u-adm', nome: 'Zzadm Teste', role: 'admin', operacao: 'apex' };
