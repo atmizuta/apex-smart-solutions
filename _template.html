@@ -3691,8 +3691,12 @@ function rnPodeVer(){
   if(currentUser.equipe === 'renovacao') return true;
   return rnGestor() && veAbasDaApex();
 }
+function rnSoRenovacao(){ return !!currentUser && currentUser.role === 'consultor' && currentUser.equipe === 'renovacao'; }
 function rnAplicarPermissao(){
   document.getElementById('tabBtnRenovacao').style.display = rnPodeVer() ? 'inline-block' : 'none';
+  // §143.2: o time de renovação trabalha só pela aba Renovação (Busca, Proposta, Funil e Agenda saem do menu dele)
+  const soRenovacao = rnSoRenovacao();
+  ['busca', 'proposta', 'funil', 'agenda'].forEach(t => { const b = document.querySelector(`#tabsNav button[data-tab="${t}"]`); if(b) b.style.display = soRenovacao ? 'none' : ''; });
   Object.assign(rnEstado, { aba: 'carteira', lista: [], propostas: [], perfis: [], carregado: false, filtros: rnFiltrosVazios(), pagina: 1, fichaId: null, ficha: null, importacao: null });
   rnEstado.selecionados.clear();
   rnEstado.geracao++;
@@ -11786,7 +11790,10 @@ function renderDashFunil(){
   dash.style.display = 'block';
 }
 document.querySelectorAll('#dashFunil [data-tab="funil"]').forEach(el => {
-  el.addEventListener('click', () => document.querySelector('#tabsNav button[data-tab="funil"]').click());
+  el.addEventListener('click', () => {
+    if(rnSoRenovacao()){ document.getElementById('tabBtnRenovacao').click(); rnTrocarAba('kanban'); return; }   // §143.2
+    document.querySelector('#tabsNav button[data-tab="funil"]').click();
+  });
 });
 
 document.getElementById('funilFiltroConsultor').addEventListener('change', renderFunil);
