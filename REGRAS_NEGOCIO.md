@@ -4593,4 +4593,16 @@ Spec: `docs/superpowers/specs/2026-11-07-renovacao-aba-design.md`. Entrega em 2 
 - **Fase 2 (§143.2, a fazer):** Kanban, Gerar proposta integrado, Proposta e fatura dentro da aba, trava no funil antigo
   e abas antigas escondidas para o time.
 
-Próxima livre: §144 (§138.2, §138.3 e §143.2 reservadas).
+## 144. Base de Mailing: fase 2 da extração anda de novo e NEO da Apex e da Eagle separados (09/11/2026)
+
+Pedidos do Rafael: "coloca separado apex e eagle, para escolhermos qual selecionar na hora da extração" e "deu erro novamente na extração com mais de 100 mil linhas [...] arrume isso de vez. e teste".
+
+- **O que aconteceu (09/11, Guilherme, ICP-1-CLARO-MIGRACAO-E2, 334.540 linhas):** a fase 1 (nunca extraídos) entregou 189.490 linhas em 2 arquivos e acabou às 09:10. Na fase 2 (já usados há mais tempo, §102.10) o painel fez **28.067 chamadas** em 3 h (até 12:11), todas vazias e iguais — a tela parou em "Conferindo os números já usados… 185.556".
+- **Causa:** o cursor da fase 2 (`ultima_extracao` com microssegundos, devolvido em texto) voltava ao banco como `$n::timestamptz`. O postgres.js da Edge Function, ao ver esse tipo, converte a string em `Date` do JavaScript e **corta os microssegundos**. Uma extração grava o mesmo `now()` em até 100 mil linhas; o cursor truncado ficava antes do próprio grupo e a janela seguinte recomeçava no mesmo lugar, para sempre. Reproduzido em leitura com o mesmo driver; com psycopg o mesmo SQL andava.
+- **Correção na função (`mailing-api` v16):** cursor como `$n::text::timestamptz` (janela e trecho), como o `tid` já fazia. Ação nova **`agora`**: o início do pedido (`extraida_antes_de`) é a hora do banco, não a do PC — o PC do Guilherme estava ~2 s adiantado e as linhas do 1º trecho do próprio pedido voltariam na fase 2.
+- **Painel:** pede `agora` antes de extrair (sem ela, não começa); se a fase 2 devolver o mesmo trecho que recebeu, para e avisa "A extração parou de avançar na base", baixando o que já saiu. **Cruzar com o NEO** virou duas caixas, **Apex** e **Eagle** (marcadas), na exportação (`mbNeoApex`/`mbNeoEagle`) e no cartão Limpar (`mbLimparApex`/`mbLimparEagle`); filtra pela `origem` da lista (`Apex`, `Eagle`, `Apex + Eagle`, §108). Nenhuma marcada = não cruza (na limpeza, avisa).
+- **Teste com a base real (só leitura, SQL real, mesmo driver, filtro do Guilherme):** fase 2 em 12 janelas, até 28 s por chamada (limite 110 s), ~4 min; 143.823 linhas + as 189.490 da fase 1 = 333.313 (contagem: 334.540). Testes: função 59, `test_mailing.js` 215. Na suíte, 7 testes falham igual na oficial limpa (não são do mailing).
+- **Publicação (09/11 ~15:00, ok do Rafael):** função v16 (conferida byte a byte com o repositório). Painel no ar era `f3383e15…` (= oficial/main e1973af); novo MD5 `16519f92…`. Backup `~/deploy_backups/painel_clientes_apex_20261109_180039_antes_mailing_144.html` (hora do servidor em UTC).
+- **Reverter:** copiar o backup do painel. A função v16 serve também o painel antigo (só ganhou a ação `agora`).
+
+Próxima livre: §145 (§138.2, §138.3 e §143.2 reservadas).

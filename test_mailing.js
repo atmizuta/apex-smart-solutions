@@ -282,9 +282,11 @@ try{
     };
   }
   const extrairChamadas = () => chamadas.filter(c => c.body.acao === 'extrair').map(c => c.body);
-  eq([document.getElementById('mbCruzarNeo').checked, document.getElementById('mbRemoverDuplicados').checked], [true, true], 'as duas caixas vêm marcadas');
+  eq(['mbNeoApex', 'mbNeoEagle', 'mbRemoverDuplicados'].map(id => document.getElementById(id).checked), [true, true, true], 'as três caixas vêm marcadas');
+  // 09/11 (seção 144): o início do pedido vem da hora do banco (ação "agora"), não do relógio do PC
+  window.__fnRespostas.agora = { data: { agora: '2026-11-09T11:59:09.241Z' }, error: null };
   // os testes de exportação abaixo são do comportamento sem as opções (o mesmo de antes de 22/10)
-  document.getElementById('mbCruzarNeo').checked = false; document.getElementById('mbRemoverDuplicados').checked = false;
+  ['mbNeoApex', 'mbNeoEagle', 'mbRemoverDuplicados'].forEach(id => { document.getElementById(id).checked = false; });
 
   eq(mbPaginasTrecho(100000, 0, 0), MB_TRECHO_INICIAL, 'primeiro trecho: tamanho inicial');
   eq(mbPaginasTrecho(99500, 2048, 500), MB_TRECHO_MAX, 'filtro fino (0,25 linha por página): trecho máximo');
@@ -302,7 +304,8 @@ try{
   eq(Object.keys(c1).sort(), ['acao', 'filtros', 'nome_carga', 'parte', 'pedido', 'quantidade', 'trecho'], 'extrair manda filtros, quantidade, carga, pedido, parte e trecho');
   eq([c1.quantidade, c1.nome_carga, c1.parte, c1.trecho], [1, 'TESTE', 1, { fase: 1, pagina: 0, paginas: MB_TRECHO_INICIAL }], 'primeiro trecho do começo da base');
   eq(Object.assign({}, c1.filtros, { extraida_antes_de: 0 }), Object.assign({}, mbLerFiltros(), { extraida_antes_de: 0 }), 'filtros da tela');
-  assert(!isNaN(Date.parse(c1.filtros && c1.filtros.extraida_antes_de)), 'leva a hora do início do pedido');
+  eq(c1.filtros && c1.filtros.extraida_antes_de, '2026-11-09T11:59:09.241Z', 'início do pedido = hora do banco (seção 144)');
+  eq(chamadas.map(c => c.body.acao).slice(0, 2), ['agora', 'extrair'], 'pergunta a hora ao banco antes de extrair');
   eq(extrairChamadas().length, 1, 'completou a quantidade: não pede outro trecho');
   eq(baixados.map(b => b.nome), ['TESTE_2026-10-21.csv'], 'baixou um arquivo com o nome vindo da função');
   eq(baixados[0] && baixados[0].blob.size, mbParaCp1252(mbMontarCsv(colsExp, linhasExp)).length, 'arquivo em Windows-1252 com o tamanho certo');
@@ -404,8 +407,8 @@ try{
   eq(extrairChamadas().length, 1, '400 não repete');
 
   // 22/10 (seção 102.12): exportar tirando empresas com pedido no NeoSales e telefones repetidos, completando a quantidade
-  document.getElementById('mbCruzarNeo').checked = true; document.getElementById('mbRemoverDuplicados').checked = true;
-  const empresaNeo = { cnpj: '00000000000191', pedidos: 1, numero_pedido: '9', etapa: 'CONCLUIDO (NEOCRM)', consultor: 'ciclano', cadastro: null };
+  ['mbNeoApex', 'mbNeoEagle', 'mbRemoverDuplicados'].forEach(id => { document.getElementById(id).checked = true; });
+  const empresaNeo = { cnpj: '00000000000191', pedidos: 1, numero_pedido: '9', etapa: 'CONCLUIDO (NEOCRM)', consultor: 'ciclano', cadastro: null, origem: 'Apex' };
   const respostasNeo = () => [
     [L('00000000000191', '11900000001'), L('00000000000272', '11900000002'), L('00000000000353', '11900000002'), L('00000000000434', '11900000003')],
     [L('00000000000515', '11900000003'), L('00000000000596', '11900000004'), L('00000000000677', '11900000005'), L('00000000000758', '11900000006')],
@@ -422,7 +425,7 @@ try{
   baixados.length = 0; avisos.length = 0; chamadas.length = 0;
   document.getElementById('mbCarga').value = 'NEO'; document.getElementById('mbQtd').value = '6';
   document.getElementById('btnMbExportar').click(); await ateTerminar();
-  eq(chamadas.map(c => c.body.acao).slice(0, 2), ['neo', 'extrair'], 'busca a lista do NeoSales antes de extrair');
+  eq(chamadas.map(c => c.body.acao).slice(0, 3), ['neo', 'agora', 'extrair'], 'busca a lista do NeoSales antes de extrair');
   eq(extrairChamadas().map(b => b.quantidade), [6, 4, 1], 'removidos não contam: pede de novo até completar');
   eq(baixados.map(b => b.nome), ['NEO_2026-10-22.csv'], 'só o mailing: REMOVIDOS não é baixado (seção 134)');
   const ficamEsperado = [L('00000000000272', '11900000002'), L('00000000000434', '11900000003'), L('00000000000596', '11900000004'),
@@ -455,8 +458,51 @@ try{
   baixados.length = 0; avisos.length = 0; chamadas.length = 0;
   document.getElementById('btnMbExportar').click(); await ateTerminar();
   eq([extrairChamadas().length, baixados.length, avisos[0] && avisos[0][0]], [0, 0, 'erro'], 'sem a lista do NeoSales nada é extraído');
-  assert(avisos[0] && avisos[0][1].includes('desmarque Cruzar com o NEO'), 'aviso explica como seguir');
+  assert(avisos[0] && avisos[0][1].includes('desmarque o NEO da Apex e da Eagle'), 'aviso explica como seguir');
   window.__fnRespostas.neo = { data: { empresas: [empresaNeo] }, error: null };
+
+  // 09/11 (seção 144, pedido do Rafael): Apex e Eagle separados — escolhe de quem tirar as empresas com pedido
+  const neoMisto = [
+    { cnpj: '00000000000191', numero_pedido: '1', origem: 'Apex' },
+    { cnpj: '00000000000272', numero_pedido: '2', origem: 'Eagle' },
+    { cnpj: '00000000000353', numero_pedido: '3', origem: 'Apex + Eagle', origem_pedido: 'Eagle' },
+  ];
+  const linhasMisto = [L('00000000000191', '11900000001'), L('00000000000272', '11900000002'), L('00000000000353', '11900000003'), L('00000000000434', '11900000004')];
+  window.__fnRespostas.neo = { data: { empresas: neoMisto }, error: null };
+  const tirados = async (apex, eagle) => {
+    document.getElementById('mbNeoApex').checked = apex; document.getElementById('mbNeoEagle').checked = eagle;
+    window.__fnRespostas.extrair = extrairNeo([linhasMisto.slice()], 'MISTO_2026-11-09.csv');
+    chamadas.length = 0; baixados.length = 0; avisos.length = 0;
+    document.getElementById('mbCarga').value = 'MISTO'; document.getElementById('mbQtd').value = '4';
+    document.getElementById('btnMbExportar').click(); await ateTerminar();
+    return chamadas.filter(c => c.body.acao === 'fechar_parte').map(c => c.body.neo)[0] || 0;
+  };
+  eq(await tirados(true, true), 3, 'Apex e Eagle marcados: sai quem tem pedido em qualquer uma');
+  eq(await tirados(true, false), 2, 'só Apex: fica a empresa com pedido só na Eagle');
+  eq(await tirados(false, true), 2, 'só Eagle: fica a empresa com pedido só na Apex');
+  eq(await tirados(false, false), 0, 'nenhum marcado: não tira ninguém');
+  eq(chamadas.filter(c => c.body.acao === 'neo').length, 0, 'nenhum marcado: nem busca a lista do NeoSales');
+  ['mbNeoApex', 'mbNeoEagle'].forEach(id => { document.getElementById(id).checked = true; });
+  window.__fnRespostas.neo = { data: { empresas: [empresaNeo] }, error: null };
+
+  // sem a hora do banco o pedido não começa (não volta para o relógio do PC)
+  window.__fnRespostas.agora = { data: null, error: { message: 'Failed to fetch' } };
+  window.__fnRespostas.extrair = extrairNeo(respostasNeo(), 'NEO_2026-10-22.csv');
+  chamadas.length = 0; baixados.length = 0; avisos.length = 0;
+  document.getElementById('btnMbExportar').click(); await ateTerminar();
+  eq([extrairChamadas().length, baixados.length, avisos[0] && avisos[0][0], mbEstado.exportando], [0, 0, 'erro', false], 'sem a hora do banco nada é extraído');
+  window.__fnRespostas.agora = { data: { agora: '2026-11-09T11:59:09.241Z' }, error: null };
+
+  // 09/11 (seção 144): o caso do Guilherme — a fase 2 devolvia o mesmo cursor e o painel repetiu 28 mil vezes. Se a função
+  // devolver o mesmo trecho que recebeu, o painel para e avisa (não fica girando).
+  const parado = { fase: 2, apos: { ue: '2026-10-22 14:27:54.528653+00', so: 1024242256 } };
+  window.__fnRespostas.extrair = () => ({ data: { colunas: colsExp, linhas: [], quantidade_entregue: 0, nome_arquivo: 'P_2026-11-09.csv',
+    proxima: parado, paginas_total: 380000, paginas_lidas: 2048 }, error: null });
+  chamadas.length = 0; baixados.length = 0; avisos.length = 0;
+  document.getElementById('mbQtd').value = '5';
+  document.getElementById('btnMbExportar').click(); await ateTerminar();
+  eq(extrairChamadas().map(b => b.trecho.fase), [1, 2], 'trecho repetido: para na primeira repetição');
+  assert(avisos[0] && avisos[0][0] === 'erro' && avisos[0][1].includes('parou de avançar'), 'avisa que a extração parou de avançar');
 
   // histórico: linhas do arquivo e removidas
   mbRenderHistorico([{ criado_em: '2026-10-22T20:00:00Z', username: 'adm', nome_carga: 'NEO', filtros: {}, quantidade_entregue: 9,
@@ -511,6 +557,17 @@ try{
   await mbLimparArquivos([arq('A.csv', cp(csvA))], 'neo');
   eq(baixados.map(b => b.nome), ['A_LIMPO.csv'], 'Cruzar com o NEO num arquivo antigo');
   eq(baixados[0] && baixados[0].blob.size, mbParaCp1252(mbMontarCsv(colsExp, [L('00000000000272', '11900000002')])).length, 'tirou a empresa com pedido');
+  // 09/11 (seção 144): na limpeza também escolhe Apex e/ou Eagle
+  eq(['mbLimparApex', 'mbLimparEagle'].map(id => document.getElementById(id).checked), [true, true], 'limpar: Apex e Eagle vêm marcados');
+  document.getElementById('mbLimparApex').checked = false;
+  baixados.length = 0; avisos.length = 0;
+  await mbLimparArquivos([arq('A.csv', cp(csvA))], 'neo');
+  eq(baixados[0] && baixados[0].blob.size, mbParaCp1252(csvA).length, 'limpar só Eagle: a empresa com pedido só na Apex fica');
+  document.getElementById('mbLimparEagle').checked = false;
+  baixados.length = 0; avisos.length = 0;
+  await mbLimparArquivos([arq('A.csv', cp(csvA))], 'neo');
+  assert(baixados.length === 0 && avisos[0] && avisos[0][0] === 'erro' && avisos[0][1].includes('Marque Apex ou Eagle'), 'limpar sem Apex nem Eagle: avisa');
+  ['mbLimparApex', 'mbLimparEagle'].forEach(id => { document.getElementById(id).checked = true; });
   baixados.length = 0; avisos.length = 0;
   await mbLimparArquivos([arq('X.csv', cp('a;b\\r\\n1;2\\r\\n'))], 'duplicados');
   eq([baixados.length, avisos[0] && avisos[0][0]], [0, 'erro'], 'arquivo fora do layout: nada sai');

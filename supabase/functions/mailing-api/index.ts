@@ -11,7 +11,7 @@ import {
   sqlTotais, sqlPorOperadora, sqlTotalFiltro, sqlExtrair, SQL_REGISTRAR, SQL_OPCOES, SQL_CARGA, SQL_HISTORICO, SQL_USUARIO,
   sqlTrechoNovos, sqlJanelaUsadas, sqlTrechoUsadas, ultimaPagina, ultimoTomado, SQL_PAGINAS, SQL_PARTE, SQL_SOMAR_PARTE,
   SQL_REGISTRAR_PARTE, SQL_NEO, SQL_FECHAR_PARTE, SQL_CONTAGEM_EXISTENTE, SQL_CONTAGEM_NOVA, SQL_CONTAGEM_VISTA, SQL_CONTAGEM_VER,
-  SQL_CONTAGEM_PARAR,
+  SQL_CONTAGEM_PARAR, SQL_AGORA,
 } from "./consulta.ts";
 import type { SqlParte, ResultadoTrecho } from "./consulta.ts";
 
@@ -146,6 +146,9 @@ function criarDeps(sql: postgres.Sql): DepsApi {
     },
     async fecharParte(pedido, parte, userId, neo, repetidos) {
       return (await sql.unsafe(SQL_FECHAR_PARTE, [pedido, parte, userId, neo, repetidos] as never[])).length > 0;
+    },
+    async agora() {
+      return String((await sql.unsafe(SQL_AGORA))[0].agora);
     },
     hojeISO: hojeSP,
   };
