@@ -306,7 +306,7 @@ assert(htmlComparacao.includes('<option value="p57-12" selected>'), 'select da l
 assert(htmlComparacao.includes('<option value="p60-70" selected>'), 'select da l3 ja vem com a oferta de 70GB mais barata pre-selecionada');
 assert(htmlComparacao.includes('Upgrade sugerido'), 'badge de upgrade aparece pra l3');
 assert(htmlComparacao.includes('Downgrade sugerido'), 'badge de downgrade aparece pra l2');
-assert(htmlComparacao.includes('id="faturaMonitorIncluir"') && !htmlComparacao.includes('id="faturaMonitorQtd"'), 'checkbox do Claro Monitor existe, desmarcado (campo de qtde so aparece quando marcado)');
+assert(!htmlComparacao.includes('id="faturaMonitorIncluir"') && !htmlComparacao.includes('id="faturaMonitorQtd"'), '§145: sem checkbox de Claro Monitor avulso (ja vem incluso no valor de todo plano Claro pos)');
 assert(htmlComparacao.includes('id="btnAddFaturaInc"'), 'botao de adicionar incremento existe');
 assert(htmlComparacao.includes('id="btnGerarPropostaFatura"'), 'botao "Gerar proposta com essas escolhas" existe');
 // troca manual: escolhas.porLinha sobrescreve a sugestao automatica
@@ -357,8 +357,7 @@ const grupoAtual50 = proposalState.situacaoAtualGrupos.find(g => g.gb === 50);
 assert(!!grupoAtual10 && grupoAtual10.qtd === 1 && Math.abs(grupoAtual10.valorUnit - 48.49) < 0.01, 'grupo do plano atual 10GB: qtd 1, valor 48,49 — achou ' + JSON.stringify(grupoAtual10));
 assert(!!grupoAtual20 && grupoAtual20.qtd === 1 && Math.abs(grupoAtual20.valorUnit - 58.99) < 0.01, 'grupo do plano atual 20GB: qtd 1, valor 58,99 — achou ' + JSON.stringify(grupoAtual20));
 assert(!!grupoAtual50 && grupoAtual50.qtd === 1 && Math.abs(grupoAtual50.valorUnit - 74.99) < 0.01, 'grupo do plano atual 50GB: qtd 1, valor 74,99 — achou ' + JSON.stringify(grupoAtual50));
-assert(proposalState.incluirExtras === true, 'Claro Monitor marcado na analise -> incluirExtras=true na proposta');
-assert(proposalState.extras[0].tipo === 'monitor' && proposalState.extras[0].qtd === 3, 'extras[0] e o Claro Monitor com qtd=3 (monitorQtd escolhido na analise)');
+assert(!(proposalState.extras || []).some(g => g.tipo === 'monitor'), '§145: gerarPropostaDaFatura nao cria Claro Monitor avulso mesmo com monitorIncluir antigo no estado (ja vem incluso no plano)');
 assert(proposalState.incluirIncremento === true, 'incremento marcado na analise -> incluirIncremento=true na proposta');
 assert(proposalState.incrementos[0].offerId === 'p57-12' && proposalState.incrementos[0].qtd === 1, 'incrementos[0] reflete a escolha feita na analise (p57-12, qtd 1)');
 document.getElementById('proposalClose').click();
@@ -653,7 +652,8 @@ const sugFora = window.sugerirPlanoConsumo(linhaTesteRegional, clienteForaRegiao
 assert(sugFora.acao === 'manter', 'mesma linha, DDD fora da regiao: continua "manter"');
 // fora da regiao, catalogo de renovacao sem a p57-15reg tem varias ofertas de 25GB+ (Pag.60
 // inclusive) — a mais proxima por cima de 14GB e a de 25GB (p60-25, R$49,99), nao mais a regional
-assert(sugFora.oferta && sugFora.oferta.id === 'p60-25', 'com DDD fora da regiao (21), sugerirPlanoConsumo NUNCA sugere a oferta regional — cai na proxima oferta nacional/pag.60 disponivel (25GB, p60-25) — achou ' + (sugFora.oferta && sugFora.oferta.id));
+// §145 (09/11/2026): com o 20GB Black Friday (p44-20) no catalogo, ele passa a ser a mais proxima por cima de 14GB.
+assert(sugFora.oferta && sugFora.oferta.id === 'p44-20', 'com DDD fora da regiao (21), sugerirPlanoConsumo NUNCA sugere a oferta regional — cai na proxima oferta nacional disponivel (20GB, p44-20) — achou ' + (sugFora.oferta && sugFora.oferta.id));
 assert(sugFora.oferta && sugFora.oferta.id !== 'p57-15reg', 'confirma explicitamente que a oferta regional NUNCA e sugerida fora da regiao');
 
 // sugerirPlanoConsumo sem client explicito usa faturaState.ddd (default do parametro) — grava um

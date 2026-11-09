@@ -67,7 +67,7 @@ assert(document.body.textContent.includes('Adicione pelo menos um item'), 'hint 
 
 // datalist de sugestoes vem do catalogo + Claro Monitor
 const dlOptions = Array.from(document.querySelectorAll('#dlModoManualSugestoes option')).map(o => o.value);
-assert(dlOptions.includes('Claro Monitor — Jornada Mobilidade'), 'sugestao Claro Monitor presente no datalist');
+assert(!dlOptions.includes('Claro Monitor — Jornada Mobilidade'), '§145: sem sugestao de Claro Monitor avulso no datalist (ja vem incluso nos planos Claro pos)');
 assert(dlOptions.length === modoManualSugestoes().length, 'quantidade de sugestoes bate com modoManualSugestoes()');
 
 // ===== 4) situacao atual manual: adicionar, editar, subtotal ao vivo, remover =====
