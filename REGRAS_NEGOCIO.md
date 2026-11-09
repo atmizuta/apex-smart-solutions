@@ -4592,6 +4592,11 @@ Spec: `docs/superpowers/specs/2026-11-07-renovacao-aba-design.md`. Entrega em 2 
   `supabase/tests/renovacao_check.sql`. Testes JS: `test_renovacao_*.js`.
 - **Fase 2 (§143.2, a fazer):** Kanban, Gerar proposta integrado, Proposta e fatura dentro da aba, trava no funil antigo
   e abas antigas escondidas para o time.
+- **No ar (09/11/2026, ok do Rafael):** banco aplicado (migrations 150000 e 150100; funções de trigger sem execução pela API),
+  conferência `renovacao_check.sql` passou no banco real; Bruno, Fabiana e Silvana marcados com `equipe = renovacao`;
+  painel publicado às 16:07 (MD5 `ce27b883…`, junto com a §144.1 do mailing que estava no ar como `13a5a85a…`).
+  Backup: `~/deploy_backups/painel_clientes_apex_20261109_190722_antes_renovacao.html` (hora do servidor, UTC).
+  Falta a virada: importar a planilha do time e conferir o Resumo número a número com o da planilha.
 
 ## 144. Base de Mailing: fase 2 da extração anda de novo e NEO da Apex e da Eagle separados (09/11/2026)
 
