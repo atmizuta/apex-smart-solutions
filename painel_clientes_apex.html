@@ -2981,11 +2981,19 @@ function rowToRecord(row){
    TCPJ/CPC). Mantidas como estavam — não constam no book de agosto/2026, mas seguem válidas.
    Ofertas de Portabilidade — só Incremento COM portabilidade, nunca Renovação. Mesma regra de área
    de atuação: só a variante do grupo RSC/RSI (DDD 12-19) é vendável; a do grupo RMG/RPS/RBS/RNE
-   foi removida. */
-const OFFERS_MOBILE = [
+   foi removida.
+   09/11/2026 (§145, book Nov/2026 V1, Pág. 44): entram os Black Friday 20GB (2GB + 18GB bônus,
+   R$34,99) e 80GB (25GB + 55GB bônus, R$54,99); 12GB e 40GB continuam (pedido do Rafael). Todo plano
+   Claro pós já vem com o Claro Monitor: o `valor` abaixo é o do BOOK e OFFERS_MOBILE soma
+   CLARO_MONITOR_INCLUSO em cada plano (e nos combos de convergência). O Monitor avulso de R$5 saiu da
+   proposta e da Analisar Fatura para não cobrar duas vezes. */
+const CLARO_MONITOR_INCLUSO = 5;
+const OFFERS_MOBILE_BOOK = [
+  { id:'p44-20',  origem:'Nacional', gb:20,  valor:34.99,  tipos:['incremento','renovacao'], regional:null, extras:['2GB + 18GB bônus (Black Friday)'] },
   { id:'p57-12',  origem:'Nacional', gb:12,  valor:39.99,  tipos:['incremento','renovacao'], regional:null, extras:[] },
   { id:'p57-30',  origem:'Nacional', gb:30,  valor:44.99,  tipos:['incremento','renovacao'], regional:null, extras:[] }, // 18/09/2026 — book Set/2026 v3, Pág. 49
   { id:'p57-40',  origem:'Nacional', gb:40,  valor:54.99,  tipos:['incremento','renovacao'], regional:null, extras:[] },
+  { id:'p44-80',  origem:'Nacional', gb:80,  valor:54.99,  tipos:['incremento','renovacao'], regional:null, extras:['25GB + 55GB bônus (Black Friday)'] },
   { id:'p57-70',  origem:'Nacional', gb:70,  valor:74.99,  tipos:['incremento','renovacao'], regional:null, extras:['Américas 5GB'] },
   { id:'p57-100', origem:'Nacional', gb:100, valor:89.99,  tipos:['incremento','renovacao'], regional:null, extras:['Américas 5GB'] },
   { id:'p57-150', origem:'Nacional', gb:150, valor:149.99, tipos:['incremento','renovacao'], regional:null, extras:['Américas 5GB','Cloud 1,5TB'] },
@@ -2998,6 +3006,8 @@ const OFFERS_MOBILE = [
   { id:'p59-25',  origem:'Portabilidade', gb:25,  valor:44.99,  tipos:['incremento_portabilidade'], regional:null, extras:['Exclusivo portabilidade'] }, // 18/09/2026 — book Set/2026 v3, Pág. 51
   { id:'p59-60',  origem:'Portabilidade', gb:60,  valor:54.99,  tipos:['incremento_portabilidade'], regional:{ ddds:[12,13,14,15,16,17,18,19], label:'Regional SP Capital/Interior (RSC/RSI) — DDD 12 a 19' }, extras:['Exclusivo portabilidade'] },
 ];
+const comMonitorIncluso = v => Math.round((v + CLARO_MONITOR_INCLUSO) * 100) / 100;
+const OFFERS_MOBILE = OFFERS_MOBILE_BOOK.map(o => ({ ...o, valor: comMonitorIncluso(o.valor) }));
 
 /* Benefícios universais de TODO plano móvel Claro empresas das Pág. 56/57/59 do book — não são um
    "extra" de uma oferta específica, valem para qualquer plano de voz (renovação, incremento ou
@@ -3055,7 +3065,7 @@ const CLARO_FIBRA = [
    aqui: o book descreve a franquia base como "10GB+11GB" (21GB) mas não deixa claro se é um plano
    nacional novo de 21GB ou uma combinação de dois planos existentes — evitei adivinhar. Ver
    REGRAS_NEGOCIO.md seção 20 (ou correspondente) pra decidir com o usuário antes de adicionar. */
-const CONVERGENCIA_OFERTAS = [
+const CONVERGENCIA_OFERTAS_BOOK = [
   { id:'conv-1giga-15gb', fibraMega:'1GIGA', mobileOfferId:'p57-15reg', gbTotal:65, valor:194.89,
     regional:{ ddds:[12,13,14,15,16,17,18,19], label:'Regional SP Capital/Interior (RSC/RSI) — DDD 12 a 19' },
     extras:['Wi-Fi 6', '15GB uso livre + 50GB Mega Bônus compartilháveis'] },
@@ -3064,6 +3074,8 @@ const CONVERGENCIA_OFERTAS = [
   { id:'conv-800mega-40gb', fibraMega:'800MEGA', mobileOfferId:'p57-40', gbTotal:90, valor:164.89,
     regional:null, extras:['Wi-Fi 6', '25GB + 15GB Bônus (uso livre) + 50GB Mega Bônus compartilháveis'] },
 ];
+// §145: o plano móvel do combo também já vem com o Claro Monitor (+R$5), mantendo combo = fibra + plano.
+const CONVERGENCIA_OFERTAS = CONVERGENCIA_OFERTAS_BOOK.map(c => ({ ...c, valor: comMonitorIncluso(c.valor) }));
 
 /* Claro Passaporte (uso internacional). Não consta no book de agosto/2026 (Claro-empresas & Canais
    Sinergia) — mantido do book anterior até ter uma atualização específica. Cobertura Américas x
@@ -7038,8 +7050,8 @@ function modoManualCatalogo(){
   const movel = OFFERS_MOBILE.map(o => ({ label: `${o.gb}GB (${o.origem})${o.regional ? ' — ' + o.regional.label : ''}`, valor: o.valor }));
   const fibra = CLARO_FIBRA.map(f => ({ label: `Claro Fibra ${f.mega}`, valor: f.valor }));
   const conv = CONVERGENCIA_OFERTAS.map(c => ({ label: `Fibra ${c.fibraMega} + Claro-pós ${c.gbTotal}GB${c.regional ? ' — ' + c.regional.label : ''}`, valor: c.valor }));
-  grupos.push({ grupo: 'Linha móvel', itens: movel }, { grupo: 'Claro Fibra', itens: fibra }, { grupo: 'Convergência', itens: conv },
-    { grupo: 'Soluções', itens: [{ label: 'Claro Monitor — Jornada Mobilidade', valor: 5 }] });
+  // §145: sem o Claro Monitor avulso de R$5 — já vem incluso no valor dos planos Claro pós.
+  grupos.push({ grupo: 'Linha móvel', itens: movel }, { grupo: 'Claro Fibra', itens: fibra }, { grupo: 'Convergência', itens: conv });
   let k = 0;
   grupos.forEach(g => g.itens.forEach(it => { it.id = k++; }));
   return grupos;
@@ -7073,7 +7085,6 @@ function modoManualSugestoes(){
     const reg = c.regional ? ' — ' + c.regional.label : '';
     nomes.add(`Fibra ${c.fibraMega} + Claro-pós ${c.gbTotal}GB${reg}`);
   });
-  nomes.add('Claro Monitor — Jornada Mobilidade');
   return Array.from(nomes);
 }
 
@@ -8218,18 +8229,6 @@ function renderFaturaComparacao(linhas, escolhas, client){
 
     <div style="border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px">
       <div class="field" style="display:flex;gap:10px;align-items:center;margin:0">
-        <label class="toggleSwitch" style="margin:0"><input type="checkbox" id="faturaMonitorIncluir" ${escolhas.monitorIncluir?'checked':''}><span class="track"></span><span class="thumb"></span></label>
-        <span>Claro Monitor — Jornada Mobilidade (R$5,00/mês por licença, fidelidade 24 meses)</span>
-      </div>
-      ${escolhas.monitorIncluir ? `
-      <div class="field" style="max-width:140px;margin-top:10px">
-        <label>Qtde. licenças</label>
-        <input type="number" id="faturaMonitorQtd" min="1" step="1" value="${escolhas.monitorQtd}">
-      </div>` : ''}
-    </div>
-
-    <div style="border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px">
-      <div class="field" style="display:flex;gap:10px;align-items:center;margin:0">
         <label class="toggleSwitch" style="margin:0"><input type="checkbox" id="faturaFibraIncluir" ${escolhas.fibraIncluir?'checked':''}><span class="track"></span><span class="thumb"></span></label>
         <span>Banda larga — Claro Fibra (venda casada com o móvel)</span>
       </div>
@@ -8265,16 +8264,6 @@ function wireFaturaResultadoListeners(linhas, rerender){
       faturaState.escolhas.porLinha[idx] = { offerId: this.value };
       rerender();
     });
-  });
-  const monitorChk = document.getElementById('faturaMonitorIncluir');
-  if(monitorChk) monitorChk.addEventListener('change', function(){
-    faturaState.escolhas.monitorIncluir = this.checked;
-    rerender();
-  });
-  const monitorQtd = document.getElementById('faturaMonitorQtd');
-  if(monitorQtd) monitorQtd.addEventListener('input', function(){
-    const v = parseInt(this.value, 10);
-    faturaState.escolhas.monitorQtd = (v && v > 0) ? v : 1;
   });
   // banda larga (Claro Fibra / Oferta de Convergência) — 22/09/2026, pedido do usuário.
   const fibraChk = document.getElementById('faturaFibraIncluir');
@@ -8561,10 +8550,8 @@ function gerarPropostaDaFatura(linhas, state){
     nome_admin: '', telefone_contato: '', tel1: '', tel2: '', email: '',
   };
 
+  // §145: o Claro Monitor já vem incluso no valor de todo plano Claro pós (CLARO_MONITOR_INCLUSO).
   const extras = [];
-  if(escolhas.monitorIncluir){
-    extras.push({ tipo: 'monitor', descricao: 'Claro Monitor — Jornada Mobilidade', valorUnit: 5, qtd: escolhas.monitorQtd || linhas.length });
-  }
 
   fecharOverlay(faturaOverlayEl);
   openProposal(client, {
@@ -8651,8 +8638,6 @@ async function analisarFatura(state){
     // consultor troca manualmente o plano de uma linha específica.
     faturaState.escolhas = {
       porLinha: linhas.map(() => ({ offerId: null })),
-      monitorIncluir: false,
-      monitorQtd: linhas.length,
       incrementos: [],
       // banda larga (Claro Fibra / Oferta de Convergência) — 22/09/2026, pedido do usuário: nasce
       // desligada (upsell opcional, mesmo padrão do Claro Monitor); fibraComboId só é preenchido
@@ -9215,11 +9200,10 @@ function renderProposalBody(){
           <button type="button" class="btnRemoveExtra" data-idx="${idx}" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:8px 10px;cursor:pointer;height:38px">Remover</button>
         </div>`).join('')}
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button type="button" id="btnAddClaroMonitor" class="btn" style="margin:2px 0 0;padding:6px 12px;font-size:12px;width:auto">+ Adicionar Claro Monitor</button>
           <button type="button" id="btnAddExtraManual" class="btn" style="margin:2px 0 0;padding:6px 12px;font-size:12px;width:auto">+ Adicionar oferta manual</button>
         </div>
         <div style="font-size:11px;color:var(--muted);margin-top:8px">Itens fora do book estruturado — não entram na régua de meta de comissão (seção 4.3), só somam no valor total da proposta.</div>
-        ` : `<div style="font-size:11px;color:var(--muted)">Adicione o Claro Monitor ou digite manualmente um produto/serviço com o valor combinado, quando não estiver no book padrão.</div>`}
+        ` : `<div style="font-size:11px;color:var(--muted)">O Claro Monitor já vem incluso em todo plano Claro pós. Digite manualmente um produto/serviço com o valor combinado, quando não estiver no book padrão.</div>`}
       </div>
     </details>
     ` : `
@@ -9735,11 +9719,6 @@ function renderProposalBody(){
       proposalState.extras.splice(idx, 1);
       renderProposalBody();
     });
-  });
-  const btnAddClaroMonitor = document.getElementById('btnAddClaroMonitor');
-  if(btnAddClaroMonitor) btnAddClaroMonitor.addEventListener('click', function(){
-    proposalState.extras.push({ tipo: 'monitor', descricao: 'Claro Monitor — Jornada Mobilidade', valorUnit: 5, qtd: (!avulsa ? (client.linhas_voz || 1) : 1) });
-    renderProposalBody();
   });
   const btnAddExtraManual = document.getElementById('btnAddExtraManual');
   if(btnAddExtraManual) btnAddExtraManual.addEventListener('click', function(){
@@ -10258,7 +10237,9 @@ function buildPropostaDocModel(){
   const temOfertaMovel = baseGrupos.length > 0 || incGrupos.length > 0;
   const extrasOfertas = collectOfferExtras(baseGrupos, incGrupos);
   const badges = BENEFICIOS_UNIVERSAIS_MOVEL.map(b => ({ label: b.label, desc: b.desc, cor: b.cor }));
-  if(valorMonitor > 0){
+  // §145: todo plano Claro pós já vem com o Claro Monitor, então o selo aparece sempre que há plano
+  // móvel na proposta (valorMonitor > 0 fica só para proposta antiga salva com o Monitor avulso).
+  if(temOfertaMovel || valorMonitor > 0){
     // sempre por último, pra não mexer na ordem/cores dos badges universais (Ligações/WhatsApp/Waze)
     badges.push({ label: 'Claro Monitor', desc: 'Localização, bloqueio remoto e proteção do aparelho incluídos', cor: [179, 16, 31] });
   }

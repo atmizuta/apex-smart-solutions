@@ -4620,4 +4620,18 @@ Pedidos do Rafael: "coloca separado apex e eagle, para escolhermos qual selecion
 - **Mesma classe de erro em outros lugares:** só existia no cursor (já corrigido). Datas (`::date`) e o início do pedido (milissegundos) passam pelo postgres.js sem perda (testado). O porte "NAO INFORMADO" aparece no filtro mas nenhuma empresa tem esse porte (sempre zero) — ficou.
 - **Publicação (09/11 ~15:47, ok do Rafael):** função v17 (conferida com o repositório). Painel no ar era `16519f92…`; novo MD5 `13a5a85a…`. Backup `~/deploy_backups/painel_clientes_apex_20261109_184719_antes_mailing_144_revisao.html`. Testes: função 60, `test_mailing.js` 220.
 
-Próxima livre: §145 (§138.2, §138.3 e §143.2 reservadas).
+## 145. Gerar Proposta: planos Claro pós do book de novembro e Claro Monitor incluso no valor (09/11/2026)
+
+Pedido do Rafael: "adicione os planos que estão na página 42 [...] de incremento e renovação portabilidade na aba gerar propostas, e coloque TODOS os planos pós com 5 reais a mais, que já vem o claro monitor".
+
+- **Fonte:** PME Book Clareando Novembro/2026 V1. A pág. 42 é só a capa do Claro pós; a tabela é a **pág. 44** ("Portfólio disponível para Aquisição, Incremento e Renovação"). Ela lista o Claro monitor em todos os planos.
+- **Planos novos (Black Friday, Nacional, incremento e renovação):** 20GB (2GB + 18GB bônus) R$34,99 (`p44-20`) e 80GB (25GB + 55GB bônus) R$54,99 (`p44-80`). 30/70/100/150GB já estavam com o mesmo preço. 12GB e 40GB **continuam** (escolha do Rafael).
+- **+R$5 do Claro Monitor em todo plano Claro pós:** `OFFERS_MOBILE_BOOK` guarda o preço do book; `OFFERS_MOBILE` soma `CLARO_MONITOR_INCLUSO` (5) em todos (nacionais, regional 15GB, Pág. 60 e Portabilidade). Os combos de convergência (`CONVERGENCIA_OFERTAS_BOOK` → `CONVERGENCIA_OFERTAS`) também sobem R$5, para manter combo = fibra + plano. Ex.: 20GB vai para R$39,99 na proposta; 150GB, R$154,99.
+- **Monitor avulso removido** (para não cobrar duas vezes): saem o botão "+ Adicionar Claro Monitor" da proposta, o interruptor de Claro Monitor da Analisar Fatura e o item de R$5 do catálogo/sugestões do modo manual. A categoria "Claro Monitor" do modo manual continua (texto livre, ex.: Monitor Avançado). Proposta antiga salva com o item `monitor` ainda abre e soma como antes.
+- **Documento (Word/PDF):** o selo de benefício "Claro Monitor" aparece sempre que a proposta tem plano móvel (antes, só com o avulso).
+- **Efeito colateral esperado:** a sugestão da Analisar Fatura passa a escolher o 20GB onde antes escolhia 25GB (ex.: linha de 14GB fora da regional), por ser mais barato e cobrir o consumo. Proposta salva reabre com o preço novo do plano (o catálogo é lido pelo id).
+- **Testes:** `test_analisar_fatura.js`, `test_outras_ofertas.js` e `test_proposta_manual.js` atualizados para a regra nova. Suíte: 85 passam; 5 falham igual na oficial limpa (conversão, leads hoje, pedidos alerta, filtro pessoas, redesign shell); 3 pulados.
+- **Publicação (09/11 16:57, ok do Rafael):** painel no ar era `ce27b883…` (= oficial/main 85a4487); novo MD5 `c30a8541…`. Backup `~/deploy_backups/painel_clientes_apex_20261109_195659_antes_planos_pos_145.html` (hora do servidor em UTC).
+- **Reverter:** copiar o backup do painel.
+
+Próxima livre: §146 (§138.2, §138.3 e §143.2 reservadas).

@@ -36,16 +36,17 @@ try{
   openProposal(cliente10linhas, {});
   assert(proposalState.incluirExtras === false, 'Outras ofertas nasce desligada por padrão');
   assert(Array.isArray(proposalState.extras) && proposalState.extras.length === 0, 'extras nasce vazio');
-  assert(document.getElementById('btnAddClaroMonitor') === null, 'botões de outras ofertas escondidos quando o toggle está desligado');
+  assert(document.getElementById('btnAddExtraManual') === null, 'botões de outras ofertas escondidos quando o toggle está desligado');
 
   // --- 2) ligar o toggle abre a seção e mostra os botões de adicionar ---
   document.getElementById('propIncluirExtras').click();
   assert(proposalState.incluirExtras === true, 'ligar o interruptor liga Outras ofertas');
-  assert(document.getElementById('btnAddClaroMonitor') !== null, 'botão + Adicionar Claro Monitor aparece');
+  assert(document.getElementById('btnAddClaroMonitor') === null, '§145: sem botão + Adicionar Claro Monitor (já vem incluso no valor de todo plano Claro pós)');
   assert(document.getElementById('btnAddExtraManual') !== null, 'botão + Adicionar oferta manual aparece');
 
-  // --- 3) adicionar Claro Monitor: nasce com valor fixo R$5,00/licença e qtd = linhas_voz do cliente ---
-  document.getElementById('btnAddClaroMonitor').click();
+  // --- 3) proposta antiga salva com o Claro Monitor avulso (antes do §145) continua abrindo e somando ---
+  proposalState.extras.push({ tipo: 'monitor', descricao: 'Claro Monitor — Jornada Mobilidade', valorUnit: 5, qtd: 10 });
+  renderProposalBody();
   assert(proposalState.extras.length === 1, 'Claro Monitor foi adicionado');
   assert(proposalState.extras[0].tipo === 'monitor', 'item adicionado é do tipo monitor');
   assert(proposalState.extras[0].valorUnit === 5, 'Claro Monitor tem valor fixo de R$5,00/licença (' + proposalState.extras[0].valorUnit + ')');
@@ -114,10 +115,12 @@ try{
   assert(proposalState.extras.length === 1, 'desligar Outras ofertas preserva os itens já configurados');
   r = computeProposal();
   assert(r.extrasValor === 0, 'com o toggle desligado, extrasValor não entra no total, mesmo com itens configurados');
-  // com o toggle desligado, o modelo também não deve trazer valorMonitor nem a badge (sem extras incluídos)
+  // com o toggle desligado, o modelo não traz valorMonitor avulso; a badge segue a regra do §145
+  // (aparece sempre que há plano móvel na proposta, porque o Claro Monitor já vem incluso no plano)
   const modeloDesligado = buildPropostaDocModel();
   assert(modeloDesligado.novaProposta.valorMonitor === 0, 'modelo: com toggle desligado, valorMonitor zerado');
-  assert(!modeloDesligado.beneficios.badges.some(b => b.label === 'Claro Monitor'), 'modelo: com toggle desligado, badge do Claro Monitor não aparece');
+  const temPlanoMovel = modeloDesligado.novaProposta.itens.some(it => /GB/.test(it.desc || '') && it.subtotal);
+  assert(modeloDesligado.beneficios.badges.some(b => b.label === 'Claro Monitor') === temPlanoMovel, 'modelo: com toggle desligado, badge do Claro Monitor só aparece se há plano móvel (incluso no plano)');
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
   window.__testResult = fail > 0 ? 'FAIL' : 'OK';
