@@ -3669,10 +3669,10 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
 const RN_STATUS = { 1: 'Não contatado', 2: 'Tentativa s/ retorno', 3: 'Contato efetivo', 4: 'Proposta enviada', 5: 'Em negociação', 6: 'Renovado', 7: 'Perdido' };
 const RN_CANAIS = ['WhatsApp', 'Ligação', 'E-mail', 'Visita'];
 const RN_MOTIVOS = ['Preço', 'Foi p/ concorrente', 'Sem interesse', 'Insatisfeito c/ Claro', 'Empresa fechada/baixada', 'Contato inválido', 'Outro'];
-const RN_COLS_LISTA = 'id,cnpj_digits,razao_social,telefone,nome_adm,linhas_voz,apto,cidade,ddd,consultor_id,origem,status,data_contato,prox_retorno,canal,linhas_renovadas,bl_vendida,sol_digitais,motivo_perda,observacoes,na_base,a_completar,atualizado_em';
+const RN_COLS_LISTA = 'id,cnpj_digits,razao_social,telefone,nome_adm,linhas_voz,apto,cidade,ddd,consultor_id,origem,status,data_contato,prox_retorno,canal,linhas_renovadas,bl_vendida,sol_digitais,motivo_perda,observacoes,na_base,a_completar,atualizado_em,status_desde';
 const RN_PAGINA = 100;
 function rnFiltrosVazios(){ return { busca: '', status: '', apto: '', cidade: '', consultor: '', soVencido: false, pendencias: false, foraBase: false }; }
-const rnEstado = { aba: 'carteira', lista: [], perfis: [], carregado: false, geracao: 0, filtros: rnFiltrosVazios(), pagina: 1, selecionados: new Set(), fichaId: null, ficha: null, importacao: null };
+const rnEstado = { aba: 'carteira', lista: [], propostas: [], arrastando: null, perfis: [], carregado: false, geracao: 0, filtros: rnFiltrosVazios(), pagina: 1, selecionados: new Set(), fichaId: null, ficha: null, importacao: null };
 
 function rnGestor(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
 function rnPodeVer(){
@@ -3682,7 +3682,7 @@ function rnPodeVer(){
 }
 function rnAplicarPermissao(){
   document.getElementById('tabBtnRenovacao').style.display = rnPodeVer() ? 'inline-block' : 'none';
-  Object.assign(rnEstado, { aba: 'carteira', lista: [], perfis: [], carregado: false, filtros: rnFiltrosVazios(), pagina: 1, fichaId: null, ficha: null, importacao: null });
+  Object.assign(rnEstado, { aba: 'carteira', lista: [], propostas: [], perfis: [], carregado: false, filtros: rnFiltrosVazios(), pagina: 1, fichaId: null, ficha: null, importacao: null });
   rnEstado.selecionados.clear();
   rnEstado.geracao++;
   // troca de usuário na mesma aba do navegador: nada do anterior fica na tela
@@ -3713,6 +3713,7 @@ async function rnCarregar(){
     rnGestor()
       ? ppSeguro(() => sb.from('profiles').select('id,nome,equipe').eq('equipe', 'renovacao').order('nome'))
       : Promise.resolve({ data: [{ id: currentUser.id, nome: currentUser.nome, equipe: 'renovacao' }], error: null }),
+    rnCarregarPropostas(),
   ]);
   if(geracao !== rnEstado.geracao) return;
   if(car.error){ console.error(car.error); rnStatus('Não foi possível carregar a carteira agora.'); return; }
@@ -3781,6 +3782,7 @@ async function rnSalvar(id, patch){
   if(!r || r.error || !r.data){ mostrarAviso(rnMensagemErro(r && r.error), 'erro'); rnRender(); return false; }
   const i = rnEstado.lista.findIndex(x => x.id === id);
   if(i >= 0) rnEstado.lista[i] = r.data;
+  if('status' in patch && rnPropostasDe(id).length) await rnCarregarPropostas();   // o banco moveu o estágio das propostas ligadas
   rnAtualizarBadge();
   rnRender();
   if(rnEstado.fichaId === id && typeof rnRenderFicha === 'function') rnRenderFicha();
@@ -4217,6 +4219,41 @@ async function rnExecutarImportacao(){
 }
 document.getElementById('rnResumo').addEventListener('change', (e) => { if(e.target.id === 'rnArquivo' && e.target.files && e.target.files[0]) rnPrepararImportacao(e.target.files[0]); });
 document.getElementById('rnResumo').addEventListener('click', (e) => { if(e.target.closest('[data-rn-importar]')) rnExecutarImportacao(); });
+// ---- §143.2 Proposta ligada à carteira ----
+// Cliente no formato de "clientes" a partir da carteira (reserva: os 1.242 da virada estão todos em clientes).
+function rnClienteDaCarteira(r, dados){
+  const d = dados || {};
+  const num = (v) => (typeof v === 'number' ? v : (rnNumBR(v) || 0));
+  return { razao_social: r.razao_social || '', cnpj: String(r.cnpj_digits || '').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5'),
+    cnpj_digits: r.cnpj_digits, cidade: r.cidade || '', ddd: r.ddd || '', linhas_voz: r.linhas_voz || 0, linhas_fixas: 0,
+    tempo_contrato_voz: r.tempo_contrato_voz || 0, valor_contrato: num(d['VL_CONTR_NO_MSISDN_C_DESC_RET']), arpu: num(d['VALOR POR LINHA / ARPU']),
+    qtde_silentes: num(d['QT LINHAS SILENTES']), cep_cabeado: d['CEP CABEADO?'] || '', apto_renovacao: r.apto || '',
+    telefone_contato: r.telefone || '', nome_admin: r.nome_adm || '' };
+}
+async function rnGerarProposta(id){
+  const r = rnEstado.lista.find(x => x.id === id);
+  if(!r) return;
+  const c = await ppSeguro(() => sb.from('clientes').select('*').eq('cnpj_digits', r.cnpj_digits).maybeSingle());
+  let client = c && !c.error && c.data ? c.data : null;
+  if(!client){
+    const d = await ppSeguro(() => sb.from('renovacao_carteira').select('dados_claro').eq('id', id).single());
+    client = rnClienteDaCarteira(r, d && !d.error && d.data ? d.data.dados_claro : {});
+  }
+  openProposal(client, { carteiraId: id });
+}
+async function rnCarregarPropostas(){
+  const p = await ppSeguro(() => sb.from('propostas').select('*').not('carteira_id', 'is', null).order('criado_em', { ascending: false }));
+  rnEstado.propostas = p && !p.error ? (p.data || []) : [];
+  return p;
+}
+function rnPropostasDe(carteiraId){ return (rnEstado.propostas || []).filter(p => p.carteira_id === carteiraId); }
+// Chamado por registrarPropostaNoFunil depois de gravar: cliente em 1–3 vai para 4-Proposta enviada.
+async function rnPropostaGerada(carteiraId){
+  const r = rnEstado.lista.find(x => x.id === carteiraId);
+  if(r && r.status >= 1 && r.status <= 3) await rnSalvar(carteiraId, { status: 4 });
+  await rnCarregarPropostas();
+  rnRender();
+}
 /* ============ FIM RENOVAÇÃO §143 ============ */
 
 /* ============ MEUS LEADS (KANBAN) — §112 ============
@@ -7140,6 +7177,7 @@ function openProposal(client, opts){
     // uma renegociação/nova proposta pro mesmo cliente fica registrada no mesmo card, com histórico.
     propostaId: opts.propostaId || null,
     origemFunil: opts.origemFunil || null,
+    carteiraId: opts.carteiraId || null,   // §143.2: proposta gerada pela Renovação fica ligada ao cliente da carteira
     incluirRenovacao,
     linhaGrupos, // só usada no modo avulsa
     // renovação do cliente-da-base também é uma lista de grupos {qtd, offerId} — o consultor pode
@@ -11558,6 +11596,7 @@ function abrirPropostaDoCard(p){
     operadoraAtual: dados.operadoraAtual || '',
     propostaId: p.id,
     origemFunil: p.origem,
+    carteiraId: p.carteira_id || null,
   });
 }
 
@@ -11594,6 +11633,7 @@ async function registrarPropostaNoFunil(novoTotal, atual){
       },
     };
 
+    if(proposalState.carteiraId) payload.carteira_id = proposalState.carteiraId;   // §143.2: o banco calcula o estágio a partir da carteira
     if(proposalState.propostaId){
       const anterior = funilCache.find(p => p.id === proposalState.propostaId);
       const { error } = await sb.from('propostas').update(payload).eq('id', proposalState.propostaId);
@@ -11616,6 +11656,7 @@ async function registrarPropostaNoFunil(novoTotal, atual){
       });
     }
     loadFunil();
+    if(proposalState.carteiraId && typeof rnPropostaGerada === 'function') await rnPropostaGerada(proposalState.carteiraId);
   }catch(e){
     console.error('Erro ao registrar proposta no funil de vendas:', e && e.message ? e.message : e);
   }
