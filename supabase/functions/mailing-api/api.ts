@@ -32,6 +32,7 @@ export type DepsApi = {
   pararContagem(id: number, userId: string): Promise<boolean>;
   neo(): Promise<unknown[]>;
   fecharParte(pedido: string, parte: number, userId: string, neo: number, repetidos: number): Promise<boolean>;
+  agora(): Promise<string>;
   hojeISO(): string;
 };
 export type Resposta = { status: number; body: Record<string, unknown> };
@@ -89,6 +90,8 @@ export async function processar(corpo: unknown, usuario: Usuario | null, deps: D
     if (acao === "historico") return { status: 200, body: { extracoes: await deps.historico() } };
     // 22/10 (seção 102.12): lista do NeoSales para cruzar; removidos de cada arquivo no histórico
     if (acao === "neo") return { status: 200, body: { empresas: await deps.neo() } };
+    // 09/11 (seção 144): início do pedido pelo relógio do banco, não do PC
+    if (acao === "agora") return { status: 200, body: { agora: await deps.agora() } };
     if (acao === "fechar_parte") {
       const pp = validarPedidoParte(c);
       if (!pp.ok) return { status: 400, body: { erro: pp.erro } };

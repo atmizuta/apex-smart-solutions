@@ -266,9 +266,13 @@ test("sqlJanelaUsadas: até TRECHO_USADAS linhas do índice de uso, antes do in�
   assert.doesNotMatch(sem.sql, /> \(/);
   // o cursor volta como texto (microssegundos): com milissegundos do JavaScript a janela não andaria
   assert.match(sem.sql, /ue::text as ue/);
+  // 09/11 (seção 144): e vai como texto também — "$2::timestamptz" faz o postgres.js converter a string em Date e cortar os
+  // microssegundos; o cursor ficava antes do próprio grupo e a janela não andava (28 mil chamadas vazias no pedido do Guilherme)
+  assert.doesNotMatch(sem.sql + sqlTrechoUsadas({ sql: "true", params: [] }, "2026-10-22T15:00:00.000Z", { ue: "x", so: 1 },
+    { ue: "y", so: 2 }, 10).sql, /\$[2-9]::timestamptz/);
   const com = sqlJanelaUsadas("2026-10-22T14:00:00.000Z", { ue: "2026-10-22 14:29:07.821456+00", so: 77 });
   assert.deepEqual(com.params, ["2026-10-22T14:00:00.000Z", "2026-10-22 14:29:07.821456+00", 77, TRECHO_USADAS]);
-  assert.match(com.sql, /\(l\.ultima_extracao, l\.sorteio\) > \(\$2::timestamptz, \$3::int\)/);
+  assert.match(com.sql, /\(l\.ultima_extracao, l\.sorteio\) > \(\$2::text::timestamptz, \$3::int\)/);
   assert.match(com.sql, /limit \$4::int/);
 });
 
@@ -278,7 +282,7 @@ test("sqlTrechoUsadas: dentro da janela, com filtro, do mais antigo para o mais 
   const q = sqlTrechoUsadas(w, "2026-10-22T15:00:00.000Z", null, fim, 100);
   assert.deepEqual(q.params, ["2026-10-22T15:00:00.000Z", fim.ue, 999, 100]);
   assert.match(q.sql, /l\.ultima_extracao is not null and l\.ultima_extracao < \$1::timestamptz/);
-  assert.match(q.sql, /\(l\.ultima_extracao, l\.sorteio\) <= \(\$2::timestamptz, \$3::int\)/);
+  assert.match(q.sql, /\(l\.ultima_extracao, l\.sorteio\) <= \(\$2::text::timestamptz, \$3::int\)/);
   assert.match(q.sql, /and \(l\.portado\)/);
   assert.match(q.sql, /order by l\.ultima_extracao nulls first, l\.sorteio\s+limit \$4::int\s+for update of l skip locked/);
   assert.match(q.sql, /alvo\.ue as cursor_ue, alvo\.so as cursor_so, alvo\.ordem as cursor_ordem\s*\)/);
@@ -286,7 +290,7 @@ test("sqlTrechoUsadas: dentro da janela, com filtro, do mais antigo para o mais 
   assert.doesNotMatch(q.sql, /join alvo/);
   const com = sqlTrechoUsadas({ sql: "true", params: [] }, "2026-10-22T15:00:00.000Z", { ue: "2026-10-22 10:00:00+00", so: 5 }, fim, 100);
   assert.deepEqual(com.params, ["2026-10-22T15:00:00.000Z", fim.ue, 999, "2026-10-22 10:00:00+00", 5, 100]);
-  assert.match(com.sql, /\(l\.ultima_extracao, l\.sorteio\) > \(\$4::timestamptz, \$5::int\)/);
+  assert.match(com.sql, /\(l\.ultima_extracao, l\.sorteio\) > \(\$4::text::timestamptz, \$5::int\)/);
   assert.match(com.sql, /limit \$6::int/);
 });
 

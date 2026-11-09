@@ -281,10 +281,13 @@ export function sqlTrechoNovos(w: SqlParte, de: number, ate: number, quantidade:
 }
 
 // Limites da janela da fase 2: quantas linhas tem e qual é a última (só o índice de uso, sem filtro).
+// 09/11 (seção 144): o cursor entra como "$n::text::timestamptz". Com "$n::timestamptz" o postgres.js converte a string em
+// Date do JavaScript (milissegundos): o cursor caía antes do próprio grupo (uma extração grava o mesmo now() em até 100 mil
+// linhas) e a janela seguinte recomeçava no mesmo lugar — o pedido do Guilherme girou 3 h sem sair nenhuma linha.
 export function sqlJanelaUsadas(inicio: string, apos: Cursor | null): SqlParte {
   const params: unknown[] = [inicio];
   let depois = "";
-  if (apos) { params.push(apos.ue, apos.so); depois = " and (l.ultima_extracao, l.sorteio) > ($2::timestamptz, $3::int)"; }
+  if (apos) { params.push(apos.ue, apos.so); depois = " and (l.ultima_extracao, l.sorteio) > ($2::text::timestamptz, $3::int)"; }
   params.push(TRECHO_USADAS);
   return {
     sql: `with j as (
@@ -302,13 +305,13 @@ export function sqlTrechoUsadas(w: SqlParte, inicio: string, apos: Cursor | null
   const n = w.params.length;
   const params: unknown[] = [...w.params, inicio, fim.ue, fim.so];
   let depois = "";
-  if (apos) { params.push(apos.ue, apos.so); depois = `\n    and (l.ultima_extracao, l.sorteio) > ($${n + 4}::timestamptz, $${n + 5}::int)`; }
+  if (apos) { params.push(apos.ue, apos.so); depois = `\n    and (l.ultima_extracao, l.sorteio) > ($${n + 4}::text::timestamptz, $${n + 5}::int)`; }
   params.push(quantidade);
   return {
     sql: marcarEExportar(`select l.id, l.ctid as t, l.ultima_extracao::text as ue, l.sorteio as so,
          extract(epoch from l.ultima_extracao)::float8 as ordem from mailing.linha l
   where l.ultima_extracao is not null and l.ultima_extracao < $${n + 1}::timestamptz
-    and (l.ultima_extracao, l.sorteio) <= ($${n + 2}::timestamptz, $${n + 3}::int)${depois}
+    and (l.ultima_extracao, l.sorteio) <= ($${n + 2}::text::timestamptz, $${n + 3}::int)${depois}
     and (${w.sql})
   order by l.ultima_extracao nulls first, l.sorteio
   limit $${params.length}::int
@@ -346,6 +349,9 @@ export function ultimoTomado(linhas: ComCursor[]): Cursor | null {
   return m ? { ue: String(m.cursor_ue), so: Number(m.cursor_so) } : null;
 }
 
+// 09/11 (seção 144): o início do pedido vem do relógio do banco. O do PC do Guilherme estava ~2 s adiantado: as linhas do
+// 1º trecho do próprio pedido ficavam "antes do início" e voltavam na fase 2. Em milissegundos, como o navegador mandava.
+export const SQL_AGORA = `select to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as agora`;
 export const SQL_PAGINAS = `select (pg_relation_size('mailing.linha') / current_setting('block_size')::int)::int as n`;
 // Um registro por arquivo do pedido (pedido + parte), somado a cada trecho — não um por chamada.
 export const SQL_PARTE = `select id from mailing.extracao where pedido = $1::uuid and parte = $2 and user_id = $3::uuid`;

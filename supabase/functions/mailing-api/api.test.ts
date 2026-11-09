@@ -32,6 +32,7 @@ function criar(over: Partial<DepsApi> = {}) {
     async pararContagem(...a) { chamadas.push(["pararContagem", ...a]); return true; },
     async neo() { chamadas.push(["neo"]); return [EMPRESA_NEO]; },
     async fecharParte(...a) { chamadas.push(["fecharParte", ...a]); return true; },
+    async agora() { chamadas.push(["agora"]); return "2026-11-09T11:59:09.241Z"; },
     hojeISO: () => "2026-10-21",
     ...over,
   };
@@ -281,4 +282,11 @@ test("situacaoContagem: fila, contando, pronta (números exatos) e motivos", () 
   assert.match(String(situacaoContagem(3, { ...FILA, estado: "cancelada", erro: "tempo" }).erro), /20 minutos/);
   assert.deepEqual(situacaoContagem(3, { ...FILA, estado: "erro", erro: "53100" }),
     { contagem: 3, estado: "erro", erro: "A contagem falhou (código 53100). Tente de novo." });
+});
+
+test("agora (seção 144): hora do banco para o início do pedido — o relógio do PC pode estar adiantado", async () => {
+  const { deps, chamadas } = criar();
+  assert.deepEqual(await processar({ acao: "agora" }, supCampinas, deps), { status: 200, body: { agora: "2026-11-09T11:59:09.241Z" } });
+  assert.deepEqual(chamadas, [["agora"]]);
+  assert.equal((await processar({ acao: "agora" }, consultor, deps)).status, 403);
 });
