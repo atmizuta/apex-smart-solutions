@@ -1637,6 +1637,7 @@
         <nav class="kbSeg" id="rnAbas" aria-label="Visões da Renovação">
           <button type="button" class="active" data-rn-aba="carteira">Carteira</button>
           <button type="button" data-rn-aba="kanban">Kanban</button>
+          <button type="button" data-rn-aba="proposta">Proposta e fatura</button>
           <button type="button" data-rn-aba="retornos">Retornos <span class="kbBadge" id="rnBadgeRetornos"></span></button>
           <button type="button" data-rn-aba="resumo">Resumo</button>
         </nav>
@@ -1663,6 +1664,7 @@
         <button type="button" class="btn btn-outline btn-sm" id="rnMais" style="display:none"></button>
       </div>
       <div id="rnKanban" class="rnVisao" hidden></div>
+      <div id="rnProposta" class="rnVisao" hidden></div>
       <div id="rnRetornos" class="rnVisao" hidden></div>
       <div id="rnResumo" class="rnVisao" hidden></div>
       <aside class="kbFicha" id="rnFicha" aria-label="Ficha do cliente"><div class="kbFichaCorpo" id="rnFichaCorpo"></div></aside>
@@ -3663,6 +3665,7 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
   if(btn.dataset.tab === 'mailing') mbCarregar();
   if(btn.dataset.tab === 'agenda') loadAgenda();
   if(btn.dataset.tab === 'renovacao'){ if(rnEstado.carregado && Date.now() - rnEstado.carregadoEm < 120000) rnRender(); else rnCarregar(); }
+  if(btn.dataset.tab === 'proposta') rnMoverProposta(false);   // §143.2: o formulário pode estar na subaba da Renovação
   if(btn.dataset.tab === 'anotacoes') loadAnotacoes();
 });
 
@@ -3745,6 +3748,7 @@ document.getElementById('rnAbas').addEventListener('click', e => { const b = e.t
 function rnRender(){
   if(rnEstado.aba === 'carteira' && typeof rnRenderCarteira === 'function') rnRenderCarteira();
   if(rnEstado.aba === 'kanban' && typeof rnRenderKanban === 'function') rnRenderKanban();
+  if(rnEstado.aba === 'proposta') rnMoverProposta(true);
   if(rnEstado.aba === 'retornos' && typeof rnRenderRetornos === 'function') rnRenderRetornos();
   if(rnEstado.aba === 'resumo' && typeof rnRenderResumo === 'function') rnRenderResumo();
 }
@@ -4324,6 +4328,13 @@ document.getElementById('rnKanban').addEventListener('click', (e) => {
   const a = e.target.closest('[data-rn-abrir]');
   if(a) rnAbrirFicha(Number(a.dataset.rnAbrir));
 });
+// ---- §143.2 Proposta e fatura: os mesmos nós da aba Proposta (mesmo código e mesmos eventos), movidos, não copiados ----
+function rnMoverProposta(paraRenovacao){
+  const de = document.getElementById(paraRenovacao ? 'panel-proposta' : 'rnProposta');
+  const para = document.getElementById(paraRenovacao ? 'rnProposta' : 'panel-proposta');
+  if(!de || !para) return;
+  while(de.firstChild) para.appendChild(de.firstChild);
+}
 /* ============ FIM RENOVAÇÃO §143 ============ */
 
 /* ============ MEUS LEADS (KANBAN) — §112 ============
