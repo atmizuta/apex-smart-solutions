@@ -1008,6 +1008,12 @@
   .rnHist{margin:0;padding-left:1.1em;color:var(--muted);}
   .rnTotal td{font-weight:700;}
   .rnRetBloco{margin-bottom:var(--space-3);}
+  .rnKanban{display:grid;grid-template-columns:repeat(5,minmax(200px,1fr));gap:var(--space-3);overflow-x:auto;}
+  .rnKbCol{background:var(--ml-surface-2);border-radius:var(--radius-lg);padding:var(--space-2);min-height:200px;}
+  .rnKbHead{display:flex;justify-content:space-between;font-weight:600;margin-bottom:var(--space-2);}
+  .rnKbCard{background:var(--c-branco);border:1px solid var(--c-linha);border-radius:var(--radius-lg);padding:var(--space-2);margin-bottom:var(--space-2);cursor:grab;display:grid;gap:4px;}
+  .rnKbCard.rnPerdido{background:var(--st-perdido-bg);}
+  .rnKbCard.rnRenovado{background:var(--st-ganho-bg);}
   .kbFicha.flutuante [data-kb-ficha-flutuar]{display:none;}
   .kbFichaCorpo{display:flex;flex-direction:column;min-height:0;height:100%;}
   .kbFichaRolagem{flex:1;min-height:0;overflow-y:auto;padding:var(--space-4) var(--space-6) var(--space-3);}
@@ -1630,6 +1636,7 @@
       <div class="kbBarra">
         <nav class="kbSeg" id="rnAbas" aria-label="Visões da Renovação">
           <button type="button" class="active" data-rn-aba="carteira">Carteira</button>
+          <button type="button" data-rn-aba="kanban">Kanban</button>
           <button type="button" data-rn-aba="retornos">Retornos <span class="kbBadge" id="rnBadgeRetornos"></span></button>
           <button type="button" data-rn-aba="resumo">Resumo</button>
         </nav>
@@ -1655,6 +1662,7 @@
         <table class="tbl rnTabela"><thead id="rnThead"></thead><tbody id="rnTbody"></tbody></table>
         <button type="button" class="btn btn-outline btn-sm" id="rnMais" style="display:none"></button>
       </div>
+      <div id="rnKanban" class="rnVisao" hidden></div>
       <div id="rnRetornos" class="rnVisao" hidden></div>
       <div id="rnResumo" class="rnVisao" hidden></div>
       <aside class="kbFicha" id="rnFicha" aria-label="Ficha do cliente"><div class="kbFichaCorpo" id="rnFichaCorpo"></div></aside>
@@ -3728,15 +3736,15 @@ async function rnCarregar(){
 function rnTrocarAba(aba){
   rnEstado.aba = aba;
   document.querySelectorAll('#rnAbas [data-rn-aba]').forEach(b => b.classList.toggle('active', b.dataset.rnAba === aba));
-  document.getElementById('rnCarteira').hidden = aba !== 'carteira';
-  document.getElementById('rnRetornos').hidden = aba !== 'retornos';
-  document.getElementById('rnResumo').hidden = aba !== 'resumo';
+  const ids = { carteira: 'rnCarteira', kanban: 'rnKanban', proposta: 'rnProposta', retornos: 'rnRetornos', resumo: 'rnResumo' };
+  Object.entries(ids).forEach(([k, id]) => { const el = document.getElementById(id); if(el) el.hidden = k !== aba; });
   rnRender();
 }
 document.getElementById('rnAbas').addEventListener('click', e => { const b = e.target.closest('[data-rn-aba]'); if(b) rnTrocarAba(b.dataset.rnAba); });
 // Cada subaba tem seu render (Tasks 4 e 6 do plano); typeof deixa este bloco funcionar sozinho.
 function rnRender(){
   if(rnEstado.aba === 'carteira' && typeof rnRenderCarteira === 'function') rnRenderCarteira();
+  if(rnEstado.aba === 'kanban' && typeof rnRenderKanban === 'function') rnRenderKanban();
   if(rnEstado.aba === 'retornos' && typeof rnRenderRetornos === 'function') rnRenderRetornos();
   if(rnEstado.aba === 'resumo' && typeof rnRenderResumo === 'function') rnRenderResumo();
 }
@@ -4254,6 +4262,56 @@ async function rnPropostaGerada(carteiraId){
   await rnCarregarPropostas();
   rnRender();
 }
+// ---- §143.2 Kanban (a partir de Contato efetivo; não contatado e tentativa ficam na lista) ----
+const RN_KANBAN = [3, 4, 5, 6, 7];
+function rnDiasNoStatus(r, agoraMs){ return r.status_desde ? Math.max(0, Math.floor((agoraMs - new Date(r.status_desde).getTime()) / 86400000)) : null; }
+function rnKanbanColunas(lista, filtros, hoje){
+  const base = rnFiltrar(lista, Object.assign(rnFiltrosVazios(), { consultor: filtros.consultor || '' }), hoje);
+  return RN_KANBAN.map(s => ({ status: s, itens: base.filter(r => r.status === s) }));
+}
+function rnCartaoHtml(r, agora, gestor){
+  const p = rnPropostasDe(r.id)[0];
+  const dias = rnDiasNoStatus(r, agora);
+  return `<div class="rnKbCard ${rnClasseLinha(r)}" draggable="true" data-rn-card="${r.id}">
+    <button type="button" class="rnNome" data-rn-abrir="${r.id}">${escapeHtml(r.razao_social || '(sem nome)')}</button>
+    <div class="kbMeta">${r.linhas_voz ?? 0} linhas${p && p.valor_proposto ? ' · ' + fmtBRL(p.valor_proposto) : ''}${dias !== null ? ' · ' + (dias === 0 ? 'hoje' : dias + 'd') + ' no status' : ''}${gestor ? ' · ' + escapeHtml(rnNomeConsultor(r.consultor_id)) : ''}</div>
+    <button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-gerar="${r.id}">Gerar proposta</button>
+  </div>`;
+}
+function rnRenderKanban(){
+  const agora = Date.now(); const gestor = rnGestor();
+  document.getElementById('rnKanban').innerHTML = '<div class="rnKanban">' + rnKanbanColunas(rnEstado.lista, rnEstado.filtros, rnHoje()).map(c => `
+    <div class="rnKbCol" data-rn-coluna="${c.status}">
+      <div class="rnKbHead"><span>${escapeHtml(rnStatusRotulo(c.status))}</span><span class="kbN">${c.itens.length}</span></div>
+      ${c.itens.map(r => rnCartaoHtml(r, agora, gestor)).join('') || '<p class="kbMeta">Nenhum cliente.</p>'}
+    </div>`).join('') + '</div>';
+}
+function rnMoverStatus(id, status){
+  const r = rnEstado.lista.find(x => x.id === id);
+  if(!r || r.status === status) return;
+  if(status === 6 || status === 7){ rnAbrirFechamento(id, status); return; }
+  return rnSalvar(id, { status });
+}
+document.getElementById('rnKanban').addEventListener('dragstart', (e) => {
+  const c = e.target.closest('[data-rn-card]');
+  if(!c) return;
+  rnEstado.arrastando = Number(c.dataset.rnCard);
+  if(e.dataTransfer) e.dataTransfer.setData('text/plain', c.dataset.rnCard);
+});
+document.getElementById('rnKanban').addEventListener('dragover', (e) => { if(e.target.closest('[data-rn-coluna]')) e.preventDefault(); });
+document.getElementById('rnKanban').addEventListener('drop', (e) => {
+  const col = e.target.closest('[data-rn-coluna]');
+  if(!col || !rnEstado.arrastando) return;
+  e.preventDefault();
+  const id = rnEstado.arrastando; rnEstado.arrastando = null;
+  rnMoverStatus(id, Number(col.dataset.rnColuna));
+});
+document.getElementById('rnKanban').addEventListener('click', (e) => {
+  const g = e.target.closest('[data-rn-gerar]');
+  if(g){ rnGerarProposta(Number(g.dataset.rnGerar)); return; }
+  const a = e.target.closest('[data-rn-abrir]');
+  if(a) rnAbrirFicha(Number(a.dataset.rnAbrir));
+});
 /* ============ FIM RENOVAÇÃO §143 ============ */
 
 /* ============ MEUS LEADS (KANBAN) — §112 ============
