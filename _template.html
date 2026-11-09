@@ -3989,7 +3989,7 @@ function rnRenderFicha(){
     </div>
     <div style="display:flex;gap:var(--space-2);margin:var(--space-2) 0">${tel
       ? `<a class="kbBtn kbBtnQ" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}">WhatsApp</a><a class="kbBtn kbBtnP" href="tel:${escapeHtml(tel)}">Ligar</a>`
-      : '<span class="kbMeta">Sem telefone.</span>'}</div>
+      : '<span class="kbMeta">Sem telefone.</span>'}<button type="button" class="kbBtn kbBtnG" data-rn-gerar="${r.id}">Gerar proposta</button></div>
     <form id="rnFichaForm" class="card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-2)">
       ${campo('Status', `<select name="status">${rnOpcoes(Object.keys(RN_STATUS).map(k => [k, rnStatusRotulo(+k)]), r.status)}</select>`)}
       ${campo('Data do contato', `<input type="date" name="data_contato" value="${escapeHtml(r.data_contato || '')}">`)}
@@ -4006,12 +4006,24 @@ function rnRenderFicha(){
     ${fic.dados
       ? rnGruposFicha(fic.dados).map(([t, itens]) => `<details class="rnGrupo"><summary>${escapeHtml(t)} <span class="kbMeta">${itens.length}</span></summary><dl>${itens.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(String(v))}</dd>`).join('')}</dl></details>`).join('')
       : '<p class="kbMeta">Carregando dados da Claro…</p>'}
+    <h4>Propostas</h4>
+    ${rnPropostasDe(r.id).length
+      ? '<ul class="rnHist">' + rnPropostasDe(r.id).map(p => `<li><button type="button" class="rnNome" data-rn-proposta="${escapeHtml(p.id)}">${p.valor_atual ? fmtBRL(p.valor_atual) : '—'} → ${p.valor_proposto ? fmtBRL(p.valor_proposto) : '—'}</button> · ${escapeHtml(new Date(p.criado_em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }))} · ${escapeHtml(FUNIL_ESTAGIO_MAP[p.estagio] ? FUNIL_ESTAGIO_MAP[p.estagio].label : p.estagio)}</li>`).join('') + '</ul>'
+      : '<p class="kbMeta">Nenhuma proposta ainda.</p>'}
     <h4>Histórico</h4>
     ${fic.historico
       ? (fic.historico.length ? '<ul class="rnHist">' + fic.historico.map(h => `<li>${escapeHtml(rnHistoricoTexto(h))}</li>`).join('') + '</ul>' : '<p class="kbMeta">Sem mudanças registradas.</p>')
       : '<p class="kbMeta">Carregando…</p>'}`;
 }
 document.getElementById('rnFicha').addEventListener('click', (e) => { if(e.target.closest('[data-rn-ficha-fechar]')) rnFecharFicha(); });
+document.getElementById('rnFicha').addEventListener('click', (e) => {
+  const g = e.target.closest('[data-rn-gerar]');
+  if(g){ rnGerarProposta(Number(g.dataset.rnGerar)); return; }
+  const b = e.target.closest('[data-rn-proposta]');
+  if(!b) return;
+  const p = (rnEstado.propostas || []).find(x => x.id === b.dataset.rnProposta);
+  if(p) abrirPropostaDoCard(p);
+});
 document.getElementById('rnFicha').addEventListener('submit', async (e) => {
   e.preventDefault();
   const r = rnEstado.lista.find(x => x.id === rnEstado.fichaId);
