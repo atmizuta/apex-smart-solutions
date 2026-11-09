@@ -168,4 +168,9 @@ select c.consultor_id, p.nome as consultor_nome,
  group by c.consultor_id, p.nome;
 grant select on public.renovacao_resumo to authenticated;
 
+-- Funções de trigger: ninguém chama pela API (o aviso do verificador some; o trigger não depende desse grant). Aplicado em 09/11.
+revoke all on function public.profiles_trava_equipe() from public, anon, authenticated;
+revoke all on function public.renovacao_carteira_validar() from public, anon, authenticated;
+revoke all on function public.renovacao_carteira_historico() from public, anon, authenticated;
+
 commit;
