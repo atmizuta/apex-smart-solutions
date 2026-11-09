@@ -12,7 +12,9 @@ create index if not exists propostas_carteira_idx on public.propostas (carteira_
 alter table public.renovacao_carteira add column if not exists status_desde timestamptz;
 alter table public.renovacao_carteira disable trigger renovacao_carteira_validar;   -- preencher sem regravar atualizado_em/atualizado_por
 update public.renovacao_carteira c set status_desde = coalesce(
-  (select max(h.criado_em) from public.renovacao_historico h where h.carteira_id = c.id and h.campo = 'status'), c.importado_em)
+  (select max(h.criado_em) from public.renovacao_historico h where h.carteira_id = c.id and h.campo = 'status'),
+  case when c.status >= 2 and c.data_contato is not null then c.data_contato::timestamp at time zone 'America/Sao_Paulo' end,
+  c.importado_em)
  where c.status_desde is null;
 alter table public.renovacao_carteira enable trigger renovacao_carteira_validar;
 alter table public.renovacao_carteira alter column status_desde set default now();
@@ -102,10 +104,10 @@ begin
        set estagio = v_estagio, estagio_entrada_em = now(), atualizado_em = now(),
            motivo_perda = case when new.status = 7 then new.motivo_perda else p.motivo_perda end
       from alvo where p.id = alvo.id
-    returning p.id, alvo.antes
+    returning p.id, alvo.antes, p.consultor_id
   )
   insert into public.propostas_historico (proposta_id, user_id, estagio_anterior, estagio_novo, nota)
-  select m.id, auth.uid(), m.antes, v_estagio, 'Renovação: status ' || old.status || ' → ' || new.status from mudou m;
+  select m.id, coalesce(auth.uid(), m.consultor_id), m.antes, v_estagio, 'Renovação: status ' || old.status || ' → ' || new.status from mudou m;
   return null;
 end $function$;
 do $$ begin
@@ -124,6 +126,8 @@ begin
   update public.propostas p set carteira_id = c.id
     from public.renovacao_carteira c
    where p.carteira_id is null
+     and p.tipo_proposta = 'renovacao' and p.estagio not in ('fechado_ganho', 'fechado_perdido')
+     and p.consultor_id = c.consultor_id
      and length(regexp_replace(coalesce(p.cliente_cnpj, ''), '[^0-9]', '', 'g')) between 13 and 14
      and lpad(regexp_replace(p.cliente_cnpj, '[^0-9]', '', 'g'), 14, '0') = c.cnpj_digits;
   get diagnostics n = row_count;

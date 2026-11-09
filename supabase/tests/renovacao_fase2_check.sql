@@ -3,6 +3,11 @@
 begin;
 insert into auth.users (id, instance_id, aud, role, email) values
 ('00000000-0000-0000-0000-00000000f611', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'zz.r2a@teste.invalid');
+insert into auth.users (id, instance_id, aud, role, email) values
+('00000000-0000-0000-0000-00000000f612', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'zz.r2b@teste.invalid');
+insert into public.profiles (id, nome, username, role, operacao, equipe) values
+('00000000-0000-0000-0000-00000000f612', 'Zzr2b Teste', 'zz.r2b', 'consultor', 'apex', null)
+on conflict (id) do update set role = excluded.role, equipe = excluded.equipe;
 insert into public.profiles (id, nome, username, role, operacao, equipe) values
 ('00000000-0000-0000-0000-00000000f611', 'Zzr2a Teste', 'zz.r2a', 'consultor', 'apex', 'renovacao')
 on conflict (id) do update set role = excluded.role, equipe = excluded.equipe;
@@ -14,7 +19,10 @@ insert into public.propostas (id, consultor_id, cliente_nome, cliente_cnpj, tipo
 ('00000000-0000-0000-0000-0000000a0001', '00000000-0000-0000-0000-00000000f611', 'Zz Dois Um', '00.000.000/0002-01', 'renovacao', 'base', 'negociacao', now(), now(), now(), null),
 ('00000000-0000-0000-0000-0000000a0002', '00000000-0000-0000-0000-00000000f611', 'Zz Dois Um', '00.000.000/0002-01', 'renovacao', 'base', 'fechado_perdido', now(), now(), now(), null),
 ('00000000-0000-0000-0000-0000000a0003', '00000000-0000-0000-0000-00000000f611', 'Zz Dois Dois', '00.000.000/0002-02', 'renovacao', 'base', 'lead', now(), now(), now(), null),
-('00000000-0000-0000-0000-0000000a0004', '00000000-0000-0000-0000-00000000f611', 'Zz Fora', '00.000.000/0009-99', 'portabilidade', 'avulsa', 'proposta_enviada', now(), now(), now(), null);
+('00000000-0000-0000-0000-0000000a0004', '00000000-0000-0000-0000-00000000f611', 'Zz Fora', '00.000.000/0009-99', 'portabilidade', 'avulsa', 'proposta_enviada', now(), now(), now(), null),
+('00000000-0000-0000-0000-0000000a0008', '00000000-0000-0000-0000-00000000f612', 'Zz Dois Dois', '00.000.000/0002-02', 'renovacao', 'base', 'proposta_enviada', now(), now(), now(), null),
+('00000000-0000-0000-0000-0000000a0009', '00000000-0000-0000-0000-00000000f611', 'Zz Dois Dois', '00.000.000/0002-02', 'portabilidade', 'avulsa', 'proposta_enviada', now(), now(), now(), null),
+('00000000-0000-0000-0000-0000000a0010', '00000000-0000-0000-0000-00000000f611', 'Zz Dois Tres', '00.000.000/0002-03', 'renovacao', 'base', 'fechado_ganho', now(), now(), now(), null);
 
 do $$
 declare n int; r record; v_201 bigint; v_202 bigint; v_203 bigint;
@@ -36,6 +44,8 @@ begin
   select * into r from public.propostas where id = '00000000-0000-0000-0000-0000000a0003';
   assert r.carteira_id = v_202 and r.estagio = 'lead', 'ligada sem mudar estágio: ' || row_to_json(r)::text;
   assert (select carteira_id from public.propostas where id = '00000000-0000-0000-0000-0000000a0004') is null, 'CNPJ fora da carteira fica sem ligação';
+  assert (select count(*) from public.propostas where id in ('00000000-0000-0000-0000-0000000a0008', '00000000-0000-0000-0000-0000000a0009', '00000000-0000-0000-0000-0000000a0010') and carteira_id is not null) = 0,
+         'não liga proposta de outro dono, de outro tipo nem fechada';
 
   execute 'set local role authenticated';
   perform set_config('request.jwt.claims', json_build_object('sub', v_a, 'role', 'authenticated')::text, true);
@@ -86,6 +96,13 @@ begin
     assert false, 'consultor chamou renovacao_ligar_propostas';
   exception when insufficient_privilege then null; end;
   execute 'reset role';
+  -- sem usuário logado (SQL de manutenção): a mudança de status não pode falhar; o histórico fica com o dono da proposta
+  perform set_config('request.jwt.claims', '', true); perform set_config('request.jwt.claim.sub', '', true);
+  insert into public.propostas (id, consultor_id, cliente_nome, cliente_cnpj, tipo_proposta, origem, estagio, estagio_entrada_em, criado_em, atualizado_em, carteira_id)
+  values ('00000000-0000-0000-0000-0000000a0011', v_a, 'Zz Dois Dois', '00.000.000/0002-02', 'renovacao', 'base', 'proposta_enviada', now(), now(), now(), v_202);
+  update public.renovacao_carteira set status = 5 where id = v_202;
+  assert exists (select 1 from public.propostas_historico where proposta_id = '00000000-0000-0000-0000-0000000a0011' and estagio_novo = 'negociacao' and user_id = v_a),
+         'sem usuário logado o histórico usa o dono da proposta';
 end $$;
 
 rollback;

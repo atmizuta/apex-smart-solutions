@@ -3701,8 +3701,12 @@ function rnAplicarPermissao(){
   rnEstado.selecionados.clear();
   rnEstado.geracao++;
   // troca de usuário na mesma aba do navegador: nada do anterior fica na tela
-  ['rnTbody', 'rnRetornos', 'rnResumo', 'rnFichaCorpo', 'rnContadores'].forEach(id => { document.getElementById(id).innerHTML = ''; });
+  if(typeof rnMoverProposta === 'function') rnMoverProposta(false);   // §143.2: o formulário da proposta volta para a aba Proposta
+  ['rnTbody', 'rnRetornos', 'rnResumo', 'rnFichaCorpo', 'rnContadores', 'rnKanban'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = ''; });
   document.getElementById('rnFicha').classList.remove('aberta');
+  document.querySelectorAll('#rnAbas [data-rn-aba]').forEach(b => b.classList.toggle('active', b.dataset.rnAba === 'carteira'));
+  ['rnKanban', 'rnProposta', 'rnRetornos', 'rnResumo'].forEach(id => { const el = document.getElementById(id); if(el) el.hidden = true; });
+  document.getElementById('rnCarteira').hidden = false;
 }
 function rnStatus(msg){ const el = document.getElementById('rnStatus'); if(el) el.textContent = msg || ''; }
 function rnHoje(){ return hojeSP(); }
@@ -3997,7 +4001,7 @@ function rnRenderFicha(){
     </div>
     <div style="display:flex;gap:var(--space-2);margin:var(--space-2) 0">${tel
       ? `<a class="kbBtn kbBtnQ" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}">WhatsApp</a><a class="kbBtn kbBtnP" href="tel:${escapeHtml(tel)}">Ligar</a>`
-      : '<span class="kbMeta">Sem telefone.</span>'}<button type="button" class="kbBtn kbBtnG" data-rn-gerar="${r.id}">Gerar proposta</button></div>
+      : '<span class="kbMeta">Sem telefone.</span>'}${r.status >= 6 ? '<span class="kbMeta">Reabra o status para gerar proposta.</span>' : `<button type="button" class="kbBtn kbBtnG" data-rn-gerar="${r.id}">Gerar proposta</button>`}</div>
     <form id="rnFichaForm" class="card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-2)">
       ${campo('Status', `<select name="status">${rnOpcoes(Object.keys(RN_STATUS).map(k => [k, rnStatusRotulo(+k)]), r.status)}</select>`)}
       ${campo('Data do contato', `<input type="date" name="data_contato" value="${escapeHtml(r.data_contato || '')}">`)}
@@ -4261,6 +4265,7 @@ function rnClienteDaCarteira(r, dados){
 async function rnGerarProposta(id){
   const r = rnEstado.lista.find(x => x.id === id);
   if(!r) return;
+  if(r.status === 6 || r.status === 7){ mostrarAviso(`Cliente já está ${r.status === 6 ? 'renovado' : 'perdido'}. Mude o status para 5-Em negociação antes de gerar uma proposta nova.`, 'info'); return; }
   const c = await ppSeguro(() => sb.from('clientes').select('*').eq('cnpj_digits', r.cnpj_digits).maybeSingle());
   let client = c && !c.error && c.data ? c.data : null;
   if(!client){
@@ -4281,6 +4286,7 @@ async function rnPropostaGerada(carteiraId){
   if(r && r.status >= 1 && r.status <= 3) await rnSalvar(carteiraId, { status: 4 });
   await rnCarregarPropostas();
   rnRender();
+  if(rnEstado.fichaId === carteiraId) rnRenderFicha();
 }
 // ---- §143.2 Kanban (a partir de Contato efetivo; não contatado e tentativa ficam na lista) ----
 const RN_KANBAN = [3, 4, 5, 6, 7];
@@ -4295,7 +4301,7 @@ function rnCartaoHtml(r, agora, gestor){
   return `<div class="rnKbCard ${rnClasseLinha(r)}" draggable="true" data-rn-card="${r.id}">
     <button type="button" class="rnNome" data-rn-abrir="${r.id}">${escapeHtml(r.razao_social || '(sem nome)')}</button>
     <div class="kbMeta">${r.linhas_voz ?? 0} linhas${p && p.valor_proposto ? ' · ' + fmtBRL(p.valor_proposto) : ''}${dias !== null ? ' · ' + (dias === 0 ? 'hoje' : dias + 'd') + ' no status' : ''}${gestor ? ' · ' + escapeHtml(rnNomeConsultor(r.consultor_id)) : ''}</div>
-    <button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-gerar="${r.id}">Gerar proposta</button>
+    ${r.status >= 6 ? '' : `<button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-gerar="${r.id}">Gerar proposta</button>`}
   </div>`;
 }
 function rnRenderKanban(){
@@ -11535,14 +11541,14 @@ function kanbanCardHtml(p){
   const iniciais = consultorInfo ? (consultorInfo.nome || '?').split(' ').filter(Boolean).slice(0, 2).map(s => s[0]).join('').toUpperCase() : '';
   return `
     <div class="kanbanCard${p.carteira_id ? ' kcRenovacao' : ''}" draggable="${p.carteira_id ? 'false' : 'true'}" data-id="${p.id}">
-      <div class="kcNome">${p.cliente_nome}</div>
+      <div class="kcNome">${escapeHtml(p.cliente_nome || '')}</div>
       ${p.carteira_id ? '<div class="kcMeta"><span class="badge">Renovação</span></div>' : ''}
       ${valor ? `<div class="kcValor">${fmtBRL(valor)}</div>` : ''}
       <div class="kcMeta">
         <span>${tempoDecorrido(p.estagio_entrada_em)}</span>
         ${sla ? `<span class="slaBadge ${sla.estourado ? 'estourado' : 'ok'}">${sla.estourado ? 'SLA estourado' : 'no prazo'}</span>` : ''}
       </div>
-      ${consultorInfo ? `<div class="kcConsultor"><span class="kcAvatar">${iniciais}</span> ${consultorInfo.nome}</div>` : ''}
+      ${consultorInfo ? `<div class="kcConsultor"><span class="kcAvatar">${escapeHtml(iniciais)}</span> ${escapeHtml(consultorInfo.nome || '')}</div>` : ''}
     </div>`;
 }
 
