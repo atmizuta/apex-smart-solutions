@@ -4,8 +4,9 @@
 
 export const MAX_QTD = 100_000;
 export const MAX_ITENS = 500;
+// 09/11 (seção 144): "EX" = empresa no exterior (Receita). Vinha nas opções da tela e a validação recusava (erro 400).
 export const UFS = ["AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA", "PB", "PE", "PI", "PR",
-  "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO"];
+  "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO", "EX"];
 export const SITUACOES = ["ATIVA", "BAIXADA", "INAPTA", "SUSPENSA", "NULA"];
 export const PORTES = ["MEI", "MICRO", "PEQUENA", "DEMAIS", "NAO INFORMADO"];
 export const OPERADORAS = ["VIVO", "CLARO", "TIM", "OUTRAS", "SEM"];

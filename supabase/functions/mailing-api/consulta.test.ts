@@ -407,3 +407,8 @@ test("SQL_CONTAGEM_EXISTENTE: reaproveita só sem extração/carga depois (folga
   assert.match(q, /max\(l\.ultima_extracao\) from mailing\.linha l\), '-infinity'::timestamptz\) \+ interval '3 minutes'/);
   assert.match(q, /max\(g\.carregado_em\) from mailing\.carga g/);
 });
+
+test("validarFiltros (seção 144): UF EX (empresa no exterior) vem nas opções e é aceita", () => {
+  assert.deepEqual(validarFiltros({ uf: ["EX", "SP"] }), { ok: true, filtros: { uf: ["EX", "SP"] } });
+  assert.equal(validarFiltros({ uf: ["XX"] }).ok, false);
+});
