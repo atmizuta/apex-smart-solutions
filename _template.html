@@ -4335,6 +4335,14 @@ function rnMoverProposta(paraRenovacao){
   if(!de || !para) return;
   while(de.firstChild) para.appendChild(de.firstChild);
 }
+// ---- §143.2 Atalho do funil antigo: abre a aba Renovação na ficha do cliente ----
+async function rnAbrirNaRenovacao(carteiraId){
+  const bt = document.getElementById('tabBtnRenovacao');
+  if(!rnPodeVer() || !bt){ mostrarAviso('Você não tem acesso à aba Renovação.', 'info'); return; }
+  bt.click();
+  if(!rnEstado.carregado) await rnCarregar();
+  if(rnEstado.lista.some(r => r.id === carteiraId)) rnAbrirFicha(carteiraId);
+}
 /* ============ FIM RENOVAÇÃO §143 ============ */
 
 /* ============ MEUS LEADS (KANBAN) — §112 ============
@@ -11522,8 +11530,9 @@ function kanbanCardHtml(p){
   const consultorInfo = currentUser.role !== 'consultor' ? (funilConsultores[p.consultor_id] || { nome: '—' }) : null;
   const iniciais = consultorInfo ? (consultorInfo.nome || '?').split(' ').filter(Boolean).slice(0, 2).map(s => s[0]).join('').toUpperCase() : '';
   return `
-    <div class="kanbanCard" draggable="true" data-id="${p.id}">
+    <div class="kanbanCard${p.carteira_id ? ' kcRenovacao' : ''}" draggable="${p.carteira_id ? 'false' : 'true'}" data-id="${p.id}">
       <div class="kcNome">${p.cliente_nome}</div>
+      ${p.carteira_id ? '<div class="kcMeta"><span class="badge">Renovação</span></div>' : ''}
       ${valor ? `<div class="kcValor">${fmtBRL(valor)}</div>` : ''}
       <div class="kcMeta">
         <span>${tempoDecorrido(p.estagio_entrada_em)}</span>
@@ -11579,6 +11588,8 @@ function attachKanbanDnD(){
 async function moverCard(id, novoEstagio, nota){
   const proposta = funilCache.find(p => p.id === id);
   if(!proposta || proposta.estagio === novoEstagio) return;
+  // §143.2: proposta ligada à carteira segue o status do cliente na Renovação (o banco também recalcula)
+  if(proposta.carteira_id){ mostrarAviso('Esta proposta segue o status do cliente na aba Renovação. Mude por lá.', 'info'); renderFunil(); return; }
   if(novoEstagio === 'fechado_perdido' && nota === undefined){
     pendingLossCardId = id;
     document.getElementById('motivoInput').value = '';
@@ -11636,17 +11647,22 @@ async function abrirCardFunil(id){
       ${p.observacoes ? kv('Observações', p.observacoes) : ''}
       ${p.motivo_perda ? kv('Motivo da perda', p.motivo_perda) : ''}
     </div>
-    <div class="field" style="margin-bottom:16px">
+    ${p.carteira_id
+      ? `<p class="kbMeta" style="margin-bottom:8px">O estágio segue o status do cliente na Renovação.</p><button class="btn btn-outline" id="btnAbrirNaRenovacao" style="margin-bottom:16px">Abrir na Renovação</button>`
+      : `<div class="field" style="margin-bottom:16px">
       <label>Mover para</label>
       <select id="funilCardEstagioSelect">
         ${FUNIL_ESTAGIOS.map(e => `<option value="${e.id}" ${e.id === p.estagio ? 'selected' : ''}>${e.label}</option>`).join('')}
       </select>
-    </div>
+    </div>`}
     <button class="btn" id="btnGerarPropostaDoCard" style="margin-bottom:16px">Gerar proposta</button>
     <div class="grpTitle">Histórico</div>
     <div id="funilCardHist" class="spinnerNote isLoading">Carregando...</div>
   `;
-  document.getElementById('funilCardEstagioSelect').addEventListener('change', function(){ moverCard(p.id, this.value); });
+  const selEstagio = document.getElementById('funilCardEstagioSelect');
+  if(selEstagio) selEstagio.addEventListener('change', function(){ moverCard(p.id, this.value); });
+  const btnRenov = document.getElementById('btnAbrirNaRenovacao');
+  if(btnRenov) btnRenov.addEventListener('click', () => { fecharOverlay(document.getElementById('funilCardOverlay')); rnAbrirNaRenovacao(p.carteira_id); });
   document.getElementById('btnGerarPropostaDoCard').addEventListener('click', function(){
     fecharOverlay(document.getElementById('funilCardOverlay'));
     abrirPropostaDoCard(p);
