@@ -4630,6 +4630,8 @@ Pedido do Rafael: "adicione os planos que estão na página 42 [...] de incremen
 - **Monitor avulso removido** (para não cobrar duas vezes): saem o botão "+ Adicionar Claro Monitor" da proposta, o interruptor de Claro Monitor da Analisar Fatura e o item de R$5 do catálogo/sugestões do modo manual. A categoria "Claro Monitor" do modo manual continua (texto livre, ex.: Monitor Avançado). Proposta antiga salva com o item `monitor` ainda abre e soma como antes.
 - **Documento (Word/PDF):** o selo de benefício "Claro Monitor" aparece sempre que a proposta tem plano móvel (antes, só com o avulso).
 - **Efeito colateral esperado:** a sugestão da Analisar Fatura passa a escolher o 20GB onde antes escolhia 25GB (ex.: linha de 14GB fora da regional), por ser mais barato e cobrir o consumo. Proposta salva reabre com o preço novo do plano (o catálogo é lido pelo id).
-- **Testes:** `test_analisar_fatura.js` e `test_outras_ofertas.js` atualizados para a regra nova.
+- **Testes:** `test_analisar_fatura.js`, `test_outras_ofertas.js` e `test_proposta_manual.js` atualizados para a regra nova. Suíte: 85 passam; 5 falham igual na oficial limpa (conversão, leads hoje, pedidos alerta, filtro pessoas, redesign shell); 3 pulados.
+- **Publicação (09/11 16:57, ok do Rafael):** painel no ar era `ce27b883…` (= oficial/main 85a4487); novo MD5 `c30a8541…`. Backup `~/deploy_backups/painel_clientes_apex_20261109_195659_antes_planos_pos_145.html` (hora do servidor em UTC).
+- **Reverter:** copiar o backup do painel.
 
 Próxima livre: §146 (§138.2, §138.3 e §143.2 reservadas).
