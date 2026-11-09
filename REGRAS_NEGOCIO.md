@@ -4615,6 +4615,10 @@ Spec: `docs/superpowers/specs/2026-11-07-renovacao-aba-design.md`. Entrega em 2 
   completo" leva ao Kanban. Admin e supervisor continuam vendo tudo.
 - Banco: migration `20261109150000_renovacao_fase2.sql` (liga as propostas antigas pelo CNPJ ao aplicar); conferência
   `supabase/tests/renovacao_fase2_check.sql`.
+- **No ar (09/11/2026, ok do Rafael):** banco aplicado (13 propostas ligadas — só renovação, aberta e do dono do cliente;
+  `status_desde` = data do contato para os contatados sem histórico); conferência passou no banco real. Painel publicado às
+  20:50 (MD5 `3de18eb1…`, junto com a §145 que estava no ar como `c30a8541…`). Backup:
+  `~/deploy_backups/painel_clientes_apex_20261109_235026_antes_renovacao_fase2.html` (hora do servidor, UTC).
 
 ## 144. Base de Mailing: fase 2 da extração anda de novo e NEO da Apex e da Eagle separados (09/11/2026)
 
