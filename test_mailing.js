@@ -496,13 +496,44 @@ try{
   // 09/11 (seção 144): o caso do Guilherme — a fase 2 devolvia o mesmo cursor e o painel repetiu 28 mil vezes. Se a função
   // devolver o mesmo trecho que recebeu, o painel para e avisa (não fica girando).
   const parado = { fase: 2, apos: { ue: '2026-10-22 14:27:54.528653+00', so: 1024242256 } };
-  window.__fnRespostas.extrair = () => ({ data: { colunas: colsExp, linhas: [], quantidade_entregue: 0, nome_arquivo: 'P_2026-11-09.csv',
-    proxima: parado, paginas_total: 380000, paginas_lidas: 2048 }, error: null });
+  window.__fnRespostas.extrair = (body) => ({ data: { colunas: colsExp, linhas: [], quantidade_entregue: 0, nome_arquivo: 'P_2026-11-09.csv',
+    proxima: body.trecho.fase === 1 ? { fase: 2, apos: null } : parado, paginas_total: 380000, paginas_lidas: 2048 }, error: null });
   chamadas.length = 0; baixados.length = 0; avisos.length = 0;
   document.getElementById('mbQtd').value = '5';
   document.getElementById('btnMbExportar').click(); await ateTerminar();
-  eq(extrairChamadas().map(b => b.trecho.fase), [1, 2], 'trecho repetido: para na primeira repetição');
+  eq(extrairChamadas().map(b => b.trecho.fase), [1, 2, 2], 'trecho repetido: para na primeira repetição');
   assert(avisos[0] && avisos[0][0] === 'erro' && avisos[0][1].includes('parou de avançar'), 'avisa que a extração parou de avançar');
+
+  // revisão (seção 144): a posição tem de AVANÇAR — voltar (mesmo sem repetir igual) também para
+  let volta = 0;
+  window.__fnRespostas.extrair = (body) => {
+    volta++;
+    const ue = volta % 2 ? '2026-10-22 14:27:54.528653+00' : '2026-10-22 14:27:54.5286+00';
+    return { data: { colunas: colsExp, linhas: [], quantidade_entregue: 0, nome_arquivo: 'V_2026-11-09.csv',
+      proxima: body.trecho.fase === 1 ? { fase: 2, apos: null } : { fase: 2, apos: { ue, so: 5 } }, paginas_total: 380000, paginas_lidas: 2048 }, error: null };
+  };
+  chamadas.length = 0; baixados.length = 0; avisos.length = 0;
+  document.getElementById('btnMbExportar').click(); await ateTerminar();
+  assert(extrairChamadas().length === 4 && avisos[0] && avisos[0][0] === 'erro' && avisos[0][1].includes('parou de avançar'), 'cursor que volta: para e avisa');
+  eq([mbCursorDepois({ ue: '2026-10-22 14:27:54.5286+00', so: 9 }, { ue: '2026-10-22 14:27:54.528653+00', so: 1 }),
+      mbCursorDepois({ ue: '2026-10-22 14:27:54.528653+00', so: 2 }, { ue: '2026-10-22 14:27:54.528653+00', so: 1 }),
+      mbCursorDepois({ ue: '2026-10-22 14:27:54.528653+00', so: 1 }, { ue: '2026-10-22 14:27:54.528653+00', so: 1 }),
+      mbCursorDepois({ ue: '2026-10-22 14:27:55+00', so: 1 }, { ue: '2026-10-22 14:27:54.999999+00', so: 9 }),
+      mbCursorDepois({ ue: '2026-10-22 14:27:54.528653+00', so: 1 }, null)],
+    [false, true, false, true, true], 'compara a posição com microssegundos');
+  // fase 1: a página não pode voltar, nem ficar igual sem sair linha
+  window.__fnRespostas.extrair = (body) => ({ data: { colunas: colsExp, linhas: [], quantidade_entregue: 0, nome_arquivo: 'P1_2026-11-09.csv',
+    proxima: { fase: 1, pagina: body.trecho.pagina }, paginas_total: 380000, paginas_lidas: 0 }, error: null });
+  chamadas.length = 0; baixados.length = 0; avisos.length = 0;
+  document.getElementById('btnMbExportar').click(); await ateTerminar();
+  assert(extrairChamadas().length === 1 && avisos[0] && avisos[0][1].includes('parou de avançar'), 'fase 1 parada: para e avisa');
+
+  // revisão (seção 144): fechar ou recarregar a aba no meio da exportação perde o que já foi marcado — o navegador pergunta
+  const evSair = () => { const e = new window.Event('beforeunload', { cancelable: true }); window.dispatchEvent(e); return e.defaultPrevented; };
+  eq(evSair(), false, 'sem exportação: sai sem perguntar');
+  mbEstado.exportando = true;
+  eq(evSair(), true, 'exportando: o navegador pergunta antes de fechar');
+  mbEstado.exportando = false;
 
   // histórico: linhas do arquivo e removidas
   mbRenderHistorico([{ criado_em: '2026-10-22T20:00:00Z', username: 'adm', nome_carga: 'NEO', filtros: {}, quantidade_entregue: 9,

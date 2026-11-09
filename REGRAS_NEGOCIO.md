@@ -4604,5 +4604,15 @@ Pedidos do Rafael: "coloca separado apex e eagle, para escolhermos qual selecion
 - **Teste com a base real (só leitura, SQL real, mesmo driver, filtro do Guilherme):** fase 2 em 12 janelas, até 28 s por chamada (limite 110 s), ~4 min; 143.823 linhas + as 189.490 da fase 1 = 333.313 (contagem: 334.540). Testes: função 59, `test_mailing.js` 215. Na suíte, 7 testes falham igual na oficial limpa (não são do mailing).
 - **Publicação (09/11 ~15:00, ok do Rafael):** função v16 (conferida byte a byte com o repositório). Painel no ar era `f3383e15…` (= oficial/main e1973af); novo MD5 `16519f92…`. Backup `~/deploy_backups/painel_clientes_apex_20261109_180039_antes_mailing_144.html` (hora do servidor em UTC).
 - **Reverter:** copiar o backup do painel. A função v16 serve também o painel antigo (só ganhou a ação `agora`).
+- **Teste real (09/11 15:19–15:25, ok do Rafael):** login angelao, carga TESTE-144, 1.000 linhas com o filtro do Guilherme. Fase 1 leu a base inteira (14 chamadas, até 50 s, nenhuma linha nova — já tinham saído de manhã); a fase 2 entregou 1.000 e, com 4 tiradas pelo NEO, seguiu de um cursor **dentro** do grupo 2026-10-22 14:27:54.528653 (sorteio 68542532 → 68672276) — o caso que travava. 21 chamadas, todas 200; 1.000 telefones distintos; arquivo apagado.
+
+### 144.1 Revisão (09/11/2026)
+
+- **O 2º arquivo do Guilherme nunca foi baixado:** depois das 3 h girando, a aba foi fechada (~12:11) sem `fechar_parte`; as 88.102 linhas da parte 2 ficaram marcadas sem virar arquivo. Recuperado fora do painel (só leitura): cada trecho grava um `now()` próprio, então as linhas da parte 2 são as de `ultima_extracao` entre 12:04:54 e 12:11 UTC; mesma limpeza do painel (NEO Apex + Eagle, repetidos contando o 1º arquivo — os 1.362 repetidos da parte 1 bateram exatos). Junto, as 1.004 do TESTE-144. Arquivo `…_parte2de4.csv` com 86.552 linhas (20 colunas, Windows-1252), entregue ao Rafael.
+- **Aviso ao fechar a aba:** exportando, o navegador pergunta antes de fechar/recarregar (`beforeunload`).
+- **Trava mais forte:** a posição tem de avançar — fase 1, página maior (ou a mesma só se saiu linha); fase 2, cursor depois do anterior em microssegundos (`mbCursorDepois`/`mbTrechoAvancou`). Antes só pegava "voltou igual".
+- **UF "EX"** (exterior) vinha nas opções e a função recusava (400): aceita (`mailing-api` v17).
+- **Mesma classe de erro em outros lugares:** só existia no cursor (já corrigido). Datas (`::date`) e o início do pedido (milissegundos) passam pelo postgres.js sem perda (testado). O porte "NAO INFORMADO" aparece no filtro mas nenhuma empresa tem esse porte (sempre zero) — ficou.
+- **Publicação (09/11 ~15:47, ok do Rafael):** função v17 (conferida com o repositório). Painel no ar era `16519f92…`; novo MD5 `13a5a85a…`. Backup `~/deploy_backups/painel_clientes_apex_20261109_184719_antes_mailing_144_revisao.html`. Testes: função 60, `test_mailing.js` 220.
 
 Próxima livre: §145 (§138.2, §138.3 e §143.2 reservadas).

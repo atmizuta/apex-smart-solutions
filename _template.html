@@ -18066,6 +18066,34 @@ async function mbExportar(){
   const h = await mbChamar('historico');
   if(!h.erro) mbRenderHistorico(h.data.extracoes || []);
 }
+// 09/11 (seção 144): cursor da fase 2 = "2026-10-22 14:27:54.528653+00" (texto do banco, com microssegundos). Compara em
+// microssegundos desde 1970 (cabe exato num número do JavaScript); null = começo, qualquer cursor vem depois.
+function mbUeMicros(ue){
+  const m = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})(?:\.(\d{1,6}))?([+-]\d{2})(?::(\d{2}))?$/.exec(String(ue || ''));
+  if(!m) return NaN;
+  const seg = Date.parse(m[1] + 'T' + m[2] + m[4] + ':' + (m[5] || '00')) / 1000;
+  return seg * 1e6 + Number((m[3] || '').padEnd(6, '0'));
+}
+function mbCursorDepois(novo, antigo){
+  if(!novo) return false;
+  if(!antigo) return true;
+  const a = mbUeMicros(novo.ue), b = mbUeMicros(antigo.ue);
+  if(Number.isNaN(a) || Number.isNaN(b)) return false;
+  return a > b || (a === b && Number(novo.so) > Number(antigo.so));
+}
+function mbTrechoAvancou(t, prox, tomadas){
+  if(!prox) return true;
+  if(t.fase === 1 && prox.fase === 1) return prox.pagina > t.pagina || (prox.pagina === t.pagina && tomadas > 0);
+  if(t.fase === 1 && prox.fase === 2) return prox.apos === null;
+  if(t.fase === 2 && prox.fase === 2) return mbCursorDepois(prox.apos, t.apos);
+  return false;
+}
+// fechar ou recarregar a aba no meio da exportação perde as linhas já marcadas que ainda não viraram arquivo (09/11: o 2º
+// arquivo do Guilherme, 85.556 linhas). O navegador pergunta antes de sair.
+window.addEventListener('beforeunload', (ev) => {
+  if(!mbEstado.exportando) return;
+  ev.preventDefault(); ev.returnValue = '';
+});
 // 09/11 (seção 144, pedido do Rafael): Apex e Eagle separados. null = nenhuma marcada (não cruza).
 function mbOrigensNeo(idApex, idEagle){
   const apex = document.getElementById(idApex).checked, eagle = document.getElementById(idEagle).checked;
@@ -18150,8 +18178,9 @@ async function mbExportarPedido(carga, total, filtros, opcoes){
       if(t.fase === 1){ lidas += d.paginas_lidas || 0; achadas += c.ficam.length; } // o que falta conta só o que fica
       if(buf.length >= MB_MAX_QTD) await fecharArquivo();
       if(!d.proxima){ acabou = true; break; }
-      // 09/11 (seção 144): a fase 2 devolveu o mesmo cursor 28 mil vezes (3 h girando sem sair linha). Nunca mais em silêncio.
-      if(t.fase === 2 && JSON.stringify(d.proxima) === JSON.stringify(t)){
+      // 09/11 (seção 144): a fase 2 devolveu o mesmo cursor 28 mil vezes (3 h girando sem sair linha). Nunca mais em silêncio:
+      // a posição tem de andar para a frente (fase 1: página maior, ou a mesma só se saiu linha; fase 2: cursor depois do anterior).
+      if(!mbTrechoAvancou(t, d.proxima, linhas.length)){
         erro = 'A extração parou de avançar na base (o mesmo trecho voltou). Avise o Rafael.'; break;
       }
       trecho = d.proxima;
