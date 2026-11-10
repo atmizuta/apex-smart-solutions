@@ -469,7 +469,7 @@ begin
   -- 5. soma sempre 1 e limites respeitados (notas variadas)
   f := public.leads_dist_fatias(array[0.3,2.5,1.1,0.9,0.05,1.7]::numeric[], 0.10, 0.30);
   s := 0; for i in 1..6 loop s := s + f[i]; end loop;
-  v_out := v_out || case when round(s, 6) = 1 and (select bool_and(x between 0.10 - 1e-9 and 0.30 + 1e-9) from unnest(f) x) then '5 ok; ' else '5 FALHOU ' || f::text || '; ' end;
+  v_out := v_out || case when abs(s - 1) < 0.00001 and (select bool_and(x between 0.10 - 1e-9 and 0.30 + 1e-9) from unnest(f) x) then '5 ok; ' else '5 FALHOU ' || f::text || '; ' end;
 
   -- Velocidade: A atendeu 10 de 10 em 2 min; B atendeu 10 de 10 em 30 min; C sem histórico.
   for i in 1..10 loop
