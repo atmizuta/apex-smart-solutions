@@ -80,11 +80,14 @@ begin
            count(*) filter (where ent.atendido_em is not null and ent.atendido_em - ent.recebido_em <= v_prazo
                               and ent.confirmado is distinct from false)::int vok
       from ent where ent.rn <= v_ult group by ent.cid
-  ), rh as (
-    select d.consultor_id cid,
-           count(*) filter (where (d.recebido_em at time zone 'America/Sao_Paulo')::date = v_hoje)::int n,
-           max(d.recebido_em) ult
-      from public.leads_distribuicao d where d.tipo in ('auto', 'pegou') and d.recebido_em is not null group by d.consultor_id
+  ), rh as (   -- recebidos hoje; na sombra, a escolha do motor conta como recebida (relatório comparável ao automático)
+    select x.cid, count(*) filter (where (x.em at time zone 'America/Sao_Paulo')::date = v_hoje)::int n, max(x.em) ult
+      from (select d.consultor_id cid, d.recebido_em em from public.leads_distribuicao d
+             where d.tipo in ('auto', 'pegou') and d.recebido_em >= p_agora - interval '1 day'
+            union all
+            select s.escolhido, s.em from public.leads_dist_sombra s
+             where c ->> 'modo' = 'sombra' and s.em >= p_agora - interval '1 day') x
+     group by x.cid
   ), base as (
     select eq.profile_id, eq.nome_planilha,
            coalesce((pr.visto_em at time zone 'America/Sao_Paulo')::date = v_hoje, false) ativo,

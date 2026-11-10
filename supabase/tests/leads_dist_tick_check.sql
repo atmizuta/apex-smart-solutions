@@ -92,14 +92,17 @@ begin
   perform public.leads_dist_tick(); perform public.leads_dist_tick();
   v_out := v_out || case when (select count(*) from public.leads_dist_sombra where lead_id = 'lt-10') = 1
                           and (select dono_id from public.leads where id = 'lt-10') is null then '10 ok; ' else '10 FALHOU; ' end;
-  -- 11. fora do expediente: tick não distribui a fila
+  -- 11. fora do expediente: lead novo no automático fica guardado e o tick não distribui
+  --     (o lt-10 da sombra NÃO volta: a sombra fecha a fila — revisão I-3)
   perform pg_temp.ld_cfg('{"modo":"automatico","expediente":{"dias":[],"inicio":"00:00","fim":"24:00"}}');
+  perform public.leads_entrada2(jsonb_build_array(jsonb_build_object('id', 'lt-11', 'criado_em_lead', now(), 'full_name', 'Lead Teste', 'phone_number', '(11) 90000-0046')), false, 'planilha');
   r := public.leads_dist_tick();
-  v_out := v_out || case when (r ->> 'distribuidos')::int = 0 and (select dono_id from public.leads where id = 'lt-10') is null then '11 ok; ' else '11 FALHOU ' || r::text || '; ' end;
-  -- 12. de volta ao expediente: tick distribui a fila (mais recente primeiro)
+  v_out := v_out || case when (r ->> 'distribuidos')::int = 0 and (select dono_id from public.leads where id = 'lt-11') is null
+                          and exists (select 1 from public.leads_distribuicao where lead_id = 'lt-11' and consultor_id is null and fechado_em is null) then '11 ok; ' else '11 FALHOU ' || r::text || '; ' end;
+  -- 12. de volta ao expediente: tick distribui a fila; o lead só sombreado continua nos Livres
   perform pg_temp.ld_cfg('{"expediente":{"dias":[1,2,3,4,5,6,7],"inicio":"00:00","fim":"24:00"}}');
   r := public.leads_dist_tick();
-  v_out := v_out || case when (select dono_id from public.leads where id = 'lt-10') in (v_a, v_b) then '12 ok' else '12 FALHOU ' || r::text end;
+  v_out := v_out || case when (select dono_id from public.leads where id = 'lt-11') in (v_a, v_b) and (select dono_id from public.leads where id = 'lt-10') is null then '12 ok' else '12 FALHOU ' || r::text end;
   -- 13. (revisão I-4) usuario_telefonia vazio = sem telefonia (confirma); espaço sobrando no usuário da ligação ainda casa
   perform pg_temp.ld_cfg('{"modo":"manual"}');
   update public.leads_equipe set usuario_telefonia = '' where profile_id = v_b;

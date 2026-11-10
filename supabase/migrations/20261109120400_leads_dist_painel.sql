@@ -35,7 +35,7 @@ end $function$;
 create or replace function public.leads_dist_config(p jsonb)
  returns jsonb language plpgsql security definer set search_path to 'public'
 as $function$
-declare k text; v jsonb;
+declare k text; v jsonb; v_antes text := public.leads_dist_cfg() ->> 'modo';
   permitidas text[] := array['modo', 'peso_conversao', 'piso', 'teto', 'prazo_atender_min', 'prazo_devolver_min', 'confirmar_min',
                              'janela_dias', 'maturacao_dias', 'pausa_min', 'presenca_min', 'max_devolucoes', 'expediente'];
 begin
@@ -49,6 +49,9 @@ begin
   v := coalesce(v, '{}'::jsonb) || p || jsonb_build_object('alterado_por', (select pr.nome from public.profiles pr where pr.id = auth.uid()), 'alterado_em', now());
   update public.config set valor = v::text, atualizado_em = now() where chave = 'leads_distribuicao';
   if not found then insert into public.config (chave, valor) values ('leads_distribuicao', v::text); end if;
+  if p ? 'modo' and p ->> 'modo' is distinct from v_antes then
+    update public.leads_distribuicao set fechado_em = now() where consultor_id is null and fechado_em is null;
+  end if;
   return public.leads_dist_cfg();
 end $function$;
 

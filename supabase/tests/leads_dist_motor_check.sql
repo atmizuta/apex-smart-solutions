@@ -103,6 +103,7 @@ begin
   --     a linha da fila fecha quando a sombra é anotada
   update public.leads_distribuicao set atendido_em = now() where atendido_em is null and consultor_id is not null;
   perform pg_temp.ld_cfg('{"modo":"sombra"}');
+  update public.leads_dist_sombra set em = now() - interval '10 minutes' where lead_aba = 'TESTE DIST';   -- now() não anda na transação: a sombra do item 10 não pode contar como pendente
   perform pg_temp.ld_lead('ls-1', 31); perform pg_temp.ld_lead('ls-2', 32); perform pg_temp.ld_lead('ls-3', 33);
   perform public.leads_distribuir('TESTE DIST', 'ls-1'); perform public.leads_distribuir('TESTE DIST', 'ls-2');
   r := public.leads_distribuir('TESTE DIST', 'ls-3');

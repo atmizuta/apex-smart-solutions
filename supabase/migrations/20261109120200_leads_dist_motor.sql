@@ -11,6 +11,8 @@ as $function$
 declare c jsonb := public.leads_dist_cfg();
   v_pres interval := make_interval(mins => (c ->> 'presenca_min')::int);
   v_dev interval := make_interval(mins => (c ->> 'prazo_devolver_min')::int);
+  v_atender interval := make_interval(mins => (c ->> 'prazo_atender_min')::int);
+  v_sombra boolean := c ->> 'modo' = 'sombra';
   v_total int; v_lista jsonb; v_id uuid; v_nome text;
 begin
   select coalesce(sum(n.recebidos_hoje), 0) into v_total from public.leads_dist_notas(p_agora) n where n.ativo;
@@ -23,7 +25,9 @@ begin
         when p.pausa_ate > p_agora then 'pausa'
         when exists (select 1 from public.leads_distribuicao d
                       where d.consultor_id = n.consultor_id and d.tipo in ('auto', 'pegou') and d.fechado_em is null
-                        and d.atendido_em is null and d.recebido_em > p_agora - v_dev) then 'pendente'
+                        and d.atendido_em is null and d.recebido_em > p_agora - v_dev)
+          or (v_sombra and exists (select 1 from public.leads_dist_sombra s
+                                    where s.escolhido = n.consultor_id and s.em > p_agora - v_atender)) then 'pendente'
         else 'na_vez' end estado,
       n.fatia * (v_total + 1) - n.recebidos_hoje deficit
     from n left join public.leads_presenca p on p.profile_id = n.consultor_id)
@@ -63,6 +67,7 @@ begin
   if v_modo = 'sombra' then
     insert into public.leads_dist_sombra (lead_aba, lead_id, escolhido, motivo) values (p_aba, p_id, v_id, v_esc)
     on conflict (lead_aba, lead_id) do nothing;
+    update public.leads_distribuicao set fechado_em = now() where id = v_fila.id;   -- sombra anotada: sai da fila (não cresce sem fim)
     return jsonb_build_object('ok', true, 'sombra', true, 'consultor_id', v_id);
   end if;
   v_nome := v_esc ->> 'nome';

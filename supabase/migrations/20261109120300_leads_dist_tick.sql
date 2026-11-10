@@ -10,20 +10,23 @@ declare c jsonb := public.leads_dist_cfg(); v_modo text := coalesce(c ->> 'modo'
   v_conf interval := make_interval(mins => (c ->> 'confirmar_min')::int);
   v_max int := (c ->> 'max_devolucoes')::int;
   v_exp boolean := public.leads_dist_no_expediente(now());
-  v_robo timestamptz; r record; v_res jsonb; n_dev int := 0; n_dist int := 0; n_conf int := 0; v_parados jsonb;
+  v_robo timestamptz; r record; v_res jsonb; n_dev int := 0; n_dist int := 0; n_conf int := 0; v_parados jsonb; v_av jsonb;
 begin
+  select coalesce(cf.valor::jsonb, '{}'::jsonb) into v_av from public.config cf where cf.chave = 'leads_distribuicao_aviso';
+  v_av := coalesce(v_av, '{}'::jsonb);
   -- 1. Confirmação pelo ProContact (todos os modos: "pegou" já junta velocidade). Só decide o que o robô já cobriu.
   select max(m.importado_em) into v_robo from public.ligacoes_manuais m;
   if v_exp and (v_robo is null or v_robo < now() - make_interval(mins => (c ->> 'robo_parado_min')::int)) then
-    perform public.leads_dist_aviso('robo_parado', to_jsonb(v_robo));
+    -- só grava quando muda: o tick não segura a linha de avisos a cada minuto (evita travar com a entrada de lead)
+    if not (v_av ? 'robo_parado') then perform public.leads_dist_aviso('robo_parado', to_jsonb(v_robo)); end if;
   else
-    perform public.leads_dist_aviso('robo_parado', null);
+    if v_av ? 'robo_parado' then perform public.leads_dist_aviso('robo_parado', null); end if;
     update public.leads_distribuicao d set confirmado = x.ok, confirmado_em = now()
       from (select d2.id,
-                   (eq.usuario_telefonia is null or exists (
+                   (coalesce(btrim(eq.usuario_telefonia), '') = '' or exists (   -- mesma regra do placar: vazio = sem telefonia
                       select 1 from public.ligacoes_manuais m
                        where m.chave_tel = public.chave_tel(l.phone_number)
-                         and lower(m.usuario) = lower(eq.usuario_telefonia)
+                         and lower(btrim(m.usuario)) = lower(btrim(eq.usuario_telefonia))
                          and m.gerada_em between d2.recebido_em - interval '5 minutes' and d2.atendido_em + v_conf)) ok
               from public.leads_distribuicao d2
               join public.leads l on l.aba = d2.lead_aba and l.id = d2.lead_id
@@ -133,7 +136,18 @@ begin
       begin
         perform public.leads_distribuir(v_aba, r ->> 'id');
       exception when others then
-        perform public.leads_dist_aviso('motor_erro', jsonb_build_object('em', now(), 'erro', sqlerrm));
+        -- o erro desfaz a linha da fila criada pelo motor: recria para o tick tentar de novo. Nada aqui pode derrubar a entrada.
+        begin
+          if coalesce(public.leads_dist_cfg() ->> 'modo', 'manual') <> 'manual' then
+            insert into public.leads_distribuicao (lead_aba, lead_id) values (v_aba, r ->> 'id')
+            on conflict (lead_aba, lead_id) where fechado_em is null do nothing;
+          end if;
+        exception when others then null;
+        end;
+        begin
+          perform public.leads_dist_aviso('motor_erro', jsonb_build_object('em', now(), 'erro', sqlerrm));
+        exception when others then null;
+        end;
       end;
     end if;
   end loop;
