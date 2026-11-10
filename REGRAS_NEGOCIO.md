@@ -4656,4 +4656,52 @@ Pedido do Rafael: "adicione os planos que estão na página 42 [...] de incremen
 - **Publicação (09/11 16:57, ok do Rafael):** painel no ar era `ce27b883…` (= oficial/main 85a4487); novo MD5 `c30a8541…`. Backup `~/deploy_backups/painel_clientes_apex_20261109_195659_antes_planos_pos_145.html` (hora do servidor em UTC).
 - **Reverter:** copiar o backup do painel.
 
-Próxima livre: §146 (§138.2 e §138.3 reservadas).
+## 146. Distribuição automática de leads por conversão + velocidade (09–10/11/2026)
+
+Pedido do Rafael: o lead vai sozinho para um consultor, com preferência para quem converte mais **e** para quem liga
+ou tabula rápido ("se liga nos primeiros 5 minutos, recebe o próximo"). Todo mundo do grupo recebe, uns mais e outros
+menos, e a preferência muda sozinha com o desempenho. Spec: `docs/superpowers/specs/2026-11-09-leads-distribuicao-automatica-design.md`;
+plano: `docs/superpowers/plans/2026-11-09-leads-distribuicao-automatica.md`. Entrega em 2 fases.
+
+- **Modos** (`config.leads_distribuicao.modo`, faixa "Distribuição" na Equipe): **Manual** (como antes: cada um pega nos
+  Livres), **Sombra** (o motor só anota em `leads_dist_sombra` para quem mandaria cada lead; ninguém recebe sozinho) e
+  **Automático** (o lead cai com dono). O "Pegar" nos Livres continua valendo em todos. "Bloquear todos" (§132) para o motor.
+- **Grupo:** `leads_equipe.pode_pegar`. **Na vez:** painel aberto (aviso a cada 1 min, `leads_presenca`; some depois de
+  3 min), sem Pausa (60 min, volta sozinha), dentro do expediente (seg–sex 13h–21h SP, editável) e **sem lead pendente**
+  (recebido há menos de 15 min, sem clique nem tabulação).
+- **Nota:** 50% conversão (leads pegos entre 16 e 2 dias atrás, peso 1,0 → 0,5 do mais novo ao mais velho, puxada para a
+  média do time com 10 leads de peso) + 50% velocidade (últimos 10 leads recebidos: atendidos em até 5 min, puxada para a
+  média com 3). **Fatia** do dia entre os que abriram o painel hoje: proporcional à nota, piso 15% e teto 40% (com 2 pessoas
+  divide igual).
+- **Motor** (`leads_distribuir`, um por vez com trava): o lead vai para quem está mais atrasado na própria fatia hoje
+  (empate: quem recebeu há mais tempo). Ninguém na vez ou fora do expediente → fica nos Livres e numa fila; o tick tenta de
+  minuto em minuto (lead mais novo primeiro).
+- **Atendeu:** clique em Ligar (`registrar_contato_lead` 'ligar' → gatilho em `leads_contatos`) ou tabulação (gatilho em
+  `leads.classificado_em`) dão crédito na hora; o tick confirma pelo ProContact (ligação para o telefone do lead pelo usuário
+  de telefonia do consultor até 20 min depois). Sem ligação → "clicou e não ligou" na Equipe. Robô parado há 30 min: não
+  confirma nada e avisa. 24 h sem decisão: conta como atendido.
+- **Devolução (só Automático):** 15 min sem clique nem tabulação → o lead volta e vai na hora para o próximo da vez (nunca
+  para quem perdeu); depois de 2 devoluções fica nos Livres e aparece como aviso.
+- **Passar para / Devolver aos Livres** (gestor): fecha a entrega e não entra na nota nem nos recebidos.
+- **Histórico:** o motor grava `redistribuir` e a devolução automática grava `devolver`, ambos com `por` nulo e
+  `depois.auto = true` (a restrição de ação da tabela não tem ações novas). Ver pendência sobre `leads_dia` abaixo.
+- **Banco:** migrations `20261109120000_leads_dist_base.sql`, `…120100_leads_dist_notas.sql`, `…120200_leads_dist_motor.sql`,
+  `…120300_leads_dist_tick.sql` (reescreve `leads_entrada2`, `leads_pegar` e `leads_redistribuir` só acrescentando os ganchos),
+  `…120400_leads_dist_painel.sql` (`leads_dist_equipe`, `leads_dist_config`) e `…120500_leads_dist_cron.sql` (job
+  `leads-dist-tick`, `* * * * *`). Conferências `supabase/tests/leads_dist_*_check.sql` (montar com
+  `supabase/tests/leads_dist_montar.py`; tudo desfeito). Teste do painel: `test_leads_distribuicao.js`.
+- **Voltar atrás:** Manual na Equipe (efeito imediato). Para desligar de vez: `select cron.unschedule('leads-dist-tick');`.
+
+### 146.1 Banco + Sombra + Equipe (10/11/2026)
+
+- Equipe ganha a faixa **Distribuição** (Manual / Sombra; Automático desabilitado até a §146.2), Ajustes (peso, piso, teto,
+  prazos) e a tabela por consultor (agora, fatia, recebidos, rápidos x de 10, conversão 14 d, devolvidos, clicou e não ligou,
+  sombra "teria × recebeu"). Consultor: nada muda na tela (o painel só manda a presença).
+- Revisão final (opus): corrigidos fila perdida quando o motor falha, sombra contando as próprias escolhas (relatório
+  comparável), sombra sem fila infinita, troca de modo fecha a fila antiga (Livres antigos não vão para o motor), telefonia
+  vazia ou com espaço, clique registrado em dobro e ajuste vazio virando 0.
+- **Pendências para a §146.2:** tela do consultor (Sua vez, Pausa, cronômetro, seus números, "por que foi para ele");
+  `leads_dia` filtrar `por is not null` antes de ligar o Automático; menores adiados no ledger
+  `.superpowers/sdd/2026-11-09-leads-distribuicao-automatica/progress.md`.
+
+Próxima livre: §147 (§138.2 e §138.3 reservadas).
