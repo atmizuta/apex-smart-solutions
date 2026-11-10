@@ -4707,4 +4707,27 @@ plano: `docs/superpowers/plans/2026-11-09-leads-distribuicao-automatica.md`. Ent
   `leads_dia` filtrar `por is not null` antes de ligar o Automático; menores adiados no ledger
   `.superpowers/sdd/2026-11-09-leads-distribuicao-automatica/progress.md`.
 
-Próxima livre: §147 (§138.2 e §138.3 reservadas).
+## 147. Meus leads: alterar o CNPJ do lead na ficha (10/11/2026)
+
+Pedido do Rafael: "preciso que todos os consultores tenham uma opção de alterar o cnpj na ficha [...] na aba conferir neo,
+alguns clientes sobem o cnpj errado ou acabam preferindo subir em outro cnpj". Em 10/11, 147 de 2.139 leads com dono
+estavam com CNPJ vazio ou com tamanho errado. Spec: `docs/superpowers/specs/2026-11-10-alterar-cnpj-design.md`.
+
+- **Onde:** ficha do lead, linha do CNPJ: `Copiar` + **`Alterar`** (sem CNPJ: **`Adicionar`**). Abre um bloco com o CNPJ
+  novo (máscara ao digitar) e o motivo: "Cliente digitou errado", "Cliente fechou em outro CNPJ" ou Outro (texto, 3+ letras).
+- **Quem pode:** o dono do lead e admin/supervisor. Lead livre, sem dono ou apagado: ninguém. Agência: não.
+- **Validação:** 14 dígitos com dígito verificador válido, sem sequência repetida e diferente do atual; conferida no
+  navegador e de novo no banco. Gravado só com dígitos. CNPJ alfanumérico (Receita, 07/2026) fica fora: todo o cruzamento
+  com o NEO usa só dígitos.
+- **Efeito:** o CNPJ novo substitui o antigo em tudo que cruza pelo `leads.cnpj` (Conferir com NEO, venda no NEO da ficha,
+  Kanban, Mesa de biometria, comparativo do mailing, discador no histórico). A ficha **não reabre** (status/OBS em edição
+  ficam); a linha, o selo da Receita (§128) e o Histórico ("Trocou o CNPJ: antes → depois · motivo") atualizam, e a
+  Conferir com NEO recarrega se já tiver sido aberta. A planilha-espelho recebe o CNPJ novo. A entrada de leads
+  (`leads_entrada2`, `on conflict do nothing`) não desfaz a troca.
+- **Banco:** migration `20261110120000_leads_alterar_cnpj.sql` (sem DROP): tabela `leads_cnpj_trocas` (RLS sem policy,
+  só via função), `leads_cnpj_valido(text)` (pura), `leads_alterar_cnpj(aba, id, cnpj, motivo)` (secdef; fora de
+  PUBLIC/anon) e `leads_ficha_detalhes` igual à do ar + as trocas no histórico. Não usa `leads_historico` (a trava da
+  coluna `acao` só muda com DROP do CHECK).
+- **Testes:** `test_alterar_cnpj.js` (38); conferência `supabase/tests/leads_alterar_cnpj_check.sql` (desfaz tudo).
+
+Próxima livre: §148 (§138.2 e §138.3 reservadas).
