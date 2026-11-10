@@ -5252,20 +5252,13 @@ function kbAbrirProContact(){
   if(vazia){ try { w.opener = null; } catch(_e) {} w.location.href = KB_PROCONTACT_URL; }
   try { w.focus(); } catch(_e) {}
 }
-async function kbLigar(telefone, lead){
+async function kbLigar(telefone){
   const num = kbTelCopiar(telefone);
   if(!num) return;
   let copiou = false;   // copia antes de abrir a aba: depois o painel perde o foco e o navegador recusa a cópia
   try { await (kbFichaNo().ownerDocument.defaultView || window).navigator.clipboard.writeText(num); copiou = true; } catch(_e) {}
   kbAbrirProContact();
   mostrarAviso(copiou ? `Número ${kbFoneBR(num)} copiado. Cole no ProContact para ligar.` : `Ligue para ${kbFoneBR(num)} no ProContact.`, copiou ? 'ok' : 'info');
-  kbRegistrarLigar(lead);
-}
-// §146: o clique no telefone do próprio lead conta como "atendeu" na distribuição (registrar_contato_lead → leads_contatos;
-// o gatilho leads_dist_clicou marca a entrega). Gestor olhando lead de outro não registra. Não bloqueia nem avisa erro.
-function kbRegistrarLigar(lead){
-  if(!lead || !lead.aba || !lead.lead_id || !currentUser || lead.dono_id !== currentUser.id) return;
-  ppSeguro(() => sb.rpc('registrar_contato_lead', { p_aba: lead.aba, p_lead_id: lead.lead_id, p_canal: 'ligar' }));
 }
 // §146: presença no painel (a cada 1 min com o painel aberto, em qualquer aba). Só quem é da equipe de leads.
 async function kbPresencaPing(acao){
@@ -5436,7 +5429,7 @@ document.getElementById('kbBoard').addEventListener('click', (e) => {
   else if(e.target.closest('[data-kb-redistribuir]')) kbAbrirRedistribuir(aba, id);
   else if(e.target.closest('[data-kb-contato]')){
     if(e.target.closest('[data-kb-whats]')){ e.preventDefault(); kbAbrirWhats(kbAcharLead(aba, id), card.dataset.col); }
-    if(e.target.closest('[data-kb-ligar]')){ e.preventDefault(); const l = kbAcharLead(aba, id); if(l) kbLigar(l.telefone, l); }
+    if(e.target.closest('[data-kb-ligar]')){ e.preventDefault(); const l = kbAcharLead(aba, id); if(l) kbLigar(l.telefone); }
     ppSeguro(() => sb.rpc('registrar_contato_lead', { p_aba: aba, p_lead_id: id, p_canal: e.target.closest('[data-kb-contato]').dataset.kbContato }));
   }
   else if(!e.target.closest('a,button')){   // clique no cartão abre a ficha; ↑ ↓ andam pela coluna
@@ -5603,7 +5596,7 @@ kbFichaNo().addEventListener('click', async (e) => {
     return;
   }
   const ct = e.target.closest('[data-kb-contato]');
-  if(ct && ct.hasAttribute('data-kb-ligar')){ e.preventDefault(); if(kbEstado.fichaLead) kbLigar(kbEstado.fichaLead.telefone, kbEstado.fichaLead); }
+  if(ct && ct.hasAttribute('data-kb-ligar')){ e.preventDefault(); if(kbEstado.fichaLead) kbLigar(kbEstado.fichaLead.telefone); }
   if(ct) ppSeguro(() => sb.rpc('registrar_contato_lead', { p_aba: alvo.aba, p_lead_id: alvo.id, p_canal: ct.dataset.kbContato }));
 });
 kbFichaNo().addEventListener('keydown', (e) => {
@@ -6183,7 +6176,7 @@ async function kbDistModo(modo){
   if(kbEstado.aba === 'equipe') kbRenderEquipe();
 }
 async function kbDistSalvarCfg(f){
-  const n = (v) => Number(String(v).replace(',', '.'));
+  const n = (v) => String(v == null ? '' : v).trim() === '' ? NaN : Number(String(v).replace(',', '.'));   // vazio não vira 0 (revisão M-6)
   const p = { peso_conversao: n(f.peso) / 100, piso: n(f.piso) / 100, teto: n(f.teto) / 100, prazo_atender_min: Math.round(n(f.atender)), prazo_devolver_min: Math.round(n(f.devolver)) };
   if(Object.values(p).some(v => !isFinite(v))){ mostrarAviso('Preencha todos os ajustes com números.', 'erro'); return; }
   const r = await ppSeguro(() => sb.rpc('leads_dist_config', { p }));
@@ -6368,7 +6361,7 @@ document.getElementById('kbTodos').addEventListener('click', (e) => {
     e.preventDefault(); e.stopPropagation();
     const [aba, id] = ct.closest('tr[data-kb-abrir]').dataset.kbAbrir.split('|');
     const l = (kbEstado.todos || []).find(x => x.aba === aba && x.lead_id === id);
-    if(l && ct.hasAttribute('data-kb-ligar')) kbLigar(l.telefone, l);
+    if(l && ct.hasAttribute('data-kb-ligar')) kbLigar(l.telefone);
     if(l && ct.hasAttribute('data-kb-whats')) kbAbrirWhats(l, kbColunaDoLead(l));
     ppSeguro(() => sb.rpc('registrar_contato_lead', { p_aba: aba, p_lead_id: id, p_canal: ct.dataset.kbContato }));
     return;

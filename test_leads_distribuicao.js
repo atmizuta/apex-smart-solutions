@@ -24,16 +24,12 @@ rodar(`
   kbParar();
   eq(kbEstado.timerPresenca, null, 'kbParar desliga o timer de presença');
 
-  // ==== clique no telefone registra "ligar" só no lead do próprio consultor ====
+  // ==== clique no telefone: o registro 'ligar' é feito pelo data-kb-contato dos botões; kbLigar NÃO chama de novo (revisão I-5) ====
   window.__rpcCalls.length = 0;
   window.__rpcRespostas.registrar_contato_lead = { data: null, error: null };
   await kbLigar('(11) 90000-0001', { aba: 'NOVEMBRO', lead_id: 'L1', dono_id: 'c1', telefone: '(11) 90000-0001' });
   await espera();
-  eq(chamadas('registrar_contato_lead').map(c => c.args), [{ p_aba: 'NOVEMBRO', p_lead_id: 'L1', p_canal: 'ligar' }], 'lead meu: registra ligar');
-  await kbLigar('(11) 90000-0002', { aba: 'NOVEMBRO', lead_id: 'L2', dono_id: 'outro', telefone: '(11) 90000-0002' });
-  await kbLigar('(11) 90000-0003');
-  await espera();
-  eq(chamadas('registrar_contato_lead').length, 1, 'lead de outro ou sem lead: não registra');
+  eq(chamadas('registrar_contato_lead').length, 0, 'kbLigar não duplica o registro do clique');
 
   // ==== faixa Distribuição ====
   eq(kbFaixaDistribHtml(null), '', 'sem dados (banco sem a função): faixa some');
@@ -74,5 +70,10 @@ rodar(`
   window.__rpcRespostas.leads_dist_config = { data: null, error: { message: 'piso precisa ser menor que o teto', code: '22023' } };
   await kbDistSalvarCfg({ peso: '50', piso: '50', teto: '40', atender: '5', devolver: '15' });
   assert(avisos().includes('piso precisa ser menor que o teto'), 'mostra o motivo da recusa');
+  // revisão M-6: campo vazio não vira 0
+  window.__rpcCalls.length = 0;
+  await kbDistSalvarCfg({ peso: '', piso: '15', teto: '40', atender: '5', devolver: '15' });
+  eq(chamadas('leads_dist_config').length, 0, 'campo vazio não é enviado');
+  assert(avisos().includes('Preencha todos os ajustes'), 'avisa para preencher');
   fim();
 `);
