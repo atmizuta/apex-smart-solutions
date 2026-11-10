@@ -4700,6 +4700,9 @@ plano: `docs/superpowers/plans/2026-11-09-leads-distribuicao-automatica.md`. Ent
 - Revisão final (opus): corrigidos fila perdida quando o motor falha, sombra contando as próprias escolhas (relatório
   comparável), sombra sem fila infinita, troca de modo fecha a fila antiga (Livres antigos não vão para o motor), telefonia
   vazia ou com espaço, clique registrado em dobro e ajuste vazio virando 0.
+- **No ar (10/11/2026, ok do Rafael):** banco aplicado (migrations 120000–120500, modo manual, job `leads-dist-tick`);
+  conferências passaram no banco real. Painel publicado às 16:21 (MD5 `d5e48c95…`; antes `3de18eb1…` = oficial 759a400).
+  Backup: `~/deploy_backups/painel_clientes_apex_20261110_192150_antes_distribuicao.html` (hora do servidor, UTC).
 - **Pendências para a §146.2:** tela do consultor (Sua vez, Pausa, cronômetro, seus números, "por que foi para ele");
   `leads_dia` filtrar `por is not null` antes de ligar o Automático; menores adiados no ledger
   `.superpowers/sdd/2026-11-09-leads-distribuicao-automatica/progress.md`.
