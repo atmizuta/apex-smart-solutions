@@ -1087,6 +1087,11 @@
   .kbEqPegar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 16px;margin-top:var(--space-3);border-radius:var(--radius-lg);background:var(--ml-surface);border-left:4px solid var(--ml-ok);color:var(--ml-ink);}
   .kbEqPegar.bloq{background:var(--ml-late-soft);border-left-color:var(--ml-late);}
   .kbEqPegar b{display:block;font-weight:600;}
+  .kbEqDist .kbSeg{margin-left:auto;}
+  .kbDistAlerta{color:var(--ml-late);}
+  .kbDistCfg{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:flex-end;padding:12px 16px;background:var(--ml-surface);border-radius:var(--radius-lg);margin-top:var(--space-2);}
+  .kbDistCfg label{display:flex;flex-direction:column;font-size:var(--fs-xs);color:var(--ml-ink-2);gap:4px;}
+  .kbDistCfg input{width:90px;}
   .kbEqPegar small{display:block;font-size:var(--fs-sm);color:var(--ml-ink-2);}
   .kbEqPegar .kbBtn{margin-left:auto;}
   .kbPegaChave{display:inline-flex;align-items:center;gap:6px;margin-top:4px;padding:0;border:0;background:none;font:inherit;font-size:var(--fs-xs);color:var(--ml-ink-3);cursor:pointer;}
@@ -5050,7 +5055,7 @@ async function kbCnpjVerificar(aba, id){
   const status = r && r.error && r.error.context ? r.error.context.status : null;
   kbCnpjPintar({ consulta: antes, erro: kbCnpjMsgErro(status) });
 }
-const kbEstado = { geracao: 0, naEquipe: false, modo: 'planilha', versao: '', leads: [], opcoes: [], dono: '', timer: null, verTodosLivres: false, soDivergencias: false, classAlvo: null, consultores: [], loteSel: new Set(), passar: null, equipeModo: null, equipeDia: null, diaEquipe: null, diaDisponivel: null, relatorio: null };
+const kbEstado = { geracao: 0, naEquipe: false, modo: 'planilha', versao: '', leads: [], opcoes: [], dono: '', timer: null, verTodosLivres: false, soDivergencias: false, classAlvo: null, consultores: [], loteSel: new Set(), passar: null, equipeModo: null, equipeDia: null, diaEquipe: null, diaDisponivel: null, relatorio: null, timerPresenca: null, presenca: null, distrib: null, distCfgAberta: false, distMudando: false };
 function kbGestor(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor') && veAbasDaApex(); }
 // Antes da virada (config.leads_modo = 'planilha') só o admin vê a aba, para conferir; depois, equipe de leads + gestores.
 function kbPodeVer(){
@@ -5247,13 +5252,27 @@ function kbAbrirProContact(){
   if(vazia){ try { w.opener = null; } catch(_e) {} w.location.href = KB_PROCONTACT_URL; }
   try { w.focus(); } catch(_e) {}
 }
-async function kbLigar(telefone){
+async function kbLigar(telefone, lead){
   const num = kbTelCopiar(telefone);
   if(!num) return;
   let copiou = false;   // copia antes de abrir a aba: depois o painel perde o foco e o navegador recusa a cópia
   try { await (kbFichaNo().ownerDocument.defaultView || window).navigator.clipboard.writeText(num); copiou = true; } catch(_e) {}
   kbAbrirProContact();
   mostrarAviso(copiou ? `Número ${kbFoneBR(num)} copiado. Cole no ProContact para ligar.` : `Ligue para ${kbFoneBR(num)} no ProContact.`, copiou ? 'ok' : 'info');
+  kbRegistrarLigar(lead);
+}
+// §146: o clique no telefone do próprio lead conta como "atendeu" na distribuição (registrar_contato_lead → leads_contatos;
+// o gatilho leads_dist_clicou marca a entrega). Gestor olhando lead de outro não registra. Não bloqueia nem avisa erro.
+function kbRegistrarLigar(lead){
+  if(!lead || !lead.aba || !lead.lead_id || !currentUser || lead.dono_id !== currentUser.id) return;
+  ppSeguro(() => sb.rpc('registrar_contato_lead', { p_aba: lead.aba, p_lead_id: lead.lead_id, p_canal: 'ligar' }));
+}
+// §146: presença no painel (a cada 1 min com o painel aberto, em qualquer aba). Só quem é da equipe de leads.
+async function kbPresencaPing(acao){
+  if(!kbEstado.naEquipe) return null;
+  const r = await ppSeguro(() => sb.rpc('leads_presenca_ping', { p_acao: acao || null }));
+  if(r && !r.error && r.data) kbEstado.presenca = r.data;
+  return r && !r.error ? r.data : null;
 }
 function kbStSlug(st){ return String(st || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
 function kbStChip(st){ return `<span class="kbSt" data-st="${escapeHtml(kbStSlug(st))}">${escapeHtml(st)}</span>`; }
@@ -5365,6 +5384,9 @@ async function kbVerificarVersao(){
 function kbAgendar(){
   clearInterval(kbEstado.timer);
   clearInterval(kbEstado.timerAlertas);
+  clearInterval(kbEstado.timerPresenca);
+  kbPresencaPing();
+  kbEstado.timerPresenca = setInterval(() => kbPresencaPing(), 60000);   // §146: presença para a distribuição (qualquer aba)
   let voltas = 0;
   const ativa = () => document.getElementById('panel-meusleads').classList.contains('active');
   kbEstado.timer = setInterval(() => {
@@ -5385,8 +5407,9 @@ function kbAgendar(){
 }
 // Sair (ou perder o acesso): para os timers e zera alertas, contador e fila.
 function kbParar(){
-  clearInterval(kbEstado.timer); clearInterval(kbEstado.timerAlertas);
+  clearInterval(kbEstado.timer); clearInterval(kbEstado.timerAlertas); clearInterval(kbEstado.timerPresenca);
   kbEstado.timer = null; kbEstado.timerAlertas = null;
+  kbEstado.timerPresenca = null; kbEstado.presenca = null; kbEstado.distrib = null;
   kbEstado.aba = null; kbEstado.hoje = null; kbEstado.filaAba = 'fazer'; kbEstado.hojeSel = null; kbEstado.filaHoje = []; kbEstado.notificados = new Set(); kbEstado.alertas = [];
   kbEstado.leadNovoIniciado = false;
   if(kbEstado.passar) kbPassarFechar(); kbEstado.loteSel = new Set(); kbEstado.equipeLista = null;
@@ -5413,7 +5436,7 @@ document.getElementById('kbBoard').addEventListener('click', (e) => {
   else if(e.target.closest('[data-kb-redistribuir]')) kbAbrirRedistribuir(aba, id);
   else if(e.target.closest('[data-kb-contato]')){
     if(e.target.closest('[data-kb-whats]')){ e.preventDefault(); kbAbrirWhats(kbAcharLead(aba, id), card.dataset.col); }
-    if(e.target.closest('[data-kb-ligar]')){ e.preventDefault(); const l = kbAcharLead(aba, id); if(l) kbLigar(l.telefone); }
+    if(e.target.closest('[data-kb-ligar]')){ e.preventDefault(); const l = kbAcharLead(aba, id); if(l) kbLigar(l.telefone, l); }
     ppSeguro(() => sb.rpc('registrar_contato_lead', { p_aba: aba, p_lead_id: id, p_canal: e.target.closest('[data-kb-contato]').dataset.kbContato }));
   }
   else if(!e.target.closest('a,button')){   // clique no cartão abre a ficha; ↑ ↓ andam pela coluna
@@ -5580,7 +5603,7 @@ kbFichaNo().addEventListener('click', async (e) => {
     return;
   }
   const ct = e.target.closest('[data-kb-contato]');
-  if(ct && ct.hasAttribute('data-kb-ligar')){ e.preventDefault(); if(kbEstado.fichaLead) kbLigar(kbEstado.fichaLead.telefone); }
+  if(ct && ct.hasAttribute('data-kb-ligar')){ e.preventDefault(); if(kbEstado.fichaLead) kbLigar(kbEstado.fichaLead.telefone, kbEstado.fichaLead); }
   if(ct) ppSeguro(() => sb.rpc('registrar_contato_lead', { p_aba: alvo.aba, p_lead_id: alvo.id, p_canal: ct.dataset.kbContato }));
 });
 kbFichaNo().addEventListener('keydown', (e) => {
@@ -6055,6 +6078,7 @@ async function kbCarregarEquipe(notificar){
     ppSeguro(() => sb.rpc('leads_alertas', { p_dono: null })),   // a Equipe é sempre da equipe toda, mesmo com consultor no seletor
     kbCarregarAlertas(!!notificar),
     kbCarregarBloqueio(),
+    kbCarregarDistrib(),
   ]);
   let atv = at;
   kbEstado.atividadeV2 = !!(at && !at.error);
@@ -6105,6 +6129,69 @@ async function kbDefinirPodePegar(dono){
   a.pode_pegar = novo;
   mostrarAviso(`${String(a.nome || '').split(/\s+/)[0]} ${novo ? 'agora pega leads' : 'não pega mais leads (os que já tem continuam)'}.`, 'ok');
   kbRenderEquipe();
+}
+// §146.1: faixa "Distribuição" (Manual / Sombra; Automático chega na §146.2), avisos e tabela por consultor.
+const KB_DIST_ESTADO = { na_vez: 'Na vez', pendente: 'Aguardando ligar', pausa: 'Em pausa', offline: 'Fora do painel', fora: 'Fora do horário' };
+const KB_DIST_MODO = { manual: 'Manual', sombra: 'Sombra', automatico: 'Automático' };
+async function kbCarregarDistrib(){
+  const r = await ppSeguro(() => sb.rpc('leads_dist_equipe', { p_dias: 1 }));
+  kbEstado.distrib = r && !r.error ? r.data : null;   // banco sem a função: a faixa some
+}
+function kbPct(x){ return x === null || x === undefined ? '—' : `${Math.round(Number(x) * 100)}%`; }
+function kbFaixaDistribHtml(d){
+  if(!d || !d.cfg) return '';
+  const modo = d.cfg.modo || 'manual', av = d.aviso || {}, cons = Array.isArray(d.consultores) ? d.consultores : [];
+  const det = modo === 'manual' ? 'Cada consultor pega nos Livres, como hoje. Os números abaixo já medem a velocidade de quem pega.'
+    : modo === 'sombra' ? 'Ninguém recebe sozinho: o sistema só anota para quem mandaria cada lead (coluna "teria").'
+    : 'O lead vai sozinho para quem está na vez.';
+  const btn = (m) => `<button type="button" class="kbBtn kbBtnSm ${m === modo ? 'kbBtnP' : 'kbBtnQ'}" data-kb-dist-modo="${m}"${m === 'automatico' ? ' disabled title="Liberado na próxima etapa (§146.2)"' : ''}>${KB_DIST_MODO[m]}</button>`;
+  const alertas = [];
+  if(av.robo_parado !== undefined) alertas.push('Robô do ProContact sem importar há mais de 30 min: confirmação das ligações suspensa (ninguém perde ponto).');
+  if(av.motor_erro && av.motor_erro.em && Date.now() - kbMs(av.motor_erro.em) < 86400000) alertas.push('A distribuição deu erro há pouco; os leads ficaram nos Livres.');
+  const parados = (Array.isArray(av.parados) ? av.parados : []).filter(p => p && p.em && Date.now() - kbMs(p.em) < 86400000).length;
+  if(parados) alertas.push(parados === 1 ? '1 lead parou de circular (devolvido 2 vezes) e está nos Livres.' : `${parados} leads pararam de circular (devolvidos 2 vezes) e estão nos Livres.`);
+  const linhas = cons.map(c => `<tr><td>${escapeHtml(c.nome || '')}</td><td>${escapeHtml(KB_DIST_ESTADO[c.estado] || c.estado || '')}</td>`
+    + `<td class="r">${kbPct(c.fatia)}</td><td class="r">${Number(c.recebidos_hoje) || 0}</td>`
+    + `<td class="r">${Number(c.vel_ok) || 0} de ${Number(c.vel_n) || 0}</td><td class="r">${kbPct(c.conv)}</td>`
+    + `<td class="r">${Number(c.devolvidos_hoje) || 0}</td><td class="r">${Number(c.clicou_nao_ligou) ? `<b class="kbDistAlerta">${Number(c.clicou_nao_ligou)}</b>` : '0'}</td>`
+    + `<td class="r">${Number(c.teria) || 0} teria · ${Number(c.recebeu) || 0} recebeu</td></tr>`).join('');
+  const cfgForm = kbEstado.distCfgAberta ? `<form class="kbDistCfg" data-kb-dist-form>`
+    + `<label>Peso da conversão (%) <input name="peso" type="number" min="0" max="100" value="${Math.round((Number(d.cfg.peso_conversao) || 0) * 100)}"></label>`
+    + `<label>Piso (%) <input name="piso" type="number" min="0" max="30" value="${Math.round((Number(d.cfg.piso) || 0) * 100)}"></label>`
+    + `<label>Teto (%) <input name="teto" type="number" min="20" max="100" value="${Math.round((Number(d.cfg.teto) || 0) * 100)}"></label>`
+    + `<label>Atender em (min) <input name="atender" type="number" min="1" max="60" value="${Number(d.cfg.prazo_atender_min) || 5}"></label>`
+    + `<label>Devolver em (min) <input name="devolver" type="number" min="2" max="120" value="${Number(d.cfg.prazo_devolver_min) || 15}"></label>`
+    + `<button type="submit" class="kbBtn kbBtnSm kbBtnP">Salvar</button></form>` : '';
+  return `<div class="kbEqPegar kbEqDist"><span><b>Distribuição: ${KB_DIST_MODO[modo] || modo}</b><small>${det}${d.fila ? ` ${Number(d.fila)} na fila.` : ''}</small></span>`
+    + `<span class="kbSeg">${btn('manual')}${btn('sombra')}${btn('automatico')}</span>`
+    + `<button type="button" class="kbBtn kbBtnSm kbBtnG" data-kb-dist-cfg>${kbEstado.distCfgAberta ? 'Fechar ajustes' : 'Ajustes'}</button></div>`
+    + cfgForm
+    + (alertas.length ? `<div class="kbEqAlertas">${alertas.map(t => `<p class="kbEqAlerta">${escapeHtml(t)}</p>`).join('')}</div>` : '')
+    + `<div class="kbEqTabela"><table><thead><tr><th>Consultor</th><th>Agora</th><th class="r">Fatia hoje</th><th class="r">Recebidos hoje</th>`
+    + `<th class="r">Rápidos (5 min)</th><th class="r">Conversão 14 d</th><th class="r">Devolvidos hoje</th><th class="r">Clicou e não ligou (14 d)</th><th class="r">Sombra hoje</th></tr></thead>`
+    + `<tbody>${linhas || '<tr><td colspan="9" class="kbMuted">Ninguém pega leads agora.</td></tr>'}</tbody></table>`
+    + `<p class="kbEqLegenda">Fatia: parte dos leads do dia que cabe a cada um (nota = metade conversão, metade velocidade; mínimo ${kbPct(d.cfg.piso)}, máximo ${kbPct(d.cfg.teto)}). Rápidos: dos últimos 10 leads, quantos ligou ou tabulou em até ${Number(d.cfg.prazo_atender_min) || 5} min. Clicou e não ligou: clique no telefone sem ligação no ProContact.</p></div>`;
+}
+async function kbDistModo(modo){
+  if(modo === 'automatico' || kbEstado.distMudando || !KB_DIST_MODO[modo]) return;   // §146.1: automático só na §146.2
+  kbEstado.distMudando = true;
+  const r = await ppSeguro(() => sb.rpc('leads_dist_config', { p: { modo } }));
+  kbEstado.distMudando = false;
+  if(!r || r.error){ mostrarAviso((r && r.error && r.error.message) || 'Não foi possível mudar a distribuição agora.', 'erro'); return; }
+  mostrarAviso(`Distribuição em ${KB_DIST_MODO[modo]}.`, 'ok');
+  await kbCarregarDistrib();
+  if(kbEstado.aba === 'equipe') kbRenderEquipe();
+}
+async function kbDistSalvarCfg(f){
+  const n = (v) => Number(String(v).replace(',', '.'));
+  const p = { peso_conversao: n(f.peso) / 100, piso: n(f.piso) / 100, teto: n(f.teto) / 100, prazo_atender_min: Math.round(n(f.atender)), prazo_devolver_min: Math.round(n(f.devolver)) };
+  if(Object.values(p).some(v => !isFinite(v))){ mostrarAviso('Preencha todos os ajustes com números.', 'erro'); return; }
+  const r = await ppSeguro(() => sb.rpc('leads_dist_config', { p }));
+  if(!r || r.error){ mostrarAviso((r && r.error && r.error.message) || 'Não foi possível salvar os ajustes.', 'erro'); return; }
+  mostrarAviso('Ajustes da distribuição salvos.', 'ok');
+  kbEstado.distCfgAberta = false;
+  await kbCarregarDistrib();
+  if(kbEstado.aba === 'equipe') kbRenderEquipe();
 }
 // §126.3: Equipe — números do topo, faixa de atenção, tabela com semáforo escrito e mapa por hora, lista com seleção em lote, alertas em três blocos.
 function kbRenderEquipe(){
@@ -6187,7 +6274,7 @@ function kbRenderEquipe(){
     return `<div class="kbEqBloco"><h3>${titulo} <span>${it.length}</span></h3>${linhasAl || '<p class="kbMuted">Nada aqui.</p>'}${verTodos}</div>`;
   };
   const alertas = `<div class="kbEqAlertas">${bloco('sem_contato', 'Pegos e sem contato', true)}${bloco('retorno_vencido', 'Retornos atrasados', false)}${bloco('perda_suspeita', 'Perdidos sem nenhuma ligação', false)}</div>`;
-  document.getElementById('kbEquipe').innerHTML = kbFaixaPegarHtml(kbEstado.pegarBloqueio, ativ, agoraMs) + topo + faixas + controles + tabelaUsada + lista + lote + alertas;
+  document.getElementById('kbEquipe').innerHTML = kbFaixaPegarHtml(kbEstado.pegarBloqueio, ativ, agoraMs) + kbFaixaDistribHtml(kbEstado.distrib) + topo + faixas + controles + tabelaUsada + lista + lote + alertas;
 }
 const KB_EQ_TITULOS = { livres: 'Livres', sem_contato: 'Sem contato', andamento: 'Em andamento', parados3: 'Parados 3+ dias', retorno_atrasado: 'Retornos atrasados', convertido: 'Convertidos no mês' };
 async function kbCarregarTodos(){
@@ -6281,7 +6368,7 @@ document.getElementById('kbTodos').addEventListener('click', (e) => {
     e.preventDefault(); e.stopPropagation();
     const [aba, id] = ct.closest('tr[data-kb-abrir]').dataset.kbAbrir.split('|');
     const l = (kbEstado.todos || []).find(x => x.aba === aba && x.lead_id === id);
-    if(l && ct.hasAttribute('data-kb-ligar')) kbLigar(l.telefone);
+    if(l && ct.hasAttribute('data-kb-ligar')) kbLigar(l.telefone, l);
     if(l && ct.hasAttribute('data-kb-whats')) kbAbrirWhats(l, kbColunaDoLead(l));
     ppSeguro(() => sb.rpc('registrar_contato_lead', { p_aba: aba, p_lead_id: id, p_canal: ct.dataset.kbContato }));
     return;
@@ -6379,7 +6466,17 @@ document.addEventListener('keydown', (e) => {
   document.getElementById('kbBusca').focus();
 });
 document.getElementById('kbAbas').addEventListener('click', (e) => { const b = e.target.closest('[data-kb-aba]'); if(b) kbTrocarAba(b.dataset.kbAba); });
+document.getElementById('kbEquipe').addEventListener('submit', function(e){
+  const f = e.target.closest('[data-kb-dist-form]');
+  if(!f) return;
+  e.preventDefault();
+  const v = (n) => (f.elements[n] || {}).value;
+  kbDistSalvarCfg({ peso: v('peso'), piso: v('piso'), teto: v('teto'), atender: v('atender'), devolver: v('devolver') });
+});
 document.getElementById('panel-meusleads').addEventListener('click', (e) => {
+  const dm = e.target.closest('[data-kb-dist-modo]');
+  if(dm){ if(!dm.disabled) kbDistModo(dm.dataset.kbDistModo); return; }
+  if(e.target.closest('[data-kb-dist-cfg]')){ kbEstado.distCfgAberta = !kbEstado.distCfgAberta; kbRenderEquipe(); return; }
   const pb = e.target.closest('[data-kb-pegar-bloquear]');
   if(pb){ kbPegarBloquear(pb.dataset.kbPegarBloquear === '1'); return; }
   const pc = e.target.closest('[data-kb-pode-pegar]');
