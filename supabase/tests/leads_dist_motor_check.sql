@@ -99,5 +99,16 @@ begin
   v_out := v_out || case when (select e ->> 'estado' from jsonb_array_elements(r -> 'consultores') e where (e ->> 'consultor_id')::uuid = v_c) is null
                           or (select e ->> 'estado' from jsonb_array_elements(r -> 'consultores') e where (e ->> 'consultor_id')::uuid = v_c) = 'offline'
                      then '14 ok' else '14 FALHOU ' || r::text end;
+  -- 15. (revisão I-2/I-3) sombra conta a escolha como recebida e pendente: 3 leads seguidos não vão todos para a mesma pessoa;
+  --     a linha da fila fecha quando a sombra é anotada
+  update public.leads_distribuicao set atendido_em = now() where atendido_em is null and consultor_id is not null;
+  perform pg_temp.ld_cfg('{"modo":"sombra"}');
+  perform pg_temp.ld_lead('ls-1', 31); perform pg_temp.ld_lead('ls-2', 32); perform pg_temp.ld_lead('ls-3', 33);
+  perform public.leads_distribuir('TESTE DIST', 'ls-1'); perform public.leads_distribuir('TESTE DIST', 'ls-2');
+  r := public.leads_distribuir('TESTE DIST', 'ls-3');
+  v_out := v_out || case when (select count(distinct escolhido) from public.leads_dist_sombra where lead_id in ('ls-1', 'ls-2')) = 2
+                          and r ->> 'motivo' = 'ninguem_na_vez'
+                          and not exists (select 1 from public.leads_distribuicao where lead_id in ('ls-1', 'ls-2') and fechado_em is null)
+                     then '; 15 ok' else '; 15 FALHOU ' || r::text end;
   raise exception 'RESULTADO: %', v_out;
 end $$;

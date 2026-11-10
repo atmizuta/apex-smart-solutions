@@ -46,5 +46,10 @@ begin
   insert into public.leads_distribuicao (lead_aba, lead_id) values ('TESTE DIST', 'lp-2');
   r := public.leads_dist_equipe(1);
   v_out := v_out || case when r -> 'cfg' ->> 'modo' = 'sombra' and (r ->> 'fila')::int >= 1 and r ? 'aviso' and r ? 'no_expediente' then '6 ok' else '6 FALHOU ' || r::text end;
+  -- 7. (revisão I-3) trocar de modo fecha a fila antiga; salvar sem trocar o modo não fecha
+  r := public.leads_dist_config('{"piso":0.12}');
+  v_out := v_out || case when exists (select 1 from public.leads_distribuicao where lead_id = 'lp-2' and consultor_id is null and fechado_em is null) then '; 7 ok' else '; 7 FALHOU (fechou sem trocar modo)' end;
+  r := public.leads_dist_config('{"modo":"automatico"}');
+  v_out := v_out || case when not exists (select 1 from public.leads_distribuicao where consultor_id is null and fechado_em is null) then '; 7b ok' else '; 7b FALHOU' end;
   raise exception 'RESULTADO: %', v_out;
 end $$;

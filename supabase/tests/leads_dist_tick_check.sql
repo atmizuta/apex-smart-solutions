@@ -80,7 +80,9 @@ begin
   perform pg_temp.ld_cfg('{"piso":"x"}');
   r := public.leads_entrada2(jsonb_build_array(jsonb_build_object('id', 'lt-9', 'criado_em_lead', now(), 'full_name', 'Lead Teste', 'phone_number', '(11) 90000-0039')), false, 'planilha');
   v_out := v_out || case when (r ->> 'inseridos')::int = 1 and (select dono_id from public.leads where id = 'lt-9') is null
-                          and (select valor::jsonb from public.config where chave = 'leads_distribuicao_aviso') ? 'motor_erro' then '9 ok; ' else '9 FALHOU ' || r::text || '; ' end;
+                          and (select valor::jsonb from public.config where chave = 'leads_distribuicao_aviso') ? 'motor_erro'
+                          and exists (select 1 from public.leads_distribuicao where lead_id = 'lt-9' and consultor_id is null and fechado_em is null)   -- revisão I-1
+                     then '9 ok; ' else '9 FALHOU ' || r::text || '; ' end;
   perform pg_temp.ld_cfg('{"piso":0.15}');
   -- 10. sombra: tick não sombreia de novo o mesmo lead nem atribui
   perform pg_temp.ld_cfg('{"modo":"sombra"}');
@@ -98,5 +100,20 @@ begin
   perform pg_temp.ld_cfg('{"expediente":{"dias":[1,2,3,4,5,6,7],"inicio":"00:00","fim":"24:00"}}');
   r := public.leads_dist_tick();
   v_out := v_out || case when (select dono_id from public.leads where id = 'lt-10') in (v_a, v_b) then '12 ok' else '12 FALHOU ' || r::text end;
+  -- 13. (revisão I-4) usuario_telefonia vazio = sem telefonia (confirma); espaço sobrando no usuário da ligação ainda casa
+  perform pg_temp.ld_cfg('{"modo":"manual"}');
+  update public.leads_equipe set usuario_telefonia = '' where profile_id = v_b;
+  perform pg_temp.ld_lead('lt-v', 44); perform pg_temp.ld_lead('lt-e', 45);
+  update public.leads set dono_id = v_b where id = 'lt-v';
+  update public.leads set dono_id = v_a where id = 'lt-e';
+  v_id := pg_temp.ld_entrega('lt-v', v_b, 'pegou', now() - interval '30 minutes');
+  v_idok := pg_temp.ld_entrega('lt-e', v_a, 'pegou', now() - interval '30 minutes');
+  update public.leads_distribuicao set atendido_em = now() - interval '28 minutes', sinal = 'clique' where id in (v_id, v_idok);
+  select coalesce(max(id), 0) + 1 into v_lig from public.ligacoes_manuais;
+  insert into public.ligacoes_manuais (id, usuario, telefone, chave_tel, gerada_em, atendida, importado_em)
+  values (v_lig, ' teste.dist.a ', '11900000045', public.chave_tel('(11) 90000-0045'), now() - interval '27 minutes', true, now());
+  perform public.leads_dist_tick();
+  v_out := v_out || case when (select confirmado from public.leads_distribuicao where id = v_id) is true
+                          and (select confirmado from public.leads_distribuicao where id = v_idok) is true then '; 13 ok' else '; 13 FALHOU' end;
   raise exception 'RESULTADO: %', v_out;
 end $$;
