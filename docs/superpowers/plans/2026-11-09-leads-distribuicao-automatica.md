@@ -721,7 +721,7 @@ begin
   v_out := v_out || case when (r ->> 'ok')::boolean and d1 in (v_a, v_b)
                           and (select dono_id from public.leads where aba = 'TESTE DIST' and id = 'lm-1') = d1
                           and exists (select 1 from public.leads_distribuicao where lead_id = 'lm-1' and consultor_id = d1 and recebido_em is not null and motivo ? 'consultores')
-                          and exists (select 1 from public.leads_historico where lead_id = 'lm-1' and acao = 'distribuir')
+                          and exists (select 1 from public.leads_historico where lead_id = 'lm-1' and acao = 'redistribuir' and por is null and (depois ->> 'auto')::boolean)
                      then '2 ok; ' else '2 FALHOU ' || r::text || '; ' end;
   -- 3. segundo lead vai para o outro (o primeiro está pendente)
   perform pg_temp.ld_lead('lm-2', 3);
@@ -776,7 +776,7 @@ begin
   perform pg_temp.ld_cfg('{"modo":"automatico"}');
   -- 11. déficit: com fatias iguais, quem recebeu menos hoje leva (B tem 1, A tem 4 recebidos hoje)
   update public.leads_distribuicao set fechado_em = now() where fechado_em is null;
-  delete from public.leads_distribuicao where consultor_id in (v_a, v_b);
+  update public.leads_distribuicao set tipo = 'redistribuido' where consultor_id in (v_a, v_b);   -- tira da conta de recebidos (sem DELETE: o conector pede confirmação)
   for n in 1..4 loop perform pg_temp.ld_lead('ld-a' || n, 10 + n); insert into public.leads_distribuicao (lead_aba, lead_id, consultor_id, tipo, recebido_em, atendido_em, fechado_em) values ('TESTE DIST', 'ld-a' || n, v_a, 'auto', now() - interval '1 minute', now(), now()); end loop;
   perform pg_temp.ld_lead('ld-b1', 20);
   insert into public.leads_distribuicao (lead_aba, lead_id, consultor_id, tipo, recebido_em, atendido_em, fechado_em) values ('TESTE DIST', 'ld-b1', v_b, 'auto', now() - interval '1 minute', now(), now());
@@ -896,7 +896,7 @@ begin
   if n = 0 then return jsonb_build_object('ok', false, 'motivo', 'lead_indisponivel'); end if;
   update public.leads_distribuicao set consultor_id = v_id, tipo = 'auto', recebido_em = now(), motivo = v_esc where id = v_fila.id;
   insert into public.leads_historico (lead_aba, lead_id, acao, por, depois)
-    values (p_aba, p_id, 'distribuir', null, jsonb_build_object('consultor', v_nome, 'dono_id', v_id));
+    values (p_aba, p_id, 'redistribuir', null, jsonb_build_object('consultor', v_nome, 'dono_id', v_id, 'auto', true));   -- §146: a restrição de ação não tem 'distribuir'; por nulo + auto = motor
   perform public.leads_espelho_enfileirar(p_aba, p_id);
   return jsonb_build_object('ok', true, 'consultor_id', v_id, 'consultor', v_nome);
 end $function$;
@@ -984,7 +984,7 @@ begin
                           and (select dono_id from public.leads where id = 'lt-1') is distinct from d1
                           and (select dono_id from public.leads where id = 'lt-1') in (v_a, v_b)
                           and exists (select 1 from public.leads_distribuicao where lead_id = 'lt-1' and devolvido_em is not null and consultor_id = d1)
-                          and exists (select 1 from public.leads_historico where lead_id = 'lt-1' and acao = 'devolver_auto')
+                          and exists (select 1 from public.leads_historico where lead_id = 'lt-1' and acao = 'devolver' and por is null and (depois ->> 'auto')::boolean)
                      then '5 ok; ' else '5 FALHOU ' || r::text || '; ' end;
   -- 6. segunda devolução: para de circular, fica nos Livres e vira aviso "parados"
   update public.leads_distribuicao set recebido_em = now() - interval '16 minutes' where lead_id = 'lt-1' and fechado_em is null;
@@ -1127,7 +1127,7 @@ begin
       end if;
       update public.leads_distribuicao set devolvido_em = now(), fechado_em = now() where id = r.id;
       insert into public.leads_historico (lead_aba, lead_id, acao, por, antes, depois)
-        values (r.lead_aba, r.lead_id, 'devolver_auto', null, jsonb_build_object('dono_id', r.consultor_id), jsonb_build_object('dono_id', null));
+        values (r.lead_aba, r.lead_id, 'devolver', null, jsonb_build_object('dono_id', r.consultor_id), jsonb_build_object('dono_id', null, 'auto', true));   -- §146: devolução automática
       update public.agenda_retornos set status = 'cancelado', atualizado_em = now()
        where lead_aba = r.lead_aba and lead_id = r.lead_id and status = 'pendente';
       perform public.leads_espelho_enfileirar(r.lead_aba, r.lead_id);
