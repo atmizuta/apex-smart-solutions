@@ -11,13 +11,18 @@ function rodar(testScript){
   const dom = new JSDOM(htmlNoScript, { runScripts: 'outside-only', url: 'http://localhost/' });
   const { window } = dom;
   Object.assign(window, { __tabelas: {}, __resp: {}, __escritas: [], __rpcCalls: [], __rpcRespostas: {}, __sessao: null });
-  const casa = (linha, filtros) => filtros.every(([op, c, v]) => op === 'eq' ? String(linha[c]) === String(v) : op === 'in' ? v.map(String).includes(String(linha[c])) : true);
+  const casa = (linha, filtros) => filtros.every(([op, c, v]) => op === 'eq' ? String(linha[c]) === String(v) : op === 'in' ? v.map(String).includes(String(linha[c])) : op === 'notnull' ? (linha[c] !== null && linha[c] !== undefined) : true);
   function builder(tabela){
     const q = { tabela, op: 'select', filtros: [], patch: null };
     const resposta = () => {
       const r = window.__resp[tabela];
       if(typeof r === 'function') return r(q);
       const linhas = window.__tabelas[tabela] || [];
+      if(q.op === 'insert'){
+        const novo = Object.assign({ id: 'novo-' + window.__escritas.length }, q.patch);
+        (window.__tabelas[tabela] = window.__tabelas[tabela] || []).push(novo);
+        return { data: Object.assign({}, novo), error: null };
+      }
       if(q.op === 'update'){
         const alvo = linhas.filter(l => casa(l, q.filtros));
         alvo.forEach(l => Object.assign(l, q.patch));
@@ -29,6 +34,8 @@ function rodar(testScript){
       select: () => b, order: () => b, limit: () => b, is: () => b, gte: () => b, lte: () => b, lt: () => b,
       eq: (c, v) => { q.filtros.push(['eq', c, v]); return b; },
       in: (c, v) => { q.filtros.push(['in', c, v]); return b; },
+      not: (c, op, v) => { if(op === 'is' && v === null) q.filtros.push(['notnull', c, null]); return b; },
+      insert: (payload) => { q.op = 'insert'; q.patch = payload; window.__escritas.push(q); return b; },
       update: (patch) => { q.op = 'update'; q.patch = patch; window.__escritas.push(q); return b; },
       single: async () => { const r = resposta(); return { data: Array.isArray(r.data) ? (r.data[0] || null) : r.data, error: r.error }; },
       maybeSingle: async () => { const r = resposta(); return { data: Array.isArray(r.data) ? (r.data[0] || null) : r.data, error: r.error }; },

@@ -182,9 +182,9 @@ Para quem tem `equipe = 'renovacao'`: Busca, Proposta, Funil e Agenda ficam esco
   propostas **abertas** ligadas (4 → `proposta_enviada`, 5 → `negociacao`, 6 → `fechado_ganho`,
   7 → `fechado_perdido` + `motivo_perda` copiado) e grava `propostas_historico`. Nunca há
   caminho proposta → carteira.
-- **Funil antigo:** cartão com `carteira_id` mostra "Abrir na Renovação" e não pode ser
-  arrastado. No banco, um trigger em `propostas` recusa mudança de `estagio` em proposta com
-  `carteira_id` que não venha do trigger de sincronização.
+- **Funil antigo:** cartão com `carteira_id` mostra "Abrir na Renovação" e não pode ser arrastado. No banco, o estágio de
+  proposta ligada é sempre calculado a partir do status da carteira (na criação e em qualquer tentativa de mudança);
+  assim, gerar de novo pelo funil não falha. (Ajuste de 09/11: antes dizia "recusar" a mudança.)
 - **Migração das propostas existentes:** propostas de renovação abertas cujo `cliente_cnpj`
   bate com a carteira recebem `carteira_id` (sem mudar estágio nem status).
 - Ranking, Painel do consultor, Fechamento e vendas perdidas continuam lendo `propostas` sem

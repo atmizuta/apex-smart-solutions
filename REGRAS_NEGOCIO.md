@@ -4590,13 +4590,35 @@ Spec: `docs/superpowers/specs/2026-11-07-renovacao-aba-design.md`. Entrega em 2 
   Fixa e cabeamento, Tudo) e histórico.
 - Banco: migrations `20261107150000_renovacao_carteira.sql` e `20261107150100_renovacao_importar.sql`; conferência
   `supabase/tests/renovacao_check.sql`. Testes JS: `test_renovacao_*.js`.
-- **Fase 2 (§143.2, a fazer):** Kanban, Gerar proposta integrado, Proposta e fatura dentro da aba, trava no funil antigo
-  e abas antigas escondidas para o time.
 - **No ar (09/11/2026, ok do Rafael):** banco aplicado (migrations 150000 e 150100; funções de trigger sem execução pela API),
   conferência `renovacao_check.sql` passou no banco real; Bruno, Fabiana e Silvana marcados com `equipe = renovacao`;
   painel publicado às 16:07 (MD5 `ce27b883…`, junto com a §144.1 do mailing que estava no ar como `13a5a85a…`).
   Backup: `~/deploy_backups/painel_clientes_apex_20261109_190722_antes_renovacao.html` (hora do servidor, UTC).
-  Falta a virada: importar a planilha do time e conferir o Resumo número a número com o da planilha.
+  Virada feita em 09/11: Rafael importou a planilha; o Resumo bateu número a número (única diferença: retorno marcado
+  para o próprio dia não conta como atrasado no painel).
+
+
+### §143.2 Fase 2 — Kanban, proposta ligada à carteira e uma aba só
+
+- **Kanban** (subaba): colunas 3-Contato efetivo · 4-Proposta enviada · 5-Em negociação · 6-Renovado · 7-Perdido; arrastar
+  muda o status (6/7 abrem a janela do fechamento); cartão com linhas, valor da proposta mais nova e dias no status
+  (`renovacao_carteira.status_desde`).
+- **Gerar proposta** (ficha e cartão): abre o gerador com a linha de `clientes` do CNPJ (ou, se faltar, com os dados da
+  Claro) e liga a proposta ao cliente (`propostas.carteira_id`). Ao gerar, cliente em 1–3 vai para 4-Proposta enviada.
+  A ficha lista as propostas ligadas (valor atual → proposto, data, estágio) e reabre no gerador.
+- **Estágio da proposta ligada = status da carteira** (1–4 proposta enviada, 5 negociação, 6 ganho, 7 perdido), calculado no
+  banco (`propostas_estagio_da_carteira`); mudar o status empurra as propostas abertas, com histórico e motivo da perda
+  (`renovacao_carteira_sync_propostas`). Fechadas não reabrem. Nunca há caminho proposta → carteira.
+- **Funil antigo:** cartão ligado tem selo "Renovação", não arrasta e oferece "Abrir na Renovação".
+- **Proposta e fatura** (subaba): o mesmo formulário da aba Proposta (os nós são movidos entre a aba e a subaba).
+- **Time de renovação** (consultor com equipe renovação): Busca, Proposta, Funil e Agenda saem do menu; "Ver funil
+  completo" leva ao Kanban. Admin e supervisor continuam vendo tudo.
+- Banco: migration `20261109150000_renovacao_fase2.sql` (liga as propostas antigas pelo CNPJ ao aplicar); conferência
+  `supabase/tests/renovacao_fase2_check.sql`.
+- **No ar (09/11/2026, ok do Rafael):** banco aplicado (13 propostas ligadas — só renovação, aberta e do dono do cliente;
+  `status_desde` = data do contato para os contatados sem histórico); conferência passou no banco real. Painel publicado às
+  20:50 (MD5 `3de18eb1…`, junto com a §145 que estava no ar como `c30a8541…`). Backup:
+  `~/deploy_backups/painel_clientes_apex_20261109_235026_antes_renovacao_fase2.html` (hora do servidor, UTC).
 
 ## 144. Base de Mailing: fase 2 da extração anda de novo e NEO da Apex e da Eagle separados (09/11/2026)
 
@@ -4634,4 +4656,4 @@ Pedido do Rafael: "adicione os planos que estão na página 42 [...] de incremen
 - **Publicação (09/11 16:57, ok do Rafael):** painel no ar era `ce27b883…` (= oficial/main 85a4487); novo MD5 `c30a8541…`. Backup `~/deploy_backups/painel_clientes_apex_20261109_195659_antes_planos_pos_145.html` (hora do servidor em UTC).
 - **Reverter:** copiar o backup do painel.
 
-Próxima livre: §146 (§138.2, §138.3 e §143.2 reservadas).
+Próxima livre: §146 (§138.2 e §138.3 reservadas).

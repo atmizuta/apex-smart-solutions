@@ -1008,6 +1008,12 @@
   .rnHist{margin:0;padding-left:1.1em;color:var(--muted);}
   .rnTotal td{font-weight:700;}
   .rnRetBloco{margin-bottom:var(--space-3);}
+  .rnKanban{display:grid;grid-template-columns:repeat(5,minmax(200px,1fr));gap:var(--space-3);overflow-x:auto;}
+  .rnKbCol{background:var(--ml-surface-2);border-radius:var(--radius-lg);padding:var(--space-2);min-height:200px;}
+  .rnKbHead{display:flex;justify-content:space-between;font-weight:600;margin-bottom:var(--space-2);}
+  .rnKbCard{background:var(--c-branco);border:1px solid var(--c-linha);border-radius:var(--radius-lg);padding:var(--space-2);margin-bottom:var(--space-2);cursor:grab;display:grid;gap:4px;}
+  .rnKbCard.rnPerdido{background:var(--st-perdido-bg);}
+  .rnKbCard.rnRenovado{background:var(--st-ganho-bg);}
   .kbFicha.flutuante [data-kb-ficha-flutuar]{display:none;}
   .kbFichaCorpo{display:flex;flex-direction:column;min-height:0;height:100%;}
   .kbFichaRolagem{flex:1;min-height:0;overflow-y:auto;padding:var(--space-4) var(--space-6) var(--space-3);}
@@ -1635,6 +1641,8 @@
       <div class="kbBarra">
         <nav class="kbSeg" id="rnAbas" aria-label="Visões da Renovação">
           <button type="button" class="active" data-rn-aba="carteira">Carteira</button>
+          <button type="button" data-rn-aba="kanban">Kanban</button>
+          <button type="button" data-rn-aba="proposta">Proposta e fatura</button>
           <button type="button" data-rn-aba="retornos">Retornos <span class="kbBadge" id="rnBadgeRetornos"></span></button>
           <button type="button" data-rn-aba="resumo">Resumo</button>
         </nav>
@@ -1660,6 +1668,8 @@
         <table class="tbl rnTabela"><thead id="rnThead"></thead><tbody id="rnTbody"></tbody></table>
         <button type="button" class="btn btn-outline btn-sm" id="rnMais" style="display:none"></button>
       </div>
+      <div id="rnKanban" class="rnVisao" hidden></div>
+      <div id="rnProposta" class="rnVisao" hidden></div>
       <div id="rnRetornos" class="rnVisao" hidden></div>
       <div id="rnResumo" class="rnVisao" hidden></div>
       <aside class="kbFicha" id="rnFicha" aria-label="Ficha do cliente"><div class="kbFichaCorpo" id="rnFichaCorpo"></div></aside>
@@ -3660,6 +3670,7 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
   if(btn.dataset.tab === 'mailing') mbCarregar();
   if(btn.dataset.tab === 'agenda') loadAgenda();
   if(btn.dataset.tab === 'renovacao'){ if(rnEstado.carregado && Date.now() - rnEstado.carregadoEm < 120000) rnRender(); else rnCarregar(); }
+  if(btn.dataset.tab === 'proposta') rnMoverProposta(false);   // §143.2: o formulário pode estar na subaba da Renovação
   if(btn.dataset.tab === 'anotacoes') loadAnotacoes();
 });
 
@@ -3674,10 +3685,10 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
 const RN_STATUS = { 1: 'Não contatado', 2: 'Tentativa s/ retorno', 3: 'Contato efetivo', 4: 'Proposta enviada', 5: 'Em negociação', 6: 'Renovado', 7: 'Perdido' };
 const RN_CANAIS = ['WhatsApp', 'Ligação', 'E-mail', 'Visita'];
 const RN_MOTIVOS = ['Preço', 'Foi p/ concorrente', 'Sem interesse', 'Insatisfeito c/ Claro', 'Empresa fechada/baixada', 'Contato inválido', 'Outro'];
-const RN_COLS_LISTA = 'id,cnpj_digits,razao_social,telefone,nome_adm,linhas_voz,apto,cidade,ddd,consultor_id,origem,status,data_contato,prox_retorno,canal,linhas_renovadas,bl_vendida,sol_digitais,motivo_perda,observacoes,na_base,a_completar,atualizado_em';
+const RN_COLS_LISTA = 'id,cnpj_digits,razao_social,telefone,nome_adm,linhas_voz,apto,cidade,ddd,consultor_id,origem,status,data_contato,prox_retorno,canal,linhas_renovadas,bl_vendida,sol_digitais,motivo_perda,observacoes,na_base,a_completar,atualizado_em,status_desde';
 const RN_PAGINA = 100;
 function rnFiltrosVazios(){ return { busca: '', status: '', apto: '', cidade: '', consultor: '', soVencido: false, pendencias: false, foraBase: false }; }
-const rnEstado = { aba: 'carteira', lista: [], perfis: [], carregado: false, geracao: 0, filtros: rnFiltrosVazios(), pagina: 1, selecionados: new Set(), fichaId: null, ficha: null, importacao: null };
+const rnEstado = { aba: 'carteira', lista: [], propostas: [], arrastando: null, perfis: [], carregado: false, geracao: 0, filtros: rnFiltrosVazios(), pagina: 1, selecionados: new Set(), fichaId: null, ficha: null, importacao: null };
 
 function rnGestor(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
 function rnPodeVer(){
@@ -3685,14 +3696,22 @@ function rnPodeVer(){
   if(currentUser.equipe === 'renovacao') return true;
   return rnGestor() && veAbasDaApex();
 }
+function rnSoRenovacao(){ return !!currentUser && currentUser.role === 'consultor' && currentUser.equipe === 'renovacao'; }
 function rnAplicarPermissao(){
   document.getElementById('tabBtnRenovacao').style.display = rnPodeVer() ? 'inline-block' : 'none';
-  Object.assign(rnEstado, { aba: 'carteira', lista: [], perfis: [], carregado: false, filtros: rnFiltrosVazios(), pagina: 1, fichaId: null, ficha: null, importacao: null });
+  // §143.2: o time de renovação trabalha só pela aba Renovação (Busca, Proposta, Funil e Agenda saem do menu dele)
+  const soRenovacao = rnSoRenovacao();
+  ['busca', 'proposta', 'funil', 'agenda'].forEach(t => { const b = document.querySelector(`#tabsNav button[data-tab="${t}"]`); if(b) b.style.display = soRenovacao ? 'none' : ''; });
+  Object.assign(rnEstado, { aba: 'carteira', lista: [], propostas: [], perfis: [], carregado: false, filtros: rnFiltrosVazios(), pagina: 1, fichaId: null, ficha: null, importacao: null });
   rnEstado.selecionados.clear();
   rnEstado.geracao++;
   // troca de usuário na mesma aba do navegador: nada do anterior fica na tela
-  ['rnTbody', 'rnRetornos', 'rnResumo', 'rnFichaCorpo', 'rnContadores'].forEach(id => { document.getElementById(id).innerHTML = ''; });
+  if(typeof rnMoverProposta === 'function') rnMoverProposta(false);   // §143.2: o formulário da proposta volta para a aba Proposta
+  ['rnTbody', 'rnRetornos', 'rnResumo', 'rnFichaCorpo', 'rnContadores', 'rnKanban'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = ''; });
   document.getElementById('rnFicha').classList.remove('aberta');
+  document.querySelectorAll('#rnAbas [data-rn-aba]').forEach(b => b.classList.toggle('active', b.dataset.rnAba === 'carteira'));
+  ['rnKanban', 'rnProposta', 'rnRetornos', 'rnResumo'].forEach(id => { const el = document.getElementById(id); if(el) el.hidden = true; });
+  document.getElementById('rnCarteira').hidden = false;
 }
 function rnStatus(msg){ const el = document.getElementById('rnStatus'); if(el) el.textContent = msg || ''; }
 function rnHoje(){ return hojeSP(); }
@@ -3718,6 +3737,7 @@ async function rnCarregar(){
     rnGestor()
       ? ppSeguro(() => sb.from('profiles').select('id,nome,equipe').eq('equipe', 'renovacao').order('nome'))
       : Promise.resolve({ data: [{ id: currentUser.id, nome: currentUser.nome, equipe: 'renovacao' }], error: null }),
+    rnCarregarPropostas(),
   ]);
   if(geracao !== rnEstado.geracao) return;
   if(car.error){ console.error(car.error); rnStatus('Não foi possível carregar a carteira agora.'); return; }
@@ -3732,15 +3752,16 @@ async function rnCarregar(){
 function rnTrocarAba(aba){
   rnEstado.aba = aba;
   document.querySelectorAll('#rnAbas [data-rn-aba]').forEach(b => b.classList.toggle('active', b.dataset.rnAba === aba));
-  document.getElementById('rnCarteira').hidden = aba !== 'carteira';
-  document.getElementById('rnRetornos').hidden = aba !== 'retornos';
-  document.getElementById('rnResumo').hidden = aba !== 'resumo';
+  const ids = { carteira: 'rnCarteira', kanban: 'rnKanban', proposta: 'rnProposta', retornos: 'rnRetornos', resumo: 'rnResumo' };
+  Object.entries(ids).forEach(([k, id]) => { const el = document.getElementById(id); if(el) el.hidden = k !== aba; });
   rnRender();
 }
 document.getElementById('rnAbas').addEventListener('click', e => { const b = e.target.closest('[data-rn-aba]'); if(b) rnTrocarAba(b.dataset.rnAba); });
 // Cada subaba tem seu render (Tasks 4 e 6 do plano); typeof deixa este bloco funcionar sozinho.
 function rnRender(){
   if(rnEstado.aba === 'carteira' && typeof rnRenderCarteira === 'function') rnRenderCarteira();
+  if(rnEstado.aba === 'kanban' && typeof rnRenderKanban === 'function') rnRenderKanban();
+  if(rnEstado.aba === 'proposta') rnMoverProposta(true);
   if(rnEstado.aba === 'retornos' && typeof rnRenderRetornos === 'function') rnRenderRetornos();
   if(rnEstado.aba === 'resumo' && typeof rnRenderResumo === 'function') rnRenderResumo();
 }
@@ -3786,6 +3807,7 @@ async function rnSalvar(id, patch){
   if(!r || r.error || !r.data){ mostrarAviso(rnMensagemErro(r && r.error), 'erro'); rnRender(); return false; }
   const i = rnEstado.lista.findIndex(x => x.id === id);
   if(i >= 0) rnEstado.lista[i] = r.data;
+  if('status' in patch && rnPropostasDe(id).length) await rnCarregarPropostas();   // o banco moveu o estágio das propostas ligadas
   rnAtualizarBadge();
   rnRender();
   if(rnEstado.fichaId === id && typeof rnRenderFicha === 'function') rnRenderFicha();
@@ -3984,7 +4006,7 @@ function rnRenderFicha(){
     </div>
     <div style="display:flex;gap:var(--space-2);margin:var(--space-2) 0">${tel
       ? `<a class="kbBtn kbBtnQ" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}">WhatsApp</a><a class="kbBtn kbBtnP" href="tel:${escapeHtml(tel)}">Ligar</a>`
-      : '<span class="kbMeta">Sem telefone.</span>'}</div>
+      : '<span class="kbMeta">Sem telefone.</span>'}${r.status >= 6 ? '<span class="kbMeta">Reabra o status para gerar proposta.</span>' : `<button type="button" class="kbBtn kbBtnG" data-rn-gerar="${r.id}">Gerar proposta</button>`}</div>
     <form id="rnFichaForm" class="card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-2)">
       ${campo('Status', `<select name="status">${rnOpcoes(Object.keys(RN_STATUS).map(k => [k, rnStatusRotulo(+k)]), r.status)}</select>`)}
       ${campo('Data do contato', `<input type="date" name="data_contato" value="${escapeHtml(r.data_contato || '')}">`)}
@@ -4001,12 +4023,24 @@ function rnRenderFicha(){
     ${fic.dados
       ? rnGruposFicha(fic.dados).map(([t, itens]) => `<details class="rnGrupo"><summary>${escapeHtml(t)} <span class="kbMeta">${itens.length}</span></summary><dl>${itens.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(String(v))}</dd>`).join('')}</dl></details>`).join('')
       : '<p class="kbMeta">Carregando dados da Claro…</p>'}
+    <h4>Propostas</h4>
+    ${rnPropostasDe(r.id).length
+      ? '<ul class="rnHist">' + rnPropostasDe(r.id).map(p => `<li><button type="button" class="rnNome" data-rn-proposta="${escapeHtml(p.id)}">${p.valor_atual ? fmtBRL(p.valor_atual) : '—'} → ${p.valor_proposto ? fmtBRL(p.valor_proposto) : '—'}</button> · ${escapeHtml(new Date(p.criado_em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }))} · ${escapeHtml(FUNIL_ESTAGIO_MAP[p.estagio] ? FUNIL_ESTAGIO_MAP[p.estagio].label : p.estagio)}</li>`).join('') + '</ul>'
+      : '<p class="kbMeta">Nenhuma proposta ainda.</p>'}
     <h4>Histórico</h4>
     ${fic.historico
       ? (fic.historico.length ? '<ul class="rnHist">' + fic.historico.map(h => `<li>${escapeHtml(rnHistoricoTexto(h))}</li>`).join('') + '</ul>' : '<p class="kbMeta">Sem mudanças registradas.</p>')
       : '<p class="kbMeta">Carregando…</p>'}`;
 }
 document.getElementById('rnFicha').addEventListener('click', (e) => { if(e.target.closest('[data-rn-ficha-fechar]')) rnFecharFicha(); });
+document.getElementById('rnFicha').addEventListener('click', (e) => {
+  const g = e.target.closest('[data-rn-gerar]');
+  if(g){ rnGerarProposta(Number(g.dataset.rnGerar)); return; }
+  const b = e.target.closest('[data-rn-proposta]');
+  if(!b) return;
+  const p = (rnEstado.propostas || []).find(x => x.id === b.dataset.rnProposta);
+  if(p) abrirPropostaDoCard(p);
+});
 document.getElementById('rnFicha').addEventListener('submit', async (e) => {
   e.preventDefault();
   const r = rnEstado.lista.find(x => x.id === rnEstado.fichaId);
@@ -4222,6 +4256,108 @@ async function rnExecutarImportacao(){
 }
 document.getElementById('rnResumo').addEventListener('change', (e) => { if(e.target.id === 'rnArquivo' && e.target.files && e.target.files[0]) rnPrepararImportacao(e.target.files[0]); });
 document.getElementById('rnResumo').addEventListener('click', (e) => { if(e.target.closest('[data-rn-importar]')) rnExecutarImportacao(); });
+// ---- §143.2 Proposta ligada à carteira ----
+// Cliente no formato de "clientes" a partir da carteira (reserva: os 1.242 da virada estão todos em clientes).
+function rnClienteDaCarteira(r, dados){
+  const d = dados || {};
+  const num = (v) => (typeof v === 'number' ? v : (rnNumBR(v) || 0));
+  return { razao_social: r.razao_social || '', cnpj: String(r.cnpj_digits || '').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5'),
+    cnpj_digits: r.cnpj_digits, cidade: r.cidade || '', ddd: r.ddd || '', linhas_voz: r.linhas_voz || 0, linhas_fixas: 0,
+    tempo_contrato_voz: r.tempo_contrato_voz || 0, valor_contrato: num(d['VL_CONTR_NO_MSISDN_C_DESC_RET']), arpu: num(d['VALOR POR LINHA / ARPU']),
+    qtde_silentes: num(d['QT LINHAS SILENTES']), cep_cabeado: d['CEP CABEADO?'] || '', apto_renovacao: r.apto || '',
+    telefone_contato: r.telefone || '', nome_admin: r.nome_adm || '' };
+}
+async function rnGerarProposta(id){
+  const r = rnEstado.lista.find(x => x.id === id);
+  if(!r) return;
+  if(r.status === 6 || r.status === 7){ mostrarAviso(`Cliente já está ${r.status === 6 ? 'renovado' : 'perdido'}. Mude o status para 5-Em negociação antes de gerar uma proposta nova.`, 'info'); return; }
+  const c = await ppSeguro(() => sb.from('clientes').select('*').eq('cnpj_digits', r.cnpj_digits).maybeSingle());
+  let client = c && !c.error && c.data ? c.data : null;
+  if(!client){
+    const d = await ppSeguro(() => sb.from('renovacao_carteira').select('dados_claro').eq('id', id).single());
+    client = rnClienteDaCarteira(r, d && !d.error && d.data ? d.data.dados_claro : {});
+  }
+  openProposal(client, { carteiraId: id });
+}
+async function rnCarregarPropostas(){
+  const p = await ppSeguro(() => sb.from('propostas').select('*').not('carteira_id', 'is', null).order('criado_em', { ascending: false }));
+  rnEstado.propostas = p && !p.error ? (p.data || []) : [];
+  return p;
+}
+function rnPropostasDe(carteiraId){ return (rnEstado.propostas || []).filter(p => p.carteira_id === carteiraId); }
+// Chamado por registrarPropostaNoFunil depois de gravar: cliente em 1–3 vai para 4-Proposta enviada.
+async function rnPropostaGerada(carteiraId){
+  const r = rnEstado.lista.find(x => x.id === carteiraId);
+  if(r && r.status >= 1 && r.status <= 3) await rnSalvar(carteiraId, { status: 4 });
+  await rnCarregarPropostas();
+  rnRender();
+  if(rnEstado.fichaId === carteiraId) rnRenderFicha();
+}
+// ---- §143.2 Kanban (a partir de Contato efetivo; não contatado e tentativa ficam na lista) ----
+const RN_KANBAN = [3, 4, 5, 6, 7];
+function rnDiasNoStatus(r, agoraMs){ return r.status_desde ? Math.max(0, Math.floor((agoraMs - new Date(r.status_desde).getTime()) / 86400000)) : null; }
+function rnKanbanColunas(lista, filtros, hoje){
+  const base = rnFiltrar(lista, Object.assign(rnFiltrosVazios(), { consultor: filtros.consultor || '' }), hoje);
+  return RN_KANBAN.map(s => ({ status: s, itens: base.filter(r => r.status === s) }));
+}
+function rnCartaoHtml(r, agora, gestor){
+  const p = rnPropostasDe(r.id)[0];
+  const dias = rnDiasNoStatus(r, agora);
+  return `<div class="rnKbCard ${rnClasseLinha(r)}" draggable="true" data-rn-card="${r.id}">
+    <button type="button" class="rnNome" data-rn-abrir="${r.id}">${escapeHtml(r.razao_social || '(sem nome)')}</button>
+    <div class="kbMeta">${r.linhas_voz ?? 0} linhas${p && p.valor_proposto ? ' · ' + fmtBRL(p.valor_proposto) : ''}${dias !== null ? ' · ' + (dias === 0 ? 'hoje' : dias + 'd') + ' no status' : ''}${gestor ? ' · ' + escapeHtml(rnNomeConsultor(r.consultor_id)) : ''}</div>
+    ${r.status >= 6 ? '' : `<button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-gerar="${r.id}">Gerar proposta</button>`}
+  </div>`;
+}
+function rnRenderKanban(){
+  const agora = Date.now(); const gestor = rnGestor();
+  document.getElementById('rnKanban').innerHTML = '<div class="rnKanban">' + rnKanbanColunas(rnEstado.lista, rnEstado.filtros, rnHoje()).map(c => `
+    <div class="rnKbCol" data-rn-coluna="${c.status}">
+      <div class="rnKbHead"><span>${escapeHtml(rnStatusRotulo(c.status))}</span><span class="kbN">${c.itens.length}</span></div>
+      ${c.itens.map(r => rnCartaoHtml(r, agora, gestor)).join('') || '<p class="kbMeta">Nenhum cliente.</p>'}
+    </div>`).join('') + '</div>';
+}
+function rnMoverStatus(id, status){
+  const r = rnEstado.lista.find(x => x.id === id);
+  if(!r || r.status === status) return;
+  if(status === 6 || status === 7){ rnAbrirFechamento(id, status); return; }
+  return rnSalvar(id, { status });
+}
+document.getElementById('rnKanban').addEventListener('dragstart', (e) => {
+  const c = e.target.closest('[data-rn-card]');
+  if(!c) return;
+  rnEstado.arrastando = Number(c.dataset.rnCard);
+  if(e.dataTransfer) e.dataTransfer.setData('text/plain', c.dataset.rnCard);
+});
+document.getElementById('rnKanban').addEventListener('dragover', (e) => { if(e.target.closest('[data-rn-coluna]')) e.preventDefault(); });
+document.getElementById('rnKanban').addEventListener('drop', (e) => {
+  const col = e.target.closest('[data-rn-coluna]');
+  if(!col || !rnEstado.arrastando) return;
+  e.preventDefault();
+  const id = rnEstado.arrastando; rnEstado.arrastando = null;
+  rnMoverStatus(id, Number(col.dataset.rnColuna));
+});
+document.getElementById('rnKanban').addEventListener('click', (e) => {
+  const g = e.target.closest('[data-rn-gerar]');
+  if(g){ rnGerarProposta(Number(g.dataset.rnGerar)); return; }
+  const a = e.target.closest('[data-rn-abrir]');
+  if(a) rnAbrirFicha(Number(a.dataset.rnAbrir));
+});
+// ---- §143.2 Proposta e fatura: os mesmos nós da aba Proposta (mesmo código e mesmos eventos), movidos, não copiados ----
+function rnMoverProposta(paraRenovacao){
+  const de = document.getElementById(paraRenovacao ? 'panel-proposta' : 'rnProposta');
+  const para = document.getElementById(paraRenovacao ? 'rnProposta' : 'panel-proposta');
+  if(!de || !para) return;
+  while(de.firstChild) para.appendChild(de.firstChild);
+}
+// ---- §143.2 Atalho do funil antigo: abre a aba Renovação na ficha do cliente ----
+async function rnAbrirNaRenovacao(carteiraId){
+  const bt = document.getElementById('tabBtnRenovacao');
+  if(!rnPodeVer() || !bt){ mostrarAviso('Você não tem acesso à aba Renovação.', 'info'); return; }
+  bt.click();
+  if(!rnEstado.carregado) await rnCarregar();
+  if(rnEstado.lista.some(r => r.id === carteiraId)) rnAbrirFicha(carteiraId);
+}
 /* ============ FIM RENOVAÇÃO §143 ============ */
 
 /* ============ MEUS LEADS (KANBAN) — §112 ============
@@ -7230,6 +7366,7 @@ function openProposal(client, opts){
     // uma renegociação/nova proposta pro mesmo cliente fica registrada no mesmo card, com histórico.
     propostaId: opts.propostaId || null,
     origemFunil: opts.origemFunil || null,
+    carteiraId: opts.carteiraId || null,   // §143.2: proposta gerada pela Renovação fica ligada ao cliente da carteira
     incluirRenovacao,
     linhaGrupos, // só usada no modo avulsa
     // renovação do cliente-da-base também é uma lista de grupos {qtd, offerId} — o consultor pode
@@ -11493,14 +11630,15 @@ function kanbanCardHtml(p){
   const consultorInfo = currentUser.role !== 'consultor' ? (funilConsultores[p.consultor_id] || { nome: '—' }) : null;
   const iniciais = consultorInfo ? (consultorInfo.nome || '?').split(' ').filter(Boolean).slice(0, 2).map(s => s[0]).join('').toUpperCase() : '';
   return `
-    <div class="kanbanCard" draggable="true" data-id="${p.id}">
-      <div class="kcNome">${p.cliente_nome}</div>
+    <div class="kanbanCard${p.carteira_id ? ' kcRenovacao' : ''}" draggable="${p.carteira_id ? 'false' : 'true'}" data-id="${p.id}">
+      <div class="kcNome">${escapeHtml(p.cliente_nome || '')}</div>
+      ${p.carteira_id ? '<div class="kcMeta"><span class="badge">Renovação</span></div>' : ''}
       ${valor ? `<div class="kcValor">${fmtBRL(valor)}</div>` : ''}
       <div class="kcMeta">
         <span>${tempoDecorrido(p.estagio_entrada_em)}</span>
         ${sla ? `<span class="slaBadge ${sla.estourado ? 'estourado' : 'ok'}">${sla.estourado ? 'SLA estourado' : 'no prazo'}</span>` : ''}
       </div>
-      ${consultorInfo ? `<div class="kcConsultor"><span class="kcAvatar">${iniciais}</span> ${consultorInfo.nome}</div>` : ''}
+      ${consultorInfo ? `<div class="kcConsultor"><span class="kcAvatar">${escapeHtml(iniciais)}</span> ${escapeHtml(consultorInfo.nome || '')}</div>` : ''}
     </div>`;
 }
 
@@ -11550,6 +11688,8 @@ function attachKanbanDnD(){
 async function moverCard(id, novoEstagio, nota){
   const proposta = funilCache.find(p => p.id === id);
   if(!proposta || proposta.estagio === novoEstagio) return;
+  // §143.2: proposta ligada à carteira segue o status do cliente na Renovação (o banco também recalcula)
+  if(proposta.carteira_id){ mostrarAviso('Esta proposta segue o status do cliente na aba Renovação. Mude por lá.', 'info'); renderFunil(); return; }
   if(novoEstagio === 'fechado_perdido' && nota === undefined){
     pendingLossCardId = id;
     document.getElementById('motivoInput').value = '';
@@ -11607,17 +11747,22 @@ async function abrirCardFunil(id){
       ${p.observacoes ? kv('Observações', p.observacoes) : ''}
       ${p.motivo_perda ? kv('Motivo da perda', p.motivo_perda) : ''}
     </div>
-    <div class="field" style="margin-bottom:16px">
+    ${p.carteira_id
+      ? `<p class="kbMeta" style="margin-bottom:8px">O estágio segue o status do cliente na Renovação.</p><button class="btn btn-outline" id="btnAbrirNaRenovacao" style="margin-bottom:16px">Abrir na Renovação</button>`
+      : `<div class="field" style="margin-bottom:16px">
       <label>Mover para</label>
       <select id="funilCardEstagioSelect">
         ${FUNIL_ESTAGIOS.map(e => `<option value="${e.id}" ${e.id === p.estagio ? 'selected' : ''}>${e.label}</option>`).join('')}
       </select>
-    </div>
+    </div>`}
     <button class="btn" id="btnGerarPropostaDoCard" style="margin-bottom:16px">Gerar proposta</button>
     <div class="grpTitle">Histórico</div>
     <div id="funilCardHist" class="spinnerNote isLoading">Carregando...</div>
   `;
-  document.getElementById('funilCardEstagioSelect').addEventListener('change', function(){ moverCard(p.id, this.value); });
+  const selEstagio = document.getElementById('funilCardEstagioSelect');
+  if(selEstagio) selEstagio.addEventListener('change', function(){ moverCard(p.id, this.value); });
+  const btnRenov = document.getElementById('btnAbrirNaRenovacao');
+  if(btnRenov) btnRenov.addEventListener('click', () => { fecharOverlay(document.getElementById('funilCardOverlay')); rnAbrirNaRenovacao(p.carteira_id); });
   document.getElementById('btnGerarPropostaDoCard').addEventListener('click', function(){
     fecharOverlay(document.getElementById('funilCardOverlay'));
     abrirPropostaDoCard(p);
@@ -11648,6 +11793,7 @@ function abrirPropostaDoCard(p){
     operadoraAtual: dados.operadoraAtual || '',
     propostaId: p.id,
     origemFunil: p.origem,
+    carteiraId: p.carteira_id || null,
   });
 }
 
@@ -11684,6 +11830,7 @@ async function registrarPropostaNoFunil(novoTotal, atual){
       },
     };
 
+    if(proposalState.carteiraId) payload.carteira_id = proposalState.carteiraId;   // §143.2: o banco calcula o estágio a partir da carteira
     if(proposalState.propostaId){
       const anterior = funilCache.find(p => p.id === proposalState.propostaId);
       const { error } = await sb.from('propostas').update(payload).eq('id', proposalState.propostaId);
@@ -11706,6 +11853,7 @@ async function registrarPropostaNoFunil(novoTotal, atual){
       });
     }
     loadFunil();
+    if(proposalState.carteiraId && typeof rnPropostaGerada === 'function') await rnPropostaGerada(proposalState.carteiraId);
   }catch(e){
     console.error('Erro ao registrar proposta no funil de vendas:', e && e.message ? e.message : e);
   }
@@ -11738,7 +11886,10 @@ function renderDashFunil(){
   dash.style.display = 'block';
 }
 document.querySelectorAll('#dashFunil [data-tab="funil"]').forEach(el => {
-  el.addEventListener('click', () => document.querySelector('#tabsNav button[data-tab="funil"]').click());
+  el.addEventListener('click', () => {
+    if(rnSoRenovacao()){ document.getElementById('tabBtnRenovacao').click(); rnTrocarAba('kanban'); return; }   // §143.2
+    document.querySelector('#tabsNav button[data-tab="funil"]').click();
+  });
 });
 
 document.getElementById('funilFiltroConsultor').addEventListener('change', renderFunil);
