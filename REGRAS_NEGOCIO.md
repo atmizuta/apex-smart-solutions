@@ -4729,5 +4729,11 @@ estavam com CNPJ vazio ou com tamanho errado. Spec: `docs/superpowers/specs/2026
   PUBLIC/anon) e `leads_ficha_detalhes` igual à do ar + as trocas no histórico. Não usa `leads_historico` (a trava da
   coluna `acao` só muda com DROP do CHECK).
 - **Testes:** `test_alterar_cnpj.js` (38); conferência `supabase/tests/leads_alterar_cnpj_check.sql` (desfaz tudo).
+- **Banco (11/11/2026 14:37, ok do Rafael):** conferência passou no banco real (consultor de verdade: recusas de motivo,
+  DV, lead de outro, lead sem dono e mesmo CNPJ; troca grava 14 dígitos, registra, enfileira o espelho e aparece no
+  Histórico; gestor altera lead de consultor) e não deixou nada gravado. Migration aplicada; anon sem execute,
+  authenticated sem leitura direta da tabela. Até o painel novo ir ao ar, nada muda para o consultor.
+- **Reverter o banco:** recriar `leads_ficha_detalhes` sem o `union all` das trocas (o resto da migration é igual ao
+  que estava no ar em 10/11). A tabela e as funções novas podem ficar (nada mais as usa).
 
 Próxima livre: §148 (§138.2 e §138.3 reservadas).
