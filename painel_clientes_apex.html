@@ -1031,6 +1031,13 @@
   .kbCnpjRec{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2);margin-top:var(--space-2);font-size:var(--fs-sm);}
   .kbCnpjRec:empty{display:none;}
   .kbCnpjRec .kbFichaAviso{flex-basis:100%;margin:0;}
+  /* §147: alterar o CNPJ */
+  .kbCnpjBotoes{display:flex;gap:var(--space-3);justify-content:flex-end;}
+  .kbCnpjAlt{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2) var(--space-3);margin-top:var(--space-3);padding:var(--space-3);border-radius:var(--radius-lg);background:var(--ml-surface);font-size:var(--fs-sm);}
+  .kbCnpjAlt[hidden]{display:none;}
+  .kbCnpjAlt > input, .kbCnpjAlt > .kbClassErro, .kbCnpjAlt > .kbFichaBotoes{grid-column:1 / -1;}
+  .kbCnpjAlt > .kbClassErro:empty{display:none;}
+  .kbCnpjAlt input, .kbCnpjAlt select{width:100%;}
   .kbFichaOutros span{color:var(--ml-ink-3);}
   .kbFichaOutros b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ml-ink);}
   .kbFichaResumo{margin:var(--space-2) 2px 0;font-size:var(--fs-sm);color:var(--ml-ink-2);}
@@ -5101,7 +5108,6 @@ function kbFichaHtml(f, op){
   sub.push(`<span>${escapeHtml(['chegou ' + (kbDataHoraBR(f.criado_em_lead) || '—'), f.campanha].filter(Boolean).join(' · '))}</span>`);
   if(!f.livre && f.dono_nome) sub.push(`<span>com ${escapeHtml(f.dono_nome)}</span>`);
   const cab = `${urg ? `<span class="kbTag ${urg.classe}">${KB_ICO.relogio}${escapeHtml(urg.texto)}</span>` : ''}<h3 class="kbFichaNome">${v(f.nome)}</h3><div class="kbFichaSub">${sub.join('')}</div>`;
-  const copiar = (rot, valor, mostrar) => valor ? `<span>${rot}</span><b>${escapeHtml(mostrar || valor)}</b><button type="button" class="kbLink" data-kb-ficha-copiar="${escapeHtml(String(valor))}">Copiar</button>` : '';
   let contato;
   if(semContato){
     contato = o.podePegar === false
@@ -5112,7 +5118,7 @@ function kbFichaHtml(f, op){
     contato = `<div class="kbFichaContato">${tel ? `<div class="kbFichaTel"><strong>${escapeHtml(kbFoneBR(f.telefone))}</strong>
         <button type="button" class="kbBtn kbBtnQ kbBtnSm" data-kb-ficha-copiar="${escapeHtml(kbTelCopiar(f.telefone))}">${KB_ICO.copiar}Copiar</button>
         <span class="kbFichaDir"><a class="kbBtn kbBtnP" data-kb-contato="ligar" data-kb-ligar href="#" title="Copia o número e abre o ProContact">${KB_ICO.tel}Ligar</a><a class="kbBtn kbBtnQ" data-kb-contato="whatsapp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}?text=${msg}">${KB_ICO.wa}WhatsApp</a></span></div>` : '<p class="kbMeta">Lead sem celular.</p>'}
-      <div class="kbFichaOutros">${copiar('E-mail', f.email)}${copiar('CNPJ', f.cnpj)}</div><div class="kbCnpjRec" id="kbCnpjRec">${kbCnpjHtml(f, {})}</div></div>`
+      <div class="kbFichaOutros">${kbFichaOutrosHtml(f, !!o.podeAlterarCnpj)}</div><div class="kbCnpjAlt" id="kbCnpjAlt" hidden></div><div class="kbCnpjRec" id="kbCnpjRec">${kbCnpjHtml(f, {})}</div></div>`
       + (f.livre ? `<div class="kbFichaBotoes"><button type="button" class="kbBtn kbBtnP" data-kb-ficha-pegar>${KB_ICO.mao}Pegar este lead</button></div>` : '');
   }
   const obsAnt = f.obs ? `<p class="kbObsAnt"><small>Última OBS${f.classificado_em ? ' · ' + escapeHtml(kbDataHoraBR(f.classificado_em)) : ''}</small>${escapeHtml(f.obs)}</p>` : '';
@@ -5140,6 +5146,46 @@ const KB_CNPJ_PROBLEMA = ['BAIXADA', 'INAPTA', 'NULA'];
 // §136: as fontes grátis leem os dados abertos da Receita (1 vez por mês); o comprovante oficial mostra a situação na hora.
 const KB_CNPJ_RECEITA_URL = 'https://solucoes.receita.fazenda.gov.br/Servicos/cnpjreva/Cnpjreva_Solicitacao.asp?cnpj=';
 function kbCnpjDigitos(v){ return String(v == null ? '' : v).replace(/\D/g, ''); }
+// §147: alterar o CNPJ na ficha (dono do lead ou gestor). Mesma regra da leads_cnpj_valido no banco.
+const KB_CNPJ_MOTIVOS = ['Cliente digitou errado', 'Cliente fechou em outro CNPJ'];
+function kbCnpjValido(v){
+  const d = kbCnpjDigitos(v);
+  if(!/^\d{14}$/.test(d) || /^(\d)\1{13}$/.test(d)) return false;
+  const dv = (n, pesos) => { let s = 0; for(let i = 0; i < n; i++) s += Number(d[i]) * pesos[i]; const r = s % 11; return r < 2 ? 0 : 11 - r; };
+  return dv(12, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]) === Number(d[12]) && dv(13, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]) === Number(d[13]);
+}
+function kbCnpjMascara(v){
+  const d = kbCnpjDigitos(v).slice(0, 14);
+  return d.replace(/^(\d{2})(\d)/, '$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2');
+}
+function kbCnpjPodeAlterar(f, gestor, uid){ return !!f && !f.livre && !!f.dono_id && (!!gestor || (!!uid && f.dono_id === uid)); }
+function kbCnpjLinhaHtml(f, pode){
+  const tem = !!String(f.cnpj || '').trim();
+  const alt = pode ? `<button type="button" class="kbLink" data-kb-cnpj-alterar>${tem ? 'Alterar' : 'Adicionar'}</button>` : '';
+  if(!tem) return pode ? `<span>CNPJ</span><b>—</b><div class="kbCnpjBotoes">${alt}</div>` : '';
+  return `<span>CNPJ</span><b>${escapeHtml(f.cnpj)}</b><div class="kbCnpjBotoes"><button type="button" class="kbLink" data-kb-ficha-copiar="${escapeHtml(String(f.cnpj))}">Copiar</button>${alt}</div>`;
+}
+function kbFichaOutrosHtml(f, podeCnpj){
+  const email = f.email ? `<span>E-mail</span><b>${escapeHtml(f.email)}</b><button type="button" class="kbLink" data-kb-ficha-copiar="${escapeHtml(String(f.email))}">Copiar</button>` : '';
+  return email + kbCnpjLinhaHtml(f, podeCnpj);
+}
+function kbCnpjAltHtml(){
+  return `<label class="field"><span>CNPJ novo</span><input type="text" id="kbCnpjAltNovo" inputmode="numeric" maxlength="18" placeholder="00.000.000/0000-00" autocomplete="off"></label>
+    <label class="field"><span>Motivo</span><select id="kbCnpjAltMotivo"><option value="">Escolha…</option>${KB_CNPJ_MOTIVOS.map(m => `<option>${escapeHtml(m)}</option>`).join('')}<option value="outro">Outro</option></select></label>
+    <input type="text" id="kbCnpjAltOutro" maxlength="200" placeholder="Qual o motivo?" aria-label="Outro motivo" hidden>
+    <p class="desc kbClassErro" id="kbCnpjAltErro"></p>
+    <div class="kbFichaBotoes"><button type="button" class="kbBtn kbBtnP kbBtnSm" data-kb-cnpj-alt-salvar>Salvar CNPJ</button><button type="button" class="kbBtn kbBtnQ kbBtnSm" data-kb-cnpj-alt-cancelar>Cancelar</button></div>`;
+}
+// Devolve { erro } ou { cnpj (14 dígitos), motivo } a partir do que foi digitado.
+function kbCnpjAltLer(novo, motivoSel, outro, atual){
+  const d = kbCnpjDigitos(novo);
+  if(d.length !== 14) return { erro: `O CNPJ tem 14 números (você digitou ${d.length}).` };
+  if(!kbCnpjValido(d)) return { erro: 'CNPJ inválido: confira os números.' };
+  if(d === kbCnpjDigitos(atual)) return { erro: 'Este já é o CNPJ do lead.' };
+  const motivo = motivoSel === 'outro' ? String(outro || '').trim() : String(motivoSel || '').trim();
+  if(motivo.length < 3) return { erro: motivoSel === 'outro' ? 'Escreva o motivo (pelo menos 3 letras).' : 'Escolha o motivo.' };
+  return { cnpj: d, motivo };
+}
 function kbCnpjMostra(f){ return !!f && !f.livre && !!kbCnpjDigitos(f.cnpj) && KB_CNPJ_COLUNAS.includes(kbColunaDoLead(f)); }
 function kbCnpjDataBR(iso){ const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || '')); return m ? `${m[3]}/${m[2]}/${m[1]}` : ''; }
 function kbCnpjSelo(c){
@@ -5748,7 +5794,8 @@ async function kbAbrirFicha(aba, id, opc){
   const ret = ((kbEstado.hoje || {}).retornos || []).find(x => x.aba === aba && x.lead_id === id) || null;
   corpo.innerHTML = f ? kbFichaHtml(f, { gestor: kbGestor(), agoraMs: Date.now(), flutuando: !!kbEstado.fichaJanela, podePegar: kbGestor() || kbPodePegar(),
       opcoes: kbEstado.opcoes, grupo: o.grupo || null, naHoje: kbEstado.aba === 'hoje' && el.classList.contains('noPainel'),
-      pos: lista.indexOf(chave) + 1, total: lista.includes(chave) ? lista.length : 0, retorno: ret })
+      pos: lista.indexOf(chave) + 1, total: lista.includes(chave) ? lista.length : 0, retorno: ret,
+      podeAlterarCnpj: kbCnpjPodeAlterar(f, kbGestor(), currentUser && currentUser.id) })
     : `<div class="kbFichaRolagem"><div class="kbFichaBarra"><span class="kbFichaPos"></span><button type="button" class="kbBtn kbBtnG kbBtnIco" data-kb-ficha-fechar aria-label="Fechar">${KB_ICO.fechar}</button></div><p class="kbMeta">Não foi possível abrir a ficha agora.</p></div>`;
   if(!f) return;
   const sel = kbFichaEl('kbClassStatus');
@@ -5800,6 +5847,41 @@ async function kbApagarLead(aba, id, motivo){
   agAvisarMudou();
   await kbCarregar();
 }
+// §147: salva o CNPJ novo sem reabrir a ficha (o status/OBS em edição ficam). A Lista e a Conferir com NEO acompanham.
+async function kbCnpjAlterarSalvar(alvo){
+  const f = kbEstado.fichaLead, val = (id) => { const el = kbFichaEl(id); return el ? el.value : ''; };
+  const erroEl = kbFichaEl('kbCnpjAltErro');
+  const lido = kbCnpjAltLer(val('kbCnpjAltNovo'), val('kbCnpjAltMotivo'), val('kbCnpjAltOutro'), f && f.cnpj);
+  if(lido.erro){ if(erroEl) erroEl.textContent = lido.erro; return; }
+  const bt = kbFichaNo().querySelector('[data-kb-cnpj-alt-salvar]');
+  if(bt) bt.disabled = true;
+  const r = await ppSeguro(() => sb.rpc('leads_alterar_cnpj', { p_aba: alvo.aba, p_id: alvo.id, p_cnpj: lido.cnpj, p_motivo: lido.motivo }));
+  if(bt) bt.disabled = false;
+  if(!r || r.error){ if(erroEl) erroEl.textContent = (r && r.error && r.error.message) || 'Não foi possível salvar agora.'; return; }
+  if(!kbCnpjMesmaFicha(alvo.aba, alvo.id)) return;
+  const novo = String(r.data || lido.cnpj);
+  f.cnpj = novo;
+  [kbEstado.todos, kbEstado.leads].forEach(ls => (ls || []).forEach(l => { if(l.aba === alvo.aba && l.lead_id === alvo.id) l.cnpj = novo; }));
+  const outros = kbFichaNo().querySelector('.kbFichaOutros');
+  if(outros) outros.innerHTML = kbFichaOutrosHtml(f, true);
+  const caixa = kbFichaEl('kbCnpjAlt');
+  if(caixa){ caixa.hidden = true; caixa.innerHTML = ''; }
+  kbCnpjPintar({});
+  mostrarAviso('CNPJ alterado.', 'ok');
+  kbCnpjCarregar(alvo.aba, alvo.id);
+  kbCarregarDetalhes(alvo.aba, alvo.id);
+  if(kbEstado.neo) kbCarregarNeo();   // a conferência já foi aberta: recalcula com o CNPJ novo
+}
+kbFichaNo().addEventListener('input', (e) => {
+  if(e.target.id === 'kbCnpjAltNovo'){ const v = kbCnpjMascara(e.target.value); if(v !== e.target.value) e.target.value = v; }
+  if(e.target.id === 'kbCnpjAltNovo' || e.target.id === 'kbCnpjAltOutro'){ const er = kbFichaEl('kbCnpjAltErro'); if(er) er.textContent = ''; }
+});
+kbFichaNo().addEventListener('change', (e) => {
+  if(e.target.id !== 'kbCnpjAltMotivo') return;
+  const outro = kbFichaEl('kbCnpjAltOutro');
+  if(outro){ outro.hidden = e.target.value !== 'outro'; if(!outro.hidden) outro.focus(); }
+  const er = kbFichaEl('kbCnpjAltErro'); if(er) er.textContent = '';
+});
 kbFichaNo().addEventListener('click', async (e) => {
   const alvo = kbEstado.fichaAlvo;
   if(e.target.closest('[data-kb-ficha-fechar]')){ kbFecharFicha(); return; }
@@ -5817,6 +5899,13 @@ kbFichaNo().addEventListener('click', async (e) => {
   if(sv){ kbSalvarClassificacao({ proximo: sv.dataset.kbSalvar === 'prox' }); return; }
   const cp = e.target.closest('[data-kb-ficha-copiar]');
   if(cp){ try { await (kbFichaNo().ownerDocument.defaultView || window).navigator.clipboard.writeText(cp.dataset.kbFichaCopiar); mostrarAviso('Copiado.', 'ok'); } catch(_) { mostrarAviso('Não foi possível copiar.', 'erro'); } return; }
+  if(e.target.closest('[data-kb-cnpj-alterar]')){
+    const caixa = kbFichaEl('kbCnpjAlt');
+    if(caixa){ caixa.innerHTML = kbCnpjAltHtml(); caixa.hidden = false; const i = kbFichaEl('kbCnpjAltNovo'); if(i) i.focus(); }
+    return;
+  }
+  if(e.target.closest('[data-kb-cnpj-alt-cancelar]')){ const caixa = kbFichaEl('kbCnpjAlt'); if(caixa){ caixa.hidden = true; caixa.innerHTML = ''; } return; }
+  if(e.target.closest('[data-kb-cnpj-alt-salvar]')){ kbCnpjAlterarSalvar(alvo); return; }
   if(e.target.closest('[data-kb-cnpj-verificar]')){ kbCnpjVerificar(alvo.aba, alvo.id); return; }
   const rf = e.target.closest('[data-kb-cnpj-receita]');   // o link abre a Receita; o CNPJ vai copiado para colar lá
   if(rf){ try { await (kbFichaNo().ownerDocument.defaultView || window).navigator.clipboard.writeText(rf.dataset.kbCnpjReceita); mostrarAviso('CNPJ copiado: cole no site da Receita.', 'ok'); } catch(_) {} return; }
