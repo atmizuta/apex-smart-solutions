@@ -65,8 +65,10 @@ rodar(`
   window.confirm = () => false;
   await kbDistModo('automatico');
   eq(chamadas('leads_dist_config').length, 1, 'automático cancelado na confirmação não é enviado');
-  window.confirm = () => true;
+  let msgConfirm = '';
+  window.confirm = (m) => { msgConfirm = String(m); return true; };
   await kbDistModo('automatico');
+  assert(/5 min/.test(msgConfirm) && /15 min/.test(msgConfirm), 'confirmação com os prazos da configuração (5 e 15 min) — ' + msgConfirm);
   eq(chamadas('leads_dist_config').map(c => c.args).slice(-1), [{ p: { modo: 'automatico' } }], 'automático confirmado é enviado');
   window.__rpcCalls.length = 0;
   await kbDistSalvarCfg({ peso: '60', piso: '10', teto: '45', atender: '5', devolver: '20' });

@@ -5427,15 +5427,27 @@ function kbCronometro(ent, agoraMs){
   return { texto: `atrasado ${atraso} min · volta aos Livres em ${volta} min`, classe: 'late' };
 }
 // §146.2: aviso de lead que caiu para o consultor (uma vez por lead) e de lead que voltou aos Livres por falta de contato.
+// Revisão I-2: a chave inclui o usuário e a hora da entrega e fica guardada na aba (F5 não repete o aviso).
+function kbDistChave(ent){ return [currentUser && currentUser.id, ent.aba, ent.lead_id, ent.recebido_em].join('|'); }
+function kbDistJaAvisou(k){
+  if(kbEstado.distAvisadas.has(k)) return true;
+  try { return (JSON.parse(sessionStorage.getItem('kbDistAvisadas') || '[]') || []).includes(k); } catch(_e) { return false; }
+}
+function kbDistMarcarAvisado(k){
+  kbEstado.distAvisadas.add(k);
+  try { const l = (JSON.parse(sessionStorage.getItem('kbDistAvisadas') || '[]') || []).filter(x => x !== k); l.push(k); sessionStorage.setItem('kbDistAvisadas', JSON.stringify(l.slice(-50))); } catch(_e) {}
+}
 function kbDistAvisoEntrega(ent, agoraMs){
   const ant = kbEstado.distEntrega;
+  const mudou = (ant ? kbDistChave(ant) : '') !== (ent ? kbDistChave(ent) : '');
   if(ant && (!ent || ent.lead_id !== ant.lead_id)){
     const rec = kbMs(ant.recebido_em), prazo = (Number(ant.prazo_devolver_min) || 15) * 60000;
     if(rec !== null && agoraMs - rec >= prazo) mostrarAviso(`${ant.nome || 'O lead'} voltou aos Livres: passou o prazo sem contato.`, 'erro');
   }
   kbEstado.distEntrega = ent || null;
-  if(ent && !kbEstado.distAvisadas.has(ent.aba + '|' + ent.lead_id)){
-    kbEstado.distAvisadas.add(ent.aba + '|' + ent.lead_id);
+  if(mudou && !kbGestor()) kbCarregarDistMeu().then(kbRenderSuaVez);   // revisão: estado da faixa acompanha a entrega
+  if(ent && !kbDistJaAvisou(kbDistChave(ent))){
+    kbDistMarcarAvisado(kbDistChave(ent));
     const texto = `Lead novo para você: ${ent.nome || 'lead'}. Ligue em até ${Number(ent.prazo_atender_min) || 5} min.`;
     mostrarAviso(texto, 'info');
     if('Notification' in window && Notification.permission === 'granted'){ try { const nt = new Notification('Meus leads', { body: texto, tag: 'dist-' + ent.lead_id }); nt.onclick = () => { window.focus(); const bt = document.querySelector('#tabsNav button[data-tab="meusleads"]'); if(bt) bt.click(); kbAbrirFicha(ent.aba, ent.lead_id); }; } catch(_e) {} }
@@ -5470,8 +5482,7 @@ function kbSuaVezHtml(meu, ent, agoraMs){
 async function kbCarregarDistMeu(){
   if(!kbEstado.naEquipe) { kbEstado.distMeu = null; return; }
   const r = await ppSeguro(() => sb.rpc('leads_dist_meu'));
-  kbEstado.distMeu = r && !r.error ? r.data : null;   // banco sem a função: faixa some
-  if(kbEstado.distMeu && Object.prototype.hasOwnProperty.call(kbEstado.distMeu, 'entrega')) kbEstado.distEntrega = kbEstado.distMeu.entrega || kbEstado.distEntrega;
+  kbEstado.distMeu = r && !r.error ? r.data : null;   // banco sem a função: faixa some (a entrega vem da presença)
 }
 function kbRenderSuaVez(){
   const el = document.getElementById('kbSuaVez');
@@ -5631,6 +5642,7 @@ function kbAgendar(){
 function kbParar(){
   clearInterval(kbEstado.timer); clearInterval(kbEstado.timerAlertas); clearInterval(kbEstado.timerPresenca);
   clearInterval(kbEstado.timerSuaVez); kbEstado.timerSuaVez = null; kbEstado.distMeu = null; kbEstado.distEntrega = null;
+  { const sv = document.getElementById('kbSuaVez'); if(sv){ sv.innerHTML = ''; sv.hidden = true; } }   // revisão: o próximo usuário não vê a faixa de quem saiu
   kbEstado.timer = null; kbEstado.timerAlertas = null;
   kbEstado.timerPresenca = null; kbEstado.presenca = null; kbEstado.distrib = null;
   kbEstado.aba = null; kbEstado.hoje = null; kbEstado.filaAba = 'fazer'; kbEstado.hojeSel = null; kbEstado.filaHoje = []; kbEstado.notificados = new Set(); kbEstado.alertas = [];
@@ -6399,7 +6411,8 @@ function kbFaixaDistribHtml(d){
 }
 async function kbDistModo(modo){
   if(kbEstado.distMudando || !KB_DIST_MODO[modo]) return;
-  if(modo === 'automatico' && !window.confirm('Ligar a distribuição automática? Cada lead novo vai cair direto para um consultor; quem não ligar em 5 min perde o lead para o próximo. O time precisa estar com o painel aberto.')) return;
+  const cfgD = (kbEstado.distrib && kbEstado.distrib.cfg) || {}, pa = Number(cfgD.prazo_atender_min) || 5, pd = Number(cfgD.prazo_devolver_min) || 15;
+  if(modo === 'automatico' && !window.confirm(`Ligar a distribuição automática? Cada lead novo vai cair direto para um consultor. Quem não ligar em ${pa} min fica fora da vez; em ${pd} min sem contato o lead vai para o próximo. O time precisa estar com o painel aberto.`)) return;
   kbEstado.distMudando = true;
   const r = await ppSeguro(() => sb.rpc('leads_dist_config', { p: { modo } }));
   kbEstado.distMudando = false;

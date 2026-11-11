@@ -51,6 +51,33 @@ rodar(`
   assert(kbEstado.timerPresencaMs === 20000, 'presença a cada 20 s');
   kbParar();
 
+  // ==== revisão: F5 não repete o aviso; outro usuário na mesma aba é avisado (I-2) ====
+  const ENT4 = Object.assign({}, ENT, { lead_id: 'L4', nome: 'Quarto Teste' });
+  kbDistAvisoEntrega(ENT4, T0);
+  const nAntes = window.__notificacoes.filter(n => /Quarto Teste/.test(n.opts && n.opts.body || '')).length;
+  kbEstado.distAvisadas = new Set(); kbEstado.distEntrega = null;   // simula o F5 (memória zerada)
+  kbDistAvisoEntrega(ENT4, T0 + 20000);
+  eq(window.__notificacoes.filter(n => /Quarto Teste/.test(n.opts && n.opts.body || '')).length, nAntes, 'F5 não repete o aviso do mesmo lead');
+  currentUser = { id: 'c2', nome: 'Outra Consultora', username: 'cons2', role: 'consultor' };
+  kbEstado.distEntrega = null;
+  kbDistAvisoEntrega(ENT4, T0 + 40000);
+  eq(window.__notificacoes.filter(n => /Quarto Teste/.test(n.opts && n.opts.body || '')).length, nAntes + 1, 'outro usuário na mesma aba é avisado');
+  currentUser = { id: 'c1', nome: 'Consultor Teste', username: 'cons', role: 'consultor' };
+  // ==== revisão: quando a entrega muda, a faixa recarrega o estado (Minor 2 → Important) ====
+  await espera(50);   // deixa terminar as recargas disparadas pelos passos anteriores
+  window.__rpcCalls.length = 0;
+  window.__rpcRespostas.leads_dist_meu = { data: Object.assign({}, MEU, { estado: 'na_vez', entrega: null }), error: null };
+  kbEstado.distEntrega = ENT4;
+  kbDistAvisoEntrega(null, T0 + 60000);
+  await espera();
+  eq(chamadas('leads_dist_meu').length, 1, 'entrega mudou: recarrega o estado da faixa');
+  // ==== revisão: sair limpa a faixa (Minor 5 → Important) ====
+  kbEstado.distMeu = MEU; kbEstado.distEntrega = ENT; kbRenderSuaVez();
+  assert(document.getElementById('kbSuaVez').innerHTML.includes('Lead Teste'), 'faixa com o lead antes de sair');
+  kbParar();
+  assert(document.getElementById('kbSuaVez').innerHTML === '' && document.getElementById('kbSuaVez').hidden, 'sair limpa a faixa');
+  kbEstado.naEquipe = true;
+
   // ==== Pausa / Voltar ====
   window.__rpcCalls.length = 0;
   kbEstado.distMeu = Object.assign({}, MEU, { estado: 'na_vez', entrega: null });
