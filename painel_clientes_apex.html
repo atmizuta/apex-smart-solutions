@@ -1358,6 +1358,21 @@
   .cvTaxa.lo{background:var(--ml-late-soft);color:var(--ml-late);}
   .cvPoucos{display:block;font-size:var(--fs-xs);color:var(--ml-ink-3);font-weight:500;}
   .cvBarra{display:inline-flex;align-items:center;gap:10px;justify-content:flex-end;}
+  /* §148: Leads por dia — mesmos tokens da Conversão */
+  .lpdCard{padding-bottom:14px;}
+  .lpdTopo{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding-right:16px;}
+  .lpdTopo .kbBtn{margin-top:14px;}
+  .lpdFiltros{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:0 16px 10px;}
+  .lpdSeg button{padding:5px 12px;font-size:var(--fs-sm);}
+  .lpdSel{height:32px;max-width:100%;border:1px solid var(--ml-surface-3);border-radius:var(--radius-lg);background:var(--ml-surface);color:var(--ml-ink);font:inherit;font-size:var(--fs-sm);padding:0 8px;}
+  .lpdSelCamp{max-width:320px;}
+  .lpdChk{display:inline-flex;align-items:center;gap:6px;font-size:var(--fs-sm);color:var(--ml-ink-2);cursor:pointer;}
+  .lpdChk input{accent-color:var(--c-sinal);}
+  .lpdKpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));padding:4px 16px 6px;}
+  .lpdKpis .cvKpi{background:var(--ml-surface-2);}
+  .lpdGrafico{position:relative;height:320px;padding:6px 16px 0;}
+  .lpdNota{padding:6px 16px 0;color:var(--ml-ink-3);font-size:var(--fs-xs);}
+  @media (max-width: 700px){ .lpdGrafico{height:260px;} .lpdSelCamp{max-width:100%;} .lpdTopo{flex-direction:column;padding-right:0;} .lpdTopo .kbBtn{margin:0 16px;} }
   .cvBarra .t{width:140px;height:8px;background:var(--ml-surface-3);border-radius:var(--radius-sm);}
   .cvBarra .t i{display:block;height:100%;background:var(--c-sinal);border-radius:var(--radius-sm);}
   .cvRank tfoot td{font-weight:700;background:var(--ml-surface-2);}
@@ -6028,6 +6043,102 @@ function cvVar(v, sufixo){
   if(v === null || v === undefined) return '';
   return (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + sufixo;
 }
+// ===== §148: Leads por dia (Conversão) — funções puras. Dia = chegada do lead no fuso de SP; datas como 'AAAA-MM-DD' =====
+const LPD_PERIODOS = [7, 14, 30, 60, 90];
+const LPD_DIAS_SEMANA = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+const LPD_PLAT = { fb: 'Facebook', ig: 'Instagram', outro: 'Outras' };
+const LPD_TIPO = { mei: 'MEI', empresa: 'Empresa' };
+const LPD_LIN = { '1': '1 linha', '2-5': '2 a 5 linhas', '5+': 'Mais de 5' };
+function lpdHojeSP(agoraMs){ const p = cvPartesSP(agoraMs); return p.ano + '-' + String(p.mes).padStart(2, '0') + '-' + String(p.dia).padStart(2, '0'); }
+function lpdSomaDias(dia, n){ const d = new Date(dia + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+function lpdDiaSemana(dia){ const w = new Date(dia + 'T12:00:00Z').getUTCDay(); return w === 0 ? 7 : w; }   // segunda = 1 … domingo = 7
+function lpdDataBR(dia){ return dia.slice(8, 10) + '/' + dia.slice(5, 7) + '/' + dia.slice(0, 4); }
+function lpdDataCurta(dia){ return dia.slice(8, 10) + '/' + dia.slice(5, 7); }
+function lpdLinhas(json){
+  return (Array.isArray(json) ? json : []).filter(a => Array.isArray(a) && a[0]).map(a => ({
+    dia: String(a[0]).slice(0, 10), plat: a[1] || null, tipo: a[2] || null, lin: a[3] || null, camp: a[4] || null, rep: !!a[5],
+    leads: Number(a[6]) || 0, conv: Number(a[7]) || 0, rec: Number(a[8]) || 0,
+  }));
+}
+function lpdFiltrosPadrao(){ return { periodo: 90, ver: 'dia', plat: '', tipo: '', lin: '', camp: '', repique: false, conv: true }; }
+function lpdTemFiltro(f){ return !!(f.plat || f.tipo || f.lin || f.camp || f.repique); }
+// camp '(sem)' = campanha sem nome (a Meta mandou o texto de erro de permissão no lugar do nome)
+function lpdFiltrar(linhas, f){
+  return (linhas || []).filter(l => (f.repique || !l.rep) && (!f.plat || l.plat === f.plat) && (!f.tipo || l.tipo === f.tipo)
+    && (!f.lin || l.lin === f.lin) && (!f.camp || (f.camp === '(sem)' ? !l.camp : l.camp === f.camp)));
+}
+function lpdCampanhas(linhas){
+  const por = new Map();
+  (linhas || []).filter(l => !l.rep).forEach(l => { const k = l.camp || '(sem)'; por.set(k, (por.get(k) || 0) + l.leads); });
+  return [...por.entries()].map(([valor, leads]) => ({ valor, leads }))
+    .sort((a, b) => (b.leads - a.leads) || (a.valor === '(sem)') - (b.valor === '(sem)') || a.valor.localeCompare(b.valor, 'pt-BR'));
+}
+function lpdSerieDiaria(linhas, ini, fim){
+  const por = new Map();
+  (linhas || []).forEach(l => {
+    if(l.dia < ini || l.dia > fim) return;
+    const d = por.get(l.dia) || { leads: 0, conv: 0, rec: 0 };
+    d.leads += l.leads; d.conv += l.conv; d.rec += l.rec;
+    por.set(l.dia, d);
+  });
+  const out = [];
+  for(let dia = ini; dia <= fim; dia = lpdSomaDias(dia, 1)){
+    const d = por.get(dia) || { leads: 0, conv: 0, rec: 0 };
+    out.push({ dia, leads: d.leads, conv: d.conv, rec: Math.round(d.rec * 100) / 100 });
+  }
+  return out;
+}
+function lpdMediaMovel(serie, n){
+  return (serie || []).map((_, i) => {
+    if(i < n - 1) return null;
+    let s = 0; for(let j = i - n + 1; j <= i; j++) s += serie[j].leads;
+    return Math.round(s / n * 10) / 10;
+  });
+}
+function lpdPorSemana(serie){
+  const out = [];
+  (serie || []).forEach(d => {
+    const ult = out[out.length - 1];
+    if(!ult || lpdDiaSemana(d.dia) === 1) out.push({ ini: d.dia, fim: d.dia, dias: 1, leads: d.leads, conv: d.conv, rec: d.rec });
+    else { ult.fim = d.dia; ult.dias++; ult.leads += d.leads; ult.conv += d.conv; ult.rec += d.rec; }
+  });
+  return out.map(w => Object.assign(w, { media: Math.round(w.leads / w.dias * 10) / 10 }));
+}
+function lpdPorDiaSemana(serie){
+  const out = LPD_DIAS_SEMANA.map(rotulo => ({ rotulo, dias: 0, leads: 0, conv: 0 }));
+  (serie || []).forEach(d => { const x = out[lpdDiaSemana(d.dia) - 1]; x.dias++; x.leads += d.leads; x.conv += d.conv; });
+  return out.map(x => Object.assign(x, { media: x.dias ? Math.round(x.leads / x.dias * 10) / 10 : 0, mediaConv: x.dias ? Math.round(x.conv / x.dias * 10) / 10 : 0 }));
+}
+// O dia de hoje ainda está chegando: aparece no gráfico, mas fica fora de total, média, melhor/pior e comparação.
+function lpdResumo(serie, anterior, hoje){
+  const comp = (serie || []).filter(d => d.dia !== hoje);
+  const total = comp.reduce((s, d) => s + d.leads, 0);
+  const conv = comp.reduce((s, d) => s + d.conv, 0);
+  const totAnt = (anterior || []).reduce((s, d) => s + d.leads, 0);
+  const media = comp.length ? Math.round(total / comp.length * 10) / 10 : null;
+  const mediaAnt = anterior && anterior.length ? totAnt / anterior.length : null;
+  let melhor = null, pior = null;
+  comp.forEach(d => { if(!melhor || d.leads > melhor.leads) melhor = d; if(!pior || d.leads < pior.leads) pior = d; });
+  const h = (serie || []).find(d => d.dia === hoje);
+  return { total, conv, dias: comp.length, media, taxa: cvTaxa(conv, total), varPct: media === null || !mediaAnt ? null : Math.round((media - mediaAnt) / mediaAnt * 100),
+    mediaAnt: mediaAnt === null ? null : Math.round(mediaAnt * 10) / 10, melhor, pior, hoje: h ? h.leads : null };
+}
+function lpdJanela(agoraMs, periodo){
+  const fim = lpdHojeSP(agoraMs), ini = lpdSomaDias(fim, -periodo);
+  return { ini, fim, antIni: lpdSomaDias(ini, -periodo), antFim: lpdSomaDias(ini, -1) };
+}
+function lpdCsv(itens, ver){
+  const pct = (c, l) => l > 0 ? cvPct(c / l) : '';
+  const num = (n) => String(n).replace('.', ',');
+  let linhas;
+  if(ver === 'semana') linhas = [['Semana', 'Dias', 'Leads', 'Média por dia', 'Convertidos', 'Taxa']]
+    .concat(itens.map(w => ['Semana de ' + lpdDataBR(w.ini) + ' a ' + lpdDataBR(w.fim), w.dias, w.leads, num(w.media), w.conv, pct(w.conv, w.leads)]));
+  else if(ver === 'diasemana') linhas = [['Dia da semana', 'Dias no período', 'Leads', 'Média por dia', 'Convertidos', 'Taxa']]
+    .concat(itens.map(x => [x.rotulo, x.dias, x.leads, num(x.media), x.conv, pct(x.conv, x.leads)]));
+  else linhas = [['Data', 'Dia da semana', 'Leads', 'Convertidos', 'Taxa']]
+    .concat(itens.map(d => [lpdDataBR(d.dia), LPD_DIAS_SEMANA[lpdDiaSemana(d.dia) - 1], d.leads, d.conv, pct(d.conv, d.leads)]));
+  return linhas.map(r => r.join(';')).join('\r\n');
+}
 // ===== §138.1: Conversão — tela =====
 const cvEstado = { linhas: null, meses: [], sel: null, carregando: false, erro: false, atualizadoEm: null, geracao: 0 };
 function cvPodeVer(){
@@ -6098,17 +6209,21 @@ function cvHtml(est){
     + `<tbody>${corpo || '<tr><td colspan="6">Nenhum lead neste mês ainda.</td></tr>'}</tbody>`
     + `<tfoot><tr><td></td><td>Total</td><td class="r">${rk.total.leads}</td><td class="r">${rk.total.convertidos}</td><td class="r">${cvPct(rk.total.taxa)}</td><td class="r">${fmtBRL(rk.total.receita)}</td></tr></tfoot></table></div>`;
   const hora = est.atualizadoEm ? new Date(est.atualizadoEm).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }) : '';
-  return `<div class="cvMeses">${cartoes}</div>${kpis}${aviso}${verLeads}${tabela}${hora ? `<div class="cvRodape">Atualizado às ${hora}</div>` : ''}`;
+  return `<div class="cvMeses">${cartoes}</div>${kpis}${aviso}${verLeads}<div data-lpd-slot></div>${tabela}${hora ? `<div class="cvRodape">Atualizado às ${hora}</div>` : ''}`;
 }
 function cvRender(){
   const el = document.getElementById('cvConversao');
-  if(el) el.innerHTML = cvHtml(Object.assign({}, cvEstado, { agoraMs: Date.now(), gestor: cvGestor(), agencia: kbAgencia() }));
+  if(!el) return;
+  el.innerHTML = cvHtml(Object.assign({}, cvEstado, { agoraMs: Date.now(), gestor: cvGestor(), agencia: kbAgencia() }));
+  const slot = el.querySelector('[data-lpd-slot]');   // §148: o cartão Leads por dia entra aqui sem ser refeito
+  if(slot){ const novo = !lpdNo.isConnected || !lpdEstado.chart; slot.replaceWith(lpdNo); if(novo) lpdRender(); }
 }
 async function cvCarregar(){
   if(!cvPodeVer()) return;
   const g = ++cvEstado.geracao;
   cvEstado.carregando = !cvEstado.linhas; cvEstado.erro = false;
   cvRender();
+  lpdCarregar();   // §148: em paralelo; o cartão se atualiza sozinho quando chegar
   const r = await ppSeguro(() => sb.rpc('conversao_resumo'));
   if(g !== cvEstado.geracao) return;
   cvEstado.carregando = false;
@@ -6138,6 +6253,165 @@ document.getElementById('cvConversao').addEventListener('click', function(e){
     Object.assign(kbEstadoTabela(), { visao: 'todos', pagina: 1 });
     kbTrocarAba('todos');
   }
+});
+// ===== §148: Leads por dia — tela. O cartão vive num nó próprio (lpdNo) que o cvRender só encaixa no lugar:
+// trocar de mês na Conversão não refaz o gráfico nem a consulta. =====
+const lpdEstado = { dados: null, carregando: false, erro: false, geracao: 0, f: lpdFiltrosPadrao(), chart: null };
+const lpdNo = document.createElement('div');
+lpdNo.className = 'cvCard lpdCard';
+function lpdAlpha(cor, a){
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(cor).trim());
+  if(!m) return cor;
+  const n = parseInt(m[1], 16);
+  return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`;
+}
+function lpdNum(n){ return n === null || n === undefined ? '—' : Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 1 }); }
+// Tudo o que a tela precisa, já calculado: série do período, comparação e itens do gráfico conforme "Ver por".
+function lpdCalcular(linhas, f, agoraMs){
+  const jan = lpdJanela(agoraMs, f.periodo);
+  const filtradas = lpdFiltrar(linhas, f);
+  const primeiro = filtradas.reduce((m, l) => !m || l.dia < m ? l.dia : m, null);
+  const desde = primeiro && primeiro > jan.ini && primeiro <= jan.fim ? primeiro : null;   // antes do 1º lead do recorte a campanha nem existia: zero ali puxaria média e "pior dia"
+  const serie = lpdSerieDiaria(filtradas, desde || jan.ini, jan.fim);
+  const temAnterior = !!primeiro && primeiro <= jan.antIni;   // sem lead no começo da janela anterior, comparar engana (campanhas começaram em 20/08)
+  const resumo = lpdResumo(serie, temAnterior ? lpdSerieDiaria(filtradas, jan.antIni, jan.antFim) : null, jan.fim);
+  return { jan, desde, serie, resumo, temAnterior, semanas: lpdPorSemana(serie), diasSemana: lpdPorDiaSemana(serie.filter(d => d.dia !== jan.fim)) };
+}
+function lpdOpcoes(f, atual, mapa, todos){
+  return `<option value="">${todos}</option>` + Object.keys(mapa).map(k => `<option value="${escapeHtml(k)}"${atual === k ? ' selected' : ''}>${escapeHtml(mapa[k])}</option>`).join('');
+}
+function lpdHtml(est, calc){
+  const topo = '<div class="lpdTopo"><div><h3>Leads por dia</h3><div class="cvSub">Pela hora em que o lead chegou (horário de SP). O dia de hoje aparece mais claro e não entra nas médias.</div></div>'
+    + (calc ? '<button type="button" class="kbBtn kbBtnQ kbBtnSm" data-lpd-csv><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Baixar CSV</button>' : '') + '</div>';
+  if(est.carregando && !est.dados) return topo + '<div class="cvVazio">Carregando os leads por dia…</div>';
+  if(est.erro && !est.dados) return topo + '<div class="cvVazio">Não foi possível carregar os leads por dia. <button type="button" class="kbBtn kbBtnQ kbBtnSm" data-lpd-tentar>Tentar de novo</button></div>';
+  const f = est.f;
+  const seg = (attr, itens, atual) => `<div class="kbSeg lpdSeg" role="group">${itens.map(([v, t]) => `<button type="button" data-lpd-${attr}="${v}" class="${String(atual) === String(v) ? 'active' : ''}" aria-pressed="${String(atual) === String(v)}">${t}</button>`).join('')}</div>`;
+  const camps = lpdCampanhas(est.dados);
+  const campOpc = '<option value="">Todas as campanhas</option>' + camps.map(c => `<option value="${escapeHtml(c.valor)}"${f.camp === c.valor ? ' selected' : ''}>${escapeHtml(c.valor === '(sem)' ? 'Sem nome (erro da Meta)' : c.valor)} · ${c.leads}</option>`).join('');
+  const filtros = '<div class="lpdFiltros">'
+    + seg('periodo', LPD_PERIODOS.map(p => [p, p + ' dias']), f.periodo)
+    + seg('ver', [['dia', 'Dia'], ['semana', 'Semana'], ['diasemana', 'Dia da semana']], f.ver)
+    + '</div><div class="lpdFiltros">'
+    + `<select class="lpdSel" data-lpd-f="plat" aria-label="Plataforma">${lpdOpcoes(f, f.plat, LPD_PLAT, 'Todas as plataformas')}</select>`
+    + `<select class="lpdSel" data-lpd-f="tipo" aria-label="Tipo de empresa">${lpdOpcoes(f, f.tipo, LPD_TIPO, 'MEI e empresa')}</select>`
+    + `<select class="lpdSel" data-lpd-f="lin" aria-label="Linhas">${lpdOpcoes(f, f.lin, LPD_LIN, 'Qualquer nº de linhas')}</select>`
+    + `<select class="lpdSel lpdSelCamp" data-lpd-f="camp" aria-label="Campanha">${campOpc}</select>`
+    + `<label class="lpdChk"><input type="checkbox" data-lpd-f="repique"${f.repique ? ' checked' : ''}> Incluir Repique</label>`
+    + `<label class="lpdChk"><input type="checkbox" data-lpd-f="conv"${f.conv ? ' checked' : ''}> Mostrar convertidos</label>`
+    + (lpdTemFiltro(f) ? '<button type="button" class="cvLink" data-lpd-limpar>Limpar filtros</button>' : '')
+    + '</div>';
+  const r = calc.resumo;
+  const kpi = (lb, v, d) => `<div class="cvKpi"><div class="cvKpiLb">${lb}</div><div class="cvKpiV">${v}</div><div class="cvKpiD">${d || '&nbsp;'}</div></div>`;
+  const dDia = (d) => d ? `${LPD_DIAS_SEMANA[lpdDiaSemana(d.dia) - 1].toLowerCase()}, ${lpdDataCurta(d.dia)}` : '';
+  const varTxt = r.varPct === null ? (calc.temAnterior ? '' : 'sem período anterior completo')
+    : `<span class="${r.varPct > 0 ? 'cvUp' : r.varPct < 0 ? 'cvDn' : ''}">${cvVar(r.varPct, '%')}</span> vs ${f.periodo} dias antes (${lpdNum(r.mediaAnt)}/dia)`;
+  const kpis = '<div class="cvKpis lpdKpis">'
+    + kpi('Média por dia', lpdNum(r.media), varTxt)
+    + kpi('Total no período', r.total.toLocaleString('pt-BR'), `${r.dias} dias completos · ${r.conv} convertidos (${cvPct(r.taxa)})`)
+    + kpi('Melhor dia', r.melhor ? r.melhor.leads : '—', dDia(r.melhor))
+    + kpi('Pior dia', r.pior ? r.pior.leads : '—', dDia(r.pior))
+    + kpi('Hoje até agora', r.hoje === null ? '—' : r.hoje, 'parcial')
+    + '</div>';
+  const vazio = r.total === 0 && !r.hoje ? '<div class="cvVazio">Nenhum lead com esses filtros no período.</div>' : '';
+  const nota = f.ver === 'diasemana' ? `Média de leads em cada dia da semana nos últimos ${f.periodo} dias completos.`
+    : f.ver === 'semana' ? 'Semanas de segunda a domingo; a primeira e a última podem estar incompletas (passe o mouse para ver quantos dias).'
+    : 'Linha escura: média dos últimos 7 dias (tira o sobe e desce do fim de semana). Tracejada: média do período.';
+  const desde = calc.desde ? ` Começa em ${lpdDataCurta(calc.desde)}, o primeiro dia com lead${lpdTemFiltro(f) ? ' nesses filtros' : ''}.` : '';
+  return topo + filtros + kpis + vazio + `<div class="lpdGrafico"><canvas aria-label="Gráfico de leads recebidos"></canvas></div><div class="lpdNota">${nota}${desde}</div>`;
+}
+function lpdGraficoCfg(calc, f){
+  const sinal = corToken('--c-sinal'), ganho = corToken('--st-ganho'), escuro = corToken('--c-grafite'), cinza = corToken('--c-cinza');
+  const hoje = calc.jan.fim;
+  let labels, leads, conv, extras = [], titulos, rodape;
+  if(f.ver === 'semana'){
+    const w = calc.semanas;
+    labels = w.map(x => lpdDataCurta(x.ini) + (x.ini !== x.fim ? '–' + lpdDataCurta(x.fim) : ''));
+    leads = w.map(x => x.leads); conv = w.map(x => x.conv);
+    titulos = (i) => `Semana de ${lpdDataBR(w[i].ini)} a ${lpdDataBR(w[i].fim)}`;
+    rodape = (i) => `${w[i].dias} dia${w[i].dias > 1 ? 's' : ''} · média ${lpdNum(w[i].media)}/dia · taxa ${cvPct(cvTaxa(w[i].conv, w[i].leads))}${w[i].fim === hoje ? ' · inclui hoje (parcial)' : ''}`;
+  } else if(f.ver === 'diasemana'){
+    const d = calc.diasSemana;
+    labels = d.map(x => x.rotulo); leads = d.map(x => x.media); conv = d.map(x => x.mediaConv);
+    titulos = (i) => `${d[i].rotulo} — média de ${d[i].dias} dia${d[i].dias > 1 ? 's' : ''}`;
+    rodape = (i) => `${d[i].leads} leads no total · taxa ${cvPct(cvTaxa(d[i].conv, d[i].leads))}`;
+  } else {
+    const s = calc.serie;
+    labels = s.map(x => lpdDataCurta(x.dia)); leads = s.map(x => x.leads); conv = s.map(x => x.conv);
+    titulos = (i) => `${LPD_DIAS_SEMANA[lpdDiaSemana(s[i].dia) - 1]}, ${lpdDataBR(s[i].dia)}${s[i].dia === hoje ? ' · hoje (parcial)' : ''}`;
+    rodape = (i) => s[i].leads ? `Taxa ${cvPct(cvTaxa(s[i].conv, s[i].leads))}` : '';
+    const mm = lpdMediaMovel(s, 7);
+    mm[mm.length - 1] = null;   // hoje parcial puxaria a média para baixo
+    extras = [
+      { type: 'line', label: 'Média de 7 dias', data: mm, borderColor: escuro, backgroundColor: escuro, borderWidth: 2, pointRadius: 0, pointHoverRadius: 3, tension: 0.35, spanGaps: false, order: 0 },
+      { type: 'line', label: 'Média do período', data: s.map(() => calc.resumo.media), borderColor: cinza, borderWidth: 1.5, borderDash: [6, 5], pointRadius: 0, pointHoverRadius: 0, order: 0 },
+    ];
+  }
+  const ehHoje = (i) => f.ver === 'dia' && i === labels.length - 1;
+  const barras = [];
+  if(f.conv) barras.push({ type: 'bar', label: 'Convertidos', data: conv, backgroundColor: ganho, borderRadius: 3, grouped: false, barPercentage: 0.5, categoryPercentage: 0.9, order: 1 });
+  barras.push({ type: 'bar', label: 'Leads', data: leads, backgroundColor: leads.map((_, i) => ehHoje(i) ? lpdAlpha(sinal, 0.35) : lpdAlpha(sinal, 0.85)),
+    hoverBackgroundColor: sinal, borderRadius: 3, grouped: false, barPercentage: 0.9, categoryPercentage: 0.9, order: 2 });
+  return {
+    type: 'bar',
+    data: { labels, datasets: barras.concat(extras) },
+    options: {
+      responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, boxHeight: 8 } },
+        tooltip: { callbacks: {
+          title: (it) => it.length ? titulos(it[0].dataIndex) : '',
+          label: (c) => c.dataset.label === 'Média do período' && c.dataIndex !== 0 && f.ver === 'dia' ? null : `${c.dataset.label}: ${lpdNum(c.parsed.y)}`,
+          footer: (it) => it.length ? rodape(it[0].dataIndex) : '',
+        } },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, autoSkipPadding: 12 } },
+        y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: lpdAlpha(cinza, 0.15) } },
+      },
+    },
+  };
+}
+function lpdRender(){
+  if(lpdEstado.chart){ lpdEstado.chart.destroy(); lpdEstado.chart = null; }
+  const calc = lpdEstado.dados ? lpdCalcular(lpdEstado.dados, lpdEstado.f, Date.now()) : null;
+  lpdEstado.calc = calc;
+  lpdNo.innerHTML = lpdHtml(lpdEstado, calc);
+  const canvas = lpdNo.querySelector('canvas');
+  if(calc && canvas && lpdNo.isConnected && typeof Chart !== 'undefined') lpdEstado.chart = new Chart(canvas, lpdGraficoCfg(calc, lpdEstado.f));
+}
+async function lpdCarregar(){
+  if(!cvPodeVer()) return;
+  const g = ++lpdEstado.geracao;
+  lpdEstado.carregando = true; lpdEstado.erro = false;
+  if(!lpdEstado.dados) lpdRender();
+  const r = await ppSeguro(() => sb.rpc('leads_volume_diario'));
+  if(g !== lpdEstado.geracao) return;
+  lpdEstado.carregando = false;
+  if(!r || r.error){ console.error(r && r.error); lpdEstado.erro = true; if(!lpdEstado.dados) lpdRender(); return; }
+  lpdEstado.dados = lpdLinhas(r.data);
+  lpdRender();
+}
+lpdNo.addEventListener('click', function(e){
+  const p = e.target.closest('[data-lpd-periodo]');
+  if(p){ lpdEstado.f.periodo = Number(p.dataset.lpdPeriodo); lpdRender(); return; }
+  const v = e.target.closest('[data-lpd-ver]');
+  if(v){ lpdEstado.f.ver = v.dataset.lpdVer; lpdRender(); return; }
+  if(e.target.closest('[data-lpd-limpar]')){ lpdEstado.f = Object.assign(lpdFiltrosPadrao(), { periodo: lpdEstado.f.periodo, ver: lpdEstado.f.ver, conv: lpdEstado.f.conv }); lpdRender(); return; }
+  if(e.target.closest('[data-lpd-tentar]')){ lpdCarregar(); return; }
+  if(e.target.closest('[data-lpd-csv]') && lpdEstado.calc){
+    const c = lpdEstado.calc, f = lpdEstado.f;
+    const itens = f.ver === 'semana' ? c.semanas : f.ver === 'diasemana' ? c.diasSemana : c.serie;
+    const sufixo = [f.plat && LPD_PLAT[f.plat], f.tipo && LPD_TIPO[f.tipo], f.lin && LPD_LIN[f.lin], f.camp && 'campanha', f.repique && 'com repique'].filter(Boolean).join('_');
+    const nome = `leads_por_${f.ver === 'diasemana' ? 'dia_da_semana' : f.ver}_${c.jan.ini}_a_${c.jan.fim}${sufixo ? '_' + sufixo.replace(/\s+/g, '-') : ''}.csv`;
+    downloadBlob(new Blob(['﻿' + lpdCsv(itens, f.ver)], { type: 'text/csv;charset=utf-8' }), nome);
+  }
+});
+lpdNo.addEventListener('change', function(e){
+  const el = e.target.closest('[data-lpd-f]');
+  if(!el) return;
+  lpdEstado.f[el.dataset.lpdF] = el.type === 'checkbox' ? el.checked : el.value;
+  lpdRender();
 });
 // ===== §118: abas, Hoje, Equipe, pesquisa, detalhes da ficha, alertas =====
 kbEstado.aba = null; kbEstado.filaAba = 'fazer'; kbEstado.hojeSel = null; kbEstado.filaHoje = []; kbEstado.notificados = new Set(); kbEstado.alertas = []; kbEstado.hoje = null; kbEstado.equipe = [];

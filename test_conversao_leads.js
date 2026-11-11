@@ -171,7 +171,7 @@ try{
   await espera(60);
   eq(currentUser.role, 'agencia', 'agência entrou');
   eq(window.__fromCalls.filter(t => t !== 'leads_status_opcoes'), [], 'agência não lê nenhuma tabela direto');
-  eq([...new Set(window.__rpcCalls.map(c => c.nome))].sort(), ['conversao_resumo', 'meu_perfil'], 'agência só chama meu_perfil e conversao_resumo');
+  eq([...new Set(window.__rpcCalls.map(c => c.nome))].sort(), ['conversao_resumo', 'leads_volume_diario', 'meu_perfil'], 'agência só chama meu_perfil, conversao_resumo e leads_volume_diario (§148)');
   const visiveis = [...document.querySelectorAll('#tabsNav button[data-tab]')].filter(b => b.style.display !== 'none').map(b => b.dataset.tab);
   eq(visiveis, ['meusleads'], 'menu da agência: só Meus leads');
   assert(document.getElementById('panel-meusleads').classList.contains('active') && kbEstado.aba === 'conversao', 'abre direto em Meus leads → Conversão');
