@@ -42,6 +42,20 @@ begin
   r := public.leads_distribuir('TESTE DIST', 'lc-2');
   v_out := v_out || case when r ->> 'motivo' = 'fora_do_expediente'
                           and exists (select 1 from public.leads_distribuicao where lead_id = 'lc-2' and consultor_id is null and fechado_em is null) then '7 ok; ' else '7 FALHOU ' || r::text || '; ' end;
+  -- 7b. (revisão I-1) margem de 2 min: com o fim do expediente 16 min à frente também não entrega (o tick das 20:59 não alcançaria o prazo)
+  v_fim := to_char((now() at time zone 'America/Sao_Paulo') + interval '16 minutes', 'HH24:MI');
+  perform pg_temp.ld_cfg(jsonb_build_object('expediente', jsonb_build_object('dias', '[1,2,3,4,5,6,7]'::jsonb, 'inicio', '00:00', 'fim', v_fim)));
+  perform pg_temp.ld_lead('lc-2b', 4);
+  r := public.leads_distribuir('TESTE DIST', 'lc-2b');
+  v_out := v_out || case when r ->> 'motivo' = 'fora_do_expediente' then '7b ok; ' else '7b FALHOU ' || r::text || '; ' end;
+  -- 7c. com o expediente o dia todo entrega normalmente
+  perform pg_temp.ld_cfg('{"expediente":{"dias":[1,2,3,4,5,6,7],"inicio":"00:00","fim":"24:00"}}');
+  update public.leads_distribuicao set atendido_em = now() where atendido_em is null and consultor_id is not null and lead_aba = 'TESTE DIST';
+  r := public.leads_distribuir('TESTE DIST', 'lc-2b');
+  v_out := v_out || case when (r ->> 'ok')::boolean then '7c ok; ' else '7c FALHOU ' || r::text || '; ' end;
+  -- 9. (revisão #6) lead apagado não aparece como entrega aberta
+  update public.leads set apagado_em = now() where id = 'lc-2b';
+  v_out := v_out || case when public.leads_dist_entrega_aberta((r ->> 'consultor_id')::uuid) is null then '9 ok; ' else '9 FALHOU; ' end;
   -- 8. M-1: fora do expediente o tick não devolve
   perform pg_temp.ld_cfg('{"expediente":{"dias":[],"inicio":"00:00","fim":"24:00"}}');
   perform pg_temp.ld_lead('lc-3', 3);

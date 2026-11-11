@@ -12,6 +12,7 @@ as $function$
                             'prazo_devolver_min', (public.leads_dist_cfg() ->> 'prazo_devolver_min')::int)
     from public.leads_distribuicao d join public.leads l on l.aba = d.lead_aba and l.id = d.lead_id
    where d.consultor_id = p_uid and d.tipo = 'auto' and d.fechado_em is null and d.atendido_em is null
+     and l.apagado_em is null and l.dono_id = d.consultor_id   -- revisão: lead apagado ou passado adiante não conta
    order by d.recebido_em desc
    limit 1
 $function$;
@@ -103,7 +104,7 @@ begin
     insert into public.leads_distribuicao (lead_aba, lead_id) values (p_aba, p_id) returning * into v_fila;
   end if;
   if not public.leads_dist_no_expediente(now())
-     or not public.leads_dist_no_expediente(now() + make_interval(mins => (c ->> 'prazo_devolver_min')::int)) then
+     or not public.leads_dist_no_expediente(now() + make_interval(mins => (c ->> 'prazo_devolver_min')::int + 2)) then   -- +2 min: o tick precisa alcançar o prazo antes do fim do expediente
     return jsonb_build_object('ok', false, 'motivo', 'fora_do_expediente');
   end if;
   if public.leads_pegar_bloqueado() then return jsonb_build_object('ok', false, 'motivo', 'bloqueado'); end if;
