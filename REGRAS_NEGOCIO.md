@@ -4776,4 +4776,51 @@ estavam com CNPJ vazio ou com tamanho errado. Spec: `docs/superpowers/specs/2026
 - **Reverter o banco:** recriar `leads_ficha_detalhes` sem o `union all` das trocas (o resto da migration é igual ao
   que estava no ar em 10/11). A tabela e as funções novas podem ficar (nada mais as usa).
 
-Próxima livre: §148 (§138.2 e §138.3 reservadas).
+## 148. Conversão: gráfico "Leads por dia" (11/11/2026)
+
+Pedido do Rafael em 11/11: "estamos sentindo que está caindo pouco lead por dia, e precisamos passar NÚMEROS para a
+agência". Conta feita no banco antes (sem Repique e sem apagados): média de 28,2 leads/dia em setembro, 31,0 em outubro e
+33,4 de 01 a 10/11. Ou seja, o volume não caiu. A sensação vem do Repique de setembro (até 37 num dia) e do pico de 26 a
+28/10 (Esquenta Black).
+
+- **Onde:** Meus leads → Conversão, cartão "Leads por dia" entre os 4 números do mês e o ranking. Vê quem já vê a
+  Conversão (admin, agência, supervisor/consultor da Apex).
+- **Gráfico (Chart.js):** barras de leads por dia (dia = chegada do lead no fuso de SP), convertidos em verde por cima,
+  linha da média dos últimos 7 dias e linha tracejada da média do período. Hoje aparece mais claro e com o aviso "parcial".
+- **Controles:**
+  - período 7/14/30/60/90 dias completos + hoje (padrão 90);
+  - ver por Dia, Semana (segunda a domingo) ou Dia da semana (média de cada dia);
+  - filtros: plataforma (Facebook/Instagram/Outras), MEI/Empresa, nº de linhas, campanha (com o volume ao lado),
+    "Incluir Repique" (desligado por padrão), "Mostrar convertidos";
+  - "Limpar filtros" mantém período e visão.
+- **Números:**
+  - média por dia, com % contra os N dias anteriores;
+  - total e convertidos (taxa);
+  - melhor dia, pior dia e hoje até agora.
+- **Regras dos números:**
+  - hoje (parcial) fica fora de média, total, melhor/pior e comparação;
+  - o período começa no 1º dia com lead no recorte, porque antes disso a campanha nem existia e o zero puxaria média e
+    "pior dia" (sem filtro: 20/08);
+  - a comparação só aparece se houver lead no começo do período anterior; senão mostra "sem período anterior completo".
+- **Baixar CSV:** do que está na tela (dia, semana ou dia da semana), em `;` com BOM (Excel pt-BR). O nome do arquivo
+  leva o período e os filtros.
+- **Banco:** migration `20261111120000_leads_volume_diario.sql` (sem DROP), função `leads_volume_diario()`:
+  - secdef, mesmas permissões da `conversao_resumo`, fora de PUBLIC/anon, com grant para `agencia`;
+  - devolve **um jsonb** (array de arrays: dia, plataforma, tipo, linhas, campanha, repique, leads, convertidos,
+    receita) dos últimos 190 dias. Uma linha só: o limite de linhas por resposta da API nunca corta o dia a dia;
+  - só somas, nada de cliente;
+  - campanha com o texto de erro de permissão da Meta volta nula e aparece como "Sem nome (erro da Meta)".
+- **Tela:** o cartão vive num nó próprio (`lpdNo`, prefixo `lpd` porque `vl` já é da velocidade do lead) que o `cvRender`
+  só encaixa no lugar. Trocar de mês não refaz o gráfico nem a consulta. A consulta sai junto com a `conversao_resumo`.
+- **Fora (YAGNI):** filtro por estado (o campo vem sujo do formulário), consultor (está no ranking), anúncio individual.
+- **Testes:** `test_volume_leads.js` (46); `test_conversao_leads.js` agora aceita `leads_volume_diario` entre as chamadas
+  da agência. Conferência `supabase/tests/leads_volume_diario_check.sql` (desfaz tudo).
+- **Banco (11/11/2026 18:50, ok do Rafael):** conferência passou no banco real: 122 dias, 2.740 leads, totais por dia
+  batem com `leads`, sem perfil recusado, consultor de fora da Apex recusado. Migration aplicada: anon sem execute,
+  authenticated e agencia com execute.
+- **Publicação (11/11/2026 18:54, ok do Rafael):** o painel no ar era `2b8f2fed…` (igual à oficial/main b9aa0eb). Novo
+  MD5 `40aab4c3…`. Backup `~/deploy_backups/painel_clientes_apex_20261111_185427_antes_leads_por_dia.html` (hora de SP).
+  **Reverter o painel:** copiar o backup de volta. **Reverter o banco:** não precisa (a função nova não é usada por mais
+  nada).
+
+Próxima livre: §149 (§138.2 e §138.3 reservadas).
