@@ -56,6 +56,18 @@ begin
   -- 9. (revisão #6) lead apagado não aparece como entrega aberta
   update public.leads set apagado_em = now() where id = 'lc-2b';
   v_out := v_out || case when public.leads_dist_entrega_aberta((r ->> 'consultor_id')::uuid) is null then '9 ok; ' else '9 FALHOU; ' end;
+  -- 10. (Rafael 1-A) com "Bloquear todos" a Sombra anota e o Automático fica parado
+  perform pg_temp.ld_cfg('{"modo":"sombra","expediente":{"dias":[1,2,3,4,5,6,7],"inicio":"00:00","fim":"24:00"}}');
+  update public.config set valor = '{"bloqueado":true}' where chave = 'leads_pegar_bloqueado';
+  update public.leads_distribuicao set atendido_em = now() where atendido_em is null and consultor_id is not null and lead_aba = 'TESTE DIST';
+  perform pg_temp.ld_lead('lc-4', 5);
+  r := public.leads_distribuir('TESTE DIST', 'lc-4');
+  v_out := v_out || case when (r ->> 'sombra')::boolean then '10 ok; ' else '10 FALHOU ' || r::text || '; ' end;
+  perform pg_temp.ld_cfg('{"modo":"automatico"}');
+  perform pg_temp.ld_lead('lc-5', 6);
+  r := public.leads_distribuir('TESTE DIST', 'lc-5');
+  v_out := v_out || case when r ->> 'motivo' = 'bloqueado' then '10b ok; ' else '10b FALHOU ' || r::text || '; ' end;
+  update public.config set valor = '{"bloqueado":false}' where chave = 'leads_pegar_bloqueado';
   -- 8. M-1: fora do expediente o tick não devolve
   perform pg_temp.ld_cfg('{"expediente":{"dias":[],"inicio":"00:00","fim":"24:00"}}');
   perform pg_temp.ld_lead('lc-3', 3);

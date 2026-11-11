@@ -107,7 +107,8 @@ begin
      or not public.leads_dist_no_expediente(now() + make_interval(mins => (c ->> 'prazo_devolver_min')::int + 2)) then   -- +2 min: o tick precisa alcançar o prazo antes do fim do expediente
     return jsonb_build_object('ok', false, 'motivo', 'fora_do_expediente');
   end if;
-  if public.leads_pegar_bloqueado() then return jsonb_build_object('ok', false, 'motivo', 'bloqueado'); end if;
+  -- §146.2 (Rafael, 11/11): "Bloquear todos" para o Automático; a Sombra continua anotando (só simula)
+  if v_modo = 'automatico' and public.leads_pegar_bloqueado() then return jsonb_build_object('ok', false, 'motivo', 'bloqueado'); end if;
   v_esc := public.leads_dist_escolher(v_fila.excluidos);
   v_id := (v_esc ->> 'escolhido')::uuid;
   if v_id is null then return jsonb_build_object('ok', false, 'motivo', 'ninguem_na_vez'); end if;
@@ -202,7 +203,7 @@ begin
   end if;
 
   -- 3. Fila (sombra e automático), lead mais recente primeiro; para quando ninguém está na vez
-  if v_exp and not public.leads_pegar_bloqueado() then
+  if v_exp and (v_modo = 'sombra' or not public.leads_pegar_bloqueado()) then   -- §146.2: a Sombra anota mesmo com "Bloquear todos"
     for r in select d.lead_aba, d.lead_id from public.leads_distribuicao d
                join public.leads l on l.aba = d.lead_aba and l.id = d.lead_id
               where d.consultor_id is null and d.fechado_em is null
@@ -261,6 +262,11 @@ begin
                   then public.leads_dist_motivo_texto(h.lead_aba, h.lead_id, h.em) end, p.nome
       from public.leads_historico h left join public.profiles p on p.id = h.por
      where h.lead_aba = l.aba and h.lead_id = l.id
+    union all
+    -- §147 (outra frente, 11/11): troca de CNPJ na linha do tempo — mantido ao juntar
+    select t.em, 'cnpj', 'Trocou o CNPJ', concat_ws(' · ', coalesce(t.antes, 'sem CNPJ') || ' → ' || t.depois, t.motivo), p.nome
+      from public.leads_cnpj_trocas t left join public.profiles p on p.id = t.por
+     where t.lead_aba = l.aba and t.lead_id = l.id
     union all
     select c.em, 'clique', case c.canal when 'whatsapp' then 'Abriu o WhatsApp' when 'ligar' then 'Clicou em Ligar' else 'Contato registrado' end, null, p.nome
       from public.leads_contatos c left join public.profiles p on p.id = c.profile_id
