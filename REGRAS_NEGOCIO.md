@@ -4733,6 +4733,9 @@ estavam com CNPJ vazio ou com tamanho errado. Spec: `docs/superpowers/specs/2026
   DV, lead de outro, lead sem dono e mesmo CNPJ; troca grava 14 dígitos, registra, enfileira o espelho e aparece no
   Histórico; gestor altera lead de consultor) e não deixou nada gravado. Migration aplicada; anon sem execute,
   authenticated sem leitura direta da tabela. Até o painel novo ir ao ar, nada muda para o consultor.
+- **Publicação (11/11/2026 14:39, ok do Rafael):** o painel no ar era `d5e48c95…` (igual à oficial/main 6e26141).
+  Novo MD5 `20acda74…`. Backup `~/deploy_backups/painel_clientes_apex_20261111_173916_antes_alterar_cnpj.html`
+  (hora do servidor, UTC). **Reverter o painel:** copiar o backup de volta.
 - **Reverter o banco:** recriar `leads_ficha_detalhes` sem o `union all` das trocas (o resto da migration é igual ao
   que estava no ar em 10/11). A tabela e as funções novas podem ficar (nada mais as usa).
 
