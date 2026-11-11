@@ -4707,6 +4707,28 @@ plano: `docs/superpowers/plans/2026-11-09-leads-distribuicao-automatica.md`. Ent
   `leads_dia` filtrar `por is not null` antes de ligar o Automático; menores adiados no ledger
   `.superpowers/sdd/2026-11-09-leads-distribuicao-automatica/progress.md`.
 
+### 146.2 Consultor + Automático liberado (11/11/2026)
+
+- **Faixa "Sua vez"** (aba Hoje, só consultor do grupo): no Automático mostra o estado (Na vez / Aguardando você ligar /
+  Em pausa até HH:MM / Fora do painel / Fora do horário), botão **Pausa/Voltar** (60 min), o lead recebido com **cronômetro**
+  ("3:48 para ligar" → "atrasado 2 min · volta aos Livres em 8 min") e Abrir, e os números dele (Rápidos x de 10 ·
+  Conversão 14 dias · Hoje n de ~m). Em Manual/Sombra só Rápidos e Conversão. Nada de colega na faixa.
+- **Aviso de lead recebido:** a presença passou a cada 20 s e devolve a entrega aberta; som + notificação + aviso uma vez
+  por lead (guardado na aba: F5 não repete; outro usuário na mesma aba é avisado). Lead que some depois do prazo:
+  "voltou aos Livres". Sair limpa a faixa.
+- **Linha do tempo:** "Distribuído automaticamente para X" e "Voltou aos Livres (sem contato no prazo)"; para o gestor, o
+  motivo ("fatia 32%, … · fora da vez: …"). Junta o evento "Trocou o CNPJ" da §147.
+- **Fim do expediente:** o motor não entrega nos últimos 15 min + 2 (o lead fica para o dia seguinte) e a devolução só roda
+  no expediente.
+- **"Bloquear todos" (§132):** para o Automático; a **Sombra continua anotando** (decisão do Rafael, 11/11 — a Isabelly
+  distribuía na mão com o bloqueio ligado e a Sombra ficou sem dados).
+- **`leads_dia` não mudou:** entrega automática conta como "recebeu"; devolução automática, como "perdidos" para Livres.
+- **Equipe:** botão **Automático** liberado, com confirmação mostrando os prazos. O modo é escolha do Rafael (ficou em Sombra).
+- Banco: migration `20261110120000_leads_dist_consultor.sql` (`leads_dist_entrega_aberta`, `leads_presenca_ping` v2,
+  `leads_dist_meu`, `leads_dist_motivo_texto`, `leads_distribuir`, `leads_dist_tick`, `leads_ficha_detalhes`); conferência
+  `supabase/tests/leads_dist_consultor_check.sql`. Testes: `test_leads_dist_consultor.js`, `test_leads_distribuicao.js`.
+- **Banco no ar (11/11, ok do Rafael):** migration aplicada; conferência passou no banco real.
+
 ## 147. Meus leads: alterar o CNPJ do lead na ficha (10/11/2026)
 
 Pedido do Rafael: "preciso que todos os consultores tenham uma opção de alterar o cnpj na ficha [...] na aba conferir neo,
