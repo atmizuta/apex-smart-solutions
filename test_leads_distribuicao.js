@@ -43,7 +43,8 @@ rodar(`
   const h = kbFaixaDistribHtml(D);
   assert(h.includes('Distribuição: Sombra'), 'mostra o modo');
   assert(h.includes('data-kb-dist-modo="manual"') && h.includes('data-kb-dist-modo="sombra"'), 'botões Manual e Sombra');
-  assert(/data-kb-dist-modo="automatico"[^>]*disabled/.test(h), 'Automático desabilitado na §146.1');
+  assert(/data-kb-dist-modo="automatico"/.test(h) && !/data-kb-dist-modo="automatico"[^>]*disabled/.test(h), 'Automático liberado (§146.2)');
+  assert(kbFaixaDistribHtml(Object.assign({}, D, { cfg: Object.assign({}, D.cfg, { modo: '<x>' }) })).includes('&lt;x&gt;'), 'modo desconhecido escapado (M-7)');
   assert(h.includes('32%') && h.includes('7 de 10'), 'fatia e rápidos na tabela');
   assert(h.includes('Na vez') && h.includes('Fora do painel'), 'estados escritos');
   assert(h.includes('kbDistAlerta') && h.includes('>2<'), 'clicou e não ligou em destaque');
@@ -61,8 +62,12 @@ rodar(`
   window.__rpcRespostas.leads_dist_equipe = { data: D, error: null };
   await kbDistModo('manual');
   eq(chamadas('leads_dist_config').map(c => c.args), [{ p: { modo: 'manual' } }], 'muda o modo');
+  window.confirm = () => false;
   await kbDistModo('automatico');
-  eq(chamadas('leads_dist_config').length, 1, 'automático não é enviado na §146.1');
+  eq(chamadas('leads_dist_config').length, 1, 'automático cancelado na confirmação não é enviado');
+  window.confirm = () => true;
+  await kbDistModo('automatico');
+  eq(chamadas('leads_dist_config').map(c => c.args).slice(-1), [{ p: { modo: 'automatico' } }], 'automático confirmado é enviado');
   window.__rpcCalls.length = 0;
   await kbDistSalvarCfg({ peso: '60', piso: '10', teto: '45', atender: '5', devolver: '20' });
   eq(chamadas('leads_dist_config').map(c => c.args), [{ p: { peso_conversao: 0.6, piso: 0.1, teto: 0.45, prazo_atender_min: 5, prazo_devolver_min: 20 } }], 'parâmetros em fração e minutos');

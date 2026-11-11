@@ -6369,7 +6369,7 @@ function kbFaixaDistribHtml(d){
   const det = modo === 'manual' ? 'Cada consultor pega nos Livres, como hoje. Os números abaixo já medem a velocidade de quem pega.'
     : modo === 'sombra' ? 'Ninguém recebe sozinho: o sistema só anota para quem mandaria cada lead (coluna "teria").'
     : 'O lead vai sozinho para quem está na vez.';
-  const btn = (m) => `<button type="button" class="kbBtn kbBtnSm ${m === modo ? 'kbBtnP' : 'kbBtnQ'}" data-kb-dist-modo="${m}"${m === 'automatico' ? ' disabled title="Liberado na próxima etapa (§146.2)"' : ''}>${KB_DIST_MODO[m]}</button>`;
+  const btn = (m) => `<button type="button" class="kbBtn kbBtnSm ${m === modo ? 'kbBtnP' : 'kbBtnQ'}" data-kb-dist-modo="${m}">${KB_DIST_MODO[m]}</button>`;
   const alertas = [];
   if(av.robo_parado !== undefined) alertas.push('Robô do ProContact sem importar há mais de 30 min: confirmação das ligações suspensa (ninguém perde ponto).');
   if(av.motor_erro && av.motor_erro.em && Date.now() - kbMs(av.motor_erro.em) < 86400000) alertas.push('A distribuição deu erro há pouco; os leads ficaram nos Livres.');
@@ -6387,7 +6387,7 @@ function kbFaixaDistribHtml(d){
     + `<label>Atender em (min) <input name="atender" type="number" min="1" max="60" value="${Number(d.cfg.prazo_atender_min) || 5}"></label>`
     + `<label>Devolver em (min) <input name="devolver" type="number" min="2" max="120" value="${Number(d.cfg.prazo_devolver_min) || 15}"></label>`
     + `<button type="submit" class="kbBtn kbBtnSm kbBtnP">Salvar</button></form>` : '';
-  return `<div class="kbEqPegar kbEqDist"><span><b>Distribuição: ${KB_DIST_MODO[modo] || modo}</b><small>${det}${d.fila ? ` ${Number(d.fila)} na fila.` : ''}</small></span>`
+  return `<div class="kbEqPegar kbEqDist"><span><b>Distribuição: ${escapeHtml(KB_DIST_MODO[modo] || modo)}</b><small>${det}${d.fila ? ` ${Number(d.fila)} na fila.` : ''}</small></span>`
     + `<span class="kbSeg">${btn('manual')}${btn('sombra')}${btn('automatico')}</span>`
     + `<button type="button" class="kbBtn kbBtnSm kbBtnG" data-kb-dist-cfg>${kbEstado.distCfgAberta ? 'Fechar ajustes' : 'Ajustes'}</button></div>`
     + cfgForm
@@ -6398,7 +6398,8 @@ function kbFaixaDistribHtml(d){
     + `<p class="kbEqLegenda">Fatia: parte dos leads do dia que cabe a cada um (nota = metade conversão, metade velocidade; mínimo ${kbPct(d.cfg.piso)}, máximo ${kbPct(d.cfg.teto)}). Rápidos: dos últimos 10 leads, quantos ligou ou tabulou em até ${Number(d.cfg.prazo_atender_min) || 5} min. Clicou e não ligou: clique no telefone sem ligação no ProContact.</p></div>`;
 }
 async function kbDistModo(modo){
-  if(modo === 'automatico' || kbEstado.distMudando || !KB_DIST_MODO[modo]) return;   // §146.1: automático só na §146.2
+  if(kbEstado.distMudando || !KB_DIST_MODO[modo]) return;
+  if(modo === 'automatico' && !window.confirm('Ligar a distribuição automática? Cada lead novo vai cair direto para um consultor; quem não ligar em 5 min perde o lead para o próximo. O time precisa estar com o painel aberto.')) return;
   kbEstado.distMudando = true;
   const r = await ppSeguro(() => sb.rpc('leads_dist_config', { p: { modo } }));
   kbEstado.distMudando = false;
