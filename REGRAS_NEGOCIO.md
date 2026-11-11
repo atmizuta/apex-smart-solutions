@@ -4728,6 +4728,9 @@ plano: `docs/superpowers/plans/2026-11-09-leads-distribuicao-automatica.md`. Ent
   `leads_dist_meu`, `leads_dist_motivo_texto`, `leads_distribuir`, `leads_dist_tick`, `leads_ficha_detalhes`); conferência
   `supabase/tests/leads_dist_consultor_check.sql`. Testes: `test_leads_dist_consultor.js`, `test_leads_distribuicao.js`.
 - **Banco no ar (11/11, ok do Rafael):** migration aplicada; conferência passou no banco real.
+- **Painel no ar (11/11 15:06, ok do Rafael):** MD5 `2b8f2fed…` (antes `20acda74…` = oficial 25f5e6a, §147 junta). Backup:
+  `~/deploy_backups/painel_clientes_apex_20261111_180622_antes_distribuicao_consultor.html` (hora do servidor, UTC).
+  Suíte: 91 passam; as falhas são as antigas (+ `test_leads_followups.js`, instável na suíte, 24/24 isolado 3×).
 
 ## 147. Meus leads: alterar o CNPJ do lead na ficha (10/11/2026)
 
