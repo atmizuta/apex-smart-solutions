@@ -4732,6 +4732,18 @@ plano: `docs/superpowers/plans/2026-11-09-leads-distribuicao-automatica.md`. Ent
   `~/deploy_backups/painel_clientes_apex_20261111_180622_antes_distribuicao_consultor.html` (hora do servidor, UTC).
   Suíte: 91 passam; as falhas são as antigas (+ `test_leads_followups.js`, instável na suíte, 24/24 isolado 3×).
 
+### 146.3 Quem tem lead em "Meus novos" não recebe (11/11/2026)
+
+- Pedido do Rafael: "o lead novo não pode cair para quem ainda tem lead para tratar, na etapa Meus novos".
+- Quem tem qualquer lead com dono e **sem status** (categoria `sem_contato`, a coluna "Meus novos" do Quadro; apagados não
+  contam) fica **fora da vez** — aparece como "Aguardando você ligar" (consultor) / "Aguardando ligar" (Equipe). Sai da trava
+  ao **tabular** (clicar em Ligar não basta). Se todos tiverem Meus novos, o lead fica na fila/Livres e o motor tenta de
+  minuto em minuto. Vale também para a Sombra.
+- Banco: migration `20261111120000_leads_dist_meus_novos.sql` (`leads_dist_escolher`, `leads_dist_meu`, `leads_dist_equipe`);
+  conferência `supabase/tests/leads_dist_meus_novos_check.sql`. Painel sem mudança (reusa o estado "pendente").
+- **No ar (11/11 ~16:30, ok do Rafael):** aplicado; conferência passou. Na hora: Caio e Bianca fora da vez (Meus novos),
+  Luria e Mariana na vez.
+
 ## 147. Meus leads: alterar o CNPJ do lead na ficha (10/11/2026)
 
 Pedido do Rafael: "preciso que todos os consultores tenham uma opção de alterar o cnpj na ficha [...] na aba conferir neo,
