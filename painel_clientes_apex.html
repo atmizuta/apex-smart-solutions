@@ -1098,6 +1098,12 @@
   .kbDistCfg{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:flex-end;padding:12px 16px;background:var(--ml-surface);border-radius:var(--radius-lg);margin-top:var(--space-2);}
   .kbDistCfg label{display:flex;flex-direction:column;font-size:var(--fs-xs);color:var(--ml-ink-2);gap:4px;}
   .kbDistCfg input{width:90px;}
+  .kbSuaVez{margin-bottom:var(--space-3);}
+  .kbSuaVezLead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .kbCrono{font-weight:600;padding:2px 8px;border-radius:var(--radius-lg);}
+  .kbCrono.ok{color:var(--ml-ok);background:var(--ml-ok-soft);}
+  .kbCrono.soon{color:var(--ml-soon);background:var(--ml-soon-soft);}
+  .kbCrono.late{color:var(--ml-late);background:var(--ml-late-soft);}
   .kbEqPegar small{display:block;font-size:var(--fs-sm);color:var(--ml-ink-2);}
   .kbEqPegar .kbBtn{margin-left:auto;}
   .kbPegaChave{display:inline-flex;align-items:center;gap:6px;margin-top:4px;padding:0;border:0;background:none;font:inherit;font-size:var(--fs-xs);color:var(--ml-ink-3);cursor:pointer;}
@@ -2033,6 +2039,7 @@
       <div class="kbAviso" id="kbAviso" style="display:none"></div>
       <div id="kbHoje" class="kbHoje" style="display:none">
         <div class="kbHojeTopo" id="kbHojeTopo"></div>
+        <div class="kbEqPegar kbSuaVez" id="kbSuaVez" hidden></div>
         <div class="kbHojeArea">
           <div class="kbFilaLado">
             <nav class="kbSeg kbFilaAbas" id="kbFilaAbas" aria-label="Fila de hoje">
@@ -5191,7 +5198,7 @@ async function kbCnpjVerificar(aba, id){
   const status = r && r.error && r.error.context ? r.error.context.status : null;
   kbCnpjPintar({ consulta: antes, erro: kbCnpjMsgErro(status) });
 }
-const kbEstado = { geracao: 0, naEquipe: false, modo: 'planilha', versao: '', leads: [], opcoes: [], dono: '', timer: null, verTodosLivres: false, soDivergencias: false, classAlvo: null, consultores: [], loteSel: new Set(), passar: null, equipeModo: null, equipeDia: null, diaEquipe: null, diaDisponivel: null, relatorio: null, timerPresenca: null, presenca: null, distrib: null, distCfgAberta: false, distMudando: false };
+const kbEstado = { geracao: 0, naEquipe: false, modo: 'planilha', versao: '', leads: [], opcoes: [], dono: '', timer: null, verTodosLivres: false, soDivergencias: false, classAlvo: null, consultores: [], loteSel: new Set(), passar: null, equipeModo: null, equipeDia: null, diaEquipe: null, diaDisponivel: null, relatorio: null, timerPresenca: null, presenca: null, distrib: null, distCfgAberta: false, distMudando: false, distMeu: null, distEntrega: null, distAvisadas: new Set(), timerSuaVez: null, timerPresencaMs: 0 };
 function kbGestor(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor') && veAbasDaApex(); }
 // Antes da virada (config.leads_modo = 'planilha') só o admin vê a aba, para conferir; depois, equipe de leads + gestores.
 function kbPodeVer(){
@@ -5400,8 +5407,93 @@ async function kbLigar(telefone){
 async function kbPresencaPing(acao){
   if(!kbEstado.naEquipe) return null;
   const r = await ppSeguro(() => sb.rpc('leads_presenca_ping', { p_acao: acao || null }));
-  if(r && !r.error && r.data) kbEstado.presenca = r.data;
+  if(r && !r.error && r.data){
+    kbEstado.presenca = r.data;
+    if(Object.prototype.hasOwnProperty.call(r.data, 'entrega')) kbDistAvisoEntrega(r.data.entrega, Date.now());   // §146.2
+  }
   return r && !r.error ? r.data : null;
+}
+// §146.2: cronômetro do lead recebido (prazo para ligar e, passado, quanto falta para voltar aos Livres).
+function kbCronometro(ent, agoraMs){
+  const rec = kbMs(ent && ent.recebido_em);
+  if(rec === null) return { texto: '', classe: 'ok' };
+  const atender = (Number(ent.prazo_atender_min) || 5) * 60000, devolver = (Number(ent.prazo_devolver_min) || 15) * 60000;
+  const resta = rec + atender - agoraMs;
+  if(resta > 0){
+    const s = Math.ceil(resta / 1000);
+    return { texto: `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} para ligar`, classe: resta <= 60000 ? 'soon' : 'ok' };
+  }
+  const atraso = Math.floor((agoraMs - rec - atender) / 60000), volta = Math.max(0, Math.ceil((rec + devolver - agoraMs) / 60000));
+  return { texto: `atrasado ${atraso} min · volta aos Livres em ${volta} min`, classe: 'late' };
+}
+// §146.2: aviso de lead que caiu para o consultor (uma vez por lead) e de lead que voltou aos Livres por falta de contato.
+function kbDistAvisoEntrega(ent, agoraMs){
+  const ant = kbEstado.distEntrega;
+  if(ant && (!ent || ent.lead_id !== ant.lead_id)){
+    const rec = kbMs(ant.recebido_em), prazo = (Number(ant.prazo_devolver_min) || 15) * 60000;
+    if(rec !== null && agoraMs - rec >= prazo) mostrarAviso(`${ant.nome || 'O lead'} voltou aos Livres: passou o prazo sem contato.`, 'erro');
+  }
+  kbEstado.distEntrega = ent || null;
+  if(ent && !kbEstado.distAvisadas.has(ent.aba + '|' + ent.lead_id)){
+    kbEstado.distAvisadas.add(ent.aba + '|' + ent.lead_id);
+    const texto = `Lead novo para você: ${ent.nome || 'lead'}. Ligue em até ${Number(ent.prazo_atender_min) || 5} min.`;
+    mostrarAviso(texto, 'info');
+    if('Notification' in window && Notification.permission === 'granted'){ try { const nt = new Notification('Meus leads', { body: texto, tag: 'dist-' + ent.lead_id }); nt.onclick = () => { window.focus(); const bt = document.querySelector('#tabsNav button[data-tab="meusleads"]'); if(bt) bt.click(); kbAbrirFicha(ent.aba, ent.lead_id); }; } catch(_e) {} }
+    if(typeof alBip === 'function') try { alBip(); } catch(_e) {}
+    kbCarregar();
+  }
+  kbRenderSuaVez();
+}
+const KB_SUAVEZ_ESTADO = { na_vez: 'Na vez', pendente: 'Aguardando você ligar', pausa: 'Em pausa', offline: 'Fora do painel', fora: 'Fora do horário' };
+// §146.2: faixa "Sua vez" (só os números do próprio consultor). Fora do Automático, só Rápidos e Conversão.
+function kbSuaVezHtml(meu, ent, agoraMs){
+  if(!meu || !meu.grupo) return '';
+  const auto = meu.modo === 'automatico';
+  const nums = [`Rápidos: ${Number(meu.rapidos_ok) || 0} de ${Number(meu.rapidos_n) || 0}`, `Conversão 14 dias: ${kbPct(meu.conv)}`];
+  if(auto && meu.alvo_hoje !== null && meu.alvo_hoje !== undefined) nums.push(`Hoje: ${Number(meu.recebidos_hoje) || 0} de ~${Number(meu.alvo_hoje) || 0}`);
+  let topo = '', lead = '', botao = '';
+  if(auto){
+    const est = KB_SUAVEZ_ESTADO[meu.estado] || '';
+    const ate = meu.estado === 'pausa' && meu.pausa_ate ? ` até ${kbPartesSP(kbMs(meu.pausa_ate)).hora}` : '';
+    topo = `<b>Sua vez: ${escapeHtml(est)}${escapeHtml(ate)}</b>`;
+    botao = `<button type="button" class="kbBtn kbBtnSm ${meu.estado === 'pausa' ? 'kbBtnP' : 'kbBtnG'}" data-kb-suavez-pausa>${meu.estado === 'pausa' ? 'Voltar' : 'Pausa'}</button>`;
+    if(ent){
+      const cr = kbCronometro(ent, agoraMs);
+      lead = `<span class="kbSuaVezLead"><b>${escapeHtml(ent.nome || '(sem nome)')}</b> <span class="kbCrono ${cr.classe}">${escapeHtml(cr.texto)}</span> `
+        + `<button type="button" class="kbBtn kbBtnSm kbBtnP" data-kb-suavez-abrir data-aba="${escapeHtml(ent.aba)}" data-id="${escapeHtml(ent.lead_id)}">Abrir</button></span>`;
+    }
+  } else {
+    topo = '<b>Seus números</b>';
+  }
+  return `<span>${topo}<small>${escapeHtml(nums.join(' · '))}</small></span>${lead}${botao}`;
+}
+async function kbCarregarDistMeu(){
+  if(!kbEstado.naEquipe) { kbEstado.distMeu = null; return; }
+  const r = await ppSeguro(() => sb.rpc('leads_dist_meu'));
+  kbEstado.distMeu = r && !r.error ? r.data : null;   // banco sem a função: faixa some
+  if(kbEstado.distMeu && Object.prototype.hasOwnProperty.call(kbEstado.distMeu, 'entrega')) kbEstado.distEntrega = kbEstado.distMeu.entrega || kbEstado.distEntrega;
+}
+function kbRenderSuaVez(){
+  const el = document.getElementById('kbSuaVez');
+  if(!el) return;
+  const ent = kbEstado.distEntrega;
+  const html = kbGestor() ? '' : kbSuaVezHtml(kbEstado.distMeu, ent, Date.now());
+  el.innerHTML = html; el.hidden = !html;
+  clearInterval(kbEstado.timerSuaVez); kbEstado.timerSuaVez = null;
+  if(html && ent && kbEstado.distMeu && kbEstado.distMeu.modo === 'automatico'){
+    kbEstado.timerSuaVez = setInterval(() => {
+      const c = el.querySelector('.kbCrono');
+      if(!c || !kbEstado.distEntrega){ clearInterval(kbEstado.timerSuaVez); kbEstado.timerSuaVez = null; return; }
+      const cr = kbCronometro(kbEstado.distEntrega, Date.now());
+      c.textContent = cr.texto; c.className = 'kbCrono ' + cr.classe;
+    }, 1000);
+  }
+}
+async function kbSuaVezPausa(){
+  const acao = kbEstado.distMeu && kbEstado.distMeu.estado === 'pausa' ? 'voltar' : 'pausa';
+  await kbPresencaPing(acao);
+  await kbCarregarDistMeu();
+  kbRenderSuaVez();
 }
 function kbStSlug(st){ return String(st || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
 function kbStChip(st){ return `<span class="kbSt" data-st="${escapeHtml(kbStSlug(st))}">${escapeHtml(st)}</span>`; }
@@ -5515,7 +5607,8 @@ function kbAgendar(){
   clearInterval(kbEstado.timerAlertas);
   clearInterval(kbEstado.timerPresenca);
   kbPresencaPing();
-  kbEstado.timerPresenca = setInterval(() => kbPresencaPing(), 60000);   // §146: presença para a distribuição (qualquer aba)
+  kbEstado.timerPresencaMs = 20000;   // §146.2: 20 s — também é o aviso de lead recebido em qualquer aba
+  kbEstado.timerPresenca = setInterval(() => kbPresencaPing(), kbEstado.timerPresencaMs);
   let voltas = 0;
   const ativa = () => document.getElementById('panel-meusleads').classList.contains('active');
   kbEstado.timer = setInterval(() => {
@@ -5537,6 +5630,7 @@ function kbAgendar(){
 // Sair (ou perder o acesso): para os timers e zera alertas, contador e fila.
 function kbParar(){
   clearInterval(kbEstado.timer); clearInterval(kbEstado.timerAlertas); clearInterval(kbEstado.timerPresenca);
+  clearInterval(kbEstado.timerSuaVez); kbEstado.timerSuaVez = null; kbEstado.distMeu = null; kbEstado.distEntrega = null;
   kbEstado.timer = null; kbEstado.timerAlertas = null;
   kbEstado.timerPresenca = null; kbEstado.presenca = null; kbEstado.distrib = null;
   kbEstado.aba = null; kbEstado.hoje = null; kbEstado.filaAba = 'fazer'; kbEstado.hojeSel = null; kbEstado.filaHoje = []; kbEstado.notificados = new Set(); kbEstado.alertas = [];
@@ -6014,6 +6108,7 @@ async function kbCarregarHoje(){
   ]);
   kbEstado.hoje = r && !r.error ? r.data : null;
   kbEstado.placarLig = pl && !pl.error && pl.data ? (Array.isArray(pl.data) ? pl.data[0] : pl.data) : null;
+  if(!kbGestor()) await kbCarregarDistMeu();   // §146.2
   kbRenderHoje();
 }
 // §126: Hoje B — placar no topo; fila em grupos (kbFilaHoje), Livres e Alertas à esquerda; ficha ao lado (kbFichaLugar).
@@ -6075,6 +6170,7 @@ function kbRenderHoje(){
   if(lista.dataset.html !== html){ const topo = lista.scrollTop; lista.innerHTML = html; lista.dataset.html = html; lista.scrollTop = topo; }
   kbAjustarAltura();   // revisão final: mede depois do placar desenhado (senão o botão de salvar cai abaixo da dobra)
   kbHojeSincronizar(fila);
+  kbRenderSuaVez();   // §146.2
 }
 // Sem ficha aberta: na aba Fazer agora abre o primeiro da fila; sem fila, mostra o "Tudo em dia" no lugar da ficha.
 function kbHojeSincronizar(fila){
@@ -6603,6 +6699,9 @@ document.getElementById('kbEquipe').addEventListener('submit', function(e){
   kbDistSalvarCfg({ peso: v('peso'), piso: v('piso'), teto: v('teto'), atender: v('atender'), devolver: v('devolver') });
 });
 document.getElementById('panel-meusleads').addEventListener('click', (e) => {
+  if(e.target.closest('[data-kb-suavez-pausa]')){ kbSuaVezPausa(); return; }
+  const sv = e.target.closest('[data-kb-suavez-abrir]');
+  if(sv){ kbAbrirFicha(sv.dataset.aba, sv.dataset.id); return; }
   const dm = e.target.closest('[data-kb-dist-modo]');
   if(dm){ if(!dm.disabled) kbDistModo(dm.dataset.kbDistModo); return; }
   if(e.target.closest('[data-kb-dist-cfg]')){ kbEstado.distCfgAberta = !kbEstado.distCfgAberta; kbRenderEquipe(); return; }
