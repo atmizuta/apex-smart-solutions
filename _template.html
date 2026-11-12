@@ -1380,6 +1380,25 @@
   .cvVazio{background:var(--ml-surface);border-radius:var(--radius-lg);padding:28px;text-align:center;color:var(--ml-ink-2);}
   @media (max-width:760px){ .cvKpis{grid-template-columns:repeat(2,minmax(0,1fr));} .cvBarra .t{display:none;} .cvRank th,.cvRank td{padding:9px 10px;} }
 </style>
+<style id="tvStyles">
+  /* §149 TV Vendas. Cores só por variável: o único tom novo é o ouro da META BATIDA! (e do círculo do VENDEU!). */
+  :root{ --tv-ouro:#C9A227; --tv-ouro-claro:#F3E3A3; }
+  .vdFab{position:fixed;right:22px;bottom:22px;z-index:900;width:auto;padding:12px 22px;border-radius:999px;font-weight:700;
+    box-shadow:0 6px 18px color-mix(in srgb, var(--c-grafite) 25%, transparent)}
+  .vdModal{max-width:520px}
+  .vdItem{display:grid;grid-template-columns:1fr 90px auto;gap:8px;align-items:end;margin-bottom:6px}
+  .vdItem .btn{width:auto;margin-bottom:6px}
+  .vdReceita{font-size:18px;margin:12px 0 4px}
+  .vdReceita b{color:var(--c-sinal)}
+  .vdAcoes{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
+  .vdDesfazer{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:901;background:var(--c-grafite);
+    color:var(--c-branco);padding:10px 16px;border-radius:10px;display:flex;gap:12px;align-items:center}
+  .vdDesfazer .btn{width:auto}
+  .vdMini{position:fixed;inset:0;z-index:950;display:flex;align-items:center;justify-content:center;pointer-events:none}
+  .vdMini span{font:800 64px/1 'Barlow',sans-serif;color:var(--c-sinal);letter-spacing:.06em;animation:vdPulo .6s ease-out}
+  @keyframes vdPulo{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+  @media (prefers-reduced-motion: reduce){ .vdMini span{animation:none} }
+</style>
 </head>
 <body>
 
@@ -2622,6 +2641,8 @@
       <button type="button" class="btn btn-sm btn-outline" id="anCarregarMais" style="display:none;width:auto">Carregar mais</button>
     </section>
   </main>
+    <!-- §149: Vendi! — Discador e Renovação marcam a venda na hora (lead entra pelo status) -->
+    <button type="button" class="btn vdFab" id="btnVendi" style="display:none">Vendi! 🎉</button>
   </div>
 
   <div class="footNote">Dados de clientes e logins ficam salvos em um banco de dados compartilhado — qualquer consultor autorizado acessa de qualquer computador.</div>
@@ -3385,6 +3406,7 @@ document.getElementById('btnLogout').addEventListener('click', async function(){
   cadernoResetar(); // seção 72: some o Caderno e para os alertas
   kbParar(); // seção 118: alertas de Meus leads
   agSair(); // §138.1: menu inteiro de volta depois de uma sessão da agência
+  vdFecharDesfazer(); document.getElementById('btnVendi').style.display = 'none'; // §149
   verificarAlertaSyncProducao(); // sem usuário: esconde a faixa
   appEl.style.display = 'none';
   loginScreen.style.display = 'flex';
@@ -3438,6 +3460,8 @@ function enterApp(){
     bmAplicarPermissao();
     // 15/10/2026 (seção 87): Discador — só admin/supervisor
     dcAplicarPermissao();
+    // §149: Vendi! (consultor/supervisor/admin da Apex)
+    vdAplicarPermissao();
     // 20/10/2026 (seção 102): Base de Mailing — só admin/supervisor
     mbAplicarPermissao();
     // 26/10/2026 (seção 112): Meus leads — equipe de leads + admin/supervisor
@@ -5224,6 +5248,129 @@ function tvFiltrarFila(fila, cancelados){
   const fora = new Set(cancelados || []);
   return (fila || []).filter(v => !fora.has(v.id));
 }
+const vdEstado = { salvando: false, origem: 'discador', timerDesfazer: null };
+function canVendi(){
+  return !!currentUser && ['consultor', 'supervisor', 'admin'].includes(currentUser.role)
+    && (currentUser.role === 'admin' || (currentUser.operacao || 'apex') === 'apex');
+}
+function vdAplicarPermissao(){
+  const b = document.getElementById('btnVendi');
+  if(b) b.style.display = canVendi() ? '' : 'none';
+  if(!canVendi()) vdFecharDesfazer();
+}
+function vdOrigemAtual(){
+  const a = document.querySelector('#tabsNav button.active');
+  return a && a.dataset.tab === 'renovacao' ? 'renovacao' : 'discador';
+}
+function vdCnpjSugerido(){
+  if(vdOrigemAtual() !== 'renovacao' || !rnEstado.fichaId) return '';
+  const r = rnEstado.lista.find(x => x.id === rnEstado.fichaId);
+  return r && r.cnpj_digits ? kbCnpjMascara(r.cnpj_digits) : '';
+}
+function vdLinhaItemHtml(item){
+  const opts = '<option value="">Plano…</option>' + vdOfertas().map(o =>
+    `<option value="${escapeHtml(o.id)}"${item && item.plano_id === o.id ? ' selected' : ''}>${escapeHtml(o.rotulo)}</option>`).join('');
+  return `<div class="vdItem"><label class="field"><span>Plano</span><select data-vd-plano>${opts}</select></label>`
+    + `<label class="field"><span>Linhas</span><input type="number" min="1" max="300" step="1" inputmode="numeric" data-vd-linhas value="${item && item.linhas ? item.linhas : 1}"></label>`
+    + `<button type="button" class="btn btn-sm btn-outline" data-vd-tirar aria-label="Tirar este plano">×</button></div>`;
+}
+function vdEditorHtml(itens){
+  const lista = itens && itens.length ? itens : [null];
+  return `<div class="vdItens" data-vd-itens>${lista.map(vdLinhaItemHtml).join('')}</div>`
+    + '<button type="button" class="btn btn-sm btn-outline" data-vd-mais style="width:auto">+ outro plano</button>';
+}
+function vdLerItens(raiz){
+  const ofs = new Map(vdOfertas().map(o => [o.id, o]));
+  return [...raiz.querySelectorAll('.vdItem')].map(el => {
+    const o = ofs.get(el.querySelector('[data-vd-plano]').value);
+    return { plano_id: o ? o.id : '', gb: o ? o.gb : null, valor_linha: o ? o.valor : 0, linhas: Number(el.querySelector('[data-vd-linhas]').value) };
+  });
+}
+// Liga + outro plano / × / recálculo num editor recém-desenhado (cada render cria o nó de novo: não acumula ouvintes).
+function vdLigarEditor(raiz, aoMudar){
+  raiz.addEventListener('click', (e) => {
+    if(e.target.closest('[data-vd-mais]')){ raiz.querySelector('[data-vd-itens]').insertAdjacentHTML('beforeend', vdLinhaItemHtml(null)); aoMudar(); return; }
+    const t = e.target.closest('[data-vd-tirar]');
+    if(t && raiz.querySelectorAll('.vdItem').length > 1){ t.closest('.vdItem').remove(); aoMudar(); }
+  });
+  raiz.addEventListener('input', aoMudar);
+  raiz.addEventListener('change', aoMudar);
+}
+function vdAbrir(){
+  if(!canVendi()) return;
+  vdEstado.origem = vdOrigemAtual();
+  let ov = document.getElementById('vdModal');
+  if(!ov){ ov = document.createElement('div'); ov.className = 'overlay'; ov.id = 'vdModal'; document.body.appendChild(ov); }
+  ov.innerHTML = `<div class="modal vdModal" role="dialog" aria-modal="true" aria-labelledby="vdTitulo">
+    <div class="mHead"><button type="button" class="mClose" data-vd-fechar aria-label="Fechar">&times;</button>
+      <h2 id="vdTitulo">Vendi!</h2><div class="mCnpj">${vdEstado.origem === 'renovacao' ? 'Venda da Renovação' : 'Venda do discador'}</div></div>
+    <div class="mBody">
+      <label class="field"><span>CNPJ do cliente</span><input type="text" id="vdCnpj" inputmode="numeric" autocomplete="off" placeholder="00.000.000/0000-00" value="${escapeHtml(vdCnpjSugerido())}"></label>
+      <div id="vdEditor">${vdEditorHtml(null)}</div>
+      <p class="vdReceita">Receita do pedido: <b id="vdReceita">${escapeHtml(fmtBRL(0))}</b>/mês</p>
+      <p class="desc kbClassErro" id="vdErro" role="alert"></p>
+      <div class="vdAcoes"><button type="button" class="btn btn-outline" data-vd-fechar style="width:auto">Cancelar</button>
+        <button type="button" class="btn" id="vdConfirmar" style="width:auto">Confirmar venda 🎉</button></div>
+    </div></div>`;
+  const recalc = () => { document.getElementById('vdReceita').textContent = fmtBRL(vdReceita(vdLerItens(ov))); };
+  vdLigarEditor(document.getElementById('vdEditor'), recalc);
+  const cn = document.getElementById('vdCnpj');
+  cn.addEventListener('input', () => { cn.value = kbCnpjMascara(cn.value); });
+  ov.onclick = (e) => {
+    if(e.target.closest('[data-vd-fechar]')){ fecharOverlay(ov); return; }
+    if(e.target.closest('#vdConfirmar')) vdConfirmar();
+  };
+  ov.classList.add('active');
+  setTimeout(() => { const alvo = cn.value ? ov.querySelector('[data-vd-plano]') : cn; if(alvo) alvo.focus(); }, 50);
+}
+async function vdConfirmar(){
+  if(vdEstado.salvando) return;
+  const ov = document.getElementById('vdModal'), cnpj = document.getElementById('vdCnpj').value, itens = vdLerItens(ov);
+  const erro = !kbCnpjValido(cnpj) ? 'CNPJ inválido: confira os 14 números.' : vdItensErro(itens);
+  document.getElementById('vdErro').textContent = erro;
+  if(erro) return;
+  vdEstado.salvando = true;
+  try{
+    const r = await ppSeguro(() => sb.rpc('vendi', { p_cnpj: kbCnpjDigitos(cnpj), p_itens: itens, p_origem: vdEstado.origem }));
+    if(!r || r.error || !r.data){
+      const e = r && r.error;
+      document.getElementById('vdErro').textContent = e && ['22023', '42501'].includes(e.code) ? e.message : 'Não foi possível marcar agora. Tente de novo.';
+      return;
+    }
+    fecharOverlay(ov);
+    vdMiniVendeu();
+    if(r.data.aviso) mostrarAviso(r.data.aviso, 'info');
+    vdMostrarDesfazer(r.data.id);
+  } finally { vdEstado.salvando = false; }
+}
+function vdMiniVendeu(){
+  const d = document.createElement('div');
+  d.className = 'vdMini'; d.setAttribute('aria-hidden', 'true'); d.innerHTML = '<span>VENDEU!</span>';
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), TV_TEMPOS.mini);
+}
+function vdMostrarDesfazer(id){
+  vdFecharDesfazer();
+  const box = document.createElement('div');
+  box.className = 'vdDesfazer'; box.id = 'vdDesfazer'; box.setAttribute('role', 'status');
+  box.innerHTML = '<span>Venda marcada. Marcou errado?</span><button type="button" class="btn btn-sm" data-vd-desfazer>Desfazer</button>'
+    + '<button type="button" class="btn btn-sm btn-outline" data-vd-desfazer-fechar aria-label="Fechar">×</button>';
+  document.body.appendChild(box);
+  vdEstado.timerDesfazer = setTimeout(vdFecharDesfazer, TV_TEMPOS.desfazer);
+  box.onclick = async (e) => {
+    if(e.target.closest('[data-vd-desfazer-fechar]')){ vdFecharDesfazer(); return; }
+    if(!e.target.closest('[data-vd-desfazer]')) return;
+    const r = await ppSeguro(() => sb.rpc('vendi_cancelar', { p_id: id, p_motivo: null }));
+    if(!r || r.error){ mostrarAviso(r && r.error && r.error.message ? r.error.message : 'Não foi possível desfazer agora.', 'erro'); return; }
+    vdFecharDesfazer();
+    mostrarAviso('Venda desfeita.', 'ok');
+  };
+}
+function vdFecharDesfazer(){
+  clearTimeout(vdEstado.timerDesfazer); vdEstado.timerDesfazer = null;
+  const b = document.getElementById('vdDesfazer'); if(b) b.remove();
+}
+document.getElementById('btnVendi').addEventListener('click', vdAbrir);
 function kbCnpjLinhaHtml(f, pode){
   const tem = !!String(f.cnpj || '').trim();
   const alt = pode ? `<button type="button" class="kbLink" data-kb-cnpj-alterar>${tem ? 'Alterar' : 'Adicionar'}</button>` : '';
