@@ -4767,8 +4767,10 @@ plano: `docs/superpowers/plans/2026-11-09-leads-distribuicao-automatica.md`. Ent
 - Banco: migration `20261112130000_leads_dist_espera_robo.sql` (`leads_dist_tick`); conferência
   `supabase/tests/leads_dist_espera_robo_check.sql`. **No ar 12/11 ~14:45** (ok do Rafael). Na aplicação, 2 entregas do
   dia ganharam crédito (incluindo a da Bianca, atendida às 13:53).
-- Pendente (painel): o aviso "voltou aos Livres" é calculado pelo navegador e pode aparecer por engano quando o lead é
-  segurado por uma ligação importada depois dos 15 min; o cronômetro mostra "volta em 0 min" enquanto espera o robô.
+- **Painel (12/11, ok do Rafael):** o aviso "voltou aos Livres" passou a vir do banco — a presença devolve `devolvida`
+  (entrega do consultor devolvida nos últimos 3 min; migration `20261112140000_leads_dist_ping_devolvida.sql`, check
+  `supabase/tests/leads_dist_ping_devolvida_check.sql`) e o painel avisa uma vez por lead; nada de aviso falso quando a
+  ligação do ProContact segura o lead. Depois dos 15 min o cronômetro mostra "atrasado N min · aguardando o ProContact".
 
 ## 147. Meus leads: alterar o CNPJ do lead na ficha (10/11/2026)
 

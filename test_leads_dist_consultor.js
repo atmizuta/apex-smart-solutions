@@ -41,7 +41,18 @@ rodar(`
   const ENT2 = Object.assign({}, ENT, { lead_id: 'L2', nome: 'Outro Teste' });
   kbDistAvisoEntrega(ENT2, T0);
   kbDistAvisoEntrega(null, T0 + 16 * 60000);   // sumiu depois do prazo de devolução
-  assert(avisos().includes('Outro Teste voltou aos Livres'), 'avisa devolução');
+  assert(!avisos().includes('Outro Teste voltou aos Livres'), 'sumir da faixa depois de 15 min não avisa (pode ter sido segurado pelo ProContact)');
+  // §146.5: o aviso vem do banco (presença devolve "devolvida"), uma vez por lead
+  const DEV = { aba: 'NOVEMBRO', lead_id: 'L2', nome: 'Outro Teste', devolvido_em: new Date(T0 + 16 * 60000).toISOString() };
+  kbDistAvisoDevolvida(DEV); kbDistAvisoDevolvida(DEV);
+  eq(window.__alertas.concat([(document.getElementById('apexToasts') || {}).textContent || '']).join(' | ').split('Outro Teste voltou aos Livres').length - 1 >= 1, true, 'avisa devolução vinda do banco');
+  window.__rpcRespostas.leads_presenca_ping = { data: { equipe: true, pausa_ate: null, modo: 'automatico', entrega: null, devolvida: { aba: 'NOVEMBRO', lead_id: 'L7', nome: 'Sétimo Teste', devolvido_em: new Date().toISOString() } }, error: null };
+  await kbPresencaPing();
+  assert(avisos().includes('Sétimo Teste voltou aos Livres'), 'presença com devolvida avisa');
+  const nSetimo = avisos().split('Sétimo Teste voltou aos Livres').length;
+  await kbPresencaPing();
+  eq(avisos().split('Sétimo Teste voltou aos Livres').length, nSetimo, 'devolvida avisa uma vez só');
+  eq(kbCronometro(ENT, T0 + 17 * 60000), { texto: 'atrasado 12 min · aguardando o ProContact', classe: 'late' }, 'passou dos 15 min: espera o robô');
 
   // ==== presença a cada 20 s alimenta o aviso ====
   window.__rpcRespostas.leads_presenca_ping = { data: { equipe: true, pausa_ate: null, modo: 'automatico', entrega: Object.assign({}, ENT, { lead_id: 'L3', nome: 'Terceiro Teste' }) }, error: null };

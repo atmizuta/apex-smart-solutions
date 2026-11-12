@@ -5471,6 +5471,7 @@ async function kbPresencaPing(acao){
   if(r && !r.error && r.data){
     kbEstado.presenca = r.data;
     if(Object.prototype.hasOwnProperty.call(r.data, 'entrega')) kbDistAvisoEntrega(r.data.entrega, Date.now());   // §146.2
+    if(r.data.devolvida) kbDistAvisoDevolvida(r.data.devolvida);   // §146.5
   }
   return r && !r.error ? r.data : null;
 }
@@ -5485,6 +5486,7 @@ function kbCronometro(ent, agoraMs){
     return { texto: `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} para ligar`, classe: resta <= 60000 ? 'soon' : 'ok' };
   }
   const atraso = Math.floor((agoraMs - rec - atender) / 60000), volta = Math.max(0, Math.ceil((rec + devolver - agoraMs) / 60000));
+  if(agoraMs >= rec + devolver) return { texto: `atrasado ${atraso} min · aguardando o ProContact`, classe: 'late' };   // §146.5: o motor espera o robô antes de devolver
   return { texto: `atrasado ${atraso} min · volta aos Livres em ${volta} min`, classe: 'late' };
 }
 // §146.2: aviso de lead que caiu para o consultor (uma vez por lead) e de lead que voltou aos Livres por falta de contato.
@@ -5501,10 +5503,6 @@ function kbDistMarcarAvisado(k){
 function kbDistAvisoEntrega(ent, agoraMs){
   const ant = kbEstado.distEntrega;
   const mudou = (ant ? kbDistChave(ant) : '') !== (ent ? kbDistChave(ent) : '');
-  if(ant && (!ent || ent.lead_id !== ant.lead_id)){
-    const rec = kbMs(ant.recebido_em), prazo = (Number(ant.prazo_devolver_min) || 15) * 60000;
-    if(rec !== null && agoraMs - rec >= prazo) mostrarAviso(`${ant.nome || 'O lead'} voltou aos Livres: passou o prazo sem contato.`, 'erro');
-  }
   kbEstado.distEntrega = ent || null;
   if(mudou && !kbGestor()) kbCarregarDistMeu().then(kbRenderSuaVez);   // revisão: estado da faixa acompanha a entrega
   if(ent && !kbDistJaAvisou(kbDistChave(ent))){
@@ -5516,6 +5514,15 @@ function kbDistAvisoEntrega(ent, agoraMs){
     kbCarregar();
   }
   kbRenderSuaVez();
+}
+// §146.5: "voltou aos Livres" vem do banco (presença devolve a entrega devolvida nos últimos minutos), uma vez por lead.
+// Antes era calculado pelo relógio do navegador e avisava por engano quando o lead era segurado por ligação do ProContact.
+function kbDistAvisoDevolvida(dev){
+  if(!dev || !dev.lead_id) return;
+  const k = ['dev', currentUser && currentUser.id, dev.aba, dev.lead_id, dev.devolvido_em].join('|');
+  if(kbDistJaAvisou(k)) return;
+  kbDistMarcarAvisado(k);
+  mostrarAviso(`${dev.nome || 'O lead'} voltou aos Livres: passou o prazo sem contato.`, 'erro');
 }
 const KB_SUAVEZ_ESTADO = { na_vez: 'Na vez', pendente: 'Aguardando você ligar', pausa: 'Em pausa', offline: 'Fora do painel', fora: 'Fora do horário' };
 // §146.2: faixa "Sua vez" (só os números do próprio consultor). Fora do Automático, só Rápidos e Conversão.
