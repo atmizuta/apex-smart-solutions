@@ -4754,6 +4754,22 @@ plano: `docs/superpowers/plans/2026-11-09-leads-distribuicao-automatica.md`. Ent
 - Banco: migration `20261112120000_leads_dist_limite_novos.sql` (`leads_dist_escolher`, `leads_dist_meu`, `leads_dist_equipe`);
   conferência `supabase/tests/leads_dist_limite_novos_check.sql`. **No ar 12/11 14:18** (ok do Rafael); painel sem mudança.
 
+### 146.5 Ligação do ProContact conta e a devolução espera o robô (12/11/2026)
+
+- Caso (12/11): a Bianca recebeu um lead às 13:41, ligou pelo ProContact às 13:53 e 13:55 (sem clicar em Ligar no painel);
+  às 13:57 o lead voltou aos Livres porque o robô só importou as ligações às 14:02. Pedido do Rafael: "esperar o robô antes
+  de devolver".
+- **Ligação do ProContact = atendimento:** quando o robô traz uma ligação do consultor (usuário de telefonia) para o
+  telefone do lead, feita a partir de 5 min antes da entrega, a entrega fica atendida na **hora real da ligação**
+  (`sinal` nulo, confirmada). Vale para entrega aberta (segura o lead) e já devolvida (recupera o crédito de velocidade).
+- **Devolução espera o robô:** aos 15 min sem contato, o lead só volta aos Livres quando a última importação do robô for
+  depois do prazo (cobriu a janela) — ou 30 min depois do prazo se o robô parar.
+- Banco: migration `20261112130000_leads_dist_espera_robo.sql` (`leads_dist_tick`); conferência
+  `supabase/tests/leads_dist_espera_robo_check.sql`. **No ar 12/11 ~14:45** (ok do Rafael). Na aplicação, 2 entregas do
+  dia ganharam crédito (incluindo a da Bianca, atendida às 13:53).
+- Pendente (painel): o aviso "voltou aos Livres" é calculado pelo navegador e pode aparecer por engano quando o lead é
+  segurado por uma ligação importada depois dos 15 min; o cronômetro mostra "volta em 0 min" enquanto espera o robô.
+
 ## 147. Meus leads: alterar o CNPJ do lead na ficha (10/11/2026)
 
 Pedido do Rafael: "preciso que todos os consultores tenham uma opção de alterar o cnpj na ficha [...] na aba conferir neo,
