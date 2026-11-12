@@ -4853,4 +4853,16 @@ agência". Conta feita no banco antes (sem Repique e sem apagados): média de 28
   **Reverter o painel:** copiar o backup de volta. **Reverter o banco:** não precisa (a função nova não é usada por mais
   nada).
 
-Próxima livre: §149 (§138.2 e §138.3 reservadas).
+## §149 TV Vendas — ranking de conversão ao vivo e comemoração de venda (em desenho, 12/11/2026)
+
+- **Pedido (12/11):** TV na sala com o ranking de conversão por consultor (Hoje | Mês) e comemoração em tela cheia a
+  cada venda ("VENDEU!") e ao bater a meta do dia ("META BATIDA!"), como a TV da EagleCRM.
+- **Venda na hora:**
+  - Discador e Renovação marcam no botão "Vendi!" (CNPJ, plano × linhas, receita calculada).
+  - Leads entram pelo status `PEDIDO CONCLUIDO (VENDA)` (gatilho cria e cancela).
+  - Não há aprovação no meio. A NEO confere depois (`vendas_conferir_neo`, 3 dias úteis), sem cancelar sozinha.
+- **Contato:** conversa no discador (tabulação ≠ SEM CONTATO) + lead atendido no dia. Só a operação Apex. Sem fotos
+  por enquanto (fase 2).
+- **Design:** `docs/superpowers/specs/2026-11-12-tv-vendas-design.md`.
+
+Próxima livre: §150 (§138.2 e §138.3 reservadas).
