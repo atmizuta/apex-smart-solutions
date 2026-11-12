@@ -4921,4 +4921,22 @@ agência". Conta feita no banco antes (sem Repique e sem apagados): média de 28
     `alter table public.leads disable trigger vendas_marcadas_lead`; se precisar parar a conferência, use
     `select cron.unschedule('tv-vendas-conferir-neo')`.
 
+### §149.1 Mês com as vendas da NEO antes da TV (12/11/2026 ~19:40, pedido do Rafael)
+
+- **Problema:** "quando clica em Mês só está contando as vendas do dia". As vendas marcadas só existem desde 12/11,
+  então o Mês tinha 4 vendas, enquanto a NEO tinha 109 pedidos da Apex de 1 a 11/11.
+- **Correção:** `tv_vendas_periodo(de, ate, ate_id)`.
+  - Antes de 12/11: pedidos da NEO (`consultor_neo`, sem perdido/devolvido). Receita = soma do `valor` do pedido.
+  - De 12/11 em diante: vendas marcadas.
+  - `tv_ranking` e `tv_posicao_mes` usam a mesma conta, então o "subiu do Xº para o Yº" bate com o ranking do Mês.
+  - Migration `20261112180000_tv_vendas_mes_neo.sql`; conferência `supabase/tests/tv_vendas_mes_check.sql`.
+  - Resultado: Mês com 113 vendas (109 NEO + 4 marcadas).
+- **Contatos "muito pouco" (investigado, não é erro da TV):**
+  - Em 12/11, a Apex discou 7.414 chamadas, contra 27–35 mil nos dias normais (~540 conversas/dia). Das 15h às 17h
+    quase não houve discagem.
+  - As importações do discador rodaram certo de hora em hora (a das 18:22 falhou no login do ProContact e a das 19:18
+    recuperou).
+  - As ligações manuais já aparecem na base do discador: ontem, o consultor com mais conversas tinha 102 telefones e
+    102 contatos na TV.
+
 Próxima livre: §150 (§138.2 e §138.3 reservadas).
