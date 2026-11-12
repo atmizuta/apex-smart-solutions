@@ -5174,6 +5174,56 @@ function kbCnpjMascara(v){
   return d.replace(/^(\d{2})(\d)/, '$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2');
 }
 function kbCnpjPodeAlterar(f, gestor, uid){ return !!f && !f.livre && !!f.dono_id && (!!gestor || (!!uid && f.dono_id === uid)); }
+// ===== §149 TV Vendas (12/11, Rafael): "Vendi!", ranking ao vivo e comemorações =====
+// Spec: docs/superpowers/specs/2026-11-12-tv-vendas-design.md. Prefixos: vd = botão/janela Vendi!, tv = aba TV Vendas.
+const TV_TEMPOS = { tick: 3000, ranking: 60000, alternar: 60000, relogio: 1000, vendeu: 7000, meta: 10000, semConexao: 120000, desfazer: 600000, mini: 2000 };
+function vdOfertas(){
+  return OFFERS_MOBILE.map(o => ({ id: o.id, gb: o.gb, valor: o.valor,
+    rotulo: `${o.gb}GB · ${fmtBRL(o.valor)}${o.origem === 'Nacional' ? '' : ' · ' + o.origem}` }));
+}
+function vdReceita(itens){
+  const centavos = (itens || []).reduce((s, i) => s + Math.round((Number(i.valor_linha) || 0) * 100) * (Number(i.linhas) || 0), 0);
+  return centavos / 100;
+}
+// Mesmas mensagens do vendas_itens_normalizar() no banco.
+function vdItensErro(itens){
+  if(!itens || !itens.length) return 'Escolha pelo menos um plano.';
+  if(itens.length > 10) return 'No máximo 10 planos por pedido.';
+  for(let k = 0; k < itens.length; k++){
+    const i = itens[k], n = k + 1;
+    if(!i.plano_id) return `Plano ${n}: escolha o plano.`;
+    if(!Number.isInteger(i.linhas) || i.linhas < 1 || i.linhas > 300) return `Plano ${n}: linhas de 1 a 300.`;
+  }
+  if(itens.reduce((s, i) => s + i.linhas, 0) > 300) return 'No máximo 300 linhas por pedido.';
+  return '';
+}
+function tvIniciais(nome){
+  const p = String(nome || '').trim().split(/\s+/).filter(Boolean);
+  if(!p.length) return '?';
+  return (p[0][0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase();
+}
+function tvConversaoTxt(pct){ return pct === null || pct === undefined ? '—' : Number(pct).toFixed(1).replace('.', ',') + '%'; }
+function tvTextoSubida(v){
+  const a = v && v.pos_antes, d = v && v.pos_depois;
+  if(!d) return '';
+  if(!a) return `▲ entrou em ${d}º lugar no mês`;
+  if(d < a) return `▲ subiu do ${a}º para o ${d}º lugar no mês`;
+  return `manteve o ${d}º lugar no mês`;
+}
+// Movimento de posição entre dois rankings: +n subiu, −n desceu, null entrou agora, 0 parado ou sem venda.
+function tvSetas(antes, depois){
+  const pos = new Map((antes || []).filter(l => l.posicao).map(l => [l.profile_id, l.posicao]));
+  const out = {};
+  (depois || []).forEach(l => {
+    const a = pos.get(l.profile_id);
+    out[l.profile_id] = !l.posicao ? 0 : (a ? a - l.posicao : null);
+  });
+  return out;
+}
+function tvFiltrarFila(fila, cancelados){
+  const fora = new Set(cancelados || []);
+  return (fila || []).filter(v => !fora.has(v.id));
+}
 function kbCnpjLinhaHtml(f, pode){
   const tem = !!String(f.cnpj || '').trim();
   const alt = pode ? `<button type="button" class="kbLink" data-kb-cnpj-alterar>${tem ? 'Alterar' : 'Adicionar'}</button>` : '';
