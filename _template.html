@@ -5478,6 +5478,7 @@ async function tvAbrir(){
   cada(tvCarregarRanking, TV_TEMPOS.ranking);
   cada(() => { if(tvEstado.alternar && !tvEstado.festando) tvTrocarPeriodo(tvEstado.periodo === 'hoje' ? 'mes' : 'hoje'); }, TV_TEMPOS.alternar);
   cada(tvRelogio, TV_TEMPOS.relogio);
+  cada(tvCarregarConferencia, 600000);
 }
 function tvRelogio(){
   const el = document.getElementById('tvHora');
@@ -5669,6 +5670,54 @@ function tvTocar(tipo){
     o.connect(g); g.connect(tvAudio.destination); o.start(t); o.stop(t + 0.32);
   });
 }
+// §149: vendas que a NEO não confirmou em 3 dias úteis (ou com receita/usuário diferente). Só gestor; fora da tela cheia.
+async function tvCarregarConferencia(){
+  const g = tvEstado.ger, box = document.getElementById('tvConferencia');
+  const r = await ppSeguro(() => sb.rpc('tv_conferencia'));
+  if(g !== tvEstado.ger || !box) return;
+  if(!r || r.error){ box.innerHTML = '<p class="desc">Não foi possível carregar a conferência agora.</p>'; return; }
+  box.innerHTML = tvConferenciaHtml(r.data || []);
+}
+function tvConferenciaHtml(lista){
+  const e = escapeHtml;
+  if(!lista.length) return '<div class="card"><h3>Conferência com a NEO</h3><p class="desc">Nada para conferir.</p></div>';
+  const linhas = lista.map(v => `<tr data-tv-conf-id="${v.id}">
+      <td>${e(ppFmtDia(v.dia))}</td><td>${e(v.nome)}</td>
+      <td>${v.cnpj ? e(kbCnpjMascara(v.cnpj)) : 'sem CNPJ'}</td>
+      <td class="r">${e(fmtBRL(Number(v.receita) || 0))}${v.neo_receita !== null && v.neo_receita !== undefined ? `<br><small>NEO ${e(fmtBRL(Number(v.neo_receita)))}</small>` : ''}</td>
+      <td>${e(v.aviso || '')}${v.neo_pedido ? `<br><small>pedido ${e(v.neo_pedido)}</small>` : ''}</td>
+      <td><button type="button" class="btn btn-sm btn-outline" data-tv-conf-acao="ok" style="width:auto">Está certo</button>
+        ${v.origem === 'lead' ? '' : '<button type="button" class="btn btn-sm btn-danger" data-tv-conf-acao="cancelar" style="width:auto">Cancelar venda</button>'}</td></tr>`).join('');
+  return `<div class="card"><h3>Conferência com a NEO (${lista.length})</h3>
+    <p class="desc">Vendas marcadas que a NEO não confirmou. Nada é cancelado sozinho: decida com um motivo.</p>
+    <table class="tbl"><thead><tr><th>Dia</th><th>Consultor</th><th>CNPJ</th><th class="r">Receita</th><th>O que houve</th><th></th></tr></thead><tbody>${linhas}</tbody></table>
+    <div id="tvConfDecisao"></div></div>`;
+}
+async function tvDecidir(id, acao, motivo){
+  const r = await ppSeguro(() => sb.rpc('vendas_conferencia_decidir', { p_id: id, p_acao: acao, p_motivo: motivo }));
+  if(!r || r.error){ mostrarAviso(r && r.error && r.error.message ? r.error.message : 'Não foi possível salvar agora.', 'erro'); return false; }
+  mostrarAviso(acao === 'cancelar' ? 'Venda cancelada.' : 'Marcado como certo.', 'ok');
+  tvCarregarConferencia();
+  if(acao === 'cancelar') tvCarregarRanking();
+  return true;
+}
+document.getElementById('tvConferencia').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-tv-conf-acao]');
+  const box = document.getElementById('tvConfDecisao');
+  if(b && box){
+    const id = Number(b.closest('[data-tv-conf-id]').dataset.tvConfId), acao = b.dataset.tvConfAcao;
+    box.dataset.id = String(id); box.dataset.acao = acao;
+    box.innerHTML = `<label class="field"><span>${acao === 'cancelar' ? 'Por que cancelar a venda?' : 'Por que está certo?'}</span><input type="text" id="tvConfMotivo" maxlength="200"></label>`
+      + '<p class="desc kbClassErro" id="tvConfErro"></p><button type="button" class="btn btn-sm" data-tv-conf-salvar style="width:auto">Salvar</button>';
+    document.getElementById('tvConfMotivo').focus();
+    return;
+  }
+  if(e.target.closest('[data-tv-conf-salvar]') && box){
+    const motivo = document.getElementById('tvConfMotivo').value.trim();
+    if(motivo.length < 3){ document.getElementById('tvConfErro').textContent = 'Escreva o motivo (pelo menos 3 letras).'; return; }
+    tvDecidir(Number(box.dataset.id), box.dataset.acao, motivo);
+  }
+});
 document.getElementById('panel-tvvendas').addEventListener('click', (e) => {
   const p = e.target.closest('[data-tv-periodo]');
   if(p){ tvTrocarPeriodo(p.dataset.tvPeriodo); return; }
