@@ -4744,6 +4744,16 @@ plano: `docs/superpowers/plans/2026-11-09-leads-distribuicao-automatica.md`. Ent
 - **No ar (11/11 ~16:30, ok do Rafael):** aplicado; conferência passou. Na hora: Caio e Bianca fora da vez (Meus novos),
   Luria e Mariana na vez.
 
+### 146.4 Limite de 2 leads em "Meus novos" (12/11/2026)
+
+- Problema (12/11 14:13): com a §146.3 (qualquer lead em Meus novos tira da vez) a fila travou em 22 leads — todos tinham
+  ao menos 1 lead sem status (Caio 5, Bianca 5, Luria 1, Mariana 1).
+- Pedido do Rafael: "aplica o limite de até 2 em meus novos". O consultor recebe enquanto tiver **menos de 2** leads em Meus
+  novos; com 2 fica fora da vez ("Aguardando você ligar") até tabular. Limite em `config.leads_distribuicao.max_meus_novos`
+  (padrão 2).
+- Banco: migration `20261112120000_leads_dist_limite_novos.sql` (`leads_dist_escolher`, `leads_dist_meu`, `leads_dist_equipe`);
+  conferência `supabase/tests/leads_dist_limite_novos_check.sql`. **No ar 12/11 14:18** (ok do Rafael); painel sem mudança.
+
 ## 147. Meus leads: alterar o CNPJ do lead na ficha (10/11/2026)
 
 Pedido do Rafael: "preciso que todos os consultores tenham uma opção de alterar o cnpj na ficha [...] na aba conferir neo,
