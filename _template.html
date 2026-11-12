@@ -1419,6 +1419,28 @@
     background:var(--c-bordo);color:var(--c-branco);font-weight:700;font-size:12px;margin-right:8px;vertical-align:middle}
   .tvBarra{display:inline-block;height:8px;background:var(--c-sinal);border-radius:4px;vertical-align:middle;margin-left:8px}
   .tvRodape{font-size:12px;color:var(--muted);margin-top:8px}
+  .tvFesta{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;text-align:center;overflow:hidden;color:var(--c-branco)}
+  .tvFesta[hidden]{display:none}
+  .tvFesta.vendeu{background:radial-gradient(circle at 50% 35%, var(--c-sinal), var(--c-bordo))}
+  .tvFesta.meta{background:radial-gradient(circle at 50% 35%, var(--tv-ouro-claro), var(--tv-ouro));color:var(--c-grafite)}
+  .tvFestaCorpo{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center}
+  .tvCirculo{width:170px;height:170px;border-radius:50%;border:6px solid var(--tv-ouro);display:flex;align-items:center;justify-content:center;
+    font:800 64px/1 'Barlow',sans-serif;background:var(--c-bordo);color:var(--c-branco);box-shadow:0 0 40px var(--tv-ouro)}
+  .tvFesta.meta .tvCirculo{background:var(--c-branco);color:var(--tv-ouro);border-color:var(--c-branco)}
+  .tvGrito{letter-spacing:.4em;font:800 22px/1 'Barlow',sans-serif;color:var(--tv-ouro);margin-top:22px}
+  .tvFesta.meta .tvGrito{color:var(--c-branco);font-size:56px;letter-spacing:.08em}
+  .tvNome{font:800 56px/1.1 'Barlow',sans-serif;margin:8px 16px}
+  .tvDetalhe{font-size:20px}
+  .tvDetalhe .sobe{color:var(--tv-ouro-claro);font-weight:700}
+  .tvPessoas{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-top:24px;max-width:90vw}
+  .tvPessoa{display:flex;flex-direction:column;align-items:center;gap:4px;font-weight:600}
+  .tvPessoa .tvAvatar{width:52px;height:52px;font-size:18px;margin:0}
+  .tvPessoa b{background:var(--c-branco);color:var(--c-grafite);border-radius:999px;padding:0 8px;font-size:13px}
+  .tvConfete{position:absolute;top:-20px;width:10px;height:14px;z-index:1;animation:tvCai linear forwards}
+  @keyframes tvCai{to{transform:translateY(110vh) rotate(540deg)}}
+  .tvFoguete{position:absolute;z-index:1;font-size:56px;left:-80px;bottom:-80px;animation:tvVoa 2.6s ease-in forwards}
+  @keyframes tvVoa{to{transform:translate(120vw,-120vh)}}
+  @media (prefers-reduced-motion: reduce){ .tvConfete,.tvFoguete{display:none} }
 </style>
 </head>
 <body>
@@ -5569,12 +5591,89 @@ async function tvDefinirMeta(n){
   mostrarAviso(`Meta de hoje: ${n} vendas.`, 'ok');
   tvCarregarRanking();
 }
-// Esqueleto: a Task 10 troca pela fila de comemorações de verdade.
-function tvProximaFesta(){ tvEstado.fila = []; }
+let tvAudio = null;
+function tvProximaFesta(){
+  if(tvEstado.festando || !tvEstado.ativo) return;
+  const v = tvEstado.fila.shift();
+  if(!v){ tvVerificarMeta(); return; }
+  const g = tvEstado.ger;
+  tvEstado.festando = true;
+  tvMostrarFesta('vendeu', tvVendeuHtml(v));
+  tvTocar('venda');
+  setTimeout(() => { if(g !== tvEstado.ger) return; tvEsconderFesta(); tvEstado.festando = false; tvProximaFesta(); }, TV_TEMPOS.vendeu);
+}
+// Depois da fila: se as vendas de hoje chegaram na meta, o banco diz "sim" uma única vez por dia (tv_meta_comemorar).
+async function tvVerificarMeta(){
+  const m = (tvEstado.ranking || {}).meta || {};
+  if(!m.meta || (m.vendas_hoje || 0) < m.meta || tvEstado.metaFeita === hojeSP()) return;
+  const g = tvEstado.ger;
+  const r = await ppSeguro(() => sb.rpc('tv_meta_comemorar'));
+  if(g !== tvEstado.ger || !r || r.error || !r.data) return;
+  tvEstado.metaFeita = hojeSP();
+  if(!r.data.comemorar || tvEstado.festando) return;
+  tvEstado.festando = true;
+  tvMostrarFesta('meta', tvMetaHtml(r.data));
+  tvTocar('meta');
+  setTimeout(() => { if(g !== tvEstado.ger) return; tvEsconderFesta(); tvEstado.festando = false; tvProximaFesta(); }, TV_TEMPOS.meta);
+}
+function tvVendeuHtml(v){
+  const e = escapeHtml, sub = tvTextoSubida(v);
+  const partes = [sub ? `<span class="sobe">${e(sub)}</span>` : '',
+    `${v.vendas_hoje} venda${v.vendas_hoje === 1 ? '' : 's'} hoje`,
+    Number(v.receita) ? e(fmtBRL(Number(v.receita))) : '',
+    v.conversao_hoje !== null && v.conversao_hoje !== undefined ? `${tvConversaoTxt(v.conversao_hoje)} de conversão` : ''].filter(Boolean);
+  return `<div class="tvCirculo">${e(tvIniciais(v.nome))}</div><div class="tvGrito">VENDEU!</div>`
+    + `<div class="tvNome">${e(v.nome)}</div><div class="tvDetalhe">${partes.join(' · ')}</div>`;
+}
+function tvMetaHtml(d){
+  const e = escapeHtml;
+  return `<div class="tvCirculo" aria-hidden="true">🏆</div><div class="tvGrito">META BATIDA!</div>`
+    + `<div class="tvNome">${d.vendas} vendas hoje</div><div class="tvDetalhe">Meta do dia: <b>${d.meta} vendas</b> · parabéns, time!</div>`
+    + `<div class="tvPessoas">${(d.pessoas || []).map(p => `<div class="tvPessoa"><span class="tvAvatar">${e(tvIniciais(p.nome))}</span>${e(String(p.nome).trim().split(/\s+/)[0])}<b>${p.vendas}</b></div>`).join('')}</div>`;
+}
+function tvMostrarFesta(tipo, html){
+  const f = document.getElementById('tvFesta');
+  const cores = ['var(--c-sinal)', 'var(--tv-ouro)', 'var(--c-branco)', 'var(--c-rosa)'];
+  let conf = '';
+  for(let i = 0; i < 70; i++){
+    conf += `<i class="tvConfete" style="left:${(Math.random() * 100).toFixed(1)}%;background:${cores[i % cores.length]};animation-duration:${(2.5 + Math.random() * 3).toFixed(2)}s;animation-delay:${(Math.random() * 1.5).toFixed(2)}s"></i>`;
+  }
+  f.className = 'tvFesta ' + tipo;
+  f.innerHTML = conf + (tipo === 'vendeu' ? '<span class="tvFoguete" aria-hidden="true">🚀</span>' : '') + `<div class="tvFestaCorpo">${html}</div>`;
+  f.hidden = false;
+}
+function tvEsconderFesta(){ const f = document.getElementById('tvFesta'); if(f){ f.hidden = true; f.innerHTML = ''; } }
+// O navegador só toca áudio depois de um clique: o botão cria/retoma o AudioContext.
+function tvLigarSom(){
+  const garantir = () => {
+    const C = window.AudioContext || window.webkitAudioContext;
+    if(!tvAudio && C) tvAudio = new C();
+    if(tvAudio && tvAudio.state === 'suspended') tvAudio.resume();
+  };
+  if(tvEstado.som && (!tvAudio || tvAudio.state !== 'running')) garantir();   // ligado, mas travado: só ativa
+  else {
+    tvEstado.som = !tvEstado.som;
+    if(tvEstado.som) garantir();
+    try{ window.localStorage.setItem('tvSom', tvEstado.som ? '1' : '0'); }catch(_e){ /* só não lembra */ }
+  }
+  tvRenderBotoes();
+}
+function tvTocar(tipo){
+  if(!tvEstado.som || !tvAudio || tvAudio.state !== 'running') return;
+  const notas = tipo === 'meta' ? [523, 659, 784, 1047, 784, 1047] : [659, 784, 1047];
+  const t0 = tvAudio.currentTime;
+  notas.forEach((freq, i) => {
+    const o = tvAudio.createOscillator(), g = tvAudio.createGain(), t = t0 + i * 0.14;
+    o.type = 'triangle'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+    o.connect(g); g.connect(tvAudio.destination); o.start(t); o.stop(t + 0.32);
+  });
+}
 document.getElementById('panel-tvvendas').addEventListener('click', (e) => {
   const p = e.target.closest('[data-tv-periodo]');
   if(p){ tvTrocarPeriodo(p.dataset.tvPeriodo); return; }
   if(e.target.closest('#tvAlternar')){ tvEstado.alternar = !tvEstado.alternar; tvRenderBotoes(); return; }
+  if(e.target.closest('#tvSom')){ tvLigarSom(); return; }
   if(e.target.closest('#tvTelaCheia')){ const el = document.getElementById('panel-tvvendas'); if(el.requestFullscreen) el.requestFullscreen().catch(() => {}); }
 });
 document.getElementById('panel-tvvendas').addEventListener('change', (e) => {
