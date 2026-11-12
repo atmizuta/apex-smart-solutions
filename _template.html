@@ -1398,6 +1398,27 @@
   .vdMini span{font:800 64px/1 'Barlow',sans-serif;color:var(--c-sinal);letter-spacing:.06em;animation:vdPulo .6s ease-out}
   @keyframes vdPulo{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
   @media (prefers-reduced-motion: reduce){ .vdMini span{animation:none} }
+  #panel-tvvendas:fullscreen{background:var(--c-papel);padding:24px;overflow:auto}
+  #panel-tvvendas:fullscreen #tvConferencia{display:none}
+  .tvTopo{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .tvTopo h2{margin:0;font-size:24px}
+  .tvBotoes{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .tvBotoes .btn{width:auto}
+  .tvRelogio{font:800 34px/1 'Barlow',sans-serif;color:var(--c-grafite);text-align:right}
+  .tvRelogio small{display:block;font-size:12px;color:var(--st-ganho);font-weight:600}
+  .tvSemConexao{border-left:4px solid var(--st-perdido);background:var(--st-perdido-bg);margin-bottom:12px}
+  .tvKpis{margin-bottom:12px}
+  .tvMetaBarra{height:6px;background:var(--c-linha);border-radius:3px;margin-top:6px;overflow:hidden}
+  .tvMetaBarra i{display:block;height:100%;background:var(--c-sinal)}
+  .tvMetaCampo{width:80px;display:inline-block;margin-left:6px}
+  table.tbl.tvTabela td,table.tbl.tvTabela th{font-size:15px}
+  .tvPos{white-space:nowrap;font-weight:700}
+  .tvSeta{font-size:12px;margin-left:4px}
+  .tvSeta.sobe{color:var(--st-ganho)} .tvSeta.desce{color:var(--c-sinal)}
+  .tvAvatar{display:inline-flex;width:30px;height:30px;border-radius:50%;align-items:center;justify-content:center;
+    background:var(--c-bordo);color:var(--c-branco);font-weight:700;font-size:12px;margin-right:8px;vertical-align:middle}
+  .tvBarra{display:inline-block;height:8px;background:var(--c-sinal);border-radius:4px;vertical-align:middle;margin-left:8px}
+  .tvRodape{font-size:12px;color:var(--muted);margin-top:8px}
 </style>
 </head>
 <body>
@@ -1544,6 +1565,8 @@
       <!-- 20/10/2026, seção 102: Base de Mailing — admin/supervisor -->
       <button data-tab="mailing" id="tabBtnMailing" style="display:none" data-sub="Filtrar e exportar mailing no layout do ProContact"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v12H4z"/><path d="M4 7l8 6 8-6"/></svg><span class="sbLabel">Mailing</span></button>
       <button data-tab="conversao" id="tabBtnConversao" style="display:none" data-sub="Leads das campanhas e conversão em vendas"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg><span class="sbLabel">Digital</span></button>
+      <!-- 12/11/2026, §149: TV Vendas — ranking de conversão ao vivo para a TV da sala (admin/supervisor da Apex) -->
+      <button data-tab="tvvendas" id="tabBtnTvVendas" style="display:none" data-sub="Ranking de conversão ao vivo para a TV da sala"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="13" rx="2"/><path d="M8 21h8M12 18v3"/></svg><span class="sbLabel">TV Vendas</span></button>
       <button data-tab="meusleads" id="tabBtnMeusLeads" style="display:none" data-sub="Pegue e classifique os leads das campanhas"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="11" rx="1"/><rect x="17" y="4" width="4" height="7" rx="1"/></svg><span class="sbLabel">Meus leads</span></button>
       <button data-tab="renovacao" id="tabBtnRenovacao" style="display:none" data-sub="Carteira de renovação, retornos e resumo do time"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v4h-4"/></svg><span class="sbLabel">Renovação</span></button>
       <div class="navGroupLabel">Vendas</div>
@@ -2640,6 +2663,25 @@
       <div id="anLista" class="anLista"></div>
       <button type="button" class="btn btn-sm btn-outline" id="anCarregarMais" style="display:none;width:auto">Carregar mais</button>
     </section>
+    <!-- §149 TV Vendas -->
+    <section class="panel" id="panel-tvvendas">
+      <div class="tvTopo">
+        <h2 id="tvTitulo">Conversão por Consultor</h2>
+        <div class="tvBotoes">
+          <button type="button" class="btn btn-sm" data-tv-periodo="hoje">Hoje</button>
+          <button type="button" class="btn btn-sm btn-outline" data-tv-periodo="mes">Mês</button>
+          <button type="button" class="btn btn-sm btn-outline" id="tvAlternar" aria-pressed="true">Alternar</button>
+          <button type="button" class="btn btn-sm btn-outline" id="tvSom" aria-pressed="false">Som desligado</button>
+          <button type="button" class="btn btn-sm btn-outline" id="tvTelaCheia">Tela cheia</button>
+        </div>
+        <div class="tvRelogio"><span id="tvHora">--:--</span><small>● ao vivo</small></div>
+      </div>
+      <div class="card tvSemConexao" id="tvSemConexao" role="alert" hidden></div>
+      <div id="tvConteudo"><p class="desc">Carregando…</p></div>
+      <p class="tvRodape">Contato = conversa no discador (tabulação diferente de "Sem contato") + lead atendido no dia · atualiza a cada venda</p>
+      <div id="tvConferencia"></div>
+      <div class="tvFesta" id="tvFesta" hidden aria-live="assertive"></div>
+    </section>
   </main>
     <!-- §149: Vendi! — Discador e Renovação marcam a venda na hora (lead entra pelo status) -->
     <button type="button" class="btn vdFab" id="btnVendi" style="display:none">Vendi! 🎉</button>
@@ -3406,7 +3448,7 @@ document.getElementById('btnLogout').addEventListener('click', async function(){
   cadernoResetar(); // seção 72: some o Caderno e para os alertas
   kbParar(); // seção 118: alertas de Meus leads
   agSair(); // §138.1: menu inteiro de volta depois de uma sessão da agência
-  vdFecharDesfazer(); document.getElementById('btnVendi').style.display = 'none'; // §149
+  vdFecharDesfazer(); document.getElementById('btnVendi').style.display = 'none'; tvParar(); // §149
   verificarAlertaSyncProducao(); // sem usuário: esconde a faixa
   appEl.style.display = 'none';
   loginScreen.style.display = 'flex';
@@ -3462,6 +3504,7 @@ function enterApp(){
     dcAplicarPermissao();
     // §149: Vendi! (consultor/supervisor/admin da Apex)
     vdAplicarPermissao();
+    tvAplicarPermissao(); // §149 TV Vendas (admin/supervisor da Apex)
     // 20/10/2026 (seção 102): Base de Mailing — só admin/supervisor
     mbAplicarPermissao();
     // 26/10/2026 (seção 112): Meus leads — equipe de leads + admin/supervisor
@@ -3720,6 +3763,7 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
   if(btn.dataset.tab === 'mesa') loadMesa(true);
   if(btn.dataset.tab === 'boletim') bmGarantirDoDia().catch(err => { console.error(err); bmStatus('Não foi possível montar o boletim agora.'); });
   if(btn.dataset.tab === 'discador') dcCarregar();
+  if(btn.dataset.tab === 'tvvendas') tvAbrir(); else tvParar(); // §149
   if(btn.dataset.tab === 'mailing') mbCarregar();
   if(btn.dataset.tab === 'agenda') loadAgenda();
   if(btn.dataset.tab === 'renovacao'){ if(rnEstado.carregado && Date.now() - rnEstado.carregadoEm < 120000) rnRender(); else rnCarregar(); }
@@ -5381,6 +5425,161 @@ function kbLigarItensVenda(){
     if(rec && !vdItensErro(itens)) rec.value = vdReceita(itens).toFixed(2).replace('.', ',');
   });
 }
+const tvEstado = { ativo: false, ger: 0, periodo: 'hoje', alternar: true, som: false, ultimoId: null, cancelados: '[]', meta: null,
+  ranking: null, setas: {}, fila: [], festando: false, metaFeita: null, timers: [], ultimaOk: 0, dia: null };
+function canSeeTvVendas(){ return !!currentUser && (currentUser.role === 'admin' || (currentUser.role === 'supervisor' && minhaOperacao() === 'apex')); }
+function tvAplicarPermissao(){
+  document.getElementById('tabBtnTvVendas').style.display = canSeeTvVendas() ? 'inline-block' : 'none';
+  tvParar();
+}
+function tvParar(){
+  tvEstado.ativo = false; tvEstado.ger++;
+  tvEstado.timers.forEach(t => clearInterval(t)); tvEstado.timers = [];
+  tvEstado.fila = []; tvEstado.festando = false;
+  const f = document.getElementById('tvFesta'); if(f){ f.hidden = true; f.innerHTML = ''; }
+}
+async function tvAbrir(){
+  if(!canSeeTvVendas()) return;
+  tvParar();
+  Object.assign(tvEstado, { ativo: true, dia: hojeSP(), ultimoId: null, cancelados: '[]', ranking: null, setas: {}, ultimaOk: Date.now() });
+  try{ tvEstado.som = window.localStorage.getItem('tvSom') === '1'; }catch(_e){ /* sem localStorage: som desligado */ }
+  tvRenderBotoes();
+  tvRelogio();
+  const g = tvEstado.ger;
+  await tvTick();
+  if(g !== tvEstado.ger) return;
+  await tvCarregarRanking();
+  if(g !== tvEstado.ger) return;
+  if(typeof tvCarregarConferencia === 'function') tvCarregarConferencia();
+  const cada = (fn, ms) => tvEstado.timers.push(setInterval(() => { if(g === tvEstado.ger) fn(); }, ms));
+  cada(tvTick, TV_TEMPOS.tick);
+  cada(tvCarregarRanking, TV_TEMPOS.ranking);
+  cada(() => { if(tvEstado.alternar && !tvEstado.festando) tvTrocarPeriodo(tvEstado.periodo === 'hoje' ? 'mes' : 'hoje'); }, TV_TEMPOS.alternar);
+  cada(tvRelogio, TV_TEMPOS.relogio);
+}
+function tvRelogio(){
+  const el = document.getElementById('tvHora');
+  if(el) el.textContent = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+}
+// Virada do dia: reinicia o estado sem recarregar a página (recarregar tiraria a TV da tela cheia).
+function tvVirarDia(){ tvAbrir(); }
+async function tvTick(){
+  if(tvEstado.dia && hojeSP() !== tvEstado.dia){ tvVirarDia(); return; }
+  const g = tvEstado.ger;
+  const r = await ppSeguro(() => sb.rpc('tv_ultima_venda'));
+  if(g !== tvEstado.ger) return;
+  if(!r || r.error || !r.data){ tvConexao(false); return; }
+  tvConexao(true);
+  const d = r.data, id = Number(d.ultimo_id) || 0, canc = JSON.stringify(d.cancelados_ids || []);
+  if(tvEstado.ultimoId === null){ tvEstado.ultimoId = id; tvEstado.cancelados = canc; tvEstado.meta = d.meta; return; }
+  let mudou = canc !== tvEstado.cancelados || d.meta !== tvEstado.meta;
+  tvEstado.cancelados = canc; tvEstado.meta = d.meta;
+  tvEstado.fila = tvFiltrarFila(tvEstado.fila, d.cancelados_ids);
+  if(id > tvEstado.ultimoId){
+    const n = await ppSeguro(() => sb.rpc('tv_vendas_desde', { p_id: tvEstado.ultimoId }));
+    if(g !== tvEstado.ger) return;
+    if(n && !n.error && Array.isArray(n.data)){
+      tvEstado.ultimoId = n.data.length === 20 ? n.data[19].id : id;   // 20 = limite do banco: o resto vem no próximo tick
+      tvEstado.fila.push(...n.data);
+      mudou = true;
+    }
+  }
+  if(mudou){ await tvCarregarRanking(); if(g === tvEstado.ger) tvProximaFesta(); }
+}
+function tvConexao(ok){
+  const av = document.getElementById('tvSemConexao');
+  if(ok){ tvEstado.ultimaOk = Date.now(); if(av) av.hidden = true; return; }
+  const min = Math.floor((Date.now() - tvEstado.ultimaOk) / 60000);
+  if(av && Date.now() - tvEstado.ultimaOk > TV_TEMPOS.semConexao){
+    av.textContent = `Sem conexão há ${Math.max(min, 1)} min — os números podem estar parados.`;
+    av.hidden = false;
+  }
+}
+async function tvCarregarRanking(){
+  const g = tvEstado.ger, per = tvEstado.periodo;
+  const r = await ppSeguro(() => sb.rpc('tv_ranking', { p_periodo: per }));
+  if(g !== tvEstado.ger || per !== tvEstado.periodo) return;
+  if(!r || r.error || !r.data){ tvConexao(false); return; }
+  tvConexao(true);
+  const novo = r.data;
+  if(tvEstado.ranking && tvEstado.ranking.periodo === novo.periodo){
+    const s = tvSetas(tvEstado.ranking.linhas, novo.linhas);
+    if(Object.values(s).some(x => x !== 0)) tvEstado.setas = s;   // guarda o último movimento até o próximo
+  } else tvEstado.setas = {};
+  tvEstado.ranking = novo;
+  tvRender();
+}
+function tvTrocarPeriodo(p){
+  if(p === tvEstado.periodo) return;
+  tvEstado.periodo = p; tvEstado.ranking = null; tvEstado.setas = {};
+  tvRenderBotoes();
+  tvCarregarRanking();
+}
+function tvRenderBotoes(){
+  document.querySelectorAll('[data-tv-periodo]').forEach(b => b.classList.toggle('btn-outline', b.dataset.tvPeriodo !== tvEstado.periodo));
+  const alt = document.getElementById('tvAlternar');
+  alt.classList.toggle('btn-outline', !tvEstado.alternar); alt.setAttribute('aria-pressed', String(tvEstado.alternar));
+  const som = document.getElementById('tvSom');
+  const tocando = typeof tvAudio !== 'undefined' && tvAudio && tvAudio.state === 'running';
+  som.textContent = !tvEstado.som ? 'Som desligado' : (tocando ? 'Som ligado' : 'Som: clique para ativar');
+  som.classList.toggle('btn-outline', !tvEstado.som); som.setAttribute('aria-pressed', String(tvEstado.som));
+}
+function tvRender(){
+  const d = tvEstado.ranking, box = document.getElementById('tvConteudo');
+  if(!box || !d) return;
+  const e = escapeHtml, t = d.totais || {}, m = d.meta || {}, u = d.ultima;
+  document.getElementById('tvTitulo').textContent = `Conversão por Consultor · ${d.periodo === 'mes' ? 'Mês' : 'Hoje'} ${ppFmtDia(d.ate).slice(0, 5)}`;
+  const pct = m.meta ? Math.min(100, Math.round(100 * (m.vendas_hoje || 0) / m.meta)) : 0;
+  const kpi = (rot, val, sub) => `<div class="kpiCard" style="--kpi-color:var(--c-sinal)"><div class="kpiLabel">${rot}</div><div class="kpiValue">${val}</div>${sub ? `<div class="kpiSub">${sub}</div>` : ''}</div>`;
+  const ult = u ? `${e(u.nome)} · ${new Date(u.em).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}` : '—';
+  const maxV = Math.max(1, ...(d.linhas || []).map(l => l.vendas));
+  const seta = (id) => {
+    const s = tvEstado.setas[id];
+    if(s === null) return '<span class="tvSeta sobe" title="entrou no ranking">▲</span>';
+    if(s > 0) return `<span class="tvSeta sobe" title="subiu ${s}">▲${s}</span>`;
+    if(s < 0) return `<span class="tvSeta desce" title="desceu ${-s}">▼${-s}</span>`;
+    return '';
+  };
+  const linhas = (d.linhas || []).map(l => `<tr>
+      <td class="tvPos">${l.posicao ? l.posicao + 'º' : '—'}${seta(l.profile_id)}</td>
+      <td><span class="tvAvatar">${e(tvIniciais(l.nome))}</span>${e(l.nome)}</td>
+      <td class="r">${dcFmtNum(l.contatos)}</td>
+      <td><b>${l.vendas}</b><span class="tvBarra" style="width:${Math.round(120 * l.vendas / maxV)}px"></span></td>
+      <td class="r">${tvConversaoTxt(l.conversao)}</td>
+      <td class="r">${e(fmtBRL(Number(l.receita) || 0))}</td></tr>`).join('');
+  box.innerHTML = `<div class="kpiGrid tvKpis">
+      ${kpi('Contatos', dcFmtNum(t.contatos))}
+      ${kpi('Vendas', dcFmtNum(t.vendas))}
+      ${kpi('Conversão', tvConversaoTxt(t.conversao))}
+      ${kpi('Receita', e(fmtBRL(Number(t.receita) || 0)))}
+      <div class="kpiCard" style="--kpi-color:var(--c-sinal)"><div class="kpiLabel">Meta de hoje</div>
+        <div class="kpiValue">${m.meta ? `${m.vendas_hoje || 0} de ${m.meta}` : `${m.vendas_hoje || 0}`}</div>
+        <div class="kpiSub">meta:<input type="number" min="1" max="1000" class="tvMetaCampo" id="tvMetaCampo" value="${m.meta || ''}" aria-label="Meta de vendas de hoje"></div>
+        <div class="tvMetaBarra"><i style="width:${pct}%"></i></div></div>
+      ${kpi('Última venda', ult)}
+    </div>
+    <table class="tbl tvTabela"><thead><tr><th>Posição</th><th>Consultor</th><th class="r">Contatos</th><th>Vendas</th><th class="r">Conversão</th><th class="r">Receita</th></tr></thead>
+    <tbody>${linhas || '<tr><td colspan="6">Ninguém com contato ou venda ainda.</td></tr>'}</tbody></table>`;
+}
+async function tvDefinirMeta(n){
+  if(!Number.isInteger(n) || n < 1 || n > 1000){ mostrarAviso('Meta de 1 a 1000 vendas.', 'erro'); return; }
+  const r = await ppSeguro(() => sb.rpc('tv_meta_definir', { p_meta: n }));
+  if(!r || r.error){ mostrarAviso('Não foi possível salvar a meta agora.', 'erro'); return; }
+  tvEstado.meta = n; tvEstado.metaFeita = null;
+  mostrarAviso(`Meta de hoje: ${n} vendas.`, 'ok');
+  tvCarregarRanking();
+}
+// Esqueleto: a Task 10 troca pela fila de comemorações de verdade.
+function tvProximaFesta(){ tvEstado.fila = []; }
+document.getElementById('panel-tvvendas').addEventListener('click', (e) => {
+  const p = e.target.closest('[data-tv-periodo]');
+  if(p){ tvTrocarPeriodo(p.dataset.tvPeriodo); return; }
+  if(e.target.closest('#tvAlternar')){ tvEstado.alternar = !tvEstado.alternar; tvRenderBotoes(); return; }
+  if(e.target.closest('#tvTelaCheia')){ const el = document.getElementById('panel-tvvendas'); if(el.requestFullscreen) el.requestFullscreen().catch(() => {}); }
+});
+document.getElementById('panel-tvvendas').addEventListener('change', (e) => {
+  if(e.target.id === 'tvMetaCampo') tvDefinirMeta(Number(e.target.value));
+});
 document.getElementById('btnVendi').addEventListener('click', vdAbrir);
 function kbCnpjLinhaHtml(f, pode){
   const tem = !!String(f.cnpj || '').trim();
