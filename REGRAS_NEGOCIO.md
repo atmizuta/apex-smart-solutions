@@ -4771,6 +4771,8 @@ plano: `docs/superpowers/plans/2026-11-09-leads-distribuicao-automatica.md`. Ent
   (entrega do consultor devolvida nos últimos 3 min; migration `20261112140000_leads_dist_ping_devolvida.sql`, check
   `supabase/tests/leads_dist_ping_devolvida_check.sql`) e o painel avisa uma vez por lead; nada de aviso falso quando a
   ligação do ProContact segura o lead. Depois dos 15 min o cronômetro mostra "atrasado N min · aguardando o ProContact".
+  Publicado 12/11 14:34 (MD5 `9842ce72…`; antes `40aab4c3…` = oficial d8a54e5). Backup
+  `~/deploy_backups/painel_clientes_apex_20261112_173455_antes_aviso_devolvida.html` (hora do servidor, UTC).
 
 ## 147. Meus leads: alterar o CNPJ do lead na ficha (10/11/2026)
 
