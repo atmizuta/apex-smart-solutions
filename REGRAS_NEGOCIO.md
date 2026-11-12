@@ -4853,16 +4853,53 @@ agência". Conta feita no banco antes (sem Repique e sem apagados): média de 28
   **Reverter o painel:** copiar o backup de volta. **Reverter o banco:** não precisa (a função nova não é usada por mais
   nada).
 
-## §149 TV Vendas — ranking de conversão ao vivo e comemoração de venda (em desenho, 12/11/2026)
+## §149 TV Vendas — ranking de conversão ao vivo e comemoração de venda (12/11/2026)
 
-- **Pedido (12/11):** TV na sala com o ranking de conversão por consultor (Hoje | Mês) e comemoração em tela cheia a
-  cada venda ("VENDEU!") e ao bater a meta do dia ("META BATIDA!"), como a TV da EagleCRM.
-- **Venda na hora:**
-  - Discador e Renovação marcam no botão "Vendi!" (CNPJ, plano × linhas, receita calculada).
-  - Leads entram pelo status `PEDIDO CONCLUIDO (VENDA)` (gatilho cria e cancela).
-  - Não há aprovação no meio. A NEO confere depois (`vendas_conferir_neo`, 3 dias úteis), sem cancelar sozinha.
-- **Contato:** conversa no discador (tabulação ≠ SEM CONTATO) + lead atendido no dia. Só a operação Apex. Sem fotos
-  por enquanto (fase 2).
-- **Design:** `docs/superpowers/specs/2026-11-12-tv-vendas-design.md`.
+- **Pedido (12/11):** a TV da sala mostra o ranking de conversão por consultor (Hoje | Mês) e comemora em tela cheia
+  cada venda ("VENDEU!") e a meta do dia ("META BATIDA!"), como a TV da EagleCRM.
+  Design: `docs/superpowers/specs/2026-11-12-tv-vendas-design.md`.
+  Plano: `docs/superpowers/plans/2026-11-12-tv-vendas.md`.
+- **Venda na hora (sem aprovação):**
+  - **Discador e Renovação:** botão flutuante **"Vendi! 🎉"**, no canto inferior direito, porque o cabeçalho e o menu
+    são protegidos.
+    - Quem vê: consultor, supervisor e admin da Apex.
+    - Janela: CNPJ com DV (vem da ficha aberta na Renovação), plano × linhas com "+ outro plano" (lista da
+      `OFFERS_MOBILE`, com o Monitor incluso) e receita calculada antes de confirmar.
+    - Depois de confirmar: VENDEU! curto na tela do consultor e faixa "Desfazer", que vale 10 min.
+    - CNPJ repetido no dia: aviso junto com o Desfazer, sem bloquear.
+  - **Leads:** classificar como `PEDIDO CONCLUIDO (VENDA)` cria a venda pelo gatilho `vendas_marcadas_lead`.
+    - O Classificar ganhou o seletor plano × linhas, que preenche a Receita (continua editável, §140).
+    - Os itens vão por `venda_itens_lead`.
+    - Sair de venda ou apagar o lead cancela a venda.
+    - Lead com CNPJ inválido entra com `cnpj` nulo.
+- **TV (aba "TV Vendas"):** só admin e supervisor da Apex.
+  - **Ranking:** Hoje | Mês, que alternam a cada 60 s, e setas de subiu/desceu.
+  - **Cabeçalho:** contatos, vendas, conversão, receita e meta do dia ("27 de 30"), que o gestor edita ali e que
+    repete a do último dia definido.
+  - **VENDEU!:** 7 s, com fila e "subiu do Xº para o Yº lugar no mês".
+  - **META BATIDA!:** 10 s, uma vez por dia (`tv_meta_comemorar`).
+  - **Som:** WebAudio, ligado por clique.
+  - **Ciclo:** `tv_ultima_venda` a cada 3 s e ranking a cada 60 s.
+  - **Virada do dia:** reinicia sem recarregar a página, para não sair da tela cheia.
+  - **Sem conexão:** aviso depois de 2 min.
+  - **Venda velha:** só vendas dos últimos 15 min viram festa; canceladas saem da fila.
+- **Contato:** conversa no discador (tabulação ≠ SEM CONTATO, operação Apex) + lead classificado no dia. Um CNPJ conta
+  uma vez por consultor e dia. Até anteontem, os contatos ficam guardados em `tv_contatos_cache`.
+- **Banco:**
+  - **Migrations `20261112150000`–`150300`**, sem DROP:
+    - tabelas `vendas_marcadas`, `tv_meta_dia`, `tv_contatos_cache` e `tv_contatos_cache_dias` (RLS sem policy);
+    - RPCs `vendi`, `vendi_cancelar`, `tv_ranking`, `tv_ultima_venda`, `tv_vendas_desde`, `tv_meta_definir`,
+      `tv_meta_comemorar`, `venda_itens_lead`, `tv_conferencia` e `vendas_conferencia_decidir`;
+    - cron `tv-vendas-conferir-neo`.
+  - **Índice parcial `idx_discador_conversa_apex`**, criado com CONCURRENTLY (fora da transação). Sem ele, o mês leu
+    ~370 mil chamadas (14,6 s).
+  - **Conferências** `supabase/tests/tv_vendas_{base,ranking,lead,conferencia}_check.sql` (desfazem tudo).
+- **Conferência com a NEO:**
+  - `vendas_conferir_neo()` roda às 8h25–20h55: mesmo CNPJ e pedido entre o dia e +3 dias úteis, sem
+    perdido/devolvido.
+  - Bloco "Conferência" (gestor, fora da tela cheia): Está certo ou Cancelar, com motivo. Nada é cancelado sozinho.
+- **Fora (fase 2):** fotos, Campinas, campanha com datas, cruzar com a tabulação "AQUISIÇÃO - GANHO", meta por
+  consultor.
+- **Testes:** `test_tv_vendas_{puro,vendi,classificar,tela,festa,conferencia}.js` (harness `tv_vendas_harness.js`).
 
 Próxima livre: §150 (§138.2 e §138.3 reservadas).
