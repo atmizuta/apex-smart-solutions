@@ -4900,6 +4900,25 @@ agência". Conta feita no banco antes (sem Repique e sem apagados): média de 28
   - Bloco "Conferência" (gestor, fora da tela cheia): Está certo ou Cancelar, com motivo. Nada é cancelado sozinho.
 - **Fora (fase 2):** fotos, Campinas, campanha com datas, cruzar com a tabulação "AQUISIÇÃO - GANHO", meta por
   consultor.
-- **Testes:** `test_tv_vendas_{puro,vendi,classificar,tela,festa,conferencia}.js` (harness `tv_vendas_harness.js`).
+- **Testes:** `test_tv_vendas_{puro,vendi,classificar,tela,festa,conferencia,revisao}.js` (harness `tv_vendas_harness.js`).
+  `test_reorganizacao_abas.js` ganhou "tvvendas" na ordem do menu.
+- **Revisão final (12/11):** 4 correções.
+  - Vendi! não grava 2ª venda enquanto a janela some.
+  - TV faz uma consulta por vez e a fila não repete id (com rede lenta, a mesma venda virava 4 VENDEU!).
+  - Sessão vencida avisa "Sessão expirou".
+  - O Vendi! fica acima do botão do Caderno e abaixo das janelas (z 45).
+  - Pendências menores: `.superpowers/sdd/2026-11-12-tv-vendas/progress.md` (local).
+- **Banco (12/11/2026 ~17:40, ok do Rafael):**
+  - Migrations 150000–150300 aplicadas e `idx_discador_conversa_apex` criado com CONCURRENTLY (válido, 736 kB).
+  - 11 RPCs; anon sem execute; funções internas fechadas para authenticated; cron `tv-vendas-conferir-neo` às 25,55 11-23
+    UTC; gatilho `vendas_marcadas_lead` ativo.
+  - Tempos como gestor: Mês 20 ms (cache pronto), Hoje 5 ms, `tv_ultima_venda` 1 ms.
+- **Publicação (12/11/2026 17:54, ok do Rafael):**
+  - O painel no ar era `9842ce72…` (igual à oficial/main dc35a4d). Novo MD5 `54e30e3f…`.
+  - Backup: `~/deploy_backups/painel_clientes_apex_20261112_175418_antes_tv_vendas.html` (hora de SP).
+  - **Reverter o painel:** copiar o backup de volta.
+  - **Reverter o banco:** o painel antigo não usa nada novo. Se precisar parar as vendas de lead, use
+    `alter table public.leads disable trigger vendas_marcadas_lead`; se precisar parar a conferência, use
+    `select cron.unschedule('tv-vendas-conferir-neo')`.
 
 Próxima livre: §150 (§138.2 e §138.3 reservadas).
