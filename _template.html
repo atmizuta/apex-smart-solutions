@@ -5114,6 +5114,8 @@ function kbClassificarHtml(f, opcoes, op){
       <div class="kbAtalhos">${atalhos}</div>
       <div class="kbRetornoCampos"><label class="field"><span>Data</span><input type="date" id="kbClassRetorno" value="${escapeHtml(retData)}"></label><label class="field"><span>Hora</span><input type="time" id="kbClassHora" value="${retHora}"></label></div></div>
     <div class="kbClassBloco" id="kbClassVenda" style="display:${grupoAtual === 'convertido' ? '' : 'none'}"><span class="kbClassRotulo">Venda</span>
+      <div id="kbClassItens">${vdEditorHtml(null)}</div>
+      <p class="desc">O plano preenche a receita; ajuste se precisar (fibra, desconto).</p>
       <div class="kbVendaCampos"><label class="field"><span>Receita (R$) — obrigatória</span><input type="text" id="kbClassReceita" inputmode="decimal" placeholder="0,00" required value="${escapeHtml(receita)}"></label>
       <label class="kbCheck"><input type="checkbox" id="kbClassConverteu"${f.converteu || f.venda_neo ? ' checked' : ''}> Converteu</label></div>
       <p class="desc" id="kbClassNeo">${f.venda_neo ? 'O NEO tem venda neste CNPJ — conferido e pré-preenchido.' : ''}</p></div>
@@ -5369,6 +5371,15 @@ function vdMostrarDesfazer(id){
 function vdFecharDesfazer(){
   clearTimeout(vdEstado.timerDesfazer); vdEstado.timerDesfazer = null;
   const b = document.getElementById('vdDesfazer'); if(b) b.remove();
+}
+// §149: no Classificar do lead, o plano × linhas preenche a Receita (que continua editável, §140).
+function kbLigarItensVenda(){
+  const box = kbFichaEl('kbClassItens');
+  if(!box) return;
+  vdLigarEditor(box, () => {
+    const itens = vdLerItens(box), rec = kbFichaEl('kbClassReceita');
+    if(rec && !vdItensErro(itens)) rec.value = vdReceita(itens).toFixed(2).replace('.', ',');
+  });
 }
 document.getElementById('btnVendi').addEventListener('click', vdAbrir);
 function kbCnpjLinhaHtml(f, pode){
@@ -5855,6 +5866,14 @@ async function kbSalvarClassificacao(opc){
       p_retorno: status === 'AGENDADO RETORNO' ? form.retorno : null,
     }));
     if(!r || r.error){ el('kbClassErro').textContent = 'Não foi possível salvar agora. Tente de novo.'; return false; }
+    // §149: os itens (plano × linhas) vão para a venda que o gatilho criou; a receita que vale é a do lead.
+    if(venda){
+      const box = el('kbClassItens'), itens = box ? vdLerItens(box) : [];
+      if(itens.length && !vdItensErro(itens)){
+        const it = await ppSeguro(() => sb.rpc('venda_itens_lead', { p_aba: alvo.aba, p_id: alvo.id, p_itens: itens }));
+        if(!it || it.error) console.warn('venda_itens_lead', it && it.error);
+      }
+    }
     // §118: o banco já criou o retorno às 10:00; aqui vale a hora escolhida
     if(status === 'AGENDADO RETORNO'){
       const ag = await ppSeguro(() => sb.rpc('leads_agendar_retorno', { p_aba: alvo.aba, p_id: alvo.id, p_quando: kbQuandoSP(form.retorno, hora) }));
@@ -6017,6 +6036,7 @@ async function kbAbrirFicha(aba, id, opc){
       podeAlterarCnpj: kbCnpjPodeAlterar(f, kbGestor(), currentUser && currentUser.id) })
     : `<div class="kbFichaRolagem"><div class="kbFichaBarra"><span class="kbFichaPos"></span><button type="button" class="kbBtn kbBtnG kbBtnIco" data-kb-ficha-fechar aria-label="Fechar">${KB_ICO.fechar}</button></div><p class="kbMeta">Não foi possível abrir a ficha agora.</p></div>`;
   if(!f) return;
+  kbLigarItensVenda(); // §149
   const sel = kbFichaEl('kbClassStatus');
   if(sel) sel.addEventListener('change', kbClassAjustar);
   kbCnpjCarregar(aba, id);   // §128: sem await — não atrasa o resumo e o histórico
