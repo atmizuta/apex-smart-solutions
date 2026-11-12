@@ -1394,12 +1394,17 @@
   .vdDesfazer{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:901;background:var(--c-grafite);
     color:var(--c-branco);padding:10px 16px;border-radius:var(--radius-lg);display:flex;gap:12px;align-items:center}
   .vdDesfazer .btn{width:auto}
+  .vdDesfazerCampo{display:flex;align-items:center;gap:8px;margin:0}
+  .vdDesfazerCampo input{width:220px;padding:6px 8px;border-radius:var(--radius);border:1px solid var(--c-linha-forte)}
+  .vdDesfazerErro{flex-basis:100%;margin:0;font-size:13px;color:var(--c-rosa)}
+  .vdDesfazer{flex-wrap:wrap;max-width:min(92vw,720px)}
   .vdMini{position:fixed;inset:0;z-index:950;display:flex;align-items:center;justify-content:center;pointer-events:none}
   .vdMini span{font:800 64px/1 'Barlow',sans-serif;color:var(--c-sinal);letter-spacing:.06em;animation:vdPulo .6s ease-out}
   @keyframes vdPulo{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
   @media (prefers-reduced-motion: reduce){ .vdMini span{animation:none} }
   #panel-tvvendas:fullscreen{background:var(--c-papel);padding:24px;overflow:auto}
-  #panel-tvvendas:fullscreen #tvConferencia{display:none}
+  #panel-tvvendas:fullscreen #tvConferencia,#panel-tvvendas:fullscreen #tvVendasHoje{display:none}
+  #tvVendasHoje{margin-bottom:12px}
   .tvTopo{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px}
   .tvTopo h2{margin:0;font-size:24px}
   .tvBotoes{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
@@ -1419,28 +1424,44 @@
     background:var(--c-bordo);color:var(--c-branco);font-weight:700;font-size:12px;margin-right:8px;vertical-align:middle}
   .tvBarra{display:inline-block;height:8px;background:var(--c-sinal);border-radius:4px;vertical-align:middle;margin-left:8px}
   .tvRodape{font-size:12px;color:var(--muted);margin-top:8px}
-  .tvFesta{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;text-align:center;overflow:hidden;color:var(--c-branco)}
+  /* §149.2: festa no visual do Apex — grafite + triângulo do ápice, Barlow Condensed, placar de transmissão. Sem emoji. */
+  .tvFesta{position:fixed;inset:0;z-index:1000;overflow:hidden;background:var(--c-grafite);color:var(--c-branco);font-family:'Barlow',sans-serif}
   .tvFesta[hidden]{display:none}
-  .tvFesta.vendeu{background:radial-gradient(circle at 50% 35%, var(--c-sinal), var(--c-bordo))}
-  .tvFesta.meta{background:radial-gradient(circle at 50% 35%, var(--tv-ouro-claro), var(--tv-ouro));color:var(--c-grafite)}
-  .tvFestaCorpo{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center}
-  .tvCirculo{width:170px;height:170px;border-radius:50%;border:6px solid var(--tv-ouro);display:flex;align-items:center;justify-content:center;
-    font:800 64px/1 'Barlow',sans-serif;background:var(--c-bordo);color:var(--c-branco);box-shadow:0 0 40px var(--tv-ouro)}
-  .tvFesta.meta .tvCirculo{background:var(--c-branco);color:var(--tv-ouro);border-color:var(--c-branco)}
-  .tvGrito{letter-spacing:.4em;font:800 22px/1 'Barlow',sans-serif;color:var(--tv-ouro);margin-top:22px}
-  .tvFesta.meta .tvGrito{color:var(--c-branco);font-size:56px;letter-spacing:.08em}
-  .tvNome{font:800 56px/1.1 'Barlow',sans-serif;margin:8px 16px}
-  .tvDetalhe{font-size:20px}
-  .tvDetalhe .sobe{color:var(--tv-ouro-claro);font-weight:700}
-  .tvPessoas{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-top:24px;max-width:90vw}
-  .tvPessoa{display:flex;flex-direction:column;align-items:center;gap:4px;font-weight:600}
-  .tvPessoa .tvAvatar{width:52px;height:52px;font-size:18px;margin:0}
-  .tvPessoa b{background:var(--c-branco);color:var(--c-grafite);border-radius:999px;padding:0 8px;font-size:13px}
-  .tvConfete{position:absolute;top:-20px;width:10px;height:14px;z-index:1;animation:tvCai linear forwards}
-  @keyframes tvCai{to{transform:translateY(110vh) rotate(540deg)}}
-  .tvFoguete{position:absolute;z-index:1;font-size:56px;left:-80px;bottom:-80px;animation:tvVoa 2.6s ease-in forwards}
-  @keyframes tvVoa{to{transform:translate(120vw,-120vh)}}
-  @media (prefers-reduced-motion: reduce){ .tvConfete,.tvFoguete{display:none} }
+  .tvFesta.meta{background:var(--c-branco);color:var(--c-grafite)}
+  .tvApice{position:absolute;right:-8vw;bottom:-6vh;width:74vh;height:112vh;background:var(--apice-grad);
+    clip-path:polygon(50% 0,100% 100%,0 100%);transform:translateX(80vw);animation:tvApiceEntra .8s cubic-bezier(.2,.8,.2,1) forwards}
+  .tvApice.tvApiceEco{right:14vw;width:46vh;height:70vh;opacity:.18;animation-delay:.12s}
+  .tvFesta.meta .tvApice{right:-4vw}
+  .tvRiscos i{position:absolute;left:0;height:2px;width:45vw;background:var(--c-branco);opacity:.14;transform:translateX(-60vw) rotate(-60deg);
+    animation:tvRisco 1.8s ease-out forwards}
+  .tvFesta.meta .tvRiscos i{background:var(--c-sinal);opacity:.25}
+  .tvFestaCorpo{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;justify-content:center;padding:0 7vw;max-width:72vw}
+  .tvSelo{width:92px;height:92px;background:var(--c-sinal);color:var(--c-branco);font:700 40px/92px 'Barlow Condensed',sans-serif;text-align:center;
+    clip-path:polygon(0 0,100% 0,100% 70%,70% 100%,0 100%);margin-bottom:26px;animation:tvSobe .45s .1s both}
+  .tvTitulo{font:700 clamp(80px,13vw,230px)/.8 'Barlow Condensed',sans-serif;text-transform:uppercase;color:transparent;
+    -webkit-text-stroke:2px var(--c-branco);animation:tvSobe .5s .2s both}
+  .tvFesta.meta .tvTitulo{color:var(--c-sinal);-webkit-text-stroke:0;font-size:clamp(64px,9vw,160px)}
+  .tvNome{font:700 clamp(38px,5.2vw,90px)/1.02 'Barlow Condensed',sans-serif;margin:16px 0 6px;animation:tvSobe .5s .4s both}
+  .tvSubida{font:600 24px/1.2 'Barlow',sans-serif;color:var(--tv-ouro-claro);animation:tvSobe .5s .55s both}
+  .tvPlacar{display:flex;margin-top:38px;border-top:1px solid color-mix(in srgb, var(--c-branco) 28%, transparent);animation:tvSobe .5s .7s both}
+  .tvCasa{flex:1;padding:18px 26px 0 0;margin-right:26px;border-right:1px solid color-mix(in srgb, var(--c-branco) 18%, transparent)}
+  .tvCasa:last-child{border-right:0;margin-right:0}
+  .tvCasa span{display:block;font:600 14px/1 'Barlow',sans-serif;text-transform:uppercase;letter-spacing:.14em;opacity:.65}
+  .tvCasa b{display:block;margin-top:10px;font:700 clamp(40px,4.6vw,80px)/1 'Barlow Condensed',sans-serif;font-variant-numeric:tabular-nums}
+  .tvCasa b.trocou{color:var(--tv-ouro-claro);animation:tvTroca .5s ease-out}
+  .tvMetaNumero{font:700 clamp(110px,17vw,280px)/.85 'Barlow Condensed',sans-serif;margin-top:10px;animation:tvSobe .5s .35s both}
+  .tvMetaNumero span{opacity:.3}
+  .tvDetalhe{font:600 22px/1.3 'Barlow',sans-serif;margin-top:12px;animation:tvSobe .5s .5s both}
+  .tvPessoas{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px 26px;margin-top:34px;max-width:64vw}
+  .tvPessoa{display:flex;align-items:center;gap:10px;font:600 22px/1 'Barlow Condensed',sans-serif;animation:tvSobe .4s both}
+  .tvPessoa .tvAvatar{width:42px;height:42px;margin:0;border-radius:0;background:var(--c-sinal);font-size:16px;
+    clip-path:polygon(0 0,100% 0,100% 70%,70% 100%,0 100%)}
+  .tvPessoa b{margin-left:auto;font-size:28px;color:var(--c-sinal);background:none;padding:0}
+  @keyframes tvApiceEntra{to{transform:translateX(0)}}
+  @keyframes tvSobe{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
+  @keyframes tvTroca{from{opacity:0;transform:translateY(-40%)}to{opacity:1;transform:none}}
+  @keyframes tvRisco{to{transform:translateX(130vw) rotate(-60deg)}}
+  @media (prefers-reduced-motion: reduce){ .tvFesta *{animation:none !important} .tvApice{transform:none} }
 </style>
 </head>
 <body>
@@ -2701,6 +2722,7 @@
       <div class="card tvSemConexao" id="tvSemConexao" role="alert" hidden></div>
       <div id="tvConteudo"><p class="desc">Carregando…</p></div>
       <p class="tvRodape">Contato = conversa no discador (tabulação diferente de "Sem contato") + lead atendido no dia · atualiza a cada venda</p>
+      <div id="tvVendasHoje"></div>
       <div id="tvConferencia"></div>
       <div class="tvFesta" id="tvFesta" hidden aria-live="assertive"></div>
     </section>
@@ -5268,7 +5290,9 @@ function kbCnpjMascara(v){
 function kbCnpjPodeAlterar(f, gestor, uid){ return !!f && !f.livre && !!f.dono_id && (!!gestor || (!!uid && f.dono_id === uid)); }
 // ===== §149 TV Vendas (12/11, Rafael): "Vendi!", ranking ao vivo e comemorações =====
 // Spec: docs/superpowers/specs/2026-11-12-tv-vendas-design.md. Prefixos: vd = botão/janela Vendi!, tv = aba TV Vendas.
-const TV_TEMPOS = { tick: 3000, ranking: 60000, alternar: 60000, relogio: 1000, vendeu: 7000, meta: 10000, semConexao: 120000, desfazer: 600000, mini: 2000 };
+// §149.2: VENDEU! 9 s e META 12 s para o som (5 s e 8 s) caber inteiro; conta/troca = animações do placar.
+const TV_TEMPOS_PADRAO = Object.freeze({ tick: 3000, ranking: 60000, alternar: 60000, relogio: 1000, vendeu: 9000, meta: 12000, semConexao: 120000, desfazer: 600000, mini: 2000, conta: 1600, troca: 1400 });
+const TV_TEMPOS = Object.assign({}, TV_TEMPOS_PADRAO);
 function vdOfertas(){
   return OFFERS_MOBILE.map(o => ({ id: o.id, gb: o.gb, valor: o.valor,
     rotulo: `${o.gb}GB · ${fmtBRL(o.valor)}${o.origem === 'Nacional' ? '' : ' · ' + o.origem}` }));
@@ -5418,19 +5442,43 @@ function vdMiniVendeu(){
   document.body.appendChild(d);
   setTimeout(() => d.remove(), TV_TEMPOS.mini);
 }
+// §149.2: Desfazer em duas etapas — abre o campo do motivo (opcional para quem marcou em até 10 min; o banco pede
+// motivo quando é gestor cancelando venda de outra pessoa ou depois dos 10 min, e o erro aparece aqui mesmo).
 function vdMostrarDesfazer(id){
   vdFecharDesfazer();
   const box = document.createElement('div');
   box.className = 'vdDesfazer'; box.id = 'vdDesfazer'; box.setAttribute('role', 'status');
-  box.innerHTML = '<span>Venda marcada. Marcou errado?</span><button type="button" class="btn btn-sm" data-vd-desfazer>Desfazer</button>'
-    + '<button type="button" class="btn btn-sm btn-outline" data-vd-desfazer-fechar aria-label="Fechar">×</button>';
+  const inicio = () => {
+    box.innerHTML = '<span>Venda marcada. Marcou errado?</span><button type="button" class="btn btn-sm" data-vd-desfazer>Desfazer</button>'
+      + '<button type="button" class="btn btn-sm btn-outline" data-vd-desfazer-fechar aria-label="Fechar">×</button>';
+  };
+  inicio();
   document.body.appendChild(box);
   vdEstado.timerDesfazer = setTimeout(vdFecharDesfazer, TV_TEMPOS.desfazer);
+  let enviando = false;
   box.onclick = async (e) => {
     if(e.target.closest('[data-vd-desfazer-fechar]')){ vdFecharDesfazer(); return; }
-    if(!e.target.closest('[data-vd-desfazer]')) return;
-    const r = await ppSeguro(() => sb.rpc('vendi_cancelar', { p_id: id, p_motivo: null }));
-    if(!r || r.error){ mostrarAviso(r && r.error && r.error.message ? r.error.message : 'Não foi possível desfazer agora.', 'erro'); return; }
+    if(e.target.closest('[data-vd-desfazer-voltar]')){ inicio(); return; }
+    if(e.target.closest('[data-vd-desfazer]')){
+      box.innerHTML = '<label class="vdDesfazerCampo"><span>Por que desfazer?</span>'
+        + '<input type="text" id="vdDesfazerMotivo" maxlength="200" placeholder="Motivo (opcional)" autocomplete="off"></label>'
+        + '<button type="button" class="btn btn-sm" data-vd-desfazer-ok>Confirmar desfazer</button>'
+        + '<button type="button" class="btn btn-sm btn-outline" data-vd-desfazer-voltar>Voltar</button>'
+        + '<p class="vdDesfazerErro" id="vdDesfazerErro" role="alert"></p>';
+      const campo = document.getElementById('vdDesfazerMotivo'); if(campo) campo.focus();
+      return;
+    }
+    if(!e.target.closest('[data-vd-desfazer-ok]') || enviando) return;
+    const motivo = document.getElementById('vdDesfazerMotivo').value.trim();
+    enviando = true;
+    const r = await ppSeguro(() => sb.rpc('vendi_cancelar', { p_id: id, p_motivo: motivo || null }));
+    enviando = false;
+    if(!r || r.error){
+      const erro = document.getElementById('vdDesfazerErro');
+      if(erro) erro.textContent = r && r.error && r.error.message ? r.error.message : 'Não foi possível desfazer agora.';
+      const campo = document.getElementById('vdDesfazerMotivo'); if(campo) campo.focus();
+      return;
+    }
     vdFecharDesfazer();
     mostrarAviso('Venda desfeita.', 'ok');
   };
@@ -5474,6 +5522,7 @@ async function tvAbrir(){
   await tvCarregarRanking();
   if(g !== tvEstado.ger) return;
   if(typeof tvCarregarConferencia === 'function') tvCarregarConferencia();
+  tvCarregarVendasHoje();
   const cada = (fn, ms) => tvEstado.timers.push(setInterval(() => { if(g === tvEstado.ger) fn(); }, ms));
   cada(tvTick, TV_TEMPOS.tick);
   cada(tvCarregarRanking, TV_TEMPOS.ranking);
@@ -5514,7 +5563,7 @@ async function tvTickConsulta(g){
       mudou = true;
     }
   }
-  if(mudou){ await tvCarregarRanking(); if(g === tvEstado.ger) tvProximaFesta(); }
+  if(mudou){ await tvCarregarRanking(); if(g === tvEstado.ger){ tvProximaFesta(); tvCarregarVendasHoje(); } }
 }
 // Erro de login (token vencido ou sessão encerrada em outro lugar) não é falta de internet: avisa na hora.
 function tvErroDeSessao(e){ return !!e && (e.status === 401 || e.code === 'PGRST301' || /jwt|token|not authenticated/i.test(String(e.message || ''))); }
@@ -5628,30 +5677,50 @@ async function tvVerificarMeta(){
   setTimeout(() => { if(g !== tvEstado.ger) return; tvEsconderFesta(); tvEstado.festando = false; tvProximaFesta(); }, TV_TEMPOS.meta);
 }
 function tvVendeuHtml(v){
-  const e = escapeHtml, sub = tvTextoSubida(v);
-  const partes = [sub ? `<span class="sobe">${e(sub)}</span>` : '',
-    `${v.vendas_hoje} venda${v.vendas_hoje === 1 ? '' : 's'} hoje`,
-    Number(v.receita) ? e(fmtBRL(Number(v.receita))) : '',
-    v.conversao_hoje !== null && v.conversao_hoje !== undefined ? `${tvConversaoTxt(v.conversao_hoje)} de conversão` : ''].filter(Boolean);
-  return `<div class="tvCirculo">${e(tvIniciais(v.nome))}</div><div class="tvGrito">VENDEU!</div>`
-    + `<div class="tvNome">${e(v.nome)}</div><div class="tvDetalhe">${partes.join(' · ')}</div>`;
+  const e = escapeHtml, sub = tvTextoSubida(v), pos = (n) => (n ? n + 'º' : '—');
+  const casas = [
+    `<div class="tvCasa"><span>Posição no mês</span><b data-tv-pos data-tv-pos-nova="${pos(v.pos_depois)}">${pos(v.pos_antes || v.pos_depois)}</b></div>`,
+    `<div class="tvCasa"><span>Vendas hoje</span><b>${Number(v.vendas_hoje) || 0}</b></div>`,
+    `<div class="tvCasa"><span>Receita</span><b data-tv-conta="${Number(v.receita) || 0}">${e(fmtBRL(0))}</b></div>`,
+    v.conversao_hoje !== null && v.conversao_hoje !== undefined ? `<div class="tvCasa"><span>Conversão hoje</span><b>${tvConversaoTxt(v.conversao_hoje)}</b></div>` : ''];
+  return `<div class="tvSelo">${e(tvIniciais(v.nome))}</div><div class="tvTitulo">VENDEU!</div><div class="tvNome">${e(v.nome)}</div>`
+    + (sub ? `<div class="tvSubida">${e(sub)}</div>` : '') + `<div class="tvPlacar">${casas.join('')}</div>`;
 }
 function tvMetaHtml(d){
-  const e = escapeHtml;
-  return `<div class="tvCirculo" aria-hidden="true">🏆</div><div class="tvGrito">META BATIDA!</div>`
-    + `<div class="tvNome">${d.vendas} vendas hoje</div><div class="tvDetalhe">Meta do dia: <b>${d.meta} vendas</b> · parabéns, time!</div>`
-    + `<div class="tvPessoas">${(d.pessoas || []).map(p => `<div class="tvPessoa"><span class="tvAvatar">${e(tvIniciais(p.nome))}</span>${e(String(p.nome).trim().split(/\s+/)[0])}<b>${p.vendas}</b></div>`).join('')}</div>`;
+  const e = escapeHtml, n = Number(d.vendas) || 0, m = Number(d.meta) || 0;
+  return `<div class="tvTitulo">META BATIDA!</div><div class="tvMetaNumero">${n}<span>/${m}</span></div>`
+    + `<div class="tvDetalhe">${n} vendas hoje · Meta do dia: ${m} vendas · parabéns, time!</div>`
+    + `<div class="tvPessoas">${(d.pessoas || []).map((p, i) => `<div class="tvPessoa" style="animation-delay:${(0.8 + i * 0.12).toFixed(2)}s">`
+      + `<span class="tvAvatar">${e(tvIniciais(p.nome))}</span>${e(String(p.nome).trim().split(/\s+/)[0])}<b>${Number(p.vendas) || 0}</b></div>`).join('')}</div>`;
 }
 function tvMostrarFesta(tipo, html){
   const f = document.getElementById('tvFesta');
-  const cores = ['var(--c-sinal)', 'var(--tv-ouro)', 'var(--c-branco)', 'var(--c-rosa)'];
-  let conf = '';
-  for(let i = 0; i < 70; i++){
-    conf += `<i class="tvConfete" style="left:${(Math.random() * 100).toFixed(1)}%;background:${cores[i % cores.length]};animation-duration:${(2.5 + Math.random() * 3).toFixed(2)}s;animation-delay:${(Math.random() * 1.5).toFixed(2)}s"></i>`;
-  }
+  let riscos = '';
+  for(let i = 0; i < 7; i++) riscos += `<i style="top:${8 + i * 13}%;animation-delay:${(0.2 + i * 0.09).toFixed(2)}s"></i>`;
   f.className = 'tvFesta ' + tipo;
-  f.innerHTML = conf + (tipo === 'vendeu' ? '<span class="tvFoguete" aria-hidden="true">🚀</span>' : '') + `<div class="tvFestaCorpo">${html}</div>`;
+  f.innerHTML = '<div class="tvApice tvApiceEco" aria-hidden="true"></div><div class="tvApice" aria-hidden="true"></div>'
+    + `<div class="tvRiscos" aria-hidden="true">${riscos}</div><div class="tvFestaCorpo">${html}</div>`;
   f.hidden = false;
+  tvAnimarPlacar(f);
+}
+// Posição antiga → nova (com "virada") e receita contando de R$ 0 até o valor.
+function tvAnimarPlacar(f){
+  const g = tvEstado.ger;
+  const pos = f.querySelector('[data-tv-pos]');
+  if(pos && pos.dataset.tvPosNova && pos.dataset.tvPosNova !== pos.textContent){
+    setTimeout(() => { if(g !== tvEstado.ger) return; pos.textContent = pos.dataset.tvPosNova; pos.classList.add('trocou'); }, TV_TEMPOS.troca);
+  }
+  const rec = f.querySelector('[data-tv-conta]');
+  if(rec){
+    // pelo tempo decorrido (não por passos): termina na hora certa mesmo se a TV travar alguns quadros
+    const alvo = Number(rec.dataset.tvConta) || 0, inicio = Date.now();
+    const t = setInterval(() => {
+      if(g !== tvEstado.ger){ clearInterval(t); return; }
+      const p = Math.min(1, (Date.now() - inicio) / Math.max(1, TV_TEMPOS.conta));
+      rec.textContent = fmtBRL(p >= 1 ? alvo : Math.round(alvo * (1 - Math.pow(1 - p, 3)) * 100) / 100);
+      if(p >= 1) clearInterval(t);
+    }, 40);
+  }
 }
 function tvEsconderFesta(){ const f = document.getElementById('tvFesta'); if(f){ f.hidden = true; f.innerHTML = ''; } }
 // O navegador só toca áudio depois de um clique: o botão cria/retoma o AudioContext.
@@ -5669,17 +5738,97 @@ function tvLigarSom(){
   }
   tvRenderBotoes();
 }
+// §149.2: som mais longo, sintetizado no navegador (sem arquivo): VENDEU! ~5 s (subida, acorde de metais com rufar e
+// prato, brilho no fim); META ~8 s (fanfarra em 3 frases com acordes, prato longo e brilho).
 function tvTocar(tipo){
   if(!tvEstado.som || !tvAudio || tvAudio.state !== 'running') return;
-  const notas = tipo === 'meta' ? [523, 659, 784, 1047, 784, 1047] : [659, 784, 1047];
-  const t0 = tvAudio.currentTime;
-  notas.forEach((freq, i) => {
-    const o = tvAudio.createOscillator(), g = tvAudio.createGain(), t = t0 + i * 0.14;
+  const a = tvAudio, t0 = a.currentTime + 0.05;
+  const saida = a.createGain(); saida.gain.value = 0.5; saida.connect(a.destination);
+  const metal = (freq, ini, dur, vol) => {
+    const o = a.createOscillator(), f = a.createBiquadFilter(), g = a.createGain();
+    o.type = 'sawtooth'; o.frequency.value = freq;
+    f.type = 'lowpass'; f.frequency.setValueAtTime(900, ini); f.frequency.linearRampToValueAtTime(2600, ini + 0.12);
+    g.gain.setValueAtTime(0.0001, ini); g.gain.exponentialRampToValueAtTime(vol, ini + 0.04);
+    g.gain.setTargetAtTime(vol * 0.6, ini + 0.1, 0.3); g.gain.setTargetAtTime(0.0001, ini + Math.max(0.1, dur - 0.25), 0.12);
+    o.connect(f); f.connect(g); g.connect(saida); o.start(ini); o.stop(ini + dur + 0.1);
+  };
+  const ruido = (ini, dur, vol, corte) => {
+    const n = Math.floor(a.sampleRate * dur), buf = a.createBuffer(1, n, a.sampleRate), d = buf.getChannelData(0);
+    for(let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    const s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+    s.buffer = buf; f.type = 'highpass'; f.frequency.value = corte; g.gain.value = vol;
+    s.connect(f); f.connect(g); g.connect(saida); s.start(ini); s.stop(ini + dur);
+  };
+  const brilho = (freq, ini) => {
+    const o = a.createOscillator(), g = a.createGain();
     o.type = 'triangle'; o.frequency.value = freq;
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
-    o.connect(g); g.connect(tvAudio.destination); o.start(t); o.stop(t + 0.32);
-  });
+    g.gain.setValueAtTime(0.0001, ini); g.gain.exponentialRampToValueAtTime(0.16, ini + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, ini + 0.6);
+    o.connect(g); g.connect(saida); o.start(ini); o.stop(ini + 0.65);
+  };
+  if(tipo === 'meta'){
+    const melodia = [[392, 0, .22], [523, .22, .22], [659, .44, .22], [784, .66, .8],
+                     [880, 1.6, .22], [784, 1.82, .22], [659, 2.04, .22], [523, 2.26, .8],
+                     [587, 3.2, .22], [659, 3.42, .22], [784, 3.64, .22], [1047, 3.86, 3.4]];
+    melodia.forEach(([f, i, d]) => metal(f, t0 + i, d, 0.15));
+    [[[262, 330, 392], 0, 1.5], [[349, 440, 523], 1.6, 1.5], [[392, 494, 587], 3.2, 0.66], [[523, 659, 784], 3.86, 3.6]]
+      .forEach(([acorde, i, d]) => acorde.forEach(f => metal(f / 2, t0 + i, d, 0.07)));
+    [0, 1.6, 3.2, 3.86].forEach(i => ruido(t0 + i, 0.18, 0.22, 1800));
+    ruido(t0 + 3.86, 3.6, 0.2, 5000);
+    [2093, 2637, 3136, 4186].forEach((f, k) => brilho(f, t0 + 6.4 + k * 0.12));
+  } else {
+    const sub = a.createOscillator(), fs = a.createBiquadFilter(), gs = a.createGain();
+    sub.type = 'sawtooth'; sub.frequency.setValueAtTime(196, t0); sub.frequency.exponentialRampToValueAtTime(784, t0 + 1.1);
+    fs.type = 'lowpass'; fs.frequency.setValueAtTime(400, t0); fs.frequency.exponentialRampToValueAtTime(3000, t0 + 1.1);
+    gs.gain.setValueAtTime(0.0001, t0); gs.gain.exponentialRampToValueAtTime(0.12, t0 + 1.0); gs.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.2);
+    sub.connect(fs); fs.connect(gs); gs.connect(saida); sub.start(t0); sub.stop(t0 + 1.25);
+    [0, 0.12, 0.24].forEach(i => ruido(t0 + 0.9 + i, 0.1, 0.18, 2500));
+    [523, 659, 784, 1047].forEach(f => metal(f, t0 + 1.2, 3.4, 0.09));
+    ruido(t0 + 1.2, 2.2, 0.15, 6000);
+    [[784, 2.2], [1047, 2.5]].forEach(([f, i]) => metal(f, t0 + i, 0.3, 0.08));
+    [1568, 2093, 2637, 3136].forEach((f, k) => brilho(f, t0 + 3.9 + k * 0.1));
+  }
 }
+// §149.2: vendas marcadas hoje, para o gestor cancelar uma venda errada depois dos 10 min do Desfazer (com motivo).
+async function tvCarregarVendasHoje(){
+  const g = tvEstado.ger, box = document.getElementById('tvVendasHoje');
+  const r = await ppSeguro(() => sb.rpc('tv_vendas_hoje'));
+  if(g !== tvEstado.ger || !box) return;
+  if(!r || r.error){ box.innerHTML = '<p class="desc">Não foi possível carregar as vendas de hoje agora.</p>'; return; }
+  box.innerHTML = tvVendasHojeHtml(r.data || []);
+}
+function tvVendasHojeHtml(lista){
+  const e = escapeHtml, ORIGEM = { discador: 'Discador', renovacao: 'Renovação', lead: 'Lead' };
+  const hora = (iso) => new Date(iso).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+  if(!lista.length) return '<div class="card"><h3>Vendas de hoje</h3><p class="desc">Nenhuma venda marcada hoje.</p></div>';
+  const linhas = lista.map(v => `<tr data-tv-vh-id="${v.id}">
+      <td>${e(hora(v.em))}</td><td>${e(v.nome)}</td><td>${e(ORIGEM[v.origem] || v.origem)}</td>
+      <td>${v.cnpj ? e(kbCnpjMascara(v.cnpj)) : '—'}</td><td class="r">${e(fmtBRL(Number(v.receita) || 0))}</td>
+      <td>${v.cancelada ? `<span class="badge">Cancelada</span> ${e(v.motivo || '')}`
+          : v.origem === 'lead' ? '<small>tira pelo status do lead</small>'
+          : '<button type="button" class="btn btn-sm btn-outline" data-tv-vh-cancelar style="width:auto">Cancelar</button>'}</td></tr>`).join('');
+  return `<div class="card"><h3>Vendas de hoje (${lista.filter(v => !v.cancelada).length})</h3>
+    <table class="tbl"><thead><tr><th>Hora</th><th>Consultor</th><th>Origem</th><th>CNPJ</th><th class="r">Receita</th><th></th></tr></thead><tbody>${linhas}</tbody></table>
+    <div id="tvVhDecisao"></div></div>`;
+}
+document.getElementById('tvVendasHoje').addEventListener('click', async (e) => {
+  const box = document.getElementById('tvVhDecisao');
+  const b = e.target.closest('[data-tv-vh-cancelar]');
+  if(b && box){
+    box.dataset.id = b.closest('[data-tv-vh-id]').dataset.tvVhId;
+    box.innerHTML = '<label class="field"><span>Por que cancelar esta venda?</span><input type="text" id="tvVhMotivo" maxlength="200"></label>'
+      + '<p class="desc kbClassErro" id="tvVhErro"></p><button type="button" class="btn btn-sm" data-tv-vh-ok style="width:auto">Cancelar venda</button>';
+    document.getElementById('tvVhMotivo').focus();
+    return;
+  }
+  if(!e.target.closest('[data-tv-vh-ok]') || !box) return;
+  const motivo = document.getElementById('tvVhMotivo').value.trim();
+  if(motivo.length < 3){ document.getElementById('tvVhErro').textContent = 'Escreva o motivo (pelo menos 3 letras).'; return; }
+  const r = await ppSeguro(() => sb.rpc('vendi_cancelar', { p_id: Number(box.dataset.id), p_motivo: motivo }));
+  if(!r || r.error){ document.getElementById('tvVhErro').textContent = r && r.error && r.error.message ? r.error.message : 'Não foi possível cancelar agora.'; return; }
+  mostrarAviso('Venda cancelada.', 'ok');
+  tvCarregarVendasHoje();
+  tvCarregarRanking();
+});
 // §149: vendas que a NEO não confirmou em 3 dias úteis (ou com receita/usuário diferente). Só gestor; fora da tela cheia.
 async function tvCarregarConferencia(){
   const g = tvEstado.ger, box = document.getElementById('tvConferencia');

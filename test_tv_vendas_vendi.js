@@ -54,11 +54,13 @@ rodar(`
   assert(!document.querySelector('.vdMini'), 'VENDEU! curto some');
 
   window.__rpcRespostas.vendi_cancelar = { data: null, error: { message: 'Passou de 10 minutos: peça ao gestor para cancelar.', code: '42501' } };
+  // §149.2: Desfazer abre o motivo; Confirmar desfazer é que cancela
   faixa.querySelector('[data-vd-desfazer]').click(); await espera();
-  assert(window.__alertas.some(m => m.includes('Passou de 10 minutos')), 'erro do desfazer aparece');
+  document.querySelector('#vdDesfazer [data-vd-desfazer-ok]').click(); await espera();
+  assert(document.getElementById('vdDesfazerErro').textContent.includes('Passou de 10 minutos'), 'erro do desfazer aparece');
   assert(!!document.getElementById('vdDesfazer'), 'faixa continua se falhou');
   window.__rpcRespostas.vendi_cancelar = { data: null, error: null };
-  document.querySelector('#vdDesfazer [data-vd-desfazer]').click(); await espera();
+  document.querySelector('#vdDesfazer [data-vd-desfazer-ok]').click(); await espera();
   eq(chamadas('vendi_cancelar').pop().args, { p_id: 41, p_motivo: null }, 'desfaz a venda certa');
   assert(!document.getElementById('vdDesfazer'), 'faixa some');
 
