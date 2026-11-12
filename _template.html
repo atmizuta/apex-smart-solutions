@@ -1383,7 +1383,7 @@
 <style id="tvStyles">
   /* §149 TV Vendas. Cores só por variável: o único tom novo é o ouro da META BATIDA! (e do círculo do VENDEU!). */
   :root{ --tv-ouro:#C9A227; --tv-ouro-claro:#F3E3A3; }
-  .vdFab{position:fixed;right:22px;bottom:22px;z-index:900;width:auto;padding:12px 22px;border-radius:999px;font-weight:700;
+  .vdFab{position:fixed;right:24px;bottom:100px;z-index:45;width:auto;padding:12px 22px;border-radius:999px;font-weight:700;
     box-shadow:0 6px 18px color-mix(in srgb, var(--c-grafite) 25%, transparent)}
   .vdModal{max-width:520px}
   .vdItem{display:grid;grid-template-columns:1fr 90px auto;gap:8px;align-items:end;margin-bottom:6px}
@@ -1392,7 +1392,7 @@
   .vdReceita b{color:var(--c-sinal)}
   .vdAcoes{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
   .vdDesfazer{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:901;background:var(--c-grafite);
-    color:var(--c-branco);padding:10px 16px;border-radius:10px;display:flex;gap:12px;align-items:center}
+    color:var(--c-branco);padding:10px 16px;border-radius:var(--radius-lg);display:flex;gap:12px;align-items:center}
   .vdDesfazer .btn{width:auto}
   .vdMini{position:fixed;inset:0;z-index:950;display:flex;align-items:center;justify-content:center;pointer-events:none}
   .vdMini span{font:800 64px/1 'Barlow',sans-serif;color:var(--c-sinal);letter-spacing:.06em;animation:vdPulo .6s ease-out}
@@ -5366,6 +5366,7 @@ function vdLigarEditor(raiz, aoMudar){
 }
 function vdAbrir(){
   if(!canVendi()) return;
+  vdEstado.salvando = false;   // janela nova: libera (depois de um sucesso, só volta a gravar abrindo de novo)
   vdEstado.origem = vdOrigemAtual();
   let ov = document.getElementById('vdModal');
   if(!ov){ ov = document.createElement('div'); ov.className = 'overlay'; ov.id = 'vdModal'; document.body.appendChild(ov); }
@@ -5398,18 +5399,18 @@ async function vdConfirmar(){
   document.getElementById('vdErro').textContent = erro;
   if(erro) return;
   vdEstado.salvando = true;
-  try{
-    const r = await ppSeguro(() => sb.rpc('vendi', { p_cnpj: kbCnpjDigitos(cnpj), p_itens: itens, p_origem: vdEstado.origem }));
-    if(!r || r.error || !r.data){
-      const e = r && r.error;
-      document.getElementById('vdErro').textContent = e && ['22023', '42501'].includes(e.code) ? e.message : 'Não foi possível marcar agora. Tente de novo.';
-      return;
-    }
-    fecharOverlay(ov);
-    vdMiniVendeu();
-    if(r.data.aviso) mostrarAviso(r.data.aviso, 'info');
-    vdMostrarDesfazer(r.data.id);
-  } finally { vdEstado.salvando = false; }
+  const r = await ppSeguro(() => sb.rpc('vendi', { p_cnpj: kbCnpjDigitos(cnpj), p_itens: itens, p_origem: vdEstado.origem }));
+  if(!r || r.error || !r.data){
+    const e = r && r.error;
+    document.getElementById('vdErro').textContent = e && ['22023', '42501'].includes(e.code) ? e.message : 'Não foi possível marcar agora. Tente de novo.';
+    vdEstado.salvando = false;
+    return;
+  }
+  // Sucesso: salvando fica true. A janela some devagar (fecharOverlay, 150 ms) e um 2º clique não pode gravar outra venda.
+  fecharOverlay(ov);
+  vdMiniVendeu();
+  if(r.data.aviso) mostrarAviso(r.data.aviso, 'info');
+  vdMostrarDesfazer(r.data.id);
 }
 function vdMiniVendeu(){
   const d = document.createElement('div');
@@ -5448,7 +5449,7 @@ function kbLigarItensVenda(){
   });
 }
 const tvEstado = { ativo: false, ger: 0, periodo: 'hoje', alternar: true, som: false, ultimoId: null, cancelados: '[]', meta: null,
-  ranking: null, setas: {}, fila: [], festando: false, metaFeita: null, timers: [], ultimaOk: 0, dia: null };
+  ranking: null, setas: {}, fila: [], vistos: new Set(), tickando: false, festando: false, metaFeita: null, timers: [], ultimaOk: 0, dia: null };
 function canSeeTvVendas(){ return !!currentUser && (currentUser.role === 'admin' || (currentUser.role === 'supervisor' && minhaOperacao() === 'apex')); }
 function tvAplicarPermissao(){
   document.getElementById('tabBtnTvVendas').style.display = canSeeTvVendas() ? 'inline-block' : 'none';
@@ -5463,7 +5464,7 @@ function tvParar(){
 async function tvAbrir(){
   if(!canSeeTvVendas()) return;
   tvParar();
-  Object.assign(tvEstado, { ativo: true, dia: hojeSP(), ultimoId: null, cancelados: '[]', ranking: null, setas: {}, ultimaOk: Date.now() });
+  Object.assign(tvEstado, { ativo: true, dia: hojeSP(), ultimoId: null, cancelados: '[]', ranking: null, setas: {}, vistos: new Set(), tickando: false, ultimaOk: Date.now() });
   try{ tvEstado.som = window.localStorage.getItem('tvSom') === '1'; }catch(_e){ /* sem localStorage: som desligado */ }
   tvRenderBotoes();
   tvRelogio();
@@ -5486,12 +5487,18 @@ function tvRelogio(){
 }
 // Virada do dia: reinicia o estado sem recarregar a página (recarregar tiraria a TV da tela cheia).
 function tvVirarDia(){ tvAbrir(); }
+// Uma consulta por vez: com rede lenta (> 3 s), duas consultas liam o mesmo último id e comemoravam a venda duas vezes.
 async function tvTick(){
   if(tvEstado.dia && hojeSP() !== tvEstado.dia){ tvVirarDia(); return; }
+  if(tvEstado.tickando) return;
+  tvEstado.tickando = true;
   const g = tvEstado.ger;
+  try{ await tvTickConsulta(g); } finally { if(g === tvEstado.ger) tvEstado.tickando = false; }
+}
+async function tvTickConsulta(g){
   const r = await ppSeguro(() => sb.rpc('tv_ultima_venda'));
   if(g !== tvEstado.ger) return;
-  if(!r || r.error || !r.data){ tvConexao(false); return; }
+  if(!r || r.error || !r.data){ tvConexao(false, r && r.error); return; }
   tvConexao(true);
   const d = r.data, id = Number(d.ultimo_id) || 0, canc = JSON.stringify(d.cancelados_ids || []);
   if(tvEstado.ultimoId === null){ tvEstado.ultimoId = id; tvEstado.cancelados = canc; tvEstado.meta = d.meta; return; }
@@ -5503,15 +5510,18 @@ async function tvTick(){
     if(g !== tvEstado.ger) return;
     if(n && !n.error && Array.isArray(n.data)){
       tvEstado.ultimoId = n.data.length === 20 ? n.data[19].id : id;   // 20 = limite do banco: o resto vem no próximo tick
-      tvEstado.fila.push(...n.data);
+      n.data.forEach(v => { if(!tvEstado.vistos.has(v.id)){ tvEstado.vistos.add(v.id); tvEstado.fila.push(v); } });
       mudou = true;
     }
   }
   if(mudou){ await tvCarregarRanking(); if(g === tvEstado.ger) tvProximaFesta(); }
 }
-function tvConexao(ok){
+// Erro de login (token vencido ou sessão encerrada em outro lugar) não é falta de internet: avisa na hora.
+function tvErroDeSessao(e){ return !!e && (e.status === 401 || e.code === 'PGRST301' || /jwt|token|not authenticated/i.test(String(e.message || ''))); }
+function tvConexao(ok, erro){
   const av = document.getElementById('tvSemConexao');
   if(ok){ tvEstado.ultimaOk = Date.now(); if(av) av.hidden = true; return; }
+  if(av && tvErroDeSessao(erro)){ av.textContent = 'Sessão expirou: saia e entre de novo nesta TV (de preferência com um login só da TV).'; av.hidden = false; return; }
   const min = Math.floor((Date.now() - tvEstado.ultimaOk) / 60000);
   if(av && Date.now() - tvEstado.ultimaOk > TV_TEMPOS.semConexao){
     av.textContent = `Sem conexão há ${Math.max(min, 1)} min — os números podem estar parados.`;
@@ -5522,7 +5532,7 @@ async function tvCarregarRanking(){
   const g = tvEstado.ger, per = tvEstado.periodo;
   const r = await ppSeguro(() => sb.rpc('tv_ranking', { p_periodo: per }));
   if(g !== tvEstado.ger || per !== tvEstado.periodo) return;
-  if(!r || r.error || !r.data){ tvConexao(false); return; }
+  if(!r || r.error || !r.data){ tvConexao(false, r && r.error); return; }
   tvConexao(true);
   const novo = r.data;
   if(tvEstado.ranking && tvEstado.ranking.periodo === novo.periodo){
