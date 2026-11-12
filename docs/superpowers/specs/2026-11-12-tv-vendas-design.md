@@ -104,6 +104,15 @@ Migration `2026111212xxxx_tv_vendas.sql`, só com create/alter, sem DROP (o cone
 - Com o status de venda, o bloco de venda ganha o mesmo seletor plano × linhas.
 - O seletor preenche "Receita (R$)", que **continua editável** (§140 continua valendo: venda só com receita).
 
+**Regras do CLAUDE.md:**
+- **Aba:** um `<button data-tab="tvvendas">` no `nav#tabsNav`, no grupo de gestão.
+- **Classes reaproveitadas:** `.kpiGrid`/`.kpiCard`, `table.tbl`, `.btn`, `.overlay`/`.modal`; avisos com
+  `mostrarAviso`.
+- **Cores:** só por variável. O "azul" do VENDEU! e o "dourado" da META BATIDA! saem das variáveis do Sinal de
+  Ápice, e se faltar algum tom entra uma variável nova `--tv-*` no bloco da aba, nunca hex solto. Verde só o de ganho
+  (`--st-ganho`).
+- **Fora de alcance:** o bloco de estilo principal, o menu lateral e o `ApexMotion` não são tocados.
+
 **Aba "TV Vendas"** (só admin/supervisor), no visual Sinal de Ápice, sem mudar o design do resto do painel:
 - **Topo:** título e data, Hoje | Mês, Alternar (troca a cada 60 s), Som ligado, tela cheia e relógio "ao vivo".
 - **Cabeçalho:** contatos · vendas · conversão · receita · meta do dia "27 de 30" com barra (editável ali) · última
