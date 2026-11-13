@@ -4300,6 +4300,7 @@ function rnHistoricoTexto(h){
 }
 async function rnAbrirFicha(id){
   rnEstado.fichaId = id; rnEstado.ficha = { dados: null, historico: null };
+  document.querySelectorAll('#rnFilaLista .rnItem').forEach(b => b.classList.toggle('sel', Number(b.dataset.rnAbrir) === id));
   document.getElementById('rnFicha').classList.add('aberta');
   rnRenderFicha();
   const [d, h] = await Promise.all([
@@ -4314,7 +4315,7 @@ function rnFecharFicha(){ rnEstado.fichaId = null; rnEstado.ficha = null; docume
 function rnRenderFicha(){
   const el = document.getElementById('rnFichaCorpo');
   const r = rnEstado.lista.find(x => x.id === rnEstado.fichaId);
-  if(!r){ el.innerHTML = ''; return; }
+  if(!r){ el.innerHTML = rnEstado.aba === 'hoje' ? '<p class="rnVazio">Escolha um cliente da fila.</p>' : ''; return; }
   const tel = onlyDigits(r.telefone);
   const cnpj = String(r.cnpj_digits || '').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
   const fic = rnEstado.ficha || {};
@@ -4662,6 +4663,75 @@ async function rnAbrirNaRenovacao(carteiraId){
   if(!rnEstado.carregado) await rnCarregar();
   if(rnEstado.lista.some(r => r.id === carteiraId)) rnAbrirFicha(carteiraId);
 }
+// ---- §151 Central do dia ----
+function rnPorConsultor(lista, consultor){ return consultor ? lista.filter(r => (consultor === '-' ? !r.consultor_id : r.consultor_id === consultor)) : lista; }
+function rnFila(lista, agora, consultor){
+  const base = rnPorConsultor(lista, consultor).filter(r => r.na_base);
+  const est = new Map(base.map(r => [r.id, rnEstadoRetorno(r, agora)]));
+  return {
+    atrasados: base.filter(r => est.get(r.id) === 'atrasado').sort(rnOrdemRetorno),
+    hoje: base.filter(r => est.get(r.id) === 'hoje').sort(rnOrdemRetorno),
+    sugeridos: base.filter(r => r.status === 1 && r.apto === 'APTO' && est.get(r.id) !== 'atrasado' && est.get(r.id) !== 'hoje').sort(rnOrdemLinhas).slice(0, 10),
+  };
+}
+function rnFilaPlana(fila){ return fila.atrasados.concat(fila.hoje, fila.sugeridos); }
+function rnListaHoje(){ return rnEstado.lista.filter(r => rnCasaBusca(r, rnEstado.buscaHoje)); }
+function rnPropostaAberta(p){ return p.estagio !== 'fechado_ganho' && p.estagio !== 'fechado_perdido'; }
+function rnKpis(lista, propostas, agora, consultor){
+  const base = rnPorConsultor(lista, consultor).filter(r => r.na_base);
+  const mes = agora.data.slice(0, 7);
+  const renovMes = base.filter(r => r.status === 6 && r.status_desde && rnDataSP(r.status_desde).slice(0, 7) === mes);
+  const neg = base.filter(r => r.status === 5);
+  const valor = neg.reduce((s, r) => { const p = (propostas || []).find(x => x.carteira_id === r.id && rnPropostaAberta(x)); return s + (p ? Number(p.valor_proposto) || 0 : 0); }, 0);
+  const est = base.map(r => rnEstadoRetorno(r, agora));
+  return {
+    carteira: base.length,
+    pctContatado: base.length ? Math.round(base.filter(r => r.status >= 2).length * 100 / base.length) : 0,
+    atrasados: est.filter(e => e === 'atrasado').length,
+    vencemHoje: est.filter(e => e === 'hoje').length,
+    negociacao: neg.length, valorNegociacao: valor,
+    linhasMes: renovMes.reduce((s, r) => s + (Number(r.linhas_renovadas) || 0), 0), clientesMes: renovMes.length,
+  };
+}
+function rnKpiHtml(n, rotulo, sub, cls, barra){
+  return `<div class="rnKpi ${cls || ''}"><span class="rnN">${escapeHtml(String(n))}</span> <small>${escapeHtml(rotulo)}</small> `
+    + (barra != null ? `<div class="rnKpiBar"><span style="width:${Math.max(0, Math.min(100, barra))}%"></span></div>` : '')
+    + `<span class="rnKpiSub">${escapeHtml(sub)}</span></div>`;
+}
+function rnItemFilaHtml(r, tipo, agora, gestor){
+  const quando = tipo === 'atrasado' ? '⏱ ' + rnTextoAtraso(r, agora) : tipo === 'hoje' ? (r.retorno_hora ? String(r.retorno_hora).slice(0, 5) : 'hoje') : (r.apto || '');
+  const sub = [r.nome_adm, (r.linhas_voz ?? 0) + ' linhas', gestor ? rnNomeConsultor(r.consultor_id) : ''].filter(Boolean).join(' · ');
+  return `<button type="button" class="rnItem${rnEstado.fichaId === r.id ? ' sel' : ''}" data-rn-abrir="${r.id}">
+    <span class="rnAv">${escapeHtml(rnIniciais(r.razao_social))}</span>
+    <span class="rnItemTxt"><b>${escapeHtml(r.razao_social || '(sem nome)')}</b><small>${escapeHtml(sub)}</small></span>
+    ${rnEtapaHtml(r.status)}<span class="rnQuando ${tipo}">${escapeHtml(quando)}</span></button>`;
+}
+function rnRenderHoje(){
+  const agora = rnAgora(); const gestor = rnGestor(); const c = rnEstado.filtros.consultor || '';
+  rnPreencherFiltros();
+  const k = rnKpis(rnEstado.lista, rnEstado.propostas, agora, c);
+  document.getElementById('rnKpis').innerHTML =
+    rnKpiHtml(k.carteira, 'clientes na carteira', `${k.pctContatado}% já contatados`, '', k.pctContatado)
+    + rnKpiHtml(k.atrasados, 'retornos atrasados', `${k.vencemHoje} vencem hoje`, k.atrasados ? 'late' : '')
+    + rnKpiHtml(k.negociacao, 'em negociação', k.valorNegociacao ? fmtBRL(k.valorNegociacao) + ' em propostas' : 'sem proposta aberta', '')
+    + rnKpiHtml(k.linhasMes, 'linhas renovadas no mês', `${k.clientesMes} cliente${k.clientesMes === 1 ? '' : 's'}`, k.linhasMes ? 'ok' : '');
+  const fila = rnFila(rnListaHoje(), agora, c);
+  const bloco = (titulo, cls, itens, tipo) => itens.length
+    ? `<div class="rnGrupoT ${cls}"><span>${titulo}</span> <span class="kbN">${itens.length}</span></div>` + itens.map(r => rnItemFilaHtml(r, tipo, agora, gestor)).join('') : '';
+  const vazio = !fila.atrasados.length && !fila.hoje.length ? '<p class="rnVazio">Nada atrasado nem para hoje. 👏</p>' : '';
+  document.getElementById('rnFilaLista').innerHTML = vazio
+    + bloco('⏱ Atrasados', 'late', fila.atrasados, 'atrasado') + bloco('● Hoje', 'ok', fila.hoje, 'hoje') + bloco('★ Sugeridos', '', fila.sugeridos, 'sugerido');
+  const plana = rnFilaPlana(fila);
+  if(!rnEstado.fichaId && plana.length) rnAbrirFicha(plana[0].id);
+  else rnRenderFicha();
+}
+document.getElementById('rnFilaLista').addEventListener('click', (e) => { const b = e.target.closest('[data-rn-abrir]'); if(b) rnAbrirFicha(Number(b.dataset.rnAbrir)); });
+document.getElementById('rnHojeBusca').addEventListener('input', (e) => { rnEstado.buscaHoje = e.target.value; rnRenderHoje(); });
+// "Filtros" leva para a Carteira com a mesma busca
+document.getElementById('rnHojeFiltros').addEventListener('click', () => {
+  rnEstado.filtros.busca = rnEstado.buscaHoje; document.getElementById('rnBusca').value = rnEstado.buscaHoje;
+  rnEstado.pagina = 1; rnTrocarAba('carteira');
+});
 /* ============ FIM RENOVAÇÃO §143 ============ */
 
 /* ============ MEUS LEADS (KANBAN) — §112 ============
