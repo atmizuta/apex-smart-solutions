@@ -1069,7 +1069,7 @@
   .rnChips:empty{display:none;}
   .rnChip{border:1px solid var(--ml-ink);background:var(--ml-surface);border-radius:8px;padding:4px 10px;font:inherit;font-size:var(--fs-xs);font-weight:600;cursor:pointer;}
   .rnRedistribuir{display:flex;gap:var(--space-2);align-items:center;background:var(--ml-surface);border-radius:var(--radius-lg);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-2);box-shadow:var(--ml-float);}
-  .rnTabelaCasa{background:var(--ml-surface);border-radius:var(--radius-lg);overflow:hidden;}
+  .rnTabelaCasa{background:var(--ml-surface);border-radius:var(--radius-lg);overflow-x:auto;}
   .rnTabela{width:100%;border-collapse:collapse;}
   .rnTabela th{text-align:left;font-size:var(--fs-xs);font-weight:600;color:var(--ml-ink-3);padding:10px 12px;background:var(--ml-surface-2);}
   .rnTabela td{padding:10px 12px;border-top:1px solid var(--ml-surface-2);font-size:var(--fs-sm);vertical-align:middle;}
@@ -1100,7 +1100,7 @@
   @media (max-width:900px){
     .rnHojeGrade{grid-template-columns:1fr;}
     .rnKpis{grid-template-columns:repeat(2,minmax(0,1fr));}
-    .rnTabela thead{display:none;}
+    #rnCarteira .rnTabela thead{display:none;}
     #rnTbody tr{display:grid;grid-template-columns:1fr auto;gap:4px var(--space-2);padding:var(--space-2);border-top:1px solid var(--ml-surface-2);}
     #rnTbody td{border:0;padding:2px 4px;}
   }
@@ -4318,6 +4318,7 @@ function rnGrupoContato(s){ return s === 6 ? 'renovou' : s === 7 ? 'perdido' : '
 function rnRenderFicha(){
   const el = document.getElementById('rnFichaCorpo');
   const r = rnEstado.lista.find(x => x.id === rnEstado.fichaId);
+  el.dataset.rnId = r ? String(r.id) : '';
   if(!r){ el.innerHTML = rnEstado.aba === 'hoje' ? '<p class="rnVazio">Escolha um cliente da fila.</p>' : ''; return; }
   const tel = onlyDigits(r.telefone);
   const cnpj = String(r.cnpj_digits || '').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
@@ -4386,14 +4387,17 @@ function rnEscolherContato(s){
   form.querySelectorAll('[data-rn-contato]').forEach(b => { const on = Number(b.dataset.rnContato) === s; b.className = 'rnContatoBt' + (on ? ' on rnSt' + s : ''); });
   const g = rnGrupoContato(s);
   form.querySelectorAll('[data-rn-grupo]').forEach(d => { d.hidden = d.dataset.rnGrupo !== g; });
-  if(s === 2 && !form.elements.prox_retorno.value){ const a = rnAgora(); form.elements.prox_retorno.value = rnSomarDias(a.data, 1); form.elements.retorno_hora.value = a.hora; }
+  if(s === 2 && (!form.elements.prox_retorno.value || form.elements.prox_retorno.value < rnHoje())){ const a = rnAgora(); form.elements.prox_retorno.value = rnSomarDias(a.data, 1); form.elements.retorno_hora.value = a.hora; }
   document.getElementById('rnFichaErro').textContent = '';
 }
-function rnIrParaProximo(idAtual){
-  const plana = rnFilaPlana(rnFila(rnListaHoje(), rnAgora(), rnEstado.filtros.consultor || ''));
-  const i = plana.findIndex(x => x.id === idAtual);
-  const prox = plana.slice(i + 1).find(x => x.id !== idAtual) || plana.find(x => x.id !== idAtual);
-  if(prox) rnAbrirFicha(prox.id);
+function rnIdsDaFila(){ return rnFilaPlana(rnFila(rnListaHoje(), rnAgora(), rnEstado.filtros.consultor || '')).map(x => x.id); }
+// "Salvar e próximo": segue a ordem que estava na tela antes de salvar (o cliente salvo pode ter mudado de lugar ou saído da fila)
+function rnIrParaProximo(idAtual, ordemAntes){
+  const agora = rnIdsDaFila();
+  const antes = ordemAntes || agora;
+  const i = antes.indexOf(idAtual);
+  const prox = antes.slice(i + 1).find(id => id !== idAtual && agora.includes(id)) ?? agora.find(id => id !== idAtual);
+  if(prox != null) rnAbrirFicha(prox);
   else { rnEstado.fichaId = null; rnRenderFicha(); }
 }
 document.getElementById('rnFicha').addEventListener('click', (e) => {
@@ -4445,8 +4449,9 @@ document.getElementById('rnFicha').addEventListener('submit', async (e) => {
   const proximo = !!(e.submitter && e.submitter.hasAttribute('data-rn-proximo'));
   if(!Object.keys(mudou).length){ if(proximo) rnIrParaProximo(r.id); else mostrarAviso('Nada mudou no atendimento.', 'info'); return; }
   const antes = rnEstado.fichaStatus;
+  const ordem = rnIdsDaFila();
   rnEstado.fichaStatus = null;
-  if(await rnSalvar(r.id, mudou)){ mostrarAviso('Atendimento salvo.', 'ok'); if(proximo) rnIrParaProximo(r.id); }
+  if(await rnSalvar(r.id, mudou)){ mostrarAviso('Atendimento salvo.', 'ok'); if(proximo) rnIrParaProximo(r.id, ordem); }
   else rnEstado.fichaStatus = antes;
 });
 // ---- Datas ----
@@ -4808,8 +4813,9 @@ function rnRenderHoje(){
   document.getElementById('rnFilaLista').innerHTML = vazio
     + bloco('⏱ Atrasados', 'late', fila.atrasados, 'atrasado') + bloco('● Hoje', 'ok', fila.hoje, 'hoje') + bloco('★ Sugeridos', '', fila.sugeridos, 'sugerido');
   const plana = rnFilaPlana(fila);
+  const corpo = document.getElementById('rnFichaCorpo');
   if(!rnEstado.fichaId && plana.length) rnAbrirFicha(plana[0].id);
-  else rnRenderFicha();
+  else if(corpo.dataset.rnId !== String(rnEstado.fichaId ?? '') || !document.getElementById('rnFichaForm')) rnRenderFicha();
 }
 document.getElementById('rnFilaLista').addEventListener('click', (e) => { const b = e.target.closest('[data-rn-abrir]'); if(b) rnAbrirFicha(Number(b.dataset.rnAbrir)); });
 document.getElementById('rnHojeBusca').addEventListener('input', (e) => { rnEstado.buscaHoje = e.target.value; rnRenderHoje(); });
