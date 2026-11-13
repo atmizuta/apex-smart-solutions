@@ -4989,4 +4989,26 @@ agência". Conta feita no banco antes (sem Repique e sem apagados): média de 28
 - **Publicação (13/11/2026 14:20):** o ar era `2dafd3a7…`; novo MD5 `53963b73…`.
   Backup `~/deploy_backups/painel_clientes_apex_20261113_142026_antes_tv_meta_tela.html`.
 
-Próxima livre: §150 (§138.2 e §138.3 reservadas).
+## §151 Redesign da aba Renovação: "Central do dia" (13/11/2026)
+
+Pedido do Rafael ("redesign COMPLETO dessa aba… bonito, fácil de usar e claro"). Spec:
+`docs/superpowers/specs/2026-11-13-renovacao-redesign-design.md` (mockups aprovados em `docs/superpowers/specs/assets/`).
+
+- **Subabas:** Hoje · Carteira · Funil · Resumo · Proposta e fatura. A subaba Retornos acabou (virou Atrasados e Hoje da Central).
+- **Hoje (Central do dia):** 4 cartões (carteira com % contatado, retornos atrasados e de hoje, em negociação com o valor das
+  propostas abertas, **linhas renovadas no mês**); fila em três blocos (Atrasados do mais antigo, Hoje por hora, 10 Sugeridos =
+  maiores APTO não contatados) com a ficha ao lado; gestor escolhe "Time todo" ou um consultor (vale para todas as subabas).
+- **Ficha:** "Como foi o contato?" com botões (Não atendeu=2 · Falei com o responsável=3 · Mandei proposta=4 · Negociando=5 ·
+  Renovou=6 · Perdido=7); retorno com **data e hora**; WhatsApp/Ligar marcam o canal; "Salvar e próximo" na Central; abas
+  Atendimento · Dados da Claro · Propostas · Histórico.
+- **Retorno com hora:** coluna `renovacao_carteira.retorno_hora`. Atrasado = data antes de hoje ou hoje com a hora já passada
+  (SP); a view `renovacao_resumo` usa a mesma regra. Retornos antigos continuam só com a data.
+- **Carteira:** visões com contagem (Todos, Não contatados, Em andamento, Atrasados, Pendências, Renovados, Perdidos, Fora da
+  base), "Mais filtros" (cidade, DDD, apto) com etiquetas ✕, ordem por linhas ou por retorno, 50 por vez, nada editável na
+  linha (clicar abre a ficha).
+- **Funil:** cartão com "parado há N dias" (vermelho a partir de 7 dias em Contato efetivo, Proposta e Negociação).
+- **Resumo:** cartões + tabela com barras; Importar base (admin) numa janela.
+- Visual: linguagem do §126 (tokens `--ml-*` valem também em `#panel-renovacao` e `#rnFicha`); etapas com `--rn-st1…7`.
+- Banco: migration `20261113150000_renovacao_retorno_hora.sql`; conferência `supabase/tests/renovacao_retorno_hora_check.sql`.
+
+Próxima livre: §152 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
