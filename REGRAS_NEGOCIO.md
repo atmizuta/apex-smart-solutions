@@ -4619,6 +4619,12 @@ Spec: `docs/superpowers/specs/2026-11-07-renovacao-aba-design.md`. Entrega em 2 
   `status_desde` = data do contato para os contatados sem histórico); conferência passou no banco real. Painel publicado às
   20:50 (MD5 `3de18eb1…`, junto com a §145 que estava no ar como `c30a8541…`). Backup:
   `~/deploy_backups/painel_clientes_apex_20261109_235026_antes_renovacao_fase2.html` (hora do servidor, UTC).
+- **Ajustes de 13/11 (pendências da revisão):** cartão do Kanban com a última proposta **aberta** (renovado/perdido: a mais
+  nova); consultor **vê** (só leitura) a proposta gerada por admin/supervisor para cliente dele (policy
+  `propostas_select_carteira`, migration `20261113120000`); histórico do funil grava o estágio que o banco calculou;
+  histórico da ficha com nome de quem mexeu (consultor vê "Supervisão" para quem não é do time); proposta **fechada**
+  reaberta pela ficha vira proposta nova; Redistribuir guarda o destino, "selecionar todos" pega o filtro inteiro e só
+  passa o que está no filtro; erro de valor negativo diz o campo; filtro de **DDD** na Carteira.
 
 ## 144. Base de Mailing: fase 2 da extração anda de novo e NEO da Apex e da Eagle separados (09/11/2026)
 
