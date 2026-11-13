@@ -4469,14 +4469,22 @@ async function rnRenderResumo(){
   const el = document.getElementById('rnResumo');
   const r = await ppSeguro(() => sb.from('renovacao_resumo').select('*'));
   if(rnEstado.aba !== 'resumo') return;
-  if(!r || r.error){ el.innerHTML = '<p class="kbMeta">Não foi possível carregar o resumo agora.</p>'; return; }
+  if(!r || r.error){ el.innerHTML = '<p class="rnVazio">Não foi possível carregar o resumo agora.</p>'; return; }
   const { corpo, total } = rnLinhasResumo(r.data || []);
   const fp = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
   const fr = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const tr = (l, cls) => `<tr class="${cls || ''}"><td>${escapeHtml(l.nome)}</td><td>${l.carteira}</td><td>${l.contatados}</td><td>${fp(l.cobertura)}</td><td>${l.efetivo}</td><td>${l.propostas}</td><td>${l.renovados}</td><td>${l.perdidos}</td><td>${fp(l.conversao)}</td><td>${l.linhas}</td><td>${l.bl}</td><td>${fr(l.digitais)}</td><td class="${l.atrasados ? 'rnVencido' : ''}">${l.atrasados}</td></tr>`;
-  el.innerHTML = `<div class="card" style="overflow-x:auto"><table class="tbl"><thead><tr><th>Consultor</th><th>Carteira</th><th>Contatados</th><th>% Cobertura</th><th>Contato efetivo+</th><th>Propostas+</th><th>Renovados</th><th>Perdidos</th><th>% Conversão</th><th>Linhas renov.</th><th>BL vendidas</th><th>Sol. dig. (R$)</th><th>Retornos atrasados</th></tr></thead><tbody>`
-    + corpo.map(l => tr(l)).join('') + (corpo.length > 1 ? tr(total, 'rnTotal') : '') + '</tbody></table></div>'
-    + (currentUser && currentUser.role === 'admin' && typeof rnImportarHtml === 'function' ? rnImportarHtml() : '');
+  const barra = (v, cls) => `<span class="rnBarra ${cls || ''}"><span><i style="width:${Math.max(0, Math.min(100, v))}%"></i></span>${fp(v)}</span>`;
+  const kpi = (n, t, cls) => `<div class="rnKpi ${cls || ''}"><span class="rnN">${escapeHtml(String(n))}</span> <small>${escapeHtml(t)}</small></div>`;
+  const tr = (l, cls) => `<tr class="${cls || ''}"><td>${escapeHtml(l.nome)}</td><td class="rnNumTd">${l.carteira}</td><td>${barra(l.cobertura)}</td><td>${barra(l.conversao, 'ok')}</td>`
+    + `<td>${l.propostas}</td><td>${l.renovados}</td><td>${l.perdidos}</td><td>${l.linhas}</td><td>${l.bl}</td><td>${fr(l.digitais)}</td><td class="${l.atrasados ? 'rnLate' : ''}">${l.atrasados}</td></tr>`;
+  el.innerHTML = `<div class="rnKpis">${kpi(total.carteira.toLocaleString('pt-BR'), 'clientes na carteira')}${kpi(fp(total.cobertura), `contatados (${total.contatados})`)}`
+    + `${kpi(fp(total.conversao), `conversão (${total.renovados} de ${total.efetivo})`, 'ok')}${kpi(total.atrasados, 'retornos atrasados', total.atrasados ? 'late' : '')}</div>`
+    + `<div class="rnTabelaCasa"><table class="rnTabela rnResumoTbl"><thead><tr><th>Consultor</th><th>Carteira</th><th>Cobertura</th><th>Conversão</th><th>Propostas+</th><th>Renovados</th><th>Perdidos</th><th>Linhas renov.</th><th>BL</th><th>Sol. dig. (R$)</th><th>Atrasados</th></tr></thead>`
+    + `<tbody>${corpo.map(l => tr(l)).join('')}${corpo.length > 1 ? tr(total, 'rnTotal') : ''}</tbody></table></div>`
+    + (currentUser && currentUser.role === 'admin' && typeof rnImportarHtml === 'function'
+      ? `<div class="rnResumoRodape"><button type="button" class="kbBtn kbBtnQ" data-rn-abrir-importar>Importar base</button></div>`
+        + `<div class="overlay" id="rnImportar"><div class="modal" role="dialog" aria-modal="true" aria-label="Importar base"><div class="mHead"><button type="button" class="mClose" data-rn-fechar-importar aria-label="Fechar">&times;</button><h2>Importar base</h2></div><div class="mBody">${rnImportarHtml()}</div></div></div>`
+      : '');
 }
 // ---- Importar base (admin). Os dados vão do navegador direto ao Supabase: nada passa pelo repositório. ----
 function rnChave(s){ return rnNorm(String(s ?? '').replace(/▼/g, '')).replace(/\s+/g, ' ').trim(); }
@@ -4626,6 +4634,10 @@ async function rnExecutarImportacao(){
 }
 document.getElementById('rnResumo').addEventListener('change', (e) => { if(e.target.id === 'rnArquivo' && e.target.files && e.target.files[0]) rnPrepararImportacao(e.target.files[0]); });
 document.getElementById('rnResumo').addEventListener('click', (e) => { if(e.target.closest('[data-rn-importar]')) rnExecutarImportacao(); });
+document.getElementById('rnResumo').addEventListener('click', (e) => {
+  if(e.target.closest('[data-rn-abrir-importar]')){ const ov = document.getElementById('rnImportar'); if(ov) ov.classList.add('active'); return; }
+  if(e.target.closest('[data-rn-fechar-importar]')){ const ov = document.getElementById('rnImportar'); if(ov) fecharOverlay(ov); }
+});
 // ---- §143.2 Proposta ligada à carteira ----
 // Cliente no formato de "clientes" a partir da carteira (reserva: os 1.242 da virada estão todos em clientes).
 function rnClienteDaCarteira(r, dados){
@@ -4673,21 +4685,27 @@ function rnKanbanColunas(lista, filtros, hoje){
   return RN_KANBAN.map(s => ({ status: s, itens: base.filter(r => r.status === s) }));
 }
 function rnCartaoHtml(r, agora, gestor){
-  const lista = rnPropostasDe(r.id);
-  const p = lista.find(x => x.estagio !== 'fechado_ganho' && x.estagio !== 'fechado_perdido') || (r.status >= 6 ? lista[0] : null);
+  const props = rnPropostasDe(r.id);
+  const p = props.find(rnPropostaAberta) || (r.status >= 6 ? props[0] : null);
   const dias = rnDiasNoStatus(r, agora);
-  return `<div class="rnKbCard ${rnClasseLinha(r)}" draggable="true" data-rn-card="${r.id}">
+  const late = dias !== null && dias >= 7 && r.status >= 3 && r.status <= 5;
+  const parado = dias === null || r.status >= 6 ? '' : dias === 0 ? 'nesta etapa desde hoje' : `parado há ${dias} dia${dias > 1 ? 's' : ''}`;
+  const sub = [`${r.linhas_voz ?? 0} linhas`, p && p.valor_proposto ? fmtBRL(p.valor_proposto) : '', r.status === 6 && r.linhas_renovadas ? `${r.linhas_renovadas} renovadas` : '',
+    r.status === 7 && r.motivo_perda ? r.motivo_perda : '', gestor ? rnNomeConsultor(r.consultor_id) : ''].filter(Boolean).join(' · ');
+  return `<div class="rnKbCard" draggable="true" data-rn-card="${r.id}">
     <button type="button" class="rnNome" data-rn-abrir="${r.id}">${escapeHtml(r.razao_social || '(sem nome)')}</button>
-    <div class="kbMeta">${r.linhas_voz ?? 0} linhas${p && p.valor_proposto ? ' · ' + fmtBRL(p.valor_proposto) : ''}${dias !== null ? ' · ' + (dias === 0 ? 'hoje' : dias + 'd') + ' no status' : ''}${gestor ? ' · ' + escapeHtml(rnNomeConsultor(r.consultor_id)) : ''}</div>
+    <small>${escapeHtml(sub)}</small>
+    ${parado ? `<span class="rnParado${late ? ' late' : ''}">${late ? '⏱ ' : ''}${escapeHtml(parado)}</span>` : ''}
     ${r.status >= 6 ? '' : `<button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-gerar="${r.id}">Gerar proposta</button>`}
   </div>`;
 }
 function rnRenderKanban(){
   const agora = Date.now(); const gestor = rnGestor();
+  rnPreencherFiltros();
   document.getElementById('rnKanban').innerHTML = '<div class="rnKanban">' + rnKanbanColunas(rnEstado.lista, rnEstado.filtros, rnHoje()).map(c => `
     <div class="rnKbCol" data-rn-coluna="${c.status}">
-      <div class="rnKbHead"><span>${escapeHtml(rnStatusRotulo(c.status))}</span><span class="kbN">${c.itens.length}</span></div>
-      ${c.itens.map(r => rnCartaoHtml(r, agora, gestor)).join('') || '<p class="kbMeta">Nenhum cliente.</p>'}
+      <div class="rnKbHead">${rnEtapaHtml(c.status)}<span class="kbN">${c.itens.length}</span></div>
+      ${c.itens.map(r => rnCartaoHtml(r, agora, gestor)).join('') || '<p class="rnVazio">Nenhum cliente.</p>'}
     </div>`).join('') + '</div>';
 }
 function rnMoverStatus(id, status){

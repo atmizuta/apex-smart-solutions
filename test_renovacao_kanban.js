@@ -22,7 +22,7 @@ require('./renovacao_test_harness.js').rodar(`
   eq(colunas.map(c => c.dataset.rnColuna), ['3', '4', '5', '6', '7'], '5 colunas');
   const card3 = document.querySelector('#rnKanban [data-rn-card="3"]').textContent.replace(/\\s+/g, ' ');
   assert(/1.234,50/.test(card3), 'cartão mostra o valor da proposta: ' + card3);
-  assert(/no status/.test(card3), 'cartão mostra os dias no status');
+  assert(/parado há/.test(card3), 'cartão mostra há quanto tempo está parado');
 
   // arrastar 3 → 5 grava o status
   window.__escritas.length = 0;
