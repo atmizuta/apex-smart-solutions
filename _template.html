@@ -4300,6 +4300,7 @@ function rnHistoricoTexto(h){
 }
 async function rnAbrirFicha(id){
   rnEstado.fichaId = id; rnEstado.ficha = { dados: null, historico: null };
+  rnEstado.fichaStatus = null; rnEstado.fichaAba = 'atendimento';
   document.querySelectorAll('#rnFilaLista .rnItem').forEach(b => b.classList.toggle('sel', Number(b.dataset.rnAbrir) === id));
   document.getElementById('rnFicha').classList.add('aberta');
   rnRenderFicha();
@@ -4312,6 +4313,8 @@ async function rnAbrirFicha(id){
   rnRenderFicha();
 }
 function rnFecharFicha(){ rnEstado.fichaId = null; rnEstado.ficha = null; document.getElementById('rnFicha').classList.remove('aberta'); }
+const RN_CONTATO = [[2, 'Não atendeu'], [3, 'Falei com o responsável'], [4, 'Mandei proposta'], [5, 'Negociando'], [6, 'Renovou ✓'], [7, 'Perdido']];
+function rnGrupoContato(s){ return s === 6 ? 'renovou' : s === 7 ? 'perdido' : 'retorno'; }
 function rnRenderFicha(){
   const el = document.getElementById('rnFichaCorpo');
   const r = rnEstado.lista.find(x => x.id === rnEstado.fichaId);
@@ -4319,40 +4322,93 @@ function rnRenderFicha(){
   const tel = onlyDigits(r.telefone);
   const cnpj = String(r.cnpj_digits || '').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
   const fic = rnEstado.ficha || {};
-  const campo = (rotulo, html) => `<label class="field">${rotulo}${html}</label>`;
+  const sel = rnEstado.fichaStatus || r.status;
+  const aba = rnEstado.fichaAba || 'atendimento';
+  const grupo = rnGrupoContato(sel);
+  const props = rnPropostasDe(r.id);
+  const esconde = (cond) => (cond ? '' : ' hidden');
+  const hora = r.retorno_hora ? String(r.retorno_hora).slice(0, 5) : '';
   el.innerHTML = `
-    <div class="kbFichaTopo" style="display:flex;justify-content:space-between;gap:var(--space-2)">
-      <div><h3>${escapeHtml(r.razao_social || '(sem nome)')}</h3><div class="kbMeta">${escapeHtml(cnpj)}${r.cidade ? ' · ' + escapeHtml(r.cidade) : ''} · ${r.linhas_voz ?? 0} linhas</div></div>
-      <button type="button" class="kbBtn kbBtnG" data-rn-ficha-fechar aria-label="Fechar">&times;</button>
+    <div class="rnFichaTopo">
+      <span class="rnAv">${escapeHtml(rnIniciais(r.razao_social))}</span>
+      <div style="flex:1;min-width:0"><h3 class="rnFichaNome">${escapeHtml(r.razao_social || '(sem nome)')}</h3>
+        <div class="rnFichaMeta">${escapeHtml([cnpj, r.cidade, (r.linhas_voz ?? 0) + ' linhas', r.apto].filter(Boolean).join(' · '))}</div></div>
+      ${rnEtapaHtml(r.status)}
+      <button type="button" class="kbBtn kbBtnG kbBtnIco" data-rn-ficha-fechar aria-label="Fechar">&times;</button>
     </div>
-    <div style="display:flex;gap:var(--space-2);margin:var(--space-2) 0">${tel
-      ? `<a class="kbBtn kbBtnQ" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}">WhatsApp</a><a class="kbBtn kbBtnP" href="tel:${escapeHtml(tel)}">Ligar</a>`
-      : '<span class="kbMeta">Sem telefone.</span>'}${r.status >= 6 ? '<span class="kbMeta">Reabra o status para gerar proposta.</span>' : `<button type="button" class="kbBtn kbBtnG" data-rn-gerar="${r.id}">Gerar proposta</button>`}</div>
-    <form id="rnFichaForm" class="card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-2)">
-      ${campo('Status', `<select name="status">${rnOpcoes(Object.keys(RN_STATUS).map(k => [k, rnStatusRotulo(+k)]), r.status)}</select>`)}
-      ${campo('Data do contato', `<input type="date" name="data_contato" value="${escapeHtml(r.data_contato || '')}">`)}
-      ${campo('Próx. retorno', `<input type="date" name="prox_retorno" value="${escapeHtml(r.prox_retorno || '')}">`)}
-      ${campo('Canal', `<select name="canal">${rnOpcoes(RN_CANAIS.map(c => [c, c]), r.canal, '—')}</select>`)}
-      ${campo('Linhas renovadas', `<input type="number" min="0" name="linhas_renovadas" value="${r.linhas_renovadas ?? ''}">`)}
-      ${campo('BL vendida (qtd)', `<input type="number" min="0" name="bl_vendida" value="${r.bl_vendida ?? ''}">`)}
-      ${campo('Sol. digitais (R$)', `<input type="number" min="0" step="0.01" name="sol_digitais" value="${r.sol_digitais ?? ''}">`)}
-      ${campo('Motivo da perda', `<select name="motivo_perda">${rnOpcoes(RN_MOTIVOS.map(m => [m, m]), r.motivo_perda, '—')}</select>`)}
-      <label class="field" style="grid-column:1/-1">Observações<textarea name="observacoes" rows="3">${escapeHtml(r.observacoes || '')}</textarea></label>
-      <p class="kbMeta rnVencido" id="rnFichaErro" role="alert" style="grid-column:1/-1"></p>
-      <div style="grid-column:1/-1"><button type="submit" class="btn btn-sm">Salvar atendimento</button></div>
-    </form>
-    ${fic.dados
+    <div class="rnFichaAcoes">${tel
+      ? `<a class="kbBtn kbBtnP" data-rn-canal="WhatsApp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}">WhatsApp</a><a class="kbBtn kbBtnQ" data-rn-canal="Ligação" href="tel:${escapeHtml(tel)}">Ligar</a>`
+      : '<span class="kbMeta">Sem telefone.</span>'}${r.status >= 6 ? '<span class="kbMeta">Reabra o status para gerar proposta.</span>' : `<button type="button" class="kbBtn kbBtnQ" data-rn-gerar="${r.id}">Gerar proposta</button>`}</div>
+    <nav class="rnFichaAbas" aria-label="Ficha do cliente">${[['atendimento', 'Atendimento'], ['dados', 'Dados da Claro'], ['propostas', 'Propostas · ' + props.length], ['historico', 'Histórico']]
+      .map(([k, t]) => `<button type="button" data-rn-ficha-aba="${k}" class="${aba === k ? 'on' : ''}">${escapeHtml(t)}</button>`).join('')}</nav>
+    <section data-rn-ficha-sec="atendimento"${esconde(aba === 'atendimento')}>
+      <form id="rnFichaForm">
+        <input type="hidden" name="status" value="${sel}">
+        <p class="rnPergunta">Como foi o contato?</p>
+        <div class="rnContato">${RN_CONTATO.map(([s, t]) => `<button type="button" class="rnContatoBt${s === sel ? ' on rnSt' + s : ''}" data-rn-contato="${s}">${escapeHtml(t)}</button>`).join('')}</div>
+        <div class="rnCampos" data-rn-grupo="retorno"${esconde(grupo === 'retorno')}>
+          <label>Próximo retorno<input type="date" name="prox_retorno" value="${escapeHtml(r.prox_retorno || '')}"></label>
+          <label>Hora<input type="time" name="retorno_hora" value="${escapeHtml(hora)}"></label>
+        </div>
+        <div class="rnCampos" data-rn-grupo="renovou"${esconde(grupo === 'renovou')}>
+          <label>Linhas renovadas *<input type="number" min="0" name="linhas_renovadas" value="${r.linhas_renovadas ?? ''}"></label>
+          <label>BL vendida (qtd)<input type="number" min="0" name="bl_vendida" value="${r.bl_vendida ?? ''}"></label>
+          <label class="rnLargo">Soluções digitais (R$)<input type="number" min="0" step="0.01" name="sol_digitais" value="${r.sol_digitais ?? ''}"></label>
+        </div>
+        <div class="rnCampos" data-rn-grupo="perdido"${esconde(grupo === 'perdido')}>
+          <label class="rnLargo">Motivo da perda *<select name="motivo_perda">${rnOpcoes(RN_MOTIVOS.map(m => [m, m]), r.motivo_perda, 'Escolha…')}</select></label>
+        </div>
+        <div class="rnCampos">
+          <label>Canal<select name="canal">${rnOpcoes(RN_CANAIS.map(c => [c, c]), r.canal, '—')}</select></label>
+          <label class="rnLargo">Observação<textarea name="observacoes" rows="3">${escapeHtml(r.observacoes || '')}</textarea></label>
+        </div>
+        <p class="rnErro" id="rnFichaErro" role="alert"></p>
+        <div class="rnFichaRodape">${rnEstado.aba === 'hoje'
+          ? '<button type="submit" class="kbBtn kbBtnQ">Salvar</button><button type="submit" class="kbBtn kbBtnP" data-rn-proximo>Salvar e próximo →</button>'
+          : '<button type="submit" class="kbBtn kbBtnP">Salvar</button>'}</div>
+      </form>
+    </section>
+    <section data-rn-ficha-sec="dados"${esconde(aba === 'dados')}>${fic.dados
       ? rnGruposFicha(fic.dados).map(([t, itens]) => `<details class="rnGrupo"><summary>${escapeHtml(t)} <span class="kbMeta">${itens.length}</span></summary><dl>${itens.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(String(v))}</dd>`).join('')}</dl></details>`).join('')
-      : '<p class="kbMeta">Carregando dados da Claro…</p>'}
-    <h4>Propostas</h4>
-    ${rnPropostasDe(r.id).length
-      ? '<ul class="rnHist">' + rnPropostasDe(r.id).map(p => `<li><button type="button" class="rnNome" data-rn-proposta="${escapeHtml(p.id)}">${p.valor_atual ? fmtBRL(p.valor_atual) : '—'} → ${p.valor_proposto ? fmtBRL(p.valor_proposto) : '—'}</button> · ${escapeHtml(new Date(p.criado_em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }))} · ${escapeHtml(FUNIL_ESTAGIO_MAP[p.estagio] ? FUNIL_ESTAGIO_MAP[p.estagio].label : p.estagio)}</li>`).join('') + '</ul>'
-      : '<p class="kbMeta">Nenhuma proposta ainda.</p>'}
-    <h4>Histórico</h4>
-    ${fic.historico
+      : '<p class="kbMeta">Carregando dados da Claro…</p>'}</section>
+    <section data-rn-ficha-sec="propostas"${esconde(aba === 'propostas')}>${props.length
+      ? '<ul class="rnHist">' + props.map(p => `<li><button type="button" class="rnNome" data-rn-proposta="${escapeHtml(p.id)}">${p.valor_atual ? fmtBRL(p.valor_atual) : '—'} → ${p.valor_proposto ? fmtBRL(p.valor_proposto) : '—'}</button> · ${escapeHtml(new Date(p.criado_em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }))} · ${escapeHtml(FUNIL_ESTAGIO_MAP[p.estagio] ? FUNIL_ESTAGIO_MAP[p.estagio].label : p.estagio)}</li>`).join('') + '</ul>'
+      : '<p class="kbMeta">Nenhuma proposta ainda.</p>'}</section>
+    <section data-rn-ficha-sec="historico"${esconde(aba === 'historico')}>${fic.historico
       ? (fic.historico.length ? '<ul class="rnHist">' + fic.historico.map(h => `<li>${escapeHtml(rnHistoricoTexto(h))}</li>`).join('') + '</ul>' : '<p class="kbMeta">Sem mudanças registradas.</p>')
-      : '<p class="kbMeta">Carregando…</p>'}`;
+      : '<p class="kbMeta">Carregando…</p>'}</section>`;
 }
+function rnEscolherContato(s){
+  const form = document.getElementById('rnFichaForm');
+  if(!form) return;
+  rnEstado.fichaStatus = s;
+  form.elements.status.value = String(s);
+  form.querySelectorAll('[data-rn-contato]').forEach(b => { const on = Number(b.dataset.rnContato) === s; b.className = 'rnContatoBt' + (on ? ' on rnSt' + s : ''); });
+  const g = rnGrupoContato(s);
+  form.querySelectorAll('[data-rn-grupo]').forEach(d => { d.hidden = d.dataset.rnGrupo !== g; });
+  if(s === 2 && !form.elements.prox_retorno.value){ const a = rnAgora(); form.elements.prox_retorno.value = rnSomarDias(a.data, 1); form.elements.retorno_hora.value = a.hora; }
+  document.getElementById('rnFichaErro').textContent = '';
+}
+function rnIrParaProximo(idAtual){
+  const plana = rnFilaPlana(rnFila(rnListaHoje(), rnAgora(), rnEstado.filtros.consultor || ''));
+  const i = plana.findIndex(x => x.id === idAtual);
+  const prox = plana.slice(i + 1).find(x => x.id !== idAtual) || plana.find(x => x.id !== idAtual);
+  if(prox) rnAbrirFicha(prox.id);
+  else { rnEstado.fichaId = null; rnRenderFicha(); }
+}
+document.getElementById('rnFicha').addEventListener('click', (e) => {
+  const c = e.target.closest('[data-rn-contato]');
+  if(c){ rnEscolherContato(Number(c.dataset.rnContato)); return; }
+  const a = e.target.closest('[data-rn-ficha-aba]');
+  if(a){
+    rnEstado.fichaAba = a.dataset.rnFichaAba;
+    document.querySelectorAll('#rnFicha [data-rn-ficha-aba]').forEach(b => b.classList.toggle('on', b === a));
+    document.querySelectorAll('#rnFicha [data-rn-ficha-sec]').forEach(s => { s.hidden = s.dataset.rnFichaSec !== rnEstado.fichaAba; });
+    return;
+  }
+  const k = e.target.closest('[data-rn-canal]');
+  if(k){ const sel = document.querySelector('#rnFichaForm [name="canal"]'); if(sel) sel.value = k.dataset.rnCanal; }
+});
 document.getElementById('rnFicha').addEventListener('click', (e) => { if(e.target.closest('[data-rn-ficha-fechar]')) rnFecharFicha(); });
 document.getElementById('rnFicha').addEventListener('click', (e) => {
   const g = e.target.closest('[data-rn-gerar]');
@@ -4367,19 +4423,31 @@ document.getElementById('rnFicha').addEventListener('submit', async (e) => {
   const r = rnEstado.lista.find(x => x.id === rnEstado.fichaId);
   if(!r) return;
   const els = e.target.elements;
-  const v = (k) => (els[k].value === '' ? null : els[k].value);
-  const num = (k) => (v(k) === null ? null : Number(v(k)));
-  const patch = { status: Number(v('status')), data_contato: v('data_contato'), prox_retorno: v('prox_retorno'), canal: v('canal'),
-    linhas_renovadas: num('linhas_renovadas'), bl_vendida: num('bl_vendida'), sol_digitais: num('sol_digitais'),
-    motivo_perda: v('motivo_perda'), observacoes: (v('observacoes') || '').trim() || null };
+  const ler = (k) => (els[k] ? (els[k].value === '' ? null : els[k].value) : undefined);
+  const num = (k) => { const x = ler(k); return x == null ? x : Number(x); };
+  const status = Number(ler('status'));
+  const patch = { status };
+  // apertar um botão de "Como foi o contato?" = contato feito hoje (o gatilho do banco só preenche a primeira vez)
+  if(rnEstado.fichaStatus) patch.data_contato = rnHoje();
+  if(status <= 5){ patch.prox_retorno = ler('prox_retorno'); patch.retorno_hora = ler('retorno_hora'); }
+  if(status === 6){ patch.linhas_renovadas = num('linhas_renovadas'); patch.bl_vendida = num('bl_vendida'); patch.sol_digitais = num('sol_digitais'); }
+  if(status === 7) patch.motivo_perda = ler('motivo_perda');
+  patch.canal = ler('canal');
+  patch.observacoes = (ler('observacoes') || '').trim() || null;
+  Object.keys(patch).forEach(k => { if(patch[k] === undefined) delete patch[k]; });
   // legado da planilha (a_completar): mesma regra do banco — só cobra quando o status muda
-  const erro = r.a_completar && patch.status === r.status ? null : rnValidarFechamento(patch.status, patch);
+  const erro = r.a_completar && status === r.status ? null : rnValidarFechamento(status, Object.assign({}, r, patch));
   if(erro){ document.getElementById('rnFichaErro').textContent = erro; return; }
-  // só o que mudou: não apaga o que outra pessoa gravou enquanto a ficha estava aberta
+  // só o que mudou: não apaga o que outra pessoa gravou enquanto a ficha estava aberta (hora: o banco devolve HH:MM:SS)
+  const igual = (k) => (k === 'retorno_hora' ? String(patch[k] ?? '').slice(0, 5) === String(r[k] ?? '').slice(0, 5) : String(patch[k] ?? '') === String(r[k] ?? ''));
   const mudou = {};
-  Object.keys(patch).forEach(k => { if(String(patch[k] ?? '') !== String(r[k] ?? '')) mudou[k] = patch[k]; });
-  if(!Object.keys(mudou).length){ mostrarAviso('Nada mudou no atendimento.', 'info'); return; }
-  if(await rnSalvar(r.id, mudou)) mostrarAviso('Atendimento salvo.', 'ok');
+  Object.keys(patch).forEach(k => { if(!igual(k)) mudou[k] = patch[k]; });
+  const proximo = !!(e.submitter && e.submitter.hasAttribute('data-rn-proximo'));
+  if(!Object.keys(mudou).length){ if(proximo) rnIrParaProximo(r.id); else mostrarAviso('Nada mudou no atendimento.', 'info'); return; }
+  const antes = rnEstado.fichaStatus;
+  rnEstado.fichaStatus = null;
+  if(await rnSalvar(r.id, mudou)){ mostrarAviso('Atendimento salvo.', 'ok'); if(proximo) rnIrParaProximo(r.id); }
+  else rnEstado.fichaStatus = antes;
 });
 // ---- Datas ----
 function rnSomarDias(iso, n){ const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
