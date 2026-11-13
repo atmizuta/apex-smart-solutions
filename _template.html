@@ -1429,18 +1429,22 @@
   .tvFesta[hidden]{display:none}
   .tvFesta.meta{background:var(--c-branco);color:var(--c-grafite)}
   .tvApice{position:absolute;right:-8vw;bottom:-6vh;width:74vh;height:112vh;background:var(--apice-grad);
-    clip-path:polygon(50% 0,100% 100%,0 100%);transform:translateX(80vw);animation:tvApiceEntra .8s cubic-bezier(.2,.8,.2,1) forwards}
-  .tvApice.tvApiceEco{right:14vw;width:46vh;height:70vh;opacity:.18;animation-delay:.12s}
+    clip-path:polygon(50% 0,100% 100%,0 100%);translate:80vw 0;transform-origin:50% 100%;
+    animation:tvApiceEntra .8s cubic-bezier(.2,.8,.2,1) forwards, tvRespira 3.2s .8s ease-in-out infinite alternate}
+  .tvApice.tvApiceEco{right:14vw;width:46vh;height:70vh;opacity:.18;animation-delay:.12s,.92s;animation-duration:.8s,4.4s}
   .tvFesta.meta .tvApice{right:-4vw}
   .tvRiscos i{position:absolute;left:0;height:2px;width:45vw;background:var(--c-branco);opacity:.14;transform:translateX(-60vw) rotate(-60deg);
-    animation:tvRisco 1.8s ease-out forwards}
+    animation:tvRisco 2.6s linear infinite}
   .tvFesta.meta .tvRiscos i{background:var(--c-sinal);opacity:.25}
   .tvFestaCorpo{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;justify-content:center;padding:0 7vw;max-width:72vw}
   .tvSelo{width:92px;height:92px;background:var(--c-sinal);color:var(--c-branco);font:700 40px/92px 'Barlow Condensed',sans-serif;text-align:center;
-    clip-path:polygon(0 0,100% 0,100% 70%,70% 100%,0 100%);margin-bottom:26px;animation:tvSobe .45s .1s both}
+    clip-path:polygon(0 0,100% 0,100% 70%,70% 100%,0 100%);margin-bottom:26px;animation:tvSobe .45s .1s both, tvPulsa 1.6s 1s ease-in-out infinite}
   .tvTitulo{font:700 clamp(80px,13vw,230px)/.8 'Barlow Condensed',sans-serif;text-transform:uppercase;color:transparent;
-    -webkit-text-stroke:2px var(--c-branco);animation:tvSobe .5s .2s both}
-  .tvFesta.meta .tvTitulo{color:var(--c-sinal);-webkit-text-stroke:0;font-size:clamp(64px,9vw,160px)}
+    -webkit-text-stroke:2px var(--c-branco);
+    background:linear-gradient(100deg,transparent 35%,var(--c-sinal) 50%,transparent 65%);background-size:300% 100%;
+    -webkit-background-clip:text;background-clip:text;animation:tvSobe .5s .2s both, tvBrilho 2.4s 1s linear infinite}
+  .tvFesta.meta .tvTitulo{color:var(--c-sinal);-webkit-text-stroke:0;background:none;font-size:clamp(64px,9vw,160px);
+    animation:tvSobe .5s .2s both, tvPulsa 1.6s 1s ease-in-out infinite}
   .tvNome{font:700 clamp(38px,5.2vw,90px)/1.02 'Barlow Condensed',sans-serif;margin:16px 0 6px;animation:tvSobe .5s .4s both}
   .tvSubida{font:600 24px/1.2 'Barlow',sans-serif;color:var(--tv-ouro-claro);animation:tvSobe .5s .55s both}
   .tvPlacar{display:flex;margin-top:38px;border-top:1px solid color-mix(in srgb, var(--c-branco) 28%, transparent);animation:tvSobe .5s .7s both}
@@ -1449,7 +1453,8 @@
   .tvCasa span{display:block;font:600 14px/1 'Barlow',sans-serif;text-transform:uppercase;letter-spacing:.14em;opacity:.65}
   .tvCasa b{display:block;margin-top:10px;font:700 clamp(40px,4.6vw,80px)/1 'Barlow Condensed',sans-serif;font-variant-numeric:tabular-nums}
   .tvCasa b.trocou{color:var(--tv-ouro-claro);animation:tvTroca .5s ease-out}
-  .tvMetaNumero{font:700 clamp(110px,17vw,280px)/.85 'Barlow Condensed',sans-serif;margin-top:10px;animation:tvSobe .5s .35s both}
+  .tvMetaNumero{font:700 clamp(110px,17vw,280px)/.85 'Barlow Condensed',sans-serif;margin-top:10px;transform-origin:0 70%;
+    animation:tvSobe .5s .35s both, tvPulsa 1.6s 1.2s ease-in-out infinite}
   .tvMetaNumero span{opacity:.3}
   .tvDetalhe{font:600 22px/1.3 'Barlow',sans-serif;margin-top:12px;animation:tvSobe .5s .5s both}
   .tvPessoas{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px 26px;margin-top:34px;max-width:64vw}
@@ -1457,11 +1462,19 @@
   .tvPessoa .tvAvatar{width:42px;height:42px;margin:0;border-radius:0;background:var(--c-sinal);font-size:16px;
     clip-path:polygon(0 0,100% 0,100% 70%,70% 100%,0 100%)}
   .tvPessoa b{margin-left:auto;font-size:28px;color:var(--c-sinal);background:none;padding:0}
-  @keyframes tvApiceEntra{to{transform:translateX(0)}}
+  .tvParticulas i{position:absolute;bottom:-40px;background:var(--c-sinal);clip-path:polygon(50% 0,100% 100%,0 100%);opacity:0;
+    animation:tvParticula 5s linear infinite}
+  .tvParticulas i:nth-child(3n){background:var(--c-branco)}
+  .tvFesta.meta .tvParticulas i:nth-child(3n){background:var(--c-grafite)}
+  @keyframes tvApiceEntra{to{translate:0 0}}
+  @keyframes tvRespira{from{scale:1}to{scale:1.06}}
+  @keyframes tvPulsa{50%{scale:1.06}}
+  @keyframes tvBrilho{from{background-position:100% 0}to{background-position:-200% 0}}
+  @keyframes tvParticula{0%{transform:translateY(0) rotate(0);opacity:0}12%{opacity:.85}100%{transform:translateY(-118vh) rotate(260deg);opacity:0}}
   @keyframes tvSobe{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
   @keyframes tvTroca{from{opacity:0;transform:translateY(-40%)}to{opacity:1;transform:none}}
-  @keyframes tvRisco{to{transform:translateX(130vw) rotate(-60deg)}}
-  @media (prefers-reduced-motion: reduce){ .tvFesta *{animation:none !important} .tvApice{transform:none} }
+  @keyframes tvRisco{from{transform:translateX(-60vw) rotate(-60deg)}to{transform:translateX(130vw) rotate(-60deg)}}
+  /* sem prefers-reduced-motion aqui de propósito: a festa da TV é animada mesmo com "reduzir movimento" (pedido do Rafael, 12/11) */
 </style>
 </head>
 <body>
@@ -5696,10 +5709,17 @@ function tvMetaHtml(d){
 function tvMostrarFesta(tipo, html){
   const f = document.getElementById('tvFesta');
   let riscos = '';
-  for(let i = 0; i < 7; i++) riscos += `<i style="top:${8 + i * 13}%;animation-delay:${(0.2 + i * 0.09).toFixed(2)}s"></i>`;
+  for(let i = 0; i < 7; i++) riscos += `<i style="top:${8 + i * 13}%;animation-delay:${(0.2 + i * 0.37).toFixed(2)}s"></i>`;
+  let particulas = '';
+  for(let i = 0; i < 18; i++){
+    const lado = 6 + Math.round(Math.random() * 16);
+    particulas += `<i style="left:${(Math.random() * 100).toFixed(1)}%;width:${lado}px;height:${lado}px;`
+      + `animation-duration:${(4 + Math.random() * 3).toFixed(2)}s;animation-delay:-${(Math.random() * 5).toFixed(2)}s"></i>`;
+  }
   f.className = 'tvFesta ' + tipo;
   f.innerHTML = '<div class="tvApice tvApiceEco" aria-hidden="true"></div><div class="tvApice" aria-hidden="true"></div>'
-    + `<div class="tvRiscos" aria-hidden="true">${riscos}</div><div class="tvFestaCorpo">${html}</div>`;
+    + `<div class="tvRiscos" aria-hidden="true">${riscos}</div><div class="tvParticulas" aria-hidden="true">${particulas}</div>`
+    + `<div class="tvFestaCorpo">${html}</div>`;
   f.hidden = false;
   tvAnimarPlacar(f);
 }

@@ -76,6 +76,14 @@ rodar(`
   eq(f.querySelector('[data-tv-pos]').textContent, '5º', 'posição troca para a nova');
   eq(f.querySelector('[data-tv-conta]').textContent, fmtBRL(474.95), 'receita termina no valor certo');
   assert(f.textContent.includes('▲ subiu do 7º para o 5º lugar no mês'), 'linha da subida');
+  // §149.2b: animada o tempo todo (não só na entrada) e mesmo com "reduzir movimento" do Windows
+  assert(f.querySelectorAll('.tvParticulas i').length >= 12, 'partículas (triângulos do ápice) subindo');
+  const cssTv = document.getElementById('tvStyles').textContent;
+  const regraDe = (sel) => (cssTv.match(new RegExp(sel.replace(/[.]/g, '\.') + '\{([^}]*)\}')) || [])[1] || '';
+  ['.tvRiscos i', '.tvParticulas i', '.tvTitulo', '.tvSelo', '.tvApice'].forEach(sel => {
+    assert(/infinite/.test(regraDe(sel)), sel + ' tem animação contínua (infinite)');
+  });
+  assert(!/prefers-reduced-motion[^}]*\.tvFesta/.test(cssTv), 'festa não é desligada pelo "reduzir movimento"');
   await espera(200);
   tvParar();
 

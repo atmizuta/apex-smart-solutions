@@ -4939,4 +4939,28 @@ agência". Conta feita no banco antes (sem Repique e sem apagados): média de 28
   - As ligações manuais já aparecem na base do discador: ontem, o consultor com mais conversas tinha 102 telefones e
     102 contatos na TV.
 
+### §149.2 Tela da venda no visual do Apex, som mais longo, Desfazer com motivo (12/11/2026, pedido do Rafael)
+
+- **Pedido:** "deixe a tela quando vende mais bonita, tá muito cara de IA", "efeito sonoro durante mais tempo",
+  "ela precisa ser animada, não estática" e "não consigo colocar o motivo quando clico em desfazer".
+- **Tela:**
+  - **VENDEU!:** fundo grafite; triângulo do ápice vermelho entra pela direita e fica "respirando"; linhas diagonais
+    e triângulos pequenos sobem o tempo todo; "VENDEU!" vazado em Barlow Condensed com brilho correndo; selo quadrado
+    pulsando com as iniciais.
+  - **Placar:** posição no mês (o número vira da antiga para a nova), vendas hoje, receita contando de R$ 0 e
+    conversão.
+  - **META BATIDA!:** fundo branco, "31/30" pulsando e o time em grade.
+  - Sem emoji, sem brilho dourado e sem confete. A festa é animada mesmo com "reduzir movimento" do Windows.
+- **Som:** sintetizado no navegador, sem arquivo. VENDEU! ~5 s e META ~8 s; as telas duram 9 s e 12 s.
+- **Desfazer:**
+  - **Banco:** `vendi_cancelar` deixa quem marcou desfazer em até 10 min sem motivo, mesmo sendo admin/supervisor.
+    Antes, admin caía sempre na regra de gestor (motivo obrigatório) e o botão não tinha campo.
+  - **Tela:** Desfazer abre "Motivo (opcional)" + "Confirmar desfazer", com o erro na própria faixa.
+  - Migration `20261112200000_tv_vendas_desfazer.sql` (aplicada 12/11 ~20:50); conferência
+    `supabase/tests/tv_vendas_desfazer_check.sql`.
+- **Vendas de hoje:** lista na aba TV (gestor, fora da tela cheia) via `tv_vendas_hoje()`. Cancelar pede motivo;
+  venda de lead sai pelo status do lead.
+- **Testes:** `test_tv_vendas_v2.js` (37); `test_tv_vendas_festa.js` e `test_tv_vendas_vendi.js` ajustados ao placar
+  novo e ao Desfazer em duas etapas.
+
 Próxima livre: §150 (§138.2 e §138.3 reservadas).
