@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--sinal:#E30613;--sinal6:#C1050F;--bordo:#520C07;--ink:#1D1F20;--ink2:#464A4E;--ink3:#7A7F85;--papel:#F2F2F3;--s2:#F7F7F8;--linha:#E2E2E4;--rosa:#FBE3E4;
+        --ganho:#1F7A45;--ganhoBg:#E3F1E8;--and:#B45309;--andBg:#FEF3C7;--azul:#1D4ED8;--azulBg:#E0E7FF;--roxo:#6D28D9;--roxoBg:#EDE9FE;--lar:#C2410C;--larBg:#FFEDD5}
+  *{box-sizing:border-box} body{margin:0;background:#E9E9EC;font-family:Barlow,system-ui,sans-serif;color:var(--ink);padding:28px 32px 80px}
+  h1{font-family:'Barlow Condensed';font-size:30px;margin:0 0 4px} .lead{color:var(--ink2);margin:0 0 24px;font-size:15px;max-width:980px;line-height:1.45}
+  h2{font-size:20px;margin:0 0 4px} .desc{color:var(--ink2);font-size:14px;margin:0 0 12px;max-width:980px;line-height:1.45}
+  .screen{background:var(--papel);border-radius:14px;overflow:hidden;box-shadow:0 20px 50px rgba(29,31,32,.16);display:flex;margin-bottom:44px}
+  .side{width:64px;background:var(--bordo);flex:none;display:flex;flex-direction:column;align-items:center;padding-top:18px;gap:16px}
+  .side i{width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,.12);display:block} .side i.on{background:var(--sinal)}
+  .main{flex:1;padding:22px 26px;min-width:0}
+  .eyebrow{font-size:11px;letter-spacing:.14em;color:var(--sinal);font-weight:700} .title{font-family:'Barlow Condensed';font-size:30px;font-weight:700;margin:2px 0 12px}
+  .seg{display:inline-flex;gap:2px;padding:4px;border-radius:12px;background:#E3E3E6;margin-bottom:16px}
+  .seg span{padding:8px 16px;border-radius:9px;font-weight:600;font-size:14px;color:var(--ink2);display:inline-flex;gap:6px;align-items:center}
+  .seg .on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)} .badge{background:var(--sinal);color:#fff;border-radius:999px;font-size:11px;padding:1px 7px}
+  .n{font-family:'Barlow Condensed';font-weight:700;font-variant-numeric:tabular-nums}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;white-space:nowrap}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+  .b{display:inline-flex;align-items:center;gap:6px;border-radius:8px;padding:8px 12px;font-weight:600;font-size:13px;white-space:nowrap}
+  .bP{background:var(--sinal);color:#fff} .bG{background:var(--s2)} .bW{background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+  .muted{color:var(--ink3)} .late{color:var(--sinal6);font-weight:600}
+  .av{width:32px;height:32px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex:none;background:var(--s2)}
+  .st1{background:#EEF0F2;color:#4B5563}.st2{background:var(--andBg);color:var(--and)}.st3{background:var(--azulBg);color:var(--azul)}.st4{background:var(--roxoBg);color:var(--roxo)}.st5{background:var(--larBg);color:var(--lar)}.st6{background:var(--ganhoBg);color:var(--ganho)}.st7{background:var(--rosa);color:var(--sinal6)}
+  .search{flex:1;background:#fff;border-radius:10px;padding:10px 14px;color:var(--ink3);font-size:14px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+  .views{display:flex;gap:6px;margin:12px 0} .views span{padding:7px 12px;border-radius:999px;font-weight:600;font-size:13px;background:#fff;color:var(--ink2)} .views .on{background:var(--ink);color:#fff} .views b{margin-left:4px;opacity:.7}
+  table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden} th{text-align:left;font-size:12px;color:var(--ink3);font-weight:600;padding:10px 12px;background:var(--s2)}
+  td{padding:11px 12px;border-top:1px solid #F0F0F2;font-size:13px}
+  .kb{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+  .col{background:#E9E9EC;border-radius:12px;padding:10px} .colH{display:flex;justify-content:space-between;font-weight:700;font-size:13px;margin:2px 4px 10px}
+  .cd{background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:8px;box-shadow:0 1px 2px rgba(0,0,0,.05)} .cd b{font-size:13px} .cd .muted{font-size:12px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px} .kpi{background:#fff;border-radius:12px;padding:14px 16px} .kpi .n{font-size:32px;line-height:1} .kpi small{display:block;color:var(--ink2);font-size:13px;margin-top:4px}
+  .barbg{height:8px;border-radius:999px;background:var(--s2);overflow:hidden;min-width:120px} .barbg span{display:block;height:100%;border-radius:999px}
+  .q{background:#fff;border-left:4px solid var(--sinal);border-radius:10px;padding:14px 16px;margin:6px 0 30px;font-size:14px;line-height:1.5}
+</style></head><body>
+
+<h1>A aba inteira no estilo "Central do dia"</h1>
+<p class="lead">Subabas: <b>Hoje</b> (a Central que você escolheu) · <b>Carteira</b> · <b>Funil</b> · <b>Resumo</b> · <b>Proposta e fatura</b> (o gerador que já existe). Os <b>Retornos</b> deixam de ser subaba: viram os blocos "Atrasados" e "Hoje" da Central. A ficha é a mesma da Central em todas as telas: clicou num cliente, ela abre à direita.</p>
+
+<h2>Carteira · para procurar e trabalhar a carteira inteira</h2>
+<p class="desc">Visões prontas com contagem no lugar dos 9 filtros soltos de hoje; "Mais filtros" abre cidade, DDD, apto, consultor (gestor). Nada editável na linha: clicou, abre a ficha. O gestor marca vários e usa "Passar para".</p>
+<div class="screen"><div class="side"><i></i><i></i><i class="on"></i><i></i></div><div class="main">
+  <div class="eyebrow">APEX · CLARO EMPRESAS</div><div class="title">RENOVAÇÃO</div>
+  <div class="seg"><span>Hoje <span class="badge">22</span></span><span class="on">Carteira</span><span>Funil</span><span>Resumo</span><span>Proposta e fatura</span></div>
+  <div style="display:flex;gap:10px"><div class="search">🔍 Buscar empresa, CNPJ ou ADM</div><span class="b bW">Mais filtros</span><span class="b bW">⇅ Mais linhas primeiro</span></div>
+  <div class="views"><span class="on">Todos <b>414</b></span><span>Não contatados <b>320</b></span><span>Em andamento <b>66</b></span><span>Atrasados <b class="late" style="opacity:1">22</b></span><span>Pendências <b>13</b></span><span>Renovados <b>4</b></span><span>Perdidos <b>13</b></span><span>Fora da base <b>0</b></span></div>
+  <table>
+    <tr><th>Empresa</th><th>Linhas</th><th>Etapa</th><th>Último contato</th><th>Próximo passo</th></tr>
+    <tr><td><div style="display:flex;gap:10px;align-items:center"><span class="av" style="background:var(--rosa);color:var(--sinal)">PD</span><div><b>Padaria Pão Dourado</b><div class="muted" style="font-size:12px">Ana Souza · Campinas · APTO</div></div></div></td><td><span class="n" style="font-size:18px">12</span></td><td><span class="pill st3"><span class="dot" style="background:var(--azul)"></span>Contato efetivo</span></td><td class="muted">10/11 · WhatsApp</td><td class="late">⏱ Retorno atrasado 3 dias</td></tr>
+    <tr><td><div style="display:flex;gap:10px;align-items:center"><span class="av">MB</span><div><b>Mercado Bom Preço</b><div class="muted" style="font-size:12px">Carlos Lima · Campinas · APTO</div></div></div></td><td><span class="n" style="font-size:18px">88</span></td><td><span class="pill st1"><span class="dot" style="background:#9CA3AF"></span>Não contatado</span></td><td class="muted">—</td><td>Primeiro contato</td></tr>
+    <tr><td><div style="display:flex;gap:10px;align-items:center"><span class="av">CS</span><div><b>Clínica Sorriso Fino</b><div class="muted" style="font-size:12px">Beatriz Melo · Valinhos · APTO</div></div></div></td><td><span class="n" style="font-size:18px">7</span></td><td><span class="pill st5"><span class="dot" style="background:var(--lar)"></span>Em negociação</span></td><td class="muted">12/11 · Ligação</td><td style="color:var(--ganho);font-weight:600">● Retorno hoje 15:00</td></tr>
+  </table>
+</div></div>
+
+<h2>Funil · as negociações em andamento</h2>
+<p class="desc">Só quem já teve contato (Contato efetivo em diante); quem ainda não foi contatado fica na Carteira. Cartão com linhas, valor da proposta e há quanto tempo está parado. Arrastar muda a etapa; Renovado e Perdido pedem linhas ou motivo.</p>
+<div class="screen"><div class="side"><i></i><i></i><i class="on"></i><i></i></div><div class="main">
+  <div class="eyebrow">APEX · CLARO EMPRESAS</div><div class="title">RENOVAÇÃO</div>
+  <div class="seg"><span>Hoje <span class="badge">22</span></span><span>Carteira</span><span class="on">Funil</span><span>Resumo</span><span>Proposta e fatura</span></div>
+  <div class="kb">
+    <div class="col"><div class="colH"><span><span class="dot" style="background:var(--azul)"></span> Contato efetivo</span><span class="muted">11</span></div>
+      <div class="cd"><b>Padaria Pão Dourado</b><div class="muted">12 linhas</div><div class="late" style="font-size:12px;margin-top:4px">⏱ parado há 3 dias</div></div>
+      <div class="cd"><b>Gráfica Rápida Sul</b><div class="muted">18 linhas · há 1 dia</div></div></div>
+    <div class="col"><div class="colH"><span><span class="dot" style="background:var(--roxo)"></span> Proposta enviada</span><span class="muted">4</span></div>
+      <div class="cd"><b>Vidraçaria Estrela</b><div class="muted">5 linhas · R$ 640</div><div class="muted" style="margin-top:4px">há 2 dias</div></div></div>
+    <div class="col"><div class="colH"><span><span class="dot" style="background:var(--lar)"></span> Em negociação</span><span class="muted">4</span></div>
+      <div class="cd"><b>Clínica Sorriso Fino</b><div class="muted">7 linhas · R$ 1.240</div><div style="font-size:12px;margin-top:4px;color:var(--ganho);font-weight:600">● retorno hoje 15:00</div></div></div>
+    <div class="col"><div class="colH"><span><span class="dot" style="background:var(--ganho)"></span> Renovado</span><span class="muted">4</span></div>
+      <div class="cd"><b>Transportes Lima</b><div class="muted">22 linhas renovadas</div></div></div>
+    <div class="col"><div class="colH"><span><span class="dot" style="background:var(--sinal6)"></span> Perdido</span><span class="muted">13</span></div>
+      <div class="cd"><b>Escola Pequeno Saber</b><div class="muted">Preço</div></div></div>
+  </div>
+</div></div>
+
+<h2>Resumo · o placar do time (gestor) ou o seu (consultor)</h2>
+<p class="desc">Os números da planilha, mas legíveis: cartões no topo e uma linha por consultor com barras de cobertura e conversão. Importar base continua aqui, num botão discreto para o admin.</p>
+<div class="screen"><div class="side"><i></i><i></i><i class="on"></i><i></i></div><div class="main">
+  <div class="eyebrow">APEX · CLARO EMPRESAS</div><div class="title">RENOVAÇÃO</div>
+  <div class="seg"><span>Hoje <span class="badge">22</span></span><span>Carteira</span><span>Funil</span><span class="on">Resumo</span><span>Proposta e fatura</span></div>
+  <div class="kpis">
+    <div class="kpi"><div class="n">1.242</div><small>clientes na carteira</small></div>
+    <div class="kpi"><div class="n">23,2%</div><small>contatados (288)</small></div>
+    <div class="kpi"><div class="n">15,1%</div><small>conversão (8 de 53)</small></div>
+    <div class="kpi"><div class="n late">25</div><small>retornos atrasados</small></div>
+  </div>
+  <table>
+    <tr><th>Consultor</th><th>Carteira</th><th>Cobertura</th><th>Conversão</th><th>Em negociação</th><th>Renovados</th><th>Linhas renov.</th><th>Atrasados</th></tr>
+    <tr><td><b>Bruno</b></td><td>414</td><td><div style="display:flex;gap:8px;align-items:center"><div class="barbg"><span style="width:8%;background:var(--ink)"></span></div>8,2%</div></td><td><div style="display:flex;gap:8px;align-items:center"><div class="barbg"><span style="width:12%;background:var(--ganho)"></span></div>11,8%</div></td><td>4</td><td>2</td><td>0</td><td class="late">2</td></tr>
+    <tr><td><b>Fabiana</b></td><td>414</td><td><div style="display:flex;gap:8px;align-items:center"><div class="barbg"><span style="width:20%;background:var(--ink)"></span></div>20,3%</div></td><td><div style="display:flex;gap:8px;align-items:center"><div class="barbg"><span style="width:20%;background:var(--ganho)"></span></div>20,0%</div></td><td>11</td><td>4</td><td>19</td><td class="late">22</td></tr>
+    <tr><td><b>Silvana</b></td><td>414</td><td><div style="display:flex;gap:8px;align-items:center"><div class="barbg"><span style="width:41%;background:var(--ink)"></span></div>41,1%</div></td><td><div style="display:flex;gap:8px;align-items:center"><div class="barbg"><span style="width:11%;background:var(--ganho)"></span></div>11,1%</div></td><td>8</td><td>2</td><td>0</td><td class="late">1</td></tr>
+  </table>
+  <div style="text-align:right;margin-top:12px"><span class="b bW">⤒ Importar base (admin)</span></div>
+</div></div>
+
+<div class="q"><b>Uma dúvida para você:</b> na Central do dia eu tinha colocado "meta do mês: 20 renovações". Hoje o painel <b>não tem meta</b> de renovação. Prefere que eu crie uma meta por consultor (o admin define), ou troque esse cartão por "linhas renovadas no mês"?</div>
+
+</body></html>

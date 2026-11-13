@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--sinal:#E30613;--sinal6:#C1050F;--bordo:#520C07;--ink:#1D1F20;--ink2:#464A4E;--ink3:#7A7F85;--papel:#F2F2F3;--branco:#fff;--s2:#F7F7F8;--linha:#E2E2E4;--rosa:#FBE3E4;
+        --ganho:#1F7A45;--ganhoBg:#E3F1E8;--and:#B45309;--andBg:#FEF3C7;--azul:#1D4ED8;--azulBg:#E0E7FF;--roxo:#6D28D9;--roxoBg:#EDE9FE;}
+  *{box-sizing:border-box} body{margin:0;background:#E9E9EC;font-family:Barlow,system-ui,sans-serif;color:var(--ink);padding:28px 32px 80px}
+  h1{font-family:'Barlow Condensed';font-size:30px;margin:0 0 4px} .lead{color:var(--ink2);margin:0 0 28px;font-size:15px}
+  .opt{margin-bottom:56px} .optHead{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:12px;gap:16px}
+  .optHead h2{margin:0;font-size:22px} .optHead p{margin:4px 0 0;color:var(--ink2);max-width:820px;font-size:14px;line-height:1.45}
+  .pick{border:2px solid var(--ink);background:#fff;border-radius:10px;padding:10px 18px;font:600 14px Barlow;cursor:pointer;white-space:nowrap}
+  .pick.selected{background:var(--sinal);border-color:var(--sinal);color:#fff}
+  .screen{background:var(--papel);border-radius:14px;overflow:hidden;box-shadow:0 20px 50px rgba(29,31,32,.18);display:flex;min-height:640px}
+  .side{width:64px;background:var(--bordo);flex:none;display:flex;flex-direction:column;align-items:center;padding-top:18px;gap:16px}
+  .side i{width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,.12);display:block} .side i.on{background:var(--sinal)}
+  .main{flex:1;padding:22px 26px;min-width:0}
+  .eyebrow{font-size:11px;letter-spacing:.14em;color:var(--sinal);font-weight:700} .title{font-family:'Barlow Condensed';font-size:30px;font-weight:700;margin:2px 0 14px}
+  .n{font-family:'Barlow Condensed';font-weight:700;font-variant-numeric:tabular-nums}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;white-space:nowrap}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+  .b{display:inline-flex;align-items:center;gap:6px;border-radius:8px;padding:8px 12px;font-weight:600;font-size:13px;border:0;white-space:nowrap}
+  .bP{background:var(--sinal);color:#fff} .bG{background:var(--s2);color:var(--ink)} .bW{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.06)}
+  .muted{color:var(--ink3)} .late{color:var(--sinal6);font-weight:600}
+  .av{width:34px;height:34px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none}
+  /* status */
+  .st1{background:#EEF0F2;color:#4B5563}.st2{background:var(--andBg);color:var(--and)}.st3{background:var(--azulBg);color:var(--azul)}
+  .st4{background:var(--roxoBg);color:var(--roxo)}.st5{background:#FFEDD5;color:#C2410C}.st6{background:var(--ganhoBg);color:var(--ganho)}.st7{background:var(--rosa);color:var(--sinal6)}
+
+  /* ===== A ===== */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+  .kpi{background:#fff;border-radius:12px;padding:14px 16px} .kpi .n{font-size:34px;line-height:1} .kpi small{display:block;color:var(--ink2);font-size:13px;margin-top:4px}
+  .bar{height:6px;border-radius:999px;background:var(--s2);margin-top:10px;overflow:hidden} .bar span{display:block;height:100%;border-radius:999px}
+  .gridA{display:grid;grid-template-columns:1.05fr 1fr;gap:14px}
+  .panel{background:#fff;border-radius:12px;padding:14px}
+  .grpT{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:13px;margin:6px 4px 6px}
+  .item{display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px} .item:hover{background:var(--s2)} .item.sel{background:var(--rosa)}
+  .item .nm{font-weight:600;font-size:14px} .item .sub{font-size:12px;color:var(--ink3)}
+  .tabs{display:flex;gap:18px;border-bottom:1px solid var(--linha);margin:12px 0} .tabs span{padding:8px 0;font-weight:600;color:var(--ink3);font-size:13px} .tabs .on{color:var(--ink);box-shadow:inset 0 -2px 0 var(--sinal)}
+  .chipsel{display:flex;flex-wrap:wrap;gap:8px} .chipsel span{border:1.5px solid var(--linha);border-radius:10px;padding:8px 12px;font-weight:600;font-size:13px} .chipsel .on{border-color:var(--azul);background:var(--azulBg);color:var(--azul)}
+  .fld{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px} .fld div{background:var(--s2);border-radius:8px;padding:8px 10px;font-size:13px} .fld small{display:block;color:var(--ink3);font-size:11px}
+
+  /* ===== B ===== */
+  .tbar{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .search{flex:1;background:#fff;border-radius:10px;padding:10px 14px;color:var(--ink3);font-size:14px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+  .views{display:flex;gap:6px;margin-bottom:12px} .views span{padding:7px 12px;border-radius:999px;font-weight:600;font-size:13px;background:#fff;color:var(--ink2)} .views .on{background:var(--ink);color:#fff}
+  .views b{font-weight:700;margin-left:4px;opacity:.7}
+  .fchips{display:flex;gap:6px;margin-bottom:12px;align-items:center} .fchip{background:#fff;border:1px dashed var(--linha);border-radius:8px;padding:5px 10px;font-size:12px;color:var(--ink2)} .fchip.set{border-style:solid;border-color:var(--ink);color:var(--ink);font-weight:600}
+  table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden} th{text-align:left;font-size:12px;color:var(--ink3);font-weight:600;padding:10px 12px;background:var(--s2)}
+  td{padding:11px 12px;border-top:1px solid #F0F0F2;font-size:13px;vertical-align:middle} tr.hov td{background:#FCFCFD}
+  .acts{display:flex;gap:6px;opacity:.95} .ico{width:30px;height:30px;border-radius:8px;background:var(--s2);display:inline-flex;align-items:center;justify-content:center;font-size:14px}
+
+  /* ===== C ===== */
+  .pipe{display:flex;height:42px;border-radius:12px;overflow:hidden;margin:6px 0 6px;background:#fff}
+  .pipe div{display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden}
+  .pipeL{display:flex;gap:14px;font-size:12px;color:var(--ink2);margin-bottom:16px;flex-wrap:wrap}
+  .cardsC{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .cc{background:#fff;border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;border-top:4px solid transparent}
+  .cc .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px} .cc .nm{font-weight:700;font-size:14px;line-height:1.2}
+  .cc .meta{display:flex;justify-content:space-between;align-items:flex-end} .cc .n{font-size:28px;line-height:1}
+  .cc .foot{display:flex;gap:6px} .cc .foot .b{flex:1;justify-content:center;padding:7px}
+</style></head><body>
+
+<h1>Renovação: três caras novas para a aba</h1>
+<p class="lead">Mockups em tamanho real, com as cores do painel e dados fictícios. Cada um mostra carteira, filtros, retornos e ficha juntos. Escolha uma (ou me diga o que aproveitar de cada).</p>
+
+<!-- ================= A ================= -->
+<div class="opt">
+  <div class="optHead"><div><h2>A · Central do dia</h2><p>Números do mês no topo. Embaixo, à esquerda, o que fazer agora (atrasados, hoje e sugestões, já em ordem); à direita, a ficha do cliente com abas. Registrar o contato é clicar num botão grande, sem selects.</p></div>
+  <button class="pick" data-choice="a" onclick="toggleSelect(this)">Quero esta</button></div>
+  <div class="screen"><div class="side"><i></i><i></i><i class="on"></i><i></i></div><div class="main">
+    <div class="eyebrow">APEX · CLARO EMPRESAS</div><div class="title">RENOVAÇÃO</div>
+    <div class="kpis">
+      <div class="kpi"><div class="n">414</div><small>clientes na sua carteira</small><div class="bar"><span style="width:23%;background:var(--ink)"></span></div><small style="font-size:12px">23% já contatados</small></div>
+      <div class="kpi"><div class="n late">22</div><small>retornos atrasados</small><div class="bar"><span style="width:60%;background:var(--sinal)"></span></div><small style="font-size:12px">5 vencem hoje</small></div>
+      <div class="kpi"><div class="n">12</div><small>em negociação</small><div class="bar"><span style="width:35%;background:#C2410C"></span></div><small style="font-size:12px">R$ 18,4 mil em propostas</small></div>
+      <div class="kpi"><div class="n" style="color:var(--ganho)">4</div><small>renovados no mês</small><div class="bar"><span style="width:20%;background:var(--ganho)"></span></div><small style="font-size:12px">meta do mês: 20</small></div>
+    </div>
+    <div class="gridA">
+      <div class="panel">
+        <div style="display:flex;gap:8px;margin-bottom:8px"><div class="search" style="box-shadow:none;background:var(--s2)">🔍 Buscar empresa, CNPJ ou ADM</div><span class="b bG">Filtros</span></div>
+        <div class="grpT"><span class="late">⏱ Atrasados · 22</span><span class="muted" style="font-weight:500">ver todos</span></div>
+        <div class="item sel"><span class="av" style="background:#fff;color:var(--sinal)">PD</span><div style="flex:1"><div class="nm">Padaria Pão Dourado</div><div class="sub">Ana Souza · 12 linhas</div></div><span class="pill st3"><span class="dot" style="background:var(--azul)"></span>Contato efetivo</span><span class="late" style="font-size:12px">há 3 dias</span></div>
+        <div class="item"><span class="av" style="background:var(--s2)">AB</span><div style="flex:1"><div class="nm">Auto Peças Boa Viagem</div><div class="sub">Rui Prado · 31 linhas</div></div><span class="pill st2"><span class="dot" style="background:var(--and)"></span>Tentativa</span><span class="late" style="font-size:12px">ontem</span></div>
+        <div class="grpT" style="margin-top:12px"><span style="color:var(--ganho)">● Hoje · 5</span></div>
+        <div class="item"><span class="av" style="background:var(--s2)">CS</span><div style="flex:1"><div class="nm">Clínica Sorriso Fino</div><div class="sub">Beatriz Melo · 7 linhas</div></div><span class="pill st5"><span class="dot" style="background:#C2410C"></span>Negociação</span><span style="font-size:12px;font-weight:600">15:00</span></div>
+        <div class="grpT" style="margin-top:12px"><span>★ Sugeridos · maiores sem contato</span></div>
+        <div class="item"><span class="av" style="background:var(--s2)">MB</span><div style="flex:1"><div class="nm">Mercado Bom Preço</div><div class="sub">Carlos Lima · 88 linhas</div></div><span class="pill st1"><span class="dot" style="background:#9CA3AF"></span>Não contatado</span><span class="muted" style="font-size:12px">APTO</span></div>
+      </div>
+      <div class="panel">
+        <div style="display:flex;gap:12px;align-items:center"><span class="av" style="width:46px;height:46px;background:var(--rosa);color:var(--sinal);font-size:16px">PD</span><div style="flex:1"><div class="n" style="font-size:22px">Padaria Pão Dourado</div><div class="muted" style="font-size:13px">12.345.678/0001-90 · Campinas · 12 linhas · APTO</div></div></div>
+        <div style="display:flex;gap:8px;margin-top:12px"><span class="b bP">WhatsApp</span><span class="b bG">Ligar</span><span class="b bG">Gerar proposta</span></div>
+        <div class="tabs"><span class="on">Atendimento</span><span>Dados da Claro</span><span>Propostas · 1</span><span>Histórico</span></div>
+        <div style="font-weight:600;font-size:13px;margin-bottom:8px">Como foi o contato?</div>
+        <div class="chipsel"><span>Não atendeu</span><span class="on">Falei com o ADM</span><span>Mandei proposta</span><span>Negociando</span><span>Renovou ✓</span><span>Perdido</span></div>
+        <div class="fld"><div><small>Próximo retorno</small>Seg, 17/11 · 10:00</div><div><small>Canal</small>WhatsApp</div></div>
+        <div class="fld" style="grid-template-columns:1fr"><div><small>Observação</small>Pediu proposta com 2 linhas a mais e fibra.</div></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:14px"><span class="b bP">Salvar e próximo →</span></div>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= B ================= -->
+<div class="opt">
+  <div class="optHead"><div><h2>B · Lista inteligente com visões prontas</h2><p>Abas de visão no topo ("Minha fila", "Atrasados", "Em negociação", "Todos") com contagem. Filtros viram fichinhas que você liga e desliga. Tabela limpa, com status em etiqueta colorida e ações rápidas na linha (WhatsApp, ligar, proposta). Clicar abre a ficha numa gaveta à direita.</p></div>
+  <button class="pick" data-choice="b" onclick="toggleSelect(this)">Quero esta</button></div>
+  <div class="screen"><div class="side"><i></i><i></i><i class="on"></i><i></i></div><div class="main">
+    <div class="eyebrow">APEX · CLARO EMPRESAS</div><div class="title">RENOVAÇÃO</div>
+    <div class="tbar"><div class="search">🔍 Buscar empresa, CNPJ ou ADM</div><span class="b bW">⇅ Mais linhas primeiro</span><span class="b bW">Quadro</span><span class="b bW">Resumo</span></div>
+    <div class="views"><span class="on">Minha fila <b>27</b></span><span>Atrasados <b class="late" style="opacity:1">22</b></span><span>Hoje <b>5</b></span><span>Em negociação <b>12</b></span><span>Não contatados <b>320</b></span><span>Todos <b>414</b></span></div>
+    <div class="fchips"><span class="fchip set">Apto: APTO ✕</span><span class="fchip set">Cidade: Campinas ✕</span><span class="fchip">+ DDD</span><span class="fchip">+ Status</span><span class="fchip">+ Linhas</span><span class="muted" style="font-size:12px;margin-left:auto">27 clientes · 412 linhas</span></div>
+    <table>
+      <tr><th>Empresa</th><th>Linhas</th><th>Status</th><th>Último contato</th><th>Próximo passo</th><th style="width:130px"></th></tr>
+      <tr class="hov"><td><div style="display:flex;gap:10px;align-items:center"><span class="av" style="background:var(--rosa);color:var(--sinal)">PD</span><div><b>Padaria Pão Dourado</b><div class="muted" style="font-size:12px">Ana Souza · Campinas</div></div></div></td><td><span class="n" style="font-size:18px">12</span></td><td><span class="pill st3"><span class="dot" style="background:var(--azul)"></span>Contato efetivo</span></td><td class="muted">10/11 · WhatsApp</td><td><span class="late">⏱ Retorno atrasado 3 dias</span></td><td><div class="acts"><span class="ico">💬</span><span class="ico">📞</span><span class="ico">📄</span></div></td></tr>
+      <tr><td><div style="display:flex;gap:10px;align-items:center"><span class="av" style="background:var(--s2)">MB</span><div><b>Mercado Bom Preço</b><div class="muted" style="font-size:12px">Carlos Lima · Campinas</div></div></div></td><td><span class="n" style="font-size:18px">88</span></td><td><span class="pill st1"><span class="dot" style="background:#9CA3AF"></span>Não contatado</span></td><td class="muted">—</td><td>Primeiro contato</td><td><div class="acts"><span class="ico">💬</span><span class="ico">📞</span><span class="ico">📄</span></div></td></tr>
+      <tr><td><div style="display:flex;gap:10px;align-items:center"><span class="av" style="background:var(--s2)">CS</span><div><b>Clínica Sorriso Fino</b><div class="muted" style="font-size:12px">Beatriz Melo · Campinas</div></div></div></td><td><span class="n" style="font-size:18px">7</span></td><td><span class="pill st5"><span class="dot" style="background:#C2410C"></span>Em negociação</span></td><td class="muted">12/11 · Ligação</td><td><span style="color:var(--ganho);font-weight:600">● Retorno hoje 15:00</span></td><td><div class="acts"><span class="ico">💬</span><span class="ico">📞</span><span class="ico">📄</span></div></td></tr>
+      <tr><td><div style="display:flex;gap:10px;align-items:center"><span class="av" style="background:var(--s2)">VE</span><div><b>Vidraçaria Estrela</b><div class="muted" style="font-size:12px">Paulo Reis · Campinas</div></div></div></td><td><span class="n" style="font-size:18px">5</span></td><td><span class="pill st4"><span class="dot" style="background:var(--roxo)"></span>Proposta enviada</span></td><td class="muted">11/11 · E-mail</td><td>Retorno 18/11</td><td><div class="acts"><span class="ico">💬</span><span class="ico">📞</span><span class="ico">📄</span></div></td></tr>
+      <tr><td><div style="display:flex;gap:10px;align-items:center"><span class="av" style="background:var(--ganhoBg);color:var(--ganho)">TL</span><div><b>Transportes Lima</b><div class="muted" style="font-size:12px">Joana Lima · Campinas</div></div></div></td><td><span class="n" style="font-size:18px">22</span></td><td><span class="pill st6"><span class="dot" style="background:var(--ganho)"></span>Renovado</span></td><td class="muted">08/11 · Visita</td><td class="muted">22 linhas renovadas</td><td><div class="acts"><span class="ico">💬</span><span class="ico">📞</span><span class="ico">📄</span></div></td></tr>
+    </table>
+  </div></div>
+</div>
+
+<!-- ================= C ================= -->
+<div class="opt">
+  <div class="optHead"><div><h2>C · Carteira em cartões + barra do funil</h2><p>No topo, uma barra colorida mostra a carteira inteira por etapa; clicar num pedaço filtra. Embaixo, cada cliente é um cartão com o número de linhas grande, etapa, retorno e botões de ação. Mais visual e "de vitrine", menos denso.</p></div>
+  <button class="pick" data-choice="c" onclick="toggleSelect(this)">Quero esta</button></div>
+  <div class="screen"><div class="side"><i></i><i></i><i class="on"></i><i></i></div><div class="main">
+    <div class="eyebrow">APEX · CLARO EMPRESAS</div><div class="title">RENOVAÇÃO</div>
+    <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:14px">Sua carteira · 414 clientes</b><div style="display:flex;gap:8px"><div class="search" style="width:320px;flex:none">🔍 Buscar empresa, CNPJ ou ADM</div><span class="b bW">Filtros</span></div></div>
+    <div class="pipe">
+      <div style="flex:320;background:#9CA3AF">Não contatado · 320</div><div style="flex:58;background:var(--and)">Tentativa · 58</div><div style="flex:11;background:var(--azul)">11</div><div style="flex:4;background:var(--roxo)"></div><div style="flex:4;background:#C2410C"></div><div style="flex:4;background:var(--ganho)"></div><div style="flex:13;background:var(--sinal6)">13</div>
+    </div>
+    <div class="pipeL"><span><span class="dot" style="background:#9CA3AF"></span> Não contatado 320</span><span><span class="dot" style="background:var(--and)"></span> Tentativa 58</span><span><span class="dot" style="background:var(--azul)"></span> Contato efetivo 11</span><span><span class="dot" style="background:var(--roxo)"></span> Proposta 4</span><span><span class="dot" style="background:#C2410C"></span> Negociação 4</span><span><span class="dot" style="background:var(--ganho)"></span> Renovado 4</span><span><span class="dot" style="background:var(--sinal6)"></span> Perdido 13</span><span class="late" style="margin-left:auto">⏱ 22 retornos atrasados →</span></div>
+    <div class="cardsC">
+      <div class="cc" style="border-top-color:var(--sinal)"><div class="top"><div class="nm">Padaria Pão Dourado<div class="muted" style="font-weight:500;font-size:12px">Ana Souza · Campinas</div></div><span class="pill st3">Contato efetivo</span></div><div class="meta"><div><span class="n">12</span> <span class="muted">linhas</span></div><span class="late" style="font-size:12px">⏱ há 3 dias</span></div><div class="foot"><span class="b bP">WhatsApp</span><span class="b bG">Abrir</span></div></div>
+      <div class="cc"><div class="top"><div class="nm">Mercado Bom Preço<div class="muted" style="font-weight:500;font-size:12px">Carlos Lima · Campinas</div></div><span class="pill st1">Não contatado</span></div><div class="meta"><div><span class="n">88</span> <span class="muted">linhas</span></div><span class="muted" style="font-size:12px">APTO</span></div><div class="foot"><span class="b bP">WhatsApp</span><span class="b bG">Abrir</span></div></div>
+      <div class="cc" style="border-top-color:var(--ganho)"><div class="top"><div class="nm">Clínica Sorriso Fino<div class="muted" style="font-weight:500;font-size:12px">Beatriz Melo · Valinhos</div></div><span class="pill st5">Negociação</span></div><div class="meta"><div><span class="n">7</span> <span class="muted">linhas</span></div><span style="font-size:12px;color:var(--ganho);font-weight:600">● hoje 15:00</span></div><div class="foot"><span class="b bP">WhatsApp</span><span class="b bG">Abrir</span></div></div>
+      <div class="cc"><div class="top"><div class="nm">Vidraçaria Estrela<div class="muted" style="font-weight:500;font-size:12px">Paulo Reis · Sumaré</div></div><span class="pill st4">Proposta</span></div><div class="meta"><div><span class="n">5</span> <span class="muted">linhas</span></div><span class="muted" style="font-size:12px">18/11</span></div><div class="foot"><span class="b bP">WhatsApp</span><span class="b bG">Abrir</span></div></div>
+      <div class="cc"><div class="top"><div class="nm">Auto Peças Boa Viagem<div class="muted" style="font-weight:500;font-size:12px">Rui Prado · Campinas</div></div><span class="pill st2">Tentativa</span></div><div class="meta"><div><span class="n">31</span> <span class="muted">linhas</span></div><span class="late" style="font-size:12px">⏱ ontem</span></div><div class="foot"><span class="b bP">WhatsApp</span><span class="b bG">Abrir</span></div></div>
+      <div class="cc"><div class="top"><div class="nm">Transportes Lima<div class="muted" style="font-weight:500;font-size:12px">Joana Lima · Hortolândia</div></div><span class="pill st6">Renovado</span></div><div class="meta"><div><span class="n">22</span> <span class="muted">linhas</span></div><span class="muted" style="font-size:12px">08/11</span></div><div class="foot"><span class="b bG" style="flex:1">Ver proposta</span></div></div>
+      <div class="cc"><div class="top"><div class="nm">Pet Shop Amigo Fiel<div class="muted" style="font-weight:500;font-size:12px">Lia Torres · Campinas</div></div><span class="pill st1">Não contatado</span></div><div class="meta"><div><span class="n">40</span> <span class="muted">linhas</span></div><span class="muted" style="font-size:12px">1 mês p/ apto</span></div><div class="foot"><span class="b bP">WhatsApp</span><span class="b bG">Abrir</span></div></div>
+      <div class="cc"><div class="top"><div class="nm">Escola Pequeno Saber<div class="muted" style="font-weight:500;font-size:12px">Rita Gomes · Valinhos</div></div><span class="pill st7">Perdido</span></div><div class="meta"><div><span class="n">9</span> <span class="muted">linhas</span></div><span class="muted" style="font-size:12px">Preço</span></div><div class="foot"><span class="b bG" style="flex:1">Ver motivo</span></div></div>
+    </div>
+  </div></div>
+</div>
+
+</body></html>
