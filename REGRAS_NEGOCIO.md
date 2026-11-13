@@ -4966,4 +4966,19 @@ agência". Conta feita no banco antes (sem Repique e sem apagados): média de 28
   Backup: `~/deploy_backups/painel_clientes_apex_20261112_212311_antes_tv_vendas_v2.html`.
   Reverter: copiar o backup de volta.
 
+### §149.3 META BATIDA! por tela e campo da meta estável (13/11/2026 14:20, ok do Rafael)
+
+- **META por tela:** antes, a META BATIDA! saía uma vez no total, e uma aba da TV aberta na mesa do gestor podia
+  "gastar" a comemoração da TV da sala. Agora cada tela manda um id (`tvTela` no navegador) e
+  `tv_meta_comemorar(p_tela)` registra em `tv_meta_tela`: uma vez por dia em cada tela. A versão sem parâmetro
+  continua, para o painel antigo aberto.
+  - Migration `20261113140000_tv_meta_por_tela.sql`; conferência `supabase/tests/tv_meta_por_tela_check.sql`.
+- **Campo da meta:** quem está digitando a meta não perde o texto quando o ranking redesenha.
+- **Teste:** `test_tv_vendas_meta_tela.js`.
+- **Limpeza:** a venda de teste nº 5 (admin, 12/11 20:21) já tinha sido cancelada pelo Rafael (motivo "teste").
+- **Observado em 13/11:** às 14h, o discador da Apex tinha só 31 chamadas (o robô importava normal; as chamadas
+  novas eram da Campinas). Por isso a TV estava sem vendas e sem contatos: é operação, não sistema.
+- **Publicação (13/11/2026 14:20):** o ar era `2dafd3a7…`; novo MD5 `53963b73…`.
+  Backup `~/deploy_backups/painel_clientes_apex_20261113_142026_antes_tv_meta_tela.html`.
+
 Próxima livre: §150 (§138.2 e §138.3 reservadas).
