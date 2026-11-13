@@ -4962,5 +4962,8 @@ agência". Conta feita no banco antes (sem Repique e sem apagados): média de 28
   venda de lead sai pelo status do lead.
 - **Testes:** `test_tv_vendas_v2.js` (37); `test_tv_vendas_festa.js` e `test_tv_vendas_vendi.js` ajustados ao placar
   novo e ao Desfazer em duas etapas.
+- **Publicação (12/11/2026 21:23, ok do Rafael):** o ar era `54e30e3f…`; novo MD5 `2dafd3a7…`.
+  Backup: `~/deploy_backups/painel_clientes_apex_20261112_212311_antes_tv_vendas_v2.html`.
+  Reverter: copiar o backup de volta.
 
 Próxima livre: §150 (§138.2 e §138.3 reservadas).
