@@ -1008,6 +1008,8 @@
   .rnHist{margin:0;padding-left:1.1em;color:var(--muted);}
   .rnTotal td{font-weight:700;}
   .rnRetBloco{margin-bottom:var(--space-3);}
+  .rnRetLista{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-2);}
+  .kanbanCard.kcRenovacao{cursor:pointer;}
   .rnKanban{display:grid;grid-template-columns:repeat(5,minmax(200px,1fr));gap:var(--space-3);overflow-x:auto;}
   .rnKbCol{background:var(--ml-surface-2);border-radius:var(--radius-lg);padding:var(--space-2);min-height:200px;}
   .rnKbHead{display:flex;justify-content:space-between;font-weight:600;margin-bottom:var(--space-2);}
@@ -1762,7 +1764,6 @@
       </div>
     </section>
 
-    <!-- FUNIL DE VENDAS (kanban — todos os perfis) -->
     <section class="panel" id="panel-renovacao">
       <div class="kbBarra">
         <nav class="kbSeg" id="rnAbas" aria-label="Visões da Renovação">
@@ -1780,6 +1781,7 @@
           <select id="rnFStatus" aria-label="Status"></select>
           <select id="rnFApto" aria-label="Apto"><option value="">Apto: todos</option><option value="APTO">APTO</option><option value="1 MÊS PARA APTO">1 mês para apto</option></select>
           <select id="rnFCidade" aria-label="Cidade"></select>
+          <select id="rnFDdd" aria-label="DDD"></select>
           <select id="rnFConsultor" aria-label="Consultor" style="display:none"></select>
           <button type="button" class="filterPill" data-rn-filtro="soVencido">Só retorno vencido</button>
           <button type="button" class="filterPill" data-rn-filtro="pendencias">Pendências</button>
@@ -1800,6 +1802,7 @@
       <div id="rnResumo" class="rnVisao" hidden></div>
       <aside class="kbFicha" id="rnFicha" aria-label="Ficha do cliente"><div class="kbFichaCorpo" id="rnFichaCorpo"></div></aside>
     </section>
+    <!-- FUNIL DE VENDAS (kanban — todos os perfis) -->
     <section class="panel" id="panel-funil">
       <div class="funilTopBar">
         <div>
@@ -1893,7 +1896,7 @@
         <h3>Equipe</h3>
         <table class="tbl">
           <thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Consultas</th><th>Última consulta</th><th>Renovação</th><th>Ações</th></tr></thead>
-          <tbody id="usersTbody"><tr><td colspan="6" class="spinnerNote isLoading">Carregando...</td></tr></tbody>
+          <tbody id="usersTbody"><tr><td colspan="7" class="spinnerNote isLoading">Carregando...</td></tr></tbody>
         </table>
         <p class="desc" style="margin-top:12px;margin-bottom:0">Contagem de consultas realizadas na base por cada usuário. Destacado em vermelho quando ultrapassa 20 consultas.</p>
       </div>
@@ -3841,7 +3844,7 @@ const RN_CANAIS = ['WhatsApp', 'Ligação', 'E-mail', 'Visita'];
 const RN_MOTIVOS = ['Preço', 'Foi p/ concorrente', 'Sem interesse', 'Insatisfeito c/ Claro', 'Empresa fechada/baixada', 'Contato inválido', 'Outro'];
 const RN_COLS_LISTA = 'id,cnpj_digits,razao_social,telefone,nome_adm,linhas_voz,apto,cidade,ddd,consultor_id,origem,status,data_contato,prox_retorno,canal,linhas_renovadas,bl_vendida,sol_digitais,motivo_perda,observacoes,na_base,a_completar,atualizado_em,status_desde';
 const RN_PAGINA = 100;
-function rnFiltrosVazios(){ return { busca: '', status: '', apto: '', cidade: '', consultor: '', soVencido: false, pendencias: false, foraBase: false }; }
+function rnFiltrosVazios(){ return { busca: '', status: '', apto: '', cidade: '', ddd: '', consultor: '', soVencido: false, pendencias: false, foraBase: false }; }
 const rnEstado = { aba: 'carteira', lista: [], propostas: [], arrastando: null, perfis: [], carregado: false, geracao: 0, filtros: rnFiltrosVazios(), pagina: 1, selecionados: new Set(), fichaId: null, ficha: null, importacao: null };
 
 function rnGestor(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
@@ -3873,7 +3876,10 @@ function rnRetornoVencido(r, hoje){ return !!r.prox_retorno && r.prox_retorno < 
 function rnNomeConsultor(id){
   if(!id) return 'Sem consultor';
   const p = rnEstado.perfis.find(x => x.id === id);
-  return p ? p.nome : (currentUser && id === currentUser.id ? currentUser.nome : '—');
+  if(p) return p.nome;
+  if(rnEstado.nomes && rnEstado.nomes[id]) return rnEstado.nomes[id];
+  if(currentUser && id === currentUser.id) return currentUser.nome;
+  return rnGestor() ? '—' : 'Supervisão';   // o consultor só lê o próprio perfil
 }
 function rnAtualizarBadge(){
   const hoje = rnHoje();
@@ -3889,14 +3895,16 @@ async function rnCarregar(){
   const [car, pf] = await Promise.all([
     fetchAllRows(() => sb.from('renovacao_carteira').select(RN_COLS_LISTA).order('id')),
     rnGestor()
-      ? ppSeguro(() => sb.from('profiles').select('id,nome,equipe').eq('equipe', 'renovacao').order('nome'))
+      ? ppSeguro(() => sb.from('profiles').select('id,nome,equipe').order('nome'))
       : Promise.resolve({ data: [{ id: currentUser.id, nome: currentUser.nome, equipe: 'renovacao' }], error: null }),
     rnCarregarPropostas(),
   ]);
   if(geracao !== rnEstado.geracao) return;
   if(car.error){ console.error(car.error); rnStatus('Não foi possível carregar a carteira agora.'); return; }
   rnEstado.lista = car.data || [];
-  rnEstado.perfis = (pf && !pf.error && pf.data) || [];
+  const todos = (pf && !pf.error && pf.data) || [];
+  rnEstado.nomes = Object.fromEntries(todos.map(p => [p.id, p.nome]));   // histórico: nome de quem não é do time
+  rnEstado.perfis = todos.filter(p => p.equipe === 'renovacao');
   rnEstado.carregado = true;
   rnEstado.carregadoEm = Date.now();
   rnStatus('');
@@ -3929,6 +3937,7 @@ function rnFiltrar(lista, f, hoje){
     if(f.status && String(r.status) !== String(f.status)) return false;
     if(f.apto && r.apto !== f.apto) return false;
     if(f.cidade && r.cidade !== f.cidade) return false;
+    if(f.ddd && String(r.ddd || '') !== f.ddd) return false;
     if(f.consultor === '-' ? !!r.consultor_id : (f.consultor && r.consultor_id !== f.consultor)) return false;
     if(f.soVencido && !rnRetornoVencido(r, hoje)) return false;
     if(f.pendencias && !r.a_completar) return false;
@@ -3954,7 +3963,11 @@ function rnValidarFechamento(status, d){
 }
 function rnMensagemErro(err){
   const m = (err && err.message) || '';
-  return /Perdido precisa|Renovado precisa|consultor só altera/.test(m) ? m : 'Não foi possível salvar agora. Tente de novo.';
+  if(/Perdido precisa|Renovado precisa|consultor só altera/.test(m)) return m;
+  const campos = { linhas_renovadas: 'Linhas renovadas não pode ser negativo.', bl_vendida: 'BL vendida não pode ser negativo.',
+    sol_digitais: 'Soluções digitais não pode ser negativo.', canal: 'Canal fora da lista.', motivo_perda: 'Motivo da perda fora da lista.' };
+  const c = m.match(/renovacao_carteira_([a-z_]+)_check/);
+  return c && campos[c[1]] ? campos[c[1]] : 'Não foi possível salvar agora. Tente de novo.';
 }
 async function rnSalvar(id, patch){
   const r = await ppSeguro(() => sb.from('renovacao_carteira').update(patch).eq('id', id).select(RN_COLS_LISTA).single());
@@ -3976,12 +3989,15 @@ function rnPreencherFiltros(){
   document.getElementById('rnFStatus').innerHTML = rnOpcoes(Object.keys(RN_STATUS).map(k => [k, rnStatusRotulo(+k)]), f.status, 'Status: todos');
   const cidades = [...new Set(rnEstado.lista.map(r => r.cidade).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
   document.getElementById('rnFCidade').innerHTML = rnOpcoes(cidades.map(c => [c, c]), f.cidade, 'Cidade: todas');
+  const ddds = [...new Set(rnEstado.lista.map(r => String(r.ddd || '')).filter(Boolean))].sort();
+  document.getElementById('rnFDdd').innerHTML = rnOpcoes(ddds.map(d => [d, d]), f.ddd, 'DDD: todos');
   document.getElementById('rnFApto').value = f.apto;
   const fc = document.getElementById('rnFConsultor');
   fc.style.display = gestor ? '' : 'none';
   if(gestor){
     fc.innerHTML = rnOpcoes([['-', 'Sem consultor']].concat(rnEstado.perfis.map(p => [p.id, p.nome])), f.consultor, 'Consultor: todos');
-    document.getElementById('rnPassarPara').innerHTML = rnOpcoes(rnEstado.perfis.map(p => [p.id, p.nome]), '', 'Passar para…');
+    const pp = document.getElementById('rnPassarPara');
+    pp.innerHTML = rnOpcoes(rnEstado.perfis.map(p => [p.id, p.nome]), pp.value, 'Passar para…');
   }
   document.querySelectorAll('[data-rn-filtro]').forEach(b => b.classList.toggle('active', !!f[b.dataset.rnFiltro]));
 }
@@ -4048,7 +4064,8 @@ function rnAbrirFechamento(id, status){
 }
 async function rnRedistribuir(){
   const para = document.getElementById('rnPassarPara').value;
-  const ids = [...rnEstado.selecionados];
+  const noFiltro = new Set(rnFiltrar(rnEstado.lista, rnEstado.filtros, rnHoje()).map(r => r.id));
+  const ids = [...rnEstado.selecionados].filter(id => noFiltro.has(id));   // selecionado e depois escondido pelo filtro não passa
   if(!para || !ids.length){ mostrarAviso('Escolha os clientes e para quem passar.', 'info'); return; }
   const r = await ppSeguro(() => sb.from('renovacao_carteira').update({ consultor_id: para }).in('id', ids));
   if(!r || r.error){ mostrarAviso('Não foi possível redistribuir agora.', 'erro'); return; }
@@ -4092,12 +4109,12 @@ document.getElementById('rnTbody').addEventListener('click', (e) => {
 });
 document.getElementById('rnThead').addEventListener('change', (e) => {
   if(e.target.id !== 'rnSelTodos') return;
-  rnFiltrar(rnEstado.lista, rnEstado.filtros, rnHoje()).slice(0, rnEstado.pagina * RN_PAGINA)
+  rnFiltrar(rnEstado.lista, rnEstado.filtros, rnHoje())
     .forEach(r => { if(e.target.checked) rnEstado.selecionados.add(r.id); else rnEstado.selecionados.delete(r.id); });
   rnRenderCarteira();
 });
 document.getElementById('rnBusca').addEventListener('input', (e) => { rnEstado.filtros.busca = e.target.value; rnEstado.pagina = 1; rnRenderCarteira(); });
-[['rnFStatus', 'status'], ['rnFApto', 'apto'], ['rnFCidade', 'cidade'], ['rnFConsultor', 'consultor']].forEach(([idEl, k]) =>
+[['rnFStatus', 'status'], ['rnFApto', 'apto'], ['rnFCidade', 'cidade'], ['rnFDdd', 'ddd'], ['rnFConsultor', 'consultor']].forEach(([idEl, k]) =>
   document.getElementById(idEl).addEventListener('change', (e) => { rnEstado.filtros[k] = e.target.value; rnEstado.pagina = 1; rnRenderCarteira(); }));
 document.querySelectorAll('[data-rn-filtro]').forEach(b => b.addEventListener('click', () => {
   const k = b.dataset.rnFiltro; rnEstado.filtros[k] = !rnEstado.filtros[k]; rnEstado.pagina = 1; rnRenderCarteira();
@@ -4193,7 +4210,7 @@ document.getElementById('rnFicha').addEventListener('click', (e) => {
   const b = e.target.closest('[data-rn-proposta]');
   if(!b) return;
   const p = (rnEstado.propostas || []).find(x => x.id === b.dataset.rnProposta);
-  if(p) abrirPropostaDoCard(p);
+  if(p) abrirPropostaDoCard(p.estagio === 'fechado_ganho' || p.estagio === 'fechado_perdido' ? Object.assign({}, p, { id: null }) : p);
 });
 document.getElementById('rnFicha').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -4434,7 +4451,9 @@ async function rnGerarProposta(id){
   openProposal(client, { carteiraId: id });
 }
 async function rnCarregarPropostas(){
+  const geracao = rnEstado.geracao;
   const p = await ppSeguro(() => sb.from('propostas').select('*').not('carteira_id', 'is', null).order('criado_em', { ascending: false }));
+  if(geracao !== rnEstado.geracao) return p;   // trocou de usuário enquanto carregava
   rnEstado.propostas = p && !p.error ? (p.data || []) : [];
   return p;
 }
@@ -4455,7 +4474,8 @@ function rnKanbanColunas(lista, filtros, hoje){
   return RN_KANBAN.map(s => ({ status: s, itens: base.filter(r => r.status === s) }));
 }
 function rnCartaoHtml(r, agora, gestor){
-  const p = rnPropostasDe(r.id)[0];
+  const lista = rnPropostasDe(r.id);
+  const p = lista.find(x => x.estagio !== 'fechado_ganho' && x.estagio !== 'fechado_perdido') || (r.status >= 6 ? lista[0] : null);
   const dias = rnDiasNoStatus(r, agora);
   return `<div class="rnKbCard ${rnClasseLinha(r)}" draggable="true" data-rn-card="${r.id}">
     <button type="button" class="rnNome" data-rn-abrir="${r.id}">${escapeHtml(r.razao_social || '(sem nome)')}</button>
@@ -13075,11 +13095,11 @@ async function registrarPropostaNoFunil(novoTotal, atual){
     if(proposalState.carteiraId) payload.carteira_id = proposalState.carteiraId;   // §143.2: o banco calcula o estágio a partir da carteira
     if(proposalState.propostaId){
       const anterior = funilCache.find(p => p.id === proposalState.propostaId);
-      const { error } = await sb.from('propostas').update(payload).eq('id', proposalState.propostaId);
+      const { data: gravada, error } = await sb.from('propostas').update(payload).eq('id', proposalState.propostaId).select('estagio').single();
       if(error) throw error;
       await sb.from('propostas_historico').insert({
         proposta_id: proposalState.propostaId, user_id: currentUser.id,
-        estagio_anterior: anterior ? anterior.estagio : null, estagio_novo: 'proposta_enviada',
+        estagio_anterior: anterior ? anterior.estagio : null, estagio_novo: (gravada && gravada.estagio) || 'proposta_enviada',   // §143.2: o banco pode calcular outro
         nota: 'Nova proposta gerada',
       });
     } else {
@@ -13090,7 +13110,7 @@ async function registrarPropostaNoFunil(novoTotal, atual){
       proposalState.propostaId = data.id;
       await sb.from('propostas_historico').insert({
         proposta_id: data.id, user_id: currentUser.id,
-        estagio_anterior: null, estagio_novo: 'proposta_enviada',
+        estagio_anterior: null, estagio_novo: data.estagio || 'proposta_enviada',
         nota: 'Proposta gerada',
       });
     }

@@ -4625,6 +4625,8 @@ Spec: `docs/superpowers/specs/2026-11-07-renovacao-aba-design.md`. Entrega em 2 
   histórico da ficha com nome de quem mexeu (consultor vê "Supervisão" para quem não é do time); proposta **fechada**
   reaberta pela ficha vira proposta nova; Redistribuir guarda o destino, "selecionar todos" pega o filtro inteiro e só
   passa o que está no filtro; erro de valor negativo diz o campo; filtro de **DDD** na Carteira.
+  No ar em 13/11 14:43 (policy aplicada com ok do Rafael; painel `5ff89ec5…`, junto com a §149.3 que estava no ar como
+  `53963b73…`; backup `~/deploy_backups/painel_clientes_apex_20261113_174342_antes_renovacao_ajustes.html`, hora UTC).
 
 ## 144. Base de Mailing: fase 2 da extração anda de novo e NEO da Apex e da Eagle separados (09/11/2026)
 
