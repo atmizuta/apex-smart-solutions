@@ -5622,6 +5622,8 @@ function tvRenderBotoes(){
 function tvRender(){
   const d = tvEstado.ranking, box = document.getElementById('tvConteudo');
   if(!box || !d) return;
+  // §149.3: quem está digitando a meta não perde o que digitou quando o ranking redesenha (a cada venda ou minuto)
+  const campoAntes = document.activeElement && document.activeElement.id === 'tvMetaCampo' ? document.activeElement.value : null;
   const e = escapeHtml, t = d.totais || {}, m = d.meta || {}, u = d.ultima;
   document.getElementById('tvTitulo').textContent = `Conversão por Consultor · ${d.periodo === 'mes' ? 'Mês' : 'Hoje'} ${ppFmtDia(d.ate).slice(0, 5)}`;
   const pct = m.meta ? Math.min(100, Math.round(100 * (m.vendas_hoje || 0) / m.meta)) : 0;
@@ -5655,6 +5657,20 @@ function tvRender(){
     </div>
     <table class="tbl tvTabela"><thead><tr><th>Posição</th><th>Consultor</th><th class="r">Contatos</th><th>Vendas</th><th class="r">Conversão</th><th class="r">Receita</th></tr></thead>
     <tbody>${linhas || '<tr><td colspan="6">Ninguém com contato ou venda ainda.</td></tr>'}</tbody></table>`;
+  if(campoAntes !== null){ const c = document.getElementById('tvMetaCampo'); if(c){ c.value = campoAntes; c.focus(); } }
+}
+// §149.3: id desta tela (guardado no navegador) — a META BATIDA! sai uma vez por dia em CADA tela, e uma aba aberta na
+// mesa do gestor não "gasta" a comemoração da TV da sala. Sem localStorage: id da sessão (comemora de novo se recarregar).
+function tvIdTela(){
+  if(tvEstado.tela) return tvEstado.tela;
+  let id = null;
+  try{ id = window.localStorage.getItem('tvTela'); }catch(_e){ /* sem localStorage */ }
+  if(!id || !/^[a-z0-9-]{8,}$/.test(id)){
+    id = 'tv-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+    try{ window.localStorage.setItem('tvTela', id); }catch(_e){ /* só não lembra */ }
+  }
+  tvEstado.tela = id;
+  return id;
 }
 async function tvDefinirMeta(n){
   if(!Number.isInteger(n) || n < 1 || n > 1000){ mostrarAviso('Meta de 1 a 1000 vendas.', 'erro'); return; }
@@ -5680,7 +5696,7 @@ async function tvVerificarMeta(){
   const m = (tvEstado.ranking || {}).meta || {};
   if(!m.meta || (m.vendas_hoje || 0) < m.meta || tvEstado.metaFeita === hojeSP()) return;
   const g = tvEstado.ger;
-  const r = await ppSeguro(() => sb.rpc('tv_meta_comemorar'));
+  const r = await ppSeguro(() => sb.rpc('tv_meta_comemorar', { p_tela: tvIdTela() }));
   if(g !== tvEstado.ger || !r || r.error || !r.data) return;
   tvEstado.metaFeita = hojeSP();
   if(!r.data.comemorar || tvEstado.festando) return;
