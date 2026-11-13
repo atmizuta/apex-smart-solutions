@@ -48,26 +48,11 @@ require('./renovacao_test_harness.js').rodar(`
   assert(/6-Renovado: 1/.test(prev) && /7-Perdido: 1/.test(prev), 'prévia mostra a contagem por status');
   assert(/Zzbruno Teste: 2/.test(prev), 'prévia mostra a contagem por consultor');
 
-  // ==== #3 data digitada na lista só grava ao sair do campo, e ano absurdo não grava ====
+  // ==== base para o #4 (a data deixou de ser editável na lista na §151) ====
   currentUser = { id: 'u-a', nome: 'Zza Teste', role: 'consultor', operacao: 'apex', equipe: 'renovacao' };
   rnAplicarPermissao();
   window.__tabelas.renovacao_carteira = [{ id: 1, cnpj_digits: '00000000000101', razao_social: 'Zz Um', linhas_voz: 2, status: 2, prox_retorno: null, na_base: true, consultor_id: 'u-a' }];
   await rnCarregar();
-  const dt = () => document.querySelector('#rnTbody tr[data-rn-id="1"] [data-rn-campo="prox_retorno"]');
-  window.__escritas.length = 0;
-  dt().value = '2026-11-02'; dt().dispatchEvent(new window.Event('change', { bubbles: true }));
-  await espera(20);
-  eq(window.__escritas.length, 0, 'change no meio da digitação não grava');
-  dt().value = '0002-11-15'; dt().dispatchEvent(new window.Event('focusout', { bubbles: true }));
-  await espera(20);
-  eq(window.__escritas.length, 0, 'ano antes de 2020 não grava');
-  dt().value = '2026-11-15'; dt().dispatchEvent(new window.Event('focusout', { bubbles: true }));
-  await espera(20);
-  eq(window.__escritas.map(w => w.patch), [{ prox_retorno: '2026-11-15' }], 'sair do campo grava a data');
-  window.__escritas.length = 0;
-  dt().dispatchEvent(new window.Event('focusout', { bubbles: true }));
-  await espera(20);
-  eq(window.__escritas.length, 0, 'sair sem mudar não grava de novo');
 
   // ==== #4 carteira recarrega ao entrar na aba se estiver velha; ficha manda só o que mudou ====
   window.__tabelas.renovacao_carteira.push({ id: 2, cnpj_digits: '00000000000102', razao_social: 'Zz Redistribuído', linhas_voz: 1, status: 1, na_base: true, consultor_id: 'u-a' });

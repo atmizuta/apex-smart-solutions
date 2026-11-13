@@ -16,7 +16,7 @@ require('./renovacao_test_harness.js').rodar(`
     { carteira_id: 1, campo: 'status', de: '1', para: '3', user_id: 'u-a', criado_em: '2026-11-05T15:00:00Z' },
   ];
   await rnCarregar();
-  document.querySelector('#rnTbody [data-rn-abrir="1"]').click();
+  rnTrocarAba('carteira'); document.querySelector('#rnTbody tr[data-rn-id="1"] td:nth-child(2)').click();
   await espera(40);
   const ficha = document.getElementById('rnFicha');
   assert(ficha.classList.contains('aberta'), 'clicar no nome abre a ficha');

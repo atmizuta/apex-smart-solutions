@@ -33,9 +33,9 @@ require('./renovacao_test_harness.js').rodar(`
   assert(!!document.getElementById('avTipo').closest('#rnProposta'), 'formulário na subaba');
   currentUser = { id: 'u-b', nome: 'Zzb Teste', role: 'consultor', operacao: 'apex', equipe: 'renovacao' };
   rnAplicarPermissao();
-  eq([document.getElementById('rnKanban').innerHTML, document.getElementById('rnKanban').hidden, document.getElementById('rnCarteira').hidden],
-     ['', true, false], 'kanban limpo e carteira visível para o próximo usuário');
-  eq(document.querySelector('#rnAbas .active').dataset.rnAba, 'carteira', 'subaba ativa volta para Carteira');
+  eq([document.getElementById('rnKanban').innerHTML, document.getElementById('rnKanban').hidden, document.getElementById('rnHoje').hidden],
+     ['', true, false], 'kanban limpo e Hoje visível para o próximo usuário');
+  eq(document.querySelector('#rnAbas .active').dataset.rnAba, 'hoje', 'subaba ativa volta para Hoje');
   assert(!!document.getElementById('avTipo').closest('#panel-proposta'), 'formulário volta para a aba Proposta');
 
   // ==== M6 (re-graduado): nome no cartão do funil antigo é escapado ====

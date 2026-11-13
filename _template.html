@@ -795,7 +795,7 @@
 <style id="kbStyles">
   /* Meus leads — Kanban (§112; visual refeito em 26/10 à noite a pedido do Rafael). Só tokens do design, nenhuma cor fixa. */
   /* §126 (redesign 28/10, pedido do Rafael): tokens da aba. Hex novo só em --ml-ink-2 e --ml-surface-2; o resto reaproveita o sistema. */
-  #panel-meusleads,#kbFicha,#kbPassar{--ml-ink:var(--c-grafite);--ml-ink-2:#464A4E;--ml-ink-3:var(--c-cinza);--ml-ground:var(--c-papel);--ml-surface:var(--c-branco);--ml-surface-2:#F7F7F8;--ml-surface-3:var(--c-cinza-claro);--ml-late:var(--c-sinal-600);--ml-late-soft:var(--st-perdido-bg);--ml-soon:var(--st-andamento);--ml-soon-soft:var(--st-andamento-bg);--ml-ok:var(--st-ganho);--ml-ok-soft:var(--st-ganho-bg);--ml-novo:var(--c-sinal);--ml-novo-soft:var(--c-rosa);--ml-float:0 12px 32px rgba(29,31,32,.16);}
+  #panel-meusleads,#kbFicha,#kbPassar,#panel-renovacao,#rnFicha{--ml-ink:var(--c-grafite);--ml-ink-2:#464A4E;--ml-ink-3:var(--c-cinza);--ml-ground:var(--c-papel);--ml-surface:var(--c-branco);--ml-surface-2:#F7F7F8;--ml-surface-3:var(--c-cinza-claro);--ml-late:var(--c-sinal-600);--ml-late-soft:var(--st-perdido-bg);--ml-soon:var(--st-andamento);--ml-soon-soft:var(--st-andamento-bg);--ml-ok:var(--st-ganho);--ml-ok-soft:var(--st-ganho-bg);--ml-novo:var(--c-sinal);--ml-novo-soft:var(--c-rosa);--ml-float:0 12px 32px rgba(29,31,32,.16);}
   /* §126: botões planos de 8 px (decididos uma vez), controle segmentado, marcadores e contadores */
   .kbBtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 14px;border:0;border-radius:var(--radius-lg);font:inherit;font-size:var(--fs-base);font-weight:600;line-height:1;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background var(--dur-fast) var(--ease-out),color var(--dur-fast),transform var(--dur-fast);}
   .kbBtn:active{transform:translateY(1px);}
@@ -990,32 +990,121 @@
   .kbFicha.flutuante.noPainel{height:100vh;}
   .kbFicha.flutuante [data-kb-ficha-fechar]{display:inline-flex;}
   /* §143 Renovação: reaproveita Meus leads (kbSeg, kbFicha, kbBusca); só o que é próprio da carteira */
-  .rnFiltros{display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:center;margin-bottom:var(--space-2);}
-  .rnFiltros .kbBusca{min-width:240px;flex:1;}
-  .rnContadores{display:flex;flex-wrap:wrap;gap:var(--space-4);color:var(--muted);margin-bottom:var(--space-2);}
-  .rnRedistribuir{display:flex;gap:var(--space-2);align-items:center;margin-bottom:var(--space-2);}
-  .rnTabela select,.rnTabela input[type=date]{max-width:180px;}
-  .rnTabela tr.rnPerdido td{background:var(--st-perdido-bg);}
-  .rnTabela tr.rnRenovado td{background:var(--st-ganho-bg);}
-  .rnVencido{color:var(--st-perdido);font-weight:600;}
+  /* §151 redesign da Renovação ("Central do dia"): linguagem do §126 (--ml-*); etapas com tokens próprios, hex só aqui */
+  #panel-renovacao,#rnFicha{--rn-st1:#6B7280;--rn-st1-bg:#EEF0F2;--rn-st2:var(--st-andamento);--rn-st2-bg:var(--st-andamento-bg);--rn-st3:#1D4ED8;--rn-st3-bg:#E0E7FF;--rn-st4:#6D28D9;--rn-st4-bg:#EDE9FE;--rn-st5:var(--st-devolvido);--rn-st5-bg:var(--st-devolvido-bg);--rn-st6:var(--st-ganho);--rn-st6-bg:var(--st-ganho-bg);--rn-st7:var(--st-perdido);--rn-st7-bg:var(--st-perdido-bg);}
+  #panel-renovacao{color:var(--ml-ink);}
+  .rnTopo{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin-bottom:var(--space-4);}
+  .rnSel{height:36px;padding:0 12px;border:0;border-radius:var(--radius-lg);background:var(--ml-surface);font:inherit;font-size:var(--fs-base);color:var(--ml-ink);box-shadow:var(--shadow-sm);}
+  .rnN{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-variant-numeric:tabular-nums;}
+  .rnEtapa{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:var(--fs-xs);font-weight:600;white-space:nowrap;}
+  .rnEtapa i{width:7px;height:7px;border-radius:50%;background:currentColor;}
+  .rnSt1{color:var(--rn-st1);background:var(--rn-st1-bg);}.rnSt2{color:var(--rn-st2);background:var(--rn-st2-bg);}.rnSt3{color:var(--rn-st3);background:var(--rn-st3-bg);}.rnSt4{color:var(--rn-st4);background:var(--rn-st4-bg);}.rnSt5{color:var(--rn-st5);background:var(--rn-st5-bg);}.rnSt6{color:var(--rn-st6);background:var(--rn-st6-bg);}.rnSt7{color:var(--rn-st7);background:var(--rn-st7-bg);}
+  .rnAv{width:34px;height:34px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:var(--fs-xs);background:var(--ml-surface-2);color:var(--ml-ink-2);flex:none;}
+  .rnVazio{color:var(--ml-ink-3);padding:var(--space-4);text-align:center;}
+  .rnLate{color:var(--ml-late);font-weight:600;}.rnOk{color:var(--ml-ok);font-weight:600;}.rnMuted{color:var(--ml-ink-3);}
   .rnNome{background:none;border:0;padding:0;font:inherit;font-weight:600;color:inherit;cursor:pointer;text-align:left;}
   .rnNome:hover{text-decoration:underline;}
+  /* Central do dia */
+  .rnKpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--space-3);margin-bottom:var(--space-4);}
+  .rnKpi{background:var(--ml-surface);border-radius:12px;padding:var(--space-4);}
+  .rnKpi .rnN{font-size:34px;line-height:1;display:block;}
+  .rnKpi small{display:block;margin-top:4px;color:var(--ml-ink-2);font-size:var(--fs-sm);}
+  .rnKpi .rnKpiSub{color:var(--ml-ink-3);font-size:var(--fs-xs);}
+  .rnKpiBar{height:6px;border-radius:999px;background:var(--ml-surface-2);margin:10px 0 4px;overflow:hidden;}
+  .rnKpiBar span{display:block;height:100%;border-radius:inherit;background:var(--ml-ink);}
+  .rnKpi.late .rnN{color:var(--ml-late);}.rnKpi.ok .rnN{color:var(--ml-ok);}
+  .rnHojeGrade{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:var(--space-4);align-items:start;}
+  .rnBloco{background:var(--ml-surface);border-radius:12px;padding:var(--space-3);}
+  .rnBuscaSuave{background:var(--ml-surface-2);margin-bottom:var(--space-2);}
+  .rnGrupoT{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:var(--fs-sm);margin:var(--space-3) var(--space-1) var(--space-1);}
+  .rnGrupoT.late{color:var(--ml-late);}.rnGrupoT.ok{color:var(--ml-ok);}
+  .rnItem{display:flex;align-items:center;gap:var(--space-3);width:100%;padding:10px;border:0;border-radius:10px;background:none;font:inherit;color:inherit;text-align:left;cursor:pointer;transition:background var(--dur-fast) var(--ease-out);}
+  .rnItem:hover{background:var(--ml-surface-2);}.rnItem.sel{background:var(--ml-novo-soft);}
+  .rnItem.sel .rnAv{background:var(--ml-surface);color:var(--c-sinal);}
+  .rnItemTxt{flex:1;min-width:0;display:flex;flex-direction:column;}
+  .rnItemTxt b{font-size:var(--fs-base);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .rnItemTxt small{color:var(--ml-ink-3);font-size:var(--fs-xs);}
+  .rnQuando{font-size:var(--fs-xs);font-weight:600;white-space:nowrap;color:var(--ml-ink-2);}
+  .rnQuando.atrasado{color:var(--ml-late);}.rnQuando.hoje{color:var(--ml-ok);}
+  .rnHojeFicha{min-height:200px;}
+  .rnHojeFicha .kbFicha.noPainel{border-radius:12px;background:var(--ml-surface);}
+  /* Ficha */
+  #rnFicha .kbFichaCorpo{padding:var(--space-4);overflow-y:auto;gap:var(--space-3);}
+  .rnFichaTopo{display:flex;align-items:center;gap:var(--space-3);}
+  .rnFichaTopo .rnAv{width:46px;height:46px;font-size:var(--fs-base);background:var(--ml-novo-soft);color:var(--c-sinal);}
+  .rnFichaNome{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:700;line-height:1.1;margin:0;}
+  .rnFichaMeta{color:var(--ml-ink-3);font-size:var(--fs-sm);}
+  .rnFichaAcoes{display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:center;}
+  #rnFicha.noPainel [data-rn-ficha-fechar]{display:none;}
+  .rnFichaAbas{display:flex;gap:var(--space-4);border-bottom:1px solid var(--c-linha);}
+  .rnFichaAbas button{border:0;background:none;padding:8px 0;font:inherit;font-weight:600;font-size:var(--fs-sm);color:var(--ml-ink-3);cursor:pointer;}
+  .rnFichaAbas button.on{color:var(--ml-ink);box-shadow:inset 0 -2px 0 var(--c-sinal);}
+  .rnPergunta{font-weight:600;font-size:var(--fs-sm);margin:0 0 var(--space-2);}
+  .rnContato{display:flex;flex-wrap:wrap;gap:var(--space-2);}
+  .rnContatoBt{border:1.5px solid var(--c-linha);background:var(--ml-surface);border-radius:10px;padding:9px 14px;font:inherit;font-weight:600;font-size:var(--fs-sm);color:var(--ml-ink);cursor:pointer;}
+  .rnContatoBt.on{border-color:currentColor;}
+  .rnCampos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-2);margin-top:var(--space-3);}
+  .rnCampos label{display:flex;flex-direction:column;gap:4px;font-size:var(--fs-xs);color:var(--ml-ink-3);font-weight:600;}
+  .rnCampos input,.rnCampos select,.rnCampos textarea{border:0;border-radius:8px;background:var(--ml-surface-2);padding:9px 10px;font:inherit;font-size:var(--fs-base);color:var(--ml-ink);}
+  .rnCampos .rnLargo{grid-column:1/-1;}
+  .rnFichaRodape{display:flex;justify-content:flex-end;gap:var(--space-2);margin-top:var(--space-3);}
+  .rnErro{color:var(--ml-late);font-weight:600;font-size:var(--fs-sm);margin:var(--space-2) 0 0;min-height:1em;}
   .rnGrupo{border-top:1px solid var(--c-linha);padding:var(--space-2) 0;}
   .rnGrupo summary{cursor:pointer;font-weight:600;}
   .rnGrupo dl{display:grid;grid-template-columns:minmax(140px,40%) 1fr;gap:2px var(--space-2);margin:var(--space-2) 0 0;}
-  .rnGrupo dt{color:var(--muted);}
+  .rnGrupo dt{color:var(--ml-ink-3);}
   .rnGrupo dd{margin:0;overflow-wrap:anywhere;}
-  .rnHist{margin:0;padding-left:1.1em;color:var(--muted);}
-  .rnTotal td{font-weight:700;}
-  .rnRetBloco{margin-bottom:var(--space-3);}
-  .rnRetLista{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-2);}
+  .rnHist{margin:0;padding-left:1.1em;color:var(--ml-ink-2);display:grid;gap:4px;}
+  /* Carteira */
+  .rnCartBarra{display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;}
+  .rnCartBarra .kbBusca{flex:1;min-width:240px;box-shadow:var(--shadow-sm);}
+  .rnVisoes{display:flex;flex-wrap:wrap;gap:6px;margin:var(--space-3) 0;}
+  .rnVisaoBt{border:0;border-radius:999px;padding:7px 14px;background:var(--ml-surface);font:inherit;font-weight:600;font-size:var(--fs-sm);color:var(--ml-ink-2);cursor:pointer;}
+  .rnVisaoBt b{margin-left:4px;opacity:.7;font-variant-numeric:tabular-nums;}
+  .rnVisaoBt.on{background:var(--ml-ink);color:var(--ml-surface);}
+  .rnVisaoBt.late b{color:var(--ml-late);opacity:1;}.rnVisaoBt.on.late b{color:inherit;}
+  .rnMaisFiltros{display:flex;flex-wrap:wrap;gap:var(--space-2);background:var(--ml-surface);border-radius:12px;padding:var(--space-3);margin-bottom:var(--space-3);}
+  .rnMaisFiltros[hidden]{display:none;}
+  .rnChips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:var(--space-2);}
+  .rnChips:empty{display:none;}
+  .rnChip{border:1px solid var(--ml-ink);background:var(--ml-surface);border-radius:8px;padding:4px 10px;font:inherit;font-size:var(--fs-xs);font-weight:600;cursor:pointer;}
+  .rnRedistribuir{display:flex;gap:var(--space-2);align-items:center;background:var(--ml-surface);border-radius:12px;padding:var(--space-2) var(--space-3);margin-bottom:var(--space-2);box-shadow:var(--ml-float);}
+  .rnTabelaCasa{background:var(--ml-surface);border-radius:12px;overflow:hidden;}
+  .rnTabela{width:100%;border-collapse:collapse;}
+  .rnTabela th{text-align:left;font-size:var(--fs-xs);font-weight:600;color:var(--ml-ink-3);padding:10px 12px;background:var(--ml-surface-2);}
+  .rnTabela td{padding:10px 12px;border-top:1px solid var(--ml-surface-2);font-size:var(--fs-sm);vertical-align:middle;}
+  #rnTbody tr{cursor:pointer;}#rnTbody tr:hover td{background:var(--ml-surface-2);}
+  .rnEmpresa{display:flex;align-items:center;gap:var(--space-3);}
+  .rnEmpresa b{display:block;}.rnEmpresa small{display:block;color:var(--ml-ink-3);font-size:var(--fs-xs);}
+  .rnNumTd{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;}
+  .rnTdSel{width:36px;}
+  .rnMaisBt{margin:var(--space-3) auto 0;}
+  /* Funil */
   .kanbanCard.kcRenovacao{cursor:pointer;}
-  .rnKanban{display:grid;grid-template-columns:repeat(5,minmax(200px,1fr));gap:var(--space-3);overflow-x:auto;}
-  .rnKbCol{background:var(--ml-surface-2);border-radius:var(--radius-lg);padding:var(--space-2);min-height:200px;}
-  .rnKbHead{display:flex;justify-content:space-between;font-weight:600;margin-bottom:var(--space-2);}
-  .rnKbCard{background:var(--c-branco);border:1px solid var(--c-linha);border-radius:var(--radius-lg);padding:var(--space-2);margin-bottom:var(--space-2);cursor:grab;display:grid;gap:4px;}
-  .rnKbCard.rnPerdido{background:var(--st-perdido-bg);}
-  .rnKbCard.rnRenovado{background:var(--st-ganho-bg);}
+  .rnKanban{display:grid;grid-template-columns:repeat(5,minmax(210px,1fr));gap:var(--space-3);overflow-x:auto;}
+  .rnKbCol{background:var(--ml-surface-3);border-radius:12px;padding:var(--space-2);min-height:240px;}
+  .rnKbHead{display:flex;justify-content:space-between;align-items:center;margin:4px 4px 10px;}
+  .rnKbCard{background:var(--ml-surface);border-radius:10px;padding:10px 12px;margin-bottom:var(--space-2);cursor:grab;display:grid;gap:4px;box-shadow:var(--shadow-sm);}
+  .rnKbCard:active{cursor:grabbing;box-shadow:var(--ml-float);}
+  .rnKbCard small{color:var(--ml-ink-3);font-size:var(--fs-xs);}
+  .rnParado{font-size:var(--fs-xs);color:var(--ml-ink-3);}.rnParado.late{color:var(--ml-late);font-weight:600;}
+  /* Resumo */
+  .rnBarra{display:inline-flex;align-items:center;gap:8px;}
+  .rnBarra span{display:block;width:110px;height:8px;border-radius:999px;background:var(--ml-surface-2);overflow:hidden;}
+  .rnBarra span i{display:block;height:100%;border-radius:inherit;background:var(--ml-ink);}
+  .rnBarra.ok span i{background:var(--ml-ok);}
+  .rnResumoTbl tbody tr{cursor:default;}
+  .rnTotal td{font-weight:700;}
+  .rnResumoRodape{display:flex;justify-content:flex-end;margin-top:var(--space-3);}
+  /* tela estreita e movimento */
+  @media (max-width:900px){
+    .rnHojeGrade{grid-template-columns:1fr;}
+    .rnKpis{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .rnTabela thead{display:none;}
+    #rnTbody tr{display:grid;grid-template-columns:1fr auto;gap:4px var(--space-2);padding:var(--space-2);border-top:1px solid var(--ml-surface-2);}
+    #rnTbody td{border:0;padding:2px 4px;}
+  }
+  @media (prefers-reduced-motion: reduce){ .rnItem{transition:none;} }
   .kbFicha.flutuante [data-kb-ficha-flutuar]{display:none;}
   .kbFichaCorpo{display:flex;flex-direction:column;min-height:0;height:100%;}
   .kbFichaRolagem{flex:1;min-height:0;overflow-y:auto;padding:var(--space-4) var(--space-6) var(--space-3);}
@@ -1765,41 +1854,54 @@
     </section>
 
     <section class="panel" id="panel-renovacao">
-      <div class="kbBarra">
+      <div class="rnTopo">
         <nav class="kbSeg" id="rnAbas" aria-label="Visões da Renovação">
-          <button type="button" class="active" data-rn-aba="carteira">Carteira</button>
-          <button type="button" data-rn-aba="kanban">Kanban</button>
-          <button type="button" data-rn-aba="proposta">Proposta e fatura</button>
-          <button type="button" data-rn-aba="retornos">Retornos <span class="kbBadge" id="rnBadgeRetornos"></span></button>
+          <button type="button" class="active" data-rn-aba="hoje">Hoje <span class="kbBadge" id="rnBadgeRetornos"></span></button>
+          <button type="button" data-rn-aba="carteira">Carteira</button>
+          <button type="button" data-rn-aba="kanban">Funil</button>
           <button type="button" data-rn-aba="resumo">Resumo</button>
+          <button type="button" data-rn-aba="proposta">Proposta e fatura</button>
         </nav>
+        <select id="rnFConsultor" class="rnSel" aria-label="Consultor" style="display:none"></select>
         <span class="kbStatusLinha" id="rnStatus"></span>
       </div>
-      <div id="rnCarteira" class="rnVisao">
-        <div class="rnFiltros">
-          <input type="search" id="rnBusca" class="kbBusca" placeholder="Buscar CNPJ, razão social ou ADM" autocomplete="off" aria-label="Buscar na carteira">
-          <select id="rnFStatus" aria-label="Status"></select>
-          <select id="rnFApto" aria-label="Apto"><option value="">Apto: todos</option><option value="APTO">APTO</option><option value="1 MÊS PARA APTO">1 mês para apto</option></select>
-          <select id="rnFCidade" aria-label="Cidade"></select>
-          <select id="rnFDdd" aria-label="DDD"></select>
-          <select id="rnFConsultor" aria-label="Consultor" style="display:none"></select>
-          <button type="button" class="filterPill" data-rn-filtro="soVencido">Só retorno vencido</button>
-          <button type="button" class="filterPill" data-rn-filtro="pendencias">Pendências</button>
-          <button type="button" class="filterPill" data-rn-filtro="foraBase">Fora da base</button>
+      <div id="rnHoje" class="rnVisao">
+        <div class="rnKpis" id="rnKpis"></div>
+        <div class="rnHojeGrade">
+          <div class="rnBloco">
+            <div class="rnCartBarra">
+              <input type="search" id="rnHojeBusca" class="kbBusca rnBuscaSuave" placeholder="Buscar empresa, CNPJ ou ADM" autocomplete="off" aria-label="Buscar na fila">
+              <button type="button" class="kbBtn kbBtnQ" id="rnHojeFiltros">Filtros</button>
+            </div>
+            <div id="rnFilaLista"></div>
+          </div>
+          <div class="rnHojeFicha" id="rnHojeFicha"></div>
         </div>
-        <div class="rnContadores" id="rnContadores"></div>
+      </div>
+      <div id="rnCarteira" class="rnVisao" hidden>
+        <div class="rnCartBarra">
+          <input type="search" id="rnBusca" class="kbBusca" placeholder="Buscar empresa, CNPJ ou ADM" autocomplete="off" aria-label="Buscar na carteira">
+          <button type="button" class="kbBtn kbBtnQ" id="rnMaisFiltrosBt" aria-expanded="false" aria-controls="rnMaisFiltros">Mais filtros</button>
+          <select id="rnOrdem" class="rnSel" aria-label="Ordem"><option value="linhas">Mais linhas primeiro</option><option value="retorno">Retorno mais próximo</option></select>
+        </div>
+        <div class="rnVisoes" id="rnVisoes"></div>
+        <div class="rnMaisFiltros" id="rnMaisFiltros" hidden>
+          <select id="rnFCidade" class="rnSel" aria-label="Cidade"></select>
+          <select id="rnFDdd" class="rnSel" aria-label="DDD"></select>
+          <select id="rnFApto" class="rnSel" aria-label="Apto"><option value="">Apto: todos</option><option value="APTO">APTO</option><option value="1 MÊS PARA APTO">1 mês para apto</option></select>
+        </div>
+        <div class="rnChips" id="rnChips"></div>
         <div class="rnRedistribuir" id="rnRedistribuir" style="display:none">
           <span id="rnSelN"></span>
-          <select id="rnPassarPara" aria-label="Passar para"></select>
-          <button type="button" class="btn btn-sm" id="rnPassar">Passar</button>
+          <select id="rnPassarPara" class="rnSel" aria-label="Passar para"></select>
+          <button type="button" class="kbBtn kbBtnP" id="rnPassar">Passar</button>
         </div>
-        <table class="tbl rnTabela"><thead id="rnThead"></thead><tbody id="rnTbody"></tbody></table>
-        <button type="button" class="btn btn-outline btn-sm" id="rnMais" style="display:none"></button>
+        <div class="rnTabelaCasa"><table class="rnTabela"><thead id="rnThead"></thead><tbody id="rnTbody"></tbody></table></div>
+        <button type="button" class="kbBtn kbBtnQ rnMaisBt" id="rnMais" style="display:none"></button>
       </div>
       <div id="rnKanban" class="rnVisao" hidden></div>
-      <div id="rnProposta" class="rnVisao" hidden></div>
-      <div id="rnRetornos" class="rnVisao" hidden></div>
       <div id="rnResumo" class="rnVisao" hidden></div>
+      <div id="rnProposta" class="rnVisao" hidden></div>
       <aside class="kbFicha" id="rnFicha" aria-label="Ficha do cliente"><div class="kbFichaCorpo" id="rnFichaCorpo"></div></aside>
     </section>
     <!-- FUNIL DE VENDAS (kanban — todos os perfis) -->
@@ -3842,10 +3944,10 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
 const RN_STATUS = { 1: 'Não contatado', 2: 'Tentativa s/ retorno', 3: 'Contato efetivo', 4: 'Proposta enviada', 5: 'Em negociação', 6: 'Renovado', 7: 'Perdido' };
 const RN_CANAIS = ['WhatsApp', 'Ligação', 'E-mail', 'Visita'];
 const RN_MOTIVOS = ['Preço', 'Foi p/ concorrente', 'Sem interesse', 'Insatisfeito c/ Claro', 'Empresa fechada/baixada', 'Contato inválido', 'Outro'];
-const RN_COLS_LISTA = 'id,cnpj_digits,razao_social,telefone,nome_adm,linhas_voz,apto,cidade,ddd,consultor_id,origem,status,data_contato,prox_retorno,canal,linhas_renovadas,bl_vendida,sol_digitais,motivo_perda,observacoes,na_base,a_completar,atualizado_em,status_desde';
-const RN_PAGINA = 100;
-function rnFiltrosVazios(){ return { busca: '', status: '', apto: '', cidade: '', ddd: '', consultor: '', soVencido: false, pendencias: false, foraBase: false }; }
-const rnEstado = { aba: 'carteira', lista: [], propostas: [], arrastando: null, perfis: [], carregado: false, geracao: 0, filtros: rnFiltrosVazios(), pagina: 1, selecionados: new Set(), fichaId: null, ficha: null, importacao: null };
+const RN_COLS_LISTA = 'id,cnpj_digits,razao_social,telefone,nome_adm,linhas_voz,apto,cidade,ddd,consultor_id,origem,status,data_contato,prox_retorno,canal,linhas_renovadas,bl_vendida,sol_digitais,motivo_perda,observacoes,na_base,a_completar,atualizado_em,status_desde,retorno_hora';
+const RN_PAGINA = 50;
+function rnFiltrosVazios(){ return { busca: '', visao: 'todos', ordem: 'linhas', status: '', apto: '', cidade: '', ddd: '', consultor: '', soVencido: false, pendencias: false, foraBase: false }; }
+const rnEstado = { aba: 'hoje', buscaHoje: '', fichaAba: 'atendimento', fichaStatus: null, lista: [], propostas: [], arrastando: null, perfis: [], carregado: false, geracao: 0, filtros: rnFiltrosVazios(), pagina: 1, selecionados: new Set(), fichaId: null, ficha: null, importacao: null };
 
 function rnGestor(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
 function rnPodeVer(){
@@ -3859,20 +3961,45 @@ function rnAplicarPermissao(){
   // §143.2: o time de renovação trabalha só pela aba Renovação (Busca, Proposta, Funil e Agenda saem do menu dele)
   const soRenovacao = rnSoRenovacao();
   ['busca', 'proposta', 'funil', 'agenda'].forEach(t => { const b = document.querySelector(`#tabsNav button[data-tab="${t}"]`); if(b) b.style.display = soRenovacao ? 'none' : ''; });
-  Object.assign(rnEstado, { aba: 'carteira', lista: [], propostas: [], perfis: [], carregado: false, filtros: rnFiltrosVazios(), pagina: 1, fichaId: null, ficha: null, importacao: null });
+  Object.assign(rnEstado, { aba: 'hoje', lista: [], propostas: [], perfis: [], carregado: false, filtros: rnFiltrosVazios(), pagina: 1, fichaId: null, ficha: null,
+    importacao: null, buscaHoje: '', fichaAba: 'atendimento', fichaStatus: null });
   rnEstado.selecionados.clear();
   rnEstado.geracao++;
   // troca de usuário na mesma aba do navegador: nada do anterior fica na tela
-  if(typeof rnMoverProposta === 'function') rnMoverProposta(false);   // §143.2: o formulário da proposta volta para a aba Proposta
-  ['rnTbody', 'rnRetornos', 'rnResumo', 'rnFichaCorpo', 'rnContadores', 'rnKanban'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = ''; });
+  if(typeof rnMoverProposta === 'function') rnMoverProposta(false);
+  ['rnTbody', 'rnResumo', 'rnFichaCorpo', 'rnKanban', 'rnKpis', 'rnFilaLista', 'rnVisoes', 'rnChips'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = ''; });
+  const busca = document.getElementById('rnHojeBusca'); if(busca) busca.value = '';
   document.getElementById('rnFicha').classList.remove('aberta');
-  document.querySelectorAll('#rnAbas [data-rn-aba]').forEach(b => b.classList.toggle('active', b.dataset.rnAba === 'carteira'));
-  ['rnKanban', 'rnProposta', 'rnRetornos', 'rnResumo'].forEach(id => { const el = document.getElementById(id); if(el) el.hidden = true; });
-  document.getElementById('rnCarteira').hidden = false;
+  rnMostrarAba('hoje');
 }
 function rnStatus(msg){ const el = document.getElementById('rnStatus'); if(el) el.textContent = msg || ''; }
 function rnHoje(){ return hojeSP(); }
-function rnRetornoVencido(r, hoje){ return !!r.prox_retorno && r.prox_retorno < hoje && r.status !== 6 && r.status !== 7; }
+// §151: retorno com data e hora. Recebe { data, hora } (rnAgora) ou só a data em texto (regra antiga: só data).
+const RN_HORA_FMT = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+function rnHoraSP(){ return RN_HORA_FMT.format(new Date()); }
+function rnAgora(){ return { data: rnHoje(), hora: rnHoraSP() }; }
+function rnComoAgora(x){ return typeof x === 'string' ? { data: x, hora: '00:00' } : x; }
+function rnEstadoRetorno(r, agora){
+  if(!r.prox_retorno || r.status === 6 || r.status === 7) return null;
+  if(r.prox_retorno < agora.data) return 'atrasado';
+  if(r.prox_retorno > agora.data) return 'futuro';
+  const h = r.retorno_hora ? String(r.retorno_hora).slice(0, 5) : '';
+  return h && h < agora.hora ? 'atrasado' : 'hoje';
+}
+function rnRetornoVencido(r, hoje){ return rnEstadoRetorno(r, rnComoAgora(hoje)) === 'atrasado'; }
+function rnDataSP(iso){ return CONVERSAO_DATE_FMT.format(new Date(iso)); }
+function rnDiasEntre(a, b){ return Math.round((Date.parse(b + 'T12:00:00Z') - Date.parse(a + 'T12:00:00Z')) / 86400000); }
+function rnTextoAtraso(r, agora){
+  const d = rnDiasEntre(r.prox_retorno, agora.data);
+  if(d > 0) return `há ${d} dia${d > 1 ? 's' : ''}`;
+  return 'era ' + String(r.retorno_hora || '').slice(0, 5);
+}
+const RN_ETAPA = { 1: 'Não contatado', 2: 'Tentativa', 3: 'Contato efetivo', 4: 'Proposta enviada', 5: 'Em negociação', 6: 'Renovado', 7: 'Perdido' };
+function rnEtapaHtml(s){ return `<span class="rnEtapa rnSt${Number(s) || 1}"><i></i>${escapeHtml(RN_ETAPA[s] || '?')}</span>`; }
+function rnIniciais(nome){
+  const p = String(nome || '').split(/\s+/).filter(w => w.length > 1 || /^[A-Za-zÀ-ú]$/.test(w));
+  return p.length ? p.slice(0, 2).map(w => w[0].toUpperCase()).join('') : '?';
+}
 function rnNomeConsultor(id){
   if(!id) return 'Sem consultor';
   const p = rnEstado.perfis.find(x => x.id === id);
@@ -3882,8 +4009,8 @@ function rnNomeConsultor(id){
   return rnGestor() ? '—' : 'Supervisão';   // o consultor só lê o próprio perfil
 }
 function rnAtualizarBadge(){
-  const hoje = rnHoje();
-  const n = rnEstado.lista.filter(r => r.na_base && rnRetornoVencido(r, hoje)).length;
+  const agora = rnAgora();
+  const n = rnEstado.lista.filter(r => r.na_base && rnEstadoRetorno(r, agora) === 'atrasado').length;
   let bm = document.getElementById('rnBadgeMenu');
   if(!bm){ bm = document.createElement('span'); bm.id = 'rnBadgeMenu'; bm.className = 'kbBadge'; document.getElementById('tabBtnRenovacao').appendChild(bm); }
   [bm, document.getElementById('rnBadgeRetornos')].forEach(el => { el.textContent = n ? String(n) : ''; });
@@ -3911,49 +4038,65 @@ async function rnCarregar(){
   rnAtualizarBadge();
   rnRender();
 }
+const RN_VISAO_ID = { hoje: 'rnHoje', carteira: 'rnCarteira', kanban: 'rnKanban', resumo: 'rnResumo', proposta: 'rnProposta' };
+function rnMostrarAba(aba){
+  document.querySelectorAll('#rnAbas [data-rn-aba]').forEach(b => b.classList.toggle('active', b.dataset.rnAba === aba));
+  Object.entries(RN_VISAO_ID).forEach(([k, id]) => { const el = document.getElementById(id); if(el) el.hidden = k !== aba; });
+  rnPosicionarFicha(aba);
+}
+// A ficha é uma só: ao lado da fila na Central (.noPainel) e gaveta nas outras subabas.
+function rnPosicionarFicha(aba){
+  const f = document.getElementById('rnFicha');
+  const naHoje = aba === 'hoje';
+  const casa = document.getElementById(naHoje ? 'rnHojeFicha' : 'panel-renovacao');
+  if(f.parentElement !== casa) casa.appendChild(f);
+  f.classList.toggle('noPainel', naHoje);
+  if(!naHoje) f.classList.remove('aberta');
+}
 function rnTrocarAba(aba){
   rnEstado.aba = aba;
-  document.querySelectorAll('#rnAbas [data-rn-aba]').forEach(b => b.classList.toggle('active', b.dataset.rnAba === aba));
-  const ids = { carteira: 'rnCarteira', kanban: 'rnKanban', proposta: 'rnProposta', retornos: 'rnRetornos', resumo: 'rnResumo' };
-  Object.entries(ids).forEach(([k, id]) => { const el = document.getElementById(id); if(el) el.hidden = k !== aba; });
+  rnMostrarAba(aba);
   rnRender();
 }
 document.getElementById('rnAbas').addEventListener('click', e => { const b = e.target.closest('[data-rn-aba]'); if(b) rnTrocarAba(b.dataset.rnAba); });
 // Cada subaba tem seu render (Tasks 4 e 6 do plano); typeof deixa este bloco funcionar sozinho.
 function rnRender(){
+  if(rnEstado.aba === 'hoje' && typeof rnRenderHoje === 'function') rnRenderHoje();
   if(rnEstado.aba === 'carteira' && typeof rnRenderCarteira === 'function') rnRenderCarteira();
   if(rnEstado.aba === 'kanban' && typeof rnRenderKanban === 'function') rnRenderKanban();
-  if(rnEstado.aba === 'proposta') rnMoverProposta(true);
-  if(rnEstado.aba === 'retornos' && typeof rnRenderRetornos === 'function') rnRenderRetornos();
   if(rnEstado.aba === 'resumo' && typeof rnRenderResumo === 'function') rnRenderResumo();
+  if(rnEstado.aba === 'proposta') rnMoverProposta(true);
 }
 // ---- Carteira ----
 function rnNorm(s){ return String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(); }
 function rnStatusRotulo(s){ return s + '-' + (RN_STATUS[s] || '?'); }
+function rnChaveRetorno(r){ return r.prox_retorno ? r.prox_retorno + ' ' + (r.retorno_hora ? String(r.retorno_hora).slice(0, 5) : '99:99') : '9999-99-99'; }
+function rnOrdemLinhas(a, b){ return (b.linhas_voz || 0) - (a.linhas_voz || 0) || String(a.razao_social || '').localeCompare(String(b.razao_social || ''), 'pt-BR'); }
+function rnOrdemRetorno(a, b){ return rnChaveRetorno(a).localeCompare(rnChaveRetorno(b)) || rnOrdemLinhas(a, b); }
+function rnCasaBusca(r, busca){
+  const b = rnNorm(busca); if(!b) return true;
+  const dig = onlyDigits(busca);
+  return (rnNorm(r.razao_social) + ' ' + rnNorm(r.nome_adm)).includes(b) || (dig.length >= 3 && String(r.cnpj_digits || '').includes(dig));
+}
 function rnFiltrar(lista, f, hoje){
-  const busca = rnNorm(f.busca); const buscaDig = onlyDigits(f.busca);
+  const agora = rnComoAgora(hoje);
+  const v = f.visao || 'todos';
+  const fora = !!f.foraBase || v === 'fora';
   return lista.filter(r => {
-    if(f.foraBase ? r.na_base : !r.na_base) return false;
+    if(fora ? r.na_base : !r.na_base) return false;
     if(f.status && String(r.status) !== String(f.status)) return false;
+    if(v === 'nao' && r.status !== 1) return false;
+    if(v === 'andamento' && !(r.status >= 2 && r.status <= 5)) return false;
+    if((v === 'atrasados' || f.soVencido) && rnEstadoRetorno(r, agora) !== 'atrasado') return false;
+    if((v === 'pendencias' || f.pendencias) && !r.a_completar) return false;
+    if(v === 'renovados' && r.status !== 6) return false;
+    if(v === 'perdidos' && r.status !== 7) return false;
     if(f.apto && r.apto !== f.apto) return false;
     if(f.cidade && r.cidade !== f.cidade) return false;
     if(f.ddd && String(r.ddd || '') !== f.ddd) return false;
     if(f.consultor === '-' ? !!r.consultor_id : (f.consultor && r.consultor_id !== f.consultor)) return false;
-    if(f.soVencido && !rnRetornoVencido(r, hoje)) return false;
-    if(f.pendencias && !r.a_completar) return false;
-    if(busca){
-      const achou = (rnNorm(r.razao_social) + ' ' + rnNorm(r.nome_adm)).includes(busca)
-        || (buscaDig.length >= 3 && String(r.cnpj_digits || '').includes(buscaDig));
-      if(!achou) return false;
-    }
-    return true;
-  }).sort((a, b) => (b.linhas_voz || 0) - (a.linhas_voz || 0) || String(a.razao_social || '').localeCompare(String(b.razao_social || ''), 'pt-BR'));
-}
-function rnContadores(lista, hoje){
-  const ativos = lista.filter(r => r.na_base);
-  const nao = ativos.filter(r => r.status === 1).length;
-  return { total: ativos.length, pctNaoContatado: ativos.length ? Math.round(nao * 100 / ativos.length) : 0,
-           vencidos: ativos.filter(r => rnRetornoVencido(r, hoje)).length, pendencias: ativos.filter(r => r.a_completar).length };
+    return rnCasaBusca(r, f.busca);
+  }).sort(f.ordem === 'retorno' ? rnOrdemRetorno : rnOrdemLinhas);
 }
 function rnClasseLinha(r){ return r.status === 7 ? 'rnPerdido' : r.status === 6 ? 'rnRenovado' : ''; }
 function rnValidarFechamento(status, d){
@@ -3984,46 +4127,64 @@ function rnOpcoes(pares, atual, vazio){
   return (vazio ? `<option value="">${escapeHtml(vazio)}</option>` : '')
     + pares.map(([v, t]) => `<option value="${escapeHtml(v)}"${String(v) === String(atual ?? '') ? ' selected' : ''}>${escapeHtml(t)}</option>`).join('');
 }
+const RN_VISOES = [['todos', 'Todos'], ['nao', 'Não contatados'], ['andamento', 'Em andamento'], ['atrasados', 'Atrasados'], ['pendencias', 'Pendências'],
+  ['renovados', 'Renovados'], ['perdidos', 'Perdidos'], ['fora', 'Fora da base']];
+function rnContarVisoes(lista, f, agora){ return Object.fromEntries(RN_VISOES.map(([v]) => [v, rnFiltrar(lista, Object.assign({}, f, { visao: v }), agora).length])); }
+function rnUltimoContato(r){ return r.data_contato ? r.data_contato.slice(8, 10) + '/' + r.data_contato.slice(5, 7) + (r.canal ? ' · ' + r.canal : '') : '—'; }
+function rnProximoPassoHtml(r, agora){
+  const est = rnEstadoRetorno(r, agora);
+  const hora = r.retorno_hora ? ' ' + String(r.retorno_hora).slice(0, 5) : '';
+  if(est === 'atrasado') return `<span class="rnLate">⏱ ${escapeHtml(rnTextoAtraso(r, agora))}</span>`;
+  if(est === 'hoje') return `<span class="rnOk">● Retorno hoje${escapeHtml(hora)}</span>`;
+  if(est === 'futuro') return `Retorno ${escapeHtml(r.prox_retorno.slice(8, 10) + '/' + r.prox_retorno.slice(5, 7) + hora)}`;
+  if(r.status === 6) return `<span class="rnOk">${Number(r.linhas_renovadas) || 0} linhas renovadas</span>`;
+  if(r.status === 7) return `<span class="rnMuted">${escapeHtml(r.motivo_perda || 'Perdido')}</span>`;
+  if(r.status === 1) return 'Primeiro contato';
+  return '<span class="rnMuted">Sem retorno marcado</span>';
+}
 function rnPreencherFiltros(){
   const f = rnEstado.filtros; const gestor = rnGestor();
-  document.getElementById('rnFStatus').innerHTML = rnOpcoes(Object.keys(RN_STATUS).map(k => [k, rnStatusRotulo(+k)]), f.status, 'Status: todos');
   const cidades = [...new Set(rnEstado.lista.map(r => r.cidade).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
   document.getElementById('rnFCidade').innerHTML = rnOpcoes(cidades.map(c => [c, c]), f.cidade, 'Cidade: todas');
   const ddds = [...new Set(rnEstado.lista.map(r => String(r.ddd || '')).filter(Boolean))].sort();
   document.getElementById('rnFDdd').innerHTML = rnOpcoes(ddds.map(d => [d, d]), f.ddd, 'DDD: todos');
   document.getElementById('rnFApto').value = f.apto;
+  document.getElementById('rnOrdem').value = f.ordem || 'linhas';
   const fc = document.getElementById('rnFConsultor');
   fc.style.display = gestor ? '' : 'none';
   if(gestor){
-    fc.innerHTML = rnOpcoes([['-', 'Sem consultor']].concat(rnEstado.perfis.map(p => [p.id, p.nome])), f.consultor, 'Consultor: todos');
+    fc.innerHTML = rnOpcoes([['-', 'Sem consultor']].concat(rnEstado.perfis.map(p => [p.id, p.nome])), f.consultor, 'Time todo');
     const pp = document.getElementById('rnPassarPara');
     pp.innerHTML = rnOpcoes(rnEstado.perfis.map(p => [p.id, p.nome]), pp.value, 'Passar para…');
   }
-  document.querySelectorAll('[data-rn-filtro]').forEach(b => b.classList.toggle('active', !!f[b.dataset.rnFiltro]));
 }
-function rnLinhaHtml(r, hoje, gestor){
+function rnChipsHtml(f){
+  return [['cidade', 'Cidade'], ['ddd', 'DDD'], ['apto', 'Apto']].filter(([k]) => f[k])
+    .map(([k, t]) => `<button type="button" class="rnChip" data-rn-limpar="${k}">${t}: ${escapeHtml(f[k])} ✕</button>`).join('');
+}
+function rnLinhaHtml(r, agora, gestor){
+  const sub = [r.nome_adm, r.cidade, r.apto, gestor ? rnNomeConsultor(r.consultor_id) : ''].filter(Boolean).join(' · ');
   return `<tr class="${rnClasseLinha(r)}" data-rn-id="${r.id}">
-    ${gestor ? `<td><input type="checkbox" data-rn-sel="${r.id}" aria-label="Selecionar"${rnEstado.selecionados.has(r.id) ? ' checked' : ''}></td>` : ''}
-    <td><button type="button" class="rnNome" data-rn-abrir="${r.id}">${escapeHtml(r.razao_social || '(sem nome)')}</button><div class="kbMeta">${escapeHtml(r.nome_adm || '')}${r.a_completar ? ' · <span class="badge naoapto">completar</span>' : ''}</div></td>
-    ${gestor ? `<td>${escapeHtml(rnNomeConsultor(r.consultor_id))}</td>` : ''}
-    <td>${r.linhas_voz ?? '—'}</td>
-    <td>${escapeHtml(r.apto || '—')}</td>
-    <td><select data-rn-campo="status" aria-label="Status">${rnOpcoes(Object.keys(RN_STATUS).map(k => [k, rnStatusRotulo(+k)]), r.status)}</select></td>
-    <td><input type="date" data-rn-campo="prox_retorno" aria-label="Próximo retorno" value="${escapeHtml(r.prox_retorno || '')}" class="${rnRetornoVencido(r, hoje) ? 'rnVencido' : ''}"></td>
-    <td><select data-rn-campo="canal" aria-label="Canal">${rnOpcoes(RN_CANAIS.map(c => [c, c]), r.canal, '—')}</select></td>
+    ${gestor ? `<td class="rnTdSel"><input type="checkbox" data-rn-sel="${r.id}" aria-label="Selecionar"${rnEstado.selecionados.has(r.id) ? ' checked' : ''}></td>` : ''}
+    <td><div class="rnEmpresa"><span class="rnAv">${escapeHtml(rnIniciais(r.razao_social))}</span><span><b>${escapeHtml(r.razao_social || '(sem nome)')}</b><small>${escapeHtml(sub)}</small></span></div></td>
+    <td class="rnNumTd">${r.linhas_voz ?? '—'}</td>
+    <td>${rnEtapaHtml(r.status)}</td>
+    <td class="rnMuted">${escapeHtml(rnUltimoContato(r))}</td>
+    <td>${rnProximoPassoHtml(r, agora)}</td>
   </tr>`;
 }
 function rnRenderCarteira(){
-  const hoje = rnHoje(); const gestor = rnGestor();
+  const agora = rnAgora(); const gestor = rnGestor(); const f = rnEstado.filtros;
   rnPreencherFiltros();
-  const c = rnContadores(rnEstado.lista, hoje);
-  document.getElementById('rnContadores').innerHTML = `<span><b>${c.total}</b> clientes</span><span><b>${c.pctNaoContatado}%</b> não contatados</span>`
-    + `<span class="${c.vencidos ? 'rnVencido' : ''}"><b>${c.vencidos}</b> retornos vencidos</span>${c.pendencias ? `<span><b>${c.pendencias}</b> pendências</span>` : ''}`;
-  const lista = rnFiltrar(rnEstado.lista, rnEstado.filtros, hoje);
+  const cont = rnContarVisoes(rnEstado.lista, f, agora);
+  document.getElementById('rnVisoes').innerHTML = RN_VISOES.map(([v, t]) =>
+    `<button type="button" class="rnVisaoBt${(f.visao || 'todos') === v ? ' on' : ''}${v === 'atrasados' && cont[v] ? ' late' : ''}" data-rn-visao="${v}">${t} <b>${cont[v]}</b></button>`).join('');
+  document.getElementById('rnChips').innerHTML = rnChipsHtml(f);
+  const lista = rnFiltrar(rnEstado.lista, f, agora);
   const mostrar = lista.slice(0, rnEstado.pagina * RN_PAGINA);
-  document.getElementById('rnThead').innerHTML = `<tr>${gestor ? '<th><input type="checkbox" id="rnSelTodos" aria-label="Selecionar todos"></th>' : ''}<th>Razão social / ADM</th>${gestor ? '<th>Consultor</th>' : ''}<th>Linhas</th><th>Apto</th><th>Status</th><th>Próx. retorno</th><th>Canal</th></tr>`;
-  document.getElementById('rnTbody').innerHTML = mostrar.map(r => rnLinhaHtml(r, hoje, gestor)).join('')
-    || `<tr><td colspan="${gestor ? 8 : 6}">Nenhum cliente com esses filtros.</td></tr>`;
+  document.getElementById('rnThead').innerHTML = `<tr>${gestor ? '<th class="rnTdSel"><input type="checkbox" id="rnSelTodos" aria-label="Selecionar todos"></th>' : ''}<th>Empresa</th><th>Linhas</th><th>Etapa</th><th>Último contato</th><th>Próximo passo</th></tr>`;
+  document.getElementById('rnTbody').innerHTML = mostrar.map(r => rnLinhaHtml(r, agora, gestor)).join('')
+    || `<tr><td colspan="${gestor ? 6 : 5}" class="rnVazio">Nenhum cliente com esses filtros.</td></tr>`;
   const mais = document.getElementById('rnMais');
   mais.style.display = lista.length > mostrar.length ? '' : 'none';
   mais.textContent = `Mostrar mais (${lista.length - mostrar.length})`;
@@ -4064,7 +4225,7 @@ function rnAbrirFechamento(id, status){
 }
 async function rnRedistribuir(){
   const para = document.getElementById('rnPassarPara').value;
-  const noFiltro = new Set(rnFiltrar(rnEstado.lista, rnEstado.filtros, rnHoje()).map(r => r.id));
+  const noFiltro = new Set(rnFiltrar(rnEstado.lista, rnEstado.filtros, rnAgora()).map(r => r.id));
   const ids = [...rnEstado.selecionados].filter(id => noFiltro.has(id));   // selecionado e depois escondido pelo filtro não passa
   if(!para || !ids.length){ mostrarAviso('Escolha os clientes e para quem passar.', 'info'); return; }
   const r = await ppSeguro(() => sb.from('renovacao_carteira').update({ consultor_id: para }).in('id', ids));
@@ -4074,51 +4235,39 @@ async function rnRedistribuir(){
   mostrarAviso(`${ids.length} cliente(s) passados para ${rnNomeConsultor(para)}.`, 'ok');
   rnRender();
 }
-document.getElementById('rnTbody').addEventListener('change', async (e) => {
-  const tr = e.target.closest('tr[data-rn-id]');
-  if(!tr) return;
-  const id = Number(tr.dataset.rnId);
-  if(e.target.matches('[data-rn-sel]')){
-    if(e.target.checked) rnEstado.selecionados.add(id); else rnEstado.selecionados.delete(id);
-    rnRenderCarteira();
-    return;
-  }
-  const campo = e.target.dataset.rnCampo;
-  if(!campo || campo === 'prox_retorno') return;   // data grava no focusout (abaixo)
-  let valor = e.target.value || null;
-  if(campo === 'status'){
-    valor = Number(valor);
-    if(valor === 6 || valor === 7){ rnAbrirFechamento(id, valor); return; }
-  }
-  await rnSalvar(id, { [campo]: valor });
-});
-// Data digitada: o Chrome dispara change a cada parte do campo; grava só ao sair, se mudou e se o ano faz sentido.
-document.getElementById('rnTbody').addEventListener('focusout', async (e) => {
-  if(!e.target.matches('[data-rn-campo="prox_retorno"]')) return;
-  const tr = e.target.closest('tr[data-rn-id]');
-  const r = tr && rnEstado.lista.find(x => x.id === Number(tr.dataset.rnId));
-  if(!r) return;
-  const valor = e.target.value || null;
-  if(valor === (r.prox_retorno || null)) return;
-  if(valor && valor.slice(0, 4) < '2020'){ rnRender(); return; }
-  await rnSalvar(r.id, { prox_retorno: valor });
+document.getElementById('rnTbody').addEventListener('change', (e) => {
+  if(!e.target.matches('[data-rn-sel]')) return;
+  const id = Number(e.target.dataset.rnSel);
+  if(e.target.checked) rnEstado.selecionados.add(id); else rnEstado.selecionados.delete(id);
+  rnRenderCarteira();
 });
 document.getElementById('rnTbody').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-rn-abrir]');
-  if(b && typeof rnAbrirFicha === 'function') rnAbrirFicha(Number(b.dataset.rnAbrir));
+  if(e.target.closest('input, label')) return;   // marcar para redistribuir não abre a ficha
+  const tr = e.target.closest('tr[data-rn-id]');
+  if(tr && typeof rnAbrirFicha === 'function') rnAbrirFicha(Number(tr.dataset.rnId));
 });
 document.getElementById('rnThead').addEventListener('change', (e) => {
   if(e.target.id !== 'rnSelTodos') return;
-  rnFiltrar(rnEstado.lista, rnEstado.filtros, rnHoje())
+  rnFiltrar(rnEstado.lista, rnEstado.filtros, rnAgora())
     .forEach(r => { if(e.target.checked) rnEstado.selecionados.add(r.id); else rnEstado.selecionados.delete(r.id); });
   rnRenderCarteira();
 });
 document.getElementById('rnBusca').addEventListener('input', (e) => { rnEstado.filtros.busca = e.target.value; rnEstado.pagina = 1; rnRenderCarteira(); });
-[['rnFStatus', 'status'], ['rnFApto', 'apto'], ['rnFCidade', 'cidade'], ['rnFDdd', 'ddd'], ['rnFConsultor', 'consultor']].forEach(([idEl, k]) =>
+[['rnFApto', 'apto'], ['rnFCidade', 'cidade'], ['rnFDdd', 'ddd'], ['rnOrdem', 'ordem']].forEach(([idEl, k]) =>
   document.getElementById(idEl).addEventListener('change', (e) => { rnEstado.filtros[k] = e.target.value; rnEstado.pagina = 1; rnRenderCarteira(); }));
-document.querySelectorAll('[data-rn-filtro]').forEach(b => b.addEventListener('click', () => {
-  const k = b.dataset.rnFiltro; rnEstado.filtros[k] = !rnEstado.filtros[k]; rnEstado.pagina = 1; rnRenderCarteira();
-}));
+document.getElementById('rnFConsultor').addEventListener('change', (e) => { rnEstado.filtros.consultor = e.target.value; rnEstado.pagina = 1; rnRender(); });
+document.getElementById('rnVisoes').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-rn-visao]'); if(!b) return;
+  rnEstado.filtros.visao = b.dataset.rnVisao; rnEstado.pagina = 1; rnRenderCarteira();
+});
+document.getElementById('rnChips').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-rn-limpar]'); if(!b) return;
+  rnEstado.filtros[b.dataset.rnLimpar] = ''; rnEstado.pagina = 1; rnRenderCarteira();
+});
+document.getElementById('rnMaisFiltrosBt').addEventListener('click', (e) => {
+  const p = document.getElementById('rnMaisFiltros'); p.hidden = !p.hidden;
+  e.currentTarget.setAttribute('aria-expanded', String(!p.hidden));
+});
 document.getElementById('rnMais').addEventListener('click', () => { rnEstado.pagina++; rnRenderCarteira(); });
 document.getElementById('rnPassar').addEventListener('click', rnRedistribuir);
 // ---- Ficha do cliente ----
@@ -4231,27 +4380,8 @@ document.getElementById('rnFicha').addEventListener('submit', async (e) => {
   if(!Object.keys(mudou).length){ mostrarAviso('Nada mudou no atendimento.', 'info'); return; }
   if(await rnSalvar(r.id, mudou)) mostrarAviso('Atendimento salvo.', 'ok');
 });
-// ---- Retornos ----
+// ---- Datas ----
 function rnSomarDias(iso, n){ const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
-function rnRetornos(lista, hoje){
-  const abertos = lista.filter(r => r.na_base && r.prox_retorno && r.status !== 6 && r.status !== 7);
-  const limite = rnSomarDias(hoje, 7);
-  const ord = (a, b) => a.prox_retorno.localeCompare(b.prox_retorno) || (b.linhas_voz || 0) - (a.linhas_voz || 0);
-  return {
-    vencidos: abertos.filter(r => r.prox_retorno < hoje).sort(ord),
-    hoje: abertos.filter(r => r.prox_retorno === hoje).sort(ord),
-    proximos: abertos.filter(r => r.prox_retorno > hoje && r.prox_retorno <= limite).sort(ord),
-  };
-}
-function rnRenderRetornos(){
-  const g = rnRetornos(rnEstado.lista, rnHoje());
-  const dm = (iso) => iso.slice(8, 10) + '/' + iso.slice(5, 7);
-  const bloco = (titulo, itens, cls) => `<div class="card rnRetBloco"><h3 class="${cls || ''}">${titulo} <span class="kbN">${itens.length}</span></h3>${itens.length
-    ? '<ul class="rnRetLista">' + itens.map(r => `<li><button type="button" class="rnNome" data-rn-abrir="${r.id}">${escapeHtml(r.razao_social || '(sem nome)')}</button> <span class="kbMeta">${dm(r.prox_retorno)} · ${escapeHtml(rnStatusRotulo(r.status))}${rnGestor() ? ' · ' + escapeHtml(rnNomeConsultor(r.consultor_id)) : ''}</span></li>`).join('') + '</ul>'
-    : '<p class="kbMeta">Nada aqui.</p>'}</div>`;
-  document.getElementById('rnRetornos').innerHTML = bloco('Vencidos', g.vencidos, 'rnVencido') + bloco('Hoje', g.hoje) + bloco('Próximos 7 dias', g.proximos);
-}
-document.getElementById('rnRetornos').addEventListener('click', (e) => { const b = e.target.closest('[data-rn-abrir]'); if(b) rnAbrirFicha(Number(b.dataset.rnAbrir)); });
 
 // ---- Resumo (fórmulas da planilha; a contagem vem da view renovacao_resumo) ----
 function rnLinhasResumo(rows){
