@@ -4991,6 +4991,8 @@ agência". Conta feita no banco antes (sem Repique e sem apagados): média de 28
 
 ## §151 Redesign da aba Renovação: "Central do dia" (13/11/2026)
 
+**NO AR em 14/11/2026 08:33 (SP)** — painel MD5 `712cfb0b`, backup no servidor `deploy_backups/painel_clientes_apex_20261114_113332_antes_renovacao_redesign.html` (antes: `5ff89ec5`). Banco aplicado em 13/11 (coluna `retorno_hora` + view `renovacao_resumo`), conferência passou no banco real.
+
 Pedido do Rafael ("redesign COMPLETO dessa aba… bonito, fácil de usar e claro"). Spec:
 `docs/superpowers/specs/2026-11-13-renovacao-redesign-design.md` (mockups aprovados em `docs/superpowers/specs/assets/`).
 
