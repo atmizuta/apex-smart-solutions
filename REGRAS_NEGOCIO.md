@@ -5013,4 +5013,23 @@ Pedido do Rafael ("redesign COMPLETO dessa aba… bonito, fácil de usar e claro
 - Visual: linguagem do §126 (tokens `--ml-*` valem também em `#panel-renovacao` e `#rnFicha`); etapas com `--rn-st1…7`.
 - Banco: migration `20261113150000_renovacao_retorno_hora.sql`; conferência `supabase/tests/renovacao_retorno_hora_check.sql`.
 
-Próxima livre: §152 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
+## §152 Exportação do mailing não para com a limpeza do banco (14/11/2026, ok do Rafael)
+
+- **O que aconteceu (14/11, 10:17–10:29):** o pedido do Guilherme (MIGRACAO-ICP-1, 289.556 linhas) parou em 149.357 na fase 2
+  ("Conferindo os números já usados há mais tempo…"). As partes 1 e 2 marcaram ~157 mil linhas; isso passou do gatilho da
+  §134.1 (1% + 10 mil linhas mortas) e o **autovacuum de `mailing.linha` (3,7 GB) começou no meio do pedido**. No disco do Micro
+  ele levou ~12 min; enquanto rodava, cada trecho da fase 2 (normalmente 38–50 s) passou de 110 s → 504 → o painel repetia
+  3 vezes em 50 s e desistia. Os 4 erros 504 caíram todos dentro da janela do vacuum. Em 09/11 o autovacuum também começou às
+  09:10, logo depois da parte 1 do pedido daquele dia.
+- **Banco:** `mailing.linha` com `autovacuum_enabled = false` **de dia**. pg_cron `mailing-linha-limpeza-noite` (00:00 UTC =
+  21h SP) liga; `mailing-linha-limpeza-dia` (10:00 UTC = 07h SP) desliga. Se às 07h um vacuum ainda estiver rodando, o `alter
+  table` o cancela (autovacuum comum cede a trava). O vacuum anti-wraparound o Postgres faz mesmo desligado. Os limites da
+  §134.1 (1% + 10 mil) continuam valendo à noite.
+- **Painel:** `MB_REPETIR_ESPERAS` passou de 3 esperas (5/15/30 s) para 10 (5/15/30/60/60/60/120/120/120/120 s ≈ 12 min). Repetir
+  continua seguro (a chamada que estoura o prazo é desfeita no banco). Mensagem: "A base está ocupada (pode ser a limpeza
+  automática, alguns minutos). Não feche a aba: tentando de novo (i de 10)…".
+- Teste: `test_mailing.js` confere que as esperas somam pelo menos 10 min.
+- **No ar 14/11/2026 ~10:44 (SP):** banco (jobs 30 e 31) aplicado antes; painel `1d208025…` (o do ar era `712cfb0b…`, igual
+  à oficial b9008f7). Backup: `~/deploy_backups/painel_clientes_apex_20261114_104434_antes_mailing_paciencia.html`.
+
+Próxima livre: §153 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).

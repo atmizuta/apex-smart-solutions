@@ -53,6 +53,10 @@ try{
   const espera = (ms) => new Promise(r => setTimeout(r, ms || 20));
   const avisos = [];
   mostrarAviso = (msg, tipo) => avisos.push([tipo, String(msg)]);
+  // 14/11 (seção 152): a limpeza automática do banco (autovacuum de mailing.linha) leva ~12 min e, enquanto roda, cada trecho
+  // passa do prazo. O painel tem de esperar a base voltar, não desistir em 50 s.
+  assert(MB_REPETIR_ESPERAS.length >= 10 && MB_REPETIR_ESPERAS.reduce((a, b) => a + b, 0) >= 10 * 60 * 1000,
+    'repetições esperam pelo menos 10 min no total (cobrem a limpeza do banco)');
   MB_REPETIR_ESPERAS = [1, 1, 1]; // seção 134.1: sem esperar segundos entre as tentativas nos testes
 
   // ==== TASK 4: funções puras ====
