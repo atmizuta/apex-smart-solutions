@@ -14,7 +14,8 @@ export type RegistroExtracao = {
   quantidade_pedida: number;
 };
 export type RegistroParte = RegistroExtracao & { pedido: string; parte: number };
-export type PedidoTrecho = { trecho: Trecho; quantidade: number; inicio: string; nunca_extraida: boolean };
+// chave (seção 152.3) = o filtro sem o início do pedido, como na contagem: fase 1 já esgotada nesse filtro é pulada
+export type PedidoTrecho = { trecho: Trecho; quantidade: number; inicio: string; nunca_extraida: boolean; chave: string };
 export type Contagem = { linhas: number; empresas: number; telefones: number; por_operadora: { operadora: string; linhas: number }[] };
 // 23/10 (seção 110): linha de mailing.contagem com a trava do job (pid) e quanto tempo ele está contando
 export type LinhaContagem = {
@@ -140,7 +141,9 @@ export async function processar(corpo: unknown, usuario: Usuario | null, deps: D
       if (!pp.ok) return { status: 400, body: { erro: pp.erro } };
       const inicio = v.filtros.extraida_antes_de;
       if (!inicio) return { status: 400, body: { erro: "Falta o início do pedido (extraida_antes_de)." } };
-      const ped: PedidoTrecho = { trecho: t.trecho, quantidade, inicio, nunca_extraida: !!v.filtros.nunca_extraida };
+      const { extraida_antes_de: _ini, ...semInicio } = v.filtros;
+      const ped: PedidoTrecho = { trecho: t.trecho, quantidade, inicio, nunca_extraida: !!v.filtros.nunca_extraida,
+        chave: chaveContagem(semInicio) };
       const r = await deps.extrairTrecho(w, ped, { ...registro, pedido: pp.pedido, parte: pp.parte });
       const body: Record<string, unknown> = {
         colunas: [...COLUNAS_EXPORT],

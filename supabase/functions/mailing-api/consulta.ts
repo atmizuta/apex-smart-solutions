@@ -323,6 +323,63 @@ export function sqlTrechoUsadas(w: SqlParte, inicio: string, apos: Cursor | null
   };
 }
 
+// 14/11 (seção 152.2): em dois passos. Antes o banco ia à tabela em cada linha da janela só para testar o filtro (10 mil
+// leituras soltas no disco por chamada, ~90% descartadas). Passo 1: o filtro roda no índice das linhas já usadas
+// (linha_usadas_filtro, que carrega as colunas do filtro), sem ler a tabela. Passo 2: só as que passaram são lidas,
+// travadas e marcadas — conferindo de novo a janela, porque outro pedido pode ter marcado a linha entre os dois passos.
+// Ainda NÃO usada pela função (14/11): com só 23% das páginas marcadas como visíveis (extrações do dia + limpeza só à noite)
+// o banco escolheu o índice antigo e leu 3× mais blocos. Entra depois de medir com a tabela limpa (seção 152.2).
+export function sqlTrechoUsadasIndice(w: SqlParte, inicio: string, apos: Cursor | null, fim: Cursor, quantidade: number): SqlParte {
+  const n = w.params.length;
+  const params: unknown[] = [...w.params, inicio, fim.ue, fim.so];
+  const janela = (a: string) => {
+    let s = `${a}.ultima_extracao is not null and ${a}.ultima_extracao < $${n + 1}::timestamptz
+    and (${a}.ultima_extracao, ${a}.sorteio) <= ($${n + 2}::text::timestamptz, $${n + 3}::int)`;
+    if (apos) s += `\n    and (${a}.ultima_extracao, ${a}.sorteio) > ($${n + 4}::text::timestamptz, $${n + 5}::int)`;
+    return s;
+  };
+  if (apos) params.push(apos.ue, apos.so);
+  params.push(quantidade);
+  const q = `$${params.length}::int`;
+  return {
+    sql: marcarEExportar(`select x.id, x.ctid as t, x.ultima_extracao::text as ue, x.sorteio as so,
+         extract(epoch from x.ultima_extracao)::float8 as ordem from mailing.linha x
+  where x.id in (
+    select l.id from mailing.linha l
+    where ${janela("l")}
+      and (${w.sql})
+    order by l.ultima_extracao nulls first, l.sorteio
+    limit ${q}
+  )
+    and ${janela("x")}
+  order by x.ultima_extracao nulls first, x.sorteio
+  limit ${q}
+  for update of x skip locked`, ["ue as cursor_ue", "so as cursor_so", "ordem as cursor_ordem"]),
+    params,
+  };
+}
+
+// Índice das linhas já usadas (seção 152.2): a ordem de uso + id + toda coluna que montarWhere pode filtrar. Só as linhas
+// já extraídas (~8% da base), então é pequeno (~110 MB em 14/11). Coluna nova num filtro tem de entrar aqui também
+// (o teste confere), senão o passo 1 volta a ler a tabela.
+export const INDICE_USADAS_COLUNAS = ["ultima_extracao", "sorteio", "id", "rf_uf", "rf_municipio", "ddd", "rf_ddd_cidade",
+  "rf_situacao", "rf_porte_atual", "rf_mei", "rf_cnae", "rf_data_abertura", "sinal_deixou_mei", "sinal_virou_mei",
+  "sinal_porte_mudou", "classe_economica", "sexo", "geracao", "faixa_risco", "posicao", "socio_obito", "celular", "operadora",
+  "portado", "whatsapp", "procon", "do_mailing"];
+export const SQL_INDICE_USADAS = `create index if not exists linha_usadas_filtro on mailing.linha (ultima_extracao, sorteio) include (${
+  INDICE_USADAS_COLUNAS.slice(2).join(", ")}) where ultima_extracao is not null`;
+
+// 14/11 (seção 152.3): filtro cuja fase 1 já foi lida até o fim (nenhum nunca extraído sobrou) desde a última carga.
+// A chave é a mesma da contagem (chaveContagem, sem o início do pedido).
+export const SQL_FASE1_ESGOTADA_VER = `select 1 from mailing.fase1_esgotada e where e.chave = md5($1)
+  and e.esgotada_em > coalesce((select max(g.carregado_em) from mailing.carga g), '-infinity'::timestamptz)`;
+export const SQL_FASE1_ESGOTADA_MARCAR = `insert into mailing.fase1_esgotada (chave, esgotada_em) values (md5($1), now())
+  on conflict (chave) do update set esgotada_em = excluded.esgotada_em`;
+// Leu até a última página sem completar a quantidade: tudo o que havia nesse filtro saiu (neste pedido ou num simultâneo).
+export function fase1Esgotou(r: ResultadoTrecho, quantidade: number): boolean {
+  return r.fase === 1 && r.ate >= r.paginas_total && r.tomadas < quantidade;
+}
+
 // De onde a próxima chamada continua; null = o filtro acabou. Completou a quantidade: continua de onde parou (o que saiu
 // não volta: na fase 1 deixou de ser "nunca extraído", na fase 2 ficou com data depois do início do pedido).
 export function proximoTrecho(r: ResultadoTrecho, quantidade: number, nuncaExtraida: boolean): ProximoTrecho | null {

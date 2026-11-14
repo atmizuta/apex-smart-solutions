@@ -5042,4 +5042,25 @@ Pedido do Rafael ("redesign COMPLETO dessa aba… bonito, fácil de usar e claro
   Primeira chamada na v18: 10 s (as últimas na v17: 28–88 s).
 - Teste: `consulta.test.ts` confere `TRECHO_USADAS <= 10_000`.
 
+### §152.2 Índice das linhas já usadas — criado, consulta nova NÃO publicada (14/11/2026 ~14:45, ok do Rafael)
+
+- Índice parcial `mailing.linha_usadas_filtro` = (ultima_extracao, sorteio) include (id + toda coluna de filtro)
+  where ultima_extracao is not null; 91 MB, 4,4 min (sábado 14h, banco parado). Migration
+  `20261114130000_mailing_exportacao_rapida.sql`, aplicada por psycopg com statement_timeout 0.
+- Consulta nova em dois passos (`sqlTrechoUsadasIndice`): filtro no índice, trava/marca só as que passaram.
+- **Medido (leitura, sem marcar):** atual 5,6 s / 9.392 blocos por janela de 10 mil; nova 4,9 s / 27.954 blocos — o banco
+  não usou o índice (só 23% das páginas visíveis depois das extrações do dia; a limpeza agora é só à noite). **Não publicada.**
+- Falta: medir de novo em 15/11 depois da limpeza noturna (`medir_fase2.py` no scratchpad da sessão); publicar só se ler
+  menos. Se não ganhar, apagar o índice (pesa nas gravações de cada extração).
+
+### §152.3 Pular a fase 1 com o filtro esgotado (14/11/2026 ~15:00, ok do Rafael)
+
+- A fase 1 lia a tabela inteira (~5 min) para descobrir que não havia nenhum nunca extraído. Agora, quando um pedido lê a
+  fase 1 até o fim sem completar a quantidade, `mailing.fase1_esgotada` guarda md5 do filtro (`chaveContagem`, sem o início
+  do pedido); o próximo pedido com o mesmo filtro vai direto à fase 2, até uma carga nova (`mailing.carga`).
+- `mailing-api` v19 (conferida com o repositório). Painel sem mudança (`mbTrechoAvancou` aceita fase 1 → 2 com apos nulo).
+- Filtro do pedido MIGRACAO-ICP-1 do Guilherme anotado à mão (fase 1 vazia confirmada às 14:09 UTC).
+- **Atenção:** zerar o uso de testes (ultima_extracao = null) exige apagar as linhas de `mailing.fase1_esgotada`.
+- Documento para a gestão: [Exportação do mailing mais rápida](https://claude.ai/artifact/9vB2DnEkidurCK6KwXi4X5).
+
 Próxima livre: §153 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).

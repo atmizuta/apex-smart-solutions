@@ -11,7 +11,7 @@ import {
   sqlTotais, sqlPorOperadora, sqlTotalFiltro, sqlExtrair, SQL_REGISTRAR, SQL_OPCOES, SQL_CARGA, SQL_HISTORICO, SQL_USUARIO,
   sqlTrechoNovos, sqlJanelaUsadas, sqlTrechoUsadas, ultimaPagina, ultimoTomado, SQL_PAGINAS, SQL_PARTE, SQL_SOMAR_PARTE,
   SQL_REGISTRAR_PARTE, SQL_NEO, SQL_FECHAR_PARTE, SQL_CONTAGEM_EXISTENTE, SQL_CONTAGEM_NOVA, SQL_CONTAGEM_VISTA, SQL_CONTAGEM_VER,
-  SQL_CONTAGEM_PARAR, SQL_AGORA,
+  SQL_CONTAGEM_PARAR, SQL_AGORA, SQL_FASE1_ESGOTADA_VER, SQL_FASE1_ESGOTADA_MARCAR, fase1Esgotou,
 } from "./consulta.ts";
 import type { SqlParte, ResultadoTrecho } from "./consulta.ts";
 
@@ -93,12 +93,15 @@ function criarDeps(sql: postgres.Sql): DepsApi {
         if (ped.trecho.fase === 1) {
           const [pg] = await tx.unsafe(SQL_PAGINAS);
           const paginas = Number(pg.n), de = ped.trecho.pagina;
-          const ate = Math.max(de, Math.min(de + ped.trecho.paginas, paginas));
-          if (de < ate) {
+          // 14/11 (seção 152.3): filtro sem nenhum nunca extraído desde a última carga = não lê a tabela (eram ~5 min)
+          const esgotada = (await tx.unsafe(SQL_FASE1_ESGOTADA_VER, [ped.chave] as never[])).length > 0;
+          const ate = esgotada ? paginas : Math.max(de, Math.min(de + ped.trecho.paginas, paginas));
+          if (!esgotada && de < ate) {
             const q = sqlTrechoNovos(w, de, ate, ped.quantidade);
             linhas = [...(await tx.unsafe(q.sql, q.params as never[]))] as unknown as typeof linhas;
           }
           resultado = { fase: 1, tomadas: linhas.length, ultima_pagina: ultimaPagina(linhas), ate, paginas_total: paginas };
+          if (!esgotada && fase1Esgotou(resultado, ped.quantidade)) await tx.unsafe(SQL_FASE1_ESGOTADA_MARCAR, [ped.chave] as never[]);
         } else {
           const j = sqlJanelaUsadas(ped.inicio, ped.trecho.apos);
           const [jan] = await tx.unsafe(j.sql, j.params as never[]);

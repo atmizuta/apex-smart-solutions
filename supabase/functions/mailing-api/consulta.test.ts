@@ -5,6 +5,7 @@ import {
   MAX_ITENS, validarTrecho, sqlTrechoNovos, sqlJanelaUsadas, sqlTrechoUsadas, proximoTrecho, TRECHO_PAGINAS_MIN, TRECHO_PAGINAS_MAX,
   TRECHO_USADAS, ultimaPagina, ultimoTomado, SQL_NEO, SQL_FECHAR_PARTE, SQL_HISTORICO, whereParaFila, chaveContagem,
   SQL_CONTAGEM_EXISTENTE, SQL_CONTAGEM_NOVA, SQL_CONTAGEM_VISTA, SQL_CONTAGEM_VER, SQL_CONTAGEM_PARAR,
+  INDICE_USADAS_COLUNAS, SQL_INDICE_USADAS, sqlTrechoUsadasIndice, SQL_FASE1_ESGOTADA_VER, SQL_FASE1_ESGOTADA_MARCAR, fase1Esgotou,
 } from "./consulta.ts";
 
 test("filtrosPadrao: ativa, sem óbito, celular, só mailing", () => {
@@ -298,6 +299,52 @@ test("sqlTrechoUsadas: dentro da janela, com filtro, do mais antigo para o mais 
   assert.deepEqual(com.params, ["2026-10-22T15:00:00.000Z", fim.ue, 999, "2026-10-22 10:00:00+00", 5, 100]);
   assert.match(com.sql, /\(l\.ultima_extracao, l\.sorteio\) > \(\$4::text::timestamptz, \$5::int\)/);
   assert.match(com.sql, /limit \$6::int/);
+});
+
+// 14/11 (seção 152.2): o filtro roda dentro do índice das linhas já usadas (só as colunas dele, sem ler a tabela); a tabela
+// só é lida, travada e marcada nas linhas que passaram. A janela e a ordem continuam iguais (o banco confere de novo na trava).
+test("sqlTrechoUsadas em dois passos: filtro no índice das usadas, trava só as que passaram", () => {
+  const fim = { ue: "2026-10-22 14:29:07.821456+00", so: 999 };
+  const apos = { ue: "2026-10-22 10:00:00+00", so: 5 };
+  const q = sqlTrechoUsadasIndice({ sql: "l.portado", params: [] }, "2026-10-22T15:00:00.000Z", apos, fim, 100);
+  const s = q.sql.replace(/\s+/g, " ");
+  // passo 1: só colunas do índice (id, ordem e filtro), sem trava
+  assert.match(s, /x\.id in \( select l\.id from mailing\.linha l where l\.ultima_extracao is not null/);
+  assert.match(s, /and \(l\.portado\) order by l\.ultima_extracao nulls first, l\.sorteio limit \$6::int \)/);
+  // passo 2: a linha travada é conferida de novo (outro pedido pode ter marcado entre os dois passos)
+  assert.match(s, /x\.ultima_extracao is not null and x\.ultima_extracao < \$1::timestamptz/);
+  assert.match(s, /\(x\.ultima_extracao, x\.sorteio\) <= \(\$2::text::timestamptz, \$3::int\)/);
+  assert.match(s, /\(x\.ultima_extracao, x\.sorteio\) > \(\$4::text::timestamptz, \$5::int\)/);
+  assert.match(s, /select x\.id, x\.ctid as t, x\.ultima_extracao::text as ue, x\.sorteio as so/);
+});
+
+test("índice das usadas cobre toda coluna que um filtro pode usar (senão o banco volta a ler a tabela)", () => {
+  const tudo = montarWhere({
+    uf: ["SP"], municipio: [1], ddd: [11], ddd_cidade: [11], situacao: ["ATIVA"], porte: ["MEI"], mei: "sim", cnae: [4711302],
+    abertura_de: "2020-01-01", abertura_ate: "2021-01-01", sinais: ["deixou_mei", "virou_mei", "porte_mudou"], classe: ["A"],
+    sexo: ["M"], geracao: ["X"], risco: ["ALTO"], posicao: [1], excluir_obito: true, tipo: "CELULAR", operadora: ["CLARO", "SEM"],
+    portado: "sim", whatsapp: "sim", procon: "com", origem: "MAILING", sem_extracao_dias: 3, extraida_antes_de: "2026-11-14T10:00:00.000Z",
+  });
+  const usadas = new Set([...tudo.sql.matchAll(/l\.(\w+)/g)].map((m) => m[1]));
+  for (const c of usadas) assert.ok(INDICE_USADAS_COLUNAS.includes(c), `coluna fora do índice: ${c}`);
+  for (const c of ["id", "ultima_extracao", "sorteio"]) assert.ok(INDICE_USADAS_COLUNAS.includes(c));
+  assert.match(SQL_INDICE_USADAS, /create index if not exists linha_usadas_filtro on mailing\.linha \(ultima_extracao, sorteio\) include \(/);
+  assert.match(SQL_INDICE_USADAS, /where ultima_extracao is not null/);
+});
+
+// 14/11 (seção 152.3): a fase 1 lia a tabela inteira (3,7 GB, ~5 min) para descobrir que o filtro não tinha mais nenhum
+// número nunca extraído. Quando um pedido lê a fase 1 até o fim, o filtro fica anotado; o próximo pedido com o mesmo filtro
+// pula direto para a fase 2 — até uma carga nova (nunca extraído só diminui entre cargas).
+test("fase 1 esgotada: anota o filtro e o próximo pedido pula a leitura", () => {
+  assert.match(SQL_FASE1_ESGOTADA_VER.replace(/\s+/g, " "),
+    /from mailing\.fase1_esgotada e where e\.chave = md5\(\$1\) and e\.esgotada_em > coalesce\(\(select max\(g\.carregado_em\) from mailing\.carga g\), '-infinity'::timestamptz\)/);
+  assert.match(SQL_FASE1_ESGOTADA_MARCAR.replace(/\s+/g, " "),
+    /insert into mailing\.fase1_esgotada \(chave, esgotada_em\) values \(md5\(\$1\), now\(\)\) on conflict \(chave\) do update set esgotada_em = excluded\.esgotada_em/);
+  // leu até o fim sem completar a quantidade = esgotou; completou antes do fim = ainda pode haver
+  assert.equal(fase1Esgotou({ fase: 1, tomadas: 3, ultima_pagina: 10, ate: 500, paginas_total: 500 }, 10), true);
+  assert.equal(fase1Esgotou({ fase: 1, tomadas: 10, ultima_pagina: 499, ate: 500, paginas_total: 500 }, 10), false);
+  assert.equal(fase1Esgotou({ fase: 1, tomadas: 0, ultima_pagina: null, ate: 400, paginas_total: 500 }, 10), false);
+  assert.equal(fase1Esgotou({ fase: 2, tomadas: 0, ultimo: null, janela: { n: 0, fim: null } }, 10), false);
 });
 
 test("proximoTrecho fase 1: continua da página da última linha, avança a faixa ou passa para os já usados", () => {

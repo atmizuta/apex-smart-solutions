@@ -158,7 +158,9 @@ test("extrair em trechos fase 1: passa o pedido para o banco e devolve de onde c
   });
   const [, w, ped, reg] = chamadas.at(-1) as [string, { sql: string }, Record<string, unknown>, Record<string, unknown>];
   assert.match(w.sql, /l\.operadora = any/);
-  assert.deepEqual(ped, { trecho: { fase: 1, pagina: 0, paginas: 2048 }, quantidade: 100, inicio: INICIO, nunca_extraida: false });
+  assert.deepEqual(ped, { trecho: { fase: 1, pagina: 0, paginas: 2048 }, quantidade: 100, inicio: INICIO, nunca_extraida: false,
+    // seção 152.3: o filtro sem o início do pedido, como na contagem (mesmo filtro em outro pedido = mesma chave)
+    chave: JSON.stringify({ operadora: ["CLARO"] }) });
   assert.deepEqual(reg, {
     user_id: supCampinas.id, username: "supc", role: "supervisor", operacao: "campinas", nome_carga: "ICP-1",
     filtros: { operadora: ["CLARO"], extraida_antes_de: INICIO }, quantidade_pedida: 100, pedido: PEDIDO, parte: 1,
