@@ -216,7 +216,9 @@ export const TRECHO_PAGINAS_MIN = 1024;
 export const TRECHO_PAGINAS_MAX = 32768; // ~256 MB: ~19 s com o disco no mínimo
 // 04/11 (seção 134): era 250 mil. Sem vacuum, o "index only scan" da janela lê a tabela linha por linha (250 mil leituras,
 // 92 s medidos) e, somado ao trecho, passou de 150 s: 504 no meio do pedido do Guilherme. 50 mil ≈ 1/5 do tempo por chamada.
-export const TRECHO_USADAS = 50_000; // linhas do índice de uso por chamada na fase 2
+// 14/11 (seção 152.1): era 50 mil. Depois da limpeza da manhã o disco ficou sem a cota de rajada (~500 leituras/s) e cada
+// linha da janela é uma leitura fora de ordem na tabela: 50 mil ≈ 100 s + janela → 504 em todo trecho. 10 mil ≈ 20 s no pior caso.
+export const TRECHO_USADAS = 10_000; // linhas do índice de uso por chamada na fase 2
 const MAX_PAGINA = 100_000_000;
 
 export type Cursor = { ue: string; so: number };

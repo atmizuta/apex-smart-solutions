@@ -5032,4 +5032,14 @@ Pedido do Rafael ("redesign COMPLETO dessa aba… bonito, fácil de usar e claro
 - **No ar 14/11/2026 ~10:44 (SP):** banco (jobs 30 e 31) aplicado antes; painel `1d208025…` (o do ar era `712cfb0b…`, igual
   à oficial b9008f7). Backup: `~/deploy_backups/painel_clientes_apex_20261114_104434_antes_mailing_paciencia.html`.
 
+### §152.1 Fase 2 em janelas de 10 mil (14/11/2026 ~11:21, ok do Rafael)
+
+- **O que aconteceu (11:09–11:15):** sem a limpeza rodando, a fase 2 voltou a dar 504. A limpeza da manhã (3,7 GB lidos e
+  regravados) gastou a cota de rajada do disco do Micro, que ficou no mínimo (~10–13 MB/s na fase 1; ~500 leituras/s).
+  Cada linha da janela de 50 mil é uma leitura fora de ordem na tabela: ~100 s + janela → passou dos 110 s.
+- **Correção:** `TRECHO_USADAS` 50 mil → **10 mil** (`mailing-api` v18, conferida com o repositório: só a conversão de
+  `̀-ͯ` que o Supabase já fazia na v17). Mais chamadas, cada uma ~5× menor: com o disco no mínimo, ~10–20 s.
+  Primeira chamada na v18: 10 s (as últimas na v17: 28–88 s).
+- Teste: `consulta.test.ts` confere `TRECHO_USADAS <= 10_000`.
+
 Próxima livre: §153 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).

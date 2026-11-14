@@ -258,6 +258,12 @@ test("sqlTrechoNovos: só a faixa de páginas, só nunca extraídos, na ordem f�
   assert.doesNotMatch(q.sql, /mailing\.empresa|mailing\.socio/);
 });
 
+test("TRECHO_USADAS cabe no prazo com o disco do Micro sem cota (seção 152.1)", () => {
+  // 14/11: sem a cota de rajada (~500 leituras/s), 50 mil linhas lidas fora de ordem = ~100 s + janela → 504 em todo trecho.
+  // 10 mil ≈ 20 s nesse pior caso.
+  assert.ok(TRECHO_USADAS <= 10_000);
+});
+
 test("sqlJanelaUsadas: até TRECHO_USADAS linhas do índice de uso, antes do início do pedido, depois do cursor", () => {
   const sem = sqlJanelaUsadas("2026-10-22T14:00:00.000Z", null);
   assert.deepEqual(sem.params, ["2026-10-22T14:00:00.000Z", TRECHO_USADAS]);
