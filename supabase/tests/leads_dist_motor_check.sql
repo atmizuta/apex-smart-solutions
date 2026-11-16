@@ -57,10 +57,14 @@ begin
                           and exists (select 1 from public.leads_distribuicao where lead_id = 'lm-6' and consultor_id is null and fechado_em is null)
                      then '8 ok; ' else '8 FALHOU ' || r::text || '; ' end;
   perform pg_temp.ld_cfg('{"expediente":{"dias":[1,2,3,4,5,6,7],"inicio":"00:00","fim":"24:00"}}');
-  -- 9. "Bloquear todos" (§132) também para o motor
+  -- 9. §154: "Bloquear todos" (§132) NÃO para o motor, só o Pegar (a entrega é desfeita: o lm-6 segue livre para o 10)
   update public.config set valor = '{"bloqueado":true}' where chave = 'leads_pegar_bloqueado';
-  r := public.leads_distribuir('TESTE DIST', 'lm-6');
-  v_out := v_out || case when r ->> 'motivo' = 'bloqueado' then '9 ok; ' else '9 FALHOU ' || r::text || '; ' end;
+  begin
+    r := public.leads_distribuir('TESTE DIST', 'lm-6');
+    raise exception using errcode = 'P0154';
+  exception when sqlstate 'P0154' then null;
+  end;
+  v_out := v_out || case when coalesce(r ->> 'motivo', '') <> 'bloqueado' then '9 ok; ' else '9 FALHOU ' || r::text || '; ' end;
   update public.config set valor = '{"bloqueado":false}' where chave = 'leads_pegar_bloqueado';
   -- 10. sombra: grava para quem iria, não muda dono, uma vez só por lead
   perform pg_temp.ld_cfg('{"modo":"sombra"}');

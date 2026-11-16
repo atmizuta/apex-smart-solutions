@@ -5083,4 +5083,24 @@ Pedido do Rafael ("redesign COMPLETO dessa aba… bonito, fácil de usar e claro
   Backup `~/deploy_backups/painel_clientes_apex_20261116_145230_antes_cards_tipo_quantidade.html`.
   Reverter: copiar o backup de volta.
 
-Próxima livre: §154 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
+## §154 "Bloquear todos" não para mais a distribuição automática (16/11/2026, pedido do Rafael)
+
+- **Sintoma:** às 14:16 o Rafael ligou o "Bloquear todos" (§132) na Equipe e os leads pararam de cair. A última
+  entrega automática saiu às 14:16:00. Às 14:55 havia 40 leads na fila (34 de 15/11 e 6 de 14/11) e 3 consultoras
+  na vez.
+- **Causa:** pela decisão 1-A da §146.2, o bloqueio também parava o motor no modo Automático. Isso valia no
+  `leads_distribuir` (motivo `bloqueado`) e no `leads_dist_tick`.
+- **Regra nova:** o "Bloquear todos" trava só o **Pegar** (`leads_pegar` segue com `pegar leads está pausado pelo
+  supervisor`). A entrega automática continua com ou sem bloqueio. Para parar o motor, use o modo **Manual** na
+  Equipe.
+- **Banco:** migration `20261116150000_leads_dist_automatico_ignora_bloqueio.sql`, aplicada em 16/11. Ela troca só
+  as duas linhas do bloqueio na definição que está no banco e falha se não achar o trecho. Permissões e
+  `security definer` continuam iguais. Painel sem mudança: o aviso "Pegar leads está pausado pelo supervisor"
+  continua certo.
+- **Testes:** `leads_dist_motor_check.sql` item 9 e `leads_dist_consultor_check.sql` item 10b agora esperam a entrega
+  com o bloqueio ligado (desfeita no próprio item). Sem a migration o item 9 falha (`motivo: bloqueado`); com ela,
+  passa.
+- **Achado à parte:** os itens 7, 10, 11, 13b e 15 do motor_check já falhavam antes, com ou sem esta mudança. Os
+  consultores de teste ficam com 2 leads em "Meus novos" e batem o limite da §146.4. O teste precisa ser atualizado.
+
+Próxima livre: §155 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
