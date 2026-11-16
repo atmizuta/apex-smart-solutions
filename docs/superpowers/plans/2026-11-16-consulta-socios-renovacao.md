@@ -1270,7 +1270,8 @@ jobs:
 
 Run: `npm test` → PASS; `git diff origin/main --stat` mostra só `src/socios/*`, `scripts/mapear-novavida.js`,
 `test/socios-*.test.js`, `package.json` e `.github/workflows/socios.yml`;
-`git grep -nE "[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2}|[0-9]{2}\.[0-9]{3}\.[0-9]{3}/[0-9]{4}" -- src scripts test .github` → nada.
+`git grep -nE "[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2}|[0-9]{2}\.[0-9]{3}\.[0-9]{3}/[0-9]{4}" -- src scripts test .github | grep -v "123.456.789-09"` → nada
+(`123.456.789-09` é o CPF fictício dos testes).
 
 - [ ] **Step 3: Commit e push (o Rafael roda)**
 
