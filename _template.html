@@ -19453,9 +19453,10 @@ function mbTextoCarga(c){
   if(c.carregado_em) p.push('carregado em ' + new Date(c.carregado_em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }));
   return p.join(' · ');
 }
-const mbEstado = { geracao: 0, opcoes: null, contagem: null, contagemVez: 0, contagemFiltros: null };
+// ultimaContagem (seção 152.4): a última contagem pronta e o filtro dela (linhas e telefones distintos)
+const mbEstado = { geracao: 0, opcoes: null, contagem: null, contagemVez: 0, contagemFiltros: null, ultimaContagem: null };
 function mbResetar(){
-  mbEstado.geracao++; mbEstado.opcoes = null; mbEstado.contagem = null; mbEstado.contagemFiltros = null;
+  mbEstado.geracao++; mbEstado.opcoes = null; mbEstado.contagem = null; mbEstado.contagemFiltros = null; mbEstado.ultimaContagem = null;
   ['mbResultado', 'mbHistorico'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = ''; });
   const st = document.getElementById('mbStatus'); if(st) st.textContent = '';
 }
@@ -19655,7 +19656,11 @@ async function mbAcompanharContagem(d, ger){
   let falhas = 0;
   for(;;){
     if(ger !== mbEstado.geracao || vez !== mbEstado.contagemVez) return; // trocou de usuário, parou ou contou outro filtro
-    if(d.estado === 'pronta'){ mbEstado.contagem = null; mbRenderResultado(d); return; }
+    if(d.estado === 'pronta'){
+      mbEstado.contagem = null;
+      mbEstado.ultimaContagem = { chave: mbEstado.contagemFiltros, linhas: Number(d.linhas), telefones: Number(d.telefones) };
+      mbRenderResultado(d); return;
+    }
     if(d.estado === 'erro' || d.estado === 'cancelada'){
       mbEstado.contagem = null;
       mbRenderContagemParou(d.erro || 'A contagem não terminou. Tente de novo.');
@@ -19921,7 +19926,11 @@ async function mbExportarPedido(carga, total, filtros, opcoes){
     mbEstado.exportando = false; btn.disabled = false;
     mostrarAviso('Não foi possível falar com a base de mailing. Tente de novo.', 'erro'); return;
   }
-  const n = Math.ceil(total / MB_MAX_QTD);
+  // 16/11 (seção 152.4): com "Remover duplicados", cada telefone sai uma vez — o pedido do Guilherme (387.110 linhas,
+  // 277.352 telefones) saiu em 3 arquivos chamados "de 4". Com a contagem do mesmo filtro, conta os arquivos pelos telefones.
+  const uc = mbEstado.ultimaContagem;
+  const teto = op.duplicados && uc && uc.chave === JSON.stringify(filtros) && uc.telefones > 0 ? Math.min(total, uc.telefones) : total;
+  const n = Math.ceil(teto / MB_MAX_QTD);
   const pedido = mbNovoPedido();
   const f = Object.assign({}, filtros, { extraida_antes_de: agora.data.agora });
   prog.hidden = false;
@@ -19992,7 +20001,13 @@ async function mbExportarPedido(carga, total, filtros, opcoes){
   else if(!entregue && removidos.length) mostrarAviso('Nenhuma linha ficou: as ' + mbFmtNum(removidos.length) + ' encontradas foram removidas (não baixadas).' + extra, 'info');
   else if(!entregue) mostrarAviso('Nenhuma linha com esses filtros. Nada foi exportado.' + extra, 'info');
   else if(parou) mostrarAviso(feito + ' — parou a seu pedido.' + extra, 'ok');
-  else if(acabou && entregue < total) mostrarAviso(feito + ' — são todas as linhas do filtro. A contagem (≈) é estimativa; este é o número exato.' + extra, 'ok');
+  else if(acabou && entregue < total){
+    // 16/11 (seção 152.4): o filtro acabou antes da quantidade pedida — dizer por quê, e que nada ficou para trás
+    const menos = arquivos < n ? ' Saíram ' + arquivos + (arquivos === 1 ? ' arquivo' : ' arquivos') + ', não ' + n
+      + (nRep ? ': o nome "de ' + n + '" foi calculado antes de tirar os repetidos.' : ': o filtro tinha menos linhas que a quantidade pedida.') : '';
+    mostrarAviso(feito + (nRep ? ' — são todos os telefones do filtro: as linhas a menos eram telefones repetidos (cada telefone sai uma vez só). Nada ficou para trás.'
+      : ' — são todas as linhas do filtro; este é o número exato. Nada ficou para trás.') + menos + extra, 'ok');
+  }
   else mostrarAviso(feito + '.' + extra, 'ok');
 }
 function mbLerArquivo(a){

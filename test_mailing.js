@@ -497,6 +497,45 @@ try{
   eq([extrairChamadas().length, baixados.length, avisos[0] && avisos[0][0], mbEstado.exportando], [0, 0, 'erro', false], 'sem a hora do banco nada é extraído');
   window.__fnRespostas.agora = { data: { agora: '2026-11-09T11:59:09.241Z' }, error: null };
 
+  // 16/11 (seção 152.4): pedido TIM-A do Guilherme — pediu as 387.110 LINHAS do filtro com "Remover duplicados"; o filtro
+  // tinha 277.352 telefones distintos, saíram 3 arquivos chamados "de 4" e ele achou que faltava um. Com a contagem do mesmo
+  // filtro na tela, os arquivos são calculados pelos telefones; e o aviso final diz que as linhas a menos eram repetidas.
+  const caixasAntes = ['mbNeoApex', 'mbNeoEagle', 'mbRemoverDuplicados'].map(id => document.getElementById(id).checked);
+  ['mbNeoApex', 'mbNeoEagle'].forEach(id => { document.getElementById(id).checked = false; });
+  document.getElementById('mbRemoverDuplicados').checked = true;
+  window.__fnRespostas.contar = { data: { contagem: 31, estado: 'pronta', linhas: 250000, empresas: 200000, telefones: 150000,
+    contado_em: '2026-11-16T10:57:11.000Z', por_operadora: [{ operadora: 'TIM', linhas: 250000 }] }, error: null };
+  document.getElementById('btnMbContar').click(); await espera(20);
+  let servidas = 0;
+  window.__fnRespostas.extrair = (body) => {
+    const n = Math.min(body.quantidade, 50000, 250000 - servidas);
+    const linhas = Array.from({ length: n }, (_, i) => L('00000000000191', String(11900000000 + (servidas + i) % 150000)));
+    servidas += n;
+    return { data: { colunas: colsExp, linhas, quantidade_entregue: n, nome_arquivo: 'TIM-A_2026-11-16.csv',
+      proxima: servidas < 250000 ? { fase: 1, pagina: body.trecho.pagina + body.trecho.paginas } : null, paginas_total: 380000,
+      paginas_lidas: body.trecho.paginas }, error: null };
+  };
+  window.__fnRespostas.fechar_parte = { data: { ok: true }, error: null };
+  baixados.length = 0; avisos.length = 0; chamadas.length = 0;
+  document.getElementById('mbCarga').value = 'TIM-A'; document.getElementById('mbQtd').value = '250000';
+  document.getElementById('btnMbExportar').click(); await ateTerminar();
+  eq(baixados.map(b => b.nome), ['TIM-A_2026-11-16_parte1de2.csv', 'TIM-A_2026-11-16_parte2de2.csv'],
+    'com Remover duplicados, os arquivos são contados pelos telefones distintos (150 mil = 2), não pelas linhas (250 mil = 3)');
+  assert(avisos[0] && avisos[0][0] === 'ok' && avisos[0][1].includes('150.000 linhas em 2 arquivos')
+    && avisos[0][1].includes('todos os telefones do filtro') && avisos[0][1].includes('Nada ficou para trás'),
+    'aviso: as linhas a menos eram telefones repetidos — ' + (avisos[0] && avisos[0][1]));
+  // sem a contagem do mesmo filtro (outro filtro na tela), continua pelas linhas pedidas
+  const obitoAntes = document.getElementById('mbExcluirObito').checked;
+  document.getElementById('mbExcluirObito').checked = !obitoAntes;
+  servidas = 0; baixados.length = 0; avisos.length = 0; chamadas.length = 0;
+  document.getElementById('btnMbExportar').click(); await ateTerminar();
+  eq(baixados.map(b => b.nome), ['TIM-A_2026-11-16_parte1de3.csv', 'TIM-A_2026-11-16_parte2de3.csv'],
+    'filtro diferente do contado: não usa os telefones da contagem');
+  assert(avisos[0] && avisos[0][1].includes('Saíram 2 arquivos, não 3'), 'aviso explica o "de 3" quando sai menos — ' + (avisos[0] && avisos[0][1]));
+  document.getElementById('mbExcluirObito').checked = obitoAntes;
+  ['mbNeoApex', 'mbNeoEagle', 'mbRemoverDuplicados'].forEach((id, i) => { document.getElementById(id).checked = caixasAntes[i]; });
+  mbEstado.ultimaContagem = null;
+
   // 09/11 (seção 144): o caso do Guilherme — a fase 2 devolvia o mesmo cursor e o painel repetiu 28 mil vezes. Se a função
   // devolver o mesmo trecho que recebeu, o painel para e avisa (não fica girando).
   const parado = { fase: 2, apos: { ue: '2026-10-22 14:27:54.528653+00', so: 1024242256 } };

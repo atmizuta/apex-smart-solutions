@@ -5063,6 +5063,23 @@ Pedido do Rafael ("redesign COMPLETO dessa aba… bonito, fácil de usar e claro
 - **Atenção:** zerar o uso de testes (ultima_extracao = null) exige apagar as linhas de `mailing.fase1_esgotada`.
 - Documento para a gestão: [Exportação do mailing mais rápida](https://claude.ai/artifact/9vB2DnEkidurCK6KwXi4X5).
 
+### §152.4 Arquivos contados pelos telefones com "Remover duplicados" (16/11/2026, ok do Rafael)
+
+- **Caso:** pedido TIM-A do Guilherme (16/11 07:58–08:05, SP · classe A · ativa · TIM · sem óbito). Pediu as 387.110
+  linhas do filtro; o painel nomeou os arquivos "de 4", mas com Remover duplicados saíram 277.352 (= os telefones
+  distintos da contagem) em 3 arquivos, e ele achou que faltava o 4º. Nada faltou: o banco entregou as 387.110 linhas.
+- **Conferido no banco (só agregados):** 109.758 linhas a mais = telefone repetido de verdade; 64.145 telefones em mais de
+  uma linha; 0 na mesma empresa; 61.499 = mesmo sócio (CPF) com várias empresas; 2.646 = sócios diferentes em empresas
+  diferentes (escritório/contador; um número em 1.132 linhas).
+- **Painel:** a última contagem pronta fica em `mbEstado.ultimaContagem` (filtro + linhas + telefones). Com Remover
+  duplicados e o mesmo filtro, o nº de arquivos ("de N") sai de min(quantidade, telefones). Quando o filtro acaba antes,
+  o aviso diz que as linhas a menos eram telefones repetidos e "Nada ficou para trás"; se saíram menos arquivos que o nome
+  dizia, explica o "de N". Tirado o "A contagem (≈) é estimativa" (a contagem é exata desde a §110).
+- **Publicação (16/11/2026 ~16:54, ok do Rafael):** o ar era `5e4c161c…` (§155); novo MD5 `645eb649…`. Backup
+  `~/deploy_backups/painel_clientes_apex_20261116_165448_antes_mailing_arquivos_telefones.html`. Teste: `test_mailing.js`
+  (pedido de 250 mil linhas com 150 mil telefones sai "de 2"; filtro diferente do contado continua pelas linhas).
+- Teste em `test_mailing.js` (250 mil linhas, 150 mil telefones → "de 2"; filtro diferente do contado → continua "de 3").
+
 ## §153 Visão Diária: cards "Por tipo de venda" somam a quantidade (13/11/2026, publicado 16/11)
 
 - **Sintoma (print do Rafael, 13/11 14:43):** Linhas 10 no topo, mas Linha nova 1 + Renovação 7 = 8. Com o pedido da
