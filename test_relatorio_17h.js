@@ -35,7 +35,7 @@ function ped(over){ const r = Object.assign({
 const DADOS = [
   // dentro do corte (até 16:59 em São Paulo)
   ped({ numero_pedido: 'N1', grupo: 'VOZ - Novo', valor: 50, quantidade: 1, cadastro: '2026-09-30T09:00:00-03:00' }),
-  ped({ numero_pedido: 'N2', grupo: 'VOZ - Novo', valor: 60, quantidade: 2, cadastro: '2026-09-30T12:30:00-03:00' }),       // 1 linha do card, 2 linhas móveis
+  ped({ numero_pedido: 'N2', grupo: 'VOZ - Novo', valor: 60, quantidade: 2, cadastro: '2026-09-30T12:30:00-03:00' }),       // §153: 2 linhas móveis, que o card "Linha nova" soma
   ped({ numero_pedido: 'P1', grupo: 'VOZ - Portabilidade', valor: 70, cadastro: '2026-09-30T16:59:00-03:00' }),             // 16:59 entra
   ped({ numero_pedido: 'P2', grupo: 'VOZ - Portabilidade', valor: 80, cadastro: '2026-09-30T19:30:00+00:00' }),             // 16:30 em SP (UTC 19:30) entra
   ped({ numero_pedido: 'R1', grupo: 'VOZ - Renovação', valor: 90 }),
@@ -78,7 +78,8 @@ assert(!d.getElementById('relatorioOverlay').classList.contains('open'), 'a jane
 const dados = w.dadosRelatorioDia(DIA, 17);
 const por = Object.fromEntries(dados.itens.map(i => [i.grupo, i.qtd]));
 assert(dados.rows.length === 12, 'entram só os 12 pedidos do dia até 16:59 (fora: 17:00, 18:45, 17:00 via UTC e outros dias) — achou ' + dados.rows.length);
-assert(por['VOZ - Novo'] === 2 && por['VOZ - Portabilidade'] === 2 && por['VOZ - Renovação'] === 1 && por['VOZ - Tranf. Titularidade'] === 1, 'voz: 2 novas, 2 portabilidades, 1 renovação, 1 titularidade');
+assert(por['VOZ - Novo'] === 3 && por['VOZ - Portabilidade'] === 2 && por['VOZ - Renovação'] === 1 && por['VOZ - Tranf. Titularidade'] === 1, 'voz (§153, soma a quantidade): 3 linhas novas (N1 1 + N2 2), 2 portabilidades, 1 renovação, 1 titularidade');
+assert(por['VOZ - Novo'] + por['VOZ - Portabilidade'] + por['VOZ - Renovação'] + por['VOZ - Tranf. Titularidade'] === dados.linhas, '§153: a soma dos tipos de voz bate com "Linhas do dia" (' + dados.linhas + ')');
 assert(por['BANDA LARGA - Novo'] === 2 && por['APARELHO'] === 1 && por['SVA FIXA'] === 1 && por['SVA MÓVEL'] === 2, 'banda larga 2, aparelho 1, telefone fixo 1, Claro Monitor 2');
 assert(dados.linhas === 7, 'Linhas do dia = soma das quantidades dos grupos VOZ - * (1+2+1+1+1+1 = 7) — achou ' + dados.linhas);
 assert(dados.valor === 50 + 60 + 70 + 80 + 90 + 40 + 120 + 130 + 3000 + 10 + 5 + 5, 'valor total soma todos os pedidos do dia até as 17h — achou ' + dados.valor);
@@ -101,7 +102,7 @@ const txt = w.textoRelatorio(DIA, 17, agoraDepois);
 const linhas = txt.split('\n');
 assert(linhas[0] === 'RELATÓRIO DE VENDAS — 30/09/2026 (quarta-feira)', 'título com o dia e o dia da semana — "' + linhas[0] + '"');
 assert(linhas[1] === 'Posição das 17h (pedidos cadastrados até as 17:00)', 'explica o corte das 17h');
-const esperado = ['Linhas do dia: 7', 'Banda larga: 2', 'Migração (titularidade): 1', 'Portabilidade: 2', 'Linha nova: 2', 'Renovação: 1', 'Aparelho: 1', 'Telefone fixo: 1', 'Claro Monitor: 2'];
+const esperado = ['Linhas do dia: 7', 'Banda larga: 2', 'Migração (titularidade): 1', 'Portabilidade: 2', 'Linha nova: 3', 'Renovação: 1', 'Aparelho: 1', 'Telefone fixo: 1', 'Claro Monitor: 2'];
 assert(JSON.stringify(linhas.slice(3, 12)) === JSON.stringify(esperado), 'as 9 linhas pedidas, na ordem: ' + JSON.stringify(linhas.slice(3, 12)));
 assert(/^Valor total: R\$ 3\.660,00$/.test(linhas[13]), 'mostra o valor total (R$ 3.660,00) — "' + linhas[13] + '"');
 assert(!txt.includes(' '), 'o texto não tem espaço "inquebrável" (cola limpo no WhatsApp)');

@@ -281,8 +281,9 @@ try{
 
   // --- 7.1) cards "Por tipo de venda" (01/09/2026, +Portabilidade em 01/09/2026 tarde,
   // +Aparelho/SVA Fixa em 15/09/2026, +Claro Monitor em 28/09/2026 — pedido do usuário, pra soma
-  // dos cards bater com o total): Banda Larga=1, Migração=1, Portabilidade=3, Linha Nova=2,
-  // Renovação=1, Aparelho=1, SVA Fixa=1, Claro Monitor=0 (nenhum pedido SVA MÓVEL no dia 20) ---
+  // dos cards bater com o total). §153 (13/11/2026): cada card SOMA A QUANTIDADE (linhas) do grupo, não conta
+  // itens — Banda Larga=1, Migração=1, Portabilidade=5 (1+1+3), Linha Nova=3 (1+2), Renovação=2,
+  // Aparelho=1, SVA Fixa=1, Claro Monitor=0 (nenhum pedido SVA MÓVEL no dia 20) ---
   const tipoVendaEl = document.getElementById('diariaTipoVenda');
   const tipoVendaHtml = tipoVendaEl.innerHTML;
   const tipoCards = Array.from(tipoVendaEl.querySelectorAll('.card[data-grupo]'));
@@ -298,15 +299,19 @@ try{
   const cardClaroMonitor = tipoCards.find(c => c.dataset.grupo === 'SVA MÓVEL');
   assert(cardBanda && cardBanda.querySelector('.value').textContent === '1', 'card Banda Larga mostra 1 (pedido 8) — obtido ' + (cardBanda && cardBanda.querySelector('.value').textContent));
   assert(cardMigracao && cardMigracao.querySelector('.value').textContent === '1', 'card Migração mostra 1 (pedido 9) — obtido ' + (cardMigracao && cardMigracao.querySelector('.value').textContent));
-  assert(cardPortabilidade && cardPortabilidade.querySelector('.value').textContent === '3', 'card Portabilidade mostra 3 (pedidos 3, 4 e 5) — obtido ' + (cardPortabilidade && cardPortabilidade.querySelector('.value').textContent));
-  assert(cardLinhaNova && cardLinhaNova.querySelector('.value').textContent === '2', 'card Linha Nova mostra 2 (pedidos 1 e 2) — obtido ' + (cardLinhaNova && cardLinhaNova.querySelector('.value').textContent));
-  assert(cardRenovacao && cardRenovacao.querySelector('.value').textContent === '1', 'card Renovação mostra 1 (pedido 10) — obtido ' + (cardRenovacao && cardRenovacao.querySelector('.value').textContent));
+  assert(cardPortabilidade && cardPortabilidade.querySelector('.value').textContent === '5', 'card Portabilidade mostra 5 linhas (pedidos 3, 4 e 5: 1+1+3) — obtido ' + (cardPortabilidade && cardPortabilidade.querySelector('.value').textContent));
+  assert(cardLinhaNova && cardLinhaNova.querySelector('.value').textContent === '3', 'card Linha Nova mostra 3 linhas (pedidos 1 e 2: 1+2) — obtido ' + (cardLinhaNova && cardLinhaNova.querySelector('.value').textContent));
+  assert(cardRenovacao && cardRenovacao.querySelector('.value').textContent === '2', 'card Renovação mostra 2 linhas (pedido 10 tem quantidade 2) — obtido ' + (cardRenovacao && cardRenovacao.querySelector('.value').textContent));
   assert(cardAparelho && cardAparelho.querySelector('.value').textContent === '1', 'card Aparelho mostra 1 (pedido 11) — obtido ' + (cardAparelho && cardAparelho.querySelector('.value').textContent));
   assert(cardSvaFixa && cardSvaFixa.querySelector('.value').textContent === '1', 'card SVA Fixa mostra 1 (pedido 12) — obtido ' + (cardSvaFixa && cardSvaFixa.querySelector('.value').textContent));
   assert(cardClaroMonitor && cardClaroMonitor.querySelector('.value').textContent === '0', 'card Claro Monitor mostra 0 (nenhum pedido SVA MÓVEL no dia 20) — obtido ' + (cardClaroMonitor && cardClaroMonitor.querySelector('.value').textContent));
-  // soma dos 8 cards bate com o total de contratos do dia (10) — era exatamente essa a reclamação
-  const somaCards = tipoCards.reduce((s, c) => s + parseInt(c.querySelector('.value').textContent, 10), 0);
-  assert(somaCards === 10, 'a soma dos 8 cards bate com o KPI de contratos do dia (10) — obtido ' + somaCards);
+  // §153 (13/11/2026): a soma dos cards de VOZ bate com o KPI "Linhas" (11) — antes um item com várias linhas
+  // contava 1 no card (ex.: Renovação 7 com 9 linhas, Linhas 10 no topo)
+  const valorCard = c => parseInt(c.querySelector('.value').textContent, 10);
+  const somaVoz = tipoCards.filter(c => c.dataset.grupo.indexOf('VOZ -') === 0).reduce((s, c) => s + valorCard(c), 0);
+  assert(somaVoz === 11, 'a soma dos 4 cards de voz bate com o KPI Linhas do dia (11) — obtido ' + somaVoz);
+  const somaCards = tipoCards.reduce((s, c) => s + valorCard(c), 0);
+  assert(somaCards === 14, 'soma dos 8 cards = 14 (11 linhas de voz + banda larga, aparelho, SVA fixa) — obtido ' + somaCards);
   // ordem: banda larga, migração, portabilidade, linha nova, renovação, aparelho, sva fixa, claro monitor
   const ordemGrupos = tipoCards.map(c => c.dataset.grupo);
   assert(JSON.stringify(ordemGrupos) === JSON.stringify(['BANDA LARGA - Novo', 'VOZ - Tranf. Titularidade', 'VOZ - Portabilidade', 'VOZ - Novo', 'VOZ - Renovação', 'APARELHO', 'SVA FIXA', 'SVA MÓVEL']), 'ordem dos cards é banda larga, migração, portabilidade, linha nova, renovação, aparelho, sva fixa, claro monitor — obtido ' + ordemGrupos.join(', '));
@@ -423,7 +428,7 @@ try{
   assert(r20.porHora.length === 24 && r20.porHora[9].contratos === 2 && r20.porHora[14].contratos === 3 && r20.porHora[14].linhas === 5, 'resumoDiaria: por hora igual ao gráfico (09h 2, 14h 3 com 5 linhas)');
   assert(r20.porConsultor[0].key === 'Caio' && r20.porConsultor[0].contratos === 6 && Math.abs(r20.porConsultor[0].valor - 2150) < 0.001, 'resumoDiaria: ranking por consultor igual ao da tela (Caio 6 / R$ 2.150)');
   const tipoNovo = r20.porTipo.find(t => t.grupo === 'VOZ - Novo');
-  assert(r20.porTipo.length === 8 && tipoNovo && tipoNovo.qtd === 2, 'resumoDiaria: por tipo de venda igual aos cards (Linha Nova 2)');
+  assert(r20.porTipo.length === 8 && tipoNovo && tipoNovo.qtd === 3, 'resumoDiaria: por tipo de venda igual aos cards (Linha Nova 3 linhas)');
   const r21 = resumoDiaria('2026-09-21');
   assert(r21.contratos === 5, 'resumoDiaria: convergência funde CONV-A1/A2 (5 contratos em 21/09) — obtido ' + r21.contratos);
   assert(r21.porContrato.length === 5 && r21.porContrato.some(c => c.chave === 'CONV_AAA111' && Math.abs(c.valor - 110) < 0.001), 'resumoDiaria: porContrato traz o contrato de convergência com o valor somado (R$ 110)');

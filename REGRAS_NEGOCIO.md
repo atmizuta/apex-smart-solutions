@@ -5063,4 +5063,24 @@ Pedido do Rafael ("redesign COMPLETO dessa aba… bonito, fácil de usar e claro
 - **Atenção:** zerar o uso de testes (ultima_extracao = null) exige apagar as linhas de `mailing.fase1_esgotada`.
 - Documento para a gestão: [Exportação do mailing mais rápida](https://claude.ai/artifact/9vB2DnEkidurCK6KwXi4X5).
 
-Próxima livre: §153 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
+## §153 Visão Diária: cards "Por tipo de venda" somam a quantidade (13/11/2026, publicado 16/11)
+
+- **Sintoma (print do Rafael, 13/11 14:43):** Linhas 10 no topo, mas Linha nova 1 + Renovação 7 = 8. Com o pedido da
+  Bianca às 14:49, ficou Linhas 11 contra 10 na soma dos cards.
+- **Causa:** o card contava **itens do NEO** (`recs.length`), não linhas. O pedido 49633290 tinha um item de
+  Renovação com quantidade 3, que valia 1 no card. O card "Linhas" já somava `quantidade`.
+- **Regra nova:** cada card soma a `quantidade` do seu grupo (`qtdTipoVenda()` no dashboard). A soma dos 4 cards de
+  voz (Migração, Portabilidade, Linha nova, Renovação) é sempre igual ao card "Linhas". Banda larga, Aparelho, SVA
+  Fixa e Claro Monitor seguem no próprio card, fora de "Linhas". Subtítulo trocado para "Linhas do dia por
+  categoria (soma da quantidade de cada pedido)". Substitui a contagem da §16.11.1.
+- **Onde muda junto:** `resumoDiaria().porTipo` é a fonte única, então os relatórios das 17h e 21h (§56/§100) e o
+  Boletim da Manhã também passam a mostrar linhas por tipo.
+- **Não muda:** Contratos, Linhas, Valor, Ticket e o ritmo por hora. O gráfico continua usando a hora de entrada na
+  sincronização (§76), então um pedido que entra no painel em pedaços aparece em mais de uma hora.
+- **Testes:** `test_visao_diaria.js` (cards de voz somam igual ao KPI Linhas) e `test_relatorio_17h.js` (Linha nova 3
+  com N2 de 2 linhas; soma dos tipos de voz = Linhas do dia).
+- **Publicação (16/11/2026 14:52, ok do Rafael):** o ar era `1d208025…`; novo MD5 `b33e070d…`.
+  Backup `~/deploy_backups/painel_clientes_apex_20261116_145230_antes_cards_tipo_quantidade.html`.
+  Reverter: copiar o backup de volta.
+
+Próxima livre: §154 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
