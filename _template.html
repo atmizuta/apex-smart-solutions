@@ -3947,7 +3947,7 @@ const RN_MOTIVOS = ['Preço', 'Foi p/ concorrente', 'Sem interesse', 'Insatisfei
 const RN_COLS_LISTA = 'id,cnpj_digits,razao_social,telefone,nome_adm,linhas_voz,apto,cidade,ddd,consultor_id,origem,status,data_contato,prox_retorno,canal,linhas_renovadas,bl_vendida,sol_digitais,motivo_perda,observacoes,na_base,a_completar,atualizado_em,status_desde,retorno_hora';
 const RN_PAGINA = 50;
 function rnFiltrosVazios(){ return { busca: '', visao: 'todos', ordem: 'linhas', status: '', apto: '', cidade: '', ddd: '', consultor: '', soVencido: false, pendencias: false, foraBase: false }; }
-const rnEstado = { aba: 'hoje', buscaHoje: '', fichaAba: 'atendimento', fichaStatus: null, lista: [], propostas: [], arrastando: null, perfis: [], carregado: false, geracao: 0, filtros: rnFiltrosVazios(), pagina: 1, selecionados: new Set(), fichaId: null, ficha: null, importacao: null };
+const rnEstado = { aba: 'hoje', buscaHoje: '', fichaAba: 'atendimento', fichaStatus: null, lista: [], propostas: [], arrastando: null, perfis: [], carregado: false, geracao: 0, filtros: rnFiltrosVazios(), pagina: 1, selecionados: new Set(), fichaId: null, ficha: null, importacao: null, socios: null, sociosTimer: null };
 
 function rnGestor(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
 function rnPodeVer(){
@@ -3961,7 +3961,8 @@ function rnAplicarPermissao(){
   // §143.2: o time de renovação trabalha só pela aba Renovação (Busca, Proposta, Funil e Agenda saem do menu dele)
   const soRenovacao = rnSoRenovacao();
   ['busca', 'proposta', 'funil', 'agenda'].forEach(t => { const b = document.querySelector(`#tabsNav button[data-tab="${t}"]`); if(b) b.style.display = soRenovacao ? 'none' : ''; });
-  Object.assign(rnEstado, { aba: 'hoje', lista: [], propostas: [], perfis: [], carregado: false, filtros: rnFiltrosVazios(), pagina: 1, fichaId: null, ficha: null,
+  rnSociosParar();
+  Object.assign(rnEstado, { aba: 'hoje', lista: [], propostas: [], perfis: [], carregado: false, filtros: rnFiltrosVazios(), pagina: 1, fichaId: null, ficha: null, socios: null,
     importacao: null, buscaHoje: '', fichaAba: 'atendimento', fichaStatus: null });
   rnEstado.selecionados.clear();
   rnEstado.geracao++;
@@ -4298,9 +4299,121 @@ function rnHistoricoTexto(h){
   if(h.campo === 'status') return `${quando} · ${quem}: ${rnStatusRotulo(Number(h.de))} → ${rnStatusRotulo(Number(h.para))}`;
   return `${quando} · ${quem}: passou de ${rnNomeConsultor(h.de)} para ${rnNomeConsultor(h.para)}`;
 }
+// §156 — aba Sócios: base da Receita (mailing.socio, via RPC) + consulta na Nova Vida (fila socios_consultas + robô).
+const RN_SOCIOS_MOTIVO = { limite: 'Você já fez 20 consultas hoje. Amanhã libera de novo.', sem_permissao: 'Você não tem acesso a este cliente.' };
+const RN_SOCIOS_COLS = 'id,status,pedido_por,pedido_em,concluido_em,resultado,erro';
+function rnCpfFmt(c){ return String(c || '').replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4'); }
+function rnFoneFmt(n){ const d = onlyDigits(n); return d.length === 11 ? d.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3') : d.replace(/^(\d{2})(\d{4})(\d{4})$/, '($1) $2-$3'); }
+function rnSociosParar(){ if(rnEstado.sociosTimer){ clearTimeout(rnEstado.sociosTimer); rnEstado.sociosTimer = null; } }
+function rnSociosEmAndamento(p){ return !!p && (p.status === 'pendente' || p.status === 'consultando'); }
+async function rnSociosCarregar(id){
+  const r = rnEstado.lista.find(x => x.id === id);
+  if(!r) return;
+  const [b, p] = await Promise.all([
+    ppSeguro(() => sb.rpc('socios_da_base', { p_carteira_id: id })),
+    ppSeguro(() => sb.from('socios_consultas').select(RN_SOCIOS_COLS).eq('cnpj_digits', r.cnpj_digits).order('pedido_em', { ascending: false }).limit(10)),
+  ]);
+  if(rnEstado.fichaId !== id) return;            // trocou de cliente enquanto lia
+  const lista = p && !p.error ? (p.data || []) : [];
+  rnEstado.socios = {
+    id, aviso: '',
+    base: b && !b.error && b.data && b.data.ok ? b.data : null,
+    pedido: lista[0] || null,
+    ultimo: lista.find(x => x.status === 'pronto' || x.status === 'sem_socios') || null,
+  };
+  rnSociosPintar(); rnSociosAgendar();
+}
+function rnSociosAgendar(){
+  rnSociosParar();
+  const s = rnEstado.socios;
+  if(s && rnSociosEmAndamento(s.pedido)) rnEstado.sociosTimer = setTimeout(rnSociosReler, 5000);
+}
+async function rnSociosReler(){
+  rnSociosParar();                               // chamada à mão (ou pelo próprio timer): nunca dois timers vivos
+  const s = rnEstado.socios;
+  if(!s || !s.pedido || rnEstado.fichaId !== s.id) return;
+  const id = s.id, pedidoId = s.pedido.id;
+  const r = await ppSeguro(() => sb.from('socios_consultas').select(RN_SOCIOS_COLS).eq('id', pedidoId).maybeSingle());
+  if(rnEstado.fichaId !== id || !rnEstado.socios || rnEstado.socios.id !== id) return;
+  if(r && !r.error && r.data){
+    rnEstado.socios.pedido = r.data;
+    if(r.data.status === 'pronto' || r.data.status === 'sem_socios') rnEstado.socios.ultimo = r.data;
+  }
+  rnSociosPintar(); rnSociosAgendar();
+}
+async function rnSociosPedir(){
+  const s = rnEstado.socios;
+  if(!s || rnEstado.fichaId !== s.id) return;
+  const id = s.id;
+  const r = await ppSeguro(() => sb.rpc('socios_pedir', { p_carteira_id: id }));
+  if(!rnEstado.socios || rnEstado.socios.id !== id) return;
+  const d = r && !r.error ? r.data : null;
+  if(!d || !d.ok){
+    rnEstado.socios.aviso = (d && RN_SOCIOS_MOTIVO[d.motivo]) || 'Não foi possível pedir a consulta. Tente de novo.';
+  } else {
+    rnEstado.socios.aviso = '';
+    const atual = rnEstado.socios.pedido;
+    rnEstado.socios.pedido = atual && atual.id === d.id ? Object.assign({}, atual, { status: d.status })
+      : { id: d.id, status: d.status, pedido_por: currentUser && currentUser.id, pedido_em: new Date().toISOString(), concluido_em: null, resultado: null, erro: null };
+  }
+  rnSociosPintar(); rnSociosAgendar();
+}
+function rnSocioCartaoHtml(x){
+  const tels = !x.telefones_consultados ? '<p class="kbMeta">Telefones não consultados.</p>'
+    : !(x.telefones || []).length ? '<p class="kbMeta">Sem telefones na Nova Vida.</p>'
+    : '<ul class="rnHist">' + x.telefones.map(t => {
+        const d = onlyDigits(t.numero);
+        const meta = [t.tipo === 'celular' ? 'celular' : 'fixo', t.operadora, t.whatsapp ? 'WhatsApp' : ''].filter(Boolean).join(' · ');
+        return `<li>${escapeHtml(rnFoneFmt(d))} <span class="kbMeta">${escapeHtml(meta)}</span> `
+          + (t.tipo === 'celular' ? `<a class="kbBtn kbBtnP" data-rn-canal="WhatsApp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(d)}">WhatsApp</a> ` : '')
+          + `<a class="kbBtn kbBtnQ" data-rn-canal="Ligação" href="tel:${escapeHtml(d)}">Ligar</a></li>`;
+      }).join('') + '</ul>';
+  return `<div class="rnGrupo"><strong>${escapeHtml(x.nome)}</strong>${x.participacao != null ? ` <span class="kbMeta">${escapeHtml(String(x.participacao).replace('.', ','))}%</span>` : ''}
+    <div class="kbMeta">CPF ${escapeHtml(rnCpfFmt(x.cpf))} <button type="button" class="kbBtn kbBtnG" data-rn-socios-copiar="${escapeHtml(x.cpf)}">Copiar</button></div>${tels}</div>`;
+}
+function rnSocioBaseHtml(x){
+  const tags = [x.principal ? 'principal' : '', x.obito ? 'consta óbito' : ''].filter(Boolean).join(' · ');
+  return `<div class="rnGrupo"><strong>${escapeHtml(x.nome)}</strong>${tags ? ` <span class="kbMeta">${escapeHtml(tags)}</span>` : ''}
+    <div class="kbMeta">CPF ${escapeHtml(rnCpfFmt(x.cpf))} <button type="button" class="kbBtn kbBtnG" data-rn-socios-copiar="${escapeHtml(x.cpf)}">Copiar</button></div></div>`;
+}
+function rnSociosHtml(){
+  const s = rnEstado.socios;
+  if(!s || s.id !== rnEstado.fichaId) return '<p class="kbMeta">Carregando sócios…</p>';
+  const p = s.pedido, u = s.ultimo, andamento = rnSociosEmAndamento(p);
+  const botao = (txt) => `<button type="button" class="kbBtn kbBtnP" data-rn-socios-pedir>${escapeHtml(txt)}</button>`;
+  const partes = [];
+  if(s.aviso) partes.push(`<p class="rnErro" role="alert">${escapeHtml(s.aviso)}</p>`);
+  if(andamento){
+    const seg = Math.max(0, Math.floor((Date.now() - new Date(p.pedido_em).getTime()) / 1000));
+    partes.push(`<p class="kbMeta">Consultando na Nova Vida… ${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, '0')}</p>`);
+    if(p.status === 'pendente' && seg >= 180) partes.push(botao('Tentar de novo'));
+  } else if(p && p.status === 'erro'){
+    partes.push(`<p class="rnErro">${escapeHtml(p.erro || 'A consulta na Nova Vida falhou.')}</p>${botao('Tentar de novo')}`);
+  }
+  if(u){
+    const quando = u.concluido_em ? new Date(u.concluido_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '') : '';
+    partes.push(u.status === 'pronto' && u.resultado && Array.isArray(u.resultado.socios)
+      ? u.resultado.socios.map(rnSocioCartaoHtml).join('')
+      : '<p class="rnVazio">A Nova Vida não mostra sócios para este CNPJ.</p>');
+    partes.push(`<p class="kbMeta">Consultado em ${escapeHtml(quando)} por ${escapeHtml(rnNomeConsultor(u.pedido_por))}${andamento || (p && p.status === 'erro') ? '' : ' · ' + botao('Atualizar')}</p>`);
+  } else {
+    const lista = s.base && Array.isArray(s.base.socios) ? s.base.socios : [];
+    const mes = s.base && s.base.receita_mes ? String(s.base.receita_mes).replace(/^(\d{4})-(\d{2})$/, '$2/$1') : '';
+    partes.push(lista.length
+      ? lista.map(rnSocioBaseHtml).join('') + `<p class="kbMeta">Fonte: Receita Federal, base de ${escapeHtml(mes)} · sem telefones</p>`
+      : '<p class="rnVazio">A base da Receita não tem os sócios deste CNPJ.</p>');
+    if(!andamento && !(p && p.status === 'erro')) partes.push(`${botao('Consultar na Nova Vida')} <span class="kbMeta">${lista.length ? 'traz os telefones, leva cerca de 2 min' : 'leva cerca de 2 min'}</span>`);
+  }
+  return partes.join('');
+}
+function rnSociosPintar(){
+  const sec = document.querySelector('#rnFichaCorpo [data-rn-ficha-sec="socios"]');
+  if(sec) sec.innerHTML = rnSociosHtml();      // só a seção: não toca no formulário de atendimento
+}
 async function rnAbrirFicha(id){
   rnEstado.fichaId = id; rnEstado.ficha = { dados: null, historico: null };
   rnEstado.fichaStatus = null; rnEstado.fichaAba = 'atendimento';
+  rnSociosParar(); rnEstado.socios = null; rnSociosCarregar(id);
   document.querySelectorAll('#rnFilaLista .rnItem').forEach(b => b.classList.toggle('sel', Number(b.dataset.rnAbrir) === id));
   document.getElementById('rnFicha').classList.add('aberta');
   rnRenderFicha();
@@ -4312,7 +4425,7 @@ async function rnAbrirFicha(id){
   rnEstado.ficha = { dados: d && !d.error && d.data ? (d.data.dados_claro || {}) : {}, historico: h && !h.error ? (h.data || []) : [] };
   rnRenderFicha();
 }
-function rnFecharFicha(){ rnEstado.fichaId = null; rnEstado.ficha = null; document.getElementById('rnFicha').classList.remove('aberta'); }
+function rnFecharFicha(){ rnSociosParar(); rnEstado.fichaId = null; rnEstado.ficha = null; rnEstado.socios = null; document.getElementById('rnFicha').classList.remove('aberta'); }
 const RN_CONTATO = [[2, 'Não atendeu'], [3, 'Falei com o responsável'], [4, 'Mandei proposta'], [5, 'Negociando'], [6, 'Renovou ✓'], [7, 'Perdido']];
 function rnGrupoContato(s){ return s === 6 ? 'renovou' : s === 7 ? 'perdido' : 'retorno'; }
 function rnRenderFicha(){
@@ -4340,7 +4453,7 @@ function rnRenderFicha(){
     <div class="rnFichaAcoes">${tel
       ? `<a class="kbBtn kbBtnP" data-rn-canal="WhatsApp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}">WhatsApp</a><a class="kbBtn kbBtnQ" data-rn-canal="Ligação" href="tel:${escapeHtml(tel)}">Ligar</a>`
       : '<span class="kbMeta">Sem telefone.</span>'}${r.status >= 6 ? '<span class="kbMeta">Reabra o status para gerar proposta.</span>' : `<button type="button" class="kbBtn kbBtnQ" data-rn-gerar="${r.id}">Gerar proposta</button>`}</div>
-    <nav class="rnFichaAbas" aria-label="Ficha do cliente">${[['atendimento', 'Atendimento'], ['dados', 'Dados da Claro'], ['propostas', 'Propostas · ' + props.length], ['historico', 'Histórico']]
+    <nav class="rnFichaAbas" aria-label="Ficha do cliente">${[['atendimento', 'Atendimento'], ['dados', 'Dados da Claro'], ['propostas', 'Propostas · ' + props.length], ['historico', 'Histórico'], ['socios', 'Sócios']]
       .map(([k, t]) => `<button type="button" data-rn-ficha-aba="${k}" class="${aba === k ? 'on' : ''}">${escapeHtml(t)}</button>`).join('')}</nav>
     <section data-rn-ficha-sec="atendimento"${esconde(aba === 'atendimento')}>
       <form id="rnFichaForm">
@@ -4377,7 +4490,8 @@ function rnRenderFicha(){
       : '<p class="kbMeta">Nenhuma proposta ainda.</p>'}</section>
     <section data-rn-ficha-sec="historico"${esconde(aba === 'historico')}>${fic.historico
       ? (fic.historico.length ? '<ul class="rnHist">' + fic.historico.map(h => `<li>${escapeHtml(rnHistoricoTexto(h))}</li>`).join('') + '</ul>' : '<p class="kbMeta">Sem mudanças registradas.</p>')
-      : '<p class="kbMeta">Carregando…</p>'}</section>`;
+      : '<p class="kbMeta">Carregando…</p>'}</section>
+    <section data-rn-ficha-sec="socios"${esconde(aba === 'socios')}>${rnSociosHtml()}</section>`;
 }
 function rnEscolherContato(s){
   const form = document.getElementById('rnFichaForm');
@@ -4415,6 +4529,10 @@ document.getElementById('rnFicha').addEventListener('click', (e) => {
 });
 document.getElementById('rnFicha').addEventListener('click', (e) => { if(e.target.closest('[data-rn-ficha-fechar]')) rnFecharFicha(); });
 document.getElementById('rnFicha').addEventListener('click', (e) => {
+  const sp = e.target.closest('[data-rn-socios-pedir]');
+  if(sp){ rnSociosPedir(); return; }
+  const cp = e.target.closest('[data-rn-socios-copiar]');
+  if(cp){ (navigator.clipboard ? navigator.clipboard.writeText(cp.dataset.rnSociosCopiar) : Promise.reject()).then(() => mostrarAviso('CPF copiado.', 'ok'), () => mostrarAviso('Não foi possível copiar.', 'erro')); return; }
   const g = e.target.closest('[data-rn-gerar]');
   if(g){ rnGerarProposta(Number(g.dataset.rnGerar)); return; }
   const b = e.target.closest('[data-rn-proposta]');
