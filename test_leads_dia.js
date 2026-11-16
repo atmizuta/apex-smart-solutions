@@ -72,15 +72,32 @@ try{
   const L2 = { dono_id: 'u2', nome: 'Zz Luria', tem_telefonia: false, pegos: 0, recebidos: 0, perdidos: 0, ligacoes: 0, atendidas: 0, min_falados: 0, whatsapp: 0,
     primeiro_contato_mediana_min: null, sem_ligar: 0, classificados: 0, obs: 0, retornos_feitos: 0, retornos_atrasados: 0, vendas: 0, receita: 0,
     jornada_inicio: null, jornada_fim: null, posicao: 2 };
-  const TD = document.createElement('div'); TD.innerHTML = kbTabelaDiaHtml([L1, L2]);
-  const tr1 = TD.querySelector('tr[data-kb-relatorio="u1"]');
-  assert(tr1 && tr1.querySelector('button.kbLink[data-kb-relatorio="u1"]').textContent.includes('Zz Lucas'), 'linha com o nome clicável');
-  const cel = [...tr1.querySelectorAll('td')].map(t => t.textContent.replace(/\\s+/g, ' ').trim());
-  eq(cel, ['1º', 'Zz Lucas', '8 + 3', '70 / 21 atend. 4 WhatsApp', '95', '6 min', '2', '12 / 9', '3 / 1', '2', 'R$ 180,50', '13:04–20:51'], 'colunas do dia');
-  assert(tr1.querySelector('.kbEqNum.ruim'), 'sem ligar > 0 em vermelho');
-  const cel2 = [...TD.querySelectorAll('tr[data-kb-relatorio="u2"] td')].map(t => t.textContent.replace(/\\s+/g, ' ').trim());
-  eq([cel2[2], cel2[3], cel2[5], cel2[10], cel2[11]], ['0', '—', '—', 'R$ 0,00', '—'], 'sem telefonia e sem atividade: traços e zeros');
-  eq(TD.querySelectorAll('thead th').length, 12, '12 colunas');
+  // §155: o Dia usa o layout do Mês (kbTabelaEquipeHtml), com ligações e vendas do dia escolhido
+  const AT = [
+    { dono_id: 'u1', nome: 'Zz Lucas', tem_telefonia: true, ultima_ligacao: null, lig_hoje: 5, ultima_obs: null, obs_hoje: 0, lig_por_hora: [9,9,9,9,9,9,9,9], meta_dia: 80, pode_pegar: true },
+    { dono_id: 'u2', nome: 'Zz Luria', tem_telefonia: false, ultima_ligacao: null, lig_hoje: 0, ultima_obs: null, obs_hoje: 0, lig_por_hora: [0,0,0,0,0,0,0,0], meta_dia: 80, pode_pegar: false }];
+  const CT = { u1: { sem_contato: 1, andamento: 2, parados3: 0, retornos_atrasados: 1, convertidos: 7, receita: 0, pegos_mes: 20 } };
+  const TD = document.createElement('div');
+  TD.innerHTML = kbTabelaEquipeHtml(AT, CT, ag, { linhas: [L1, L2], horas: { u1: [10, 5, 5, 5, 5, 5, 5, 0] }, data: '2026-10-30', hoje: false, aviso: '' });
+  const tr1 = TD.querySelector('tr[data-kb-dono="u1"]');
+  assert(tr1 && tr1.querySelector('button.kbLink[data-kb-relatorio="u1"]').textContent.includes('Zz Lucas'), 'Dia: nome clicável abre o relatório do dia');
+  assert(tr1.querySelector('[data-kb-pode-pegar="u1"].on') && TD.querySelector('[data-kb-pode-pegar="u2"]:not(.on)'), 'Dia: chave Pega leads em cada consultor, como no Mês');
+  eq([...TD.querySelectorAll('thead th')].map(t => t.textContent), ['Consultor', 'Agora', 'Ligações por hora (13h–21h)', 'Ligações no dia', 'Sem contato', 'Em andamento', 'Parados 3+ d', 'Retornos atras.', 'Vendas no dia', 'Conversão'], 'Dia: mesmas colunas do Mês');
+  const cel = [...tr1.querySelectorAll('td')].map(t => t.textContent.replace(/\s+/g, ' ').trim());
+  // ligações do dia = 70 (do leads_dia_equipe, não as 5 de hoje); vendas 2 de 11 leads (8 pegos + 3 recebidos) = 18%
+  eq([cel[1], cel[3], cel[4], cel[5], cel[6], cel[7], cel[8], cel[9]], ['—', '70 / 80', '1', '2', '0', '1', '2', '18%'], 'Dia passado: Agora com traço, ligações e vendas do dia, pendências de agora');
+  eq([...tr1.querySelectorAll('.kbCalor i')].map(i => i.className), ['l3', 'l2', 'l2', 'l2', 'l2', 'l2', 'l2', 'l0'], 'Dia passado: mapa por hora do dia escolhido, sem horas futuras');
+  assert(tr1.querySelector('[data-kb-eq="u1|sem_contato"]'), 'Dia: número abre a lista, como no Mês');
+  const tr2 = TD.querySelector('tr[data-kb-dono="u2"]');
+  assert(tr2 && tr2.querySelector('.kbCalorSem') && [...tr2.querySelectorAll('td')][3].textContent.trim() === '—', 'sem horas no dia e sem telefonia: traços');
+  const TH = document.createElement('div');
+  TH.innerHTML = kbTabelaEquipeHtml(AT, CT, ag, { linhas: [L1, L2], horas: null, data: '2026-11-03', hoje: true, aviso: '' });
+  const th1 = TH.querySelector('tr[data-kb-dono="u1"]');
+  eq([...th1.querySelectorAll('.kbCalor i')].map(i => i.className), ['l2', 'l2', 'l2', 'l2', 'l2', 'l2', 'fut', 'fut'], 'Dia de hoje sem as horas do banco: usa o mapa de agora, com as horas futuras');
+  assert([...th1.querySelectorAll('td')][1].textContent.trim() !== '—', 'Dia de hoje: Agora com o semáforo');
+  const TM = document.createElement('div'); TM.innerHTML = kbTabelaEquipeHtml(AT, CT, ag, null);
+  const tm = [...TM.querySelectorAll('tr[data-kb-dono="u1"] td')].map(t => t.textContent.replace(/\s+/g, ' ').trim());
+  assert(TM.textContent.includes('Vendas mês') && tm[3].startsWith('5') && tm[8] === '7' && tm[9] === '35%' && !TM.querySelector('[data-kb-relatorio]'), 'Mês continua igual: hoje, vendas do mês e conversão do mês');
   const R = { dia: '2026-11-03', historico_desde: '2026-10-27', numeros: L1,
     media_equipe: { pegos: 6, ligacoes: 50, atendidas: 15, min_falados: 60, whatsapp: 2, sem_ligar: 1, classificados: 10, obs: 7, retornos_feitos: 2, retornos_atrasados: 2, vendas: 1, receita: 90, primeiro_contato_mediana_min: 9 },
     por_hora: [13, 14, 15, 16, 17, 18, 19, 20].map((h, i) => ({ h, ligacoes: i === 0 ? 10 : 5, atendidas: i === 0 ? 4 : 1 })),
@@ -128,7 +145,8 @@ try{
   const cDia = window.__rpcCalls.filter(c => c.nome === 'leads_dia_equipe').pop();
   assert(kbEstado.equipeModo === 'dia' && cDia && cDia.args.p_dia === '2026-11-03', 'Dia chama leads_dia_equipe com hoje');
   assert(EQ.querySelector('#kbEqDia').value === '2026-11-03' && EQ.querySelector('#kbEqDia').max === '2026-11-03', 'campo de data com hoje e sem futuro');
-  assert(EQ.querySelector('tr[data-kb-relatorio="u1"] .kbDiaPos').textContent === '1º' && !EQ.querySelector('tr[data-kb-dono]'), 'tabela do dia no lugar da do mês');
+  assert(EQ.querySelector('tr[data-kb-dono="u1"] button[data-kb-relatorio="u1"]') && EQ.querySelector('tr[data-kb-dono="u1"] [data-kb-pode-pegar="u1"]') && EQ.textContent.includes('Ligações no dia'), '§155: Dia no layout do Mês, com a chave');
+  assert(window.__rpcCalls.some(c => c.nome === 'leads_lig_por_hora_dia' && c.args.p_dia === '2026-11-03'), '§155: Dia busca as ligações por hora do dia');
   assert(EQ.textContent.includes('até 1 h atrasadas'), 'aviso de hoje');
   let lsModo = null; try { lsModo = window.localStorage.getItem('kbEqModo'); } catch(_e) {}
   assert(lsModo === null || lsModo === 'dia', 'lembra o modo (quando o navegador deixa)');
@@ -213,7 +231,7 @@ try{
   window.__rpcRespostas.leads_dia_equipe = { data: null, error: { code: '500', message: 'falhou' } };
   window.__avisos = []; const mAv2 = mostrarAviso; mostrarAviso = (m, t) => window.__avisos.push(t + ':' + m);
   await kbCarregarEquipe(); await espera(20);
-  assert(Array.isArray(kbEstado.diaEquipe) && kbEstado.diaEquipe.length === 2 && EQ.querySelector('tr[data-kb-relatorio="u1"]') && !window.__avisos.length, 'M1: falha no refresh de hoje mantém o placar, sem aviso a cada minuto');
+  assert(Array.isArray(kbEstado.diaEquipe) && kbEstado.diaEquipe.length === 2 && EQ.querySelector('tr[data-kb-dono="u1"] button[data-kb-relatorio="u1"]') && !window.__avisos.length, 'M1: falha no refresh de hoje mantém o placar, sem aviso a cada minuto');
   mostrarAviso = mAv2;
   window.__rpcRespostas.leads_dia_equipe = (a) => ({ data: [Object.assign({}, L1, { dia: a.p_dia }), L2], error: null });
   // erro e função ausente

@@ -5112,4 +5112,23 @@ Pedido do Rafael ("redesign COMPLETO dessa aba… bonito, fácil de usar e claro
   quando alguém troca o modo. Para voltar: `max_meus_novos = 2`.
 - Às 15:26 os 4 estavam fora da vez só porque cada um tinha um lead recebido entre 15:15 e 15:24 ainda sem atender.
 
-Próxima livre: §155 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
+## §155 Equipe: visão Dia no mesmo layout do Mês (16/11/2026, pedido do Rafael)
+
+- **Pedido:** a visão "Dia" da tabela da Equipe era outra tabela (#, Pegos, Contatos, Min falados, 1ª ligação,
+  Jornada…) e não tinha a chave "Pega leads". O Rafael não achava a chave e queria as duas visões iguais.
+- **Regra nova:** Dia e Mês usam a mesma tabela (`kbTabelaEquipeHtml`), com as colunas Consultor (com a chave "Pega
+  leads"), Agora, Ligações por hora, Ligações, Sem contato, Em andamento, Parados 3+ d, Retornos atrasados, Vendas
+  e Conversão. No **Dia**:
+  - Ligações (total e por hora) e Vendas são do dia escolhido. Conversão = vendas ÷ leads pegos e recebidos no dia.
+  - Agora só aparece quando o dia é hoje; nos dias passados, mostra traço.
+  - Sem contato, Em andamento, Parados e Retornos mostram a situação de agora.
+  - Clicar no nome abre o relatório do dia (§135). Os números antigos (pegos, minutos falados, 1ª ligação,
+    jornada) continuam nesse relatório.
+- **Banco:** função nova `leads_lig_por_hora_dia(p_dia)`, só admin/supervisor. Usa a mesma regra da
+  `leads_atividade_equipe2`: para 16/11, os 14 consultores deram o mesmo mapa nas duas funções. Migration
+  `20261116170000_leads_lig_por_hora_dia.sql`, aplicada em 16/11. Se a função falhar, o mapa mostra traço (dia
+  passado) ou o de agora (hoje).
+- **Testes:** `test_leads_dia.js` (59): o Dia tem as mesmas colunas do Mês e a chave; dia passado sem hora futura e
+  com Agora em traço; hoje com o mapa de agora; o Mês continua igual.
+
+Próxima livre: §156 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
