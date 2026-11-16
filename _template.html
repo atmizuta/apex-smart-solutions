@@ -4301,7 +4301,7 @@ function rnHistoricoTexto(h){
 }
 // §156 — aba Sócios: base da Receita (mailing.socio, via RPC) + consulta na Nova Vida (fila socios_consultas + robô).
 const RN_SOCIOS_MOTIVO = { limite: 'Você já fez 20 consultas hoje. Amanhã libera de novo.', sem_permissao: 'Você não tem acesso a este cliente.' };
-const RN_SOCIOS_COLS = 'id,status,pedido_por,pedido_em,concluido_em,resultado,erro';
+const RN_SOCIOS_COLS = 'id,status,pedido_por,pedido_em,iniciado_em,concluido_em,resultado,erro';
 function rnCpfFmt(c){ return String(c || '').replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4'); }
 function rnFoneFmt(n){ const d = onlyDigits(n); return d.length === 11 ? d.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3') : d.replace(/^(\d{2})(\d{4})(\d{4})$/, '($1) $2-$3'); }
 function rnSociosParar(){ if(rnEstado.sociosTimer){ clearTimeout(rnEstado.sociosTimer); rnEstado.sociosTimer = null; } }
@@ -4376,6 +4376,13 @@ function rnSocioBaseHtml(x){
   return `<div class="rnGrupo"><strong>${escapeHtml(x.nome)}</strong>${tags ? ` <span class="kbMeta">${escapeHtml(tags)}</span>` : ''}
     <div class="kbMeta">CPF ${escapeHtml(rnCpfFmt(x.cpf))} <button type="button" class="kbBtn kbBtnG" data-rn-socios-copiar="${escapeHtml(x.cpf)}">Copiar</button></div></div>`;
 }
+// lista da base da Receita com a fonte; vazio se não houver sócio na base
+function rnSociosBaseListaHtml(base){
+  const lista = base && Array.isArray(base.socios) ? base.socios : [];
+  if(!lista.length) return '';
+  const mes = base.receita_mes ? String(base.receita_mes).replace(/^(\d{4})-(\d{2})$/, '$2/$1') : '';
+  return lista.map(rnSocioBaseHtml).join('') + `<p class="kbMeta">Fonte: Receita Federal, base de ${escapeHtml(mes)} · sem telefones</p>`;
+}
 function rnSociosHtml(){
   const s = rnEstado.socios;
   if(!s || s.id !== rnEstado.fichaId) return '<p class="kbMeta">Carregando sócios…</p>';
@@ -4386,7 +4393,9 @@ function rnSociosHtml(){
   if(andamento){
     const seg = Math.max(0, Math.floor((Date.now() - new Date(p.pedido_em).getTime()) / 1000));
     partes.push(`<p class="kbMeta">Consultando na Nova Vida… ${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, '0')}</p>`);
-    if(p.status === 'pendente' && seg >= 180) partes.push(botao('Tentar de novo'));
+    // pendente há 3 min (disparo pode não ter chegado) ou consultando há 10 min (robô parou): o socios_pedir redispara/libera
+    const preso = p.status === 'consultando' && Date.now() - new Date(p.iniciado_em || p.pedido_em).getTime() >= 600000;
+    if((p.status === 'pendente' && seg >= 180) || preso) partes.push(botao('Tentar de novo'));
   } else if(p && p.status === 'erro'){
     partes.push(`<p class="rnErro">${escapeHtml(p.erro || 'A consulta na Nova Vida falhou.')}</p>${botao('Tentar de novo')}`);
   }
@@ -4394,14 +4403,11 @@ function rnSociosHtml(){
     const quando = u.concluido_em ? new Date(u.concluido_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '') : '';
     partes.push(u.status === 'pronto' && u.resultado && Array.isArray(u.resultado.socios)
       ? u.resultado.socios.map(rnSocioCartaoHtml).join('')
-      : '<p class="rnVazio">A Nova Vida não mostra sócios para este CNPJ.</p>');
+      : '<p class="rnVazio">A Nova Vida não mostra sócios para este CNPJ.</p>' + rnSociosBaseListaHtml(s.base));
     partes.push(`<p class="kbMeta">Consultado em ${escapeHtml(quando)} por ${escapeHtml(rnNomeConsultor(u.pedido_por))}${andamento || (p && p.status === 'erro') ? '' : ' · ' + botao('Atualizar')}</p>`);
   } else {
     const lista = s.base && Array.isArray(s.base.socios) ? s.base.socios : [];
-    const mes = s.base && s.base.receita_mes ? String(s.base.receita_mes).replace(/^(\d{4})-(\d{2})$/, '$2/$1') : '';
-    partes.push(lista.length
-      ? lista.map(rnSocioBaseHtml).join('') + `<p class="kbMeta">Fonte: Receita Federal, base de ${escapeHtml(mes)} · sem telefones</p>`
-      : '<p class="rnVazio">A base da Receita não tem os sócios deste CNPJ.</p>');
+    partes.push(lista.length ? rnSociosBaseListaHtml(s.base) : '<p class="rnVazio">A base da Receita não tem os sócios deste CNPJ.</p>');
     if(!andamento && !(p && p.status === 'erro')) partes.push(`${botao('Consultar na Nova Vida')} <span class="kbMeta">${lista.length ? 'traz os telefones, leva cerca de 2 min' : 'leva cerca de 2 min'}</span>`);
   }
   return partes.join('');

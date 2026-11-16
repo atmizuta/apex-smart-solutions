@@ -105,5 +105,22 @@ require('./renovacao_test_harness.js').rodar(`
   await rnAbrirFicha(2); await espera(30);
   rnAplicarPermissao();
   assert(!rnEstado.sociosTimer && !rnEstado.socios, 'trocar de usuário limpa os sócios');
+  // 9. (revisão) sem_socios com sócio na base: a lista da Receita continua visível
+  currentUser = { id: 'u-a', nome: 'Zza Teste', role: 'consultor', operacao: 'apex', equipe: 'renovacao' };
+  rnAplicarPermissao();
+  window.__tabelas.socios_consultas = [{ id: 70, cnpj_digits: '00000000000191', status: 'sem_socios', pedido_por: 'u-a', pedido_em: '2026-11-16T18:00:00Z', concluido_em: '2026-11-16T18:02:00Z', resultado: null, erro: null }];
+  await rnCarregar(); await espera(60);
+  eq(rnEstado.fichaId, 1, 'ficha 1 de novo');
+  aba('socios').click();
+  assert(/A Nova Vida não mostra sócios/.test(sec().textContent) && /ZZ SOCIA BASE/.test(sec().textContent), 'sem_socios mantém a lista da base');
+
+  // 10. (revisão) consultando há mais de 10 min: aparece Tentar de novo
+  window.__tabelas.socios_consultas = [{ id: 71, cnpj_digits: '00000000000191', status: 'consultando', pedido_por: 'u-a', pedido_em: new Date(Date.now() - 12 * 60000).toISOString(), iniciado_em: new Date(Date.now() - 11 * 60000).toISOString(), concluido_em: null, resultado: null, erro: null }];
+  await rnSociosCarregar(1); await espera(10);
+  assert(/Tentar de novo/.test((sec().querySelector('[data-rn-socios-pedir]') || {}).textContent || ''), 'consultando preso há 10 min tem Tentar de novo');
+  window.__tabelas.socios_consultas[0].iniciado_em = new Date(Date.now() - 2 * 60000).toISOString();
+  await rnSociosCarregar(1); await espera(10);
+  assert(!sec().querySelector('[data-rn-socios-pedir]'), 'consultando recente não tem botão');
+  rnFecharFicha();
   fim();
 `);
