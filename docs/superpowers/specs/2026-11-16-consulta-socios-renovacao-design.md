@@ -154,7 +154,7 @@ CPF a telefone, mas **não tem índice por CNPJ** (consultar exigiria DDL em pro
 3. Para cada CNPJ: busca → página da empresa → **Sócios** → lê os cartões → ordena por participação → abre até 5
    sócios e lê **Telefones fixos** e **Celulares** → `enviarResultado(pronto)`. Sem cartões de sócio ou CNPJ não
    encontrado → `sem_socios`.
-4. Volta ao passo 1 até a fila esvaziar (pega pedidos que chegaram durante a rodada), com teto de 8 min de rodada.
+4. Volta ao passo 1 até a fila esvaziar (pega pedidos que chegaram durante a rodada), com teto de 7 min de rodada (conferido antes de cada CNPJ; os que sobrarem viram erro).
 
 ### 5.4 Erros
 
