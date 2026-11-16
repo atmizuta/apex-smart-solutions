@@ -5130,5 +5130,8 @@ Pedido do Rafael ("redesign COMPLETO dessa aba… bonito, fácil de usar e claro
   passado) ou o de agora (hoje).
 - **Testes:** `test_leads_dia.js` (59): o Dia tem as mesmas colunas do Mês e a chave; dia passado sem hora futura e
   com Agora em traço; hoje com o mapa de agora; o Mês continua igual.
+- **Publicação (16/11/2026 16:52, ok do Rafael):** o ar era `b33e070d…`; novo MD5 `5e4c161c…`.
+  Backup `~/deploy_backups/painel_clientes_apex_20261116_165244_antes_equipe_dia_layout_mes.html`.
+  Reverter: copiar o backup de volta.
 
 Próxima livre: §156 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
