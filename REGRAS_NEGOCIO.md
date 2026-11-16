@@ -5103,4 +5103,13 @@ Pedido do Rafael ("redesign COMPLETO dessa aba… bonito, fácil de usar e claro
 - **Achado à parte:** os itens 7, 10, 11, 13b e 15 do motor_check já falhavam antes, com ou sem esta mudança. Os
   consultores de teste ficam com 2 leads em "Meus novos" e batem o limite da §146.4. O teste precisa ser atualizado.
 
+### §154.1 Limite de "Meus novos" sobe de 2 para 3 (16/11/2026 15:26, pedido do Rafael)
+
+- `config.leads_distribuicao.max_meus_novos = 3`: só a configuração da §146.4 mudou, sem migration nem painel.
+  Agora o consultor recebe até ter 3 leads sem tabular, e não mais 2. Continua valendo a outra trava: com um lead
+  recebido e ainda não atendido (sem Ligar, ligação no ProContact ou tabulação), ele fica fora da vez.
+- A tela da Equipe salva juntando os campos (`leads_dist_config`: `valor || p`), então o limite não se perde
+  quando alguém troca o modo. Para voltar: `max_meus_novos = 2`.
+- Às 15:26 os 4 estavam fora da vez só porque cada um tinha um lead recebido entre 15:15 e 15:24 ainda sem atender.
+
 Próxima livre: §155 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
