@@ -5151,4 +5151,19 @@ Pedido do Rafael ("redesign COMPLETO dessa aba… bonito, fácil de usar e claro
   Backup `~/deploy_backups/painel_clientes_apex_20261116_165244_antes_equipe_dia_layout_mes.html`.
   Reverter: copiar o backup de volta.
 
-Próxima livre: §156 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
+
+## §156 Consulta de sócios na ficha da Renovação (16/11/2026, pedido do Rafael)
+
+- Aba **Sócios** na ficha da Renovação. Abre com nome e CPF dos sócios da **base da Receita** (`mailing.socio`, via RPC
+  `socios_da_base`) quando houver, com "principal" e "consta óbito".
+- **Consultar na Nova Vida** (ou **Atualizar**): RPC `socios_pedir` grava o pedido em `socios_consultas` e dispara o
+  workflow `socios.yml` do robô (`rafaangelao/apex-robo-procontact`) pelo pg_net com o token do Vault `github_robo_token`.
+  O robô entra no Congonhas, lê os sócios (nome, CPF, participação) e os telefones de até **5** sócios (maior
+  participação), e devolve pela Edge Function `ingest-socios` (`x-robo-token` = `INGEST_SOCIOS_TOKEN`). ~1–2 min.
+- Quem pode: o dono do cliente ou admin/supervisor (mesma regra da `renovacao_carteira`); **20 pedidos por pessoa por
+  dia**; pedido repetido do mesmo CNPJ em andamento não conta; `consultando` há mais de 10 min vira erro; "Tentar de novo"
+  após 3 min pendente redispara.
+- O usuário da Nova Vida é **só do robô** (sessão única: duas pessoas logadas derrubam uma à outra).
+- Spec: `docs/superpowers/specs/2026-11-16-consulta-socios-renovacao-design.md`.
+
+Próxima livre: §157 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
