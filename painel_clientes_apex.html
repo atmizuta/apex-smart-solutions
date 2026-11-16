@@ -5366,24 +5366,47 @@ function kbAvisoDiaHtml(dia, hoje){
   if(dia === hoje) return 'Ligações chegam do ProContact de hora em hora; podem estar até 1 h atrasadas.';
   return '';
 }
-function kbTabelaDiaHtml(linhas){
-  const n = (v) => Number(v) || 0;
-  const tr = (linhas || []).map(d => {
-    const dono = escapeHtml(d.dono_id);
-    const cont = d.tem_telefonia ? `<b>${n(d.ligacoes)}</b><span class="kbMuted"> / ${n(d.atendidas)} atend.</span>` : '<span class="kbMuted">—</span>';
-    const wpp = n(d.whatsapp) ? ` <small class="kbEqAtivTxt">${n(d.whatsapp)} WhatsApp</small>` : '';
-    const jorn = d.jornada_inicio ? `${kbHoraSP(d.jornada_inicio)}–${kbHoraSP(d.jornada_fim)}` : '—';
-    return `<tr data-kb-relatorio="${dono}"><td class="kbDiaPos">${n(d.posicao)}º</td>`
-      + `<td><button type="button" class="kbLink" data-kb-relatorio="${dono}"><b>${escapeHtml(d.nome || '')}</b></button></td>`
-      + `<td class="r">${n(d.pegos)}${n(d.recebidos) ? ' + ' + n(d.recebidos) : ''}</td><td>${cont}${wpp}</td><td class="r">${n(d.min_falados)}</td>`
-      + `<td class="r">${kbFmtMin(d.primeiro_contato_mediana_min)}</td>`
-      + `<td class="r">${n(d.sem_ligar) ? `<span class="kbEqNum ruim">${n(d.sem_ligar)}</span>` : '0'}</td>`
-      + `<td class="r">${n(d.classificados)} / ${n(d.obs)}</td><td class="r">${n(d.retornos_feitos)} / ${n(d.retornos_atrasados)}</td>`
-      + `<td class="r"><b>${n(d.vendas)}</b></td><td class="r">${escapeHtml(kbMoeda(d.receita) || 'R$ 0,00')}</td><td>${jorn}</td></tr>`;
+// §155: tabela da Equipe no mesmo layout no Mês (dia = null) e no Dia. No Dia, ligações (total e por hora) e vendas são do
+// dia escolhido (leads_dia_equipe + leads_lig_por_hora_dia); Agora só vale para hoje; Sem contato, Em andamento, Parados e
+// Retornos são a situação de agora; o nome abre o relatório do dia (§135). dia = { linhas, horas, data, hoje, aviso }.
+function kbTabelaEquipeHtml(ativ, cont, agoraMs, dia){
+  const porDia = dia ? Object.fromEntries((dia.linhas || []).map(d => [d.dono_id, d])) : null;
+  const msRef = dia && !dia.hoje ? Date.parse(dia.data + 'T21:00:00-03:00') : agoraMs;   // dia passado: o dia inteiro, sem hora futura
+  const atual = kbHoraAtualIdx(msRef);
+  const num = (dono, chave, n, ruim) => n ? `<button type="button" class="kbEqNum${ruim ? ' ruim' : ''}" data-kb-eq="${escapeHtml(dono)}|${chave}">${n}</button>` : '<span class="kbEqNum zero">0</span>';
+  const linhas = (ativ || []).map(a => {
+    const c = cont[a.dono_id] || { sem_contato: 0, andamento: 0, parados3: 0, retornos_atrasados: 0, convertidos: 0, receita: 0, pegos_mes: 0 };
+    const d = porDia ? (porDia[a.dono_id] || {}) : null;
+    const s = kbAgoraEquipe(a, agoraMs), t = kbAtividadeTexto(a, agoraMs), meta = Number(a.meta_dia) || 80;
+    const lig = d ? (Number(d.ligacoes) || 0) : (Number(a.lig_hoje) || 0);
+    const horas = d ? ((dia.horas && dia.horas[a.dono_id]) || (dia.hoje ? a.lig_por_hora : null)) : a.lig_por_hora;
+    const corCls = { verde: 'v', amarelo: 'a', vermelho: 'r' }[s.cor] || 'c';
+    const calor = Array.isArray(horas)
+      ? `<span class="kbCalor" title="Ligações por hora, das 13h às 21h">${horas.slice(0, 8).map((n, i) => `<i class="${i > atual ? 'fut' : 'l' + kbNivelHora(n)}" title="${13 + i}h: ${Number(n) || 0}"></i>`).join('')}</span>`
+      : '<span class="kbCalorSem kbMuted">—</span>';
+    const hoje = a.tem_telefonia
+      ? `<b>${lig}</b><span class="kbMuted"> / ${meta}</span><span class="kbMedidor kbMed-${kbCorBarraLig(lig, meta, msRef) || 'neutro'}"><i style="width:${Math.min(100, Math.round(100 * lig / meta))}%"></i></span>`
+      : '<span class="kbMuted">—</span>';
+    const agora = !dia || dia.hoje
+      ? `<span class="kbEqSem ${corCls}"><span class="kbSemaforo"></span>${escapeHtml(s.texto)}</span><small class="kbEqAtivTxt">${escapeHtml(t.lig)} · ${escapeHtml(t.obs)}</small>`
+      : '<span class="kbMuted">—</span>';
+    const nome = dia ? `<button type="button" class="kbLink" data-kb-relatorio="${escapeHtml(a.dono_id)}"><b>${escapeHtml(a.nome || '')}</b></button>` : `<b>${escapeHtml(a.nome || '')}</b>`;
+    const pega = kbChavePegaHtml(a);   // §132: chave liga/desliga de quem pega (a v1 da função não traz pode_pegar: sem chave)
+    const vendas = d ? `<b>${Number(d.vendas) || 0}</b>` : num(a.dono_id, 'convertido', c.convertidos);
+    const conv = d ? kbConversao({ pegos_mes: (Number(d.pegos) || 0) + (Number(d.recebidos) || 0), convertidos_mes: Number(d.vendas) || 0 }) : kbConversao({ pegos_mes: c.pegos_mes, convertidos_mes: c.convertidos });
+    return `<tr data-kb-dono="${escapeHtml(a.dono_id)}"><td><span class="kbEqPessoa"><span class="kbEqAv">${escapeHtml(kbIniciais(a.nome))}</span><span>${nome}${pega}</span></span></td>
+      <td>${agora}</td>
+      <td>${calor}</td><td class="kbEqHoje">${hoje}</td>
+      <td class="r">${num(a.dono_id, 'sem_contato', c.sem_contato, true)}</td><td class="r">${num(a.dono_id, 'andamento', c.andamento)}</td>
+      <td class="r">${num(a.dono_id, 'parados3', c.parados3, true)}</td><td class="r">${num(a.dono_id, 'retorno_atrasado', c.retornos_atrasados, true)}</td>
+      <td class="r">${vendas}</td><td class="r kbEqConv">${conv}</td></tr>`;
   }).join('');
-  return '<table><thead><tr><th>#</th><th>Consultor</th><th class="r">Pegos</th><th>Contatos</th><th class="r">Min falados</th><th class="r">1ª ligação</th>'
-    + '<th class="r">Sem ligar</th><th class="r">Classif. / OBS</th><th class="r">Retornos feitos / atras.</th><th class="r">Vendas</th><th class="r">Receita</th><th>Jornada</th></tr></thead>'
-    + `<tbody>${tr || '<tr><td colspan="12" class="kbMuted">Sem consultores na equipe de leads.</td></tr>'}</tbody></table>`;
+  const legenda = dia
+    ? 'Ligações e vendas do dia escolhido (conversão = vendas ÷ leads pegos e recebidos no dia). Sem contato, Em andamento, Parados e Retornos mostram a situação de agora. Clique no nome para ver o relatório do dia.' + (dia.aviso ? ' ' + dia.aviso : '')
+    : 'Verde: ligou ou escreveu OBS há menos de 30 min · amarelo: 30 min · vermelho: 1 h. Conta de 13h às 21h, seg–sex. Ligações chegam do ProContact de hora em hora; a última ligação pode estar até 1 h atrasada. Clique num número para ver os leads e selecionar para redistribuir.';
+  return `<div class="kbEqTabela"><table><thead><tr><th>Consultor</th><th>Agora</th><th>Ligações por hora (13h–21h)</th><th>${dia ? 'Ligações no dia' : 'Hoje'}</th><th class="r">Sem contato</th><th class="r">Em andamento</th><th class="r">Parados 3+ d</th><th class="r">Retornos atras.</th><th class="r">${dia ? 'Vendas no dia' : 'Vendas mês'}</th><th class="r">Conversão</th></tr></thead>
+    <tbody>${linhas || '<tr><td colspan="10" class="kbMuted">Sem consultores na equipe de leads.</td></tr>'}</tbody></table>
+    <p class="kbEqLegenda">${escapeHtml(legenda)}</p></div>`;
 }
 function kbRelatorioHtml(rel, nome){
   if(!rel) return '';
@@ -7708,7 +7731,10 @@ function kbLerModoEquipe(){ try { return window.localStorage.getItem('kbEqModo')
 const KB_DIA_MIN = '2026-09-01';   // primeiras ligações importadas
 async function kbCarregarDia(manter){
   const dia = kbEstado.equipeDia || kbHojeSP();
-  const r = await ppSeguro(() => sb.rpc('leads_dia_equipe', { p_dia: dia }));
+  const [r, rh] = await Promise.all([
+    ppSeguro(() => sb.rpc('leads_dia_equipe', { p_dia: dia })),
+    ppSeguro(() => sb.rpc('leads_lig_por_hora_dia', { p_dia: dia })),   // §155: mapa por hora do dia; se falhar, a tabela mostra traço
+  ]);
   if(dia !== (kbEstado.equipeDia || kbHojeSP())) return false;   // trocou de dia no meio: a resposta é de outro dia, descarta
   if(!r || r.error){
     const faltou = !!(r && r.error && (r.error.code === 'PGRST202' || r.error.code === '42883'));
@@ -7719,6 +7745,7 @@ async function kbCarregarDia(manter){
     return false;
   }
   kbEstado.diaDisponivel = true; kbEstado.diaEquipe = r.data || [];
+  kbEstado.diaHoras = rh && !rh.error && Array.isArray(rh.data) ? Object.fromEntries(rh.data.map(x => [x.dono_id, x.lig_por_hora])) : null;
   return true;
 }
 async function kbEquipeModo(m){
@@ -7889,29 +7916,7 @@ function kbRenderEquipe(){
   const faixas = kbFaixasAtencao(ativ, cont, agoraMs).map(f => `<div class="kbEqAtencao"><span class="kbEqAv">${escapeHtml(kbIniciais(f.nome))}</span>
       <span><b>${escapeHtml(f.nome)} está há ${escapeHtml(kbDuracaoMin(f.min))} sem ligar nem escrever OBS</b>${f.sem_contato ? ` e tem ${f.sem_contato} lead${f.sem_contato === 1 ? '' : 's'} sem contato` : ''}.</span>
       <span class="kbEqAtencaoAcoes"><button type="button" class="kbBtn kbBtnQ kbBtnSm" data-kb-eq="${escapeHtml(f.dono_id)}|sem_contato">Ver os leads dele</button>${f.sem_contato ? `<button type="button" class="kbBtn kbBtnP kbBtnSm" data-kb-eq-redist="${escapeHtml(f.dono_id)}">Redistribuir ${f.sem_contato}</button>` : ''}</span></div>`).join('');
-  const atual = kbHoraAtualIdx(agoraMs);
-  const num = (dono, chave, n, ruim) => n ? `<button type="button" class="kbEqNum${ruim ? ' ruim' : ''}" data-kb-eq="${escapeHtml(dono)}|${chave}">${n}</button>` : '<span class="kbEqNum zero">0</span>';
-  const linhas = ativ.map(a => {
-    const c = cont[a.dono_id] || { sem_contato: 0, andamento: 0, parados3: 0, retornos_atrasados: 0, convertidos: 0, receita: 0, pegos_mes: 0 };
-    const s = kbAgoraEquipe(a, agoraMs), t = kbAtividadeTexto(a, agoraMs), meta = Number(a.meta_dia) || 80, lig = Number(a.lig_hoje) || 0;
-    const corCls = { verde: 'v', amarelo: 'a', vermelho: 'r' }[s.cor] || 'c';
-    const calor = Array.isArray(a.lig_por_hora)
-      ? `<span class="kbCalor" title="Ligações por hora, das 13h às 21h">${a.lig_por_hora.slice(0, 8).map((n, i) => `<i class="${i > atual ? 'fut' : 'l' + kbNivelHora(n)}" title="${13 + i}h: ${Number(n) || 0}"></i>`).join('')}</span>`
-      : '<span class="kbCalorSem kbMuted">—</span>';
-    const hoje = a.tem_telefonia
-      ? `<b>${lig}</b><span class="kbMuted"> / ${meta}</span><span class="kbMedidor kbMed-${kbCorBarraLig(lig, meta, agoraMs) || 'neutro'}"><i style="width:${Math.min(100, Math.round(100 * lig / meta))}%"></i></span>`
-      : '<span class="kbMuted">—</span>';
-    const pega = kbChavePegaHtml(a);   // §132: chave liga/desliga de quem pega (a v1 da função não traz pode_pegar: sem chave)
-    return `<tr data-kb-dono="${escapeHtml(a.dono_id)}"><td><span class="kbEqPessoa"><span class="kbEqAv">${escapeHtml(kbIniciais(a.nome))}</span><span><b>${escapeHtml(a.nome || '')}</b>${pega}</span></span></td>
-      <td><span class="kbEqSem ${corCls}"><span class="kbSemaforo"></span>${escapeHtml(s.texto)}</span><small class="kbEqAtivTxt">${escapeHtml(t.lig)} · ${escapeHtml(t.obs)}</small></td>
-      <td>${calor}</td><td class="kbEqHoje">${hoje}</td>
-      <td class="r">${num(a.dono_id, 'sem_contato', c.sem_contato, true)}</td><td class="r">${num(a.dono_id, 'andamento', c.andamento)}</td>
-      <td class="r">${num(a.dono_id, 'parados3', c.parados3, true)}</td><td class="r">${num(a.dono_id, 'retorno_atrasado', c.retornos_atrasados, true)}</td>
-      <td class="r">${num(a.dono_id, 'convertido', c.convertidos)}</td><td class="r kbEqConv">${kbConversao({ pegos_mes: c.pegos_mes, convertidos_mes: c.convertidos })}</td></tr>`;
-  }).join('');
-  const tabela = `<div class="kbEqTabela"><table><thead><tr><th>Consultor</th><th>Agora</th><th>Ligações por hora (13h–21h)</th><th>Hoje</th><th class="r">Sem contato</th><th class="r">Em andamento</th><th class="r">Parados 3+ d</th><th class="r">Retornos atras.</th><th class="r">Vendas mês</th><th class="r">Conversão</th></tr></thead>
-    <tbody>${linhas || '<tr><td colspan="10" class="kbMuted">Sem consultores na equipe de leads.</td></tr>'}</tbody></table>
-    <p class="kbEqLegenda">Verde: ligou ou escreveu OBS há menos de 30 min · amarelo: 30 min · vermelho: 1 h. Conta de 13h às 21h, seg–sex. Ligações chegam do ProContact de hora em hora; a última ligação pode estar até 1 h atrasada. Clique num número para ver os leads e selecionar para redistribuir.</p></div>`;
+  const tabela = kbTabelaEquipeHtml(ativ, cont, agoraMs, null);
   const modoDia = kbEstado.equipeModo === 'dia' && kbEstado.diaDisponivel !== false && Array.isArray(kbEstado.diaEquipe);
   const hojeSP = kbHojeSP(), diaSel = kbEstado.equipeDia || hojeSP;
   const controles = kbEstado.diaDisponivel ? `<div class="kbDiaControles"><nav class="kbSeg" aria-label="Período da tabela">`
@@ -7919,7 +7924,7 @@ function kbRenderEquipe(){
       + `<button type="button" data-kb-eq-modo="mes"${kbEstado.equipeModo !== 'dia' ? ' class="active"' : ''}>Mês</button></nav>`
       + (kbEstado.equipeModo === 'dia' ? `<input type="date" class="kbDiaData" id="kbEqDia" value="${escapeHtml(diaSel)}" min="${KB_DIA_MIN}" max="${escapeHtml(hojeSP)}" aria-label="Dia do placar">` : '') + '</div>' : '';
   const avisoDia = modoDia ? kbAvisoDiaHtml(diaSel, hojeSP) : '';
-  const tabelaUsada = modoDia ? `<div class="kbEqTabela">${kbTabelaDiaHtml(kbEstado.diaEquipe)}${avisoDia ? `<p class="kbEqLegenda">${escapeHtml(avisoDia)}</p>` : ''}</div>` : tabela;
+  const tabelaUsada = modoDia ? kbTabelaEquipeHtml(ativ, cont, agoraMs, { linhas: kbEstado.diaEquipe, horas: kbEstado.diaHoras, data: diaSel, hoje: diaSel === hojeSP, aviso: avisoDia }) : tabela;   // §155
   const sel = kbEstado.equipeLista;
   let lista = '';
   if(sel){
@@ -19448,9 +19453,10 @@ function mbTextoCarga(c){
   if(c.carregado_em) p.push('carregado em ' + new Date(c.carregado_em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }));
   return p.join(' · ');
 }
-const mbEstado = { geracao: 0, opcoes: null, contagem: null, contagemVez: 0, contagemFiltros: null };
+// ultimaContagem (seção 152.4): a última contagem pronta e o filtro dela (linhas e telefones distintos)
+const mbEstado = { geracao: 0, opcoes: null, contagem: null, contagemVez: 0, contagemFiltros: null, ultimaContagem: null };
 function mbResetar(){
-  mbEstado.geracao++; mbEstado.opcoes = null; mbEstado.contagem = null; mbEstado.contagemFiltros = null;
+  mbEstado.geracao++; mbEstado.opcoes = null; mbEstado.contagem = null; mbEstado.contagemFiltros = null; mbEstado.ultimaContagem = null;
   ['mbResultado', 'mbHistorico'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = ''; });
   const st = document.getElementById('mbStatus'); if(st) st.textContent = '';
 }
@@ -19650,7 +19656,11 @@ async function mbAcompanharContagem(d, ger){
   let falhas = 0;
   for(;;){
     if(ger !== mbEstado.geracao || vez !== mbEstado.contagemVez) return; // trocou de usuário, parou ou contou outro filtro
-    if(d.estado === 'pronta'){ mbEstado.contagem = null; mbRenderResultado(d); return; }
+    if(d.estado === 'pronta'){
+      mbEstado.contagem = null;
+      mbEstado.ultimaContagem = { chave: mbEstado.contagemFiltros, linhas: Number(d.linhas), telefones: Number(d.telefones) };
+      mbRenderResultado(d); return;
+    }
     if(d.estado === 'erro' || d.estado === 'cancelada'){
       mbEstado.contagem = null;
       mbRenderContagemParou(d.erro || 'A contagem não terminou. Tente de novo.');
@@ -19916,7 +19926,11 @@ async function mbExportarPedido(carga, total, filtros, opcoes){
     mbEstado.exportando = false; btn.disabled = false;
     mostrarAviso('Não foi possível falar com a base de mailing. Tente de novo.', 'erro'); return;
   }
-  const n = Math.ceil(total / MB_MAX_QTD);
+  // 16/11 (seção 152.4): com "Remover duplicados", cada telefone sai uma vez — o pedido do Guilherme (387.110 linhas,
+  // 277.352 telefones) saiu em 3 arquivos chamados "de 4". Com a contagem do mesmo filtro, conta os arquivos pelos telefones.
+  const uc = mbEstado.ultimaContagem;
+  const teto = op.duplicados && uc && uc.chave === JSON.stringify(filtros) && uc.telefones > 0 ? Math.min(total, uc.telefones) : total;
+  const n = Math.ceil(teto / MB_MAX_QTD);
   const pedido = mbNovoPedido();
   const f = Object.assign({}, filtros, { extraida_antes_de: agora.data.agora });
   prog.hidden = false;
@@ -19987,7 +20001,13 @@ async function mbExportarPedido(carga, total, filtros, opcoes){
   else if(!entregue && removidos.length) mostrarAviso('Nenhuma linha ficou: as ' + mbFmtNum(removidos.length) + ' encontradas foram removidas (não baixadas).' + extra, 'info');
   else if(!entregue) mostrarAviso('Nenhuma linha com esses filtros. Nada foi exportado.' + extra, 'info');
   else if(parou) mostrarAviso(feito + ' — parou a seu pedido.' + extra, 'ok');
-  else if(acabou && entregue < total) mostrarAviso(feito + ' — são todas as linhas do filtro. A contagem (≈) é estimativa; este é o número exato.' + extra, 'ok');
+  else if(acabou && entregue < total){
+    // 16/11 (seção 152.4): o filtro acabou antes da quantidade pedida — dizer por quê, e que nada ficou para trás
+    const menos = arquivos < n ? ' Saíram ' + arquivos + (arquivos === 1 ? ' arquivo' : ' arquivos') + ', não ' + n
+      + (nRep ? ': o nome "de ' + n + '" foi calculado antes de tirar os repetidos.' : ': o filtro tinha menos linhas que a quantidade pedida.') : '';
+    mostrarAviso(feito + (nRep ? ' — são todos os telefones do filtro: as linhas a menos eram telefones repetidos (cada telefone sai uma vez só). Nada ficou para trás.'
+      : ' — são todas as linhas do filtro; este é o número exato. Nada ficou para trás.') + menos + extra, 'ok');
+  }
   else mostrarAviso(feito + '.' + extra, 'ok');
 }
 function mbLerArquivo(a){
