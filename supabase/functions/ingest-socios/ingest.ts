@@ -1,4 +1,4 @@
-// Regras da Edge Function ingest-socios (§155). Puro: sem Supabase, testável com node --test.
+// Regras da Edge Function ingest-socios (§156). Puro: sem Supabase, testável com node --test.
 export type Telefone = { tipo: "fixo" | "celular"; numero: string; operadora: string | null; whatsapp: boolean };
 export type Socio = { nome: string; cpf: string; participacao: number | null; telefones_consultados: boolean; telefones: Telefone[] };
 export type Resultado = { socios: Socio[] };

@@ -1,4 +1,4 @@
-# Consulta de sócios na Renovação (§155) Implementation Plan
+# Consulta de sócios na Renovação (§156) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -67,7 +67,7 @@ o painel relê o pedido a cada 5 s.
 | `supabase/functions/ingest-socios/index.ts` (novo) | HTTP, token, dependências Supabase |
 | `_template.html` (modificar ~linhas 3950–4440) | aba Sócios na ficha da Renovação |
 | `test_renovacao_socios.js` (novo) | testes jsdom da aba |
-| `REGRAS_NEGOCIO.md` (modificar, fim do arquivo) | §155 |
+| `REGRAS_NEGOCIO.md` (modificar, fim do arquivo) | §156 |
 
 **Robô (`apex-robo-procontact`, branch `feat/socios`):**
 | arquivo | responsabilidade |
@@ -101,7 +101,7 @@ o painel relê o pedido a cada 5 s.
 o `net.http_post` do pg_net também é desfeito, então nada é disparado no GitHub). Cada falha dá `raise exception`.
 
 ```sql
--- Verificação da §155 no banco. Roda tudo em transação e desfaz no fim (rollback). Sem dados pessoais na saída:
+-- Verificação da §156 no banco. Roda tudo em transação e desfaz no fim (rollback). Sem dados pessoais na saída:
 -- só 'OK' ou a exceção com o nome do caso. Pré-requisito: a migration 20261116200000 aplicada.
 begin;
 -- atores reais escolhidos pelo banco (só ids em GUCs locais; nada é impresso)
@@ -220,7 +220,7 @@ Expected: erro `function public.socios_da_base(bigint) does not exist` (ou `rela
 `supabase/migrations/20261116200000_socios_consultas.sql`:
 
 ```sql
--- §155 (16/11/2026, pedido do Rafael): consulta de sócios na ficha da Renovação.
+-- §156 (16/11/2026, pedido do Rafael): consulta de sócios na ficha da Renovação.
 -- Spec: docs/superpowers/specs/2026-11-16-consulta-socios-renovacao-design.md (seção 4)
 begin;
 
@@ -367,7 +367,7 @@ desfaz tudo). Conferir que não sobrou nada: `select count(*) from public.socios
 
 ```bash
 git add supabase/migrations/20261116200000_socios_consultas.sql supabase/tests/socios_consultas_verificar.sql
-git commit -m "feat(socios): tabela socios_consultas, RLS e RPCs da consulta de sócios (§155)"
+git commit -m "feat(socios): tabela socios_consultas, RLS e RPCs da consulta de sócios (§156)"
 ```
 
 ---
@@ -483,7 +483,7 @@ Expected: FAIL com `Cannot find module './ingest.ts'`.
 - [ ] **Step 3: Implementar `ingest.ts`**
 
 ```ts
-// Regras da Edge Function ingest-socios (§155). Puro: sem Supabase, testável com node --test.
+// Regras da Edge Function ingest-socios (§156). Puro: sem Supabase, testável com node --test.
 export type Telefone = { tipo: "fixo" | "celular"; numero: string; operadora: string | null; whatsapp: boolean };
 export type Socio = { nome: string; cpf: string; participacao: number | null; telefones_consultados: boolean; telefones: Telefone[] };
 export type Resultado = { socios: Socio[] };
@@ -561,7 +561,7 @@ Expected: PASS (10 testes).
 - [ ] **Step 5: Escrever `index.ts`** (mesmo esqueleto da `ingest-ligacoes`)
 
 ```ts
-// Edge Function: ingest-socios — fila da consulta de sócios na Nova Vida (§155). Chamada só pelo robô
+// Edge Function: ingest-socios — fila da consulta de sócios na Nova Vida (§156). Chamada só pelo robô
 // (header x-robo-token = secret INGEST_SOCIOS_TOKEN); por isso roda sem JWT (--no-verify-jwt).
 // Spec: docs/superpowers/specs/2026-11-16-consulta-socios-renovacao-design.md (4.6)
 // Publicar: npx supabase functions deploy ingest-socios --project-ref mdgfboijyqfkggcrhptn --no-verify-jwt --use-api
@@ -629,7 +629,7 @@ Deno.serve(async (req: Request) => {
 
 ```bash
 git add supabase/functions/ingest-socios
-git commit -m "feat(socios): Edge Function ingest-socios (fila do robô da Nova Vida, §155)"
+git commit -m "feat(socios): Edge Function ingest-socios (fila do robô da Nova Vida, §156)"
 ```
 
 - [ ] **Step 7: Segredo + deploy (com ok do Rafael)**
@@ -667,7 +667,7 @@ cd ~/.graphify/repos/rafaangelao/apex-robo-procontact && git fetch -q origin && 
 - [ ] **Step 2: Escrever `src/socios/novavida.js`**
 
 ```js
-// src/socios/novavida.js — navegação no Congonhas (Nova Vida TI). §155, spec seções 3 e 5.3.
+// src/socios/novavida.js — navegação no Congonhas (Nova Vida TI). §156, spec seções 3 e 5.3.
 // Só navega e devolve TEXTO BRUTO; quem interpreta é ler-socios.js. Nunca loga nada.
 const INICIO = 'https://congonhas.novavidatec.com.br/';
 const HOST = 'congonhas.novavidatec.com.br';
@@ -815,7 +815,7 @@ telefone, `WHATSAPP`, `PROCON` e a operadora nas seções. **Não commitar nada 
 
 ```bash
 git add src/socios/novavida.js scripts/mapear-novavida.js
-git commit -m "feat(socios): navegação na Nova Vida e mapeamento local mascarado (§155)"
+git commit -m "feat(socios): navegação na Nova Vida e mapeamento local mascarado (§156)"
 ```
 
 ---
@@ -900,7 +900,7 @@ Expected: FAIL com `Cannot find module '../src/socios/ler-socios.js'`.
 - [ ] **Step 3: Implementar `src/socios/ler-socios.js`**
 
 ```js
-// src/socios/ler-socios.js — interpreta o texto das páginas da Nova Vida (§155). Funções puras, sem Playwright.
+// src/socios/ler-socios.js — interpreta o texto das páginas da Nova Vida (§156). Funções puras, sem Playwright.
 export const TETO_TELEFONES = 5;
 const MAX_FONES = 10;
 const OPERADORAS = new Set(['CLARO', 'VIVO', 'TIM', 'OI', 'NEXTEL', 'ALGAR', 'SERCOMTEL', 'CTBC', 'EMBRATEL', 'GVT']);
@@ -961,7 +961,7 @@ Run: `node --test test/socios-ler.test.js` → PASS. Depois `npm test` (todos os
 
 ```bash
 git add src/socios/ler-socios.js test/socios-ler.test.js
-git commit -m "feat(socios): leitura dos cartões de sócio e dos telefones da Nova Vida (§155)"
+git commit -m "feat(socios): leitura dos cartões de sócio e dos telefones da Nova Vida (§156)"
 ```
 
 ---
@@ -1086,7 +1086,7 @@ Expected: FAIL com `Cannot find module '../src/socios/main.js'`.
 - [ ] **Step 3: Implementar `src/socios/main.js`**
 
 ```js
-// src/socios/main.js — rodada do robô de sócios (§155): pega a fila na ingest-socios, consulta a Nova Vida, devolve.
+// src/socios/main.js — rodada do robô de sócios (§156): pega a fila na ingest-socios, consulta a Nova Vida, devolve.
 // Log público: só contagens. Disparado pelo workflow socios.yml (quem dispara é a RPC socios_pedir).
 import { pathToFileURL } from 'node:url';
 import { chamar } from '../enviar.js';
@@ -1205,7 +1205,7 @@ Em `"scripts"`, acrescentar `"socios": "node src/socios/main.js"` (mantendo `tes
 
 ```bash
 git add src/socios/main.js test/socios-main.test.js package.json
-git commit -m "feat(socios): rodada do robô (fila, um login, timeout por CNPJ, log só com contagens) (§155)"
+git commit -m "feat(socios): rodada do robô (fila, um login, timeout por CNPJ, log só com contagens) (§156)"
 ```
 
 ---
@@ -1224,7 +1224,7 @@ git commit -m "feat(socios): rodada do robô (fila, um login, timeout por CNPJ, 
 name: Consultar sócios na Nova Vida
 
 # Sem schedule: quem dispara é a RPC socios_pedir (Supabase, pg_net) via API, um disparo por pedido.
-# §155 — spec docs/superpowers/specs/2026-11-16-consulta-socios-renovacao-design.md (repo oficial)
+# §156 — spec docs/superpowers/specs/2026-11-16-consulta-socios-renovacao-design.md (repo oficial)
 on:
   workflow_dispatch:
 
@@ -1277,11 +1277,11 @@ Run: `npm test` → PASS; `git diff origin/main --stat` mostra só `src/socios/*
 
 ```bash
 git add .github/workflows/socios.yml
-git commit -m "feat(socios): workflow socios.yml (disparo pela RPC, um por vez, cache do Chromium) (§155)"
+git commit -m "feat(socios): workflow socios.yml (disparo pela RPC, um por vez, cache do Chromium) (§156)"
 ```
 Pedir ao Rafael: `! cd ~/.graphify/repos/rafaangelao/apex-robo-procontact && git push -u origin feat/socios`
 e depois o merge na `main` do robô (o dispatch usa `ref: main`):
-`! cd ~/.graphify/repos/rafaangelao/apex-robo-procontact && git fetch origin && git switch main && git merge --ff-only origin/main && git merge --no-ff feat/socios -m "Merge feat/socios (§155)" && git push origin main`
+`! cd ~/.graphify/repos/rafaangelao/apex-robo-procontact && git fetch origin && git switch main && git merge --ff-only origin/main && git merge --no-ff feat/socios -m "Merge feat/socios (§156)" && git push origin main`
 O `sincronizar.yml` não muda (conferir no diff).
 
 - [ ] **Step 4: Primeira rodada real (com ok do Rafael)**
@@ -1309,7 +1309,7 @@ ainda sem a aba), ou por SQL com `request.jwt.claims` do usuário dele numa tran
 - [ ] **Step 1: Escrever o teste** `test_renovacao_socios.js`
 
 ```js
-// Testa a §155 — aba Sócios da ficha da Renovação (base da Receita + Nova Vida). DADOS FICTÍCIOS.
+// Testa a §156 — aba Sócios da ficha da Renovação (base da Receita + Nova Vida). DADOS FICTÍCIOS.
 require('./renovacao_test_harness.js').rodar(`
   rnHoje = () => '2026-11-16'; rnHoraSP = () => '16:00';
   const L = (o) => Object.assign({ razao_social: 'Zz', telefone: '19900000001', linhas_voz: 1, apto: 'APTO', status: 3, na_base: true, consultor_id: 'u-a', prox_retorno: '2026-11-10' }, o);
@@ -1442,7 +1442,7 @@ Em `rnAbrirFicha`, logo depois de `rnEstado.fichaStatus = null; rnEstado.fichaAb
 - [ ] **Step 4: Funções da aba** (inserir logo depois de `rnHistoricoTexto`, ~linha 4300)
 
 ```js
-// §155 — aba Sócios: base da Receita (mailing.socio, via RPC) + consulta na Nova Vida (fila socios_consultas + robô).
+// §156 — aba Sócios: base da Receita (mailing.socio, via RPC) + consulta na Nova Vida (fila socios_consultas + robô).
 const RN_SOCIOS_MOTIVO = { limite: 'Você já fez 20 consultas hoje. Amanhã libera de novo.', sem_permissao: 'Você não tem acesso a este cliente.' };
 const RN_SOCIOS_COLS = 'id,status,pedido_por,pedido_em,concluido_em,resultado,erro';
 function rnCpfFmt(c){ return String(c || '').replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4'); }
@@ -1594,7 +1594,7 @@ novo de `rnSocioCartaoHtml`/`rnSocioBaseHtml` (devem bater — ver memória "HTM
 
 ```bash
 git add _template.html test_renovacao_socios.js
-git commit -m "feat(renovacao): aba Sócios na ficha — base da Receita + consulta na Nova Vida (§155)"
+git commit -m "feat(renovacao): aba Sócios na ficha — base da Receita + consulta na Nova Vida (§156)"
 ```
 
 ---
@@ -1604,11 +1604,11 @@ git commit -m "feat(renovacao): aba Sócios na ficha — base da Receita + consu
 **Files:**
 - Modify: `REGRAS_NEGOCIO.md` (fim do arquivo)
 
-- [ ] **Step 1: Seção §155** — `git fetch oficial` e confirmar que a última seção ainda é §154.x (se alguém usou a 155,
+- [ ] **Step 1: Seção §156** — `git fetch oficial` e confirmar que a última seção ainda é §154.x (se alguém usou a 155,
 renumerar para a próxima livre em tudo: spec, plano, comentários). Acrescentar ao fim do `REGRAS_NEGOCIO.md`:
 
 ```markdown
-## §155 Consulta de sócios na ficha da Renovação (16/11/2026, pedido do Rafael)
+## §156 Consulta de sócios na ficha da Renovação (16/11/2026, pedido do Rafael)
 
 - Aba **Sócios** na ficha da Renovação. Abre com nome e CPF dos sócios da **base da Receita** (`mailing.socio`, via RPC
   `socios_da_base`) quando houver, com "principal" e "consta óbito".
@@ -1623,7 +1623,7 @@ renumerar para a próxima livre em tudo: spec, plano, comentários). Acrescentar
 - Spec: `docs/superpowers/specs/2026-11-16-consulta-socios-renovacao-design.md`.
 ```
 
-Commit local: `git add REGRAS_NEGOCIO.md && git commit -m "docs(regras): §155 consulta de sócios na Renovação"`
+Commit local: `git add REGRAS_NEGOCIO.md && git commit -m "docs(regras): §156 consulta de sócios na Renovação"`
 
 - [ ] **Step 2: Ponta a ponta local (com ok do Rafael)**
 

@@ -1,8 +1,8 @@
-# Consulta de sócios (CPF e telefones) na ficha da Renovação (§155)
+# Consulta de sócios (CPF e telefones) na ficha da Renovação (§156)
 
 **Data:** 16/11/2026 · **Pedido:** Rafael ("automação para que os consultores consigam consultar o CPF do CNPJ que eles têm";
 "quero fazer primeiro o de renovação. depois, quero abrir para todos os consultores, porém de uma maneira diferente")
-**Seção do REGRAS:** §155 (o oficial está em §154.1 em 16/11; confirmar com `git fetch oficial` antes de escrever)
+**Seção do REGRAS:** §156 (o oficial está em §154.1 em 16/11; confirmar com `git fetch oficial` antes de escrever)
 **Repositórios:** painel e banco no oficial (`atmizuta/apex-smart-solutions`); robô no `rafaangelao/apex-robo-procontact`
 (ambos **públicos**: nenhum CPF, CNPJ, nome, telefone, usuário ou senha em código, teste, log ou commit).
 

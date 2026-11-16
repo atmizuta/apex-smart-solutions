@@ -1,4 +1,4 @@
-// Edge Function: ingest-socios — fila da consulta de sócios na Nova Vida (§155). Chamada só pelo robô
+// Edge Function: ingest-socios — fila da consulta de sócios na Nova Vida (§156). Chamada só pelo robô
 // (header x-robo-token = secret INGEST_SOCIOS_TOKEN); por isso roda sem JWT (--no-verify-jwt).
 // Spec: docs/superpowers/specs/2026-11-16-consulta-socios-renovacao-design.md (4.6)
 // Publicar: npx supabase functions deploy ingest-socios --project-ref mdgfboijyqfkggcrhptn --no-verify-jwt --use-api

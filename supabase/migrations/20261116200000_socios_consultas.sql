@@ -1,4 +1,4 @@
--- §155 (16/11/2026, pedido do Rafael): consulta de sócios na ficha da Renovação.
+-- §156 (16/11/2026, pedido do Rafael): consulta de sócios na ficha da Renovação.
 -- Spec: docs/superpowers/specs/2026-11-16-consulta-socios-renovacao-design.md (seção 4)
 begin;
 

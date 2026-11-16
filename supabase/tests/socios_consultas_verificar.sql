@@ -1,4 +1,4 @@
--- Verificação da §155 no banco. Roda tudo em transação e desfaz no fim (rollback). Sem dados pessoais na saída:
+-- Verificação da §156 no banco. Roda tudo em transação e desfaz no fim (rollback). Sem dados pessoais na saída:
 -- só 'OK' ou a exceção com o nome do caso. Pré-requisito: a migration 20261116200000 aplicada.
 begin;
 -- atores reais escolhidos pelo banco (só ids em GUCs locais; nada é impresso)
