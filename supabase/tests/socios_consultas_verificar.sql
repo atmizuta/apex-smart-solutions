@@ -54,16 +54,18 @@ begin
   if (select disparado_em from public.socios_consultas where id = (r->>'id')::bigint) < now() - interval '1 minute'
     then raise exception 'CASO 5: não redisparou'; end if;
 
-  -- 6. consultando há mais de 10 min vira erro e libera novo pedido
+  -- 6. consultando há mais de 10 min (robô morreu): §157.1 volta para a fila — o mesmo pedido, sem linha nova
   update public.socios_consultas set status = 'consultando', iniciado_em = now() - interval '11 minutes' where id = (r->>'id')::bigint;
   r2 := public.socios_pedir(c);
-  if (select status from public.socios_consultas where id = (r->>'id')::bigint) <> 'erro' then raise exception 'CASO 6: abandonado não virou erro'; end if;
-  if r2->>'id' = r->>'id' or r2->>'status' <> 'pendente' then raise exception 'CASO 6b: não criou novo pedido'; end if;
+  if (select status from public.socios_consultas where id = (r->>'id')::bigint) <> 'pendente' then raise exception 'CASO 6: presa não voltou para a fila'; end if;
+  if r2->>'id' <> r->>'id' or r2->>'status' <> 'pendente' then raise exception 'CASO 6b: não devolveu o mesmo pedido: %', r2; end if;
 
-  -- 7. limite: com 20 pedidos hoje, o 21º é barrado (os de cima já contam 2)
+  -- 7. limite: com 20 pedidos hoje, o 21º é barrado (completa até 20 com o que o dono já tem no dia)
   update public.socios_consultas set status = 'pronto' where cnpj_digits = current_setting('teste.cnpj') and status = 'pendente';
+  select count(*) into n from public.socios_consultas where pedido_por = current_setting('teste.dono')::uuid
+     and pedido_em >= (date_trunc('day', now() at time zone 'America/Sao_Paulo') at time zone 'America/Sao_Paulo');
   insert into public.socios_consultas (cnpj_digits, pedido_por, status)
-    select '00000000000191', current_setting('teste.dono')::uuid, 'pronto' from generate_series(1, 18);
+    select '00000000000191', current_setting('teste.dono')::uuid, 'pronto' from generate_series(1, 20 - n);
   r := public.socios_pedir(c);
   if r->>'motivo' is distinct from 'limite' then raise exception 'CASO 7: 21º pedido não foi barrado: %', r; end if;
 

@@ -5191,4 +5191,16 @@ Pedido do Rafael ("redesign COMPLETO dessa aba… bonito, fácil de usar e claro
 - **Publicação (17/11/2026 20:23, ok do Rafael "pode publicar"):** o ar era `46e2d380…` (= oficial/main e3792cb); novo MD5 `224781f1…`.
   Banco aplicado no mesmo dia (migration `20261117130000_socios_avulsa.sql`, verificação de 14 casos OK). Backup `~/deploy_backups/painel_clientes_apex.html.20261117232341.bak`. Reverter: copiar o backup de volta (o banco é compatível com o painel antigo).
 
+### §157.1 Ajuste da fila da consulta de sócios (17/11/2026, ok do Rafael)
+
+- **Consulta presa** (`consultando` há mais de 10 min = o robô morreu): **volta para a fila** sozinha (`socios_liberar_presos`,
+  chamada pelas RPCs de pedido e pelo `socios_robo_pegar`) e é consultada de novo. Coluna `tentativas` conta as idas ao
+  robô; na **3ª** a consulta vira erro "A Nova Vida não respondeu para este CNPJ." (CNPJ problemático não fica em looping).
+  Antes (§156) a presa virava erro e bloqueava a fila do CNPJ.
+- Com isso, **"Tentar de novo" numa consulta presa não gasta limite** (devolve o mesmo pedido, de volta à fila).
+- O gatilho `socios_propagar` usa a mesma trava por CNPJ das RPCs: pedido que chega no instante em que a consulta termina
+  sempre recebe o resultado. `socios_robo_pegar` tem trava própria (duas rodadas nunca pegam o mesmo pedido).
+- Migration `20261117220000_socios_fila_ajuste.sql` (troca só o trecho do abandono nas RPCs; aborta se não achar);
+  verificação `supabase/tests/socios_fila_ajuste_verificar.sql` + as da §156 e §157 rodadas de novo (OK).
+
 Próxima livre: §158 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
