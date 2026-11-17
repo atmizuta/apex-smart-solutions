@@ -4402,35 +4402,44 @@ function rnSociosBaseListaHtml(base){
   const mes = base.receita_mes ? String(base.receita_mes).replace(/^(\d{4})-(\d{2})$/, '$2/$1') : '';
   return lista.map(rnSocioBaseHtml).join('') + `<p class="kbMeta rnSocFonte">Fonte: Receita Federal, base de ${escapeHtml(mes)} · sem telefones</p>`;
 }
-function rnSociosHtml(){
-  const s = rnEstado.socios;
-  if(!s || s.id !== rnEstado.fichaId) return '<p class="kbMeta">Carregando sócios…</p>';
+// Estados da consulta de sócios (§156/§157): base da Receita, em andamento, erro, pronto, sem sócios.
+// s = {base, pedido, ultimo, aviso}; opts.pedirAttr = atributo dos botões que pedem de novo (valor tentar|atualizar|consultar);
+// opts.rodape = 'por' ("Consultado em … por …", ficha da Renovação) | 'nv' ("Consultado na Nova Vida em …", aba Consultar sócios)
+function socEstadoHtml(s, opts){
+  const o = opts || {};
+  const attr = o.pedirAttr || 'data-rn-socios-pedir';
   const p = s.pedido, u = s.ultimo, andamento = rnSociosEmAndamento(p);
-  const botao = (txt, cls) => `<button type="button" class="kbBtn ${cls || 'kbBtnP'}" data-rn-socios-pedir>${escapeHtml(txt)}</button>`;
+  const botao = (txt, cls, acao) => `<button type="button" class="kbBtn ${cls || 'kbBtnP'}" ${attr}="${acao}">${escapeHtml(txt)}</button>`;
   const partes = [];
   if(s.aviso) partes.push(`<p class="rnErro" role="alert">${escapeHtml(s.aviso)}</p>`);
   if(andamento){
     const seg = Math.max(0, Math.floor((Date.now() - new Date(p.pedido_em).getTime()) / 1000));
-    // pendente há 3 min (disparo pode não ter chegado) ou consultando há 10 min (robô parou): o socios_pedir redispara/libera
+    // pendente há 3 min (disparo pode não ter chegado) ou consultando há 10 min (robô parou): o pedido redispara/libera
     const preso = p.status === 'consultando' && Date.now() - new Date(p.iniciado_em || p.pedido_em).getTime() >= 600000;
     partes.push(`<div class="rnSocAviso"><span class="kbMeta">Consultando na Nova Vida… ${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, '0')}</span>`
-      + ((p.status === 'pendente' && seg >= 180) || preso ? botao('Tentar de novo', 'kbBtnQ kbBtnSm') : '') + '</div>');
+      + ((p.status === 'pendente' && seg >= 180) || preso ? botao('Tentar de novo', 'kbBtnQ kbBtnSm', 'tentar') : '') + '</div>');
   } else if(p && p.status === 'erro'){
-    partes.push(`<div class="rnSocAviso"><span class="rnErro">${escapeHtml(p.erro || 'A consulta na Nova Vida falhou.')}</span>${botao('Tentar de novo', 'kbBtnQ kbBtnSm')}</div>`);
+    partes.push(`<div class="rnSocAviso"><span class="rnErro">${escapeHtml(p.erro || 'A consulta na Nova Vida falhou.')}</span>${botao('Tentar de novo', 'kbBtnQ kbBtnSm', 'tentar')}</div>`);
   }
   if(u){
     const quando = u.concluido_em ? new Date(u.concluido_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '') : '';
     partes.push(u.status === 'pronto' && u.resultado && Array.isArray(u.resultado.socios)
       ? u.resultado.socios.map(rnSocioCartaoHtml).join('')
       : '<p class="rnVazio">A Nova Vida não mostra sócios para este CNPJ.</p>' + rnSociosBaseListaHtml(s.base));
-    partes.push(`<div class="rnSocRodape"><span class="kbMeta">Consultado em ${escapeHtml(quando)} por ${escapeHtml(rnNomeConsultor(u.pedido_por))}</span>`
-      + (andamento || (p && p.status === 'erro') ? '' : botao('Atualizar', 'kbBtnQ kbBtnSm')) + '</div>');
+    const texto = o.rodape === 'nv' ? `Consultado na Nova Vida em ${quando}` : `Consultado em ${quando} por ${rnNomeConsultor(u.pedido_por)}`;
+    partes.push(`<div class="rnSocRodape"><span class="kbMeta">${escapeHtml(texto)}</span>`
+      + (andamento || (p && p.status === 'erro') ? '' : botao('Atualizar', 'kbBtnQ kbBtnSm', 'atualizar')) + '</div>');
   } else {
     const lista = s.base && Array.isArray(s.base.socios) ? s.base.socios : [];
     partes.push(lista.length ? rnSociosBaseListaHtml(s.base) : '<p class="rnVazio">A base da Receita não tem os sócios deste CNPJ.</p>');
-    if(!andamento && !(p && p.status === 'erro')) partes.push(`<div class="rnSocConsultar">${botao('Consultar na Nova Vida')}<span class="kbMeta">${lista.length ? 'traz os telefones, leva cerca de 2 min' : 'leva cerca de 2 min'}</span></div>`);
+    if(!andamento && !(p && p.status === 'erro')) partes.push(`<div class="rnSocConsultar">${botao('Consultar na Nova Vida', 'kbBtnP', 'consultar')}<span class="kbMeta">${lista.length ? 'traz os telefones, leva cerca de 2 min' : 'leva cerca de 2 min'}</span></div>`);
   }
   return partes.join('');
+}
+function rnSociosHtml(){
+  const s = rnEstado.socios;
+  if(!s || s.id !== rnEstado.fichaId) return '<p class="kbMeta">Carregando sócios…</p>';
+  return socEstadoHtml(s, { pedirAttr: 'data-rn-socios-pedir', rodape: 'por' });
 }
 function rnSociosPintar(){
   const sec = document.querySelector('#rnFichaCorpo [data-rn-ficha-sec="socios"]');
