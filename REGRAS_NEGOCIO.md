@@ -5188,5 +5188,7 @@ Pedido do Rafael ("redesign COMPLETO dessa aba… bonito, fácil de usar e claro
   CNPJ já em consulta) e o gatilho `socios_propagar` entrega o resultado a todos os pedidos desse CNPJ.
 - A função `socios_base_json` (base da Receita) é interna: o navegador não consegue chamá-la sem passar pelo limite.
 - Spec: `docs/superpowers/specs/2026-11-17-consultar-socios-aba-design.md`.
+- **Publicação (17/11/2026 20:23, ok do Rafael "pode publicar"):** o ar era `46e2d380…` (= oficial/main e3792cb); novo MD5 `224781f1…`.
+  Banco aplicado no mesmo dia (migration `20261117130000_socios_avulsa.sql`, verificação de 14 casos OK). Backup `~/deploy_backups/painel_clientes_apex.html.20261117232341.bak`. Reverter: copiar o backup de volta (o banco é compatível com o painel antigo).
 
 Próxima livre: §158 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
