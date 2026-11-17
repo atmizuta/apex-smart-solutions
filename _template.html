@@ -1733,6 +1733,8 @@
       <button data-tab="busca" data-sub="Base de clientes por razão social, CNPJ ou telefone"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span class="sbLabel">Buscar Clientes</span></button>
       <button data-tab="proposta" id="tabBtnProposta" data-sub="Proposta avulsa e análise de fatura"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg><span class="sbLabel">Gerar Proposta</span></button>
       <button data-tab="funil" id="tabBtnFunil" data-sub="Negociações em andamento, por estágio"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg><span class="sbLabel">Funil</span></button>
+      <!-- §157: Consultar sócios — operação Apex; o time da Renovação usa a aba Sócios da ficha -->
+      <button data-tab="socios" id="tabBtnSocios" style="display:none" data-sub="CPF e telefones dos sócios de qualquer CNPJ"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="sbLabel">Consultar sócios</span></button>
       <!-- 30/09/2026: aba só do consultor (vê apenas os pedidos dele). Admin/supervisor seguem com "Pedidos em Alerta" no Dashboard. Ver seção 53 do REGRAS_NEGOCIO.md. -->
       <button data-tab="pedidosparados" id="tabBtnPedidosParados" style="display:none" data-sub="Seus pedidos parados, agenda e oportunidades"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="sbLabel">Pedidos Parados</span></button>
       <button data-tab="agenda" id="tabBtnAgenda" data-sub="Seus retornos do mês"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/></svg><span class="sbLabel">Agenda</span></button>
@@ -1918,6 +1920,18 @@
       <aside class="kbFicha" id="rnFicha" aria-label="Ficha do cliente"><div class="kbFichaCorpo" id="rnFichaCorpo"></div></aside>
     </section>
     <!-- FUNIL DE VENDAS (kanban — todos os perfis) -->
+    <!-- §157 Consultar sócios (campo livre) -->
+    <section class="panel" id="panel-socios">
+      <form id="scForm" class="rnSocConsultar" autocomplete="off">
+        <div class="searchBox" style="flex:1;min-width:220px;margin:0"><input type="text" id="scCnpj" inputmode="numeric" maxlength="18" placeholder="CNPJ da empresa (com ou sem pontuação)"></div>
+        <button type="submit" class="kbBtn kbBtnP">Consultar</button>
+        <span class="kbMeta">conta 1 das suas 20 consultas do dia</span>
+      </form>
+      <p class="rnErro" id="scAviso" role="alert"></p>
+      <div id="scResultado"></div>
+      <h3 class="rnSocNome" style="margin-top:var(--space-6)">Minhas últimas consultas</h3>
+      <div id="scLista"></div>
+    </section>
     <section class="panel" id="panel-funil">
       <div class="funilTopBar">
         <div>
@@ -3686,6 +3700,7 @@ function enterApp(){
     kbAplicarPermissao().catch(err => console.error(err));
     // 07/11/2026 (seção 143): Renovação — time de renovação + admin/supervisor da Apex; carrega já no login por causa do selo
     rnAplicarPermissao();
+    scAplicarPermissao(); // §157 Consultar sócios (operação Apex, fora o time da Renovação)
     if(rnPodeVer()) rnCarregar().catch(err => console.error(err));
     // 06/10/2026 (seção 72): Caderno + Agenda + Objeções — botão do Caderno, rascunho, biblioteca e alertas
     cadernoAoEntrar();
@@ -3941,6 +3956,7 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
   if(btn.dataset.tab === 'tvvendas') tvAbrir(); else tvParar(); // §149
   if(btn.dataset.tab === 'mailing') mbCarregar();
   if(btn.dataset.tab === 'agenda') loadAgenda();
+  if(btn.dataset.tab === 'socios') scAbrir(); else scParar(); // §157
   if(btn.dataset.tab === 'renovacao'){ if(rnEstado.carregado && Date.now() - rnEstado.carregadoEm < 120000) rnRender(); else rnCarregar(); }
   if(btn.dataset.tab === 'proposta') rnMoverProposta(false);   // §143.2: o formulário pode estar na subaba da Renovação
   if(btn.dataset.tab === 'anotacoes') loadAnotacoes();
@@ -4978,6 +4994,101 @@ document.getElementById('rnHojeFiltros').addEventListener('click', () => {
   rnEstado.pagina = 1; rnTrocarAba('carteira');
 });
 /* ============ FIM RENOVAÇÃO §143 ============ */
+/* ============ CONSULTAR SÓCIOS — §157 ============ */
+const SC_MOTIVO = { limite: 'Você já fez 20 consultas hoje. Amanhã libera de novo.', sem_permissao: 'A consulta de sócios é só para a operação Apex.', cnpj_invalido: 'Confira o CNPJ: os dígitos não batem.' };
+const SC_COLS = 'id,cnpj_digits,razao_social,status,pedido_por,pedido_em,iniciado_em,concluido_em,resultado,erro,copiado_de';
+const scEstado = { atual: null, lista: [], timer: null, geracao: 0 };
+function canSocios(){ return !!currentUser && ['consultor', 'supervisor', 'admin'].includes(currentUser.role) && veAbasDaApex() && !rnSoRenovacao(); }
+function scParar(){ if(scEstado.timer){ clearTimeout(scEstado.timer); scEstado.timer = null; } }
+function scAvisar(t){ const el = document.getElementById('scAviso'); if(el) el.textContent = t || ''; }
+function scVisivel(){ const p = document.getElementById('panel-socios'); return !!p && p.classList.contains('active'); }
+function scAplicarPermissao(){
+  scParar(); scEstado.atual = null; scEstado.lista = []; scEstado.geracao++;
+  const b = document.getElementById('tabBtnSocios'); if(b) b.style.display = canSocios() ? 'inline-block' : 'none';
+  ['scResultado', 'scLista'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = ''; });
+  const i = document.getElementById('scCnpj'); if(i) i.value = '';
+  scAvisar('');
+}
+async function scAbrir(){ await scCarregarLista(); scPintar(); scAgendar(); }
+async function scCarregarLista(){
+  if(!currentUser) return;
+  const g = scEstado.geracao;
+  const r = await ppSeguro(() => sb.from('socios_consultas').select('id,cnpj_digits,razao_social,status,pedido_em,resultado').eq('pedido_por', currentUser.id).order('pedido_em', { ascending: false }).limit(20));
+  if(g !== scEstado.geracao) return;
+  scEstado.lista = r && !r.error ? (r.data || []) : [];
+  scPintarLista();
+}
+async function scConsultar(cnpjTexto, atualizar){
+  const cnpj = kbCnpjDigitos(cnpjTexto);
+  scAvisar('');
+  if(!kbCnpjValido(cnpj)){ scAvisar(SC_MOTIVO.cnpj_invalido); return; }
+  const g = scEstado.geracao;
+  const r = await ppSeguro(() => sb.rpc('socios_pedir_cnpj', { p_cnpj: cnpj, p_atualizar: !!atualizar }));
+  if(g !== scEstado.geracao) return;
+  const d = r && !r.error ? r.data : null;
+  if(!d || !d.ok){ scAvisar((d && SC_MOTIVO[d.motivo]) || 'Não foi possível consultar agora. Tente de novo.'); return; }
+  await scAbrirPedido(d.id, { base: d.base, razao: d.razao_social });
+  scCarregarLista();
+}
+async function scAbrirPedido(id, extra){
+  scParar();
+  const g = scEstado.geracao;
+  let base = extra && extra.base, razao = extra && extra.razao;
+  const [p, b] = await Promise.all([
+    ppSeguro(() => sb.from('socios_consultas').select(SC_COLS).eq('id', id).maybeSingle()),
+    base ? Promise.resolve(null) : ppSeguro(() => sb.rpc('socios_base_do_pedido', { p_id: id })),
+  ]);
+  if(g !== scEstado.geracao) return;
+  if(b && !b.error && b.data && b.data.ok){ base = b.data.base; razao = razao || b.data.razao_social; }
+  const ped = p && !p.error ? p.data : null;
+  if(!ped){ scAvisar('Não foi possível abrir essa consulta.'); return; }
+  const final = ped.status === 'pronto' || ped.status === 'sem_socios';
+  scEstado.atual = { id, cnpj: ped.cnpj_digits, razao: razao || ped.razao_social, base: base || null, pedido: ped, ultimo: final ? ped : null, aviso: '' };
+  scPintar(); scAgendar();
+}
+function scAgendar(){ scParar(); const a = scEstado.atual; if(a && rnSociosEmAndamento(a.pedido) && scVisivel()) scEstado.timer = setTimeout(scReler, 5000); }
+async function scReler(){
+  scParar();
+  const a = scEstado.atual; if(!a) return;
+  const g = scEstado.geracao, id = a.id;
+  const r = await ppSeguro(() => sb.from('socios_consultas').select(SC_COLS).eq('id', id).maybeSingle());
+  if(g !== scEstado.geracao || !scEstado.atual || scEstado.atual.id !== id) return;
+  if(r && !r.error && r.data){
+    scEstado.atual.pedido = r.data;
+    if(r.data.status === 'pronto' || r.data.status === 'sem_socios') scEstado.atual.ultimo = r.data;
+    if(!rnSociosEmAndamento(r.data)) scCarregarLista();
+  }
+  scPintar(); scAgendar();
+}
+function scPintar(){
+  const el = document.getElementById('scResultado'); if(!el) return;
+  const a = scEstado.atual;
+  if(!a){ el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="rnSoc"><div class="rnSocTopo"><span class="rnSocNome">${escapeHtml(a.razao || 'Empresa sem nome na base')}</span><span class="rnSocPct">${escapeHtml(kbCnpjMascara(a.cnpj))}</span></div>`
+    + socEstadoHtml(a, { pedirAttr: 'data-sc-pedir', rodape: 'nv' }) + '</div>';
+}
+function scSituacao(x){
+  if(x.status === 'pronto'){ const n = x.resultado && Array.isArray(x.resultado.socios) ? x.resultado.socios.length : 0; return `pronto · ${n} ${n === 1 ? 'sócio' : 'sócios'}`; }
+  return { sem_socios: 'sem sócios', erro: 'erro', pendente: 'em andamento', consultando: 'em andamento' }[x.status] || x.status;
+}
+function scPintarLista(){
+  const el = document.getElementById('scLista'); if(!el) return;
+  if(!scEstado.lista.length){ el.innerHTML = '<p class="kbMeta">Nenhuma consulta ainda.</p>'; return; }
+  el.innerHTML = scEstado.lista.map(x => {
+    const quando = x.pedido_em ? new Date(x.pedido_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '') : '';
+    return `<button type="button" class="rnItem" data-sc-abrir="${x.id}"><span style="flex:1;min-width:0;text-align:left"><span class="rnSocNome">${escapeHtml(x.razao_social || kbCnpjMascara(x.cnpj_digits))}</span><span class="kbMeta" style="display:block">${escapeHtml(kbCnpjMascara(x.cnpj_digits))} · ${escapeHtml(quando)} · ${escapeHtml(scSituacao(x))}</span></span></button>`;
+  }).join('');
+}
+document.getElementById('scForm').addEventListener('submit', (e) => { e.preventDefault(); scConsultar(document.getElementById('scCnpj').value, false); });
+document.getElementById('panel-socios').addEventListener('click', (e) => {
+  const p = e.target.closest('[data-sc-pedir]');
+  if(p && scEstado.atual){ scConsultar(scEstado.atual.cnpj, p.dataset.scPedir === 'atualizar'); return; }
+  const ab = e.target.closest('[data-sc-abrir]');
+  if(ab){ scAbrirPedido(Number(ab.dataset.scAbrir)); return; }
+  const cp = e.target.closest('[data-rn-socios-copiar]');
+  if(cp){ (navigator.clipboard ? navigator.clipboard.writeText(cp.dataset.rnSociosCopiar) : Promise.reject()).then(() => mostrarAviso('CPF copiado.', 'ok'), () => mostrarAviso('Não foi possível copiar.', 'erro')); }
+});
+/* ============ FIM CONSULTAR SÓCIOS §157 ============ */
 
 /* ============ MEUS LEADS (KANBAN) — §112 ============
    26/10/2026: a equipe de leads pega e classifica os leads aqui; a planilha vira espelho (Edge Function planilha-espelho).
