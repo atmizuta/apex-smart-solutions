@@ -1055,6 +1055,19 @@
   .rnGrupo dt{color:var(--ml-ink-3);}
   .rnGrupo dd{margin:0;overflow-wrap:anywhere;}
   .rnHist{margin:0;padding-left:1.1em;color:var(--ml-ink-2);display:grid;gap:4px;}
+  /* §156 aba Sócios: um cartão por sócio; telefones em grade (número e operadora | ações alinhadas à direita) */
+  .rnSoc{border:1px solid var(--c-linha);border-radius:10px;padding:var(--space-3);margin-top:var(--space-3);}
+  .rnSocTopo{display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-2);}
+  .rnSocNome{font-weight:700;color:var(--ml-ink);overflow-wrap:anywhere;}
+  .rnSocPct{flex:none;font-size:var(--fs-sm);color:var(--ml-ink-2);font-variant-numeric:tabular-nums;}
+  .rnSocCpf{display:flex;align-items:center;gap:var(--space-2);margin-top:var(--space-1);font-size:var(--fs-sm);color:var(--ml-ink-2);font-variant-numeric:tabular-nums;}
+  .rnSocFones{margin-top:var(--space-2);}
+  .rnSocFone{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:var(--space-2);padding:var(--space-2) 0;border-top:1px solid var(--c-linha);}
+  .rnSocNum{font-weight:600;font-variant-numeric:tabular-nums;}
+  .rnSocAcoes{display:flex;gap:var(--space-1);justify-content:flex-end;}
+  .rnSocRodape,.rnSocAviso{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);margin-top:var(--space-3);}
+  .rnSocConsultar{display:flex;align-items:center;flex-wrap:wrap;gap:var(--space-2);margin-top:var(--space-3);}
+  .rnSocFonte{margin-top:var(--space-2);}
   /* Carteira */
   .rnCartBarra{display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;}
   .rnCartBarra .kbBusca{flex:1;min-width:240px;box-shadow:var(--shadow-sm);}
@@ -4358,57 +4371,64 @@ async function rnSociosPedir(){
   }
   rnSociosPintar(); rnSociosAgendar();
 }
+function rnSocioCpfHtml(cpf){
+  return `<div class="rnSocCpf"><span>CPF ${escapeHtml(rnCpfFmt(cpf))}</span><button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-socios-copiar="${escapeHtml(cpf)}">Copiar</button></div>`;
+}
+// cartão de um sócio da Nova Vida: nome e participação no topo, CPF, telefones em linhas de grade (ações à direita)
 function rnSocioCartaoHtml(x){
   const tels = !x.telefones_consultados ? '<p class="kbMeta">Telefones não consultados.</p>'
     : !(x.telefones || []).length ? '<p class="kbMeta">Sem telefones na Nova Vida.</p>'
-    : '<ul class="rnHist">' + x.telefones.map(t => {
+    : '<div class="rnSocFones">' + x.telefones.map(t => {
         const d = onlyDigits(t.numero);
         const meta = [t.tipo === 'celular' ? 'celular' : 'fixo', t.operadora, t.whatsapp ? 'WhatsApp' : ''].filter(Boolean).join(' · ');
-        return `<li>${escapeHtml(rnFoneFmt(d))} <span class="kbMeta">${escapeHtml(meta)}</span> `
-          + (t.tipo === 'celular' ? `<a class="kbBtn kbBtnP" data-rn-canal="WhatsApp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(d)}">WhatsApp</a> ` : '')
-          + `<a class="kbBtn kbBtnQ" data-rn-canal="Ligação" href="tel:${escapeHtml(d)}">Ligar</a></li>`;
-      }).join('') + '</ul>';
-  return `<div class="rnGrupo"><strong>${escapeHtml(x.nome)}</strong>${x.participacao != null ? ` <span class="kbMeta">${escapeHtml(String(x.participacao).replace('.', ','))}%</span>` : ''}
-    <div class="kbMeta">CPF ${escapeHtml(rnCpfFmt(x.cpf))} <button type="button" class="kbBtn kbBtnG" data-rn-socios-copiar="${escapeHtml(x.cpf)}">Copiar</button></div>${tels}</div>`;
+        return `<div class="rnSocFone"><div><div class="rnSocNum">${escapeHtml(rnFoneFmt(d))}</div><div class="kbMeta">${escapeHtml(meta)}</div></div>`
+          + '<div class="rnSocAcoes">'
+          + (t.tipo === 'celular' ? `<a class="kbBtn kbBtnP kbBtnSm" data-rn-canal="WhatsApp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(d)}">WhatsApp</a>` : '')
+          + `<a class="kbBtn kbBtnQ kbBtnSm" data-rn-canal="Ligação" href="tel:${escapeHtml(d)}">Ligar</a></div></div>`;
+      }).join('') + '</div>';
+  return `<div class="rnSoc"><div class="rnSocTopo"><span class="rnSocNome">${escapeHtml(x.nome)}</span>`
+    + (x.participacao != null ? `<span class="rnSocPct">${escapeHtml(String(x.participacao).replace('.', ','))}%</span>` : '')
+    + `</div>${rnSocioCpfHtml(x.cpf)}${tels}</div>`;
 }
 function rnSocioBaseHtml(x){
   const tags = [x.principal ? 'principal' : '', x.obito ? 'consta óbito' : ''].filter(Boolean).join(' · ');
-  return `<div class="rnGrupo"><strong>${escapeHtml(x.nome)}</strong>${tags ? ` <span class="kbMeta">${escapeHtml(tags)}</span>` : ''}
-    <div class="kbMeta">CPF ${escapeHtml(rnCpfFmt(x.cpf))} <button type="button" class="kbBtn kbBtnG" data-rn-socios-copiar="${escapeHtml(x.cpf)}">Copiar</button></div></div>`;
+  return `<div class="rnSoc"><div class="rnSocTopo"><span class="rnSocNome">${escapeHtml(x.nome || '—')}</span>`
+    + (tags ? `<span class="rnSocPct">${escapeHtml(tags)}</span>` : '') + `</div>${rnSocioCpfHtml(x.cpf)}</div>`;
 }
 // lista da base da Receita com a fonte; vazio se não houver sócio na base
 function rnSociosBaseListaHtml(base){
   const lista = base && Array.isArray(base.socios) ? base.socios : [];
   if(!lista.length) return '';
   const mes = base.receita_mes ? String(base.receita_mes).replace(/^(\d{4})-(\d{2})$/, '$2/$1') : '';
-  return lista.map(rnSocioBaseHtml).join('') + `<p class="kbMeta">Fonte: Receita Federal, base de ${escapeHtml(mes)} · sem telefones</p>`;
+  return lista.map(rnSocioBaseHtml).join('') + `<p class="kbMeta rnSocFonte">Fonte: Receita Federal, base de ${escapeHtml(mes)} · sem telefones</p>`;
 }
 function rnSociosHtml(){
   const s = rnEstado.socios;
   if(!s || s.id !== rnEstado.fichaId) return '<p class="kbMeta">Carregando sócios…</p>';
   const p = s.pedido, u = s.ultimo, andamento = rnSociosEmAndamento(p);
-  const botao = (txt) => `<button type="button" class="kbBtn kbBtnP" data-rn-socios-pedir>${escapeHtml(txt)}</button>`;
+  const botao = (txt, cls) => `<button type="button" class="kbBtn ${cls || 'kbBtnP'}" data-rn-socios-pedir>${escapeHtml(txt)}</button>`;
   const partes = [];
   if(s.aviso) partes.push(`<p class="rnErro" role="alert">${escapeHtml(s.aviso)}</p>`);
   if(andamento){
     const seg = Math.max(0, Math.floor((Date.now() - new Date(p.pedido_em).getTime()) / 1000));
-    partes.push(`<p class="kbMeta">Consultando na Nova Vida… ${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, '0')}</p>`);
     // pendente há 3 min (disparo pode não ter chegado) ou consultando há 10 min (robô parou): o socios_pedir redispara/libera
     const preso = p.status === 'consultando' && Date.now() - new Date(p.iniciado_em || p.pedido_em).getTime() >= 600000;
-    if((p.status === 'pendente' && seg >= 180) || preso) partes.push(botao('Tentar de novo'));
+    partes.push(`<div class="rnSocAviso"><span class="kbMeta">Consultando na Nova Vida… ${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, '0')}</span>`
+      + ((p.status === 'pendente' && seg >= 180) || preso ? botao('Tentar de novo', 'kbBtnQ kbBtnSm') : '') + '</div>');
   } else if(p && p.status === 'erro'){
-    partes.push(`<p class="rnErro">${escapeHtml(p.erro || 'A consulta na Nova Vida falhou.')}</p>${botao('Tentar de novo')}`);
+    partes.push(`<div class="rnSocAviso"><span class="rnErro">${escapeHtml(p.erro || 'A consulta na Nova Vida falhou.')}</span>${botao('Tentar de novo', 'kbBtnQ kbBtnSm')}</div>`);
   }
   if(u){
     const quando = u.concluido_em ? new Date(u.concluido_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '') : '';
     partes.push(u.status === 'pronto' && u.resultado && Array.isArray(u.resultado.socios)
       ? u.resultado.socios.map(rnSocioCartaoHtml).join('')
       : '<p class="rnVazio">A Nova Vida não mostra sócios para este CNPJ.</p>' + rnSociosBaseListaHtml(s.base));
-    partes.push(`<p class="kbMeta">Consultado em ${escapeHtml(quando)} por ${escapeHtml(rnNomeConsultor(u.pedido_por))}${andamento || (p && p.status === 'erro') ? '' : ' · ' + botao('Atualizar')}</p>`);
+    partes.push(`<div class="rnSocRodape"><span class="kbMeta">Consultado em ${escapeHtml(quando)} por ${escapeHtml(rnNomeConsultor(u.pedido_por))}</span>`
+      + (andamento || (p && p.status === 'erro') ? '' : botao('Atualizar', 'kbBtnQ kbBtnSm')) + '</div>');
   } else {
     const lista = s.base && Array.isArray(s.base.socios) ? s.base.socios : [];
     partes.push(lista.length ? rnSociosBaseListaHtml(s.base) : '<p class="rnVazio">A base da Receita não tem os sócios deste CNPJ.</p>');
-    if(!andamento && !(p && p.status === 'erro')) partes.push(`${botao('Consultar na Nova Vida')} <span class="kbMeta">${lista.length ? 'traz os telefones, leva cerca de 2 min' : 'leva cerca de 2 min'}</span>`);
+    if(!andamento && !(p && p.status === 'erro')) partes.push(`<div class="rnSocConsultar">${botao('Consultar na Nova Vida')}<span class="kbMeta">${lista.length ? 'traz os telefones, leva cerca de 2 min' : 'leva cerca de 2 min'}</span></div>`);
   }
   return partes.join('');
 }

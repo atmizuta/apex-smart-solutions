@@ -69,6 +69,13 @@ require('./renovacao_test_harness.js').rodar(`
   assert(/Consultado em 16\\/11 15:40 por Zza Teste/.test(t4), 'rodapé com data e quem pediu');
   assert(/Atualizar/.test(sec().querySelector('[data-rn-socios-pedir]').textContent), 'botão Atualizar');
   assert(!rnEstado.sociosTimer, 'parou a releitura ao terminar');
+  // layout (pedido do Rafael 17/11): cartão por sócio; telefones em linhas de grade com as ações alinhadas à direita
+  eq(sec().querySelectorAll('.rnSoc').length, 2, 'um cartão .rnSoc por sócio');
+  eq(sec().querySelectorAll('.rnSocFone').length, 2, 'uma linha .rnSocFone por telefone');
+  assert([...sec().querySelectorAll('.rnSocFone')].every(l => l.querySelector('.rnSocAcoes [data-rn-canal="Ligação"]')), 'Ligar dentro da coluna de ações de cada linha');
+  assert(!sec().querySelector('ul.rnHist'), 'sem lista com marcadores');
+  assert(sec().querySelector('.rnSocRodape [data-rn-socios-pedir]').classList.contains('kbBtnSm'), 'Atualizar pequeno no rodapé');
+  assert(sec().querySelector('.rnSocCpf [data-rn-socios-copiar]'), 'Copiar na linha do CPF');
   clicar('#rnFichaCorpo [data-rn-ficha-sec="socios"] [data-rn-canal="WhatsApp"]');
   eq(document.getElementById('rnFichaForm').elements.canal.value, 'WhatsApp', 'WhatsApp do sócio marca o canal');
 
