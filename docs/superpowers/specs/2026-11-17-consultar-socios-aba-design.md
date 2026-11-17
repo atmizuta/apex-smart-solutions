@@ -57,6 +57,7 @@ mailing, indicação) precisa do mesmo dado para qualquer empresa que esteja ate
 2. Só dígitos; 14 dígitos e dígito verificador válido (função interna `socios_cnpj_valido(text)`) → senão `{ok:false, motivo:'cnpj_invalido'}`.
 3. `pg_advisory_xact_lock(hashtext('socios:'||cnpj))` (o mesmo da §156).
 4. Limite: pedidos de `auth.uid()` no dia de São Paulo (todas as origens) ≥ 20 → `{ok:false, motivo:'limite'}`.
+4a. Se **o próprio consultor** já tem pedido desse CNPJ `pendente`/`consultando` (Tentar de novo, duplo clique): devolve esse pedido, **sem linha nova e sem contar no limite**; redispara se estiver pendente há mais de 3 min. (Esta checagem vem antes do limite.)
 5. `consultando` do CNPJ há mais de 10 min → `erro` ("A consulta não terminou.") — mesma regra da §156.
 6. Se **não** `p_atualizar` e existe pedido do CNPJ `pronto`/`sem_socios` com `concluido_em` nos últimos 30 dias:
    insere linha do consultor (`origem 'avulsa'`, mesmo `status`/`resultado`, `concluido_em` = o original,
