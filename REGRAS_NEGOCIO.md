@@ -5165,5 +5165,9 @@ Pedido do Rafael ("redesign COMPLETO dessa aba… bonito, fácil de usar e claro
   após 3 min pendente redispara.
 - O usuário da Nova Vida é **só do robô** (sessão única: duas pessoas logadas derrubam uma à outra).
 - Spec: `docs/superpowers/specs/2026-11-16-consulta-socios-renovacao-design.md`.
+- Robô: `rafaangelao/apex-robo-procontact` `src/socios/` + `.github/workflows/socios.yml` (main fa64579); 1ª consulta real 17/11
+  (pedido de teste fora da carteira): 2 sócios com telefones em 48 s do pedido ao resultado.
+- **Publicação (17/11/2026 15:01, ok do Rafael "arrume e publique"):** o ar era `645eb649…` (= oficial/main); novo MD5 `46e2d380…`.
+  Backup `~/deploy_backups/painel_clientes_apex.html.20261117180113.bak`. Reverter: copiar o backup de volta.
 
 Próxima livre: §157 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
