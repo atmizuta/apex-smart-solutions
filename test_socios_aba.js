@@ -48,6 +48,11 @@ require('./renovacao_test_harness.js').rodar(`
   await scReler(); await espera(20);
   assert(/Consultado na Nova Vida em 17\\/11 15:00/.test(res().textContent) && !scEstado.timer, 'pronto pela releitura e parou');
 
+  // (revisão) duplo clique / Enter + clique: o banco é chamado uma vez só
+  window.__rpcRespostas.socios_pedir_cnpj = () => ({ data: { ok: true, id: 90, status: 'pronto', guardado: true, razao_social: 'ZZ EMPRESA TESTE LTDA', base: BASE }, error: null });
+  const n0 = pedidos().length;
+  enviar('11.222.333/0001-81'); enviar('11.222.333/0001-81'); await espera(40);
+  eq(pedidos().length - n0, 1, 'duplo clique chama o banco uma vez só');
   // limite
   window.__rpcRespostas.socios_pedir_cnpj = () => ({ data: { ok: false, motivo: 'limite' }, error: null });
   enviar('11444777000161'); await espera(20);

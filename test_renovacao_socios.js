@@ -128,6 +128,16 @@ require('./renovacao_test_harness.js').rodar(`
   window.__tabelas.socios_consultas[0].iniciado_em = new Date(Date.now() - 2 * 60000).toISOString();
   await rnSociosCarregar(1); await espera(10);
   assert(!sec().querySelector('[data-rn-socios-pedir]'), 'consultando recente não tem botão');
+  // 11. (revisão §157) avulsas na ficha: erro de outro consultor não aparece; cópia guardada não vira o "por"
+  const RESX = { socios: [{ nome: 'ZZ SOCIA NV', cpf: '12345678909', participacao: 50, telefones_consultados: false, telefones: [] }] };
+  window.__tabelas.socios_consultas = [
+    { id: 82, cnpj_digits: '00000000000191', origem: 'avulsa', status: 'erro', pedido_por: 'u-x', pedido_em: '2026-11-17T12:00:00Z', concluido_em: '2026-11-17T12:01:00Z', resultado: null, erro: 'A consulta na Nova Vida falhou.', copiado_de: null },
+    { id: 81, cnpj_digits: '00000000000191', origem: 'avulsa', status: 'pronto', pedido_por: 'u-x', pedido_em: '2026-11-17T11:00:00Z', concluido_em: '2026-11-16T18:40:00Z', resultado: RESX, erro: null, copiado_de: 80 },
+    { id: 80, cnpj_digits: '00000000000191', origem: 'renovacao', status: 'pronto', pedido_por: 'u-a', pedido_em: '2026-11-16T18:00:00Z', concluido_em: '2026-11-16T18:40:00Z', resultado: RESX, erro: null, copiado_de: null },
+  ];
+  await rnSociosCarregar(1); await espera(10);
+  assert(!/A consulta na Nova Vida falhou/.test(sec().textContent), 'erro avulso de outro consultor não aparece na ficha');
+  assert(/Consultado em 16\\/11 15:40 por Zza Teste/.test(sec().textContent), 'rodapé com quem consultou de verdade');
   rnFecharFicha();
   fim();
 `);

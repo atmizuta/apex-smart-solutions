@@ -4330,7 +4330,7 @@ function rnHistoricoTexto(h){
 }
 // §156 — aba Sócios: base da Receita (mailing.socio, via RPC) + consulta na Nova Vida (fila socios_consultas + robô).
 const RN_SOCIOS_MOTIVO = { limite: 'Você já fez 20 consultas hoje. Amanhã libera de novo.', sem_permissao: 'Você não tem acesso a este cliente.' };
-const RN_SOCIOS_COLS = 'id,status,pedido_por,pedido_em,iniciado_em,concluido_em,resultado,erro';
+const RN_SOCIOS_COLS = 'id,status,pedido_por,pedido_em,iniciado_em,concluido_em,resultado,erro,origem,copiado_de';
 function rnCpfFmt(c){ return String(c || '').replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4'); }
 function rnFoneFmt(n){ const d = onlyDigits(n); return d.length === 11 ? d.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3') : d.replace(/^(\d{2})(\d{4})(\d{4})$/, '($1) $2-$3'); }
 function rnSociosParar(){ if(rnEstado.sociosTimer){ clearTimeout(rnEstado.sociosTimer); rnEstado.sociosTimer = null; } }
@@ -4347,8 +4347,11 @@ async function rnSociosCarregar(id){
   rnEstado.socios = {
     id, aviso: '',
     base: b && !b.error && b.data && b.data.ok ? b.data : null,
-    pedido: lista[0] || null,
-    ultimo: lista.find(x => x.status === 'pronto' || x.status === 'sem_socios') || null,
+    // §157: consultas da aba "Consultar sócios" (origem avulsa) do mesmo CNPJ também chegam aqui. Na ficha valem as da
+    // Renovação e as que ainda estão consultando (o resultado serve a todos); erro avulso de outra pessoa não aparece,
+    // e cópia de resultado guardado (copiado_de) não vira o "Consultado … por".
+    pedido: lista.find(x => x.origem !== 'avulsa' || rnSociosEmAndamento(x)) || null,
+    ultimo: lista.find(x => (x.status === 'pronto' || x.status === 'sem_socios') && !x.copiado_de) || null,
   };
   rnSociosPintar(); rnSociosAgendar();
 }
@@ -4997,7 +5000,7 @@ document.getElementById('rnHojeFiltros').addEventListener('click', () => {
 /* ============ CONSULTAR SÓCIOS — §157 ============ */
 const SC_MOTIVO = { limite: 'Você já fez 20 consultas hoje. Amanhã libera de novo.', sem_permissao: 'A consulta de sócios é só para a operação Apex.', cnpj_invalido: 'Confira o CNPJ: os dígitos não batem.' };
 const SC_COLS = 'id,cnpj_digits,razao_social,status,pedido_por,pedido_em,iniciado_em,concluido_em,resultado,erro,copiado_de';
-const scEstado = { atual: null, lista: [], timer: null, geracao: 0 };
+const scEstado = { atual: null, lista: [], timer: null, geracao: 0, enviando: false };
 function canSocios(){ return !!currentUser && ['consultor', 'supervisor', 'admin'].includes(currentUser.role) && veAbasDaApex() && !rnSoRenovacao(); }
 function scParar(){ if(scEstado.timer){ clearTimeout(scEstado.timer); scEstado.timer = null; } }
 function scAvisar(t){ const el = document.getElementById('scAviso'); if(el) el.textContent = t || ''; }
@@ -5022,8 +5025,13 @@ async function scConsultar(cnpjTexto, atualizar){
   const cnpj = kbCnpjDigitos(cnpjTexto);
   scAvisar('');
   if(!kbCnpjValido(cnpj)){ scAvisar(SC_MOTIVO.cnpj_invalido); return; }
+  // duplo clique / Enter + clique: um pedido por vez (o guardado volta pronto e o banco contaria de novo)
+  if(scEstado.enviando) return;
+  scEstado.enviando = true;
   const g = scEstado.geracao;
-  const r = await ppSeguro(() => sb.rpc('socios_pedir_cnpj', { p_cnpj: cnpj, p_atualizar: !!atualizar }));
+  let r;
+  try { r = await ppSeguro(() => sb.rpc('socios_pedir_cnpj', { p_cnpj: cnpj, p_atualizar: !!atualizar })); }
+  finally { scEstado.enviando = false; }
   if(g !== scEstado.geracao) return;
   const d = r && !r.error ? r.data : null;
   if(!d || !d.ok){ scAvisar((d && SC_MOTIVO[d.motivo]) || 'Não foi possível consultar agora. Tente de novo.'); return; }
