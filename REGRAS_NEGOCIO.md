@@ -5170,4 +5170,23 @@ Pedido do Rafael ("redesign COMPLETO dessa aba… bonito, fácil de usar e claro
 - **Publicação (17/11/2026 15:01, ok do Rafael "arrume e publique"):** o ar era `645eb649…` (= oficial/main); novo MD5 `46e2d380…`.
   Backup `~/deploy_backups/painel_clientes_apex.html.20261117180113.bak`. Reverter: copiar o backup de volta.
 
-Próxima livre: §157 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
+## §157 Aba "Consultar sócios" para o time da Apex (17/11/2026, pedido do Rafael)
+
+- Aba **Consultar sócios** no grupo Vendas: o consultor digita **qualquer CNPJ** (com ou sem pontuação; o dígito
+  verificador é conferido antes) e vê os sócios. Fase 2 da §156; mesmos cartões e estados da aba Sócios da Renovação.
+- Quem vê: consultores da **operação Apex** + admin/supervisor. O **time da Renovação** não vê (usa a aba Sócios da
+  ficha, §156); operação Campinas também não.
+- RPC `socios_pedir_cnpj(cnpj, atualizar)`: na hora devolve a **base da Receita** (`mailing.socio`) e a razão social
+  (`mailing.empresa`). Se o CNPJ tem resultado da Nova Vida de **menos de 30 dias** (de qualquer consultor), ele aparece
+  na hora ("Consultado na Nova Vida em …", com **Atualizar** para consultar de novo); senão vai para o robô da §156.
+- **Limite: 20 consultas por pessoa por dia, somando Renovação e campo livre.** Cada "Consultar" conta, inclusive o
+  guardado. Pedido do próprio consultor ainda em andamento (Tentar de novo, duplo clique) não conta de novo.
+- O consultor só vê **as próprias consultas** ("Minhas últimas consultas", 20 mais recentes); reabrir não conta no
+  limite (`socios_base_do_pedido`). Cada consulta grava uma linha em `socios_consultas` (`origem avulsa`, `copiado_de`
+  quando veio do guardado) com quem pediu.
+- Mesmo CNPJ pedido por mais de um consultor: o robô consulta **uma vez** (`socios_robo_pegar` pega um por CNPJ e ignora
+  CNPJ já em consulta) e o gatilho `socios_propagar` entrega o resultado a todos os pedidos desse CNPJ.
+- A função `socios_base_json` (base da Receita) é interna: o navegador não consegue chamá-la sem passar pelo limite.
+- Spec: `docs/superpowers/specs/2026-11-17-consultar-socios-aba-design.md`.
+
+Próxima livre: §158 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
