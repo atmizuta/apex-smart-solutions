@@ -6,11 +6,27 @@ https://apexsmart.com.br/painel_clientes_apex.html. Documentação completa das 
 
 ## Antes de qualquer alteração
 
-1. **Parta sempre da versão atual deste repositório** (`git pull origin main`). Nunca altere a partir de
-   uma cópia antiga — de conversas anteriores, de outra pasta ou do computador. Foi isso que fez o
-   design sumir do ar várias vezes em setembro/2026 (ver `REGRAS_NEGOCIO.md` seção 45).
+1. **Parta sempre da `main` do repositório oficial** (`github.com/atmizuta/apex-smart-solutions`), buscada
+   na hora. Confira com `git remote -v` qual remoto aponta para ele: num clone direto é `origin`; num clone
+   que veio de um fork, o oficial é outro remoto (por exemplo `oficial`) e o `origin` **não** é o oficial.
+   Nunca altere a partir de uma cópia antiga — de conversas anteriores, de outra pasta ou do computador.
+   Foi isso que fez o design sumir do ar várias vezes em setembro/2026 (ver `REGRAS_NEGOCIO.md` seção 45).
 2. Confira que está na versão com o design atual: `_template.html` tem `data-apex-visual` na tag `<html>`
    ou o menu `<aside class="sidebar">`, e as fontes Barlow. Se não tiver, **pare e avise** — é uma versão antiga.
+3. Trabalhe numa branch ou worktree criada a partir dessa `main`. Não troque de branch numa pasta que outra
+   pessoa ou outra sessão esteja usando.
+
+## Juntar com a main oficial
+
+- A `main` oficial recebe commits várias vezes por dia. Faça `git fetch` do remoto oficial **imediatamente
+  antes** de qualquer merge ou push.
+- Push sempre **sem force**.
+- Mantenha o `_template.html` em LF (sem CRLF).
+- Conflito no `_template.html` quase sempre é a linha base64 do dashboard: decodifique as três versões
+  (base, a sua e a que chegou), junte com `git merge-file`, depois rode `python dashboard_tpl.py empacotar`
+  e `python build_painel.py`.
+- No `REGRAS_NEGOCIO.md`, use o próximo número de seção livre conferido depois do fetch: os números já
+  colidiram entre sessões.
 
 ## O design não muda sem pedido explícito
 
@@ -37,11 +53,15 @@ Para telas, campos ou modais novos:
 
 1. Edite só o `_template.html`. O `painel_clientes_apex.html` é gerado: `python build_painel.py`
    (nunca edite o painel gerado à mão).
-2. Rode os testes: `bash run_tests.sh` (precisa do `node_modules` com `jsdom`, `jspdf`, `jszip`, `xlsx`,
-   `papaparse`). Tudo tem que passar; "pulado" só é aceitável para testes que dependem de planilhas reais.
+2. Rode os testes (precisam do `node_modules` com `jsdom`, `jspdf`, `jszip`, `xlsx`, `papaparse`). Durante
+   um ajuste, bastam os testes da parte mexida. **Antes de publicar, rode a suíte inteira**
+   (`bash run_tests.sh`). Não pode aparecer falha nova: só é aceitável a falha que já acontece na `main`
+   oficial sem a sua mudança (confira rodando o mesmo teste lá) e o "pulado" de teste que depende de
+   planilhas reais.
 3. **Antes de publicar**, baixe o painel que está no ar e compare com o gerado aqui. Se o do ar tiver algo
    que o repositório não tem, alguém publicou por fora: **junte as duas versões, nunca sobrescreva**.
-4. Depois de publicar: atualize o `REGRAS_NEGOCIO.md`, faça commit e `git push origin main`.
+4. Depois de publicar: atualize o `REGRAS_NEGOCIO.md`, faça commit e push na `main` do repositório oficial
+   (fetch antes, sem force).
 
 ## Segurança — este repositório é público
 
