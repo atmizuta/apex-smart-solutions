@@ -795,7 +795,7 @@
 <style id="kbStyles">
   /* Meus leads — Kanban (§112; visual refeito em 26/10 à noite a pedido do Rafael). Só tokens do design, nenhuma cor fixa. */
   /* §126 (redesign 28/10, pedido do Rafael): tokens da aba. Hex novo só em --ml-ink-2 e --ml-surface-2; o resto reaproveita o sistema. */
-  #panel-meusleads,#kbFicha,#kbPassar,#panel-renovacao,#rnFicha{--ml-ink:var(--c-grafite);--ml-ink-2:#464A4E;--ml-ink-3:var(--c-cinza);--ml-ground:var(--c-papel);--ml-surface:var(--c-branco);--ml-surface-2:#F7F7F8;--ml-surface-3:var(--c-cinza-claro);--ml-late:var(--c-sinal-600);--ml-late-soft:var(--st-perdido-bg);--ml-soon:var(--st-andamento);--ml-soon-soft:var(--st-andamento-bg);--ml-ok:var(--st-ganho);--ml-ok-soft:var(--st-ganho-bg);--ml-novo:var(--c-sinal);--ml-novo-soft:var(--c-rosa);--ml-float:0 12px 32px rgba(29,31,32,.16);}
+  #panel-meusleads,#kbFicha,#kbPassar,#panel-renovacao,#rnFicha,#panel-socios{--ml-ink:var(--c-grafite);--ml-ink-2:#464A4E;--ml-ink-3:var(--c-cinza);--ml-ground:var(--c-papel);--ml-surface:var(--c-branco);--ml-surface-2:#F7F7F8;--ml-surface-3:var(--c-cinza-claro);--ml-late:var(--c-sinal-600);--ml-late-soft:var(--st-perdido-bg);--ml-soon:var(--st-andamento);--ml-soon-soft:var(--st-andamento-bg);--ml-ok:var(--st-ganho);--ml-ok-soft:var(--st-ganho-bg);--ml-novo:var(--c-sinal);--ml-novo-soft:var(--c-rosa);--ml-float:0 12px 32px rgba(29,31,32,.16);}
   /* §126: botões planos de 8 px (decididos uma vez), controle segmentado, marcadores e contadores */
   .kbBtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 14px;border:0;border-radius:var(--radius-lg);font:inherit;font-size:var(--fs-base);font-weight:600;line-height:1;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background var(--dur-fast) var(--ease-out),color var(--dur-fast),transform var(--dur-fast);}
   .kbBtn:active{transform:translateY(1px);}
@@ -1068,6 +1068,48 @@
   .rnSocRodape,.rnSocAviso{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);margin-top:var(--space-3);}
   .rnSocConsultar{display:flex;align-items:center;flex-wrap:wrap;gap:var(--space-2);margin-top:var(--space-3);}
   .rnSocFonte{margin-top:var(--space-2);}
+  /* §157 aba Consultar sócios — layout de 18/11 (só tokens do sistema; a ficha da Renovação não muda) */
+  .scGrade{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:var(--space-5);align-items:start;}
+  .scPrincipal{min-width:0;}
+  #panel-socios .card h3{margin:0 0 var(--space-1);font-size:var(--fs-md);}
+  #panel-socios .card .desc{margin:0 0 var(--space-4);color:var(--muted);font-size:var(--fs-sm);}
+  .scForm{display:flex;gap:var(--space-2);align-items:stretch;}
+  .scForm .searchBox{flex:1;min-width:0;margin:0;}
+  .scForm .kbBtn{height:auto;padding:0 var(--space-6);}
+  .scLimite{margin:var(--space-2) 0 0;}
+  #scAviso:empty{display:none;}
+  #scResultado:empty::before{content:"Digite um CNPJ acima ou abra uma consulta da lista ao lado.";display:block;padding:var(--space-10) var(--space-4);text-align:center;color:var(--muted);border:1px dashed var(--c-linha-forte);border-radius:var(--radius-lg);}
+  .scRes{padding:0;overflow:hidden;}
+  .scResTopo{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-5) var(--space-6);border-bottom:1px solid var(--c-linha);background:var(--ml-surface-2);}
+  .scResTopo .rnAv{width:46px;height:46px;font-size:var(--fs-base);background:var(--ml-novo-soft);color:var(--c-sinal);}
+  .scResTopo h3{margin:0;font-size:var(--fs-lg);overflow-wrap:anywhere;}
+  .scResTopo .kbMeta{font-size:var(--fs-sm);font-variant-numeric:tabular-nums;}
+  .scResCorpo{padding:var(--space-4) var(--space-6) var(--space-5);}
+  .scResCorpo > .rnSocAviso:first-child,.scResCorpo > .rnErro:first-child{margin-top:0;}
+  .scSocios{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:var(--space-3);margin-top:var(--space-3);}
+  .scSocios:first-child{margin-top:0;}
+  .scSocios .rnSoc{margin:0;background:var(--ml-surface);display:flex;flex-direction:column;}
+  .scSocios .rnSocNome{font-size:var(--fs-md);}
+  .scSocios .rnSocPct{background:var(--ml-surface-3);color:var(--ml-ink);font-weight:700;padding:2px var(--space-2);border-radius:var(--radius-lg);font-size:var(--fs-xs);}
+  .scSocios .rnSocFonte{grid-column:1/-1;margin:0;}
+  .scSocios .rnSocNum{font-size:var(--fs-md);}
+  #panel-socios .rnSocAviso{padding:var(--space-3) var(--space-4);border-radius:var(--radius-lg);background:var(--ml-soon-soft);}
+  #panel-socios .rnSocAviso .kbMeta{margin:0;color:var(--ml-soon);font-weight:600;font-size:var(--fs-sm);}
+  #panel-socios .rnSocAviso .rnErro{margin:0;}
+  #panel-socios .rnSocConsultar{padding:var(--space-4);border:1px dashed var(--c-linha-forte);border-radius:var(--radius-lg);}
+  #panel-socios .rnSocRodape{padding-top:var(--space-3);border-top:1px solid var(--c-linha);margin-top:var(--space-4);}
+  #panel-socios .rnSocRodape .kbMeta{margin:0;}
+  #panel-socios .rnVazio{padding:var(--space-5) var(--space-4);}
+  .scHist{position:sticky;top:var(--space-4);padding:var(--space-4);}
+  .scHist h3{padding:0 var(--space-2);}
+  #scLista{display:flex;flex-direction:column;gap:2px;margin-top:var(--space-2);max-height:calc(100vh - 220px);overflow-y:auto;}
+  #scLista .rnItem{align-items:flex-start;}
+  .scItemTxt{flex:1;min-width:0;}
+  .scItemNome{display:block;font-weight:600;font-size:var(--fs-sm);color:var(--ml-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .scItemMeta{display:block;color:var(--muted);font-size:var(--fs-xs);font-variant-numeric:tabular-nums;margin-top:2px;}
+  #scLista .badge,#scLista .catBadge,.scResTopo .badge,.scResTopo .catBadge{flex:none;}
+  @media (max-width: 1000px){ .scGrade{grid-template-columns:minmax(0,1fr);} .scHist{position:static;} #scLista{max-height:none;} }
+  @media (max-width: 560px){ .scForm{flex-direction:column;} .scForm .kbBtn{height:44px;} .scResTopo,.scResCorpo{padding-left:var(--space-4);padding-right:var(--space-4);} .scSocios{grid-template-columns:minmax(0,1fr);} }
   /* Carteira */
   .rnCartBarra{display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;}
   .rnCartBarra .kbBusca{flex:1;min-width:240px;box-shadow:var(--shadow-sm);}
@@ -1921,16 +1963,27 @@
     </section>
     <!-- FUNIL DE VENDAS (kanban — todos os perfis) -->
     <!-- §157 Consultar sócios (campo livre) -->
+    <!-- 18/11 layout refeito: busca + resultado à esquerda, "Minhas consultas" fixa à direita (uma coluna no celular) -->
     <section class="panel" id="panel-socios">
-      <form id="scForm" class="rnSocConsultar" autocomplete="off">
-        <div class="searchBox" style="flex:1;min-width:220px;margin:0"><input type="text" id="scCnpj" inputmode="numeric" maxlength="18" placeholder="CNPJ da empresa (com ou sem pontuação)"></div>
-        <button type="submit" class="kbBtn kbBtnP">Consultar</button>
-        <span class="kbMeta">conta 1 das suas 20 consultas do dia</span>
-      </form>
-      <p class="rnErro" id="scAviso" role="alert"></p>
-      <div id="scResultado"></div>
-      <h3 class="rnSocNome" style="margin-top:var(--space-6)">Minhas últimas consultas</h3>
-      <div id="scLista"></div>
+      <div class="scGrade">
+        <div class="scPrincipal">
+          <div class="card scBusca">
+            <h3>Buscar sócios por CNPJ</h3>
+            <p class="desc">Os sócios da base da Receita aparecem na hora. A consulta na Nova Vida traz os telefones e leva cerca de 2 minutos.</p>
+            <form id="scForm" class="scForm" autocomplete="off">
+              <div class="searchBox"><input type="text" id="scCnpj" inputmode="numeric" maxlength="18" placeholder="CNPJ da empresa (com ou sem pontuação)" aria-label="CNPJ da empresa"></div>
+              <button type="submit" class="kbBtn kbBtnP">Consultar</button>
+            </form>
+            <p class="rnErro" id="scAviso" role="alert"></p>
+            <p class="kbMeta scLimite">Conta 1 das suas 20 consultas do dia (somadas com a Renovação). Reabrir uma consulta da lista não conta.</p>
+          </div>
+          <div id="scResultado"></div>
+        </div>
+        <aside class="card scHist" aria-label="Minhas consultas">
+          <h3>Minhas consultas</h3>
+          <div id="scLista"></div>
+        </aside>
+      </div>
     </section>
     <section class="panel" id="panel-funil">
       <div class="funilTopBar">
@@ -4424,8 +4477,10 @@ function rnSociosBaseListaHtml(base){
 // Estados da consulta de sócios (§156/§157): base da Receita, em andamento, erro, pronto, sem sócios.
 // s = {base, pedido, ultimo, aviso}; opts.pedirAttr = atributo dos botões que pedem de novo (valor tentar|atualizar|consultar);
 // opts.rodape = 'por' ("Consultado em … por …", ficha da Renovação) | 'nv' ("Consultado na Nova Vida em …", aba Consultar sócios)
+// opts.grade = true: cartões dos sócios lado a lado (.scSocios), usado na aba Consultar sócios
 function socEstadoHtml(s, opts){
   const o = opts || {};
+  const grade = (html) => (o.grade && html ? `<div class="scSocios">${html}</div>` : html);
   const attr = o.pedirAttr || 'data-rn-socios-pedir';
   const p = s.pedido, u = s.ultimo, andamento = rnSociosEmAndamento(p);
   const botao = (txt, cls, acao) => `<button type="button" class="kbBtn ${cls || 'kbBtnP'}" ${attr}="${acao}">${escapeHtml(txt)}</button>`;
@@ -4443,14 +4498,14 @@ function socEstadoHtml(s, opts){
   if(u){
     const quando = u.concluido_em ? new Date(u.concluido_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '') : '';
     partes.push(u.status === 'pronto' && u.resultado && Array.isArray(u.resultado.socios)
-      ? u.resultado.socios.map(rnSocioCartaoHtml).join('')
-      : '<p class="rnVazio">A Nova Vida não mostra sócios para este CNPJ.</p>' + rnSociosBaseListaHtml(s.base));
+      ? grade(u.resultado.socios.map(rnSocioCartaoHtml).join(''))
+      : '<p class="rnVazio">A Nova Vida não mostra sócios para este CNPJ.</p>' + grade(rnSociosBaseListaHtml(s.base)));
     const texto = o.rodape === 'nv' ? `Consultado na Nova Vida em ${quando}` : `Consultado em ${quando} por ${rnNomeConsultor(u.pedido_por)}`;
     partes.push(`<div class="rnSocRodape"><span class="kbMeta">${escapeHtml(texto)}</span>`
       + (andamento || (p && p.status === 'erro') ? '' : botao('Atualizar', 'kbBtnQ kbBtnSm', 'atualizar')) + '</div>');
   } else {
     const lista = s.base && Array.isArray(s.base.socios) ? s.base.socios : [];
-    partes.push(lista.length ? rnSociosBaseListaHtml(s.base) : '<p class="rnVazio">A base da Receita não tem os sócios deste CNPJ.</p>');
+    partes.push(lista.length ? grade(rnSociosBaseListaHtml(s.base)) : '<p class="rnVazio">A base da Receita não tem os sócios deste CNPJ.</p>');
     if(!andamento && !(p && p.status === 'erro')) partes.push(`<div class="rnSocConsultar">${botao('Consultar na Nova Vida', 'kbBtnP', 'consultar')}<span class="kbMeta">${lista.length ? 'traz os telefones, leva cerca de 2 min' : 'leva cerca de 2 min'}</span></div>`);
   }
   return partes.join('');
@@ -5068,12 +5123,26 @@ async function scReler(){
   }
   scPintar(); scAgendar();
 }
+// selo de status (classes .badge/.catBadge do sistema): verde pronto, amarelo consultando, vermelho erro, cinza sem sócios
+function scSeloHtml(status, texto){
+  const cls = { pronto: 'badge apto', sem_socios: 'badge neutro', erro: 'badge naoapto', pendente: 'catBadge andamento', consultando: 'catBadge andamento' }[status] || 'badge neutro';
+  return `<span class="${cls}">${escapeHtml(texto)}</span>`;
+}
 function scPintar(){
   const el = document.getElementById('scResultado'); if(!el) return;
   const a = scEstado.atual;
+  scPintarLista();   // marca na lista a consulta aberta
   if(!a){ el.innerHTML = ''; return; }
-  el.innerHTML = `<div class="rnSoc"><div class="rnSocTopo"><span class="rnSocNome">${escapeHtml(a.razao || 'Empresa sem nome na base')}</span><span class="rnSocPct">${escapeHtml(kbCnpjMascara(a.cnpj))}</span></div>`
-    + socEstadoHtml(a, { pedirAttr: 'data-sc-pedir', rodape: 'nv' }) + '</div>';
+  const p = a.pedido || {};
+  const st = rnSociosEmAndamento(p) ? 'consultando' : p.status;
+  const nSoc = a.ultimo && a.ultimo.resultado && Array.isArray(a.ultimo.resultado.socios) ? a.ultimo.resultado.socios.length
+    : (a.base && Array.isArray(a.base.socios) ? a.base.socios.length : 0);
+  const meta = [kbCnpjMascara(a.cnpj), nSoc ? `${nSoc} ${nSoc === 1 ? 'sócio' : 'sócios'}` : ''].filter(Boolean).join(' · ');
+  const selo = { pronto: 'Pronto', sem_socios: 'Sem sócios', erro: 'Erro', consultando: 'Consultando' }[st] || '';
+  el.innerHTML = `<div class="card scRes"><div class="scResTopo"><span class="rnAv">${escapeHtml(rnIniciais(a.razao || '?'))}</span>`
+    + `<div style="flex:1;min-width:0"><h3>${escapeHtml(a.razao || 'Empresa sem nome na base')}</h3><div class="kbMeta">${escapeHtml(meta)}</div></div>`
+    + (selo ? scSeloHtml(st, selo) : '') + '</div>'
+    + `<div class="scResCorpo">${socEstadoHtml(a, { pedirAttr: 'data-sc-pedir', rodape: 'nv', grade: true })}</div></div>`;
 }
 function scSituacao(x){
   if(x.status === 'pronto'){ const n = x.resultado && Array.isArray(x.resultado.socios) ? x.resultado.socios.length : 0; return `pronto · ${n} ${n === 1 ? 'sócio' : 'sócios'}`; }
@@ -5081,10 +5150,14 @@ function scSituacao(x){
 }
 function scPintarLista(){
   const el = document.getElementById('scLista'); if(!el) return;
-  if(!scEstado.lista.length){ el.innerHTML = '<p class="kbMeta">Nenhuma consulta ainda.</p>'; return; }
+  if(!scEstado.lista.length){ el.innerHTML = '<p class="kbMeta" style="padding:0 var(--space-2)">Nenhuma consulta ainda.</p>'; return; }
+  const aberta = scEstado.atual && scEstado.atual.id;
   el.innerHTML = scEstado.lista.map(x => {
     const quando = x.pedido_em ? new Date(x.pedido_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '') : '';
-    return `<button type="button" class="rnItem" data-sc-abrir="${x.id}"><span style="flex:1;min-width:0;text-align:left"><span class="rnSocNome">${escapeHtml(x.razao_social || kbCnpjMascara(x.cnpj_digits))}</span><span class="kbMeta" style="display:block">${escapeHtml(kbCnpjMascara(x.cnpj_digits))} · ${escapeHtml(quando)} · ${escapeHtml(scSituacao(x))}</span></span></button>`;
+    const nome = x.razao_social || kbCnpjMascara(x.cnpj_digits);
+    return `<button type="button" class="rnItem${x.id === aberta ? ' sel' : ''}" data-sc-abrir="${x.id}"><span class="rnAv">${escapeHtml(rnIniciais(nome))}</span>`
+      + `<span class="scItemTxt"><span class="scItemNome" title="${escapeHtml(nome)}">${escapeHtml(nome)}</span><span class="scItemMeta">${escapeHtml(kbCnpjMascara(x.cnpj_digits))} · ${escapeHtml(quando)}</span></span>`
+      + scSeloHtml(x.status, scSituacao(x)) + '</button>';
   }).join('');
 }
 document.getElementById('scForm').addEventListener('submit', (e) => { e.preventDefault(); scConsultar(document.getElementById('scCnpj').value, false); });
