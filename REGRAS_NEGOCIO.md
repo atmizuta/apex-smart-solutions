@@ -5203,4 +5203,20 @@ Pedido do Rafael ("redesign COMPLETO dessa aba… bonito, fácil de usar e claro
 - Migration `20261117220000_socios_fila_ajuste.sql` (troca só o trecho do abandono nas RPCs; aborta se não achar);
   verificação `supabase/tests/socios_fila_ajuste_verificar.sql` + as da §156 e §157 rodadas de novo (OK).
 
-Próxima livre: §158 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
+## §158 Layout novo da aba "Consultar sócios" (18/11/2026, pedido do Rafael: "está muito ruim")
+
+- Só visual, nada muda no banco nem nas regras da §157. A ficha da Renovação (aba Sócios, §156) não muda.
+- **Duas colunas** no computador: à esquerda o cartão de busca (título, explicação, campo de CNPJ, Consultar, aviso do
+  limite) e, embaixo, o resultado; à direita **Minhas consultas**, fixa ao rolar. Abaixo de 1000 px vira uma coluna.
+- **Cartão do resultado:** iniciais da empresa, razão social, CNPJ, quantos sócios e **selo** de status (Pronto verde,
+  Consultando amarelo, Erro vermelho, Sem sócios cinza). Os sócios ficam **lado a lado em grade** (`.scSocios`, opção
+  `grade` do `socEstadoHtml`), com participação em destaque. "Consultando na Nova Vida…" numa faixa amarela.
+- **Minhas consultas:** iniciais, nome, CNPJ, data e selo; a consulta aberta fica marcada.
+- Antes de pesquisar, um quadro tracejado orienta ("Digite um CNPJ acima ou abra uma consulta da lista ao lado"), feito
+  só com CSS (`#scResultado:empty`).
+- Correção junto: os tokens `--ml-*` (cores dos botões `kbBtnQ`, do erro e da faixa) só valiam em Meus leads/Renovação;
+  agora valem em `#panel-socios` também (antes os botões cinza ficavam sem fundo).
+- **Publicação (18/11/2026 15:54, ok do Rafael "pode publicar"):** o ar era `224781f1…` (= oficial/main f9d20a9); novo MD5
+  `fd1508c5…`. Backup `~/deploy_backups/painel_clientes_apex.html.20261118185435.bak`. Reverter: copiar o backup de volta.
+
+Próxima livre: §159 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
