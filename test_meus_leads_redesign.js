@@ -112,7 +112,7 @@ try{
   eq(u(LF('lv', { livre: true, categoria: 'sem_contato', status: null, criado_em_lead: '2026-10-28T14:47:00-03:00' }), null), { classe: 'novo', texto: 'livre · chegou há 25 min' }, 'urgência: livre');
   // ==== Task 2: tokens e barra da aba ====
   const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('\\n');
-  assert(css.includes('#panel-meusleads,#kbFicha,#kbPassar,#panel-renovacao,#rnFicha{--ml-ink:var(--c-grafite);--ml-ink-2:#464A4E;'), 'tokens da aba declarados (valem também na Renovação, §151)');
+  assert(css.includes('#panel-meusleads,#kbFicha,#kbPassar,#panel-renovacao,#rnFicha,#panel-socios{--ml-ink:var(--c-grafite);--ml-ink-2:#464A4E;'), 'tokens da aba declarados (valem também na Renovação, §151)');
   const stKb = [...document.querySelectorAll('style')].map(s => s.textContent).find(t => t.includes('/* Meus leads — Kanban')) || '';
   const cssKb = stKb.slice(stKb.indexOf('/* Meus leads — Kanban'));   // o bloco de Meus leads vai até o fim desse <style>
   const hexSolto = cssKb.split('\\n').filter(l => /#[0-9a-fA-F]{3,6}\\b/.test(l) && !/^\\s*\\[data-st=/.test(l) && !/--ml-ink-2:#464A4E;.*--ml-surface-2:#F7F7F8;/.test(l) && !/^\\s*#panel-renovacao,#rnFicha\\{--rn-st1:/.test(l));

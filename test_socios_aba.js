@@ -75,5 +75,16 @@ require('./renovacao_test_harness.js').rodar(`
   assert(!scEstado.timer, 'sair da aba para a releitura');
   scAplicarPermissao();
   assert(!scEstado.atual && res().innerHTML === '', 'trocar de usuário limpa');
+  // layout 18/11: cores da Renovação valem na aba, cartão de resultado com selo, sócios em grade, lista com selo e marcada
+  const css = [...document.querySelectorAll('style')].map(x => x.textContent).join(' ');
+  assert(/#rnFicha,#panel-socios\\{--ml-ink/.test(css), 'tokens --ml-* valem na aba');
+  window.__tabelas.socios_consultas = [linha({ id: 90, status: 'pronto', concluido_em: '2026-11-10T13:00:00Z', resultado: RES })];
+  await scCarregarLista(); await scAbrirPedido(90); await espera(20);
+  assert(res().querySelector('.card.scRes .scResTopo .badge.apto'), 'selo Pronto no cartão');
+  assert(res().querySelector('.scResCorpo .scSocios .rnSoc'), 'sócios dentro da grade');
+  assert(document.querySelector('#scLista .rnItem.sel[data-sc-abrir="90"] .badge.apto'), 'lista marca a consulta aberta com selo');
+  window.__tabelas.socios_consultas[0].status = 'consultando';
+  await scAbrirPedido(90); await espera(20);
+  assert(res().querySelector('.scResTopo .catBadge.andamento'), 'selo Consultando');
   fim();
 `);
