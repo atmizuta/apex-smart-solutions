@@ -5283,6 +5283,11 @@ Pedido do Rafael: todo dia útil de manhã, a executiva da Claro que acompanha a
   todo o resto é fibra. Em 18/11: Banda Larga 1, Modem 2.
 - **Testes:** `test_visao_diaria.js` (9 cards; 600/800 MEGA e 1 GIGA = Banda Larga; 5G 200GB, Empresas 10GB, Pen
   Modem, Roteador e Wi-fi = Modem; sem produto = Banda Larga; voz com GB segue voz; Banda Larga + Modem = total) e
-  `test_relatorio_17h.js` (linha "Modem: 1" no texto).
+  `test_relatorio_17h.js` (linha "Modem: 1" no texto). Suíte inteira: 111 passaram, 3 pulados, 6 falharam, as
+  mesmas 6 que já falham na `oficial/main` e55f900 sem esta mudança (leads_painel_hoje, pedidos_alerta,
+  producao_filtro_pessoas, proposta_manual_docs, proposta_timbrada, redesign_shell).
+- **Publicação (19/11/2026 17:07, ok do Rafael):** o ar era `fd1508c5…` (igual ao oficial e55f900); novo MD5
+  `03426ce5…`. Backup `~/deploy_backups/painel_clientes_apex_20261119_170735_antes_card_modem.html`.
+  Reverter: copiar o backup de volta.
 
 Próxima livre: §161 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
