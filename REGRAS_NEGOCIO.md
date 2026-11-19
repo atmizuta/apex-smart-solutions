@@ -5290,4 +5290,39 @@ Pedido do Rafael: todo dia útil de manhã, a executiva da Claro que acompanha a
   `03426ce5…`. Backup `~/deploy_backups/painel_clientes_apex_20261119_170735_antes_card_modem.html`.
   Reverter: copiar o backup de volta.
 
-Próxima livre: §161 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
+## §161 Meus leads: subaba "Prospecção" só para Caio e Lúria (19/11/2026, pedido do Rafael) — TEMPORÁRIA
+
+- **Pedido:** passar para o painel a planilha de clientes do Caio e da Lúria (guias CAIO e LURIA), com um mini Kanban
+  para tabular e mostrar de quem é cada cliente, botão de WhatsApp com mensagem e Ligar. **Sem integração** com a
+  planilha: cópia única. Quem não tem telefone recebe, pela Nova Vida, o número principal com WhatsApp.
+- **Quem vê:** quem está em `prospec_acesso` (Caio e Lúria, `leads_equipe` ids 1 e 3) e o admin. Botão
+  `data-kb-aba="prospec"` no fim da barra do Meus leads; `prospec_pode()` decide no login.
+- **Fila única:** os clientes entram em **Livres**, sem dono. **Pegar** vira dono e manda para Em contato; a trava é o
+  `update … where dono_id is null` (dois ao mesmo tempo: um ganha, o outro vê "Esse cliente já foi pego por …").
+  Colunas: Livres → Em contato → Retornar (data/hora obrigatória) → Venda / Sem interesse / Sem contato. Observação em
+  todos. **Soltar** devolve para Livres. Só o dono (ou o admin) muda a etapa; o outro vê a ficha só para leitura.
+- **Telefone:** o da planilha vale como está. Sem telefone, a consulta da Nova Vida (robô da §156, `origem =
+  'prospeccao'`) escolhe: sócio de maior participação (empate: o primeiro) que tenha telefone → 1º celular com
+  WhatsApp → 1º celular → 1º fixo (`prospec_escolher_numero`; `prospec_aplicar_nv` grava). Fixo não tem botão de
+  WhatsApp.
+- **WhatsApp:** abre `wa.me` com o texto "Olá, {sócio}! Aqui é {consultor}, da Claro Empresas. Estou entrando em
+  contato sobre a {razão social}: temos condições especiais de internet e móvel para empresas. Posso te explicar
+  rapidinho?" (editável antes de enviar). **Ligar:** copia o número e abre a aba do ProContact (igual à §121).
+- **Banco:** `prospec_clientes` (uma linha por CNPJ; `dados` guarda todas as colunas originais da planilha) e
+  `prospec_acesso`, RLS sem policy; acesso só pelas RPCs `prospec_pode/listar/pegar/mover`. Migration
+  `20261119180000_prospeccao.sql`; verificação `supabase/tests/prospeccao_check.sql` (8 casos; ensaio com rollback
+  OK em 19/11 18:43). Os dados da planilha **não** ficam no repo (repo público).
+- **Painel:** atualiza a cada 1 min só com a subaba aberta; falha de rede mostra aviso; a ficha (janela) não perde o
+  texto digitado na atualização. Testes: `test_prospeccao.js` (74). Suíte inteira: 111 passaram, 7 falharam, 3
+  pulados — as mesmas 7 da `oficial/main` e525570 (leads_painel_hoje, pedidos_alerta, producao_filtro_pessoas,
+  projecao_ganho, proposta_manual_docs, proposta_timbrada, redesign_shell; as 3 últimas por módulo que falta na
+  máquina).
+- **Publicação do painel (19/11/2026 19:00, ok do Rafael):** o ar era `03426ce5…` (igual ao oficial e525570); novo
+  MD5 `ad7910cb…`. Backup `~/deploy_backups/painel_clientes_apex.html.20261119190020.bak`. Sem a migration no banco o
+  botão fica escondido (o `prospec_pode` falha e vale "não").
+- **Pendente (cada passo com ok do Rafael):** aplicar a migration, carregar os 179 clientes e rodar a Nova Vida
+  depois das 21h (as consultas vão no usuário do Rafael e gastam o limite de 20/dia dele até a meia-noite).
+- **Retirar:** `delete from public.prospec_acesso;` esconde a subaba sem publicar. A remoção completa (botão, código,
+  tabelas e funções `prospec_*`) é uma seção nova.
+
+Próxima livre: §162 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).

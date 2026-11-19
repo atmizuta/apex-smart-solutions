@@ -795,7 +795,7 @@
 <style id="kbStyles">
   /* Meus leads — Kanban (§112; visual refeito em 26/10 à noite a pedido do Rafael). Só tokens do design, nenhuma cor fixa. */
   /* §126 (redesign 28/10, pedido do Rafael): tokens da aba. Hex novo só em --ml-ink-2 e --ml-surface-2; o resto reaproveita o sistema. */
-  #panel-meusleads,#kbFicha,#kbPassar,#panel-renovacao,#rnFicha,#panel-socios{--ml-ink:var(--c-grafite);--ml-ink-2:#464A4E;--ml-ink-3:var(--c-cinza);--ml-ground:var(--c-papel);--ml-surface:var(--c-branco);--ml-surface-2:#F7F7F8;--ml-surface-3:var(--c-cinza-claro);--ml-late:var(--c-sinal-600);--ml-late-soft:var(--st-perdido-bg);--ml-soon:var(--st-andamento);--ml-soon-soft:var(--st-andamento-bg);--ml-ok:var(--st-ganho);--ml-ok-soft:var(--st-ganho-bg);--ml-novo:var(--c-sinal);--ml-novo-soft:var(--c-rosa);--ml-float:0 12px 32px rgba(29,31,32,.16);}
+  #prospecOverlay,#panel-meusleads,#kbFicha,#kbPassar,#panel-renovacao,#rnFicha,#panel-socios{--ml-ink:var(--c-grafite);--ml-ink-2:#464A4E;--ml-ink-3:var(--c-cinza);--ml-ground:var(--c-papel);--ml-surface:var(--c-branco);--ml-surface-2:#F7F7F8;--ml-surface-3:var(--c-cinza-claro);--ml-late:var(--c-sinal-600);--ml-late-soft:var(--st-perdido-bg);--ml-soon:var(--st-andamento);--ml-soon-soft:var(--st-andamento-bg);--ml-ok:var(--st-ganho);--ml-ok-soft:var(--st-ganho-bg);--ml-novo:var(--c-sinal);--ml-novo-soft:var(--c-rosa);--ml-float:0 12px 32px rgba(29,31,32,.16);}
   /* §126: botões planos de 8 px (decididos uma vez), controle segmentado, marcadores e contadores */
   .kbBtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 14px;border:0;border-radius:var(--radius-lg);font:inherit;font-size:var(--fs-base);font-weight:600;line-height:1;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background var(--dur-fast) var(--ease-out),color var(--dur-fast),transform var(--dur-fast);}
   .kbBtn:active{transform:translateY(1px);}
@@ -1376,6 +1376,22 @@
   .kbVisao.active{background:var(--ml-ink);color:var(--c-branco);}
   .kbVisao span{color:var(--ml-ink-3);font-weight:600;font-variant-numeric:tabular-nums;}
   .kbVisao.active span{color:var(--c-branco);opacity:.75;}
+  /* §161 Prospecção */
+  .prospecTopo{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 var(--space-3);}
+  .prospecTopo .kbBusca{flex:1 1 240px;max-width:420px;}
+  .prospecBoard{display:flex;gap:14px;overflow-x:auto;padding:2px 2px var(--space-3);align-items:stretch;height:calc(100vh - 250px);min-height:420px;}
+  .prospecTel{font-size:var(--fs-sm);font-weight:600;color:var(--ml-ink);display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px;}
+  .prospecSelo{font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;border:1px solid var(--ml-surface-3);color:var(--ml-ink-3);}
+  .prospecSeloWhats{border-color:var(--st-ganho);color:var(--st-ganho);}
+  .kbCard.prospecMeu{box-shadow:inset 3px 0 0 var(--c-sinal);}
+  .prospecFichaTel{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+  .prospecEtapas{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0;}
+  .prospecFichaAcoes{display:flex;gap:8px;flex-wrap:wrap;}
+  .prospecFichaContato{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 8px;}
+  .prospecErro{color:var(--red);font-size:var(--fs-sm);min-height:1em;margin:4px 0;}
+  .prospecDados{margin-top:14px;}
+  .prospecDados .tbl th{text-align:left;white-space:nowrap;}
+  @media (max-width: 720px){ .prospecBoard{height:auto;} }
   .kbListaBusca{margin-left:auto;max-width:360px;height:36px;}
   .kbListaTabela{background:var(--ml-surface);border-radius:var(--radius-lg);overflow:auto;}
   .kbTabelaTodos{width:100%;border-collapse:collapse;}
@@ -2330,6 +2346,7 @@
           <button type="button" data-kb-aba="quadro">Quadro</button>
           <button type="button" data-kb-aba="todos">Lista</button>
           <button type="button" data-kb-aba="conversao">Conversão</button>
+          <button type="button" data-kb-aba="prospec" style="display:none">Prospecção</button>
         </nav>
         <span class="kbStatusLinha" id="kbStatus"></span>
         <div class="kbAviso kbPausaAviso" id="kbPausaAviso" role="status" hidden>Pegar leads está pausado pelo supervisor. Os leads que você já tem continuam aqui.</div>
@@ -2365,6 +2382,16 @@
       </div>
       <div id="cvConversao" class="cvConversao" style="display:none" aria-live="polite"></div>
       <svg class="kbSprite" aria-hidden="true" style="display:none"><symbol id="kbIcoTel" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></symbol><symbol id="kbIcoWhats" viewBox="0 0 24 24"><path d="M3 21l1.7-5A8.5 8.5 0 1 1 8 19.3z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1.5-1.5-2-1-1 1a4 4 0 0 1-2.5-2.5l1-1-1-2z"/></symbol></svg>
+      <!-- §161: Prospecção (Caio e Lúria, temporária) -->
+      <div id="kbProspec" class="prospec" style="display:none">
+        <div class="prospecTopo">
+          <button type="button" class="filterPill active" data-prospec-filtro="todos">Todos</button>
+          <button type="button" class="filterPill" data-prospec-filtro="meus">Meus</button>
+          <input type="search" id="prospecBusca" class="kbBusca kbListaBusca" placeholder="Buscar por empresa, sócio, CNPJ ou telefone" autocomplete="off" aria-label="Buscar na Prospecção">
+          <span class="kbStatusLinha" id="prospecStatus"></span>
+        </div>
+        <div class="prospecBoard" id="prospecBoard"></div>
+      </div>
       <div class="kbBoard" id="kbBoard"></div>
     </section>
     <div id="kbFichaCasa"><aside class="kbFicha" id="kbFicha" aria-label="Ficha do lead"><div class="kbFichaCorpo" id="kbFichaCorpo"></div></aside></div>
@@ -2948,6 +2975,16 @@
       <div id="profileMsg" style="font-size:12px;margin-top:10px;color:var(--green);display:none">Alterações salvas com sucesso.</div>
       <div id="profileErr" style="font-size:12px;margin-top:10px;color:var(--red);display:none"></div>
     </div>
+  </div>
+</div>
+<div class="overlay" id="prospecOverlay">
+  <div class="modal" style="max-width:620px">
+    <div class="mHead">
+      <button class="mClose" data-prospec-fechar>&times;</button>
+      <h2 id="prospecFichaTitulo"></h2>
+      <div class="mCnpj" id="prospecFichaSub"></div>
+    </div>
+    <div class="mBody" id="prospecFichaCorpo"></div>
   </div>
 </div>
 
@@ -6725,6 +6762,8 @@ async function kbAplicarPermissao(){
     kbEstado.podePegar = linhas.some(x => x.pode_pegar === true);
   }
   if(kbPodeVer()) await kbCarregarBloqueio();
+  kbEstado.prospecPode = false;   // §161: Prospecção só para quem está em prospec_acesso (e admin)
+  if(kbPodeVer()){ const p = await ppSeguro(() => sb.rpc('prospec_pode')); kbEstado.prospecPode = !!(p && !p.error && p.data === true); }
   document.getElementById('tabBtnMeusLeads').style.display = kbPodeVer() || cvPodeVer() ? 'inline-block' : 'none';
   document.getElementById('kbFiltrosGestor').style.display = kbGestor() ? '' : 'none';
   document.getElementById('kbReescrever').style.display = currentUser && currentUser.role === 'admin' ? '' : 'none';
@@ -6894,6 +6933,210 @@ async function kbLigar(telefone){
   kbAbrirProContact();
   mostrarAviso(copiou ? `Número ${kbFoneBR(num)} copiado. Cole no ProContact para ligar.` : `Ligue para ${kbFoneBR(num)} no ProContact.`, copiou ? 'ok' : 'info');
 }
+// ===== §161: subaba Prospecção (Caio e Lúria, temporária). Spec: docs/superpowers/specs/2026-11-19-prospeccao-caio-luria-design.md =====
+const PROSPEC_ETAPAS = [['livre', 'Livres'], ['contato', 'Em contato'], ['retornar', 'Retornar'], ['venda', 'Venda'], ['sem_interesse', 'Sem interesse'], ['sem_contato', 'Sem contato']];
+const PROSPEC_SEM_NUMERO = { pendente: 'Consultando telefone…', erro: 'Consulta com erro', sem_socios: 'Sem sócio na Nova Vida' };
+function prospecTelInfo(c){
+  const numero = kbTelCopiar(c && c.telefone);
+  if(numero.length !== 10 && numero.length !== 11) return { numero: '', celular: false, rotulo: PROSPEC_SEM_NUMERO[c && c.nv_status] || 'Sem telefone', selo: '' };
+  const celular = numero.length === 11;
+  return { numero, celular, rotulo: kbFoneBR(numero), selo: !celular ? '' : c.whatsapp === true ? 'whats' : c.whatsapp === false ? 'semwhats' : '' };
+}
+function prospecPrimeiroNome(nome){
+  const p = String(nome || '').trim().split(/\s+/)[0] || '';
+  return p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : '';
+}
+function prospecWhatsTexto(c, consultor){
+  const socio = prospecPrimeiroNome(c && c.socio_nome), eu = prospecPrimeiroNome(consultor) || 'seu consultor';
+  const razao = String((c && c.razao_social) || '').trim();
+  return `Olá${socio ? ', ' + socio : ''}! Aqui é ${eu}, da Claro Empresas. `
+    + (razao ? `Estou entrando em contato sobre a ${razao}: temos` : 'Temos')
+    + ' condições especiais de internet e móvel para empresas. Posso te explicar rapidinho?';
+}
+function prospecWhatsLink(c, consultor){
+  const t = prospecTelInfo(c);
+  return t.celular ? `https://wa.me/55${t.numero}?text=${encodeURIComponent(prospecWhatsTexto(c, consultor))}` : '';
+}
+function prospecNorm(s){ return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+function prospecFiltrar(lista, f){
+  const q = prospecNorm(f && f.busca).trim(), dig = q.replace(/\D/g, '');
+  return (lista || []).filter(c => {
+    if(f && f.meus && c.dono_id !== f.uid) return false;
+    if(!q) return true;
+    if(prospecNorm([c.razao_social, c.socio_nome, c.cidade, c.dono_nome].join(' ')).includes(q)) return true;
+    return dig.length >= 4 && (String(c.cnpj || '').includes(dig) || kbTelCopiar(c.telefone).includes(dig));
+  });
+}
+function prospecAgrupar(lista){
+  const g = {};
+  PROSPEC_ETAPAS.forEach(([v]) => { g[v] = []; });
+  (lista || []).forEach(c => { (g[c.etapa] || g.livre).push(c); });
+  g.retornar.sort((a, b) => String(a.retorno_em || '').localeCompare(String(b.retorno_em || '')));
+  ['contato', 'venda', 'sem_interesse', 'sem_contato'].forEach(k => g[k].sort((a, b) => String(b.atualizado_em || '').localeCompare(String(a.atualizado_em || ''))));
+  return g;
+}
+function prospecCnpjFmt(d){ d = String(d || ''); return d.length === 14 ? `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}` : d; }
+function prospecNome(c){ return c.razao_social || prospecCnpjFmt(c.cnpj); }
+function prospecRetornoTag(c, agoraMs){
+  if(c.etapa !== 'retornar' || !c.retorno_em) return '';
+  const vencido = Date.parse(c.retorno_em) < agoraMs;
+  return `<span class="kbTag${vencido ? ' late' : ''}">Retornar ${escapeHtml(kbDataHoraBR(c.retorno_em))}</span>`;
+}
+function prospecSeloHtml(t){
+  if(t.selo === 'whats') return '<span class="prospecSelo prospecSeloWhats">WhatsApp</span>';
+  if(t.selo === 'semwhats') return '<span class="prospecSelo">sem WhatsApp</span>';
+  return '';
+}
+function prospecBotoesHtml(c, t, ficha){
+  if(!t.numero) return '';
+  if(ficha) return `<div class="prospecFichaContato"><a class="kbBtn kbBtnP kbBtnSm" href="#" data-prospec-ligar="${c.id}">${KB_ICO.tel}Ligar</a>`   // revisão: na ficha não há .kbCard (o .kbCartAcoes ficaria invisível)
+    + (t.celular ? `<a class="kbBtn kbBtnQ kbBtnSm" href="#" data-prospec-whats="${c.id}">${KB_ICO.wa}WhatsApp</a>` : '') + '</div>';
+  return `<div class="kbCartAcoes"><a class="kbBtn kbBtnP kbBtnIco" href="#" title="Ligar pelo ProContact (copia o número)" data-prospec-ligar="${c.id}">${KB_ICO.tel}</a>`
+    + (t.celular ? `<a class="kbBtn kbBtnQ kbBtnIco" href="#" title="WhatsApp com mensagem pronta" data-prospec-whats="${c.id}">${KB_ICO.wa}</a>` : '') + '</div>';
+}
+function prospecCardHtml(c, ctx){
+  const t = prospecTelInfo(c);
+  const meta = [[c.cidade, c.uf].filter(Boolean).join('/'), c.segmento].filter(Boolean).join(' · ');
+  const socio = c.socio_nome ? `<div class="kbCartMeta">${escapeHtml(c.socio_nome)}</div>` : '';
+  const tel = `<div class="prospecTel">${escapeHtml(t.rotulo)}${prospecSeloHtml(t)}</div>`;
+  const pegar = !c.dono_id ? `<button type="button" class="kbBtn kbBtnQ kbBtnSm" data-prospec-pegar="${c.id}"${ctx.pegando && ctx.pegando.has(c.id) ? ' disabled' : ''}>Pegar</button>` : '';
+  const dono = c.dono_id && c.dono_nome ? `<span class="kbCartDono" title="Com ${escapeHtml(c.dono_nome)}"><b>${escapeHtml(kbIniciais(c.dono_nome))}</b>${escapeHtml(String(c.dono_nome).trim().split(/\s+/)[0])}</span>` : '';
+  const obs = c.obs ? `<div class="kbObs" title="${escapeHtml(c.obs)}">${escapeHtml(c.obs)}</div>` : '';
+  return `<div class="kbCard${c.dono_id === ctx.uid ? ' prospecMeu' : ''}" data-prospec-id="${c.id}" tabindex="0">
+    <div class="kbNome">${escapeHtml(prospecNome(c))}</div>${meta ? `<div class="kbCartMeta">${escapeHtml(meta)}</div>` : ''}${socio}${tel}${obs}
+    <div class="kbCartRodape">${prospecRetornoTag(c, ctx.agoraMs)}${dono}${pegar}</div>${prospecBotoesHtml(c, t)}
+  </div>`;
+}
+function prospecFichaHtml(c, ctx){
+  const t = prospecTelInfo(c);
+  const pode = !!c.dono_id && (c.dono_id === ctx.uid || ctx.admin);
+  const linhas = Object.entries(c.dados || {}).filter(([, v]) => v !== null && v !== '')
+    .map(([k, v]) => `<tr><th>${escapeHtml(k)}</th><td>${escapeHtml(String(v))}</td></tr>`).join('');
+  const topo = `<div class="prospecFichaTel"><b>${escapeHtml(t.rotulo)}</b>${prospecSeloHtml(t)}${c.socio_nome ? ` · ${escapeHtml(c.socio_nome)}` : ''}${c.tel_fonte === 'nova_vida' ? ' · <span class="kbMuted">Nova Vida</span>' : ''}</div>${prospecBotoesHtml(c, t, true)}`;
+  let acao;
+  if(!c.dono_id) acao = `<button type="button" class="btn btn-sm" data-prospec-pegar="${c.id}">Pegar este cliente</button>`;
+  else if(!pode) acao = `<p class="kbMuted">Com ${escapeHtml(c.dono_nome || 'outro consultor')}${c.obs ? ' · ' + escapeHtml(c.obs) : ''}</p>`;
+  else {
+    const local = c.retorno_em ? new Date(Date.parse(c.retorno_em) - new Date(Date.parse(c.retorno_em)).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '';
+    acao = `<div class="prospecEtapas">${PROSPEC_ETAPAS.filter(([v]) => v !== 'livre').map(([v, r]) => `<button type="button" class="filterPill${c.etapa === v ? ' active' : ''}" data-prospec-etapa="${v}">${r}</button>`).join('')}</div>
+      <div class="field" id="prospecRetornoCampo"${c.etapa === 'retornar' ? '' : ' hidden'}><label>Retornar em</label><input type="datetime-local" id="prospecRetorno" value="${local}"></div>
+      <div class="field"><label>Observação</label><textarea id="prospecObs" rows="3">${escapeHtml(c.obs || '')}</textarea></div>
+      <div class="prospecErro" id="prospecErro"></div>
+      <div class="prospecFichaAcoes"><button type="button" class="btn btn-sm" data-prospec-salvar="${c.id}">Salvar</button><button type="button" class="btn btn-sm btn-outline" data-prospec-soltar="${c.id}">Soltar (volta para Livres)</button></div>`;
+  }
+  return `${topo}${acao}<details class="prospecDados"><summary>Dados da planilha (${escapeHtml(c.aba_origem || '')})</summary><table class="tbl"><tbody>${linhas || '<tr><td>—</td></tr>'}</tbody></table></details>`;
+}
+const prospecEstado = { lista: [], meus: false, busca: '', pegando: new Set(), fichaId: null, timer: null, semAcesso: false, erro: false, geracao: 0, salvando: false };
+function prospecPararTimer(){ clearInterval(prospecEstado.timer); prospecEstado.timer = null; }
+function prospecParar(){
+  prospecPararTimer();
+  prospecEstado.geracao++; kbEstado.prospecPode = false;   // revisão: leitura em andamento no logout é descartada
+  prospecEstado.lista = []; prospecEstado.pegando = new Set(); prospecEstado.fichaId = null; prospecEstado.semAcesso = false; prospecEstado.erro = false; prospecEstado.salvando = false;
+  const b = document.getElementById('prospecBoard'); if(b) b.innerHTML = '';
+  const ov = document.getElementById('prospecOverlay'); if(ov) ov.classList.remove('active');
+}
+async function prospecCarregar(){
+  if(!kbEstado.prospecPode) return;
+  const geracao = ++prospecEstado.geracao;
+  const r = await ppSeguro(() => sb.rpc('prospec_listar'));
+  if(geracao !== prospecEstado.geracao) return;   // revisão: resposta velha (fora de ordem ou depois do logout) não vale
+  if(r && r.error && (r.error.code === '42501' || /permiss/.test(r.error.message || ''))){
+    prospecEstado.semAcesso = true; prospecPararTimer(); prospecRender(); return;
+  }
+  if(!r || r.error) prospecEstado.erro = true;
+  else { prospecEstado.semAcesso = false; prospecEstado.erro = false; prospecEstado.lista = Array.isArray(r.data) ? r.data : []; }
+  prospecRender();
+  if(!prospecEstado.timer && !prospecEstado.semAcesso){
+    prospecEstado.timer = setInterval(() => {
+      if(kbEstado.aba === 'prospec' && document.visibilityState === 'visible' && document.getElementById('panel-meusleads').classList.contains('active')) prospecCarregar();
+    }, 60000);
+  }
+}
+function prospecRender(){
+  const board = document.getElementById('prospecBoard');
+  if(prospecEstado.semAcesso){ board.innerHTML = '<div class="kbVazio">Você não tem acesso à Prospecção.</div>'; return; }
+  const uid = currentUser && currentUser.id, agoraMs = Date.now();
+  const g = prospecAgrupar(prospecFiltrar(prospecEstado.lista, { meus: prospecEstado.meus, uid, busca: prospecEstado.busca }));
+  board.innerHTML = PROSPEC_ETAPAS.map(([v, rot]) => `<div class="kbCol" data-prospec-col="${v}"><div class="kbColTopo"><i class="kbColCor"></i><h4>${rot}</h4><span class="kbConta">${g[v].length}</span></div><div class="kbColLista">${g[v].map(c => prospecCardHtml(c, { uid, agoraMs, pegando: prospecEstado.pegando })).join('') || '<div class="kbVazio">Nada aqui</div>'}</div></div>`).join('');
+  const meus = prospecEstado.lista.filter(c => c.dono_id === uid).length, livres = prospecEstado.lista.filter(c => !c.dono_id).length;
+  document.getElementById('prospecStatus').textContent = prospecEstado.erro ? 'Não foi possível atualizar agora. Tenta de novo em 1 min.' : `${livres} livre(s) · ${meus} seu(s) · atualiza a cada 1 min`;
+  document.querySelectorAll('[data-prospec-filtro]').forEach(b => b.classList.toggle('active', (b.dataset.prospecFiltro === 'meus') === prospecEstado.meus));
+}
+function prospecPorId(id){ return prospecEstado.lista.find(c => String(c.id) === String(id)) || null; }
+async function prospecPegar(id){
+  id = Number(id);
+  if(prospecEstado.pegando.has(id)) return;
+  prospecEstado.pegando.add(id); prospecRender();
+  const r = await ppSeguro(() => sb.rpc('prospec_pegar', { p_id: id }));
+  prospecEstado.pegando.delete(id);
+  if(!r || r.error) mostrarAviso('Não foi possível pegar o cliente agora.', 'erro');
+  else if(r.data && r.data.ok === false) mostrarAviso(`Esse cliente já foi pego por ${r.data.dono || 'outro consultor'}`, 'info');
+  else mostrarAviso('Cliente é seu agora.', 'ok');
+  await prospecCarregar();
+  if(prospecEstado.fichaId === id) prospecAbrirFicha(id);
+}
+function prospecAbrirFicha(id){
+  const c = prospecPorId(id); if(!c) return;
+  prospecEstado.fichaId = c.id;
+  document.getElementById('prospecFichaTitulo').textContent = prospecNome(c);
+  document.getElementById('prospecFichaSub').textContent = [prospecCnpjFmt(c.cnpj), [c.cidade, c.uf].filter(Boolean).join('/'), c.segmento, c.porte].filter(Boolean).join(' · ');
+  document.getElementById('prospecFichaCorpo').innerHTML = prospecFichaHtml(c, { uid: currentUser && currentUser.id, admin: !!currentUser && currentUser.role === 'admin', agoraMs: Date.now() });
+  document.getElementById('prospecOverlay').classList.add('active');
+}
+async function prospecSalvar(id, etapa){
+  if(prospecEstado.salvando) return;   // revisão: duplo clique em Salvar/Soltar
+  const ov = document.getElementById('prospecOverlay'), erro = ov.querySelector('#prospecErro');
+  const sel = ov.querySelector('[data-prospec-etapa].active');
+  const p_etapa = etapa || (sel ? sel.dataset.prospecEtapa : (prospecPorId(id) || {}).etapa);
+  const ret = ov.querySelector('#prospecRetorno'), obs = ov.querySelector('#prospecObs');
+  const p_retorno_em = p_etapa === 'retornar' && ret && ret.value ? new Date(ret.value).toISOString() : null;
+  if(p_etapa === 'retornar' && !p_retorno_em){ if(erro) erro.textContent = 'Escolha a data e a hora do retorno.'; return; }
+  prospecEstado.salvando = true;
+  const botoes = [...ov.querySelectorAll('[data-prospec-salvar],[data-prospec-soltar]')];
+  botoes.forEach(b => { b.disabled = true; });
+  const r = await ppSeguro(() => sb.rpc('prospec_mover', { p_id: Number(id), p_etapa, p_retorno_em, p_obs: obs ? obs.value : null }));
+  prospecEstado.salvando = false;
+  botoes.forEach(b => { b.disabled = false; });
+  if(!r || r.error){ if(erro) erro.textContent = (r && r.error && r.error.message) || 'Não foi possível salvar agora.'; return; }
+  prospecEstado.fichaId = null; fecharOverlay(ov);
+  mostrarAviso(p_etapa === 'livre' ? 'Cliente voltou para Livres.' : 'Salvo.', 'ok');
+  await prospecCarregar();
+}
+document.getElementById('kbProspec').addEventListener('click', (e) => {
+  const f = e.target.closest('[data-prospec-filtro]');
+  if(f){ prospecEstado.meus = f.dataset.prospecFiltro === 'meus'; prospecRender(); return; }
+  const pg = e.target.closest('[data-prospec-pegar]');
+  if(pg){ e.preventDefault(); prospecPegar(pg.dataset.prospecPegar); return; }
+  if(prospecContato(e)) return;
+  const card = e.target.closest('[data-prospec-id]');
+  if(card) prospecAbrirFicha(card.dataset.prospecId);
+});
+document.getElementById('prospecBusca').addEventListener('input', (e) => { prospecEstado.busca = e.target.value; prospecRender(); });
+function prospecContato(e){
+  const w = e.target.closest('[data-prospec-whats]'), l = e.target.closest('[data-prospec-ligar]');
+  if(!w && !l) return false;
+  e.preventDefault();
+  const c = prospecPorId((w || l).dataset[w ? 'prospecWhats' : 'prospecLigar']);
+  if(!c) return true;
+  if(w){ const link = prospecWhatsLink(c, currentUser && currentUser.nome); if(link) window.open(link, '_blank', 'noopener'); }
+  else kbLigar(prospecTelInfo(c).numero);
+  return true;
+}
+document.getElementById('prospecOverlay').addEventListener('click', (e) => {
+  const ov = document.getElementById('prospecOverlay');
+  if(e.target === ov || e.target.closest('[data-prospec-fechar]')){ prospecEstado.fichaId = null; fecharOverlay(ov); return; }
+  const et = e.target.closest('[data-prospec-etapa]');
+  if(et){
+    ov.querySelectorAll('[data-prospec-etapa]').forEach(b => b.classList.toggle('active', b === et));
+    const campo = ov.querySelector('#prospecRetornoCampo'); if(campo) campo.hidden = et.dataset.prospecEtapa !== 'retornar';
+    const erro = ov.querySelector('#prospecErro'); if(erro) erro.textContent = '';
+    return;
+  }
+  const pg = e.target.closest('[data-prospec-pegar]'); if(pg){ prospecPegar(pg.dataset.prospecPegar); return; }
+  const sv = e.target.closest('[data-prospec-salvar]'); if(sv){ prospecSalvar(sv.dataset.prospecSalvar); return; }
+  const so = e.target.closest('[data-prospec-soltar]'); if(so){ prospecSalvar(so.dataset.prospecSoltar, 'livre'); return; }
+  prospecContato(e);
+});
 // §146: presença no painel (a cada 1 min com o painel aberto, em qualquer aba). Só quem é da equipe de leads.
 async function kbPresencaPing(acao){
   if(!kbEstado.naEquipe) return null;
@@ -7146,6 +7389,7 @@ function kbAgendar(){
 }
 // Sair (ou perder o acesso): para os timers e zera alertas, contador e fila.
 function kbParar(){
+  prospecParar();   // §161
   clearInterval(kbEstado.timer); clearInterval(kbEstado.timerAlertas); clearInterval(kbEstado.timerPresenca);
   clearInterval(kbEstado.timerSuaVez); kbEstado.timerSuaVez = null; kbEstado.distMeu = null; kbEstado.distEntrega = null;
   { const sv = document.getElementById('kbSuaVez'); if(sv){ sv.innerHTML = ''; sv.hidden = true; } }   // revisão: o próximo usuário não vê a faixa de quem saiu
@@ -7600,7 +7844,7 @@ function kbAbasVisiveis(){
   if(kbAgencia()) return ['todos', 'conversao'];
   if(cvSoConversao()) return ['conversao'];
   const abas = kbAbasDoPerfil(kbGestor());
-  return cvPodeVer() ? abas.concat('conversao') : abas;
+  return (cvPodeVer() ? abas.concat('conversao') : abas).concat(kbEstado.prospecPode ? ['prospec'] : []);   // §161
 }
 function kbAbaInicial(){ return cvSoConversao() ? 'conversao' : kbAbaPadrao(kbGestor()); }
 function cvHtml(est){
@@ -7870,7 +8114,7 @@ function kbTrocarAba(aba){
   const no = kbFichaNo();
   if(kbEstado.aba !== 'hoje' && no.classList.contains('noPainel') && !kbEstado.fichaJanela && !kbFichaSuja()){ kbEstado.fichaAlvo = null; no.classList.remove('aberta'); }
   kbFichaLugar();
-  document.getElementById('kbResumo').style.display = kbEstado.aba === 'hoje' ? 'none' : '';
+  document.getElementById('kbResumo').style.display = kbEstado.aba === 'hoje' || kbEstado.aba === 'prospec' ? 'none' : '';
   document.querySelectorAll('#kbAbas [data-kb-aba]').forEach(b => {
     b.style.display = abas.includes(b.dataset.kbAba) ? '' : 'none';
     b.classList.toggle('active', b.dataset.kbAba === kbEstado.aba);
@@ -7884,12 +8128,14 @@ function kbTrocarAba(aba){
   document.getElementById('kbEquipe').style.display = kbEstado.aba === 'equipe' ? '' : 'none';
   document.getElementById('kbTodos').style.display = kbEhTabela(kbEstado.aba) ? '' : 'none';
   document.getElementById('cvConversao').style.display = kbEstado.aba === 'conversao' ? '' : 'none';
+  document.getElementById('kbProspec').style.display = kbEstado.aba === 'prospec' ? '' : 'none';   // §161
   document.getElementById('panel-meusleads').classList.toggle('cvAtiva', kbEstado.aba === 'conversao' || kbAgencia());   // §139: a agência não usa busca global nem resumo da equipe
   document.getElementById('kbAbas').style.display = abas.length > 1 ? '' : 'none';   // agência/consultor fora da equipe: sem barra de uma aba só
   if(kbEstado.aba === 'hoje') kbCarregarHoje();
   if(kbEstado.aba === 'equipe') kbCarregarEquipe();
   if(kbEhTabela(kbEstado.aba)) kbCarregarTodos();
   if(kbEstado.aba === 'conversao') cvCarregar();
+  if(kbEstado.aba === 'prospec') prospecCarregar(); else prospecPararTimer();   // §161
 }
 function kbFonteFiltros(){ return kbEstado.aba === 'todos' ? (kbEstado.todos || []) : kbEstado.leads; }
 function kbRenderFiltroBarra(){
