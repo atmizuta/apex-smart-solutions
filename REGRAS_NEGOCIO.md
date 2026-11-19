@@ -5320,8 +5320,13 @@ Pedido do Rafael: todo dia útil de manhã, a executiva da Claro que acompanha a
 - **Publicação do painel (19/11/2026 19:00, ok do Rafael):** o ar era `03426ce5…` (igual ao oficial e525570); novo
   MD5 `ad7910cb…`. Backup `~/deploy_backups/painel_clientes_apex.html.20261119190020.bak`. Sem a migration no banco o
   botão fica escondido (o `prospec_pode` falha e vale "não").
-- **Pendente (cada passo com ok do Rafael):** aplicar a migration, carregar os 179 clientes e rodar a Nova Vida
-  depois das 21h (as consultas vão no usuário do Rafael e gastam o limite de 20/dia dele até a meia-noite).
+- **Banco e carga (19/11/2026, ok do Rafael):** migration aplicada; carga de **176** clientes (não 179: 3 CNPJs
+  estavam nas duas guias e ficou a linha da CAIO, que tinha telefone, com `dados.tambem_na_guia = 'LURIA'`). CAIO 18
+  (15 com telefone), LURIA 158 (8 com telefone); 153 foram para a Nova Vida. A carga foi feita por SQL fora do repo.
+- **Nova Vida (19/11/2026 ~19:15–19:50, ok do Rafael para rodar antes das 21h):** 153 consultas no usuário do Rafael
+  (`origem = 'prospeccao'`, nenhuma reaproveitada de < 30 dias). Duas rodadas do robô e uma 2ª tentativa para os 4 que
+  deram "A consulta não terminou a tempo.". Resultado: **145 com número** (134 com WhatsApp, 11 só celular/fixo),
+  **7 sem sócios** e **1 erro**. No total, **168 dos 176** clientes têm número (144 com WhatsApp).
 - **Retirar:** `delete from public.prospec_acesso;` esconde a subaba sem publicar. A remoção completa (botão, código,
   tabelas e funções `prospec_*`) é uma seção nova.
 
