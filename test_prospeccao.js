@@ -196,6 +196,50 @@ try{
   kbParar();
   eq(prospecEstado.lista.length, 0, 'logout limpa a lista');
 
+  // ==== revisão final ====
+  // I-1: na ficha, Ligar e WhatsApp em fluxo normal (o .kbCartAcoes só aparece no hover do cartão) e tokens --ml-* valem no overlay
+  const fichaBt = prospecFichaHtml(L[1], { uid: 'u-a', admin: false, agoraMs: AG });
+  assert(!fichaBt.includes('kbCartAcoes') && /class="prospecFichaContato"[\\s\\S]*data-prospec-ligar="2"[\\s\\S]*data-prospec-whats="2"/.test(fichaBt)
+    && fichaBt.includes('Ligar</a>') && fichaBt.includes('WhatsApp</a>'), 'ficha: Ligar e WhatsApp visíveis, com texto');
+  assert(prospecCardHtml(L[1], { uid: 'u-a', agoraMs: AG, pegando: new Set() }).includes('kbCartAcoes'), 'cartão segue com os ícones de sempre');
+  const cssTodo = [...document.querySelectorAll('style')].map(s => s.textContent).join('\\n');
+  assert(/#prospecOverlay,[^{]*\\{--ml-ink:/.test(cssTodo), 'tokens --ml-* valem no overlay da ficha');
+  // M-1: falha de rede fica visível, sem "0 livre(s)" enganoso
+  kbEstado.prospecPode = true;
+  window.__rpcRespostas.prospec_listar = { data: null, error: { message: 'Failed to fetch' } };
+  await prospecCarregar(); await espera(5);
+  const st = document.getElementById('prospecStatus').textContent;
+  assert(st.includes('Não foi possível atualizar') && !st.includes('livre(s)'), 'erro de rede visível: ' + st);
+  window.__rpcRespostas.prospec_listar = { data: [C({ id: 7 })], error: null };
+  await prospecCarregar(); await espera(5);
+  assert(document.getElementById('prospecStatus').textContent.includes('1 livre(s)'), 'volta ao normal quando carrega');
+  // M-2: resposta que chega depois do logout é descartada; a mais nova vale
+  let soltarL; window.__rpcRespostas.prospec_listar = () => new Promise(r => { soltarL = () => r({ data: [C({ id: 9 })], error: null }); });
+  const pend = prospecCarregar(); await espera(5);
+  kbParar();
+  soltarL(); await pend; await espera(5);
+  eq(prospecEstado.lista.length, 0, 'resposta velha não volta depois do logout');
+  eq(prospecEstado.timer, null, 'timer não é recriado depois do logout');
+  eq(kbEstado.prospecPode, false, 'logout zera o acesso');
+  kbEstado.prospecPode = true;
+  const filaL = [];
+  window.__rpcRespostas.prospec_listar = () => new Promise(r => filaL.push(r));
+  const p1 = prospecCarregar(), p2 = prospecCarregar(); await espera(5);
+  filaL[1]({ data: [C({ id: 2, etapa: 'contato', dono_id: 'u-a', dono_nome: 'Zz' })], error: null }); await p2;
+  filaL[0]({ data: [C({ id: 2 })], error: null }); await p1;
+  eq(prospecPorId(2).etapa, 'contato', 'leitura antiga não sobrescreve a nova');
+  // M-3: duplo clique em Soltar/Salvar chama o banco uma vez só
+  window.__rpcRespostas.prospec_listar = { data: [C({ id: 5, etapa: 'contato', dono_id: 'u-a', dono_nome: 'Zz' })], error: null };
+  await prospecCarregar(); await espera(5);
+  prospecAbrirFicha(5);
+  const ov2 = document.getElementById('prospecOverlay'), nMv = chamadas('prospec_mover').length;
+  let soltarM; window.__rpcRespostas.prospec_mover = () => new Promise(r => { soltarM = () => r({ data: { ok: true }, error: null }); });
+  ov2.querySelector('[data-prospec-soltar="5"]').click(); ov2.querySelector('[data-prospec-soltar="5"]').click(); ov2.querySelector('[data-prospec-salvar="5"]').click();
+  await espera(5);
+  eq(chamadas('prospec_mover').length - nMv, 1, 'duplo clique: um mover só');
+  soltarM(); await espera(200);
+  assert(!ov2.classList.contains('active'), 'ficha fecha depois do Soltar');
+
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
   process.exit(fail > 0 ? 1 : 0);
 }catch(err){

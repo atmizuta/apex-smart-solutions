@@ -966,7 +966,8 @@ def limpo(v):
 def tel(v):
     d = dig(v)
     if len(d) in (12, 13) and d.startswith('55'): d = d[2:]
-    return d if len(d) in (10, 11) else None
+    if len(d) in (11, 12) and d.startswith('0'): d = d[1:]   # revisão M-4: 0 de operadora na frente
+    return d if len(d) in (10, 11) else None   # fora disso: sem telefone válido → vai para a Nova Vida (pendente)
 def q(v): return 'null' if v is None else "'" + str(v).replace("'", "''") + "'"
 linhas = []
 with open(f'{D}/dados/caio.csv', encoding='utf-8') as f:

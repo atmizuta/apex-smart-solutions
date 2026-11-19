@@ -795,7 +795,7 @@
 <style id="kbStyles">
   /* Meus leads — Kanban (§112; visual refeito em 26/10 à noite a pedido do Rafael). Só tokens do design, nenhuma cor fixa. */
   /* §126 (redesign 28/10, pedido do Rafael): tokens da aba. Hex novo só em --ml-ink-2 e --ml-surface-2; o resto reaproveita o sistema. */
-  #panel-meusleads,#kbFicha,#kbPassar,#panel-renovacao,#rnFicha,#panel-socios{--ml-ink:var(--c-grafite);--ml-ink-2:#464A4E;--ml-ink-3:var(--c-cinza);--ml-ground:var(--c-papel);--ml-surface:var(--c-branco);--ml-surface-2:#F7F7F8;--ml-surface-3:var(--c-cinza-claro);--ml-late:var(--c-sinal-600);--ml-late-soft:var(--st-perdido-bg);--ml-soon:var(--st-andamento);--ml-soon-soft:var(--st-andamento-bg);--ml-ok:var(--st-ganho);--ml-ok-soft:var(--st-ganho-bg);--ml-novo:var(--c-sinal);--ml-novo-soft:var(--c-rosa);--ml-float:0 12px 32px rgba(29,31,32,.16);}
+  #prospecOverlay,#panel-meusleads,#kbFicha,#kbPassar,#panel-renovacao,#rnFicha,#panel-socios{--ml-ink:var(--c-grafite);--ml-ink-2:#464A4E;--ml-ink-3:var(--c-cinza);--ml-ground:var(--c-papel);--ml-surface:var(--c-branco);--ml-surface-2:#F7F7F8;--ml-surface-3:var(--c-cinza-claro);--ml-late:var(--c-sinal-600);--ml-late-soft:var(--st-perdido-bg);--ml-soon:var(--st-andamento);--ml-soon-soft:var(--st-andamento-bg);--ml-ok:var(--st-ganho);--ml-ok-soft:var(--st-ganho-bg);--ml-novo:var(--c-sinal);--ml-novo-soft:var(--c-rosa);--ml-float:0 12px 32px rgba(29,31,32,.16);}
   /* §126: botões planos de 8 px (decididos uma vez), controle segmentado, marcadores e contadores */
   .kbBtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 14px;border:0;border-radius:var(--radius-lg);font:inherit;font-size:var(--fs-base);font-weight:600;line-height:1;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background var(--dur-fast) var(--ease-out),color var(--dur-fast),transform var(--dur-fast);}
   .kbBtn:active{transform:translateY(1px);}
@@ -1387,6 +1387,7 @@
   .prospecFichaTel{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
   .prospecEtapas{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0;}
   .prospecFichaAcoes{display:flex;gap:8px;flex-wrap:wrap;}
+  .prospecFichaContato{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 8px;}
   .prospecErro{color:var(--red);font-size:var(--fs-sm);min-height:1em;margin:4px 0;}
   .prospecDados{margin-top:14px;}
   .prospecDados .tbl th{text-align:left;white-space:nowrap;}
@@ -6986,8 +6987,10 @@ function prospecSeloHtml(t){
   if(t.selo === 'semwhats') return '<span class="prospecSelo">sem WhatsApp</span>';
   return '';
 }
-function prospecBotoesHtml(c, t){
+function prospecBotoesHtml(c, t, ficha){
   if(!t.numero) return '';
+  if(ficha) return `<div class="prospecFichaContato"><a class="kbBtn kbBtnP kbBtnSm" href="#" data-prospec-ligar="${c.id}">${KB_ICO.tel}Ligar</a>`   // revisão: na ficha não há .kbCard (o .kbCartAcoes ficaria invisível)
+    + (t.celular ? `<a class="kbBtn kbBtnQ kbBtnSm" href="#" data-prospec-whats="${c.id}">${KB_ICO.wa}WhatsApp</a>` : '') + '</div>';
   return `<div class="kbCartAcoes"><a class="kbBtn kbBtnP kbBtnIco" href="#" title="Ligar pelo ProContact (copia o número)" data-prospec-ligar="${c.id}">${KB_ICO.tel}</a>`
     + (t.celular ? `<a class="kbBtn kbBtnQ kbBtnIco" href="#" title="WhatsApp com mensagem pronta" data-prospec-whats="${c.id}">${KB_ICO.wa}</a>` : '') + '</div>';
 }
@@ -7009,7 +7012,7 @@ function prospecFichaHtml(c, ctx){
   const pode = !!c.dono_id && (c.dono_id === ctx.uid || ctx.admin);
   const linhas = Object.entries(c.dados || {}).filter(([, v]) => v !== null && v !== '')
     .map(([k, v]) => `<tr><th>${escapeHtml(k)}</th><td>${escapeHtml(String(v))}</td></tr>`).join('');
-  const topo = `<div class="prospecFichaTel"><b>${escapeHtml(t.rotulo)}</b>${prospecSeloHtml(t)}${c.socio_nome ? ` · ${escapeHtml(c.socio_nome)}` : ''}${c.tel_fonte === 'nova_vida' ? ' · <span class="kbMuted">Nova Vida</span>' : ''}</div>${prospecBotoesHtml(c, t)}`;
+  const topo = `<div class="prospecFichaTel"><b>${escapeHtml(t.rotulo)}</b>${prospecSeloHtml(t)}${c.socio_nome ? ` · ${escapeHtml(c.socio_nome)}` : ''}${c.tel_fonte === 'nova_vida' ? ' · <span class="kbMuted">Nova Vida</span>' : ''}</div>${prospecBotoesHtml(c, t, true)}`;
   let acao;
   if(!c.dono_id) acao = `<button type="button" class="btn btn-sm" data-prospec-pegar="${c.id}">Pegar este cliente</button>`;
   else if(!pode) acao = `<p class="kbMuted">Com ${escapeHtml(c.dono_nome || 'outro consultor')}${c.obs ? ' · ' + escapeHtml(c.obs) : ''}</p>`;
@@ -7023,22 +7026,25 @@ function prospecFichaHtml(c, ctx){
   }
   return `${topo}${acao}<details class="prospecDados"><summary>Dados da planilha (${escapeHtml(c.aba_origem || '')})</summary><table class="tbl"><tbody>${linhas || '<tr><td>—</td></tr>'}</tbody></table></details>`;
 }
-const prospecEstado = { lista: [], meus: false, busca: '', pegando: new Set(), fichaId: null, timer: null, semAcesso: false };
+const prospecEstado = { lista: [], meus: false, busca: '', pegando: new Set(), fichaId: null, timer: null, semAcesso: false, erro: false, geracao: 0, salvando: false };
 function prospecPararTimer(){ clearInterval(prospecEstado.timer); prospecEstado.timer = null; }
 function prospecParar(){
   prospecPararTimer();
-  prospecEstado.lista = []; prospecEstado.pegando = new Set(); prospecEstado.fichaId = null; prospecEstado.semAcesso = false;
+  prospecEstado.geracao++; kbEstado.prospecPode = false;   // revisão: leitura em andamento no logout é descartada
+  prospecEstado.lista = []; prospecEstado.pegando = new Set(); prospecEstado.fichaId = null; prospecEstado.semAcesso = false; prospecEstado.erro = false; prospecEstado.salvando = false;
   const b = document.getElementById('prospecBoard'); if(b) b.innerHTML = '';
   const ov = document.getElementById('prospecOverlay'); if(ov) ov.classList.remove('active');
 }
 async function prospecCarregar(){
   if(!kbEstado.prospecPode) return;
+  const geracao = ++prospecEstado.geracao;
   const r = await ppSeguro(() => sb.rpc('prospec_listar'));
+  if(geracao !== prospecEstado.geracao) return;   // revisão: resposta velha (fora de ordem ou depois do logout) não vale
   if(r && r.error && (r.error.code === '42501' || /permiss/.test(r.error.message || ''))){
     prospecEstado.semAcesso = true; prospecPararTimer(); prospecRender(); return;
   }
-  if(!r || r.error){ document.getElementById('prospecStatus').textContent = 'Não foi possível atualizar agora. Tenta de novo em 1 min.'; }
-  else { prospecEstado.semAcesso = false; prospecEstado.lista = Array.isArray(r.data) ? r.data : []; }
+  if(!r || r.error) prospecEstado.erro = true;
+  else { prospecEstado.semAcesso = false; prospecEstado.erro = false; prospecEstado.lista = Array.isArray(r.data) ? r.data : []; }
   prospecRender();
   if(!prospecEstado.timer && !prospecEstado.semAcesso){
     prospecEstado.timer = setInterval(() => {
@@ -7053,7 +7059,7 @@ function prospecRender(){
   const g = prospecAgrupar(prospecFiltrar(prospecEstado.lista, { meus: prospecEstado.meus, uid, busca: prospecEstado.busca }));
   board.innerHTML = PROSPEC_ETAPAS.map(([v, rot]) => `<div class="kbCol" data-prospec-col="${v}"><div class="kbColTopo"><i class="kbColCor"></i><h4>${rot}</h4><span class="kbConta">${g[v].length}</span></div><div class="kbColLista">${g[v].map(c => prospecCardHtml(c, { uid, agoraMs, pegando: prospecEstado.pegando })).join('') || '<div class="kbVazio">Nada aqui</div>'}</div></div>`).join('');
   const meus = prospecEstado.lista.filter(c => c.dono_id === uid).length, livres = prospecEstado.lista.filter(c => !c.dono_id).length;
-  document.getElementById('prospecStatus').textContent = `${livres} livre(s) · ${meus} seu(s) · atualiza a cada 1 min`;
+  document.getElementById('prospecStatus').textContent = prospecEstado.erro ? 'Não foi possível atualizar agora. Tenta de novo em 1 min.' : `${livres} livre(s) · ${meus} seu(s) · atualiza a cada 1 min`;
   document.querySelectorAll('[data-prospec-filtro]').forEach(b => b.classList.toggle('active', (b.dataset.prospecFiltro === 'meus') === prospecEstado.meus));
 }
 function prospecPorId(id){ return prospecEstado.lista.find(c => String(c.id) === String(id)) || null; }
@@ -7078,13 +7084,19 @@ function prospecAbrirFicha(id){
   document.getElementById('prospecOverlay').classList.add('active');
 }
 async function prospecSalvar(id, etapa){
+  if(prospecEstado.salvando) return;   // revisão: duplo clique em Salvar/Soltar
   const ov = document.getElementById('prospecOverlay'), erro = ov.querySelector('#prospecErro');
   const sel = ov.querySelector('[data-prospec-etapa].active');
   const p_etapa = etapa || (sel ? sel.dataset.prospecEtapa : (prospecPorId(id) || {}).etapa);
   const ret = ov.querySelector('#prospecRetorno'), obs = ov.querySelector('#prospecObs');
   const p_retorno_em = p_etapa === 'retornar' && ret && ret.value ? new Date(ret.value).toISOString() : null;
   if(p_etapa === 'retornar' && !p_retorno_em){ if(erro) erro.textContent = 'Escolha a data e a hora do retorno.'; return; }
+  prospecEstado.salvando = true;
+  const botoes = [...ov.querySelectorAll('[data-prospec-salvar],[data-prospec-soltar]')];
+  botoes.forEach(b => { b.disabled = true; });
   const r = await ppSeguro(() => sb.rpc('prospec_mover', { p_id: Number(id), p_etapa, p_retorno_em, p_obs: obs ? obs.value : null }));
+  prospecEstado.salvando = false;
+  botoes.forEach(b => { b.disabled = false; });
   if(!r || r.error){ if(erro) erro.textContent = (r && r.error && r.error.message) || 'Não foi possível salvar agora.'; return; }
   prospecEstado.fichaId = null; fecharOverlay(ov);
   mostrarAviso(p_etapa === 'livre' ? 'Cliente voltou para Livres.' : 'Salvo.', 'ok');
