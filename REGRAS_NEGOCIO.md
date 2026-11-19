@@ -3100,6 +3100,7 @@ Spec: `docs/superpowers/specs/2026-10-09-operacao-campinas-design.md`. Pedido do
 
 ## 82. Etapa TERRITÓRIO deduzida pela exportação (14/10/2026)
 (A §81 está reservada para a migração da sync-producao para a API nova.)
+O job temporário `comparar-carga-v1-temp` (pg_cron, job 16; chamava a Edge `comparar-carga-v1` de hora em hora para comparar a API antiga com a Xeotech v1, sem gravar nada) foi **desligado em 19/11/2026** a pedido do Rafael (auditoria A-002): `active = false`, definição mantida. Religar: `select cron.alter_job(16, active := true);`.
 
 - **Problema:** o pedido 49579315 estava em TERRITORIO no NEO, mas o painel o mostrava "parado há mais de 3 dias em ANTIFRAUDE". Nenhuma das duas APIs da NeoSales (produção e exportação) devolve pedido na etapa TERRITORIO: quando sai de ANTIFRAUDE para TERRITORIO, o pedido **some das duas**, e o banco ficava com a última etapa vista. Até 14/10 nenhum pedido tinha chegado com essa etapa (ver §55.5).
 - **Regra:** a exportação (sync-exportacao, §70) devolve o painel 15455 inteiro a cada hora. Pedido que estava em **ANTIFRAUDE** e não aparece na exportação há mais de 90 min (2 execuções seguidas) passa para **`TERRITORIO (NEOCRM)`** em `producao_pedidos_neo` e em `producao_atividades`. No `producao_etapa_historico`, a entrada na etapa fica com a hora da última vez em que o pedido apareceu na exportação (origem `sync`). Assim, os dias parados contam a partir dessa hora.
@@ -5219,4 +5220,45 @@ Pedido do Rafael ("redesign COMPLETO dessa aba… bonito, fácil de usar e claro
 - **Publicação (18/11/2026 15:54, ok do Rafael "pode publicar"):** o ar era `224781f1…` (= oficial/main f9d20a9); novo MD5
   `fd1508c5…`. Backup `~/deploy_backups/painel_clientes_apex.html.20261118185435.bak`. Reverter: copiar o backup de volta.
 
-Próxima livre: §159 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
+## §159 E-mail diário dos pedidos parados (Antifraude e Entrega) para a executiva da Claro (no ar desde 13/10/2026; registrado no oficial em 19/11/2026)
+
+> **Por que §159 e não §81:** o recurso foi feito e publicado em 13/10 na branch `feat/relatorio-pedidos-parados` com o número §81, mas a branch nunca foi juntada ao oficial e a §81 ficou reservada para a migração da sync-producao. A auditoria de 19/11/2026 (A-001) achou a Edge Function e o cron rodando em produção sem o código no oficial. O código, a migration e os testes entraram aqui **idênticos** ao que está no ar (Edge Function v11; corpo da `relatorio_pedidos_parados_linhas()` igual ao do banco, só o fim de linha difere). Os comentários do código e a spec/plano ainda dizem "§81": é esta seção.
+> **Situação em 19/11/2026:** 25 envios automáticos (`relatorio_envio_log`), o último hoje às 08:00 com 88 pedidos; 02/11 pulado (feriado).
+
+Pedido do Rafael: todo dia útil de manhã, a executiva da Claro que acompanha a operação recebe por e-mail um Excel com **todos os pedidos parados em Antifraude e Entrega**, com a criticidade de cada um, para conferir o status e repassar ao back office. Spec: `docs/superpowers/specs/2026-10-13-relatorio-pedidos-parados-email-design.md`; plano: `docs/superpowers/plans/2026-10-13-relatorio-pedidos-parados-email.md`.
+
+- **Quando:** seg–sex às 08:00 de São Paulo (`pg_cron` `relatorio-pedidos-parados`, `0 11 * * 1-5` UTC). Feriado nacional não envia (registra "pulado").
+- **De/para:**
+  - sai de `corporativo@apexsmart.com.br` (SMTP Hostinger, 465/TLS), com o nome "Apex Smart Solutions";
+  - os destinatários ficam na tabela `relatorio_destinatarios` (só admin lê). **Não** ficam na `config`, que qualquer usuário logado lê, e nunca entram no repositório.
+- **Quais pedidos:**
+  - todos em `ANTIFRAUDE (NEOCRM)` e `ENTREGA (NEOCRM)` na hora do envio, sem corte de data, Apex e Campinas (coluna Operação);
+  - uma linha por pedido, como na §48.2.
+- **Dias parados:**
+  - dias úteis desde a **entrada na etapa atual** (`producao_na_etapa_desde`, §76; sem histórico, a ATUALIZACAO) até o dia do envio;
+  - **Baixa 0–3 · Média 4–6 · Alta 7+**. São faixas próprias do e-mail: a aba Pedidos em Alerta continua com 3–5 / 6–9 / 10+.
+- **Carnaval:** a função conta segunda e terça (Páscoa − 48/− 47). O painel usa − 47/− 46 (terça e Quarta de Cinzas), erro a corrigir à parte.
+- **Excel `PedidosParados_AAAA-MM-DD.xlsx`:**
+  - aba "Pedidos Parados", colorida por criticidade, com filtro, cabeçalho congelado e a coluna **Retorno** em branco para a executiva preencher. É dela que sairão as categorias para o back office (próxima fase);
+  - aba "Resumo" (Etapa × Criticidade).
+- **Corpo do e-mail:** só contagens. Avisa se a última sincronização com o NeoCRM tiver mais de 3 h. Sem pedidos, sai sem anexo.
+- **Código:** Edge Function `supabase/functions/relatorio-pedidos-parados/` (`regras.ts`, `planilha.ts`, `email.ts`, `relatorio.ts`, `index.ts`); testes `node --test "supabase/functions/relatorio-pedidos-parados/*.test.ts"`.
+- **Banco:**
+  - migration `20261013100000_relatorio_pedidos_parados.sql`: tabelas `relatorio_destinatarios` e `relatorio_envio_log`, função `relatorio_pedidos_parados_linhas()` (só `service_role`) e o job;
+  - rollback em `supabase/rollback/`; conferência em `supabase/tests/relatorio_pedidos_parados_check.sql`.
+- **Segredos (Edge Function):**
+  - `SMTP_USER` e `SMTP_PASS`. O Rafael grava a senha no painel do Supabase; ela nunca aparece em conversa nem em arquivo;
+  - o cron reaproveita `SYNC_CRON_SECRET` / `sync_producao_cron_secret`.
+- **Acompanhar:** `select * from relatorio_envio_log order by id desc;`. Um envio por dia (`enviado`); duplicidade vira `pulado`.
+- **Reenviar no mesmo dia:** chamar a função com `{"modo":"reenviar"}` (mesmo `net.http_post` do cron, trocando o body).
+- **Teste para outro e-mail:** `{"modo":"teste","para":["..."]}` (assunto com `[TESTE]`).
+- **Pausar:** `update relatorio_destinatarios set ativo = false where relatorio = 'pedidos_parados';`.
+- **Desligar:** `select cron.unschedule(jobid) from cron.job where jobname = 'relatorio-pedidos-parados';`.
+- **Trocar destinatário:** `update relatorio_destinatarios set para = array['novo@...'] where relatorio = 'pedidos_parados';`.
+- **Entrada no ar (13/10/2026):**
+  - 1º envio de teste (22:23) chegou **cru**: a denomailer 1.6.0 codifica assunto com caractere não-ASCII (o travessão "—") em quoted-printable e quebra a linha a cada 74 caracteres **dentro do cabeçalho**, então o leitor mostrou o e-mail inteiro como texto, com o anexo em base64. Correção: o assunto é só ASCII (hífen), com teste que impede a volta (`email.test.ts`). **Nunca pôr acento ou travessão no assunto** enquanto a biblioteca for essa.
+  - 2º envio de teste aprovado pelo Rafael (~22:50); destinatária real cadastrada às 22:55; primeiro envio automático: quarta 14/10/2026 às 08:00.
+  - A migration foi rodada pelo Rafael no SQL Editor (a ferramenta de migration da sessão do Claude foi bloqueada duas vezes).
+- **Fora de escopo (por ora):** categorias de retorno, leitura da planilha devolvida, tela no painel para destinatários/log, aviso de falha por Telegram, outras etapas.
+
+Próxima livre: §160 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
