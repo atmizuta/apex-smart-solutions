@@ -692,7 +692,7 @@ No `test_prospeccao.js`, trocar a linha `// __FLUXO__ (Task 3 acrescenta aqui)` 
   eq(chamadas('prospec_mover').length, 0, 'sem chamada ao banco');
   ov.querySelector('#prospecRetorno').value = '2026-11-21T10:30';
   window.__rpcRespostas.prospec_mover = { data: { ok: true }, error: null };
-  ov.querySelector('[data-prospec-salvar="2"]').click(); await espera(30);
+  ov.querySelector('[data-prospec-salvar="2"]').click(); await espera(200);   // fecharOverlay anima 150 ms
   const mv = chamadas('prospec_mover')[0].args;
   assert(mv.p_id === 2 && mv.p_etapa === 'retornar' && mv.p_obs === 'Zz digitando' && mv.p_retorno_em === new Date('2026-11-21T10:30').toISOString(), 'args do mover');
   assert(!ov.classList.contains('active'), 'salvar fecha a ficha');
@@ -941,7 +941,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - [ ] **Step 1: Pedir ok e aplicar a migration**
 
 Com o ok do Rafael, rodar o conteúdo de `supabase/migrations/20261119180000_prospeccao.sql` com `execute_sql`. Ele já tem `begin;` e `commit;`.
-Conferir com `select count(*) from prospec_acesso;` (esperado 2) e com `begin;` + o arquivo `supabase/tests/prospeccao_check.sql` sem as 3 primeiras linhas (esperado `OK`, e nada fica porque termina em `rollback`).
+Conferir com `select count(*) from prospec_acesso;` (esperado 2) e rodando o arquivo `supabase/tests/prospeccao_check.sql` inteiro (ele já abre com `begin;` e termina em `rollback;`; esperado `OK`, nada fica).
 
 - [ ] **Step 2: Baixar as duas guias**
 
