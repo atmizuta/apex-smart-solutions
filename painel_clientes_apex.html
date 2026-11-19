@@ -6946,12 +6946,10 @@ function prospecPrimeiroNome(nome){
   const p = String(nome || '').trim().split(/\s+/)[0] || '';
   return p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : '';
 }
+// §161.1: texto da campanha de Black Friday (fixo; o consultor pode editar no WhatsApp antes de enviar).
+const PROSPEC_WHATS_TEXTO = 'Olá! Estou entrando em contato porque você já tem uma linha da Claro, e temos uma oferta ESPECIAL de Black Friday de fibra PRA VOCÊ!';
 function prospecWhatsTexto(c, consultor){
-  const socio = prospecPrimeiroNome(c && c.socio_nome), eu = prospecPrimeiroNome(consultor) || 'seu consultor';
-  const razao = String((c && c.razao_social) || '').trim();
-  return `Olá${socio ? ', ' + socio : ''}! Aqui é ${eu}, da Claro Empresas. `
-    + (razao ? `Estou entrando em contato sobre a ${razao}: temos` : 'Temos')
-    + ' condições especiais de internet e móvel para empresas. Posso te explicar rapidinho?';
+  return PROSPEC_WHATS_TEXTO;
 }
 function prospecWhatsLink(c, consultor){
   const t = prospecTelInfo(c);

@@ -76,12 +76,11 @@ try{
   // ==== WhatsApp ====
   eq(prospecPrimeiroNome('ZZKSOCIO FULANO'), 'Zzksocio', 'primeiro nome capitalizado');
   eq(prospecPrimeiroNome('  '), '', 'nome vazio');
-  eq(prospecWhatsTexto(C(), 'Zzkcon Teste'),
-     'Olá, Zzksocio! Aqui é Zzkcon, da Claro Empresas. Estou entrando em contato sobre a Zz Oficina Ltda: temos condições especiais de internet e móvel para empresas. Posso te explicar rapidinho?', 'texto completo');
-  eq(prospecWhatsTexto(C({ socio_nome: null, razao_social: null }), 'Zzkcon'),
-     'Olá! Aqui é Zzkcon, da Claro Empresas. Temos condições especiais de internet e móvel para empresas. Posso te explicar rapidinho?', 'sem sócio e sem razão');
+  const TXT_BF = 'Olá! Estou entrando em contato porque você já tem uma linha da Claro, e temos uma oferta ESPECIAL de Black Friday de fibra PRA VOCÊ!';
+  eq(prospecWhatsTexto(C(), 'Zzkcon Teste'), TXT_BF, 'texto Black Friday');
+  eq(prospecWhatsTexto(C({ socio_nome: null, razao_social: null }), 'Zzkcon'), TXT_BF, 'mesmo texto sem sócio e sem razão');
   const link = prospecWhatsLink(C({ razao_social: 'Zz & "Filhos" <b>' }), 'Zzkcon');
-  assert(link.startsWith('https://wa.me/5511900000001?text=') && link.includes(encodeURIComponent('Zz & "Filhos" <b>')), 'link codificado');
+  eq(link, 'https://wa.me/5511900000001?text=' + encodeURIComponent(TXT_BF), 'link codificado');
   eq(prospecWhatsLink(C({ telefone: '1930000000' }), 'Zzkcon'), '', 'fixo: sem link');
   eq(prospecWhatsLink(C({ telefone: null }), 'Zzkcon'), '', 'sem número: sem link');
 
@@ -164,7 +163,7 @@ try{
   assert(window.__alertas.includes('Esse cliente já foi pego por Zz Outra'), 'aviso ja_tem_dono');
   // WhatsApp e Ligar
   col('livre').querySelector('[data-prospec-whats="1"]').click(); await espera(5);
-  assert(window.__abertos.length === 1 && window.__abertos[0].url.startsWith('https://wa.me/5511900000001?text=Ol%C3%A1%2C%20Zzksocio!%20Aqui%20%C3%A9%20Zzkcon'), 'WhatsApp abre wa.me com texto');
+  assert(window.__abertos.length === 1 && window.__abertos[0].url.startsWith('https://wa.me/5511900000001?text=Ol%C3%A1!%20Estou%20entrando%20em%20contato'), 'WhatsApp abre wa.me com texto');
   // Ficha: abre, valida retorno sem data, salva, e o timer não apaga o texto
   col('contato').querySelector('[data-prospec-id="2"]').click(); await espera(10);
   const ov = document.getElementById('prospecOverlay');

@@ -5327,6 +5327,10 @@ Pedido do Rafael: todo dia útil de manhã, a executiva da Claro que acompanha a
   (`origem = 'prospeccao'`, nenhuma reaproveitada de < 30 dias). Duas rodadas do robô e uma 2ª tentativa para os 4 que
   deram "A consulta não terminou a tempo.". Resultado: **145 com número** (134 com WhatsApp, 11 só celular/fixo),
   **7 sem sócios** e **1 erro**. No total, **168 dos 176** clientes têm número (144 com WhatsApp).
+- **§161.1 Texto do WhatsApp de Black Friday (19/11/2026, pedido do Rafael):** o botão WhatsApp passa a abrir com o
+  texto fixo "Olá! Estou entrando em contato porque você já tem uma linha da Claro, e temos uma oferta ESPECIAL de
+  Black Friday de fibra PRA VOCÊ!" (`PROSPEC_WHATS_TEXTO`; sem nome do sócio, do consultor nem da razão social).
+  O consultor ainda pode editar no WhatsApp antes de enviar.
 - **Retirar:** `delete from public.prospec_acesso;` esconde a subaba sem publicar. A remoção completa (botão, código,
   tabelas e funções `prospec_*`) é uma seção nova.
 
