@@ -38,6 +38,9 @@ assert0(tplRaw.includes('id="diariaTipoVenda"'), 'container #diariaTipoVenda dos
 assert0(tplRaw.includes('function renderDiariaTipoVenda('), 'função renderDiariaTipoVenda existe');
 assert0(tplRaw.includes('DIARIA_TIPOS_VENDA'), 'lista DIARIA_TIPOS_VENDA (categorias) existe');
 assert0(tplRaw.includes("grupo: 'BANDA LARGA - Novo'"), 'categoria Banda Larga mapeada pro grupo "BANDA LARGA - Novo"');
+// §160 (19/11/2026): modem sai do card Banda Larga e ganha card próprio (grupo virtual, separado pelo nome do produto)
+assert0(tplRaw.includes("{ label: 'Modem', grupo: 'BANDA LARGA - Modem'"), '§160: categoria Modem mapeada pro grupo virtual "BANDA LARGA - Modem"');
+assert0(tplRaw.includes('function tipoVendaDe('), '§160: função tipoVendaDe (separa modem da banda larga) existe');
 assert0(tplRaw.includes("grupo: 'VOZ - Tranf. Titularidade'"), 'categoria Migração mapeada pro grupo "VOZ - Tranf. Titularidade"');
 assert0(tplRaw.includes("grupo: 'VOZ - Novo'"), 'categoria Linha Nova mapeada pro grupo "VOZ - Novo"');
 assert0(tplRaw.includes("grupo: 'VOZ - Renovação'"), 'categoria Renovação mapeada pro grupo "VOZ - Renovação"');
@@ -81,7 +84,7 @@ const FIXTURE = [
   lead({ numero_pedido: '7', usuario: 'Vitor',    grupo: 'APARELHO',            cadastro: '2026-08-19T22:00:00-03:00', valor: 50,  quantidade: 1 }),
   // cobrem as outras 3 categorias dos cards "Por tipo de venda" (01/09/2026) — horas 07h/08h/17h,
   // que nao colidem com as horas ja conferidas nos testes de distribuicao por hora (09h/14h)
-  lead({ numero_pedido: '8',  usuario: 'Caio',     grupo: 'BANDA LARGA - Novo',            cadastro: '2026-08-20T07:00:00-03:00', valor: 400, quantidade: 1 }),
+  lead({ numero_pedido: '8',  usuario: 'Caio',     grupo: 'BANDA LARGA - Novo',            cadastro: '2026-08-20T07:00:00-03:00', valor: 400, quantidade: 1, produto: 'ULTRA VELOCIDADE 600 MEGA' }),
   lead({ numero_pedido: '9',  usuario: 'Giovanna', grupo: 'VOZ - Tranf. Titularidade',     cadastro: '2026-08-20T08:00:00-03:00', valor: 250, quantidade: 1 }),
   lead({ numero_pedido: '10', usuario: 'Caio',     grupo: 'VOZ - Renovação',               cadastro: '2026-08-20T17:00:00-03:00', valor: 600, quantidade: 2 }),
   // cobrem os 2 novos cards "Por tipo de venda" (15/09/2026: Aparelho e SVA Fixa) — horas 10h/11h,
@@ -287,9 +290,11 @@ try{
   const tipoVendaEl = document.getElementById('diariaTipoVenda');
   const tipoVendaHtml = tipoVendaEl.innerHTML;
   const tipoCards = Array.from(tipoVendaEl.querySelectorAll('.card[data-grupo]'));
-  assert(tipoCards.length === 8, 'renderiza exatamente os 8 cards de categoria (obtido ' + tipoCards.length + ')');
+  assert(tipoCards.length === 9, 'renderiza exatamente os 9 cards de categoria (§160: + Modem) (obtido ' + tipoCards.length + ')');
+  assert(tipoVendaHtml.includes('Modem'), '§160: o card Modem aparece');
   assert(tipoVendaHtml.includes('Banda Larga') && tipoVendaHtml.includes('Migracao') && tipoVendaHtml.includes('Portabilidade') && tipoVendaHtml.includes('Linha Nova') && tipoVendaHtml.includes('Renovacao') && tipoVendaHtml.includes('Aparelho') && tipoVendaHtml.includes('SVA Fixa') && tipoVendaHtml.includes('Claro Monitor'), 'os 8 rótulos aparecem: Banda Larga, Migração, Portabilidade, Linha Nova, Renovação, Aparelho, SVA Fixa, Claro Monitor — ' + tipoVendaHtml);
   const cardBanda = tipoCards.find(c => c.dataset.grupo === 'BANDA LARGA - Novo');
+  const cardModem = tipoCards.find(c => c.dataset.grupo === 'BANDA LARGA - Modem');
   const cardMigracao = tipoCards.find(c => c.dataset.grupo === 'VOZ - Tranf. Titularidade');
   const cardPortabilidade = tipoCards.find(c => c.dataset.grupo === 'VOZ - Portabilidade');
   const cardLinhaNova = tipoCards.find(c => c.dataset.grupo === 'VOZ - Novo');
@@ -298,6 +303,7 @@ try{
   const cardSvaFixa = tipoCards.find(c => c.dataset.grupo === 'SVA FIXA');
   const cardClaroMonitor = tipoCards.find(c => c.dataset.grupo === 'SVA MÓVEL');
   assert(cardBanda && cardBanda.querySelector('.value').textContent === '1', 'card Banda Larga mostra 1 (pedido 8) — obtido ' + (cardBanda && cardBanda.querySelector('.value').textContent));
+  assert(cardModem && cardModem.querySelector('.value').textContent === '0', '§160: card Modem mostra 0 (o pedido 8 é fibra, 600 MEGA) — obtido ' + (cardModem && cardModem.querySelector('.value').textContent));
   assert(cardMigracao && cardMigracao.querySelector('.value').textContent === '1', 'card Migração mostra 1 (pedido 9) — obtido ' + (cardMigracao && cardMigracao.querySelector('.value').textContent));
   assert(cardPortabilidade && cardPortabilidade.querySelector('.value').textContent === '5', 'card Portabilidade mostra 5 linhas (pedidos 3, 4 e 5: 1+1+3) — obtido ' + (cardPortabilidade && cardPortabilidade.querySelector('.value').textContent));
   assert(cardLinhaNova && cardLinhaNova.querySelector('.value').textContent === '3', 'card Linha Nova mostra 3 linhas (pedidos 1 e 2: 1+2) — obtido ' + (cardLinhaNova && cardLinhaNova.querySelector('.value').textContent));
@@ -311,10 +317,29 @@ try{
   const somaVoz = tipoCards.filter(c => c.dataset.grupo.indexOf('VOZ -') === 0).reduce((s, c) => s + valorCard(c), 0);
   assert(somaVoz === 11, 'a soma dos 4 cards de voz bate com o KPI Linhas do dia (11) — obtido ' + somaVoz);
   const somaCards = tipoCards.reduce((s, c) => s + valorCard(c), 0);
-  assert(somaCards === 14, 'soma dos 8 cards = 14 (11 linhas de voz + banda larga, aparelho, SVA fixa) — obtido ' + somaCards);
+  assert(somaCards === 14, 'soma dos 9 cards = 14 (11 linhas de voz + banda larga, aparelho, SVA fixa) — obtido ' + somaCards);
   // ordem: banda larga, migração, portabilidade, linha nova, renovação, aparelho, sva fixa, claro monitor
   const ordemGrupos = tipoCards.map(c => c.dataset.grupo);
-  assert(JSON.stringify(ordemGrupos) === JSON.stringify(['BANDA LARGA - Novo', 'VOZ - Tranf. Titularidade', 'VOZ - Portabilidade', 'VOZ - Novo', 'VOZ - Renovação', 'APARELHO', 'SVA FIXA', 'SVA MÓVEL']), 'ordem dos cards é banda larga, migração, portabilidade, linha nova, renovação, aparelho, sva fixa, claro monitor — obtido ' + ordemGrupos.join(', '));
+  assert(JSON.stringify(ordemGrupos) === JSON.stringify(['BANDA LARGA - Novo', 'BANDA LARGA - Modem', 'VOZ - Tranf. Titularidade', 'VOZ - Portabilidade', 'VOZ - Novo', 'VOZ - Renovação', 'APARELHO', 'SVA FIXA', 'SVA MÓVEL']), 'ordem dos cards é banda larga, modem, migração, portabilidade, linha nova, renovação, aparelho, sva fixa, claro monitor — obtido ' + ordemGrupos.join(', '));
+
+  // --- 7.1.1) §160 (19/11/2026): modem × banda larga pelo nome do produto (o NEO manda os dois no grupo
+  // "BANDA LARGA - Novo"). Franquia em GB, Modem, Roteador, Wi-fi ou Internet Móvel = Modem; o resto continua Banda Larga.
+  const bl = produto => tipoVendaDe({ grupo: 'BANDA LARGA - Novo', produto: produto });
+  assert(bl('ULTRA VELOCIDADE 600 MEGA') === 'BANDA LARGA - Novo', '§160: 600 MEGA é banda larga');
+  assert(bl('ULTRA VELOCIDADE 800 MEGA') === 'BANDA LARGA - Novo', '§160: 800 MEGA é banda larga');
+  assert(bl('ULTRA VELOCIDADE 1 GIGA') === 'BANDA LARGA - Novo', '§160: 1 GIGA é banda larga (GIGA não é franquia em GB)');
+  assert(bl(null) === 'BANDA LARGA - Novo' && bl('') === 'BANDA LARGA - Novo', '§160: sem produto continua banda larga');
+  ['CLARO INTERNET MÓVEL 5G+ 200GB', 'Claro Internet Móvel Empresas 10GB', 'Claro Internet 200GB (Pen Modem)',
+   'Claro Internet Wi-fi 150GB (Roteador)', 'Claro Internet Wi-fi 140GB + 140GB'].forEach(p => {
+    assert(bl(p) === 'BANDA LARGA - Modem', '§160: "' + p + '" é modem — obtido ' + bl(p));
+  });
+  assert(tipoVendaDe({ grupo: 'VOZ - Novo', produto: 'Claro 20GB' }) === 'VOZ - Novo', '§160: só mexe no grupo de banda larga (voz com GB segue voz)');
+  const rowsBl = [
+    { grupo: 'BANDA LARGA - Novo', produto: 'ULTRA VELOCIDADE 600 MEGA', quantidade: 1 },
+    { grupo: 'BANDA LARGA - Novo', produto: 'CLARO INTERNET MÓVEL 5G+ 200GB', quantidade: 2 },
+    { grupo: 'BANDA LARGA - Novo', produto: 'ULTRA VELOCIDADE 800 MEGA', quantidade: 1 },
+  ];
+  assert(qtdTipoVenda(rowsBl, 'BANDA LARGA - Novo') === 2 && qtdTipoVenda(rowsBl, 'BANDA LARGA - Modem') === 2, '§160: banda larga 2 + modem 2 = 4 (o card antigo mostraria 4)');
 
   // --- 7.2) clicar num card de categoria abre o analítico só com os pedidos daquela categoria ---
   let drilldownTipo = null;
@@ -408,7 +433,7 @@ try{
   assert(document.getElementById('diariaConsultores').innerHTML.includes('Sem dados'), 'dia sem pedidos mostra "Sem dados" no ranking por consultor, sem erro');
   assert(document.getElementById('diariaKpis').innerHTML.includes('kpiValue') || document.getElementById('diariaKpis').innerHTML.includes('>0<'), 'dia sem pedidos mostra os KPIs zerados, sem travar a tela');
   const tipoVendaVazio = Array.from(document.getElementById('diariaTipoVenda').querySelectorAll('.card[data-grupo] .value'));
-  assert(tipoVendaVazio.length === 8 && tipoVendaVazio.every(v => v.textContent === '0'), 'dia sem pedidos mostra os 8 cards de categoria zerados, sem sumir nenhum');
+  assert(tipoVendaVazio.length === 9 && tipoVendaVazio.every(v => v.textContent === '0'), 'dia sem pedidos mostra os 9 cards (§160: + Modem) de categoria zerados, sem sumir nenhum');
 
   // --- 9) função pura computeDiariaLinePath: quebra a linha nas horas sem contrato (não força 0) ---
   const porHoraFake = [
@@ -428,7 +453,7 @@ try{
   assert(r20.porHora.length === 24 && r20.porHora[9].contratos === 2 && r20.porHora[14].contratos === 3 && r20.porHora[14].linhas === 5, 'resumoDiaria: por hora igual ao gráfico (09h 2, 14h 3 com 5 linhas)');
   assert(r20.porConsultor[0].key === 'Caio' && r20.porConsultor[0].contratos === 6 && Math.abs(r20.porConsultor[0].valor - 2150) < 0.001, 'resumoDiaria: ranking por consultor igual ao da tela (Caio 6 / R$ 2.150)');
   const tipoNovo = r20.porTipo.find(t => t.grupo === 'VOZ - Novo');
-  assert(r20.porTipo.length === 8 && tipoNovo && tipoNovo.qtd === 3, 'resumoDiaria: por tipo de venda igual aos cards (Linha Nova 3 linhas)');
+  assert(r20.porTipo.length === 9 && tipoNovo && tipoNovo.qtd === 3, 'resumoDiaria: por tipo de venda igual aos cards (Linha Nova 3 linhas)');
   const r21 = resumoDiaria('2026-09-21');
   assert(r21.contratos === 5, 'resumoDiaria: convergência funde CONV-A1/A2 (5 contratos em 21/09) — obtido ' + r21.contratos);
   assert(r21.porContrato.length === 5 && r21.porContrato.some(c => c.chave === 'CONV_AAA111' && Math.abs(c.valor - 110) < 0.001), 'resumoDiaria: porContrato traz o contrato de convergência com o valor somado (R$ 110)');

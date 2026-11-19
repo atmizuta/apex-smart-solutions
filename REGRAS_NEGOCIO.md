@@ -5261,4 +5261,28 @@ Pedido do Rafael: todo dia útil de manhã, a executiva da Claro que acompanha a
   - A migration foi rodada pelo Rafael no SQL Editor (a ferramenta de migration da sessão do Claude foi bloqueada duas vezes).
 - **Fora de escopo (por ora):** categorias de retorno, leitura da planilha devolvida, tela no painel para destinatários/log, aviso de falha por Telegram, outras etapas.
 
-Próxima livre: §160 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
+## §160 Visão Diária: card "Modem" separado do card "Banda Larga" (19/11/2026, pedido do Rafael)
+
+- **Pedido:** "criar uma aba nova na visão diária que diferencie modem de banda larga". Em 18/11 o card Banda Larga
+  mostrava 3, mas 2 eram Internet Móvel 5G+ 200GB (modem) e só 1 era fibra (800 Mega).
+- **Causa:** o NEO manda fibra e modem no mesmo grupo `BANDA LARGA - Novo`. A diferença está só no nome do produto:
+  fibra = `ULTRA VELOCIDADE 600/800 MEGA`; modem = `Claro Internet Móvel 5G+/Empresas ...GB`, `Wi-fi ...GB (Roteador)`,
+  `200GB (Pen Modem)`.
+- **Regra nova:** dentro de `BANDA LARGA - Novo`, produto com franquia em GB (`\d GB`), `MODEM`, `ROTEADOR`, `WI-FI`
+  ou `INTERNET MÓVEL` conta no card **Modem**. O resto, inclusive pedido sem produto, continua em **Banda Larga**
+  (fibra). Fica em `tipoVendaDe()` / `BL_MODEM_RE` no dashboard. Produto novo de modem sem esses termos: acrescentar
+  o termo na expressão.
+- **Como:** "Modem" é um grupo **virtual** (`BANDA LARGA - Modem`) na lista `DIARIA_TIPOS_VENDA`, logo depois de
+  Banda Larga. `qtdTipoVenda()` e o clique do card usam `tipoVendaDe()`. Como `resumoDiaria().porTipo` é a fonte
+  única (§153), os **relatórios das 17h e 21h** e o **Boletim da Manhã** também mostram "Banda larga" e "Modem"
+  separados (rótulos em `RELATORIO_ROTULOS` e `BM_TIPOS_ROTULO`).
+- **Não muda:** Contratos, Linhas, Valor, Ticket e o ritmo por hora. Banda Larga + Modem = o card antigo. A Projeção
+  de Ganho, a TV Vendas e os Pedidos em Alerta continuam com a banda larga junta: o grupo virtual fica fora da lista
+  da Projeção (`virtual: true`), senão aparecia uma linha "Modem" sempre zerada.
+- **Conferência com dados reais (1º a 18/11, sem Proposta/Aguardando):** Modem em 03/11 (1), 05/11 (1) e 18/11 (2);
+  todo o resto é fibra. Em 18/11: Banda Larga 1, Modem 2.
+- **Testes:** `test_visao_diaria.js` (9 cards; 600/800 MEGA e 1 GIGA = Banda Larga; 5G 200GB, Empresas 10GB, Pen
+  Modem, Roteador e Wi-fi = Modem; sem produto = Banda Larga; voz com GB segue voz; Banda Larga + Modem = total) e
+  `test_relatorio_17h.js` (linha "Modem: 1" no texto).
+
+Próxima livre: §161 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
