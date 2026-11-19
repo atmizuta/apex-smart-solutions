@@ -6894,6 +6894,97 @@ async function kbLigar(telefone){
   kbAbrirProContact();
   mostrarAviso(copiou ? `Número ${kbFoneBR(num)} copiado. Cole no ProContact para ligar.` : `Ligue para ${kbFoneBR(num)} no ProContact.`, copiou ? 'ok' : 'info');
 }
+// ===== §161: subaba Prospecção (Caio e Lúria, temporária). Spec: docs/superpowers/specs/2026-11-19-prospeccao-caio-luria-design.md =====
+const PROSPEC_ETAPAS = [['livre', 'Livres'], ['contato', 'Em contato'], ['retornar', 'Retornar'], ['venda', 'Venda'], ['sem_interesse', 'Sem interesse'], ['sem_contato', 'Sem contato']];
+const PROSPEC_SEM_NUMERO = { pendente: 'Consultando telefone…', erro: 'Consulta com erro', sem_socios: 'Sem sócio na Nova Vida' };
+function prospecTelInfo(c){
+  const numero = kbTelCopiar(c && c.telefone);
+  if(numero.length !== 10 && numero.length !== 11) return { numero: '', celular: false, rotulo: PROSPEC_SEM_NUMERO[c && c.nv_status] || 'Sem telefone', selo: '' };
+  const celular = numero.length === 11;
+  return { numero, celular, rotulo: kbFoneBR(numero), selo: !celular ? '' : c.whatsapp === true ? 'whats' : c.whatsapp === false ? 'semwhats' : '' };
+}
+function prospecPrimeiroNome(nome){
+  const p = String(nome || '').trim().split(/\s+/)[0] || '';
+  return p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : '';
+}
+function prospecWhatsTexto(c, consultor){
+  const socio = prospecPrimeiroNome(c && c.socio_nome), eu = prospecPrimeiroNome(consultor) || 'seu consultor';
+  const razao = String((c && c.razao_social) || '').trim();
+  return `Olá${socio ? ', ' + socio : ''}! Aqui é ${eu}, da Claro Empresas. `
+    + (razao ? `Estou entrando em contato sobre a ${razao}: temos` : 'Temos')
+    + ' condições especiais de internet e móvel para empresas. Posso te explicar rapidinho?';
+}
+function prospecWhatsLink(c, consultor){
+  const t = prospecTelInfo(c);
+  return t.celular ? `https://wa.me/55${t.numero}?text=${encodeURIComponent(prospecWhatsTexto(c, consultor))}` : '';
+}
+function prospecNorm(s){ return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+function prospecFiltrar(lista, f){
+  const q = prospecNorm(f && f.busca).trim(), dig = q.replace(/\D/g, '');
+  return (lista || []).filter(c => {
+    if(f && f.meus && c.dono_id !== f.uid) return false;
+    if(!q) return true;
+    if(prospecNorm([c.razao_social, c.socio_nome, c.cidade, c.dono_nome].join(' ')).includes(q)) return true;
+    return dig.length >= 4 && (String(c.cnpj || '').includes(dig) || kbTelCopiar(c.telefone).includes(dig));
+  });
+}
+function prospecAgrupar(lista){
+  const g = {};
+  PROSPEC_ETAPAS.forEach(([v]) => { g[v] = []; });
+  (lista || []).forEach(c => { (g[c.etapa] || g.livre).push(c); });
+  g.retornar.sort((a, b) => String(a.retorno_em || '').localeCompare(String(b.retorno_em || '')));
+  ['contato', 'venda', 'sem_interesse', 'sem_contato'].forEach(k => g[k].sort((a, b) => String(b.atualizado_em || '').localeCompare(String(a.atualizado_em || ''))));
+  return g;
+}
+function prospecCnpjFmt(d){ d = String(d || ''); return d.length === 14 ? `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}` : d; }
+function prospecNome(c){ return c.razao_social || prospecCnpjFmt(c.cnpj); }
+function prospecRetornoTag(c, agoraMs){
+  if(c.etapa !== 'retornar' || !c.retorno_em) return '';
+  const vencido = Date.parse(c.retorno_em) < agoraMs;
+  return `<span class="kbTag${vencido ? ' late' : ''}">Retornar ${escapeHtml(kbDataHoraBR(c.retorno_em))}</span>`;
+}
+function prospecSeloHtml(t){
+  if(t.selo === 'whats') return '<span class="prospecSelo prospecSeloWhats">WhatsApp</span>';
+  if(t.selo === 'semwhats') return '<span class="prospecSelo">sem WhatsApp</span>';
+  return '';
+}
+function prospecBotoesHtml(c, t){
+  if(!t.numero) return '';
+  return `<div class="kbCartAcoes"><a class="kbBtn kbBtnP kbBtnIco" href="#" title="Ligar pelo ProContact (copia o número)" data-prospec-ligar="${c.id}">${KB_ICO.tel}</a>`
+    + (t.celular ? `<a class="kbBtn kbBtnQ kbBtnIco" href="#" title="WhatsApp com mensagem pronta" data-prospec-whats="${c.id}">${KB_ICO.wa}</a>` : '') + '</div>';
+}
+function prospecCardHtml(c, ctx){
+  const t = prospecTelInfo(c);
+  const meta = [[c.cidade, c.uf].filter(Boolean).join('/'), c.segmento].filter(Boolean).join(' · ');
+  const socio = c.socio_nome ? `<div class="kbCartMeta">${escapeHtml(c.socio_nome)}</div>` : '';
+  const tel = `<div class="prospecTel">${escapeHtml(t.rotulo)}${prospecSeloHtml(t)}</div>`;
+  const pegar = !c.dono_id ? `<button type="button" class="kbBtn kbBtnQ kbBtnSm" data-prospec-pegar="${c.id}"${ctx.pegando && ctx.pegando.has(c.id) ? ' disabled' : ''}>Pegar</button>` : '';
+  const dono = c.dono_id && c.dono_nome ? `<span class="kbCartDono" title="Com ${escapeHtml(c.dono_nome)}"><b>${escapeHtml(kbIniciais(c.dono_nome))}</b>${escapeHtml(String(c.dono_nome).trim().split(/\s+/)[0])}</span>` : '';
+  const obs = c.obs ? `<div class="kbObs" title="${escapeHtml(c.obs)}">${escapeHtml(c.obs)}</div>` : '';
+  return `<div class="kbCard${c.dono_id === ctx.uid ? ' prospecMeu' : ''}" data-prospec-id="${c.id}" tabindex="0">
+    <div class="kbNome">${escapeHtml(prospecNome(c))}</div>${meta ? `<div class="kbCartMeta">${escapeHtml(meta)}</div>` : ''}${socio}${tel}${obs}
+    <div class="kbCartRodape">${prospecRetornoTag(c, ctx.agoraMs)}${dono}${pegar}</div>${prospecBotoesHtml(c, t)}
+  </div>`;
+}
+function prospecFichaHtml(c, ctx){
+  const t = prospecTelInfo(c);
+  const pode = !!c.dono_id && (c.dono_id === ctx.uid || ctx.admin);
+  const linhas = Object.entries(c.dados || {}).filter(([, v]) => v !== null && v !== '')
+    .map(([k, v]) => `<tr><th>${escapeHtml(k)}</th><td>${escapeHtml(String(v))}</td></tr>`).join('');
+  const topo = `<div class="prospecFichaTel"><b>${escapeHtml(t.rotulo)}</b>${prospecSeloHtml(t)}${c.socio_nome ? ` · ${escapeHtml(c.socio_nome)}` : ''}${c.tel_fonte === 'nova_vida' ? ' · <span class="kbMuted">Nova Vida</span>' : ''}</div>${prospecBotoesHtml(c, t)}`;
+  let acao;
+  if(!c.dono_id) acao = `<button type="button" class="btn btn-sm" data-prospec-pegar="${c.id}">Pegar este cliente</button>`;
+  else if(!pode) acao = `<p class="kbMuted">Com ${escapeHtml(c.dono_nome || 'outro consultor')}${c.obs ? ' · ' + escapeHtml(c.obs) : ''}</p>`;
+  else {
+    const local = c.retorno_em ? new Date(Date.parse(c.retorno_em) - new Date(Date.parse(c.retorno_em)).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '';
+    acao = `<div class="prospecEtapas">${PROSPEC_ETAPAS.filter(([v]) => v !== 'livre').map(([v, r]) => `<button type="button" class="filterPill${c.etapa === v ? ' active' : ''}" data-prospec-etapa="${v}">${r}</button>`).join('')}</div>
+      <div class="field" id="prospecRetornoCampo"${c.etapa === 'retornar' ? '' : ' hidden'}><label>Retornar em</label><input type="datetime-local" id="prospecRetorno" value="${local}"></div>
+      <div class="field"><label>Observação</label><textarea id="prospecObs" rows="3">${escapeHtml(c.obs || '')}</textarea></div>
+      <div class="prospecErro" id="prospecErro"></div>
+      <div class="prospecFichaAcoes"><button type="button" class="btn btn-sm" data-prospec-salvar="${c.id}">Salvar</button><button type="button" class="btn btn-sm btn-outline" data-prospec-soltar="${c.id}">Soltar (volta para Livres)</button></div>`;
+  }
+  return `${topo}${acao}<details class="prospecDados"><summary>Dados da planilha (${escapeHtml(c.aba_origem || '')})</summary><table class="tbl"><tbody>${linhas || '<tr><td>—</td></tr>'}</tbody></table></details>`;
+}
 // §146: presença no painel (a cada 1 min com o painel aberto, em qualquer aba). Só quem é da equipe de leads.
 async function kbPresencaPing(acao){
   if(!kbEstado.naEquipe) return null;
