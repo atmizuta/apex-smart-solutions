@@ -120,7 +120,7 @@ try{
   eq(cssKb.match(/border-radius:(10|12|14|16)px/g) || [], [], 'CSS de Meus leads: cantos pelos tokens da marca (sem os 10–14px antigos)');
   const seg = document.getElementById('kbAbas');
   assert(seg.classList.contains('kbSeg'), 'abas viram controle segmentado');
-  eq([...seg.querySelectorAll('[data-kb-aba]')].map(b => b.dataset.kbAba), ['equipe', 'hoje', 'quadro', 'todos', 'conversao'], 'Equipe primeiro (só o gestor vê); Conversão no fim (§138.1)');
+  eq([...seg.querySelectorAll('[data-kb-aba]')].map(b => b.dataset.kbAba), ['equipe', 'hoje', 'quadro', 'todos', 'conversao', 'prospec'], 'Equipe primeiro (só o gestor vê); Conversão depois (§138.1); Prospecção no fim, escondida para quem não tem acesso (§161)');
   assert(document.querySelector('.kbBarra #kbBusca') && document.querySelector('.kbBarra .kbAtalhoTecla').textContent === '/', 'busca na barra, com o atalho /');
   assert(document.querySelector('#kbFiltrosGestor .kbMaisMenu #kbSoDiverg') && document.querySelector('#kbFiltrosGestor .kbMaisMenu #kbReescrever'), 'Só divergências e Reescrever no menu ⋯ do gestor');
   assert(!document.querySelector('#panel-meusleads .kbTopo'), 'sai o cartão antigo do topo');

@@ -124,7 +124,77 @@ try{
   assert(prospecFichaHtml(C(), { uid: 'u-a', admin: false, agoraMs: AG }).includes('data-prospec-pegar="1"'), 'livre: Pegar na ficha');
   assert(!prospecFichaHtml(C({ dados: { '<x>': '<img src=y>' } }), { uid: 'u-a', admin: false, agoraMs: AG }).includes('<img'), 'ficha escapa dados');
 
-  // __FLUXO__ (Task 3 acrescenta aqui)
+  // ==== fluxo no painel ====
+  const chamadas = (n) => window.__rpcCalls.filter(c => c.nome === n);
+  window.__tabelas.config = [{ valor: 'painel' }];
+  window.__tabelas.leads_equipe = [{ id: 1, profile_id: 'u-a', nome_planilha: 'ZZA', pode_pegar: true }];
+  window.__rpcRespostas.leads_kanban3 = { data: [], error: null };
+  window.__rpcRespostas.leads_hoje = { data: { fila: [], retornos: [], livres: 0, placar: {} }, error: null };
+  window.__rpcRespostas.leads_alertas = { data: [], error: null };
+  // sem acesso: botão escondido
+  currentUser = { id: 'u-fora', nome: 'Zz Fora', role: 'consultor' };
+  window.__rpcRespostas.prospec_pode = { data: false, error: null };
+  await kbAplicarPermissao(); kbTrocarAba('prospec'); await espera(30);
+  assert(document.querySelector('#kbAbas [data-kb-aba="prospec"]').style.display === 'none', 'sem acesso: botão escondido');
+  eq(chamadas('prospec_listar').length, 0, 'sem acesso: não lista');
+  // com acesso
+  currentUser = { id: 'u-a', nome: 'Zzkcon Teste', role: 'consultor' };
+  window.__rpcRespostas.prospec_pode = { data: true, error: null };
+  let lista = [C({ id: 1 }), C({ id: 2, etapa: 'contato', dono_id: 'u-a', dono_nome: 'Zzkcon Teste' }), C({ id: 3, etapa: 'contato', dono_id: 'u-b', dono_nome: 'Zz Outra' })];
+  window.__rpcRespostas.prospec_listar = () => ({ data: JSON.parse(JSON.stringify(lista)), error: null });
+  await kbAplicarPermissao(); kbTrocarAba('prospec'); await espera(40);
+  assert(document.querySelector('#kbAbas [data-kb-aba="prospec"]').style.display === '', 'com acesso: botão aparece');
+  assert(document.getElementById('kbProspec').style.display === '' && document.getElementById('kbBoard').style.display === 'none', 'só a Prospecção visível');
+  const col = (v) => document.querySelector('#prospecBoard .kbCol[data-prospec-col="' + v + '"]');
+  eq(col('livre').querySelectorAll('.kbCard').length, 1, '1 livre');
+  eq(col('contato').querySelectorAll('.kbCard').length, 2, '2 em contato');
+  eq(col('contato').querySelector('.kbConta').textContent, '2', 'contador');
+  // Meus
+  document.querySelector('[data-prospec-filtro="meus"]').click(); await espera(10);
+  eq(col('contato').querySelectorAll('.kbCard').length, 1, 'Meus: só os meus');
+  document.querySelector('[data-prospec-filtro="todos"]').click(); await espera(10);
+  // Pegar: desabilita durante a chamada; ja_tem_dono vira aviso info
+  let soltar; window.__rpcRespostas.prospec_pegar = () => new Promise(r => { soltar = () => r({ data: { ok: false, motivo: 'ja_tem_dono', dono: 'Zz Outra' }, error: null }); });
+  col('livre').querySelector('[data-prospec-pegar="1"]').click(); await espera(5);
+  assert(col('livre').querySelector('[data-prospec-pegar="1"]').disabled, 'Pegar desabilitado durante a chamada');
+  col('livre').querySelector('[data-prospec-pegar="1"]').click(); await espera(5);
+  eq(chamadas('prospec_pegar').length, 1, 'duplo clique: uma chamada só');
+  soltar(); await espera(30);
+  eq(chamadas('prospec_pegar')[0].args, { p_id: 1 }, 'args do pegar');
+  assert(window.__alertas.includes('Esse cliente já foi pego por Zz Outra'), 'aviso ja_tem_dono');
+  // WhatsApp e Ligar
+  col('livre').querySelector('[data-prospec-whats="1"]').click(); await espera(5);
+  assert(window.__abertos.length === 1 && window.__abertos[0].url.startsWith('https://wa.me/5511900000001?text=Ol%C3%A1%2C%20Zzksocio!%20Aqui%20%C3%A9%20Zzkcon'), 'WhatsApp abre wa.me com texto');
+  // Ficha: abre, valida retorno sem data, salva, e o timer não apaga o texto
+  col('contato').querySelector('[data-prospec-id="2"]').click(); await espera(10);
+  const ov = document.getElementById('prospecOverlay');
+  assert(ov.classList.contains('active') && ov.querySelector('[data-prospec-salvar="2"]'), 'ficha do meu cliente abre editável');
+  ov.querySelector('[data-prospec-etapa="retornar"]').click();
+  assert(!ov.querySelector('#prospecRetornoCampo').hidden, 'Retornar mostra o campo de data');
+  ov.querySelector('#prospecObs').value = 'Zz digitando';
+  await prospecCarregar(); await espera(10);
+  eq(ov.querySelector('#prospecObs').value, 'Zz digitando', 'recarga não apaga o que foi digitado');
+  ov.querySelector('[data-prospec-salvar="2"]').click(); await espera(10);
+  eq(ov.querySelector('#prospecErro').textContent, 'Escolha a data e a hora do retorno.', 'retornar sem data: erro local');
+  eq(chamadas('prospec_mover').length, 0, 'sem chamada ao banco');
+  ov.querySelector('#prospecRetorno').value = '2026-11-21T10:30';
+  window.__rpcRespostas.prospec_mover = { data: { ok: true }, error: null };
+  ov.querySelector('[data-prospec-salvar="2"]').click(); await espera(200);   // fecharOverlay anima 150 ms
+  const mv = chamadas('prospec_mover')[0].args;
+  assert(mv.p_id === 2 && mv.p_etapa === 'retornar' && mv.p_obs === 'Zz digitando' && mv.p_retorno_em === new Date('2026-11-21T10:30').toISOString(), 'args do mover');
+  assert(!ov.classList.contains('active'), 'salvar fecha a ficha');
+  // ficha de outro: só leitura
+  col('contato').querySelector('[data-prospec-id="3"]').click(); await espera(10);
+  assert(!ov.querySelector('[data-prospec-salvar]') && ov.textContent.includes('Com Zz Outra'), 'outro: só leitura');
+  fecharOverlay(ov);
+  // perde o acesso com o painel aberto
+  window.__rpcRespostas.prospec_listar = { data: null, error: { code: '42501', message: 'sem permissão' } };
+  await prospecCarregar(); await espera(10);
+  assert(document.getElementById('prospecBoard').textContent.includes('Você não tem acesso à Prospecção'), 'sem acesso: mensagem');
+  eq(prospecEstado.timer, null, 'sem acesso: timer parado');
+  // sair para
+  kbParar();
+  eq(prospecEstado.lista.length, 0, 'logout limpa a lista');
 
   console.log('--- RESULTADO:', ok, 'passaram,', fail, 'falharam ---');
   process.exit(fail > 0 ? 1 : 0);
