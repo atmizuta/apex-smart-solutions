@@ -5330,7 +5330,10 @@ Pedido do Rafael: todo dia útil de manhã, a executiva da Claro que acompanha a
 - **§161.1 Texto do WhatsApp de Black Friday (19/11/2026, pedido do Rafael):** o botão WhatsApp passa a abrir com o
   texto fixo "Olá! Estou entrando em contato porque você já tem uma linha da Claro, e temos uma oferta ESPECIAL de
   Black Friday de fibra PRA VOCÊ!" (`PROSPEC_WHATS_TEXTO`; sem nome do sócio, do consultor nem da razão social).
-  O consultor ainda pode editar no WhatsApp antes de enviar.
+  O consultor ainda pode editar no WhatsApp antes de enviar. **Publicado em 19/11/2026 ~20:03 (SP), ok do Rafael:**
+  o ar era `ad7910cb…` (igual ao 0a54119); novo MD5 `93cf52a1…`. Backup
+  `~/deploy_backups/painel_clientes_apex.html.20261119230324.bak` (hora do servidor, UTC). Suíte: 111 ok, as mesmas 7
+  falhas.
 - **Retirar:** `delete from public.prospec_acesso;` esconde a subaba sem publicar. A remoção completa (botão, código,
   tabelas e funções `prospec_*`) é uma seção nova.
 
