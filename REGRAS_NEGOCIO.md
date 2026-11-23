@@ -5378,3 +5378,6 @@ pela consulta de sócios em lote, branch feat/socios-lote).
   (`rankingEuNeo`, `rankingContexto`). O ranking só é montado quando a aba abre (e na sincronização, se estiver aberta). Nada mudou no banco.
 - **Testes:** `test_dashboard_ranking.js` e `test_ranking_contexto.js`.
 - **Spec e plano:** `docs/superpowers/{specs,plans}/2026-11-23-ranking*`.
+- **Publicação (23/11/2026 19:02, ok do Rafael):** o ar era `48bc0177…` (igual ao oficial 1f47484); novo MD5
+  `cb831d4c…`. Backup `~/deploy_backups/painel_clientes_apex_20261123_190244_antes_ranking.html`.
+  Reverter: copiar o backup de volta.
