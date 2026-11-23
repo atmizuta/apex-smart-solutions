@@ -5337,4 +5337,22 @@ Pedido do Rafael: todo dia útil de manhã, a executiva da Claro que acompanha a
 - **Retirar:** `delete from public.prospec_acesso;` esconde a subaba sem publicar. A remoção completa (botão, código,
   tabelas e funções `prospec_*`) é uma seção nova.
 
-Próxima livre: §162 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta).
+## §163 Consultar sócios também para a operação Campinas (23/11/2026, pedido do Rafael)
+
+- **O que muda:** a aba **Consultar sócios** (§157/§158) aparece também para quem é da operação **Campinas**
+  (consultores e o supervisor Jaime). Antes era só da Apex (`veAbasDaApex()`).
+- **Painel:** `canSocios()` aceita `minhaOperacao()` em `apex` ou `campinas`. O time da Renovação continua sem a aba
+  (usa a aba Sócios da ficha, §156). Teste: `test_socios_aba.js` (30).
+- **Banco:** `socios_pode_avulsa()` libera `consultor` com `operacao in ('apex','campinas')`; admin e supervisor de
+  qualquer operação já podiam. Migration `20261123180000_socios_campinas.sql`, aplicada em 23/11 com ok do Rafael e
+  conferida simulando cada login (Campinas e Apex podem; Agência não).
+- **Sem mudança:** limite de 20 consultas por pessoa por dia (somado com a Renovação), resultado guardado 30 dias,
+  cada um vê só as próprias consultas.
+- **Publicação (23/11/2026 14:54, ok do Rafael):** o ar era `93cf52a1…` (§161.1); novo MD5 `48bc0177…`. Backup
+  `~/deploy_backups/painel_clientes_apex.html.20261123175436.bak` (hora do servidor, UTC). Diferença para o ar: só as
+  duas linhas da §163. Suíte: 110 ok, 8 falhas — as 7 da §161 mais `test_conversao_vendas.js`, que falha igual no
+  `281a2e3` sem a mudança.
+- **Junto:** a Ana Júlia (cadastrada como Apex por engano) passou para `operacao = 'campinas'` no mesmo dia.
+
+Próxima livre: §164 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta; §162 reservada
+pela consulta de sócios em lote, branch feat/socios-lote).
