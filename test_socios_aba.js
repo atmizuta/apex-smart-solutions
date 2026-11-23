@@ -11,7 +11,11 @@ require('./renovacao_test_harness.js').rodar(`
 
   // visibilidade
   currentUser = { id: 'u-c', nome: 'Zzc', role: 'consultor', operacao: 'campinas', equipe: null }; scAplicarPermissao();
-  eq(document.getElementById('tabBtnSocios').style.display, 'none', 'Campinas não vê');
+  eq(document.getElementById('tabBtnSocios').style.display, 'inline-block', 'consultor de Campinas vê (§163)');
+  currentUser = { id: 'u-j', nome: 'Zzj', role: 'supervisor', operacao: 'campinas', equipe: null }; scAplicarPermissao();
+  eq(document.getElementById('tabBtnSocios').style.display, 'inline-block', 'supervisor de Campinas vê (§163)');
+  currentUser = { id: 'u-x', nome: 'Zzx', role: 'consultor', operacao: 'outra', equipe: null }; scAplicarPermissao();
+  eq(document.getElementById('tabBtnSocios').style.display, 'inline-block', 'operação desconhecida cai na Apex e vê');
   currentUser = { id: 'u-r', nome: 'Zzr', role: 'consultor', operacao: 'apex', equipe: 'renovacao' }; scAplicarPermissao();
   eq(document.getElementById('tabBtnSocios').style.display, 'none', 'time da Renovação não vê');
   currentUser = { id: 'u-a', nome: 'Zza Teste', role: 'consultor', operacao: 'apex', equipe: null }; scAplicarPermissao();

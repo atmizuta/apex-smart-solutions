@@ -1791,7 +1791,7 @@
       <button data-tab="busca" data-sub="Base de clientes por razão social, CNPJ ou telefone"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span class="sbLabel">Buscar Clientes</span></button>
       <button data-tab="proposta" id="tabBtnProposta" data-sub="Proposta avulsa e análise de fatura"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg><span class="sbLabel">Gerar Proposta</span></button>
       <button data-tab="funil" id="tabBtnFunil" data-sub="Negociações em andamento, por estágio"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg><span class="sbLabel">Funil</span></button>
-      <!-- §157: Consultar sócios — operação Apex; o time da Renovação usa a aba Sócios da ficha -->
+      <!-- §157/§163: Consultar sócios — operações Apex e Campinas; o time da Renovação usa a aba Sócios da ficha -->
       <button data-tab="socios" id="tabBtnSocios" style="display:none" data-sub="CPF e telefones dos sócios de qualquer CNPJ"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="sbLabel">Consultar sócios</span></button>
       <!-- 30/09/2026: aba só do consultor (vê apenas os pedidos dele). Admin/supervisor seguem com "Pedidos em Alerta" no Dashboard. Ver seção 53 do REGRAS_NEGOCIO.md. -->
       <button data-tab="pedidosparados" id="tabBtnPedidosParados" style="display:none" data-sub="Seus pedidos parados, agenda e oportunidades"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="sbLabel">Pedidos Parados</span></button>
@@ -5093,7 +5093,8 @@ document.getElementById('rnHojeFiltros').addEventListener('click', () => {
 const SC_MOTIVO = { limite: 'Você já fez 20 consultas hoje. Amanhã libera de novo.', sem_permissao: 'A consulta de sócios é só para a operação Apex.', cnpj_invalido: 'Confira o CNPJ: os dígitos não batem.' };
 const SC_COLS = 'id,cnpj_digits,razao_social,status,pedido_por,pedido_em,iniciado_em,concluido_em,resultado,erro,copiado_de';
 const scEstado = { atual: null, lista: [], timer: null, geracao: 0, enviando: false };
-function canSocios(){ return !!currentUser && ['consultor', 'supervisor', 'admin'].includes(currentUser.role) && veAbasDaApex() && !rnSoRenovacao(); }
+// §163: Apex e Campinas (minhaOperacao() só devolve operação cadastrada; o banco confere em socios_pode_avulsa)
+function canSocios(){ return !!currentUser && ['consultor', 'supervisor', 'admin'].includes(currentUser.role) && ['apex', 'campinas'].includes(minhaOperacao()) && !rnSoRenovacao(); }
 function scParar(){ if(scEstado.timer){ clearTimeout(scEstado.timer); scEstado.timer = null; } }
 function scAvisar(t){ const el = document.getElementById('scAviso'); if(el) el.textContent = t || ''; }
 function scVisivel(){ const p = document.getElementById('panel-socios'); return !!p && p.classList.contains('active'); }
