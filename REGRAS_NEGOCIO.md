@@ -5354,5 +5354,27 @@ Pedido do Rafael: todo dia útil de manhã, a executiva da Claro que acompanha a
   `281a2e3` sem a mudança.
 - **Junto:** a Ana Júlia (cadastrada como Apex por engano) passou para `operacao = 'campinas'` no mesmo dia.
 
-Próxima livre: §164 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta; §162 reservada
+Próxima livre: §165 (§138.2 e §138.3 reservadas; §150 reservada pela biometria em Pedidos em Alerta; §162 reservada
 pela consulta de sócios em lote, branch feat/socios-lote).
+
+## §164 Sub-aba "Ranking" no Dashboard (23/11/2026, pedido do Rafael)
+
+- **Pedido:** "crie uma sub aba de ranking, que por lá todos os consultores consigam visualizar claramente todos os
+  rankings" — três rankings: Linhas (desempate pela receita), Fibra (modem e internet fixa) e Soluções digitais.
+- **Onde:** sub-aba "Ranking" do Dashboard, depois da Visão Diária. Todos os logins que veem o Dashboard, inclusive a
+  operação Campinas. **Apex e Campinas nunca se misturam**: cada um vê a própria operação; admin com "Apex + Campinas"
+  vê dois blocos separados.
+- **Conta:** pedidos pela data de cadastro (SP), sem Venda perdida, Devolvido, Proposta e Aguardando interação.
+  Linhas = grupos `VOZ*` (igual ao card Linhas); Fibra = `BANDA LARGA*` e `NET - VIRTUA` (fibra, modem e internet fixa, como na §101; detalhe do modem pela §160);
+  Digitais = `SVA MÓVEL`, `SVA FIXA`, `INCREMENTO DE MÓDULO`, `NET - TV`. Aparelho não entra.
+  Desempate: receita do próprio ranking, depois nome. Grupo novo do NEO só entra se for acrescentado
+  (`rankingCategoria` no dashboard).
+- **Fora:** quem já está fora do Dashboard e, só no ranking, Anderson Teixeira Mizuta (`RANKING_FORA`).
+- **Tela:** Hoje | Semana | Mês (+ meses anteriores); total do time; "sua posição" (nome do login no NEO pelo
+  `consultor_neo`, senão o nome do perfil; sem par, a faixa não aparece); pódio em forma de pico; lista com seta
+  (posição agora × fim de ontem, só quando o período termina hoje e começou antes) e barra proporcional ao líder;
+  "Ainda sem venda" com a equipe da operação (`equipe_vendedores`). Sem Modo TV.
+- **Como:** só no iframe do Dashboard, com os pedidos que ele já recebe; o painel de fora manda `__RANKING__`
+  (`rankingEuNeo`, `rankingContexto`). O ranking só é montado quando a aba abre (e na sincronização, se estiver aberta). Nada mudou no banco.
+- **Testes:** `test_dashboard_ranking.js` e `test_ranking_contexto.js`.
+- **Spec e plano:** `docs/superpowers/{specs,plans}/2026-11-23-ranking*`.
