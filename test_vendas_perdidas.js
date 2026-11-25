@@ -265,6 +265,7 @@ const FIXTURE = [
 
   // tabela de pedidos: mais recente primeiro, dias até perder, sem motivo
   assert(JSON.stringify(pedidosTabela(w)) === JSON.stringify(['P4', 'P3', 'P2', 'P1', 'P5']), 'tabela pela data da perda, mais recente primeiro — ' + JSON.stringify(pedidosTabela(w)));
+  assert($(w, '#perdBody a[data-mp-pedido]'), 'número do pedido em Vendas Perdidas vira link para a gaveta (§166)');
   const p4 = $$(w, '#perdBody tr')[0];
   assert(p4.children[2].textContent.trim() === '—' && p4.children[10].textContent.includes('Sem motivo informado') && p4.children[11].textContent.includes('#retorno'), 'P4: sem dias (sem cadastro), sem motivo, tag do pedido como fallback');
   const p3 = $$(w, '#perdBody tr')[1];
