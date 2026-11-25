@@ -18,7 +18,7 @@ require('./renovacao_test_harness.js').rodar(`
      [[4], [1, 6], [1], [4], [3], [2], [5]], 'visões');
   eq(ids({ ordem: 'retorno' }), [1, 6, 2, 3, 4], 'retorno mais próximo primeiro (sem retorno no fim, por linhas)');
   eq(ids({ busca: 'acido' }), [1], 'busca sem acento');
-  eq(rnContarVisoes(base(), rnFiltrosVazios(), AG), { todos: 5, nao: 1, andamento: 2, atrasados: 1, sem7: 0, pendencias: 1, renovados: 1, perdidos: 1, fora: 1 }, 'contagem das visões');
+  eq(rnContarVisoes(base(), rnFiltrosVazios(), AG), { todos: 5, nao: 1, andamento: 2, quentes: 0, fila: 2, atrasados: 1, sem7: 0, pendencias: 1, renovados: 1, perdidos: 1, fora: 1 }, 'contagem das visões');
   eq(rnValidarFechamento(8, {}), 'Escolha o motivo da perda.', 'perdido sem motivo');
   eq(rnValidarFechamento(6, { linhas_renovadas: 3 }), null, 'renovado com linhas');
   eq(rnStatusRotulo(3), '3-Qualificado', 'rótulo do status (histórico)');
@@ -33,7 +33,7 @@ require('./renovacao_test_harness.js').rodar(`
   await rnCarregar();
   rnTrocarAba('carteira');
   const visoes = () => [...document.querySelectorAll('#rnVisoes [data-rn-visao]')].map(b => b.textContent.replace(/\\s+/g, ' ').trim());
-  eq(visoes(), ['Todos 5', 'Não trabalhados 1', 'Em andamento 2', 'Atrasados 1', 'Sem contato +7d 0', 'Pendências 1', 'Ganhos 1', 'Perdidos / desqualif. 1', 'Fora da base 1'], 'pílulas com contagem');
+  eq(visoes(), ['Todos 5', 'Não trabalhados 1', 'Em andamento 2', 'Quentes 0', 'Fila de hoje 2', 'Atrasados 1', 'Sem contato +7d 0', 'Pendências 1', 'Ganhos 1', 'Perdidos / desqualif. 1', 'Fora da base 1'], 'pílulas com contagem');
   eq(document.querySelectorAll('#rnTbody select, #rnTbody input:not([type=checkbox])').length, 0, 'nada editável na linha');
   const linhas = () => [...document.querySelectorAll('#rnTbody tr[data-rn-id]')].map(t => t.dataset.rnId);
   eq(linhas(), ['2', '3', '4', '1', '6'], 'tabela na ordem');

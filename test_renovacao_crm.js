@@ -132,14 +132,96 @@ require('./renovacao_test_harness.js').rodar(`
   eq([document.querySelectorAll('#rnKanban [data-rn-coluna]').length, col0()], [9, 20], 'colunas 0–8 e coluna 0 limitada a 20 cartões');
   document.querySelector('#rnKanban [data-rn-kb-mais="0"]').click();
   eq(col0(), 40, 'mostrar mais soma 20');
-  document.getElementById('rnKbPrio').value = 'P1'; document.getElementById('rnKbPrio').dispatchEvent(new window.Event('change', { bubbles: true }));
+  document.getElementById('rnKbPrioridade').value = 'P1'; document.getElementById('rnKbPrioridade').dispatchEvent(new window.Event('change', { bubbles: true }));
   eq(col0(), 5, 'filtro de prioridade no funil');
-  document.getElementById('rnKbPrio').value = ''; document.getElementById('rnKbPrio').dispatchEvent(new window.Event('change', { bubbles: true }));
+  document.getElementById('rnKbPrioridade').value = ''; document.getElementById('rnKbPrioridade').dispatchEvent(new window.Event('change', { bubbles: true }));
   document.querySelector('#rnKbChips [data-rn-kb-chip="atrasados"]').click();
   eq([col0(), document.querySelectorAll('#rnKanban [data-rn-coluna="2"] [data-rn-card]').length], [0, 1], 'atalho Atrasados');
   document.querySelector('#rnKbChips [data-rn-kb-chip="atrasados"]').click();
   const kbb = document.getElementById('rnKbBusca'); kbb.value = 'Novo 7'; kbb.dispatchEvent(new window.Event('input', { bubbles: true }));
   eq(col0(), 1, 'busca no funil');
   assert(document.getElementById('rnKbKpis').textContent.includes('sem contato há +7 dias'), 'indicadores no topo do funil');
+  // ==== filtros de oportunidade, ordens por valor e atalhos ====
+  const O = (o) => L(Object.assign({ cnpj_digits: '00000000000600' }, o));
+  const opo = () => [
+    O({ id: 501, razao_social: 'Zz A', apto: 'APTO', fixa_viavel: true, tem_fixa: false, oportunidade: 'Renovação + Fixa', fatura: 900, linhas_voz: 10, prioridade: 'P1', movimentacao: 'NOVO 25/11' }),
+    O({ id: 502, razao_social: 'Zz B', apto: '1 MÊS PARA APTO', fixa_viavel: false, tem_fixa: true, oportunidade: 'Renovação', fatura: 450, linhas_voz: 3, prioridade: 'P2', movimentacao: 'Permanece' }),
+    O({ id: 503, razao_social: 'Zz C', apto: '2 MESES PARA APTO', fixa_viavel: true, tem_fixa: true, oportunidade: 'Renovação + Fixa', fatura: 200, linhas_voz: 40, prioridade: 'P2', movimentacao: 'Permanece – perdeu aptidão' }),
+    O({ id: 504, razao_social: 'Zz D', apto: 'NÃO APTO', fixa_viavel: true, tem_fixa: false, oportunidade: 'Fixa nova', fatura: 120, linhas_voz: 2, prioridade: 'P4', movimentacao: 'NOVO 25/11' }),
+    O({ id: 505, razao_social: 'Zz E', apto: 'APTO', oportunidade: 'Renovação', fatura: null, linhas_voz: 4, prioridade: 'P3' }),
+  ];
+  const fx = (f) => rnFiltrar(opo(), Object.assign(rnFiltrosVazios(), f), AG).map(r => r.id);
+  eq(fx({ apto: 'APTOS' }).sort(), [501, 502, 503, 505], 'Aptos = APTO, 1 mês e 2 meses');
+  eq(fx({ apto: 'APTO' }).sort(), [501, 505], 'só APTO agora');
+  eq(fx({ apto: '1 MÊS PARA APTO' }), [502], '1 mês');
+  eq(fx({ apto: '2 MESES PARA APTO' }), [503], '2 meses');
+  eq(fx({ apto: 'QUASE' }).sort(), [502, 503], 'quase apto = 1 ou 2 meses');
+  eq(fx({ fixa: 'viavel' }).sort(), [501, 503, 504], 'fixa viável');
+  eq(fx({ fixa: 'nova' }).sort(), [501, 504], 'fixa nova = viável e sem fixa hoje');
+  eq(fx({ fixa: 'tem' }).sort(), [502, 503], 'já tem fixa');
+  eq(fx({ oport: 'Renovação + Fixa' }).sort(), [501, 503], 'oportunidade');
+  eq(fx({ fatura: '500' }), [501], 'fatura a partir de 500');
+  eq(fx({ fatura: 'menor300' }).sort(), [503, 504], 'fatura abaixo de 300');
+  eq(fx({ linhas: 'ate5' }).sort(), [502, 504, 505], 'até 5 linhas');
+  eq(fx({ linhas: '16mais' }), [503], '16 ou mais linhas');
+  eq(fx({ mov: 'novo' }).sort(), [501, 504], 'movimentação: novo');
+  eq(fx({ mov: 'permanece' }), [502], 'movimentação: permanece (sem os que perderam aptidão)');
+  eq(fx({ mov: 'perdeu' }), [503], 'movimentação: perdeu aptidão');
+  eq(fx({ ordem: 'fatura_desc' }), [501, 502, 503, 504, 505], 'maior fatura primeiro (sem fatura por último)');
+  eq(fx({ ordem: 'fatura_asc' }), [504, 503, 502, 501, 505], 'menor fatura primeiro');
+  eq(fx({ ordem: 'vl_desc' }), [502, 501, 504, 503, 505], 'maior valor por linha: 150, 90, 60, 5; sem fatura por último');
+  eq(fx({ ordem: 'vl_asc' }), [503, 504, 501, 502, 505], 'menor valor por linha primeiro');
+  eq(fx({ ordem: 'linhas' }), [503, 501, 505, 502, 504], 'mais linhas');
+  eq(rnVlLinha({ fatura: 900, linhas_voz: 10 }), 90, 'valor por linha');
+  eq(rnVlLinha({ fatura: null, linhas_voz: 10 }), null, 'sem fatura não tem valor por linha');
+  assert(rnSumario(opo().slice(0, 4)).includes('4 clientes') && rnSumario(opo().slice(0, 4)).includes('R$'), 'sumário com quantidade e valores');
+
+  // tela: os mesmos filtros no Funil e na Lista, atalho e limpar
+  rnEstado.filtros = rnFiltrosVazios();
+  window.__tabelas.renovacao_carteira = opo();
+  await rnCarregar(); await espera(30);
+  rnTrocarAba('kanban');
+  const mudar = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new window.Event('change', { bubbles: true })); };
+  const cartoes = () => [...document.querySelectorAll('#rnKanban [data-rn-card]')].map(c => Number(c.dataset.rnCard)).sort();
+  mudar('rnKbFixa', 'nova');
+  eq(cartoes(), [501, 504], 'Funil: filtro de fixa');
+  assert(/2 clientes/.test(document.getElementById('rnKbSumario').textContent), 'Funil: sumário dos filtrados');
+  rnTrocarAba('carteira');
+  eq([...document.querySelectorAll('#rnTbody tr[data-rn-id]')].map(t => Number(t.dataset.rnId)).sort(), [501, 504], 'a Lista guarda os mesmos filtros');
+  assert(document.querySelector('#rnTbody tr[data-rn-id="501"]').textContent.includes('90,00'), 'Lista mostra o valor por linha');
+  document.querySelector('[data-rn-limpar-tudo]').click();
+  eq([document.querySelectorAll('#rnTbody tr[data-rn-id]').length, rnEstado.filtros.fixa], [5, ''], 'limpar filtros');
+  mudar('rnPresetLista', 'valor_linha');
+  eq([rnEstado.filtros.apto, rnEstado.filtros.ordem], ['APTOS', 'vl_desc'], 'atalho aplica vários filtros');
+  eq([...document.querySelectorAll('#rnTbody tr[data-rn-id]')].map(t => Number(t.dataset.rnId)), [502, 501, 503, 505], 'atalho: aptos por maior valor por linha');
+  // ==== quentes, metas do dia e filtros salvos ====
+  eq([rnQuente({ prioridade: 'P1', status: 0, na_base: true }, '2026-11-25'), rnQuente({ prioridade: 'P1', status: 2, data_contato: '2026-11-20', na_base: true }, '2026-11-25'),
+      rnQuente({ prioridade: 'P1', status: 2, data_contato: '2026-11-24', na_base: true }, '2026-11-25'), rnQuente({ prioridade: 'P2', status: 0, na_base: true }, '2026-11-25'),
+      rnQuente({ prioridade: 'P1', status: 6, na_base: true }, '2026-11-25')], [true, true, false, false, false], 'quente = P1 aberto sem toque há +3 dias (ou nunca tocado)');
+  const meta = rnMetasDia([L({ id: 1, data_contato: '2026-11-25' }), L({ id: 2, data_contato: '2026-11-25', consultor_id: 'u-b' }), L({ id: 3, data_contato: '2026-11-24' }),
+    L({ id: 4, status: 4, status_desde: '2026-11-25T15:00:00Z' })], [{ carteira_id: 3, criado_em: '2026-11-25T14:00:00Z' }], '2026-11-25', 'u-a', 2);
+  eq([meta.contatos, meta.propostas, meta.metaContatos, meta.metaPropostas], [1, 2, 30, 5], 'metas do dia do consultor: contatos e propostas');
+  eq(rnMetasDia([L({ id: 1, data_contato: '2026-11-25' })], [], '2026-11-25', '', 3).metaContatos, 90, 'gestor sem filtro: meta soma o time');
+  rnEstado.filtros = rnFiltrosVazios();
+  window.__tabelas.renovacao_carteira = [L({ id: 701, razao_social: 'Zz Quente', prioridade: 'P1', status: 0 }), L({ id: 702, razao_social: 'Zz Morno', prioridade: 'P3', status: 0 })];
+  await rnCarregar(); await espera(30); rnTrocarAba('kanban');
+  eq([...document.querySelectorAll('#rnKanban .rnKbCard .rnQuente')].length, 1, 'cartão quente destacado');
+  document.querySelector('#rnKbChips [data-rn-kb-chip="quentes"]').click();
+  eq([...document.querySelectorAll('#rnKanban [data-rn-card]')].map(c => c.dataset.rnCard), ['701'], 'atalho Quentes');
+  document.querySelector('#rnKbChips [data-rn-kb-chip="quentes"]').click();
+  assert(/contatos hoje/.test(document.getElementById('rnKbKpis').textContent) && /propostas hoje/.test(document.getElementById('rnKbKpis').textContent), 'metas do dia no topo do funil');
+  // salvar, aplicar e excluir um filtro favorito
+  rnEstado.filtros = Object.assign(rnFiltrosVazios(), { fixa: 'nova', ordem: 'fatura_desc' }); rnRender();
+  document.querySelector('[data-rn-salvar-filtro]').click();
+  document.getElementById('rnSfNome').value = 'Zz Meu filtro';
+  document.querySelector('[data-rn-sf-salvar]').click();
+  eq(rnSalvosLer().map(x => [x.nome, x.f]), [['Zz Meu filtro', { fixa: 'nova', ordem: 'fatura_desc' }]], 'filtro salvo com nome');
+  rnEstado.filtros = rnFiltrosVazios(); rnRender();
+  const sel = document.getElementById('rnKbSalvos');
+  eq([...sel.options].map(o => o.textContent), ['Meus filtros…', 'Zz Meu filtro'], 'aparece em Meus filtros');
+  sel.value = '0'; sel.dispatchEvent(new window.Event('change', { bubbles: true }));
+  eq([rnEstado.filtros.fixa, rnEstado.filtros.ordem], ['nova', 'fatura_desc'], 'aplicar um filtro salvo');
+  document.querySelector('#rnKbBarra [data-rn-excluir-filtro]').click();
+  eq(rnSalvosLer().length, 0, 'excluir filtro salvo');
   fim();
 `);

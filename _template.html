@@ -1137,6 +1137,7 @@
   /* Funil */
   .kanbanCard.kcRenovacao{cursor:pointer;}
   .rnKanban{display:grid;grid-template-columns:repeat(9,minmax(230px,1fr));gap:var(--space-3);overflow-x:auto;padding-bottom:var(--space-3);}
+  .rnQuente{display:inline-block;padding:1px 6px;border-radius:var(--radius-pill,999px);font-weight:700;font-size:11px;color:var(--st-perdido);background:var(--st-perdido-bg);}
   .rnProxCard{margin:0;padding:var(--space-2) var(--space-3);border-radius:var(--radius-lg);background:var(--ml-surface-2);font-size:var(--fs-sm);}
   .rnSecao>summary{font-weight:600;cursor:pointer;}
   .rnKbTopo{display:flex;align-items:center;gap:6px;min-width:0;}.rnKbTopo .rnNome{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -1959,15 +1960,20 @@
         <div class="rnCartBarra">
           <input type="search" id="rnBusca" class="kbBusca" placeholder="Buscar empresa, CNPJ ou ADM" autocomplete="off" aria-label="Buscar na carteira">
           <button type="button" class="kbBtn kbBtnQ" id="rnMaisFiltrosBt" aria-expanded="false" aria-controls="rnMaisFiltros">Mais filtros</button>
-          <select id="rnOrdem" class="rnSel" aria-label="Ordem"><option value="prioridade">Prioridade (P1 primeiro)</option><option value="linhas">Mais linhas primeiro</option><option value="retorno">Retorno mais próximo</option></select>
+          <select id="rnPresetLista" class="rnSel" data-rn-preset aria-label="Atalhos de busca"></select>
+          <select id="rnSalvosLista" class="rnSel" data-rn-salvo aria-label="Meus filtros"></select>
+          <button type="button" class="kbBtn kbBtnQ kbBtnSm" data-rn-salvar-filtro>Salvar filtro</button>
+          <button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-excluir-filtro>Excluir</button>
+          <select id="rnOrdem" class="rnSel" data-rn-f="ordem" aria-label="Ordem"></select>
         </div>
         <div class="rnVisoes" id="rnVisoes"></div>
         <div class="rnMaisFiltros" id="rnMaisFiltros" hidden>
-          <select id="rnFCidade" class="rnSel" aria-label="Cidade"></select>
-          <select id="rnFDdd" class="rnSel" aria-label="DDD"></select>
-          <select id="rnFApto" class="rnSel" aria-label="Apto"><option value="">Apto: todos</option><option value="APTO">APTO</option><option value="1 MÊS PARA APTO">1 mês para apto</option><option value="2 MESES PARA APTO">2 meses para apto</option><option value="NÃO APTO">Não apto</option></select>
-          <select id="rnFPrioridade" class="rnSel" aria-label="Prioridade"><option value="">Prioridade: todas</option><option value="P1">P1</option><option value="P2">P2</option><option value="P3">P3</option><option value="P4">P4</option><option value="P5">P5</option></select>
+          <select id="rnFCidade" class="rnSel" data-rn-f="cidade" aria-label="Cidade"></select>
+          <select id="rnFDdd" class="rnSel" data-rn-f="ddd" aria-label="DDD"></select>
+          <span id="rnFExtra" class="rnFExtra"></span>
+          <button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-limpar-tudo>Limpar filtros</button>
         </div>
+        <p class="kbMeta" id="rnSumarioLista"></p>
         <div class="rnChips" id="rnChips"></div>
         <div class="rnRedistribuir" id="rnRedistribuir" style="display:none">
           <span id="rnSelN"></span>
@@ -4077,10 +4083,103 @@ const RN_LEGADO = { 1: 0, 2: 1, 3: 2, 4: 4, 5: 5, 6: 6, 7: 8 };   // planilha an
 const RN_COLS_LISTA = 'id,cnpj_digits,razao_social,telefone,nome_adm,linhas_voz,apto,cidade,ddd,consultor_id,origem,status,data_contato,prox_retorno,canal,linhas_renovadas,bl_vendida,sol_digitais,motivo_perda,observacoes,na_base,a_completar,atualizado_em,status_desde,retorno_hora,'
   + 'oportunidade,movimentacao,fatura,fixa_viavel,tem_fixa,prioridade,hist_origem,consultor_anterior,tentativas,primeiro_contato,prox_acao,falou_decisor,produto_ofertado,linhas_propostas,valor_proposta,concorrente,numero_pedido,data_fechamento';
 const RN_PAGINA = 50;
-function rnFiltrosVazios(){ return { busca: '', visao: 'todos', ordem: 'prioridade', status: '', apto: '', prioridade: '', cidade: '', ddd: '', consultor: '', soVencido: false, pendencias: false, foraBase: false }; }
+function rnFiltrosVazios(){ return { busca: '', visao: 'todos', ordem: 'prioridade', status: '', apto: '', prioridade: '', fixa: '', oport: '', fatura: '', linhas: '', mov: '', cidade: '', ddd: '', consultor: '', soVencido: false, pendencias: false, foraBase: false }; }
+// §165 (25/11): filtros e ordens para achar as melhores oportunidades (valem no Funil e na Lista)
+const RN_FILTROS = [
+  ['apto', 'Aptidão', [['APTOS', 'Aptos (todos)'], ['APTO', 'Apto agora'], ['1 MÊS PARA APTO', '1 mês para apto'], ['2 MESES PARA APTO', '2 meses para apto'], ['QUASE', 'Quase apto (1 ou 2 meses)'], ['NÃO APTO', 'Não apto']]],
+  ['fixa', 'Fixa', [['viavel', 'Fixa viável'], ['nova', 'Fixa nova (viável e sem fixa hoje)'], ['sem', 'Sem fixa hoje'], ['tem', 'Já tem fixa']]],
+  ['oport', 'Oportunidade', [['Renovação', 'Renovação'], ['Renovação + Fixa', 'Renovação + Fixa'], ['Fixa nova', 'Fixa nova'], ['Sem oportunidade', 'Sem oportunidade']]],
+  ['prioridade', 'Prioridade', [['P1', 'P1'], ['P2', 'P2'], ['P3', 'P3'], ['P4', 'P4'], ['P5', 'P5']]],
+  ['fatura', 'Fatura', [['300', 'a partir de R$ 300'], ['500', 'a partir de R$ 500'], ['1000', 'a partir de R$ 1.000'], ['menor300', 'abaixo de R$ 300']]],
+  ['linhas', 'Linhas', [['ate5', 'até 5'], ['6a15', '6 a 15'], ['16mais', '16 ou mais']]],
+  ['mov', 'Movimentação 25/11', [['novo', 'Novo'], ['permanece', 'Permanece'], ['perdeu', 'Perdeu aptidão']]],
+];
+const RN_ORDENS = [['prioridade', 'Ordem: prioridade (P1 primeiro)'], ['fatura_desc', 'Ordem: maior fatura'], ['fatura_asc', 'Ordem: menor fatura'], ['vl_desc', 'Ordem: maior valor por linha'],
+  ['vl_asc', 'Ordem: menor valor por linha'], ['linhas', 'Ordem: mais linhas'], ['linhas_asc', 'Ordem: menos linhas'], ['retorno', 'Ordem: retorno mais próximo'], ['semcontato', 'Ordem: há mais tempo sem contato']];
+// atalhos: cada um troca os filtros de uma vez (mantém busca e consultor)
+const RN_PRESETS = [
+  ['melhores', 'Melhores oportunidades (P1)', { prioridade: 'P1', ordem: 'vl_desc' }],
+  ['valor_linha', 'Aptos de maior valor por linha', { apto: 'APTOS', ordem: 'vl_desc' }],
+  ['alta_fatura', 'Aptos com fatura alta (R$ 500+)', { apto: 'APTOS', fatura: '500', ordem: 'fatura_desc' }],
+  ['fixa_nova', 'Fixa nova (viável, sem fixa hoje)', { fixa: 'nova', ordem: 'fatura_desc' }],
+  ['quase', 'Quase aptos (1 e 2 meses)', { apto: 'QUASE', ordem: 'fatura_desc' }],
+  ['novos', 'Novos da base 25/11', { mov: 'novo', ordem: 'prioridade' }],
+];
+const RN_CHIPS_VISAO = ['quentes', 'fila', 'atrasados', 'sem7'];
+const RN_META_DIA = { contatos: 30, propostas: 5 };   // meta diária por consultor (Funil mostra o progresso do dia)
+// "Quente": P1 ainda aberto (etapas 0–5) e sem toque há mais de 3 dias (ou nunca tocado)
+function rnQuente(r, hoje){
+  if(r.prioridade !== 'P1' || r.status > 5 || !r.na_base) return false;
+  return !r.data_contato || rnDiasEntre(r.data_contato, hoje) > 3;
+}
+function rnMetasDia(lista, propostas, hoje, consultor, nTime){
+  const base = rnPorConsultor(lista, consultor).filter(r => r.na_base);
+  const contatos = base.filter(r => r.data_contato === hoje).length;
+  const ids = new Set(base.filter(r => r.status === 4 && r.status_desde && rnDataSP(r.status_desde) === hoje).map(r => r.id));
+  (propostas || []).forEach(p => { if(p.carteira_id != null && p.criado_em && rnDataSP(p.criado_em) === hoje && base.some(r => r.id === p.carteira_id)) ids.add(p.carteira_id); });
+  const mult = consultor ? 1 : Math.max(1, nTime || 1);
+  return { contatos, propostas: ids.size, metaContatos: RN_META_DIA.contatos * mult, metaPropostas: RN_META_DIA.propostas * mult };
+}
+// filtros favoritos de cada consultor (guardados neste navegador; sem localStorage, ficam só na sessão)
+function rnSalvosChave(){ return 'rn_filtros_' + (currentUser ? currentUser.id : ''); }
+function rnSalvosLer(){
+  try{ const v = JSON.parse(localStorage.getItem(rnSalvosChave()) || 'null'); if(Array.isArray(v)) return v; }catch(e){}
+  return (rnEstado.salvosMem && rnEstado.salvosMem[rnSalvosChave()]) || [];
+}
+function rnSalvosGravar(lista){
+  rnEstado.salvosMem = Object.assign(rnEstado.salvosMem || {}, { [rnSalvosChave()]: lista });
+  try{ localStorage.setItem(rnSalvosChave(), JSON.stringify(lista)); }catch(e){}
+}
+function rnSalvosOpcoes(){ return '<option value="">Meus filtros…</option>' + rnSalvosLer().map((x, i) => `<option value="${i}">${escapeHtml(x.nome)}</option>`).join(''); }
+function rnFiltroAtualParaSalvar(){ const f = rnEstado.filtros; const o = {}; RN_FILTROS.forEach(([k]) => { if(f[k]) o[k] = f[k]; }); ['ordem', 'cidade', 'ddd'].forEach(k => { if(f[k]) o[k] = f[k]; }); if(RN_CHIPS_VISAO.includes(f.visao)) o.visao = f.visao; return o; }
+function rnVlLinha(r){ const l = Number(r.linhas_voz); return r.fatura != null && l > 0 && Number.isFinite(Number(r.fatura)) ? Number(r.fatura) / l : null; }
+function rnComparador(ordem){
+  const num = (fn, desc) => (a, b) => { const x = fn(a), y = fn(b); if(x == null && y == null) return rnOrdemPrioridade(a, b); if(x == null) return 1; if(y == null) return -1; return (desc ? y - x : x - y) || rnOrdemPrioridade(a, b); };
+  switch(ordem){
+    case 'fatura_desc': return num(r => (r.fatura == null ? null : Number(r.fatura)), true);
+    case 'fatura_asc': return num(r => (r.fatura == null ? null : Number(r.fatura)), false);
+    case 'vl_desc': return num(rnVlLinha, true);
+    case 'vl_asc': return num(rnVlLinha, false);
+    case 'linhas': return rnOrdemLinhas;
+    case 'linhas_asc': return num(r => (r.linhas_voz == null ? null : Number(r.linhas_voz)), false);
+    case 'retorno': return rnOrdemRetorno;
+    case 'semcontato': return num(r => (r.status >= 1 && r.status <= 5 && r.data_contato ? Date.parse(r.data_contato + 'T12:00:00Z') : null), false);
+    default: return rnOrdemPrioridade;
+  }
+}
+function rnPassaFiltros(r, f){
+  if(f.apto === 'APTOS' ? !rnEhApto(r.apto) : f.apto === 'QUASE' ? !(r.apto === '1 MÊS PARA APTO' || r.apto === '2 MESES PARA APTO') : (f.apto && r.apto !== f.apto)) return false;
+  if(f.fixa === 'viavel' && !r.fixa_viavel) return false;
+  if(f.fixa === 'nova' && !(r.fixa_viavel && !r.tem_fixa)) return false;
+  if(f.fixa === 'sem' && r.tem_fixa) return false;
+  if(f.fixa === 'tem' && !r.tem_fixa) return false;
+  if(f.oport && r.oportunidade !== f.oport) return false;
+  const fat = r.fatura == null ? null : Number(r.fatura);
+  if(f.fatura === 'menor300' ? !(fat != null && fat < 300) : (f.fatura && !(fat != null && fat >= Number(f.fatura)))) return false;
+  const l = Number(r.linhas_voz) || 0;
+  if(f.linhas === 'ate5' && l > 5) return false;
+  if(f.linhas === '6a15' && (l < 6 || l > 15)) return false;
+  if(f.linhas === '16mais' && l < 16) return false;
+  const m = rnNorm(r.movimentacao);
+  if(f.mov === 'novo' && !m.startsWith('novo')) return false;
+  if(f.mov === 'permanece' && m !== 'permanece') return false;
+  if(f.mov === 'perdeu' && !m.includes('perdeu')) return false;
+  return true;
+}
+function rnSumario(lista){
+  const fat = lista.reduce((t, r) => t + (Number(r.fatura) || 0), 0);
+  const lin = lista.reduce((t, r) => t + (r.fatura != null ? Number(r.linhas_voz) || 0 : 0), 0);
+  return `${lista.length.toLocaleString('pt-BR')} cliente${lista.length === 1 ? '' : 's'}` + (fat ? ` · ${fmtBRL(fat)}/mês em fatura` : '') + (fat && lin ? ` · ${fmtBRL(fat / lin)} por linha em média` : '');
+}
+function rnFiltrosSelectsHtml(pref){
+  return RN_FILTROS.map(([k, t, ops]) => `<select class="rnSel" id="${pref}${k[0].toUpperCase() + k.slice(1)}" data-rn-f="${k}" aria-label="${escapeHtml(t)}"><option value="">${escapeHtml(t)}: todos</option>${ops.map(([v, x]) => `<option value="${escapeHtml(v)}">${escapeHtml(x)}</option>`).join('')}</select>`).join('')
+    + `<select class="rnSel" id="${pref}Ordem2" data-rn-f="ordem" aria-label="Ordem">${RN_ORDENS.map(([v, x]) => `<option value="${v}">${escapeHtml(x)}</option>`).join('')}</select>`;
+}
+function rnPresetsHtml(){ return '<option value="">Atalhos de busca…</option>' + RN_PRESETS.map(([k, t]) => `<option value="${k}">${escapeHtml(t)}</option>`).join(''); }
+
 const rnEncerrado = (s) => s >= 6;                  // ganho, perdido ou desqualificado: sai da fila de retornos
 const rnGanho = (s) => s === 6 || s === 7;
-const rnEstado = { aba: 'kanban', buscaHoje: '', fichaAba: 'atendimento', fichaStatus: null, lista: [], propostas: [], arrastando: null, perfis: [], carregado: false, geracao: 0, filtros: rnFiltrosVazios(), pagina: 1, selecionados: new Set(), fichaId: null, ficha: null, importacao: null, socios: null, sociosTimer: null, kb: { busca: '', prioridade: '', chip: '' }, kbLimite: {} };
+const rnEstado = { aba: 'kanban', buscaHoje: '', fichaAba: 'atendimento', fichaStatus: null, lista: [], propostas: [], arrastando: null, perfis: [], carregado: false, geracao: 0, filtros: rnFiltrosVazios(), pagina: 1, selecionados: new Set(), fichaId: null, ficha: null, importacao: null, socios: null, sociosTimer: null, kbLimite: {} };
 
 function rnGestor(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
 function rnPodeVer(){
@@ -4095,7 +4194,7 @@ function rnAplicarPermissao(){
   const soRenovacao = rnSoRenovacao();
   ['busca', 'proposta', 'funil', 'agenda'].forEach(t => { const b = document.querySelector(`#tabsNav button[data-tab="${t}"]`); if(b) b.style.display = soRenovacao ? 'none' : ''; });
   rnSociosParar();
-  Object.assign(rnEstado, { aba: 'kanban', kb: { busca: '', prioridade: '', chip: '' }, kbLimite: {}, lista: [], propostas: [], perfis: [], carregado: false, filtros: rnFiltrosVazios(), pagina: 1, fichaId: null, ficha: null, socios: null,
+  Object.assign(rnEstado, { aba: 'kanban', kbLimite: {}, lista: [], propostas: [], perfis: [], carregado: false, filtros: rnFiltrosVazios(), pagina: 1, fichaId: null, ficha: null, socios: null,
     importacao: null, buscaHoje: '', fichaAba: 'atendimento', fichaStatus: null });
   rnEstado.selecionados.clear();
   rnEstado.geracao++;
@@ -4229,16 +4328,17 @@ function rnFiltrar(lista, f, hoje){
     if((v === 'atrasados' || f.soVencido) && rnEstadoRetorno(r, agora) !== 'atrasado') return false;
     if(v === 'sem7' && !rnSemContato7(r, agora.data)) return false;
     if(v === 'fila' && !['atrasado', 'hoje'].includes(rnEstadoRetorno(r, agora))) return false;
+    if(v === 'quentes' && !rnQuente(r, agora.data)) return false;
     if((v === 'pendencias' || f.pendencias) && !r.a_completar) return false;
     if(v === 'renovados' && !rnGanho(r.status)) return false;
     if(v === 'perdidos' && r.status !== 8 && r.status !== 9) return false;
-    if(f.apto && r.apto !== f.apto) return false;
+    if(!rnPassaFiltros(r, f)) return false;
     if(f.prioridade && r.prioridade !== f.prioridade) return false;
     if(f.cidade && r.cidade !== f.cidade) return false;
     if(f.ddd && String(r.ddd || '') !== f.ddd) return false;
     if(f.consultor === '-' ? !!r.consultor_id : (f.consultor && r.consultor_id !== f.consultor)) return false;
     return rnCasaBusca(r, f.busca);
-  }).sort(f.ordem === 'retorno' ? rnOrdemRetorno : f.ordem === 'linhas' ? rnOrdemLinhas : rnOrdemPrioridade);
+  }).sort(rnComparador(f.ordem));
 }
 function rnClasseLinha(r){ return r.status >= 8 ? 'rnPerdido' : rnGanho(r.status) ? 'rnRenovado' : ''; }
 function rnValidarFechamento(status, d){
@@ -4271,7 +4371,7 @@ function rnOpcoes(pares, atual, vazio){
   return (vazio ? `<option value="">${escapeHtml(vazio)}</option>` : '')
     + pares.map(([v, t]) => `<option value="${escapeHtml(v)}"${String(v) === String(atual ?? '') ? ' selected' : ''}>${escapeHtml(t)}</option>`).join('');
 }
-const RN_VISOES = [['todos', 'Todos'], ['nao', 'Não trabalhados'], ['andamento', 'Em andamento'], ['atrasados', 'Atrasados'], ['sem7', 'Sem contato +7d'], ['pendencias', 'Pendências'],
+const RN_VISOES = [['todos', 'Todos'], ['nao', 'Não trabalhados'], ['andamento', 'Em andamento'], ['quentes', 'Quentes'], ['fila', 'Fila de hoje'], ['atrasados', 'Atrasados'], ['sem7', 'Sem contato +7d'], ['pendencias', 'Pendências'],
   ['renovados', 'Ganhos'], ['perdidos', 'Perdidos / desqualif.'], ['fora', 'Fora da base']];
 function rnContarVisoes(lista, f, agora){ return Object.fromEntries(RN_VISOES.map(([v]) => [v, rnFiltrar(lista, Object.assign({}, f, { visao: v }), agora).length])); }
 function rnUltimoContato(r){ return r.data_contato ? r.data_contato.slice(8, 10) + '/' + r.data_contato.slice(5, 7) + (r.canal ? ' · ' + r.canal : '') : '—'; }
@@ -4293,9 +4393,12 @@ function rnPreencherFiltros(){
   document.getElementById('rnFCidade').innerHTML = rnOpcoes(cidades.map(c => [c, c]), f.cidade, 'Cidade: todas');
   const ddds = [...new Set(rnEstado.lista.map(r => String(r.ddd || '')).filter(Boolean))].sort();
   document.getElementById('rnFDdd').innerHTML = rnOpcoes(ddds.map(d => [d, d]), f.ddd, 'DDD: todos');
-  document.getElementById('rnFApto').value = f.apto;
-  document.getElementById('rnFPrioridade').value = f.prioridade || '';
-  document.getElementById('rnOrdem').value = f.ordem || 'prioridade';
+  const extra = document.getElementById('rnFExtra'); if(extra && !extra.firstChild) extra.innerHTML = rnFiltrosSelectsHtml('rnF').replace(/<select class="rnSel" id="rnFOrdem2"[\s\S]*?<\/select>/, '');
+  const ord = document.getElementById('rnOrdem'); if(ord && !ord.options.length) ord.innerHTML = RN_ORDENS.map(([v, x]) => `<option value="${v}">${escapeHtml(x)}</option>`).join('');
+  document.querySelectorAll('#rnPresetLista, #rnKbPreset').forEach(el => { if(!el.options.length) el.innerHTML = rnPresetsHtml(); });
+  document.querySelectorAll('#rnSalvosLista, #rnKbSalvos').forEach(el => { const v = el.value; el.innerHTML = rnSalvosOpcoes(); el.value = v; });
+  document.querySelectorAll('#panel-renovacao [data-rn-f]').forEach(el => { const v = f[el.dataset.rnF]; el.value = v == null || v === '' ? (el.dataset.rnF === 'ordem' ? 'prioridade' : '') : v; });
+  const bl = document.getElementById('rnBusca'); if(bl && bl !== document.activeElement) bl.value = f.busca || '';
   const fc = document.getElementById('rnFConsultor');
   fc.style.display = gestor ? '' : 'none';
   if(gestor){
@@ -4305,16 +4408,18 @@ function rnPreencherFiltros(){
   }
 }
 function rnChipsHtml(f){
-  return [['cidade', 'Cidade'], ['ddd', 'DDD'], ['apto', 'Apto'], ['prioridade', 'Prioridade']].filter(([k]) => f[k])
+  return [['cidade', 'Cidade'], ['ddd', 'DDD'], ['apto', 'Aptidão'], ['prioridade', 'Prioridade'], ['fixa', 'Fixa'], ['oport', 'Oportunidade'], ['fatura', 'Fatura'], ['linhas', 'Linhas'], ['mov', 'Movimentação']].filter(([k]) => f[k])
     .map(([k, t]) => `<button type="button" class="rnChip" data-rn-limpar="${k}">${t}: ${escapeHtml(f[k])} ✕</button>`).join('');
 }
 function rnLinhaHtml(r, agora, gestor){
   const sub = [r.nome_adm, r.cidade, r.apto, gestor ? rnNomeConsultor(r.consultor_id) : ''].filter(Boolean).join(' · ');
   return `<tr class="${rnClasseLinha(r)}" data-rn-id="${r.id}">
     ${gestor ? `<td class="rnTdSel"><input type="checkbox" data-rn-sel="${r.id}" aria-label="Selecionar"${rnEstado.selecionados.has(r.id) ? ' checked' : ''}></td>` : ''}
-    <td><div class="rnEmpresa"><span class="rnAv">${escapeHtml(rnIniciais(r.razao_social))}</span><span><b>${escapeHtml(r.razao_social || '(sem nome)')}</b><small>${escapeHtml(sub)}</small></span></div></td>
+    <td><div class="rnEmpresa"><span class="rnAv">${escapeHtml(rnIniciais(r.razao_social))}</span><span><b>${escapeHtml(r.razao_social || '(sem nome)')}</b>${rnQuente(r, agora.data) ? ' <span class="rnQuente">Quente</span>' : ''}<small>${escapeHtml(sub)}</small></span></div></td>
     <td>${rnPrioHtml(r.prioridade)}</td>
     <td class="rnNumTd">${r.linhas_voz ?? '—'}</td>
+    <td class="rnNumTd">${r.fatura != null ? fmtBRL(r.fatura) : '—'}</td>
+    <td class="rnNumTd">${rnVlLinha(r) != null ? fmtBRL(rnVlLinha(r)) : '—'}</td>
     <td>${rnEtapaHtml(r.status)}</td>
     <td class="rnMuted">${escapeHtml(rnUltimoContato(r))}</td>
     <td>${rnProximoPassoHtml(r, agora)}</td>
@@ -4329,9 +4434,10 @@ function rnRenderCarteira(){
   document.getElementById('rnChips').innerHTML = rnChipsHtml(f);
   const lista = rnFiltrar(rnEstado.lista, f, agora);
   const mostrar = lista.slice(0, rnEstado.pagina * RN_PAGINA);
-  document.getElementById('rnThead').innerHTML = `<tr>${gestor ? '<th class="rnTdSel"><input type="checkbox" id="rnSelTodos" aria-label="Selecionar todos"></th>' : ''}<th>Empresa</th><th>Prior.</th><th>Linhas</th><th>Etapa</th><th>Último contato</th><th>Próximo passo</th></tr>`;
+  document.getElementById('rnThead').innerHTML = `<tr>${gestor ? '<th class="rnTdSel"><input type="checkbox" id="rnSelTodos" aria-label="Selecionar todos"></th>' : ''}<th>Empresa</th><th>Prior.</th><th>Linhas</th><th>Fatura/mês</th><th>R$/linha</th><th>Etapa</th><th>Último contato</th><th>Próximo passo</th></tr>`;
   document.getElementById('rnTbody').innerHTML = mostrar.map(r => rnLinhaHtml(r, agora, gestor)).join('')
-    || `<tr><td colspan="${gestor ? 7 : 6}" class="rnVazio">Nenhum cliente com esses filtros.</td></tr>`;
+    || `<tr><td colspan="${gestor ? 9 : 8}" class="rnVazio">Nenhum cliente com esses filtros.</td></tr>`;
+  const sumL = document.getElementById('rnSumarioLista'); if(sumL) sumL.textContent = rnSumario(lista);
   const mais = document.getElementById('rnMais');
   mais.style.display = lista.length > mostrar.length ? '' : 'none';
   mais.textContent = `Mostrar mais (${lista.length - mostrar.length})`;
@@ -4403,8 +4509,54 @@ document.getElementById('rnThead').addEventListener('change', (e) => {
   rnRenderCarteira();
 });
 document.getElementById('rnBusca').addEventListener('input', (e) => { rnEstado.filtros.busca = e.target.value; rnEstado.pagina = 1; rnRenderCarteira(); });
-[['rnFApto', 'apto'], ['rnFPrioridade', 'prioridade'], ['rnFCidade', 'cidade'], ['rnFDdd', 'ddd'], ['rnOrdem', 'ordem']].forEach(([idEl, k]) =>
-  document.getElementById(idEl).addEventListener('change', (e) => { rnEstado.filtros[k] = e.target.value; rnEstado.pagina = 1; rnRenderCarteira(); }));
+// um só ouvinte para todos os filtros do Funil e da Lista (data-rn-f = nome do filtro); atalhos e "limpar" também
+document.getElementById('panel-renovacao').addEventListener('change', (e) => {
+  const el = e.target.closest('[data-rn-f]');
+  if(el){ rnEstado.filtros[el.dataset.rnF] = el.value; rnEstado.pagina = 1; rnRender(); return; }
+  const sv = e.target.closest('[data-rn-salvo]');
+  if(sv && sv.value !== ''){
+    const def = rnSalvosLer()[Number(sv.value)];
+    if(def){ const f = rnEstado.filtros; rnEstado.filtros = Object.assign(rnFiltrosVazios(), { consultor: f.consultor, busca: f.busca }, def.f); rnEstado.pagina = 1; rnRender(); }
+    return;
+  }
+  const pr = e.target.closest('[data-rn-preset]');
+  if(pr && pr.value){
+    const def = RN_PRESETS.find(x => x[0] === pr.value);
+    if(def){ const f = rnEstado.filtros; rnEstado.filtros = Object.assign(rnFiltrosVazios(), { consultor: f.consultor, busca: f.busca }, def[2]); rnEstado.pagina = 1; pr.value = ''; rnRender(); }
+  }
+});
+function rnAbrirSalvarFiltro(){
+  let ov = document.getElementById('rnSalvarFiltro');
+  if(!ov){ ov = document.createElement('div'); ov.className = 'overlay'; ov.id = 'rnSalvarFiltro'; document.body.appendChild(ov); }
+  ov.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="rnSalvarTitulo">
+    <div class="mHead"><button type="button" class="mClose" data-rn-sf-cancelar aria-label="Fechar">&times;</button><h2 id="rnSalvarTitulo">Salvar filtro</h2></div>
+    <div class="mBody"><label class="field">Nome do filtro<input type="text" id="rnSfNome" maxlength="40" placeholder="Ex.: Aptos com fixa nova"></label>
+      <p class="kbMeta rnVencido" id="rnSfErro" role="alert"></p>
+      <div style="display:flex;gap:var(--space-2);justify-content:flex-end"><button type="button" class="btn btn-outline btn-sm" data-rn-sf-cancelar>Cancelar</button><button type="button" class="btn btn-sm" data-rn-sf-salvar>Salvar</button></div></div></div>`;
+  ov.classList.add('active');
+  ov.onclick = (e) => {
+    if(e.target.closest('[data-rn-sf-cancelar]')){ fecharOverlay(ov); return; }
+    if(!e.target.closest('[data-rn-sf-salvar]')) return;
+    const nome = document.getElementById('rnSfNome').value.trim();
+    if(!nome){ document.getElementById('rnSfErro').textContent = 'Dê um nome ao filtro.'; return; }
+    const f = rnFiltroAtualParaSalvar();
+    if(!Object.keys(f).length){ document.getElementById('rnSfErro').textContent = 'Escolha pelo menos um filtro antes de salvar.'; return; }
+    const lista = rnSalvosLer().filter(x => x.nome !== nome); lista.push({ nome, f }); rnSalvosGravar(lista);
+    fecharOverlay(ov); mostrarAviso('Filtro salvo.', 'ok'); rnRender();
+  };
+}
+document.getElementById('panel-renovacao').addEventListener('click', (e) => {
+  if(e.target.closest('[data-rn-salvar-filtro]')){ rnAbrirSalvarFiltro(); return; }
+  if(e.target.closest('[data-rn-excluir-filtro]')){
+    const bar = e.target.closest('.rnCartBarra'); const vis = bar && bar.querySelector('[data-rn-salvo]');
+    const i = vis ? Number(vis.value) : NaN;
+    if(vis && vis.value !== '' && rnSalvosLer()[i]){ const l = rnSalvosLer(); const nome = l[i].nome; l.splice(i, 1); rnSalvosGravar(l); mostrarAviso(`Filtro "${nome}" excluído.`, 'info'); rnRender(); }
+    else mostrarAviso('Escolha em "Meus filtros" o que excluir.', 'info');
+    return;
+  }
+  if(!e.target.closest('[data-rn-limpar-tudo]')) return;
+  const f = rnEstado.filtros; rnEstado.filtros = Object.assign(rnFiltrosVazios(), { consultor: f.consultor }); rnEstado.pagina = 1; rnRender();
+});
 document.getElementById('rnFConsultor').addEventListener('change', (e) => { rnEstado.filtros.consultor = e.target.value; rnEstado.pagina = 1; rnRender(); });
 document.getElementById('rnVisoes').addEventListener('click', (e) => {
   const b = e.target.closest('[data-rn-visao]'); if(!b) return;
@@ -5065,7 +5217,7 @@ const RN_KANBAN = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 const RN_KB_LIMITE = 20;   // cartões por coluna antes do "mostrar mais" (a coluna 0 chega a centenas)
 function rnDiasNoStatus(r, agoraMs){ return r.status_desde ? Math.max(0, Math.floor((agoraMs - new Date(r.status_desde).getTime()) / 86400000)) : null; }
 function rnKanbanColunas(lista, filtros, hoje){
-  const base = rnFiltrar(lista, Object.assign(rnFiltrosVazios(), { consultor: filtros.consultor || '', busca: filtros.busca || '', prioridade: filtros.prioridade || '', visao: filtros.visao || 'todos' }), hoje);
+  const base = rnFiltrar(lista, Object.assign(rnFiltrosVazios(), filtros, { status: '', foraBase: false, soVencido: false, pendencias: false, visao: RN_CHIPS_VISAO.includes(filtros.visao) ? filtros.visao : 'todos' }), hoje);
   return RN_KANBAN.map(s => ({ status: s, itens: base.filter(r => r.status === s) }));
 }
 function rnCartaoHtml(r, agora, gestor){
@@ -5077,43 +5229,53 @@ function rnCartaoHtml(r, agora, gestor){
   const valor = p && p.valor_proposto ? fmtBRL(p.valor_proposto) : (Number(r.valor_proposta) ? fmtBRL(r.valor_proposta) : '');
   const ag = rnAgora(); const est = rnEstadoRetorno(r, ag);
   const prox = est ? `<span class="${est === 'atrasado' ? 'rnLate' : est === 'hoje' ? 'rnOk' : 'rnMuted'}">${est === 'atrasado' ? '⏱ ' : ''}${escapeHtml([r.prox_acao, r.prox_retorno.slice(8, 10) + '/' + r.prox_retorno.slice(5, 7)].filter(Boolean).join(' · '))}</span>` : '';
-  const sub = [`${r.linhas_voz ?? 0} linhas`, r.fatura != null && !valor ? fmtBRL(r.fatura) + '/mês' : '', valor, rnGanho(r.status) && r.linhas_renovadas ? `${r.linhas_renovadas} fechadas` : '',
+  const sub = [`${r.linhas_voz ?? 0} linhas`, r.fatura != null ? fmtBRL(r.fatura) + '/mês' + (rnVlLinha(r) != null ? ' (' + fmtBRL(rnVlLinha(r)) + '/linha)' : '') : '', valor, rnGanho(r.status) && r.linhas_renovadas ? `${r.linhas_renovadas} fechadas` : '',
     r.status === 8 && r.motivo_perda ? r.motivo_perda : '', gestor ? rnNomeConsultor(r.consultor_id) : ''].filter(Boolean).join(' · ');
   return `<div class="rnKbCard" draggable="true" data-rn-card="${r.id}">
-    <div class="rnKbTopo">${rnPrioHtml(r.prioridade)}<button type="button" class="rnNome" data-rn-abrir="${r.id}">${escapeHtml(r.razao_social || '(sem nome)')}</button></div>
+    <div class="rnKbTopo">${rnPrioHtml(r.prioridade)}${rnQuente(r, ag.data) ? '<span class="rnQuente" title="P1 sem toque há mais de 3 dias">Quente</span>' : ''}<button type="button" class="rnNome" data-rn-abrir="${r.id}">${escapeHtml(r.razao_social || '(sem nome)')}</button></div>
     <small>${escapeHtml(sub)}</small>
     ${prox ? `<small>${prox}</small>` : ''}
     ${parado ? `<span class="rnParado${late ? ' late' : ''}">${late ? '⏱ ' : ''}${escapeHtml(parado)}</span>` : ''}
     ${rnEncerrado(r.status) ? '' : `<button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-gerar="${r.id}">Gerar proposta</button>`}
   </div>`;
 }
-const RN_KB_CHIPS = [['fila', 'Fila de hoje'], ['atrasados', 'Atrasados'], ['sem7', 'Sem contato +7d']];
+const RN_KB_CHIPS = [['quentes', 'Quentes'], ['fila', 'Fila de hoje'], ['atrasados', 'Atrasados'], ['sem7', 'Sem contato +7d']];
 function rnKbBarraHtml(){
   return `<div id="rnKbKpis" class="rnKpis"></div>
     <div class="rnCartBarra" id="rnKbBarra">
       <input type="search" id="rnKbBusca" class="kbBusca" placeholder="Buscar empresa, CNPJ ou ADM" autocomplete="off" aria-label="Buscar no funil">
-      <select id="rnKbPrio" class="rnSel" aria-label="Prioridade"><option value="">Prioridade: todas</option>${['P1', 'P2', 'P3', 'P4', 'P5'].map(x => `<option value="${x}">${x}</option>`).join('')}</select>
+      <select id="rnKbPreset" class="rnSel" data-rn-preset aria-label="Atalhos de busca"></select>
+      <select id="rnKbSalvos" class="rnSel" data-rn-salvo aria-label="Meus filtros"></select>
+      <button type="button" class="kbBtn kbBtnQ kbBtnSm" data-rn-salvar-filtro>Salvar filtro</button>
+      <button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-excluir-filtro>Excluir</button>
       <span class="rnVisoes" id="rnKbChips"></span>
+      <button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-limpar-tudo>Limpar filtros</button>
     </div>
+    <div class="rnMaisFiltros" id="rnKbFiltros">${rnFiltrosSelectsHtml('rnKb')}</div>
+    <p class="kbMeta" id="rnKbSumario"></p>
     <div id="rnKbCols"></div>`;
 }
 function rnRenderKanban(){
-  const agora = Date.now(); const gestor = rnGestor(); const kb = rnEstado.kb;
-  rnPreencherFiltros();
+  const agora = Date.now(); const gestor = rnGestor(); const f = rnEstado.filtros;
   const raiz = document.getElementById('rnKanban');
   if(!document.getElementById('rnKbCols')){ raiz.innerHTML = rnKbBarraHtml(); }
-  const busca = document.getElementById('rnKbBusca'); if(busca && busca !== document.activeElement) busca.value = kb.busca;
-  document.getElementById('rnKbPrio').value = kb.prioridade;
-  document.getElementById('rnKbChips').innerHTML = RN_KB_CHIPS.map(([v, t]) => `<button type="button" class="rnVisaoBt${kb.chip === v ? ' on' : ''}" data-rn-kb-chip="${v}">${t}</button>`).join('');
-  const c = rnEstado.filtros.consultor || '';
+  rnPreencherFiltros();
+  const busca = document.getElementById('rnKbBusca'); if(busca && busca !== document.activeElement) busca.value = f.busca || '';
+  document.getElementById('rnKbChips').innerHTML = RN_KB_CHIPS.map(([v, t]) => `<button type="button" class="rnVisaoBt${f.visao === v ? ' on' : ''}" data-rn-kb-chip="${v}">${t}</button>`).join('');
+  const c = f.consultor || '';
   const k = rnKpis(rnEstado.lista, rnEstado.propostas, rnAgora(), c);
   document.getElementById('rnKbKpis').innerHTML =
     rnKpiHtml(k.carteira, 'clientes na carteira', `${k.pctContatado}% já trabalhados`, '', k.pctContatado)
     + rnKpiHtml(k.atrasados, 'retornos atrasados', `${k.vencemHoje} vencem hoje`, k.atrasados ? 'late' : '')
     + rnKpiHtml(k.semContato7, 'sem contato há +7 dias', 'em andamento', k.semContato7 ? 'late' : '')
     + rnKpiHtml(k.negociacao, 'em negociação', k.valorNegociacao ? fmtBRL(k.valorNegociacao) + ' em propostas' : 'sem proposta aberta', '')
-    + rnKpiHtml(k.linhasMes, 'linhas ganhas no mês', `${k.clientesMes} cliente${k.clientesMes === 1 ? '' : 's'}`, k.linhasMes ? 'ok' : '');
-  const cols = rnKanbanColunas(rnEstado.lista, { consultor: c, busca: kb.busca, prioridade: kb.prioridade, visao: kb.chip || 'todos' }, rnHoje());
+    + rnKpiHtml(k.linhasMes, 'linhas ganhas no mês', `${k.clientesMes} cliente${k.clientesMes === 1 ? '' : 's'}`, k.linhasMes ? 'ok' : '')
+    + (() => { const m = rnMetasDia(rnEstado.lista, rnEstado.propostas, rnHoje(), c, rnEstado.perfis.length);
+        const pct = (a, b) => (b ? Math.round(a * 100 / b) : 0);
+        return rnKpiHtml(`${m.contatos}/${m.metaContatos}`, 'contatos hoje', `meta do dia · ${pct(m.contatos, m.metaContatos)}%`, m.contatos >= m.metaContatos ? 'ok' : '', pct(m.contatos, m.metaContatos))
+          + rnKpiHtml(`${m.propostas}/${m.metaPropostas}`, 'propostas hoje', `meta do dia · ${pct(m.propostas, m.metaPropostas)}%`, m.propostas >= m.metaPropostas ? 'ok' : '', pct(m.propostas, m.metaPropostas)); })();
+  const cols = rnKanbanColunas(rnEstado.lista, f, rnHoje());
+  document.getElementById('rnKbSumario').textContent = rnSumario(cols.filter(x => x.status <= 8).flatMap(x => x.itens));
   document.getElementById('rnKbCols').innerHTML = '<div class="rnKanban">' + cols.map(col => {
     const lim = rnEstado.kbLimite[col.status] || RN_KB_LIMITE;
     const soma = col.itens.reduce((t, r) => t + (Number(r.valor_proposta) || 0), 0);
@@ -5125,11 +5287,10 @@ function rnRenderKanban(){
       ${col.itens.length > lim ? `<button type="button" class="kbBtn kbBtnQ kbBtnSm" data-rn-kb-mais="${col.status}">Mostrar mais (${col.itens.length - lim})</button>` : ''}
     </div>`; }).join('') + '</div>';
 }
-document.getElementById('rnKanban').addEventListener('input', (e) => { if(e.target.id === 'rnKbBusca'){ rnEstado.kb.busca = e.target.value; rnRenderKanban(); } });
-document.getElementById('rnKanban').addEventListener('change', (e) => { if(e.target.id === 'rnKbPrio'){ rnEstado.kb.prioridade = e.target.value; rnRenderKanban(); } });
+document.getElementById('rnKanban').addEventListener('input', (e) => { if(e.target.id === 'rnKbBusca'){ rnEstado.filtros.busca = e.target.value; rnRenderKanban(); } });
 document.getElementById('rnKanban').addEventListener('click', (e) => {
   const ch = e.target.closest('[data-rn-kb-chip]');
-  if(ch){ rnEstado.kb.chip = rnEstado.kb.chip === ch.dataset.rnKbChip ? '' : ch.dataset.rnKbChip; rnRenderKanban(); return; }
+  if(ch){ rnEstado.filtros.visao = rnEstado.filtros.visao === ch.dataset.rnKbChip ? 'todos' : ch.dataset.rnKbChip; rnRenderKanban(); return; }
   const m = e.target.closest('[data-rn-kb-mais]');
   if(m){ const s = Number(m.dataset.rnKbMais); rnEstado.kbLimite[s] = (rnEstado.kbLimite[s] || RN_KB_LIMITE) + RN_KB_LIMITE; rnRenderKanban(); }
 });
