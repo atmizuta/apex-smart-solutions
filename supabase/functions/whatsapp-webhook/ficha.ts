@@ -1,4 +1,4 @@
-// §165: a ficha que o agente monta. Toda escrita do modelo passa por aplicar() (validação no servidor);
+// §167: a ficha que o agente monta. Toda escrita do modelo passa por aplicar() (validação no servidor);
 // faltando() decide se a ficha pode ir para "pronto". Spec seção 4. Sem rede: testado com node --test.
 import { chaveTelefone, soDigitos } from "./telefone.ts";
 

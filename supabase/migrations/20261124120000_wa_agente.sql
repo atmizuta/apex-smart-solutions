@@ -1,4 +1,4 @@
--- §165: agente de IA no WhatsApp fora do expediente. Spec: docs/superpowers/specs/2026-11-24-whatsapp-agente-noturno-design.md.
+-- §167: agente de IA no WhatsApp fora do expediente. Spec: docs/superpowers/specs/2026-11-24-whatsapp-agente-noturno-design.md.
 -- Sem DROP. Check: supabase/tests/wa_agente_check.sql. Cron em 20261124120100_wa_agente_cron.sql. Aplicar só com ok do Rafael.
 
 create table if not exists public.wa_conversas (

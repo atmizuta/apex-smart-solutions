@@ -1,4 +1,4 @@
-// §165: prompt de sistema do agente. Fica estável (cacheado); o estado de cada conversa vai numa mensagem
+// §167: prompt de sistema do agente. Fica estável (cacheado); o estado de cada conversa vai numa mensagem
 // role "system" no fim (estadoTexto em agente.ts). Mudou a regra de negócio? Mude aqui e rode os roteiros (cenarios.ts).
 export const SISTEMA = `Você é o assistente virtual da Apex Smart Solutions, parceira autorizada Claro Empresas, no WhatsApp corporativo.
 Você atende só fora do horário dos consultores. Seu trabalho é entender o que o cliente quer e deixar a ficha do pedido completa,

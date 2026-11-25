@@ -1,4 +1,4 @@
-// §165: roteiros com o Claude REAL (custa alguns reais). Rodar só com ok do Rafael:
+// §167: roteiros com o Claude REAL (custa alguns reais). Rodar só com ok do Rafael:
 //   ANTHROPIC_API_KEY=... deno run --allow-env --allow-net supabase/functions/whatsapp-webhook/cenarios.ts [nome]
 // Banco e Meta são simulados em memória. Imprime a conversa inteira para o Rafael ler e confere as regras da spec seção 4.
 import Anthropic from "npm:@anthropic-ai/sdk@1.8.0";

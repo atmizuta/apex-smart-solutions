@@ -7429,7 +7429,7 @@ async function kbCarregar(){
     ppSeguro(() => sb.rpc('leads_kanban3', { p_dono: kbGestor() && kbEstado.dono ? kbEstado.dono : null, p_todos: false })),
     kbEstado.opcoes.length ? Promise.resolve(null) : ppSeguro(() => sb.from('leads_status_opcoes').select('status,grupo,ordem').eq('ativo', true)),
     kbCarregarBloqueio(),
-    kbCarregarWaSelos(),   // §165: selo 📱 do WhatsApp   // §132: o bloqueio do gestor chega a quem está com o painel aberto
+    kbCarregarWaSelos(),   // §167: selo 📱 do WhatsApp   // §132: o bloqueio do gestor chega a quem está com o painel aberto
   ]);
   if(geracao !== kbEstado.geracao) return;
   if(ops && !ops.error) kbEstado.opcoes = ops.data || [];
@@ -7446,7 +7446,7 @@ const KB_ICONE_WHATS = '<svg viewBox="0 0 24 24"><path d="M3 21l1.7-5A8.5 8.5 0 
 // §126.2: cartão novo em três níveis — nome; cidade · linhas e STATUS (ponto); OBS, retorno, última ligação e chegada.
 // Ícone de urgência no canto (só em aberto), faixa vermelha só no que precisa de ação agora, Ligar/WhatsApp ao passar o mouse.
 const KB_URG_TITULO = { late: 'Retorno atrasado', hoje: 'Retorno hoje', fut: 'Retorno marcado', nada: 'Nada agendado' };
-// §165: selo do WhatsApp no cartão e bloco "Ficha do WhatsApp" na ficha (agente fora do expediente).
+// §167: selo do WhatsApp no cartão e bloco "Ficha do WhatsApp" na ficha (agente fora do expediente).
 const WA_SELO = { pronto: ['apto', 'Pronto para subir'], em_andamento: ['', 'Em andamento'], precisa_humano: ['naoapto', 'Precisa de humano'] };
 const WA_SERVICO = { moveis: 'Linhas móveis', fibra: 'Internet fixa', outro: 'Outro interesse' };
 const WA_MODALIDADE = { portabilidade: 'Portabilidade', migracao: 'Migração', nova: 'Linha nova' };
@@ -9404,7 +9404,7 @@ async function kbCarregarAlertas(notificar){
   if(kbEstado.aba === 'hoje' && document.getElementById('kbHoje').innerHTML) kbRenderHoje();
 }
 async function kbCarregarDetalhes(aba, id){
-  kbCarregarWa(aba, id);   // §165 (sem await: não atrasa o histórico)
+  kbCarregarWa(aba, id);   // §167 (sem await: não atrasa o histórico)
   const r = await ppSeguro(() => sb.rpc('leads_ficha_detalhes', { p_aba: aba, p_id: id }));
   if(!kbEstado.fichaAlvo || kbEstado.fichaAlvo.id !== id) return;
   const d = r && !r.error ? r.data : null;

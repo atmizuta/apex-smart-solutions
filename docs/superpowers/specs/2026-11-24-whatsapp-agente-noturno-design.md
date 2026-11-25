@@ -1,6 +1,6 @@
-# §165 Agente de IA no WhatsApp corporativo fora do expediente — design
+# §167 Agente de IA no WhatsApp corporativo fora do expediente — design
 
-Data: 24/11/2026 · Pedido do Rafael · Fase 1 (sem preço). Fase 2 (preços) = §165.1, depois de 1–2 semanas de conversas reais.
+Data: 24/11/2026 · Pedido do Rafael · Fase 1 (sem preço). Fase 2 (preços) = §167.1, depois de 1–2 semanas de conversas reais.
 
 ## 1. Objetivo
 
@@ -134,7 +134,7 @@ silêncio na conversa até o expediente e marca o lead.
 2. Ativar a coexistência no número real num domingo/noite; religar os 4 navegadores; modo `ensaio` (só o celular do
    Rafael); conferir eco e sincronização.
 3. Modo `ligado`; na 1ª semana Rafael e Lúria leem fichas e conversas toda manhã.
-4. §165.1 (preços) a partir das conversas reais.
+4. §167.1 (preços) a partir das conversas reais.
 
 ## 9. Fora do escopo (fase 1)
 

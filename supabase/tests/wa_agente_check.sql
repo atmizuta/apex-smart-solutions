@@ -1,4 +1,4 @@
--- §165: conferência da migration 20261124120000 (agente do WhatsApp). Rodar no execute_sql depois da migration.
+-- §167: conferência da migration 20261124120000 (agente do WhatsApp). Rodar no execute_sql depois da migration.
 -- Termina com exceção de propósito: tudo é desfeito. DADOS FICTÍCIOS (DDD 00). Resultado na mensagem.
 do $$
 declare v jsonb; c uuid; c2 uuid; n int; t text; ok text[] := '{}'; v_exp boolean := public.leads_dist_no_expediente(now());

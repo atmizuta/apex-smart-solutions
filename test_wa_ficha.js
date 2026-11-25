@@ -1,4 +1,4 @@
-// Testa a §165 no painel (selo 📱 e bloco Ficha do WhatsApp). Spec: docs/superpowers/specs/2026-11-24-whatsapp-agente-noturno-design.md.
+// Testa a §167 no painel (selo 📱 e bloco Ficha do WhatsApp). Spec: docs/superpowers/specs/2026-11-24-whatsapp-agente-noturno-design.md.
 // DADOS FICTÍCIOS (repo público).
 const fs = require('fs');
 const { JSDOM } = require('jsdom');

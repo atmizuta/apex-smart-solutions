@@ -1,4 +1,4 @@
-// Edge Function: whatsapp-webhook (§165). Recebe o webhook da Meta (Cloud API, coexistência), grava as mensagens e,
+// Edge Function: whatsapp-webhook (§167). Recebe o webhook da Meta (Cloud API, coexistência), grava as mensagens e,
 // fora do expediente, chama o agente depois de ~8 s (junta rajadas). Também atende o cron (x-cron-secret): tick de
 // 1 min e limpeza diária. Spec: docs/superpowers/specs/2026-11-24-whatsapp-agente-noturno-design.md.
 // Secrets: WA_TOKEN, WA_APP_SECRET, WA_VERIFY_TOKEN, WA_PHONE_ID, ANTHROPIC_API_KEY. Publicar com verify_jwt=false,

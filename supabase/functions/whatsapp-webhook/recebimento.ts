@@ -1,4 +1,4 @@
-// §165: entrada do webhook da Meta (Cloud API, coexistência). Confere X-Hub-Signature-256 (HMAC-SHA256 do corpo cru
+// §167: entrada do webhook da Meta (Cloud API, coexistência). Confere X-Hub-Signature-256 (HMAC-SHA256 do corpo cru
 // com a chave do app) e transforma o payload em eventos simples. Sem rede: testado com node --test.
 import { soDigitos } from "./telefone.ts";
 

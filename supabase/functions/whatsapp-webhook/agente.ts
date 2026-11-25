@@ -1,4 +1,4 @@
-// §165: o laço do agente (Claude + ferramentas). Módulo puro: banco, Meta e Claude chegam por deps.
+// §167: o laço do agente (Claude + ferramentas). Módulo puro: banco, Meta e Claude chegam por deps.
 // Spec: docs/superpowers/specs/2026-11-24-whatsapp-agente-noturno-design.md (seções 4 e 6).
 // Claude Opus 5.5: thinking sempre adaptativo (não mandar "thinking"), tool_choice forçado dá 400 (fica auto),
 // sem prefill; conferir stop_reason antes de usar content. Fallback do servidor para recusa: fallbacks "default".

@@ -1,4 +1,4 @@
--- §165: tick de 1 em 1 min (rede de segurança do agente) e limpeza diária dos 90 dias.
+-- §167: tick de 1 em 1 min (rede de segurança do agente) e limpeza diária dos 90 dias.
 -- Aplicar só com ok do Rafael, DEPOIS do secret wa_agente_cron_secret no Vault e do deploy da whatsapp-webhook.
 do $do$
 begin

@@ -1,4 +1,4 @@
-# §165 Agente de IA no WhatsApp fora do expediente — plano de implementação
+# §167 Agente de IA no WhatsApp fora do expediente — plano de implementação
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -57,7 +57,7 @@
   - nunca responde dentro do expediente;
   - nenhum dado de documento vira texto.
 - O expediente é o do §146 (`leads_dist_no_expediente`). A mudança para seg–sex **14:00–21:12** é uma escrita de `config` em produção, com ok (Tarefa 9).
-- Números de seção: este trabalho é a **§165**. Conferir de novo depois do `git fetch oficial` antes de escrever no `REGRAS_NEGOCIO.md`.
+- Números de seção: este trabalho é a **§167**. Conferir de novo depois do `git fetch oficial` antes de escrever no `REGRAS_NEGOCIO.md`.
 
 ## Desvios da spec (decididos no plano; avisar o Rafael na revisão)
 
@@ -101,7 +101,7 @@
 | `supabase/tests/wa_agente_check.sql` | Conferência SQL (termina com exceção: tudo desfeito) |
 | `_template.html` | Selo no cartão, bloco na ficha, clique do documento, 2 avisos na faixa da Equipe |
 | `test_wa_ficha.js` | Teste JSDOM do painel |
-| `REGRAS_NEGOCIO.md` | §165 (na publicação) |
+| `REGRAS_NEGOCIO.md` | §167 (na publicação) |
 
 Rodar os testes dos módulos: `node --test supabase/functions/whatsapp-webhook/` (Node 24 roda `.ts` direto. Os imports usam `.ts` e os tipos usam `import type`, como no `leads-meta`).
 
@@ -166,7 +166,7 @@ test("soDigitos", () => assert.equal(soDigitos(" +55 (11) 9.8765-4321 "), "55119
 - [ ] **Passo 3: implementar**
 
 ```ts
-// §165: telefone do WhatsApp × phone_number do lead. O wa_id de celular antigo pode vir sem o nono dígito,
+// §167: telefone do WhatsApp × phone_number do lead. O wa_id de celular antigo pode vir sem o nono dígito,
 // então o casamento é DDD + últimos 8 dígitos. Mesma regra da função SQL wa_chave_tel (migration 20261124120000).
 export function soDigitos(v: unknown): string { return String(v ?? "").replace(/\D/g, ""); }
 
@@ -179,7 +179,7 @@ export function chaveTelefone(v: unknown): string | null {
 ```
 
 - [ ] **Passo 4:** rodar de novo. Esperado: PASS (4 testes).
-- [ ] **Passo 5: commit** (mostrar ao Rafael antes): `feat(whatsapp): §165 chave de telefone DDD + 8 dígitos`.
+- [ ] **Passo 5: commit** (mostrar ao Rafael antes): `feat(whatsapp): §167 chave de telefone DDD + 8 dígitos`.
 
 ---
 
@@ -305,7 +305,7 @@ test("adicionarDocumento troca o mesmo id e não muda a ficha original", () => {
 - [ ] **Passo 3: implementar**
 
 ```ts
-// §165: a ficha que o agente monta. Toda escrita do modelo passa por aplicar() (validação no servidor);
+// §167: a ficha que o agente monta. Toda escrita do modelo passa por aplicar() (validação no servidor);
 // faltando() decide se a ficha pode ir para "pronto". Spec seção 4. Sem rede: testado com node --test.
 import { chaveTelefone, soDigitos } from "./telefone.ts";
 
@@ -467,7 +467,7 @@ export function adicionarDocumento(f: Ficha, d: Documento): Ficha {
 ```
 
 - [ ] **Passo 4:** rodar. Esperado: PASS (11 testes).
-- [ ] **Passo 5: commit** (mostrar antes): `feat(whatsapp): §165 ficha do pedido com validação e regra de completa`.
+- [ ] **Passo 5: commit** (mostrar antes): `feat(whatsapp): §167 ficha do pedido com validação e regra de completa`.
 
 ---
 
@@ -552,7 +552,7 @@ test("eco do consultor (coexistência) usa o telefone de destino; status e paylo
 - [ ] **Passo 3: implementar**
 
 ```ts
-// §165: entrada do webhook da Meta (Cloud API, coexistência). Confere X-Hub-Signature-256 (HMAC-SHA256 do corpo cru
+// §167: entrada do webhook da Meta (Cloud API, coexistência). Confere X-Hub-Signature-256 (HMAC-SHA256 do corpo cru
 // com a chave do app) e transforma o payload em eventos simples. Sem rede: testado com node --test.
 import { soDigitos } from "./telefone.ts";
 
@@ -623,7 +623,7 @@ export function lerPayload(corpo: unknown): Evento[] {
 ```
 
 - [ ] **Passo 4:** rodar. Esperado: PASS (4 testes).
-- [ ] **Passo 5: commit** (mostrar antes): `feat(whatsapp): §165 assinatura e leitura do webhook da Meta`.
+- [ ] **Passo 5: commit** (mostrar antes): `feat(whatsapp): §167 assinatura e leitura do webhook da Meta`.
 
 ---
 
@@ -651,7 +651,7 @@ export function lerPayload(corpo: unknown): Evento[] {
 - [ ] **Passo 1: `prompt.ts`** (texto; sem teste próprio. Os roteiros da Tarefa 8 avaliam o comportamento)
 
 ```ts
-// §165: prompt de sistema do agente. Fica estável (cacheado); o estado de cada conversa vai numa mensagem
+// §167: prompt de sistema do agente. Fica estável (cacheado); o estado de cada conversa vai numa mensagem
 // role "system" no fim (estadoTexto em agente.ts). Mudou a regra de negócio? Mude aqui e rode os roteiros (cenarios.ts).
 export const SISTEMA = `Você é o assistente virtual da Apex Smart Solutions, parceira autorizada Claro Empresas, no WhatsApp corporativo.
 Você atende só fora do horário dos consultores. Seu trabalho é entender o que o cliente quer e deixar a ficha do pedido completa,
@@ -946,7 +946,7 @@ test("resposta só com ferramenta e sem texto: não envia e adia", async () => {
 - [ ] **Passo 4: implementar `agente.ts`**
 
 ```ts
-// §165: o laço do agente (Claude + ferramentas). Módulo puro: banco, Meta e Claude chegam por deps.
+// §167: o laço do agente (Claude + ferramentas). Módulo puro: banco, Meta e Claude chegam por deps.
 // Spec: docs/superpowers/specs/2026-11-24-whatsapp-agente-noturno-design.md (seções 4 e 6).
 // Claude Opus 5.5: thinking sempre adaptativo (não mandar "thinking"), tool_choice forçado dá 400 (fica auto),
 // sem prefill; conferir stop_reason antes de usar content. Fallback do servidor para recusa: fallbacks "default".
@@ -1235,7 +1235,7 @@ export async function atender(conversa: string, d: DepsAgente, esperado?: string
 ```
 
 - [ ] **Passo 5:** `node --test supabase/functions/whatsapp-webhook/`. Esperado: PASS em todos (Tarefas 1–4).
-- [ ] **Passo 6: commit** (mostrar antes): `feat(whatsapp): §165 laço do agente com ferramentas e regras de silêncio`.
+- [ ] **Passo 6: commit** (mostrar antes): `feat(whatsapp): §167 laço do agente com ferramentas e regras de silêncio`.
 
 ---
 
@@ -1270,7 +1270,7 @@ export async function atender(conversa: string, d: DepsAgente, esperado?: string
 - [ ] **Passo 1: escrever `supabase/tests/wa_agente_check.sql`** (o teste vem antes; roda no banco só na Tarefa 9, com ok)
 
 ```sql
--- §165: conferência da migration 20261124120000 (agente do WhatsApp). Rodar no execute_sql depois da migration.
+-- §167: conferência da migration 20261124120000 (agente do WhatsApp). Rodar no execute_sql depois da migration.
 -- Termina com exceção de propósito: tudo é desfeito. DADOS FICTÍCIOS (DDD 00). Resultado na mensagem.
 do $$
 declare v jsonb; c uuid; c2 uuid; n int; t text; ok text[] := '{}'; v_exp boolean := public.leads_dist_no_expediente(now());
@@ -1368,7 +1368,7 @@ end $$;
 - [ ] **Passo 2: escrever a migration `supabase/migrations/20261124120000_wa_agente.sql`.** Em `leads_entrada2`, usar o corpo de produção lido na Tarefa 0 se ele for diferente do repo. A única mudança é a lista de origens.
 
 ```sql
--- §165: agente de IA no WhatsApp fora do expediente. Spec: docs/superpowers/specs/2026-11-24-whatsapp-agente-noturno-design.md.
+-- §167: agente de IA no WhatsApp fora do expediente. Spec: docs/superpowers/specs/2026-11-24-whatsapp-agente-noturno-design.md.
 -- Sem DROP. Check: supabase/tests/wa_agente_check.sql. Cron em 20261124120100_wa_agente_cron.sql. Aplicar só com ok do Rafael.
 
 create table if not exists public.wa_conversas (
@@ -1738,7 +1738,7 @@ grant execute on function public.wa_selos(), public.wa_ficha(text, text), public
   > A linha `COLAR AQUI` é uma instrução para quem executa, não um placeholder de conteúdo. O corpo vem da Tarefa 0 (`pg_get_functiondef`) ou de `supabase/migrations/20261109120300_leads_dist_tick.sql:98-155`, se for igual. O resultado no arquivo é a função inteira com a lista nova. Conferir com `grep -c "'planilha', 'meta', 'whatsapp'" supabase/migrations/20261124120000_wa_agente.sql` (esperado: 1).
 
 - [ ] **Passo 3: conferência local de sintaxe (sem banco).** `grep -c "drop " supabase/migrations/20261124120000_wa_agente.sql` deve dar 0. Revisar se os nomes das RPCs batem com a tabela de Interfaces e com a Tarefa 6. O check SQL roda **na Tarefa 9**, depois de aplicar a migration com ok.
-- [ ] **Passo 4: commit** (mostrar antes): `feat(whatsapp): §165 tabelas, RPCs e bucket do agente (sem aplicar)`.
+- [ ] **Passo 4: commit** (mostrar antes): `feat(whatsapp): §167 tabelas, RPCs e bucket do agente (sem aplicar)`.
 
 ---
 
@@ -1765,7 +1765,7 @@ async function consultarFora(cnpj: string, deps: Deps): Promise<Resultado | "inv
 por
 
 ```ts
-export async function consultarFora(cnpj: string, deps: Pick<Deps, "buscar" | "log">): Promise<Resultado | "invalido" | null> {   // §165 reaproveita
+export async function consultarFora(cnpj: string, deps: Pick<Deps, "buscar" | "log">): Promise<Resultado | "invalido" | null> {   // §167 reaproveita
 ```
 
 Rodar `node --test supabase/functions/verificar-cnpj/`. Esperado: PASS, sem mudança de comportamento.
@@ -1776,7 +1776,7 @@ Rodar `node --test supabase/functions/verificar-cnpj/`. Esperado: PASS, sem muda
 - [ ] **Passo 3: escrever `index.ts`**
 
 ```ts
-// Edge Function: whatsapp-webhook (§165). Recebe o webhook da Meta (Cloud API, coexistência), grava as mensagens e,
+// Edge Function: whatsapp-webhook (§167). Recebe o webhook da Meta (Cloud API, coexistência), grava as mensagens e,
 // fora do expediente, chama o agente depois de ~8 s (junta rajadas). Também atende o cron (x-cron-secret): tick de
 // 1 min e limpeza diária. Spec: docs/superpowers/specs/2026-11-24-whatsapp-agente-noturno-design.md.
 // Secrets: WA_TOKEN, WA_APP_SECRET, WA_VERIFY_TOKEN, WA_PHONE_ID, ANTHROPIC_API_KEY. Publicar com verify_jwt=false,
@@ -1951,7 +1951,7 @@ Deno.serve(async (req) => {
 - [ ] **Passo 5: escrever `supabase/migrations/20261124120100_wa_agente_cron.sql`**
 
 ```sql
--- §165: tick de 1 em 1 min (rede de segurança do agente) e limpeza diária dos 90 dias.
+-- §167: tick de 1 em 1 min (rede de segurança do agente) e limpeza diária dos 90 dias.
 -- Aplicar só com ok do Rafael, DEPOIS do secret wa_agente_cron_secret no Vault e do deploy da whatsapp-webhook.
 do $do$
 begin
@@ -1978,7 +1978,7 @@ begin
 end $do$;
 ```
 
-- [ ] **Passo 6: commit** (mostrar antes): `feat(whatsapp): §165 Edge Function whatsapp-webhook e cron (sem deploy)`.
+- [ ] **Passo 6: commit** (mostrar antes): `feat(whatsapp): §167 Edge Function whatsapp-webhook e cron (sem deploy)`.
 
 ---
 
@@ -2002,7 +2002,7 @@ end $do$;
   - `kbEstado.waSelos`.
 
 - [ ] **Passo 1: teste que falha `test_wa_ficha.js`.** Começar copiando as linhas 1–45 de `test_alterar_cnpj.js` (cabeçalho, JSDOM, mocks), com estas trocas:
-  - comentário da linha 1: `// Testa a §165 no painel (selo 📱 e bloco Ficha do WhatsApp). Spec: docs/superpowers/specs/2026-11-24-whatsapp-agente-noturno-design.md.`;
+  - comentário da linha 1: `// Testa a §167 no painel (selo 📱 e bloco Ficha do WhatsApp). Spec: docs/superpowers/specs/2026-11-24-whatsapp-agente-noturno-design.md.`;
   - no objeto devolvido por `createClient`, acrescentar `storage: { from: (b) => ({ createSignedUrl: async (c, s) => { window.__assinados.push([b, c, s]); return { data: { signedUrl: 'https://zz.invalid/doc' }, error: null }; } }) },`;
   - depois de `window.__alertas = [];`, acrescentar `window.__assinados = []; window.__abertos = []; window.open = (u) => { window.__abertos.push(u); return null; };`.
 
@@ -2113,7 +2113,7 @@ window.eval(jsCode + testScript);
   (a) Logo antes de `function kbCard(l, agoraMs){`, inserir:
 
 ```js
-// §165: selo do WhatsApp no cartão e bloco "Ficha do WhatsApp" na ficha (agente fora do expediente).
+// §167: selo do WhatsApp no cartão e bloco "Ficha do WhatsApp" na ficha (agente fora do expediente).
 const WA_SELO = { pronto: ['apto', 'Pronto para subir'], em_andamento: ['', 'Em andamento'], precisa_humano: ['naoapto', 'Precisa de humano'] };
 const WA_SERVICO = { moveis: 'Linhas móveis', fibra: 'Internet fixa', outro: 'Outro interesse' };
 const WA_MODALIDADE = { portabilidade: 'Portabilidade', migracao: 'Migração', nova: 'Linha nova' };
@@ -2170,11 +2170,11 @@ async function kbAbrirWaDoc(caminho){
 
   No `return` dos Livres, trocar `<div class="kbCartRodape"><span class="kbTag` por `<div class="kbCartRodape">${waSelo}<span class="kbTag`. Nos outros cartões, logo depois de `const extras = [];`, acrescentar `if(waSelo) extras.push(waSelo);`.
 
-  (c) Em `kbCarregar`, dentro do `Promise.all([...])`, depois de `kbCarregarBloqueio(),`, acrescentar a linha `kbCarregarWaSelos(),   // §165: selo 📱 do WhatsApp`.
+  (c) Em `kbCarregar`, dentro do `Promise.all([...])`, depois de `kbCarregarBloqueio(),`, acrescentar a linha `kbCarregarWaSelos(),   // §167: selo 📱 do WhatsApp`.
 
   (d) No `return` final de `kbFichaHtml`, trocar `${aviso}${obsAnt}${corpo}` por `${aviso}${obsAnt}<div class="kbFichaSecao" id="kbFichaWa" hidden></div>${corpo}`.
 
-  (e) Na primeira linha do corpo de `async function kbCarregarDetalhes(aba, id){`, acrescentar `kbCarregarWa(aba, id);   // §165 (sem await: não atrasa o histórico)`.
+  (e) Na primeira linha do corpo de `async function kbCarregarDetalhes(aba, id){`, acrescentar `kbCarregarWa(aba, id);   // §167 (sem await: não atrasa o histórico)`.
 
   (f) No clique da ficha, logo antes de `const cp = e.target.closest('[data-kb-ficha-copiar]');`, acrescentar:
 
@@ -2192,7 +2192,7 @@ async function kbAbrirWaDoc(caminho){
 
 - [ ] **Passo 4:** `bash run_tests.sh test_wa_ficha.js`. Esperado: PASS. Depois rodar `bash run_tests.sh test_alterar_cnpj.js test_leads_kanban.js test_leads_distribuicao.js test_leads_dist_consultor.js`. Esperado: sem falha nova.
 - [ ] **Passo 5:** `git diff --stat _template.html`. Conferir que o bloco `<style>` não mudou (`git diff _template.html | grep -c "^[-+].*{.*:.*;.*}"` deve dar 0) e que o arquivo continua em LF (`file _template.html`).
-- [ ] **Passo 6: commit** (mostrar antes): `feat(painel): §165 selo do WhatsApp no cartão e Ficha do WhatsApp na ficha`.
+- [ ] **Passo 6: commit** (mostrar antes): `feat(painel): §167 selo do WhatsApp no cartão e Ficha do WhatsApp na ficha`.
 
 ---
 
@@ -2207,7 +2207,7 @@ async function kbAbrirWaDoc(caminho){
 - [ ] **Passo 1: escrever `cenarios.ts`**
 
 ```ts
-// §165: roteiros com o Claude REAL (custa alguns reais). Rodar só com ok do Rafael:
+// §167: roteiros com o Claude REAL (custa alguns reais). Rodar só com ok do Rafael:
 //   ANTHROPIC_API_KEY=... deno run --allow-env --allow-net supabase/functions/whatsapp-webhook/cenarios.ts [nome]
 // Banco e Meta são simulados em memória. Imprime a conversa inteira para o Rafael ler e confere as regras da spec seção 4.
 import Anthropic from "npm:@anthropic-ai/sdk@VERSAO_DA_TAREFA_6";
@@ -2296,7 +2296,7 @@ Deno.exit(falhas ? 1 : 0);
   > Trocar `VERSAO_DA_TAREFA_6` pela mesma versão usada no `index.ts`. Conferir com `grep -c VERSAO_DA_TAREFA_6 supabase/functions/whatsapp-webhook/cenarios.ts` (esperado: 0).
 
 - [ ] **Passo 2:** `deno check supabase/functions/whatsapp-webhook/cenarios.ts` (sem rodar). **Não rodar com a chave sem o ok do Rafael.**
-- [ ] **Passo 3: commit** (mostrar antes): `test(whatsapp): §165 roteiros com o Claude real`.
+- [ ] **Passo 3: commit** (mostrar antes): `test(whatsapp): §167 roteiros com o Claude real`.
 
 ---
 
@@ -2360,9 +2360,9 @@ select valor::jsonb -> 'expediente' from public.config where chave = 'leads_dist
 - [ ] **Ligar (ok 10):** `modo = "ligado"`. Na primeira semana, Rafael e Lúria leem fichas e conversas toda manhã.
 - [ ] **Documentar e juntar (ok 11):**
   - `git fetch oficial`;
-  - conferir o próximo número livre (era §165);
-  - escrever a §165 no `REGRAS_NEGOCIO.md`: o que faz, a config `wa_agente`, as RPCs, os avisos, o cron e os desvios da spec deste plano;
+  - conferir o próximo número livre (era §167);
+  - escrever a §167 no `REGRAS_NEGOCIO.md`: o que faz, a config `wa_agente`, as RPCs, os avisos, o cron e os desvios da spec deste plano;
   - mostrar o commit;
   - juntar com a `oficial/main` sem force;
   - atualizar a memória do `MEMORY.md`.
-- [ ] **Depois de 1–2 semanas:** §165.1 (preços), com spec própria.
+- [ ] **Depois de 1–2 semanas:** §167.1 (preços), com spec própria.
