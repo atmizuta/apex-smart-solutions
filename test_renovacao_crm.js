@@ -119,5 +119,27 @@ require('./renovacao_test_harness.js').rodar(`
   assert(a.dados_claro['ETAPA DO FUNIL ▼'] === undefined && a.dados_claro['RAZÃO SOCIAL'] === undefined, 'colunas de acompanhamento não vão para dados_claro');
   const p = rnPrevia(lido.linhas, []);
   eq([p.novos, p.saiu], [2, 1], 'prévia conta quem sai (movimentação SAIU)');
+  // ==== Funil estilo Pipedrive: tela inicial, busca, prioridade, atalhos, coluna limitada ====
+  currentUser = { id: 'u-a', nome: 'Zza Teste', role: 'consultor', operacao: 'apex', equipe: 'renovacao' };
+  rnAplicarPermissao();
+  eq(rnEstado.aba, 'kanban', 'a Renovação abre no Funil');
+  window.__tabelas.renovacao_carteira = Array.from({ length: 45 }, (_, i) => L({ id: 300 + i, razao_social: 'Zz Novo ' + i, prioridade: i < 5 ? 'P1' : 'P3', linhas_voz: i }))
+    .concat([L({ id: 400, razao_social: 'Zz Atrasado', status: 2, prox_retorno: '2026-11-20', prioridade: 'P2', data_contato: '2026-11-10' })]);
+  window.__tabelas.propostas = [];
+  await rnCarregar(); await espera(30);
+  rnTrocarAba('kanban');
+  const col0 = () => document.querySelectorAll('#rnKanban [data-rn-coluna="0"] [data-rn-card]').length;
+  eq([document.querySelectorAll('#rnKanban [data-rn-coluna]').length, col0()], [9, 20], 'colunas 0–8 e coluna 0 limitada a 20 cartões');
+  document.querySelector('#rnKanban [data-rn-kb-mais="0"]').click();
+  eq(col0(), 40, 'mostrar mais soma 20');
+  document.getElementById('rnKbPrio').value = 'P1'; document.getElementById('rnKbPrio').dispatchEvent(new window.Event('change', { bubbles: true }));
+  eq(col0(), 5, 'filtro de prioridade no funil');
+  document.getElementById('rnKbPrio').value = ''; document.getElementById('rnKbPrio').dispatchEvent(new window.Event('change', { bubbles: true }));
+  document.querySelector('#rnKbChips [data-rn-kb-chip="atrasados"]').click();
+  eq([col0(), document.querySelectorAll('#rnKanban [data-rn-coluna="2"] [data-rn-card]').length], [0, 1], 'atalho Atrasados');
+  document.querySelector('#rnKbChips [data-rn-kb-chip="atrasados"]').click();
+  const kbb = document.getElementById('rnKbBusca'); kbb.value = 'Novo 7'; kbb.dispatchEvent(new window.Event('input', { bubbles: true }));
+  eq(col0(), 1, 'busca no funil');
+  assert(document.getElementById('rnKbKpis').textContent.includes('sem contato há +7 dias'), 'indicadores no topo do funil');
   fim();
 `);

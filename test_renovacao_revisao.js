@@ -9,7 +9,7 @@ require('./renovacao_test_harness.js').rodar(`
     L({ id: 3, razao_social: 'Zz C', prox_retorno: '2026-11-12' }), L({ id: 4, razao_social: 'Zz D', prox_retorno: '2026-11-13', retorno_hora: '18:00' }),
   ];
   window.__tabelas.propostas = []; window.__tabelas.renovacao_historico = [];
-  await rnCarregar(); await espera(40);
+  await rnCarregar(); rnTrocarAba('hoje'); await espera(40);
   const form = () => document.getElementById('rnFichaForm');
   const bt = (s) => document.querySelector('#rnFichaForm [data-rn-contato="' + s + '"]');
   const proximo = async () => { document.querySelector('#rnFichaForm [data-rn-proximo]').click(); await espera(40); };

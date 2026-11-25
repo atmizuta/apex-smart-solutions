@@ -23,7 +23,7 @@ require('./renovacao_test_harness.js').rodar(`
   const corpo = document.getElementById('rnFichaCorpo');
   assert(/00\\.000\\.000\\/0001-01/.test(corpo.textContent), 'CNPJ formatado');
   assert(corpo.querySelector('a[href^="https://wa.me/5511900000001"]') && corpo.querySelector('a[href="tel:11900000001"]'), 'WhatsApp e Ligar');
-  eq([...corpo.querySelectorAll('details.rnGrupo summary')].map(s => s.firstChild.textContent.trim()), ['Contrato e linhas', 'Concorrência', 'Fixa e cabeamento', 'Tudo'], 'grupos na ficha');
+  eq([...corpo.querySelectorAll('[data-rn-ficha-sec="dados"] details.rnGrupo summary')].map(s => s.firstChild.textContent.trim()), ['Contrato e linhas', 'Concorrência', 'Fixa e cabeamento', 'Tudo'], 'grupos na ficha');
   assert(/05\\/11 · Zza Teste: 1-Tentativa de contato → 3-Qualificado/.test(corpo.textContent), 'histórico legível');
 
   // salvar atendimento

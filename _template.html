@@ -1136,7 +1136,11 @@
   .rnMaisBt{margin:var(--space-3) auto 0;}
   /* Funil */
   .kanbanCard.kcRenovacao{cursor:pointer;}
-  .rnKanban{display:grid;grid-template-columns:repeat(5,minmax(210px,1fr));gap:var(--space-3);overflow-x:auto;}
+  .rnKanban{display:grid;grid-template-columns:repeat(9,minmax(230px,1fr));gap:var(--space-3);overflow-x:auto;padding-bottom:var(--space-3);}
+  .rnProxCard{margin:0;padding:var(--space-2) var(--space-3);border-radius:var(--radius-lg);background:var(--ml-surface-2);font-size:var(--fs-sm);}
+  .rnSecao>summary{font-weight:600;cursor:pointer;}
+  .rnKbTopo{display:flex;align-items:center;gap:6px;min-width:0;}.rnKbTopo .rnNome{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  #rnKbBarra{margin:var(--space-3) 0;}
   .rnKbCol{background:var(--ml-surface-3);border-radius:var(--radius-lg);padding:var(--space-2);min-height:240px;}
   .rnKbHead{display:flex;justify-content:space-between;align-items:center;margin:4px 4px 10px;}
   .rnKbCard{background:var(--ml-surface);border-radius:var(--radius-lg);padding:10px 12px;margin-bottom:var(--space-2);cursor:grab;display:grid;gap:4px;box-shadow:var(--shadow-sm);}
@@ -1929,16 +1933,16 @@
     <section class="panel" id="panel-renovacao">
       <div class="rnTopo">
         <nav class="kbSeg" id="rnAbas" aria-label="Visões da Renovação">
-          <button type="button" class="active" data-rn-aba="hoje">Hoje <span class="kbBadge" id="rnBadgeRetornos"></span></button>
-          <button type="button" data-rn-aba="carteira">Carteira</button>
-          <button type="button" data-rn-aba="kanban">Funil</button>
-          <button type="button" data-rn-aba="resumo">Resumo</button>
+          <button type="button" class="active" data-rn-aba="kanban">Funil</button>
+          <button type="button" data-rn-aba="carteira">Lista</button>
+          <button type="button" data-rn-aba="hoje">Fila de hoje <span class="kbBadge" id="rnBadgeRetornos"></span></button>
+          <button type="button" data-rn-aba="resumo">Painel</button>
           <button type="button" data-rn-aba="proposta">Proposta e fatura</button>
         </nav>
         <select id="rnFConsultor" class="rnSel" aria-label="Consultor" style="display:none"></select>
         <span class="kbStatusLinha" id="rnStatus"></span>
       </div>
-      <div id="rnHoje" class="rnVisao">
+      <div id="rnHoje" class="rnVisao" hidden>
         <div class="rnKpis" id="rnKpis"></div>
         <div class="rnHojeGrade">
           <div class="rnBloco">
@@ -1973,7 +1977,7 @@
         <div class="rnTabelaCasa"><table class="rnTabela"><thead id="rnThead"></thead><tbody id="rnTbody"></tbody></table></div>
         <button type="button" class="kbBtn kbBtnQ rnMaisBt" id="rnMais" style="display:none"></button>
       </div>
-      <div id="rnKanban" class="rnVisao" hidden></div>
+      <div id="rnKanban" class="rnVisao"></div>
       <div id="rnResumo" class="rnVisao" hidden></div>
       <div id="rnProposta" class="rnVisao" hidden></div>
       <aside class="kbFicha" id="rnFicha" aria-label="Ficha do cliente"><div class="kbFichaCorpo" id="rnFichaCorpo"></div></aside>
@@ -4076,7 +4080,7 @@ const RN_PAGINA = 50;
 function rnFiltrosVazios(){ return { busca: '', visao: 'todos', ordem: 'prioridade', status: '', apto: '', prioridade: '', cidade: '', ddd: '', consultor: '', soVencido: false, pendencias: false, foraBase: false }; }
 const rnEncerrado = (s) => s >= 6;                  // ganho, perdido ou desqualificado: sai da fila de retornos
 const rnGanho = (s) => s === 6 || s === 7;
-const rnEstado = { aba: 'hoje', buscaHoje: '', fichaAba: 'atendimento', fichaStatus: null, lista: [], propostas: [], arrastando: null, perfis: [], carregado: false, geracao: 0, filtros: rnFiltrosVazios(), pagina: 1, selecionados: new Set(), fichaId: null, ficha: null, importacao: null, socios: null, sociosTimer: null };
+const rnEstado = { aba: 'kanban', buscaHoje: '', fichaAba: 'atendimento', fichaStatus: null, lista: [], propostas: [], arrastando: null, perfis: [], carregado: false, geracao: 0, filtros: rnFiltrosVazios(), pagina: 1, selecionados: new Set(), fichaId: null, ficha: null, importacao: null, socios: null, sociosTimer: null, kb: { busca: '', prioridade: '', chip: '' }, kbLimite: {} };
 
 function rnGestor(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
 function rnPodeVer(){
@@ -4091,7 +4095,7 @@ function rnAplicarPermissao(){
   const soRenovacao = rnSoRenovacao();
   ['busca', 'proposta', 'funil', 'agenda'].forEach(t => { const b = document.querySelector(`#tabsNav button[data-tab="${t}"]`); if(b) b.style.display = soRenovacao ? 'none' : ''; });
   rnSociosParar();
-  Object.assign(rnEstado, { aba: 'hoje', lista: [], propostas: [], perfis: [], carregado: false, filtros: rnFiltrosVazios(), pagina: 1, fichaId: null, ficha: null, socios: null,
+  Object.assign(rnEstado, { aba: 'kanban', kb: { busca: '', prioridade: '', chip: '' }, kbLimite: {}, lista: [], propostas: [], perfis: [], carregado: false, filtros: rnFiltrosVazios(), pagina: 1, fichaId: null, ficha: null, socios: null,
     importacao: null, buscaHoje: '', fichaAba: 'atendimento', fichaStatus: null });
   rnEstado.selecionados.clear();
   rnEstado.geracao++;
@@ -4100,7 +4104,7 @@ function rnAplicarPermissao(){
   ['rnTbody', 'rnResumo', 'rnFichaCorpo', 'rnKanban', 'rnKpis', 'rnFilaLista', 'rnVisoes', 'rnChips'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = ''; });
   const busca = document.getElementById('rnHojeBusca'); if(busca) busca.value = '';
   document.getElementById('rnFicha').classList.remove('aberta');
-  rnMostrarAba('hoje');
+  rnMostrarAba('kanban');
 }
 function rnStatus(msg){ const el = document.getElementById('rnStatus'); if(el) el.textContent = msg || ''; }
 function rnHoje(){ return hojeSP(); }
@@ -4224,6 +4228,7 @@ function rnFiltrar(lista, f, hoje){
     if(v === 'andamento' && !(r.status >= 1 && r.status <= 5)) return false;
     if((v === 'atrasados' || f.soVencido) && rnEstadoRetorno(r, agora) !== 'atrasado') return false;
     if(v === 'sem7' && !rnSemContato7(r, agora.data)) return false;
+    if(v === 'fila' && !['atrasado', 'hoje'].includes(rnEstadoRetorno(r, agora))) return false;
     if((v === 'pendencias' || f.pendencias) && !r.a_completar) return false;
     if(v === 'renovados' && !rnGanho(r.status)) return false;
     if(v === 'perdidos' && r.status !== 8 && r.status !== 9) return false;
@@ -4628,9 +4633,8 @@ function rnRenderFicha(){
     <div class="rnFichaAcoes">${tel
       ? `<a class="kbBtn kbBtnP" data-rn-canal="WhatsApp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}">WhatsApp</a><a class="kbBtn kbBtnQ" data-rn-canal="Ligação" href="tel:${escapeHtml(tel)}">Ligar</a>`
       : '<span class="kbMeta">Sem telefone.</span>'}${rnEncerrado(r.status) ? '<span class="kbMeta">Reabra a etapa para gerar proposta.</span>' : `<button type="button" class="kbBtn kbBtnQ" data-rn-gerar="${r.id}">Gerar proposta</button>`}</div>
-    <nav class="rnFichaAbas" aria-label="Ficha do cliente">${[['atendimento', 'Atendimento'], ['dados', 'Dados da Claro'], ['propostas', 'Propostas · ' + props.length], ['historico', 'Histórico'], ['socios', 'Sócios']]
-      .map(([k, t]) => `<button type="button" data-rn-ficha-aba="${k}" class="${aba === k ? 'on' : ''}">${escapeHtml(t)}</button>`).join('')}</nav>
-    <section data-rn-ficha-sec="atendimento"${esconde(aba === 'atendimento')}>
+    <p class="rnProxCard"><b>Próximo passo:</b> ${rnProximoPassoHtml(r, rnAgora())}</p>
+    <section data-rn-ficha-sec="atendimento">
       <form id="rnFichaForm">
         <input type="hidden" name="status" value="${sel}">
         <p class="rnPergunta">Etapa do funil</p>
@@ -4670,16 +4674,16 @@ function rnRenderFicha(){
           : '<button type="submit" class="kbBtn kbBtnP">Salvar</button>'}</div>
       </form>
     </section>
-    <section data-rn-ficha-sec="dados"${esconde(aba === 'dados')}>${fic.dados
+    <details class="rnGrupo rnSecao"><summary>Dados da Claro</summary><div data-rn-ficha-sec="dados">${fic.dados
       ? rnGruposFicha(fic.dados).map(([t, itens]) => `<details class="rnGrupo"><summary>${escapeHtml(t)} <span class="kbMeta">${itens.length}</span></summary><dl>${itens.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(String(v))}</dd>`).join('')}</dl></details>`).join('')
-      : '<p class="kbMeta">Carregando dados da Claro…</p>'}</section>
-    <section data-rn-ficha-sec="propostas"${esconde(aba === 'propostas')}>${props.length
+      : '<p class="kbMeta">Carregando dados da Claro…</p>'}</div></details>
+    <details class="rnGrupo rnSecao"><summary>Propostas · ${props.length}</summary><div data-rn-ficha-sec="propostas">${props.length
       ? '<ul class="rnHist">' + props.map(p => `<li><button type="button" class="rnNome" data-rn-proposta="${escapeHtml(p.id)}">${p.valor_atual ? fmtBRL(p.valor_atual) : '—'} → ${p.valor_proposto ? fmtBRL(p.valor_proposto) : '—'}</button> · ${escapeHtml(new Date(p.criado_em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }))} · ${escapeHtml(FUNIL_ESTAGIO_MAP[p.estagio] ? FUNIL_ESTAGIO_MAP[p.estagio].label : p.estagio)}</li>`).join('') + '</ul>'
-      : '<p class="kbMeta">Nenhuma proposta ainda.</p>'}</section>
-    <section data-rn-ficha-sec="historico"${esconde(aba === 'historico')}>${fic.historico
+      : '<p class="kbMeta">Nenhuma proposta ainda.</p>'}</div></details>
+    <details class="rnGrupo rnSecao" open><summary>Histórico de atividades</summary><div data-rn-ficha-sec="historico">${fic.historico
       ? (fic.historico.length ? '<ul class="rnHist">' + fic.historico.map(h => `<li>${escapeHtml(rnHistoricoTexto(h))}</li>`).join('') + '</ul>' : '<p class="kbMeta">Sem mudanças registradas.</p>')
-      : '<p class="kbMeta">Carregando…</p>'}</section>
-    <section data-rn-ficha-sec="socios"${esconde(aba === 'socios')}>${rnSociosHtml()}</section>`;
+      : '<p class="kbMeta">Carregando…</p>'}</div></details>
+    <details class="rnGrupo rnSecao"><summary>Sócios</summary><div data-rn-ficha-sec="socios">${rnSociosHtml()}</div></details>`;
 }
 function rnEscolherContato(s){
   const form = document.getElementById('rnFichaForm');
@@ -4710,13 +4714,6 @@ function rnIrParaProximo(idAtual, ordemAntes){
 document.getElementById('rnFicha').addEventListener('click', (e) => {
   const c = e.target.closest('[data-rn-contato]');
   if(c){ rnEscolherContato(Number(c.dataset.rnContato)); return; }
-  const a = e.target.closest('[data-rn-ficha-aba]');
-  if(a){
-    rnEstado.fichaAba = a.dataset.rnFichaAba;
-    document.querySelectorAll('#rnFicha [data-rn-ficha-aba]').forEach(b => b.classList.toggle('on', b === a));
-    document.querySelectorAll('#rnFicha [data-rn-ficha-sec]').forEach(s => { s.hidden = s.dataset.rnFichaSec !== rnEstado.fichaAba; });
-    return;
-  }
   const k = e.target.closest('[data-rn-canal]');
   if(k){ const sel = document.querySelector('#rnFichaForm [name="canal"]'); if(sel) sel.value = k.dataset.rnCanal; }
 });
@@ -5064,10 +5061,11 @@ async function rnPropostaGerada(carteiraId){
   if(rnEstado.fichaId === carteiraId) rnRenderFicha();
 }
 // ---- §143.2 Kanban (a partir de Contato efetivo; não contatado e tentativa ficam na lista) ----
-const RN_KANBAN = [2, 3, 4, 5, 6, 7, 8];
+const RN_KANBAN = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+const RN_KB_LIMITE = 20;   // cartões por coluna antes do "mostrar mais" (a coluna 0 chega a centenas)
 function rnDiasNoStatus(r, agoraMs){ return r.status_desde ? Math.max(0, Math.floor((agoraMs - new Date(r.status_desde).getTime()) / 86400000)) : null; }
 function rnKanbanColunas(lista, filtros, hoje){
-  const base = rnFiltrar(lista, Object.assign(rnFiltrosVazios(), { consultor: filtros.consultor || '' }), hoje);
+  const base = rnFiltrar(lista, Object.assign(rnFiltrosVazios(), { consultor: filtros.consultor || '', busca: filtros.busca || '', prioridade: filtros.prioridade || '', visao: filtros.visao || 'todos' }), hoje);
   return RN_KANBAN.map(s => ({ status: s, itens: base.filter(r => r.status === s) }));
 }
 function rnCartaoHtml(r, agora, gestor){
@@ -5077,24 +5075,64 @@ function rnCartaoHtml(r, agora, gestor){
   const late = dias !== null && dias >= 7 && r.status >= 2 && r.status <= 5;
   const parado = dias === null || rnEncerrado(r.status) ? '' : dias === 0 ? 'nesta etapa desde hoje' : `parado há ${dias} dia${dias > 1 ? 's' : ''}`;
   const valor = p && p.valor_proposto ? fmtBRL(p.valor_proposto) : (Number(r.valor_proposta) ? fmtBRL(r.valor_proposta) : '');
-  const sub = [r.prioridade || '', `${r.linhas_voz ?? 0} linhas`, valor, rnGanho(r.status) && r.linhas_renovadas ? `${r.linhas_renovadas} fechadas` : '',
+  const ag = rnAgora(); const est = rnEstadoRetorno(r, ag);
+  const prox = est ? `<span class="${est === 'atrasado' ? 'rnLate' : est === 'hoje' ? 'rnOk' : 'rnMuted'}">${est === 'atrasado' ? '⏱ ' : ''}${escapeHtml([r.prox_acao, r.prox_retorno.slice(8, 10) + '/' + r.prox_retorno.slice(5, 7)].filter(Boolean).join(' · '))}</span>` : '';
+  const sub = [`${r.linhas_voz ?? 0} linhas`, r.fatura != null && !valor ? fmtBRL(r.fatura) + '/mês' : '', valor, rnGanho(r.status) && r.linhas_renovadas ? `${r.linhas_renovadas} fechadas` : '',
     r.status === 8 && r.motivo_perda ? r.motivo_perda : '', gestor ? rnNomeConsultor(r.consultor_id) : ''].filter(Boolean).join(' · ');
   return `<div class="rnKbCard" draggable="true" data-rn-card="${r.id}">
-    <button type="button" class="rnNome" data-rn-abrir="${r.id}">${escapeHtml(r.razao_social || '(sem nome)')}</button>
+    <div class="rnKbTopo">${rnPrioHtml(r.prioridade)}<button type="button" class="rnNome" data-rn-abrir="${r.id}">${escapeHtml(r.razao_social || '(sem nome)')}</button></div>
     <small>${escapeHtml(sub)}</small>
+    ${prox ? `<small>${prox}</small>` : ''}
     ${parado ? `<span class="rnParado${late ? ' late' : ''}">${late ? '⏱ ' : ''}${escapeHtml(parado)}</span>` : ''}
     ${rnEncerrado(r.status) ? '' : `<button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-gerar="${r.id}">Gerar proposta</button>`}
   </div>`;
 }
-function rnRenderKanban(){
-  const agora = Date.now(); const gestor = rnGestor();
-  rnPreencherFiltros();
-  document.getElementById('rnKanban').innerHTML = '<div class="rnKanban">' + rnKanbanColunas(rnEstado.lista, rnEstado.filtros, rnHoje()).map(c => `
-    <div class="rnKbCol" data-rn-coluna="${c.status}">
-      <div class="rnKbHead">${rnEtapaHtml(c.status)}<span class="kbN">${c.itens.length}</span></div>
-      ${c.itens.map(r => rnCartaoHtml(r, agora, gestor)).join('') || '<p class="rnVazio">Nenhum cliente.</p>'}
-    </div>`).join('') + '</div>';
+const RN_KB_CHIPS = [['fila', 'Fila de hoje'], ['atrasados', 'Atrasados'], ['sem7', 'Sem contato +7d']];
+function rnKbBarraHtml(){
+  return `<div id="rnKbKpis" class="rnKpis"></div>
+    <div class="rnCartBarra" id="rnKbBarra">
+      <input type="search" id="rnKbBusca" class="kbBusca" placeholder="Buscar empresa, CNPJ ou ADM" autocomplete="off" aria-label="Buscar no funil">
+      <select id="rnKbPrio" class="rnSel" aria-label="Prioridade"><option value="">Prioridade: todas</option>${['P1', 'P2', 'P3', 'P4', 'P5'].map(x => `<option value="${x}">${x}</option>`).join('')}</select>
+      <span class="rnVisoes" id="rnKbChips"></span>
+    </div>
+    <div id="rnKbCols"></div>`;
 }
+function rnRenderKanban(){
+  const agora = Date.now(); const gestor = rnGestor(); const kb = rnEstado.kb;
+  rnPreencherFiltros();
+  const raiz = document.getElementById('rnKanban');
+  if(!document.getElementById('rnKbCols')){ raiz.innerHTML = rnKbBarraHtml(); }
+  const busca = document.getElementById('rnKbBusca'); if(busca && busca !== document.activeElement) busca.value = kb.busca;
+  document.getElementById('rnKbPrio').value = kb.prioridade;
+  document.getElementById('rnKbChips').innerHTML = RN_KB_CHIPS.map(([v, t]) => `<button type="button" class="rnVisaoBt${kb.chip === v ? ' on' : ''}" data-rn-kb-chip="${v}">${t}</button>`).join('');
+  const c = rnEstado.filtros.consultor || '';
+  const k = rnKpis(rnEstado.lista, rnEstado.propostas, rnAgora(), c);
+  document.getElementById('rnKbKpis').innerHTML =
+    rnKpiHtml(k.carteira, 'clientes na carteira', `${k.pctContatado}% já trabalhados`, '', k.pctContatado)
+    + rnKpiHtml(k.atrasados, 'retornos atrasados', `${k.vencemHoje} vencem hoje`, k.atrasados ? 'late' : '')
+    + rnKpiHtml(k.semContato7, 'sem contato há +7 dias', 'em andamento', k.semContato7 ? 'late' : '')
+    + rnKpiHtml(k.negociacao, 'em negociação', k.valorNegociacao ? fmtBRL(k.valorNegociacao) + ' em propostas' : 'sem proposta aberta', '')
+    + rnKpiHtml(k.linhasMes, 'linhas ganhas no mês', `${k.clientesMes} cliente${k.clientesMes === 1 ? '' : 's'}`, k.linhasMes ? 'ok' : '');
+  const cols = rnKanbanColunas(rnEstado.lista, { consultor: c, busca: kb.busca, prioridade: kb.prioridade, visao: kb.chip || 'todos' }, rnHoje());
+  document.getElementById('rnKbCols').innerHTML = '<div class="rnKanban">' + cols.map(col => {
+    const lim = rnEstado.kbLimite[col.status] || RN_KB_LIMITE;
+    const soma = col.itens.reduce((t, r) => t + (Number(r.valor_proposta) || 0), 0);
+    return `
+    <div class="rnKbCol" data-rn-coluna="${col.status}">
+      <div class="rnKbHead">${rnEtapaHtml(col.status)}<span class="kbN">${col.itens.length}</span></div>
+      ${soma ? `<small class="rnMuted">${escapeHtml(fmtBRL(soma))}</small>` : ''}
+      ${col.itens.slice(0, lim).map(r => rnCartaoHtml(r, agora, gestor)).join('') || '<p class="rnVazio">Nenhum cliente.</p>'}
+      ${col.itens.length > lim ? `<button type="button" class="kbBtn kbBtnQ kbBtnSm" data-rn-kb-mais="${col.status}">Mostrar mais (${col.itens.length - lim})</button>` : ''}
+    </div>`; }).join('') + '</div>';
+}
+document.getElementById('rnKanban').addEventListener('input', (e) => { if(e.target.id === 'rnKbBusca'){ rnEstado.kb.busca = e.target.value; rnRenderKanban(); } });
+document.getElementById('rnKanban').addEventListener('change', (e) => { if(e.target.id === 'rnKbPrio'){ rnEstado.kb.prioridade = e.target.value; rnRenderKanban(); } });
+document.getElementById('rnKanban').addEventListener('click', (e) => {
+  const ch = e.target.closest('[data-rn-kb-chip]');
+  if(ch){ rnEstado.kb.chip = rnEstado.kb.chip === ch.dataset.rnKbChip ? '' : ch.dataset.rnKbChip; rnRenderKanban(); return; }
+  const m = e.target.closest('[data-rn-kb-mais]');
+  if(m){ const s = Number(m.dataset.rnKbMais); rnEstado.kbLimite[s] = (rnEstado.kbLimite[s] || RN_KB_LIMITE) + RN_KB_LIMITE; rnRenderKanban(); }
+});
 function rnMoverStatus(id, status){
   const r = rnEstado.lista.find(x => x.id === id);
   if(!r || r.status === status) return;

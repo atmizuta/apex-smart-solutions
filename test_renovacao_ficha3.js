@@ -9,7 +9,7 @@ require('./renovacao_test_harness.js').rodar(`
     L({ id: 3, razao_social: 'Zz Tres', prox_retorno: '2026-11-13', retorno_hora: '18:00' }), L({ id: 4, razao_social: 'Zz Perdido', status: 8, motivo_perda: 'Preço' }),
   ];
   window.__tabelas.propostas = []; window.__tabelas.renovacao_historico = [];
-  await rnCarregar(); await espera(40);
+  await rnCarregar(); rnTrocarAba('hoje'); await espera(40);
   eq(rnEstado.fichaId, 1, 'ficha no primeiro atrasado');
   const form = () => document.getElementById('rnFichaForm');
   const bt = (s) => document.querySelector('#rnFichaForm [data-rn-contato="' + s + '"]');
@@ -54,11 +54,8 @@ require('./renovacao_test_harness.js').rodar(`
   eq([window.__escritas.length, rnEstado.fichaId], [0, 3], 'sem mudança: não grava e vai para o próximo');
 
   // abas da ficha
-  const aba = (k) => document.querySelector('#rnFichaCorpo [data-rn-ficha-aba="' + k + '"]');
-  aba('dados').click();
-  assert(!document.querySelector('[data-rn-ficha-sec="dados"]').hidden && document.querySelector('[data-rn-ficha-sec="atendimento"]').hidden, 'aba Dados da Claro');
+  assert(!document.querySelector('#rnFichaCorpo [data-rn-ficha-aba]') && !!document.querySelector('[data-rn-ficha-sec="dados"]'), 'ficha única: Dados da Claro como seção');
   assert(/SCORE/.test(document.querySelector('[data-rn-ficha-sec="dados"]').textContent), 'mostra os dados da Claro');
-  aba('atendimento').click();
 
   // perdido: sem Gerar proposta; fora da Central só "Salvar"
   rnTrocarAba('carteira'); await rnAbrirFicha(4);

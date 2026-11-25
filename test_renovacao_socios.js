@@ -10,13 +10,12 @@ require('./renovacao_test_harness.js').rodar(`
   const BASE = { ok: true, receita_mes: '2026-09', socios: [{ nome: 'ZZ SOCIA BASE', cpf: '12345678909', principal: true, obito: false }, { nome: 'ZZ SOCIO FALECIDO', cpf: '98765432100', principal: false, obito: true }] };
   window.__rpcRespostas.socios_da_base = (a) => ({ data: a.p_carteira_id === 1 ? BASE : { ok: true, receita_mes: '2026-09', socios: [] }, error: null });
   const sec = () => document.querySelector('#rnFichaCorpo [data-rn-ficha-sec="socios"]');
-  const aba = (k) => document.querySelector('#rnFichaCorpo [data-rn-ficha-aba="' + k + '"]');
+  const aba = () => ({ click(){} });   // ficha única: as seções ficam sempre visíveis
   const clicar = (sel) => document.querySelector(sel).dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
-  await rnCarregar(); await espera(60);
+  await rnCarregar(); rnTrocarAba('hoje'); await espera(60);
   eq(rnEstado.fichaId, 1, 'ficha aberta no cliente 1');
-  eq([...document.querySelectorAll('#rnFichaCorpo [data-rn-ficha-aba]')].map(b => b.dataset.rnFichaAba), ['atendimento', 'dados', 'propostas', 'historico', 'socios'], 'quinta aba Sócios');
-  aba('socios').click();
-  assert(!sec().hidden && document.querySelector('[data-rn-ficha-sec="atendimento"]').hidden, 'aba Sócios visível');
+  eq([...document.querySelectorAll('#rnFichaCorpo [data-rn-ficha-sec]')].map(b => b.dataset.rnFichaSec), ['atendimento', 'dados', 'propostas', 'historico', 'socios'], 'seção Sócios na ficha única (sem abas)');
+  assert(!document.querySelector('#rnFichaCorpo [data-rn-ficha-aba]'), 'ficha sem abas');
 
   // 1. base com sócio: nome, CPF formatado, principal, óbito, fonte e botão Consultar na Nova Vida
   const t1 = sec().textContent;
@@ -116,7 +115,7 @@ require('./renovacao_test_harness.js').rodar(`
   currentUser = { id: 'u-a', nome: 'Zza Teste', role: 'consultor', operacao: 'apex', equipe: 'renovacao' };
   rnAplicarPermissao();
   window.__tabelas.socios_consultas = [{ id: 70, cnpj_digits: '00000000000191', status: 'sem_socios', pedido_por: 'u-a', pedido_em: '2026-11-16T18:00:00Z', concluido_em: '2026-11-16T18:02:00Z', resultado: null, erro: null }];
-  await rnCarregar(); await espera(60);
+  await rnCarregar(); rnTrocarAba('hoje'); await espera(60);
   eq(rnEstado.fichaId, 1, 'ficha 1 de novo');
   aba('socios').click();
   assert(/A Nova Vida não mostra sócios/.test(sec().textContent) && /ZZ SOCIA BASE/.test(sec().textContent), 'sem_socios mantém a lista da base');

@@ -32,7 +32,7 @@ require('./renovacao_test_harness.js').rodar(`
   rnAplicarPermissao();
   window.__tabelas.renovacao_carteira = lista.filter(r => r.consultor_id === 'u-a');
   window.__tabelas.propostas = propostas; window.__tabelas.renovacao_historico = [];
-  await rnCarregar();
+  await rnCarregar(); rnTrocarAba('hoje');
   await espera(40);
   const kpis = [...document.querySelectorAll('#rnKpis .rnKpi')].map(x => x.textContent.replace(/\\s+/g, ' ').trim());
   assert(/^21 clientes na carteira/.test(kpis[0]) && /^3 retornos atrasados/.test(kpis[1]) && /3 vencem hoje/.test(kpis[1]), 'cartões: carteira e atrasados: ' + kpis.join(' | '));
@@ -65,7 +65,7 @@ require('./renovacao_test_harness.js').rodar(`
   rnAplicarPermissao();
   window.__tabelas.renovacao_carteira = lista;
   window.__tabelas.profiles = [{ id: 'u-a', nome: 'Zza Teste', equipe: 'renovacao' }, { id: 'u-b', nome: 'Zzb Teste', equipe: 'renovacao' }];
-  await rnCarregar();
+  await rnCarregar(); rnTrocarAba('hoje');
   await espera(40);
   const sel = document.getElementById('rnFConsultor');
   assert(sel.style.display === '' && sel.options[0].textContent === 'Time todo', 'seletor do gestor');
@@ -81,7 +81,7 @@ require('./renovacao_test_harness.js').rodar(`
   currentUser = { id: 'u-a', nome: 'Zza Teste', role: 'consultor', operacao: 'apex', equipe: 'renovacao' };
   rnAplicarPermissao();
   window.__tabelas.renovacao_carteira = [L({ id: 1, status: 6, linhas_renovadas: 2 })];
-  await rnCarregar();
+  await rnCarregar(); rnTrocarAba('hoje');
   assert(/Nada atrasado nem para hoje/.test(document.getElementById('rnFilaLista').textContent), 'fila vazia avisa');
   assert(/Escolha um cliente da fila/.test(document.getElementById('rnFichaCorpo').textContent), 'ficha vazia orienta');
   fim();
