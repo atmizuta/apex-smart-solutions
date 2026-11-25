@@ -3,7 +3,7 @@ require('./renovacao_test_harness.js').rodar(`
   const css = [...document.querySelectorAll('style')].map(s => s.textContent).join(' ');
   assert(/#panel-meusleads,#kbFicha,#kbPassar,#panel-renovacao,#rnFicha,#panel-socios\\{--ml-ink/.test(css), 'tokens do §126 valem na Renovação');
   eq([...document.querySelectorAll('#rnAbas [data-rn-aba]')].map(b => [b.dataset.rnAba, b.childNodes[0].textContent.trim()]),
-     [['kanban', 'Funil'], ['carteira', 'Lista'], ['hoje', 'Fila de hoje'], ['resumo', 'Painel'], ['proposta', 'Proposta e fatura']], 'subabas na ordem');
+     [['kanban', 'Funil'], ['carteira', 'Lista'], ['hoje', 'Fila de hoje'], ['resumo', 'Painel'], ['proposta', 'Proposta e fatura'], ['atividade', 'Atividade do time']], 'subabas na ordem');
   assert(!document.getElementById('rnRetornos'), 'Retornos deixou de ser subaba');
 
   const ag = { data: '2026-11-13', hora: '16:00' };

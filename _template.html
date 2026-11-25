@@ -1038,16 +1038,16 @@
   .rnFichaCab{padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--c-linha-forte);background:var(--ml-surface);flex:none;}
   .rnFichaGrade{display:flex;flex-direction:column;gap:var(--space-3);padding:var(--space-4);overflow-y:auto;min-height:0;flex:1;background:var(--c-cinza-claro);}
   .rnColA,.rnColB{display:flex;flex-direction:column;gap:var(--space-3);min-width:0;}
-  .rnBloco{background:var(--c-branco);border:1px solid var(--c-linha-forte);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:var(--space-3) var(--space-4);}
-  .rnBloco .rnCampos input,.rnBloco .rnCampos select,.rnBloco .rnCampos textarea,.rnBloco .rnNotaForm textarea{background:var(--c-papel);border:1px solid var(--c-linha-forte);}
-  .rnBloco .rnCampos input:focus,.rnBloco .rnCampos select:focus,.rnBloco .rnCampos textarea:focus,.rnBloco .rnNotaForm textarea:focus{outline:2px solid var(--c-sinal);outline-offset:0;background:var(--c-branco);}
-  .rnBloco .rnContatoBt{border-color:var(--c-linha-forte);}
+  .rnFBloco{background:var(--c-branco);border:1px solid var(--c-linha-forte);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:var(--space-3) var(--space-4);}
+  .rnFBloco .rnCampos input,.rnFBloco .rnCampos select,.rnFBloco .rnCampos textarea,.rnFBloco .rnNotaForm textarea{background:var(--c-papel);border:1px solid var(--c-linha-forte);}
+  .rnFBloco .rnCampos input:focus,.rnFBloco .rnCampos select:focus,.rnFBloco .rnCampos textarea:focus,.rnFBloco .rnNotaForm textarea:focus{outline:2px solid var(--c-sinal);outline-offset:0;background:var(--c-branco);}
+  .rnFBloco .rnContatoBt{border-color:var(--c-linha-forte);}
   .rnBlocoT{display:flex;align-items:center;gap:var(--space-2);margin:0 0 var(--space-3);padding-bottom:var(--space-2);border-bottom:2px solid var(--c-linha);font-size:var(--fs-md);font-weight:700;color:var(--c-grafite);}
   .rnNum{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--c-sinal);color:var(--c-branco);font-size:var(--fs-xs);}
   .rnSubT{margin:var(--space-4) 0 var(--space-1);font-size:var(--fs-xs);font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ml-ink-3);}
   .rnBlocoAtend .rnSubT:first-of-type{margin-top:0;}
   .rnResumoCli{display:flex;flex-direction:column;gap:var(--space-2);}
-  .rnBloco.rnSecao,details.rnBloco{padding:var(--space-2) var(--space-4);}
+  .rnFBloco.rnSecao,details.rnFBloco{padding:var(--space-2) var(--space-4);}
   .rnColB>details.rnGrupo{background:var(--c-branco);border:1px solid var(--c-linha-forte);box-shadow:var(--shadow-sm);border-radius:var(--radius-lg);padding:var(--space-3) var(--space-4);}
   #rnFicha .rnFichaRodape{position:sticky;bottom:calc(var(--space-3) * -1);background:var(--c-branco);padding:var(--space-3) 0 0;border-top:1px solid var(--c-linha);}
   @media (min-width:1000px){
@@ -1055,6 +1055,16 @@
     #rnFicha:not(.noPainel) .rnColA,#rnFicha:not(.noPainel) .rnColB{overflow-y:auto;min-height:0;padding-right:var(--space-1);}
     #rnFicha:not(.noPainel) .rnCampos{grid-template-columns:repeat(3,minmax(0,1fr));}
   }
+  .rnAtvBarra{display:flex;flex-wrap:wrap;gap:var(--space-3);align-items:flex-end;margin-bottom:var(--space-3);}
+  .rnAtvBarra label{display:flex;flex-direction:column;gap:4px;font-size:var(--fs-xs);font-weight:600;color:var(--ml-ink-3);}
+  .rnAtvBarra select,.rnAtvBarra input[type=search]{border:1px solid var(--c-linha-forte);border-radius:8px;background:var(--c-papel);padding:8px 10px;font:inherit;font-size:var(--fs-base);color:var(--ml-ink);}
+  .rnAtvBusca{flex:1;min-width:200px;}.rnAtvBusca input{width:100%;}
+  .rnAtvChk{flex-direction:row!important;align-items:center;gap:6px!important;}
+  .rnAtvLista{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--space-2);}
+  .rnAtvItem{background:var(--c-branco);border:1px solid var(--c-linha-forte);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:var(--space-3) var(--space-4);}
+  .rnAtvTopo{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2);margin-bottom:var(--space-2);}
+  .rnAtvTopo .kbBtn{margin-left:auto;}
+  .rnAtvCont{margin:0 0 var(--space-2);}
   @media (max-width:999px){ #rnFicha:not(.noPainel) .kbFichaCorpo{width:100vw;height:100vh;border-radius:0;} }
   .rnFichaTopo{display:flex;align-items:center;gap:var(--space-3);}
   .rnFichaTopo .rnAv{width:46px;height:46px;font-size:var(--fs-base);background:var(--ml-novo-soft);color:var(--c-sinal);}
@@ -1973,6 +1983,7 @@
           <button type="button" data-rn-aba="hoje">Fila de hoje <span class="kbBadge" id="rnBadgeRetornos"></span></button>
           <button type="button" data-rn-aba="resumo">Painel</button>
           <button type="button" data-rn-aba="proposta">Proposta e fatura</button>
+          <button type="button" data-rn-aba="atividade" id="rnAbaAtividade" style="display:none">Atividade do time</button>
         </nav>
         <select id="rnFConsultor" class="rnSel" aria-label="Consultor" style="display:none"></select>
         <span class="kbStatusLinha" id="rnStatus"></span>
@@ -2020,6 +2031,7 @@
       <div id="rnKanban" class="rnVisao"></div>
       <div id="rnResumo" class="rnVisao" hidden></div>
       <div id="rnProposta" class="rnVisao" hidden></div>
+      <div id="rnAtividade" class="rnVisao" hidden></div>
       <aside class="kbFicha" id="rnFicha" aria-label="Ficha do cliente"><div class="kbFichaCorpo" id="rnFichaCorpo"></div></aside>
     </section>
     <!-- FUNIL DE VENDAS (kanban — todos os perfis) -->
@@ -4232,12 +4244,13 @@ function rnPodeVer(){
 function rnSoRenovacao(){ return !!currentUser && currentUser.role === 'consultor' && currentUser.equipe === 'renovacao'; }
 function rnAplicarPermissao(){
   document.getElementById('tabBtnRenovacao').style.display = rnPodeVer() ? 'inline-block' : 'none';
+  const abaAtv = document.getElementById('rnAbaAtividade'); if(abaAtv) abaAtv.style.display = rnGestor() ? '' : 'none';   // §165: só admin/supervisor
   // §143.2: o time de renovação trabalha só pela aba Renovação (Busca, Proposta, Funil e Agenda saem do menu dele)
   const soRenovacao = rnSoRenovacao();
   ['busca', 'proposta', 'funil', 'agenda'].forEach(t => { const b = document.querySelector(`#tabsNav button[data-tab="${t}"]`); if(b) b.style.display = soRenovacao ? 'none' : ''; });
   rnSociosParar();
   Object.assign(rnEstado, { aba: 'kanban', kbLimite: {}, lista: [], propostas: [], perfis: [], carregado: false, filtros: rnFiltrosVazios(), pagina: 1, fichaId: null, ficha: null, socios: null,
-    importacao: null, buscaHoje: '', fichaAba: 'atendimento', fichaStatus: null });
+    importacao: null, buscaHoje: '', fichaAba: 'atendimento', fichaStatus: null, atv: null });
   rnEstado.selecionados.clear();
   rnEstado.geracao++;
   // troca de usuário na mesma aba do navegador: nada do anterior fica na tela
@@ -4315,7 +4328,7 @@ async function rnCarregar(){
   rnAtualizarBadge();
   rnRender();
 }
-const RN_VISAO_ID = { hoje: 'rnHoje', carteira: 'rnCarteira', kanban: 'rnKanban', resumo: 'rnResumo', proposta: 'rnProposta' };
+const RN_VISAO_ID = { hoje: 'rnHoje', carteira: 'rnCarteira', kanban: 'rnKanban', resumo: 'rnResumo', proposta: 'rnProposta', atividade: 'rnAtividade' };
 function rnMostrarAba(aba){
   document.querySelectorAll('#rnAbas [data-rn-aba]').forEach(b => b.classList.toggle('active', b.dataset.rnAba === aba));
   Object.entries(RN_VISAO_ID).forEach(([k, id]) => { const el = document.getElementById(id); if(el) el.hidden = k !== aba; });
@@ -4331,6 +4344,7 @@ function rnPosicionarFicha(aba){
   if(!naHoje) f.classList.remove('aberta');
 }
 function rnTrocarAba(aba){
+  if(aba === 'atividade' && !rnGestor()) aba = 'kanban';
   rnEstado.aba = aba;
   rnMostrarAba(aba);
   rnRender();
@@ -4343,6 +4357,7 @@ function rnRender(){
   if(rnEstado.aba === 'kanban' && typeof rnRenderKanban === 'function') rnRenderKanban();
   if(rnEstado.aba === 'resumo' && typeof rnRenderResumo === 'function') rnRenderResumo();
   if(rnEstado.aba === 'proposta') rnMoverProposta(true);
+  if(rnEstado.aba === 'atividade' && typeof rnRenderAtividade === 'function') rnRenderAtividade();
 }
 // ---- Carteira ----
 function rnNorm(s){ return String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(); }
@@ -4989,14 +5004,14 @@ function rnRenderFicha(){
     </header>
     <div class="rnFichaGrade">
       <div class="rnColA">
-    <div class="rnBloco rnResumoCli">
+    <div class="rnFBloco rnResumoCli">
     <p class="kbMeta rnFichaOport">${escapeHtml([r.oportunidade, r.fatura != null ? 'fatura ' + fmtBRL(r.fatura) + '/mês' : '', r.fixa_viavel ? 'fixa viável' : '', r.movimentacao,
       r.consultor_anterior && r.consultor_anterior !== rnNomeConsultor(r.consultor_id).split(' ')[0] ? 'antes: ' + r.consultor_anterior : ''].filter(Boolean).join(' · '))}</p>
     <div class="rnFichaAcoes">${rnFichaAcoesHtml(r)}</div>
     ${(r.etiquetas || []).length ? `<p class="kbMeta">${r.etiquetas.map(t => `<span class="rnTag">${escapeHtml(t)}</span>`).join(' ')}</p>` : ''}
     <p class="rnProxCard"><b>Próximo passo:</b> ${rnProximoPassoHtml(r, rnAgora())}</p>
     </div>
-    <section class="rnBloco rnBlocoAtend" data-rn-ficha-sec="atendimento"><h4 class="rnBlocoT"><span class="rnNum">1</span> Registrar atendimento</h4>
+    <section class="rnFBloco rnBlocoAtend" data-rn-ficha-sec="atendimento"><h4 class="rnFBlocoT"><span class="rnNum">1</span> Registrar atendimento</h4>
       <form id="rnFichaForm">
         <input type="hidden" name="status" value="${sel}">
         <h5 class="rnSubT">Etapa do funil</h5>
@@ -5044,10 +5059,10 @@ function rnRenderFicha(){
     </section>
       </div>
       <div class="rnColB">
-    <section class="rnBloco"><h4 class="rnBlocoT">Anotações <span data-rn-cont="notas">${fic.notas ? '· ' + fic.notas.length : ''}</span></h4><div data-rn-ficha-sec="notas">${rnNotasHtml()}</div></section>
-    <section class="rnBloco"><h4 class="rnBlocoT">Contatos atualizados <span data-rn-cont="contatos">${fic.contatos ? '· ' + fic.contatos.length : ''}</span></h4><div data-rn-ficha-sec="contatos">${rnContatosHtml(r)}</div></section>
-    <section class="rnBloco"><h4 class="rnBlocoT">Anexos (fatura, proposta, documentos) <span data-rn-cont="anexos">${fic.anexos ? '· ' + fic.anexos.length : ''}</span></h4><div data-rn-ficha-sec="anexos">${rnAnexosHtml()}</div></section>
-    <section class="rnBloco"><h4 class="rnBlocoT">Histórico de atividades</h4><div data-rn-ficha-sec="historico">${fic.historico
+    <section class="rnFBloco"><h4 class="rnFBlocoT">Anotações <span data-rn-cont="notas">${fic.notas ? '· ' + fic.notas.length : ''}</span></h4><div data-rn-ficha-sec="notas">${rnNotasHtml()}</div></section>
+    <section class="rnFBloco"><h4 class="rnFBlocoT">Contatos atualizados <span data-rn-cont="contatos">${fic.contatos ? '· ' + fic.contatos.length : ''}</span></h4><div data-rn-ficha-sec="contatos">${rnContatosHtml(r)}</div></section>
+    <section class="rnFBloco"><h4 class="rnFBlocoT">Anexos (fatura, proposta, documentos) <span data-rn-cont="anexos">${fic.anexos ? '· ' + fic.anexos.length : ''}</span></h4><div data-rn-ficha-sec="anexos">${rnAnexosHtml()}</div></section>
+    <section class="rnFBloco"><h4 class="rnFBlocoT">Histórico de atividades</h4><div data-rn-ficha-sec="historico">${fic.historico
       ? (fic.historico.length ? '<ul class="rnHist">' + fic.historico.map(h => `<li>${escapeHtml(rnHistoricoTexto(h))}</li>`).join('') + '</ul>' : '<p class="kbMeta">Sem mudanças registradas.</p>')
       : '<p class="kbMeta">Carregando…</p>'}</div></section>
     <details class="rnGrupo rnSecao"><summary>Propostas · ${props.length}</summary><div data-rn-ficha-sec="propostas">${props.length
@@ -5551,6 +5566,90 @@ document.getElementById('rnKanban').addEventListener('click', (e) => {
   if(g){ rnGerarProposta(Number(g.dataset.rnGerar)); return; }
   const a = e.target.closest('[data-rn-abrir]');
   if(a) rnAbrirFicha(Number(a.dataset.rnAbrir));
+});
+// ---- §165 Atividade do time (admin/supervisor): últimas anotações de todos os consultores ----
+const RN_ATV_PERIODOS = [['1', 'Hoje'], ['7', 'Últimos 7 dias'], ['30', 'Últimos 30 dias'], ['0', 'Todo o período']];
+function rnAtvEstado(){ if(!rnEstado.atv) rnEstado.atv = { periodo: '7', autor: '', busca: '', fixadas: false, itens: null, limite: 50, erro: false }; return rnEstado.atv; }
+// Itens que passam nos filtros (puro, testável). hoje = 'AAAA-MM-DD'.
+function rnAtvFiltrar(itens, f, hoje, nomeDe, empresaDe){
+  const dias = Number(f.periodo) || 0;
+  let corte = null;
+  if(dias){ const d = new Date(hoje + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - (dias - 1)); corte = d.toISOString().slice(0, 10); }
+  const b = rnNorm(f.busca);
+  return itens.filter(n => {
+    if(corte && String(n.dia) < corte) return false;
+    if(f.autor && n.user_id !== f.autor) return false;
+    if(f.fixadas && !n.fixada) return false;
+    if(b && !(rnNorm(n.texto) + ' ' + rnNorm(empresaDe(n)) + ' ' + rnNorm(nomeDe(n.user_id))).includes(b)) return false;
+    return true;
+  });
+}
+function rnDiaSP(iso){ return iso ? new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) : ''; }
+async function rnRenderAtividade(){
+  const el = document.getElementById('rnAtividade'); if(!el || !rnGestor()) return;
+  const st = rnAtvEstado();
+  if(!st.itens){
+    el.innerHTML = '<p class="rnVazio">Carregando anotações…</p>';
+    const r = await ppSeguro(() => sb.from('renovacao_notas').select('id,carteira_id,user_id,texto,fixada,criado_em').order('criado_em', { ascending: false }).limit(1000));
+    if(rnEstado.aba !== 'atividade') return;
+    if(!r || r.error){ st.erro = true; el.innerHTML = '<p class="rnVazio">Não foi possível carregar as anotações agora.</p>'; return; }
+    st.erro = false; st.itens = (r.data || []).map(n => Object.assign({ dia: rnDiaSP(n.criado_em) }, n));
+    // nomes de quem escreveu (admin/supervisor que não são do time não estão em rnEstado.perfis)
+    const falta = [...new Set(st.itens.map(n => n.user_id).filter(id => id && rnNomeConsultor(id) === '—'))];
+    if(falta.length){
+      const pr = await ppSeguro(() => sb.from('profiles').select('id,nome').in('id', falta));
+      if(pr && !pr.error){ rnEstado.nomes = rnEstado.nomes || {}; (pr.data || []).forEach(p => { rnEstado.nomes[p.id] = p.nome; }); }
+    }
+    if(rnEstado.aba !== 'atividade') return;
+  }
+  const nomeDe = (id) => rnNomeConsultor(id);
+  const porId = new Map(rnEstado.lista.map(r => [r.id, r]));
+  const empresaDe = (n) => (porId.get(n.carteira_id) || {}).razao_social || '';
+  const lista = rnAtvFiltrar(st.itens, st, rnHoje(), nomeDe, empresaDe);
+  const autores = [...new Set(st.itens.map(n => n.user_id).filter(Boolean))].sort((a, b) => nomeDe(a).localeCompare(nomeDe(b), 'pt-BR'));
+  const foco = document.activeElement && document.activeElement.id === 'rnAtvBusca';
+  const vis = lista.slice(0, st.limite);
+  el.innerHTML = `<div class="rnFBloco rnAtvBarra">
+      <label>Período<select data-rn-atv="periodo">${rnOpcoes(RN_ATV_PERIODOS, st.periodo, null)}</select></label>
+      <label>Consultor<select data-rn-atv="autor">${rnOpcoes(autores.map(id => [id, nomeDe(id)]), st.autor, 'Todos')}</select></label>
+      <label class="rnAtvBusca">Buscar<input type="search" id="rnAtvBusca" data-rn-atv="busca" value="${escapeHtml(st.busca)}" placeholder="Texto, empresa ou consultor" autocomplete="off"></label>
+      <label class="rnAtvChk"><input type="checkbox" data-rn-atv="fixadas"${st.fixadas ? ' checked' : ''}> Só fixadas</label>
+      <button type="button" class="kbBtn kbBtnQ" data-rn-atv-excel${lista.length ? '' : ' disabled'}>Exportar Excel</button>
+    </div>
+    <p class="kbMeta rnAtvCont">${lista.length} anotação(ões)${st.itens.length >= 1000 ? ' · mostrando as 1000 mais recentes' : ''}</p>
+    ${vis.length ? '<ul class="rnAtvLista">' + vis.map(n => { const r = porId.get(n.carteira_id);
+      return `<li class="rnFBloco rnAtvItem"><div class="rnAtvTopo"><b>${escapeHtml(nomeDe(n.user_id))}</b><span class="rnMuted">${escapeHtml(rnQuando(n.criado_em))}</span>${n.fixada ? '<span class="rnTag">Fixada</span>' : ''}
+        <button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-atv-abrir="${n.carteira_id}">${escapeHtml(r ? r.razao_social || '(sem nome)' : 'Cliente ' + n.carteira_id)} →</button></div>
+        <div class="rnNotaTxt">${escapeHtml(n.texto)}</div></li>`; }).join('') + '</ul>' : '<p class="rnVazio">Nenhuma anotação com esses filtros.</p>'}
+    ${lista.length > vis.length ? `<button type="button" class="kbBtn kbBtnQ" data-rn-atv-mais>Mostrar mais (${lista.length - vis.length})</button>` : ''}`;
+  if(foco){ const i = document.getElementById('rnAtvBusca'); if(i){ i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
+}
+function rnAtvExportar(){
+  const st = rnAtvEstado(); if(!st.itens) return;
+  const porId = new Map(rnEstado.lista.map(r => [r.id, r]));
+  const lista = rnAtvFiltrar(st.itens, st, rnHoje(), (id) => rnNomeConsultor(id), (n) => (porId.get(n.carteira_id) || {}).razao_social || '');
+  const linhas = lista.map(n => { const r = porId.get(n.carteira_id) || {};
+    return { 'Data': n.dia ? n.dia.slice(8, 10) + '/' + n.dia.slice(5, 7) + '/' + n.dia.slice(0, 4) : '', 'Hora': new Date(n.criado_em).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }),
+      'Consultor': rnNomeConsultor(n.user_id), 'Cliente': r.razao_social || '', 'CNPJ': r.cnpj_digits || '', 'Etapa': r.status != null ? rnStatusRotulo(r.status) : '', 'Fixada': n.fixada ? 'Sim' : '', 'Anotação': n.texto }; });
+  const ws = XLSX.utils.json_to_sheet(linhas);
+  ws['!cols'] = [{ wch: 12 }, { wch: 8 }, { wch: 22 }, { wch: 34 }, { wch: 16 }, { wch: 20 }, { wch: 8 }, { wch: 90 }];
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Anotações');
+  XLSX.writeFile(wb, 'atividade_renovacao_' + rnHoje() + '.xlsx');
+}
+document.getElementById('rnAtividade').addEventListener('change', (e) => {
+  const c = e.target.closest('[data-rn-atv]'); if(!c) return;
+  const st = rnAtvEstado(); const k = c.dataset.rnAtv;
+  st[k] = c.type === 'checkbox' ? c.checked : c.value; st.limite = 50; rnRenderAtividade();
+});
+document.getElementById('rnAtividade').addEventListener('input', (e) => {
+  const c = e.target.closest('[data-rn-atv="busca"]'); if(!c) return;
+  const st = rnAtvEstado(); st.busca = c.value; st.limite = 50; rnRenderAtividade();
+});
+document.getElementById('rnAtividade').addEventListener('click', (e) => {
+  const st = rnAtvEstado();
+  if(e.target.closest('[data-rn-atv-excel]')){ rnAtvExportar(); return; }
+  if(e.target.closest('[data-rn-atv-mais]')){ st.limite += 50; rnRenderAtividade(); return; }
+  const a = e.target.closest('[data-rn-atv-abrir]'); if(a) rnAbrirFicha(Number(a.dataset.rnAtvAbrir));
 });
 // ---- §143.2 Proposta e fatura: os mesmos nós da aba Proposta (mesmo código e mesmos eventos), movidos, não copiados ----
 function rnMoverProposta(paraRenovacao){
