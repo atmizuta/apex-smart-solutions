@@ -58,5 +58,40 @@ do $$ begin
   assert public.pedido_pode_ver('ZZM1') and not public.pedido_pode_ver('ZZM2') and not public.pedido_pode_ver('ZZM3'), 'consultor só o dele';
   assert public.mp_escopo() is null, 'consultor sem aba';
 end $$;
--- (Tasks 4 e 5 acrescentam blocos aqui, antes do RESULTADO)
+-- Task 4: linha do tempo, feed, parados e tempo por etapa
+do $$ declare j jsonb; begin
+  execute 'set local role authenticated';
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000dd04', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-00000000dd04', 'role', 'authenticated')::text, true);
+  j := public.pedido_linha_do_tempo('ZZM1');
+  assert jsonb_array_length(j->'passagens') = 4, 'consultor vê as 4 passagens do pedido dele';
+  assert jsonb_array_length(j->'anotacoes') = 2 and j->'motivo_real' = 'null'::jsonb and not (j->>'pode_decidir')::boolean, 'consultor: notas sim, motivo real não';
+  assert (j->'anotacoes'->0->>'autor_provavel') = 'ZZ BKO', 'autor provável da nota 09:51 = quem moveu às 09:52';
+  begin perform public.pedido_linha_do_tempo('ZZM2'); assert false, 'consultor viu pedido de outro';
+  exception when insufficient_privilege then null; end;
+  begin perform public.movimentacoes_feed(date '2026-11-20', null, null, null); assert false, 'consultor abriu o feed';
+  exception when insufficient_privilege then null; end;
+
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000dd03', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-00000000dd03', 'role', 'authenticated')::text, true);
+  j := public.movimentacoes_feed(date '2026-11-20', null, null, null);
+  assert not exists (select 1 from jsonb_array_elements(j->'itens') e where e->>'numero' = 'ZZM1'), 'sup Campinas não vê ZZM1 no feed';
+  j := public.movimentacoes_parados('NEGOCIACAO');
+  assert exists (select 1 from jsonb_array_elements(j->'itens') e where e->>'numero' = 'ZZM2'), 'sup Campinas vê ZZM2 parado';
+
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000dd02', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-00000000dd02', 'role', 'authenticated')::text, true);
+  j := public.movimentacoes_feed(date '2026-11-20', null, null, null);
+  assert (select count(*) from jsonb_array_elements(j->'itens') e where e->>'numero' = 'ZZM1') = 6, 'sup Apex: 4 passagens + 2 notas de ZZM1 em 20/11';
+  assert (j->'kpis'->>'entradas_vp')::int >= 1 and (j->'kpis'->>'anotacoes_bko')::int >= 1, 'kpis contam VP e BKO';
+  j := public.movimentacoes_feed(date '2026-11-20', null, null, 'bko_status');
+  assert (select count(*) from jsonb_array_elements(j->'itens') e where e->>'numero' = 'ZZM1') = 1, 'filtro tipo';
+  j := public.movimentacoes_tempo_etapa(date '2026-11-19', date '2026-11-21', 'ZZ CONS A');
+  assert exists (select 1 from jsonb_array_elements(j->'etapas') e where e->>'etapa' = 'CREDITO' and (e->>'fora_sla_pct')::numeric = 0 and (e->>'passagens')::int = 1), 'CREDITO: 52 min, dentro do SLA de 8 h';
+  j := public.movimentacoes_parados('VENDA PERDIDA');
+  assert jsonb_array_length(j->'itens') = 0, 'VENDA PERDIDA não conta como parado';
+  j := public.pedido_linha_do_tempo('ZZM3');
+  assert j->'cabecalho' = 'null'::jsonb and jsonb_array_length(j->'passagens') = 1, 'pedido fora da producao_pedidos_neo: sem cabeçalho, com filme';
+end $$;
+-- (Task 5 acrescenta bloco aqui, antes do RESULTADO)
 do $$ begin raise exception 'RESULTADO: ok (§166)'; end $$;
