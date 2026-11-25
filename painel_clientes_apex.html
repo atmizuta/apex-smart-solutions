@@ -5208,6 +5208,34 @@ document.addEventListener('click', (ev) => {
   const ped = ev.target.closest && ev.target.closest('[data-mp-pedido]');
   if(ped){ ev.preventDefault(); if(typeof mpAbrirPedido === 'function') mpAbrirPedido(ped.dataset.mpPedido); }
 });
+function mpPintarTempo(d){
+  document.getElementById('mpFiltros').innerHTML =
+    `<input type="date" class="rnSel" data-mp-filtro="de" value="${escapeHtml(mpEstado.de)}"> até `
+    + `<input type="date" class="rnSel" data-mp-filtro="ate" value="${escapeHtml(mpEstado.ate)}">`
+    + `<select class="rnSel" data-mp-filtro="consultor">${mpOpcoes(d.consultores, mpEstado.consultor, 'Todos os consultores')}</select>`;
+  const linhas = (d.etapas || []).map(e => `<tr><td>${escapeHtml(e.etapa)}</td><td class="num">${e.passagens}</td>`
+    + `<td class="num">${mpDuracao(e.mediana_h)}</td><td class="num">${mpDuracao(e.p90_h)}</td>`
+    + `<td class="num">${e.fora_sla_pct == null ? '—' : e.fora_sla_pct + '%'}</td>`
+    + `<td class="num">${e.parados ? `<a href="#" data-mp-parados="${escapeHtml(e.etapa)}">${e.parados}</a>` : '0'}</td></tr>`).join('');
+  document.getElementById('mpConteudo').innerHTML = linhas
+    ? `<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Etapa</th><th>Passagens</th><th>Tempo típico</th><th>9 em cada 10 até</th><th>Fora do SLA</th><th>Parados agora</th></tr></thead><tbody>${linhas}</tbody></table></div><div id="mpParados"></div>`
+    : '<p class="rnVazio">Nenhuma passagem neste período.</p>';
+}
+async function mpCarregarParados(etapa){
+  const el = document.getElementById('mpParados'); if(!el) return;
+  el.innerHTML = '<p class="kbMeta">Carregando…</p>';
+  const r = await ppSeguro(() => sb.rpc('movimentacoes_parados', { p_etapa: etapa }));
+  if(r.error || !r.data){ el.innerHTML = '<p class="rnErro">Não foi possível carregar os parados.</p>'; return; }
+  const itens = r.data.itens || [];
+  el.innerHTML = `<h3>Parados agora em ${escapeHtml(etapa)}</h3>` + (itens.length ? `<ul class="mpFeed">${itens.map(p => {
+    const h = mpHoras(p.desde), fora = p.sla_horas > 0 && h > p.sla_horas;
+    return `<li><span class="mpHora">${mpHora(p.desde)}</span><span>${mpLinkPedido(p.numero)} · ${escapeHtml(p.cliente || '')} · ${escapeHtml(p.consultor || '')} · <span class="${fora ? 'mpAlerta' : ''}">${mpDuracao(h)}${fora ? ' ⚠ SLA ' + p.sla_horas + ' h' : ''}</span></span></li>`;
+  }).join('')}</ul>` : '<p class="rnVazio">Nenhum pedido parado.</p>');
+}
+document.addEventListener('click', (ev) => {
+  const p = ev.target.closest && ev.target.closest('[data-mp-parados]');
+  if(p){ ev.preventDefault(); mpCarregarParados(p.dataset.mpParados); }
+});
 
 function scAplicarPermissao(){
   scParar(); scEstado.atual = null; scEstado.lista = []; scEstado.geracao++;

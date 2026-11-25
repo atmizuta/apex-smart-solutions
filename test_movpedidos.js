@@ -38,6 +38,17 @@ require('./renovacao_test_harness.js').rodar(`
   // sair da aba para a releitura
   clicar(q('#tabsNav button[data-tab="busca"]')); await espera(10);
   assert(!mpEstado.timer, 'parou ao sair da aba');
-  // (Tasks 7, 8 e 9 acrescentam aqui)
+  // Task 7 — tempo por etapa e parados
+  window.__rpcRespostas.movimentacoes_tempo_etapa = () => ({ data: { etapas: [
+    { etapa: 'CREDITO', passagens: 12, mediana_h: 6, p90_h: 26, fora_sla_pct: 18, parados: 3 } ], consultores: ['ZZ CONS A'] }, error: null });
+  window.__rpcRespostas.movimentacoes_parados = () => ({ data: { itens: [{ numero: 'ZZM2', cliente: 'ZZ CLIENTE 2', consultor: 'ZZ CONS C', desde: '2026-11-21T11:00:00Z', sla_horas: 8 }] }, error: null });
+  clicar(q('#tabsNav button[data-tab="movpedidos"]')); await espera(30);
+  clicar(q('#panel-movpedidos [data-mp-sub="tempo"]')); await espera(30);
+  const t = q('#mpConteudo').textContent;
+  assert(/CREDITO/.test(t) && /6 h/.test(t) && /1 d 2 h/.test(t) && /18%/.test(t), 'tabela do tempo por etapa');
+  clicar(q('#mpConteudo [data-mp-parados="CREDITO"]')); await espera(30);
+  eq(chamadas('movimentacoes_parados').at(-1).args, { p_etapa: 'CREDITO' }, 'parados da etapa');
+  assert(/ZZM2/.test(q('#mpParados').textContent) && q('#mpParados .mpAlerta'), 'lista de parados com alerta de SLA');
+  // (Tasks 8 e 9 acrescentam aqui)
   fim();
 `);
