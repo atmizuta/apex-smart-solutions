@@ -588,6 +588,7 @@
 
   .motion .sbApice{animation:apxFloat 6s ease-in-out infinite;}
   .motion .panel.apxPage{animation:apxPageIn var(--dur-slow) var(--ease-out) both;}
+  .motion #panel-renovacao.panel.apxPage{animation-fill-mode:backwards;} /* sem 'forwards' o painel não vira referência do position:fixed da ficha */
   /* backwards (não both): esconde durante o atraso, mas depois de terminar não trava hover/arrastar */
   .motion .apxIn{animation:apxRise var(--dur-slow) var(--ease-out) backwards;animation-delay:calc(var(--i,0) * 90ms);}
   .motion tr.apxIn{animation-name:apxFade;animation-delay:calc(var(--i,0) * 25ms);}
@@ -991,14 +992,14 @@
   .kbFicha.flutuante [data-kb-ficha-fechar]{display:inline-flex;}
   /* §143 Renovação: reaproveita Meus leads (kbSeg, kbFicha, kbBusca); só o que é próprio da carteira */
   /* §151 redesign da Renovação ("Central do dia"): linguagem do §126 (--ml-*); etapas com tokens próprios, hex só aqui */
-  #panel-renovacao,#rnFicha{--rn-st1:#6B7280;--rn-st1-bg:#EEF0F2;--rn-st2:var(--st-andamento);--rn-st2-bg:var(--st-andamento-bg);--rn-st3:#1D4ED8;--rn-st3-bg:#E0E7FF;--rn-st4:#6D28D9;--rn-st4-bg:#EDE9FE;--rn-st5:var(--st-devolvido);--rn-st5-bg:var(--st-devolvido-bg);--rn-st6:var(--st-ganho);--rn-st6-bg:var(--st-ganho-bg);--rn-st7:var(--st-perdido);--rn-st7-bg:var(--st-perdido-bg);}
+  #panel-renovacao,#rnFicha{--rn-st1:var(--st-neutro);--rn-st1-bg:var(--st-neutro-bg);--rn-st0:#6B7280;--rn-st0-bg:#EEF0F2;--rn-st2:var(--st-andamento);--rn-st2-bg:var(--st-andamento-bg);--rn-st3:#1D4ED8;--rn-st3-bg:#E0E7FF;--rn-st4:#6D28D9;--rn-st4-bg:#EDE9FE;--rn-st5:var(--st-devolvido);--rn-st5-bg:var(--st-devolvido-bg);--rn-st6:var(--st-ganho);--rn-st6-bg:var(--st-ganho-bg);--rn-st7:var(--st-ganho);--rn-st7-bg:var(--st-ganho-bg);--rn-st8:var(--st-perdido);--rn-st8-bg:var(--st-perdido-bg);--rn-st9:var(--st-neutro);--rn-st9-bg:var(--st-neutro-bg);}
   #panel-renovacao{color:var(--ml-ink);}
   .rnTopo{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin-bottom:var(--space-4);}
   .rnSel{height:36px;padding:0 12px;border:0;border-radius:var(--radius-lg);background:var(--ml-surface);font:inherit;font-size:var(--fs-base);color:var(--ml-ink);box-shadow:var(--shadow-sm);}
   .rnN{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-variant-numeric:tabular-nums;}
   .rnEtapa{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:var(--fs-xs);font-weight:600;white-space:nowrap;}
   .rnEtapa i{width:7px;height:7px;border-radius:50%;background:currentColor;}
-  .rnSt1{color:var(--rn-st1);background:var(--rn-st1-bg);}.rnSt2{color:var(--rn-st2);background:var(--rn-st2-bg);}.rnSt3{color:var(--rn-st3);background:var(--rn-st3-bg);}.rnSt4{color:var(--rn-st4);background:var(--rn-st4-bg);}.rnSt5{color:var(--rn-st5);background:var(--rn-st5-bg);}.rnSt6{color:var(--rn-st6);background:var(--rn-st6-bg);}.rnSt7{color:var(--rn-st7);background:var(--rn-st7-bg);}
+  .rnSt0{color:var(--rn-st0);background:var(--rn-st0-bg);}.rnSt8{color:var(--rn-st8);background:var(--rn-st8-bg);}.rnSt9{color:var(--rn-st9);background:var(--rn-st9-bg);}.rnPri{display:inline-block;min-width:26px;text-align:center;padding:1px 6px;border-radius:var(--radius-pill,999px);font-weight:700;font-size:12px;}.rnPriP1{color:var(--st-perdido);background:var(--st-perdido-bg);}.rnPriP2{color:var(--st-devolvido);background:var(--st-devolvido-bg);}.rnPriP3{color:var(--st-andamento);background:var(--st-andamento-bg);}.rnPriP4,.rnPriP5{color:var(--st-neutro);background:var(--st-neutro-bg);}.rnSt1{color:var(--rn-st1);background:var(--rn-st1-bg);}.rnSt2{color:var(--rn-st2);background:var(--rn-st2-bg);}.rnSt3{color:var(--rn-st3);background:var(--rn-st3-bg);}.rnSt4{color:var(--rn-st4);background:var(--rn-st4-bg);}.rnSt5{color:var(--rn-st5);background:var(--rn-st5-bg);}.rnSt6{color:var(--rn-st6);background:var(--rn-st6-bg);}.rnSt7{color:var(--rn-st7);background:var(--rn-st7-bg);}
   .rnAv{width:34px;height:34px;border-radius:var(--radius-lg);display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:var(--fs-xs);background:var(--ml-surface-2);color:var(--ml-ink-2);flex:none;}
   .rnVazio{color:var(--ml-ink-3);padding:var(--space-4);text-align:center;}
   .rnLate{color:var(--ml-late);font-weight:600;}.rnOk{color:var(--ml-ok);font-weight:600;}.rnMuted{color:var(--ml-ink-3);}
@@ -1030,6 +1031,41 @@
   .rnHojeFicha .kbFicha.noPainel{border-radius:var(--radius-lg);background:var(--ml-surface);}
   /* Ficha */
   #rnFicha .kbFichaCorpo{padding:var(--space-4);overflow-y:auto;gap:var(--space-3);}
+  /* Ficha como janela central (fora da Central de hoje): cabeçalho fixo + 2 colunas (atendimento | histórico do cliente) */
+  #rnFicha:not(.noPainel){inset:0;width:auto;height:auto;transform:none;opacity:0;visibility:hidden;pointer-events:none;align-items:center;justify-content:flex-start;padding:2vh 0;background:rgba(29,31,32,.55);box-shadow:none;transition:opacity var(--dur) var(--ease-out),visibility var(--dur);z-index:60;}
+  #rnFicha.aberta:not(.noPainel){opacity:1;visibility:visible;pointer-events:auto;box-shadow:none;}
+  #rnFicha:not(.noPainel) .kbFichaCorpo{width:min(1360px,96vw);height:min(94vh,1000px);border-top:4px solid var(--c-sinal);background:var(--ml-surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:0;overflow:hidden;gap:0;}
+  .rnFichaCab{padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--c-linha-forte);background:var(--ml-surface);flex:none;}
+  .rnFichaGrade{display:flex;flex-direction:column;gap:var(--space-3);padding:var(--space-4);overflow-y:auto;min-height:0;flex:1;background:var(--c-cinza-claro);}
+  .rnColA,.rnColB{display:flex;flex-direction:column;gap:var(--space-3);min-width:0;}
+  .rnFBloco{background:var(--c-branco);border:1px solid var(--c-linha-forte);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:var(--space-3) var(--space-4);}
+  .rnFBloco .rnCampos input,.rnFBloco .rnCampos select,.rnFBloco .rnCampos textarea,.rnFBloco .rnNotaForm textarea{background:var(--c-papel);border:1px solid var(--c-linha-forte);}
+  .rnFBloco .rnCampos input:focus,.rnFBloco .rnCampos select:focus,.rnFBloco .rnCampos textarea:focus,.rnFBloco .rnNotaForm textarea:focus{outline:2px solid var(--c-sinal);outline-offset:0;background:var(--c-branco);}
+  .rnFBloco .rnContatoBt{border-color:var(--c-linha-forte);}
+  .rnBlocoT{display:flex;align-items:center;gap:var(--space-2);margin:0 0 var(--space-3);padding-bottom:var(--space-2);border-bottom:2px solid var(--c-linha);font-size:var(--fs-md);font-weight:700;color:var(--c-grafite);}
+  .rnNum{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--c-sinal);color:var(--c-branco);font-size:var(--fs-xs);}
+  .rnSubT{margin:var(--space-4) 0 var(--space-1);font-size:var(--fs-xs);font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ml-ink-3);}
+  .rnBlocoAtend .rnSubT:first-of-type{margin-top:0;}
+  .rnResumoCli{display:flex;flex-direction:column;gap:var(--space-2);}
+  .rnFBloco.rnSecao,details.rnFBloco{padding:var(--space-2) var(--space-4);}
+  .rnColB>details.rnGrupo{background:var(--c-branco);border:1px solid var(--c-linha-forte);box-shadow:var(--shadow-sm);border-radius:var(--radius-lg);padding:var(--space-3) var(--space-4);}
+  #rnFicha .rnFichaRodape{position:sticky;bottom:calc(var(--space-3) * -1);background:var(--c-branco);padding:var(--space-3) 0 0;border-top:1px solid var(--c-linha);}
+  @media (min-width:1000px){
+    #rnFicha:not(.noPainel) .rnFichaGrade{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);overflow:hidden;}
+    #rnFicha:not(.noPainel) .rnColA,#rnFicha:not(.noPainel) .rnColB{overflow-y:auto;min-height:0;padding-right:var(--space-1);}
+    #rnFicha:not(.noPainel) .rnCampos{grid-template-columns:repeat(3,minmax(0,1fr));}
+  }
+  .rnAtvBarra{display:flex;flex-wrap:wrap;gap:var(--space-3);align-items:flex-end;margin-bottom:var(--space-3);}
+  .rnAtvBarra label{display:flex;flex-direction:column;gap:4px;font-size:var(--fs-xs);font-weight:600;color:var(--ml-ink-3);}
+  .rnAtvBarra select,.rnAtvBarra input[type=search]{border:1px solid var(--c-linha-forte);border-radius:8px;background:var(--c-papel);padding:8px 10px;font:inherit;font-size:var(--fs-base);color:var(--ml-ink);}
+  .rnAtvBusca{flex:1;min-width:200px;}.rnAtvBusca input{width:100%;}
+  .rnAtvChk{flex-direction:row!important;align-items:center;gap:6px!important;}
+  .rnAtvLista{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--space-2);}
+  .rnAtvItem{background:var(--c-branco);border:1px solid var(--c-linha-forte);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:var(--space-3) var(--space-4);}
+  .rnAtvTopo{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2);margin-bottom:var(--space-2);}
+  .rnAtvTopo .kbBtn{margin-left:auto;}
+  .rnAtvCont{margin:0 0 var(--space-2);}
+  @media (max-width:999px){ #rnFicha:not(.noPainel) .kbFichaCorpo{width:100vw;height:100vh;border-radius:0;} }
   .rnFichaTopo{display:flex;align-items:center;gap:var(--space-3);}
   .rnFichaTopo .rnAv{width:46px;height:46px;font-size:var(--fs-base);background:var(--ml-novo-soft);color:var(--c-sinal);}
   .rnFichaNome{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:700;line-height:1.1;margin:0;}
@@ -1136,7 +1172,20 @@
   .rnMaisBt{margin:var(--space-3) auto 0;}
   /* Funil */
   .kanbanCard.kcRenovacao{cursor:pointer;}
-  .rnKanban{display:grid;grid-template-columns:repeat(5,minmax(210px,1fr));gap:var(--space-3);overflow-x:auto;}
+  .rnKanban{display:grid;grid-template-columns:repeat(9,minmax(230px,1fr));gap:var(--space-3);overflow-x:auto;padding-bottom:var(--space-3);}
+  .rnCnpjBt{border:1px solid var(--ml-surface-3);background:var(--ml-surface);border-radius:var(--radius-pill,999px);padding:0 8px;font-size:11px;font-weight:600;cursor:pointer;color:var(--ml-ink-2);}.rnCnpjBt:hover{background:var(--ml-surface-2);}
+  .rnCnpjLinha{display:flex;align-items:center;gap:6px;}
+  #rnKbKpis[hidden]{display:none;}
+  .rnNotaForm{display:grid;gap:var(--space-2);margin-bottom:var(--space-3);}.rnNotaForm textarea{width:100%;}
+  .rnNotas li{display:grid;gap:4px;}.rnNotaTxt{white-space:pre-wrap;overflow-wrap:anywhere;}.rnNotaAcoes{display:flex;flex-wrap:wrap;gap:6px;}.rnFixada{background:var(--ml-surface-2);border-radius:var(--radius-lg);padding:var(--space-2);}
+  .rnContato2{display:flex;justify-content:space-between;gap:var(--space-2);flex-wrap:wrap;padding:var(--space-2) 0;box-shadow:0 1px 0 var(--ml-surface-3);}
+  .rnTag{display:inline-block;padding:0 8px;border-radius:var(--radius-pill,999px);font-size:11px;font-weight:600;color:var(--ml-ink-2);background:var(--ml-surface-3);}.rnTagOk{color:var(--st-ganho);background:var(--st-ganho-bg);}
+  .rnCheck{display:flex;align-items:center;gap:6px;}
+  .rnQuente{display:inline-block;padding:1px 6px;border-radius:var(--radius-pill,999px);font-weight:700;font-size:11px;color:var(--st-perdido);background:var(--st-perdido-bg);}
+  .rnProxCard{margin:0;padding:var(--space-2) var(--space-3);border-radius:var(--radius-lg);background:var(--ml-surface-2);font-size:var(--fs-sm);}
+  .rnSecao>summary{font-weight:600;cursor:pointer;}
+  .rnKbTopo{display:flex;align-items:center;gap:6px;min-width:0;}.rnKbTopo .rnNome{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  #rnKbBarra{margin:var(--space-3) 0;}
   .rnKbCol{background:var(--ml-surface-3);border-radius:var(--radius-lg);padding:var(--space-2);min-height:240px;}
   .rnKbHead{display:flex;justify-content:space-between;align-items:center;margin:4px 4px 10px;}
   .rnKbCard{background:var(--ml-surface);border-radius:var(--radius-lg);padding:10px 12px;margin-bottom:var(--space-2);cursor:grab;display:grid;gap:4px;box-shadow:var(--shadow-sm);}
@@ -1929,16 +1978,17 @@
     <section class="panel" id="panel-renovacao">
       <div class="rnTopo">
         <nav class="kbSeg" id="rnAbas" aria-label="Visões da Renovação">
-          <button type="button" class="active" data-rn-aba="hoje">Hoje <span class="kbBadge" id="rnBadgeRetornos"></span></button>
-          <button type="button" data-rn-aba="carteira">Carteira</button>
-          <button type="button" data-rn-aba="kanban">Funil</button>
-          <button type="button" data-rn-aba="resumo">Resumo</button>
+          <button type="button" class="active" data-rn-aba="kanban">Funil</button>
+          <button type="button" data-rn-aba="carteira">Lista</button>
+          <button type="button" data-rn-aba="hoje">Fila de hoje <span class="kbBadge" id="rnBadgeRetornos"></span></button>
+          <button type="button" data-rn-aba="resumo">Painel</button>
           <button type="button" data-rn-aba="proposta">Proposta e fatura</button>
+          <button type="button" data-rn-aba="atividade" id="rnAbaAtividade" style="display:none">Atividade do time</button>
         </nav>
         <select id="rnFConsultor" class="rnSel" aria-label="Consultor" style="display:none"></select>
         <span class="kbStatusLinha" id="rnStatus"></span>
       </div>
-      <div id="rnHoje" class="rnVisao">
+      <div id="rnHoje" class="rnVisao" hidden>
         <div class="rnKpis" id="rnKpis"></div>
         <div class="rnHojeGrade">
           <div class="rnBloco">
@@ -1955,14 +2005,20 @@
         <div class="rnCartBarra">
           <input type="search" id="rnBusca" class="kbBusca" placeholder="Buscar empresa, CNPJ ou ADM" autocomplete="off" aria-label="Buscar na carteira">
           <button type="button" class="kbBtn kbBtnQ" id="rnMaisFiltrosBt" aria-expanded="false" aria-controls="rnMaisFiltros">Mais filtros</button>
-          <select id="rnOrdem" class="rnSel" aria-label="Ordem"><option value="linhas">Mais linhas primeiro</option><option value="retorno">Retorno mais próximo</option></select>
+          <select id="rnPresetLista" class="rnSel" data-rn-preset aria-label="Atalhos de busca"></select>
+          <select id="rnSalvosLista" class="rnSel" data-rn-salvo aria-label="Meus filtros"></select>
+          <button type="button" class="kbBtn kbBtnQ kbBtnSm" data-rn-salvar-filtro>Salvar filtro</button>
+          <button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-excluir-filtro>Excluir</button>
+          <select id="rnOrdem" class="rnSel" data-rn-f="ordem" aria-label="Ordem"></select>
         </div>
         <div class="rnVisoes" id="rnVisoes"></div>
         <div class="rnMaisFiltros" id="rnMaisFiltros" hidden>
-          <select id="rnFCidade" class="rnSel" aria-label="Cidade"></select>
-          <select id="rnFDdd" class="rnSel" aria-label="DDD"></select>
-          <select id="rnFApto" class="rnSel" aria-label="Apto"><option value="">Apto: todos</option><option value="APTO">APTO</option><option value="1 MÊS PARA APTO">1 mês para apto</option></select>
+          <select id="rnFCidade" class="rnSel" data-rn-f="cidade" aria-label="Cidade"></select>
+          <select id="rnFDdd" class="rnSel" data-rn-f="ddd" aria-label="DDD"></select>
+          <span id="rnFExtra" class="rnFExtra"></span>
+          <button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-limpar-tudo>Limpar filtros</button>
         </div>
+        <p class="kbMeta" id="rnSumarioLista"></p>
         <div class="rnChips" id="rnChips"></div>
         <div class="rnRedistribuir" id="rnRedistribuir" style="display:none">
           <span id="rnSelN"></span>
@@ -1972,9 +2028,10 @@
         <div class="rnTabelaCasa"><table class="rnTabela"><thead id="rnThead"></thead><tbody id="rnTbody"></tbody></table></div>
         <button type="button" class="kbBtn kbBtnQ rnMaisBt" id="rnMais" style="display:none"></button>
       </div>
-      <div id="rnKanban" class="rnVisao" hidden></div>
+      <div id="rnKanban" class="rnVisao"></div>
       <div id="rnResumo" class="rnVisao" hidden></div>
       <div id="rnProposta" class="rnVisao" hidden></div>
+      <div id="rnAtividade" class="rnVisao" hidden></div>
       <aside class="kbFicha" id="rnFicha" aria-label="Ficha do cliente"><div class="kbFichaCorpo" id="rnFichaCorpo"></div></aside>
     </section>
     <!-- FUNIL DE VENDAS (kanban — todos os perfis) -->
@@ -3812,7 +3869,8 @@ function enterApp(){
     // Dashboard de Produção é a página inicial pós-login (em vez de Buscar Clientes) — reaproveita o
     // mesmo clique que o consultor daria manualmente na aba, então já ativa a aba certa e carrega os
     // dados (ver listener de #tabsNav abaixo).
-    document.querySelector('#tabsNav button[data-tab="producao"]').click();
+    // §165: consultor do time de Renovação abre direto na aba Renovação (o resto do pessoal continua no Dashboard de Produção)
+    document.querySelector(`#tabsNav button[data-tab="${rnSoRenovacao() ? 'renovacao' : 'producao'}"]`).click();
     // seção 76: quem está em config.boletim.abre_sozinho vai direto para o boletim no 1º acesso do dia (a partir das 10h)
     bmAoEntrar().catch(err => console.error(err));
   }catch(e){
@@ -4060,13 +4118,122 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
    07/11/2026: a carteira do time de renovação sai da planilha do Google e vem para o painel (Fase 1: Carteira, Retornos,
    Resumo, Redistribuir, Importar). Regras e permissões ficam no banco (renovacao_carteira_validar, RLS).
    Spec: docs/superpowers/specs/2026-11-07-renovacao-aba-design.md */
-const RN_STATUS = { 1: 'Não contatado', 2: 'Tentativa s/ retorno', 3: 'Contato efetivo', 4: 'Proposta enviada', 5: 'Em negociação', 6: 'Renovado', 7: 'Perdido' };
+// §165 (25/11): CRM de acompanhamento — funil 0–9 (antes 1–7: 1→0, 2→1, 3→2, 4→4, 5→5, 6→6, 7→8)
+const RN_STATUS = { 0: 'Não trabalhado', 1: 'Tentativa de contato', 2: 'Contato c/ decisor', 3: 'Qualificado', 4: 'Proposta enviada', 5: 'Negociação', 6: 'Ganho (pedido)', 7: 'Ganho (ativado)', 8: 'Perdido', 9: 'Desqualificado' };
 const RN_CANAIS = ['WhatsApp', 'Ligação', 'E-mail', 'Visita'];
 const RN_MOTIVOS = ['Preço', 'Foi p/ concorrente', 'Sem interesse', 'Insatisfeito c/ Claro', 'Empresa fechada/baixada', 'Contato inválido', 'Outro'];
-const RN_COLS_LISTA = 'id,cnpj_digits,razao_social,telefone,nome_adm,linhas_voz,apto,cidade,ddd,consultor_id,origem,status,data_contato,prox_retorno,canal,linhas_renovadas,bl_vendida,sol_digitais,motivo_perda,observacoes,na_base,a_completar,atualizado_em,status_desde,retorno_hora';
+const RN_PROX_ACOES = ['Ligar', 'WhatsApp', 'E-mail', 'Visita', 'Enviar proposta', 'Cobrar retorno', 'Acompanhar pedido'];
+const RN_PRODUTOS = ['Renovação de linhas', 'Renovação + Incremento', 'Incremento', 'Incremento Portin', 'Fixa (banda larga)', 'Renovação + Fixa', 'Solução digital'];
+const RN_CONCORRENTES = ['Vivo', 'TIM', 'Oi', 'Outro'];
+const RN_APTOS = ['APTO', '1 MÊS PARA APTO', '2 MESES PARA APTO'];
+const RN_LEGADO = { 1: 0, 2: 1, 3: 2, 4: 4, 5: 5, 6: 6, 7: 8 };   // planilha antiga do time (1–7) → funil novo
+const RN_COLS_LISTA = 'id,cnpj_digits,razao_social,telefone,nome_adm,linhas_voz,apto,cidade,ddd,consultor_id,origem,status,data_contato,prox_retorno,canal,linhas_renovadas,bl_vendida,sol_digitais,motivo_perda,observacoes,na_base,a_completar,atualizado_em,status_desde,retorno_hora,melhor_horario,etiquetas,'
+  + 'oportunidade,movimentacao,fatura,fixa_viavel,tem_fixa,prioridade,hist_origem,consultor_anterior,tentativas,primeiro_contato,prox_acao,falou_decisor,produto_ofertado,linhas_propostas,valor_proposta,concorrente,numero_pedido,data_fechamento';
 const RN_PAGINA = 50;
-function rnFiltrosVazios(){ return { busca: '', visao: 'todos', ordem: 'linhas', status: '', apto: '', cidade: '', ddd: '', consultor: '', soVencido: false, pendencias: false, foraBase: false }; }
-const rnEstado = { aba: 'hoje', buscaHoje: '', fichaAba: 'atendimento', fichaStatus: null, lista: [], propostas: [], arrastando: null, perfis: [], carregado: false, geracao: 0, filtros: rnFiltrosVazios(), pagina: 1, selecionados: new Set(), fichaId: null, ficha: null, importacao: null, socios: null, sociosTimer: null };
+function rnFiltrosVazios(){ return { busca: '', visao: 'todos', ordem: 'prioridade', status: '', apto: '', prioridade: '', fixa: '', oport: '', fatura: '', linhas: '', mov: '', cidade: '', ddd: '', consultor: '', soVencido: false, pendencias: false, foraBase: false }; }
+// §165 (25/11): filtros e ordens para achar as melhores oportunidades (valem no Funil e na Lista)
+const RN_FILTROS = [
+  ['apto', 'Aptidão', [['APTO', 'Aptos'], ['1 MÊS PARA APTO', 'Apto M+1'], ['2 MESES PARA APTO', 'Apto M+2'], ['NÃO APTO', 'FIXA - Não Apto']], 'Todos'],
+  ['fixa', 'Fixa', [['viavel', 'Fixa viável'], ['nova', 'Fixa nova (viável e sem fixa hoje)'], ['sem', 'Sem fixa hoje'], ['tem', 'Já tem fixa']]],
+  ['oport', 'Oportunidade', [['Renovação', 'Renovação'], ['Renovação + Fixa', 'Renovação + Fixa'], ['Fixa nova', 'Fixa nova'], ['Sem oportunidade', 'Sem oportunidade']]],
+  ['prioridade', 'Prioridade', [['P1', 'P1'], ['P2', 'P2'], ['P3', 'P3'], ['P4', 'P4'], ['P5', 'P5']]],
+  ['fatura', 'Fatura', [['300', 'a partir de R$ 300'], ['500', 'a partir de R$ 500'], ['1000', 'a partir de R$ 1.000'], ['menor300', 'abaixo de R$ 300']]],
+  ['linhas', 'Linhas', [['ate5', 'até 5'], ['6a15', '6 a 15'], ['16mais', '16 ou mais']]],
+  ['mov', 'Movimentação 25/11', [['novo', 'Novo'], ['permanece', 'Permanece'], ['perdeu', 'Perdeu aptidão']]],
+];
+const RN_ORDENS = [['prioridade', 'Ordem: prioridade (P1 primeiro)'], ['fatura_desc', 'Ordem: maior fatura'], ['fatura_asc', 'Ordem: menor fatura'], ['vl_desc', 'Ordem: maior valor por linha'],
+  ['vl_asc', 'Ordem: menor valor por linha'], ['linhas', 'Ordem: mais linhas'], ['linhas_asc', 'Ordem: menos linhas'], ['retorno', 'Ordem: retorno mais próximo'], ['semcontato', 'Ordem: há mais tempo sem contato']];
+// atalhos: cada um troca os filtros de uma vez (mantém busca e consultor)
+const RN_PRESETS = [
+  ['melhores', 'Melhores oportunidades (P1)', { prioridade: 'P1', ordem: 'vl_desc' }],
+  ['valor_linha', 'Aptos de maior valor por linha', { apto: 'APTO', ordem: 'vl_desc' }],
+  ['alta_fatura', 'Aptos com fatura alta (R$ 500+)', { apto: 'APTO', fatura: '500', ordem: 'fatura_desc' }],
+  ['fixa_nova', 'Fixa nova (viável, sem fixa hoje)', { fixa: 'nova', ordem: 'fatura_desc' }],
+  ['novos', 'Novos da base 25/11', { mov: 'novo', ordem: 'prioridade' }],
+];
+function rnCnpjFmt(d){ return String(d || '').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5'); }
+function rnCnpjBtn(d){ return d ? `<button type="button" class="rnCnpjBt" data-rn-cnpj="${escapeHtml(d)}" title="Copiar o CNPJ para consultar no Solar">CNPJ</button>` : ''; }
+function rnCopiar(texto){
+  if(navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(texto);
+  return new Promise((ok, falha) => { try{ const t = document.createElement('textarea'); t.value = texto; document.body.appendChild(t); t.select(); const r = document.execCommand('copy'); t.remove(); r ? ok() : falha(); }catch(e){ falha(e); } });
+}
+function rnPrefGet(k){ try{ const v = localStorage.getItem(k); if(v !== null) return v; }catch(e){} return (rnEstado.prefMem || {})[k] ?? null; }
+function rnPrefSet(k, v){ rnEstado.prefMem = Object.assign(rnEstado.prefMem || {}, { [k]: v }); try{ localStorage.setItem(k, v); }catch(e){} }
+const RN_CHIPS_VISAO = ['quentes', 'fila', 'atrasados', 'sem7'];
+const RN_META_DIA = { contatos: 30, propostas: 5 };   // meta diária por consultor (Funil mostra o progresso do dia)
+// "Quente": P1 ainda aberto (etapas 0–5) e sem toque há mais de 3 dias (ou nunca tocado)
+function rnQuente(r, hoje){
+  if(r.prioridade !== 'P1' || r.status > 5 || !r.na_base) return false;
+  return !r.data_contato || rnDiasEntre(r.data_contato, hoje) > 3;
+}
+function rnMetasDia(lista, propostas, hoje, consultor, nTime){
+  const base = rnPorConsultor(lista, consultor).filter(r => r.na_base);
+  const contatos = base.filter(r => r.data_contato === hoje).length;
+  const ids = new Set(base.filter(r => r.status === 4 && r.status_desde && rnDataSP(r.status_desde) === hoje).map(r => r.id));
+  (propostas || []).forEach(p => { if(p.carteira_id != null && p.criado_em && rnDataSP(p.criado_em) === hoje && base.some(r => r.id === p.carteira_id)) ids.add(p.carteira_id); });
+  const mult = consultor ? 1 : Math.max(1, nTime || 1);
+  return { contatos, propostas: ids.size, metaContatos: RN_META_DIA.contatos * mult, metaPropostas: RN_META_DIA.propostas * mult };
+}
+// filtros favoritos de cada consultor (guardados neste navegador; sem localStorage, ficam só na sessão)
+function rnSalvosChave(){ return 'rn_filtros_' + (currentUser ? currentUser.id : ''); }
+function rnSalvosLer(){
+  try{ const v = JSON.parse(localStorage.getItem(rnSalvosChave()) || 'null'); if(Array.isArray(v)) return v; }catch(e){}
+  return (rnEstado.salvosMem && rnEstado.salvosMem[rnSalvosChave()]) || [];
+}
+function rnSalvosGravar(lista){
+  rnEstado.salvosMem = Object.assign(rnEstado.salvosMem || {}, { [rnSalvosChave()]: lista });
+  try{ localStorage.setItem(rnSalvosChave(), JSON.stringify(lista)); }catch(e){}
+}
+function rnSalvosOpcoes(){ return '<option value="">Meus filtros…</option>' + rnSalvosLer().map((x, i) => `<option value="${i}">${escapeHtml(x.nome)}</option>`).join(''); }
+function rnFiltroAtualParaSalvar(){ const f = rnEstado.filtros; const o = {}; RN_FILTROS.forEach(([k]) => { if(f[k]) o[k] = f[k]; }); ['ordem', 'cidade', 'ddd'].forEach(k => { if(f[k]) o[k] = f[k]; }); if(RN_CHIPS_VISAO.includes(f.visao)) o.visao = f.visao; return o; }
+function rnVlLinha(r){ const l = Number(r.linhas_voz); return r.fatura != null && l > 0 && Number.isFinite(Number(r.fatura)) ? Number(r.fatura) / l : null; }
+function rnComparador(ordem){
+  const num = (fn, desc) => (a, b) => { const x = fn(a), y = fn(b); if(x == null && y == null) return rnOrdemPrioridade(a, b); if(x == null) return 1; if(y == null) return -1; return (desc ? y - x : x - y) || rnOrdemPrioridade(a, b); };
+  switch(ordem){
+    case 'fatura_desc': return num(r => (r.fatura == null ? null : Number(r.fatura)), true);
+    case 'fatura_asc': return num(r => (r.fatura == null ? null : Number(r.fatura)), false);
+    case 'vl_desc': return num(rnVlLinha, true);
+    case 'vl_asc': return num(rnVlLinha, false);
+    case 'linhas': return rnOrdemLinhas;
+    case 'linhas_asc': return num(r => (r.linhas_voz == null ? null : Number(r.linhas_voz)), false);
+    case 'retorno': return rnOrdemRetorno;
+    case 'semcontato': return num(r => (r.status >= 1 && r.status <= 5 && r.data_contato ? Date.parse(r.data_contato + 'T12:00:00Z') : null), false);
+    default: return rnOrdemPrioridade;
+  }
+}
+function rnPassaFiltros(r, f){
+  if(f.apto && r.apto !== f.apto) return false;
+  if(f.fixa === 'viavel' && !r.fixa_viavel) return false;
+  if(f.fixa === 'nova' && !(r.fixa_viavel && !r.tem_fixa)) return false;
+  if(f.fixa === 'sem' && r.tem_fixa) return false;
+  if(f.fixa === 'tem' && !r.tem_fixa) return false;
+  if(f.oport && r.oportunidade !== f.oport) return false;
+  const fat = r.fatura == null ? null : Number(r.fatura);
+  if(f.fatura === 'menor300' ? !(fat != null && fat < 300) : (f.fatura && !(fat != null && fat >= Number(f.fatura)))) return false;
+  const l = Number(r.linhas_voz) || 0;
+  if(f.linhas === 'ate5' && l > 5) return false;
+  if(f.linhas === '6a15' && (l < 6 || l > 15)) return false;
+  if(f.linhas === '16mais' && l < 16) return false;
+  const m = rnNorm(r.movimentacao);
+  if(f.mov === 'novo' && !m.startsWith('novo')) return false;
+  if(f.mov === 'permanece' && m !== 'permanece') return false;
+  if(f.mov === 'perdeu' && !m.includes('perdeu')) return false;
+  return true;
+}
+function rnSumario(lista){
+  const fat = lista.reduce((t, r) => t + (Number(r.fatura) || 0), 0);
+  const lin = lista.reduce((t, r) => t + (r.fatura != null ? Number(r.linhas_voz) || 0 : 0), 0);
+  return `${lista.length.toLocaleString('pt-BR')} cliente${lista.length === 1 ? '' : 's'}` + (fat ? ` · ${fmtBRL(fat)}/mês em fatura` : '') + (fat && lin ? ` · ${fmtBRL(fat / lin)} por linha em média` : '');
+}
+function rnFiltrosSelectsHtml(pref){
+  return RN_FILTROS.map(([k, t, ops, vazio]) => `<select class="rnSel" id="${pref}${k[0].toUpperCase() + k.slice(1)}" data-rn-f="${k}" aria-label="${escapeHtml(t)}"><option value="">${escapeHtml(vazio || t + ': todos')}</option>${ops.map(([v, x]) => `<option value="${escapeHtml(v)}">${escapeHtml(x)}</option>`).join('')}</select>`).join('')
+    + `<select class="rnSel" id="${pref}Ordem2" data-rn-f="ordem" aria-label="Ordem">${RN_ORDENS.map(([v, x]) => `<option value="${v}">${escapeHtml(x)}</option>`).join('')}</select>`;
+}
+function rnPresetsHtml(){ return '<option value="">Atalhos de busca…</option>' + RN_PRESETS.map(([k, t]) => `<option value="${k}">${escapeHtml(t)}</option>`).join(''); }
+
+const rnEncerrado = (s) => s >= 6;                  // ganho, perdido ou desqualificado: sai da fila de retornos
+const rnGanho = (s) => s === 6 || s === 7;
+const rnEstado = { aba: 'kanban', buscaHoje: '', fichaAba: 'atendimento', fichaStatus: null, lista: [], propostas: [], arrastando: null, perfis: [], carregado: false, geracao: 0, filtros: rnFiltrosVazios(), pagina: 1, selecionados: new Set(), fichaId: null, ficha: null, importacao: null, socios: null, sociosTimer: null, kbLimite: {} };
 
 function rnGestor(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
 function rnPodeVer(){
@@ -4077,12 +4244,13 @@ function rnPodeVer(){
 function rnSoRenovacao(){ return !!currentUser && currentUser.role === 'consultor' && currentUser.equipe === 'renovacao'; }
 function rnAplicarPermissao(){
   document.getElementById('tabBtnRenovacao').style.display = rnPodeVer() ? 'inline-block' : 'none';
+  const abaAtv = document.getElementById('rnAbaAtividade'); if(abaAtv) abaAtv.style.display = rnGestor() ? '' : 'none';   // §165: só admin/supervisor
   // §143.2: o time de renovação trabalha só pela aba Renovação (Busca, Proposta, Funil e Agenda saem do menu dele)
   const soRenovacao = rnSoRenovacao();
   ['busca', 'proposta', 'funil', 'agenda'].forEach(t => { const b = document.querySelector(`#tabsNav button[data-tab="${t}"]`); if(b) b.style.display = soRenovacao ? 'none' : ''; });
   rnSociosParar();
-  Object.assign(rnEstado, { aba: 'hoje', lista: [], propostas: [], perfis: [], carregado: false, filtros: rnFiltrosVazios(), pagina: 1, fichaId: null, ficha: null, socios: null,
-    importacao: null, buscaHoje: '', fichaAba: 'atendimento', fichaStatus: null });
+  Object.assign(rnEstado, { aba: 'kanban', kbLimite: {}, lista: [], propostas: [], perfis: [], carregado: false, filtros: rnFiltrosVazios(), pagina: 1, fichaId: null, ficha: null, socios: null,
+    importacao: null, buscaHoje: '', fichaAba: 'atendimento', fichaStatus: null, atv: null });
   rnEstado.selecionados.clear();
   rnEstado.geracao++;
   // troca de usuário na mesma aba do navegador: nada do anterior fica na tela
@@ -4090,7 +4258,7 @@ function rnAplicarPermissao(){
   ['rnTbody', 'rnResumo', 'rnFichaCorpo', 'rnKanban', 'rnKpis', 'rnFilaLista', 'rnVisoes', 'rnChips'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = ''; });
   const busca = document.getElementById('rnHojeBusca'); if(busca) busca.value = '';
   document.getElementById('rnFicha').classList.remove('aberta');
-  rnMostrarAba('hoje');
+  rnMostrarAba('kanban');
 }
 function rnStatus(msg){ const el = document.getElementById('rnStatus'); if(el) el.textContent = msg || ''; }
 function rnHoje(){ return hojeSP(); }
@@ -4100,7 +4268,7 @@ function rnHoraSP(){ return RN_HORA_FMT.format(new Date()); }
 function rnAgora(){ return { data: rnHoje(), hora: rnHoraSP() }; }
 function rnComoAgora(x){ return typeof x === 'string' ? { data: x, hora: '00:00' } : x; }
 function rnEstadoRetorno(r, agora){
-  if(!r.prox_retorno || r.status === 6 || r.status === 7) return null;
+  if(!r.prox_retorno || rnEncerrado(r.status)) return null;
   if(r.prox_retorno < agora.data) return 'atrasado';
   if(r.prox_retorno > agora.data) return 'futuro';
   const h = r.retorno_hora ? String(r.retorno_hora).slice(0, 5) : '';
@@ -4114,8 +4282,10 @@ function rnTextoAtraso(r, agora){
   if(d > 0) return `há ${d} dia${d > 1 ? 's' : ''}`;
   return 'era ' + String(r.retorno_hora || '').slice(0, 5);
 }
-const RN_ETAPA = { 1: 'Não contatado', 2: 'Tentativa', 3: 'Contato efetivo', 4: 'Proposta enviada', 5: 'Em negociação', 6: 'Renovado', 7: 'Perdido' };
-function rnEtapaHtml(s){ return `<span class="rnEtapa rnSt${Number(s) || 1}"><i></i>${escapeHtml(RN_ETAPA[s] || '?')}</span>`; }
+const RN_ETAPA = { 0: 'Não trabalhado', 1: 'Tentativa', 2: 'Decisor', 3: 'Qualificado', 4: 'Proposta', 5: 'Negociação', 6: 'Ganho (pedido)', 7: 'Ganho (ativado)', 8: 'Perdido', 9: 'Desqualificado' };
+function rnEtapaHtml(s){ const n = Number.isInteger(Number(s)) ? Number(s) : 0; return `<span class="rnEtapa rnSt${n}"><i></i>${escapeHtml(RN_ETAPA[s] || '?')}</span>`; }
+function rnPrioHtml(p){ return p ? `<span class="rnPri rnPri${escapeHtml(p)}" title="Prioridade ${escapeHtml(p)}">${escapeHtml(p)}</span>` : ''; }
+function rnEhApto(a){ return RN_APTOS.includes(a); }
 function rnIniciais(nome){
   const p = String(nome || '').split(/\s+/).filter(w => w.length > 1 || /^[A-Za-zÀ-ú]$/.test(w));
   return p.length ? p.slice(0, 2).map(w => w[0].toUpperCase()).join('') : '?';
@@ -4158,7 +4328,7 @@ async function rnCarregar(){
   rnAtualizarBadge();
   rnRender();
 }
-const RN_VISAO_ID = { hoje: 'rnHoje', carteira: 'rnCarteira', kanban: 'rnKanban', resumo: 'rnResumo', proposta: 'rnProposta' };
+const RN_VISAO_ID = { hoje: 'rnHoje', carteira: 'rnCarteira', kanban: 'rnKanban', resumo: 'rnResumo', proposta: 'rnProposta', atividade: 'rnAtividade' };
 function rnMostrarAba(aba){
   document.querySelectorAll('#rnAbas [data-rn-aba]').forEach(b => b.classList.toggle('active', b.dataset.rnAba === aba));
   Object.entries(RN_VISAO_ID).forEach(([k, id]) => { const el = document.getElementById(id); if(el) el.hidden = k !== aba; });
@@ -4174,6 +4344,7 @@ function rnPosicionarFicha(aba){
   if(!naHoje) f.classList.remove('aberta');
 }
 function rnTrocarAba(aba){
+  if(aba === 'atividade' && !rnGestor()) aba = 'kanban';
   rnEstado.aba = aba;
   rnMostrarAba(aba);
   rnRender();
@@ -4186,6 +4357,7 @@ function rnRender(){
   if(rnEstado.aba === 'kanban' && typeof rnRenderKanban === 'function') rnRenderKanban();
   if(rnEstado.aba === 'resumo' && typeof rnRenderResumo === 'function') rnRenderResumo();
   if(rnEstado.aba === 'proposta') rnMoverProposta(true);
+  if(rnEstado.aba === 'atividade' && typeof rnRenderAtividade === 'function') rnRenderAtividade();
 }
 // ---- Carteira ----
 function rnNorm(s){ return String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(); }
@@ -4193,6 +4365,9 @@ function rnStatusRotulo(s){ return s + '-' + (RN_STATUS[s] || '?'); }
 function rnChaveRetorno(r){ return r.prox_retorno ? r.prox_retorno + ' ' + (r.retorno_hora ? String(r.retorno_hora).slice(0, 5) : '99:99') : '9999-99-99'; }
 function rnOrdemLinhas(a, b){ return (b.linhas_voz || 0) - (a.linhas_voz || 0) || String(a.razao_social || '').localeCompare(String(b.razao_social || ''), 'pt-BR'); }
 function rnOrdemRetorno(a, b){ return rnChaveRetorno(a).localeCompare(rnChaveRetorno(b)) || rnOrdemLinhas(a, b); }
+// P1 primeiro; sem prioridade por último; mesma prioridade: maior fatura, depois mais linhas
+function rnOrdemPrioridade(a, b){ return String(a.prioridade || 'P9').localeCompare(String(b.prioridade || 'P9')) || (Number(b.fatura) || 0) - (Number(a.fatura) || 0) || rnOrdemLinhas(a, b); }
+function rnSemContato7(r, hoje){ return r.status >= 1 && r.status <= 5 && !!r.data_contato && rnDiasEntre(r.data_contato, hoje) > 7; }
 function rnCasaBusca(r, busca){
   const b = rnNorm(busca); if(!b) return true;
   const dig = onlyDigits(busca);
@@ -4205,30 +4380,36 @@ function rnFiltrar(lista, f, hoje){
   return lista.filter(r => {
     if(fora ? r.na_base : !r.na_base) return false;
     if(f.status && String(r.status) !== String(f.status)) return false;
-    if(v === 'nao' && r.status !== 1) return false;
-    if(v === 'andamento' && !(r.status >= 2 && r.status <= 5)) return false;
+    if(v === 'nao' && r.status !== 0) return false;
+    if(v === 'andamento' && !(r.status >= 1 && r.status <= 5)) return false;
     if((v === 'atrasados' || f.soVencido) && rnEstadoRetorno(r, agora) !== 'atrasado') return false;
+    if(v === 'sem7' && !rnSemContato7(r, agora.data)) return false;
+    if(v === 'fila' && !['atrasado', 'hoje'].includes(rnEstadoRetorno(r, agora))) return false;
+    if(v === 'quentes' && !rnQuente(r, agora.data)) return false;
     if((v === 'pendencias' || f.pendencias) && !r.a_completar) return false;
-    if(v === 'renovados' && r.status !== 6) return false;
-    if(v === 'perdidos' && r.status !== 7) return false;
-    if(f.apto && r.apto !== f.apto) return false;
+    if(v === 'renovados' && !rnGanho(r.status)) return false;
+    if(v === 'perdidos' && r.status !== 8 && r.status !== 9) return false;
+    if(!rnPassaFiltros(r, f)) return false;
+    if(f.prioridade && r.prioridade !== f.prioridade) return false;
     if(f.cidade && r.cidade !== f.cidade) return false;
     if(f.ddd && String(r.ddd || '') !== f.ddd) return false;
     if(f.consultor === '-' ? !!r.consultor_id : (f.consultor && r.consultor_id !== f.consultor)) return false;
     return rnCasaBusca(r, f.busca);
-  }).sort(f.ordem === 'retorno' ? rnOrdemRetorno : rnOrdemLinhas);
+  }).sort(rnComparador(f.ordem));
 }
-function rnClasseLinha(r){ return r.status === 7 ? 'rnPerdido' : r.status === 6 ? 'rnRenovado' : ''; }
+function rnClasseLinha(r){ return r.status >= 8 ? 'rnPerdido' : rnGanho(r.status) ? 'rnRenovado' : ''; }
 function rnValidarFechamento(status, d){
-  if(status === 7 && !RN_MOTIVOS.includes(d.motivo_perda)) return 'Escolha o motivo da perda.';
-  if(status === 6 && !(Number(d.linhas_renovadas) >= 1)) return 'Informe quantas linhas foram renovadas.';
+  if(status === 8 && !RN_MOTIVOS.includes(d.motivo_perda)) return 'Escolha o motivo da perda.';
+  if(rnGanho(status) && !(Number(d.linhas_renovadas) >= 1)) return 'Informe quantas linhas foram fechadas.';
   return null;
 }
 function rnMensagemErro(err){
   const m = (err && err.message) || '';
-  if(/Perdido precisa|Renovado precisa|consultor só altera/.test(m)) return m;
-  const campos = { linhas_renovadas: 'Linhas renovadas não pode ser negativo.', bl_vendida: 'BL vendida não pode ser negativo.',
-    sol_digitais: 'Soluções digitais não pode ser negativo.', canal: 'Canal fora da lista.', motivo_perda: 'Motivo da perda fora da lista.' };
+  if(/Perdido precisa|Ganho precisa|Renovado precisa|consultor só altera/.test(m)) return m;
+  const campos = { linhas_renovadas: 'Linhas fechadas não pode ser negativo.', bl_vendida: 'BL vendida não pode ser negativo.',
+    sol_digitais: 'Soluções digitais não pode ser negativo.', canal: 'Canal fora da lista.', motivo_perda: 'Motivo da perda fora da lista.',
+    tentativas: 'Nº de tentativas não pode ser negativo.', linhas_propostas: 'Linhas propostas não pode ser negativo.',
+    valor_proposta: 'Valor da proposta não pode ser negativo.', falou_decisor: 'Falou com decisor: use Sim ou Não.' };
   const c = m.match(/renovacao_carteira_([a-z_]+)_check/);
   return c && campos[c[1]] ? campos[c[1]] : 'Não foi possível salvar agora. Tente de novo.';
 }
@@ -4247,8 +4428,8 @@ function rnOpcoes(pares, atual, vazio){
   return (vazio ? `<option value="">${escapeHtml(vazio)}</option>` : '')
     + pares.map(([v, t]) => `<option value="${escapeHtml(v)}"${String(v) === String(atual ?? '') ? ' selected' : ''}>${escapeHtml(t)}</option>`).join('');
 }
-const RN_VISOES = [['todos', 'Todos'], ['nao', 'Não contatados'], ['andamento', 'Em andamento'], ['atrasados', 'Atrasados'], ['pendencias', 'Pendências'],
-  ['renovados', 'Renovados'], ['perdidos', 'Perdidos'], ['fora', 'Fora da base']];
+const RN_VISOES = [['todos', 'Todos'], ['nao', 'Não trabalhados'], ['andamento', 'Em andamento'], ['quentes', 'Quentes'], ['fila', 'Fila de hoje'], ['atrasados', 'Atrasados'], ['sem7', 'Sem contato +7d'], ['pendencias', 'Pendências'],
+  ['renovados', 'Ganhos'], ['perdidos', 'Perdidos / desqualif.'], ['fora', 'Fora da base']];
 function rnContarVisoes(lista, f, agora){ return Object.fromEntries(RN_VISOES.map(([v]) => [v, rnFiltrar(lista, Object.assign({}, f, { visao: v }), agora).length])); }
 function rnUltimoContato(r){ return r.data_contato ? r.data_contato.slice(8, 10) + '/' + r.data_contato.slice(5, 7) + (r.canal ? ' · ' + r.canal : '') : '—'; }
 function rnProximoPassoHtml(r, agora){
@@ -4257,10 +4438,11 @@ function rnProximoPassoHtml(r, agora){
   if(est === 'atrasado') return `<span class="rnLate">⏱ ${escapeHtml(rnTextoAtraso(r, agora))}</span>`;
   if(est === 'hoje') return `<span class="rnOk">● Retorno hoje${escapeHtml(hora)}</span>`;
   if(est === 'futuro') return `Retorno ${escapeHtml(r.prox_retorno.slice(8, 10) + '/' + r.prox_retorno.slice(5, 7) + hora)}`;
-  if(r.status === 6) return `<span class="rnOk">${Number(r.linhas_renovadas) || 0} linhas renovadas</span>`;
-  if(r.status === 7) return `<span class="rnMuted">${escapeHtml(r.motivo_perda || 'Perdido')}</span>`;
-  if(r.status === 1) return 'Primeiro contato';
-  return '<span class="rnMuted">Sem retorno marcado</span>';
+  if(rnGanho(r.status)) return `<span class="rnOk">${Number(r.linhas_renovadas) || 0} linhas fechadas</span>`;
+  if(r.status === 8) return `<span class="rnMuted">${escapeHtml(r.motivo_perda || 'Perdido')}</span>`;
+  if(r.status === 9) return '<span class="rnMuted">Desqualificado</span>';
+  if(r.status === 0) return 'Primeiro contato';
+  return r.prox_acao ? `<span class="rnMuted">${escapeHtml(r.prox_acao)}</span>` : '<span class="rnMuted">Sem retorno marcado</span>';
 }
 function rnPreencherFiltros(){
   const f = rnEstado.filtros; const gestor = rnGestor();
@@ -4268,8 +4450,12 @@ function rnPreencherFiltros(){
   document.getElementById('rnFCidade').innerHTML = rnOpcoes(cidades.map(c => [c, c]), f.cidade, 'Cidade: todas');
   const ddds = [...new Set(rnEstado.lista.map(r => String(r.ddd || '')).filter(Boolean))].sort();
   document.getElementById('rnFDdd').innerHTML = rnOpcoes(ddds.map(d => [d, d]), f.ddd, 'DDD: todos');
-  document.getElementById('rnFApto').value = f.apto;
-  document.getElementById('rnOrdem').value = f.ordem || 'linhas';
+  const extra = document.getElementById('rnFExtra'); if(extra && !extra.firstChild) extra.innerHTML = rnFiltrosSelectsHtml('rnF').replace(/<select class="rnSel" id="rnFOrdem2"[\s\S]*?<\/select>/, '');
+  const ord = document.getElementById('rnOrdem'); if(ord && !ord.options.length) ord.innerHTML = RN_ORDENS.map(([v, x]) => `<option value="${v}">${escapeHtml(x)}</option>`).join('');
+  document.querySelectorAll('#rnPresetLista, #rnKbPreset').forEach(el => { if(!el.options.length) el.innerHTML = rnPresetsHtml(); });
+  document.querySelectorAll('#rnSalvosLista, #rnKbSalvos').forEach(el => { const v = el.value; el.innerHTML = rnSalvosOpcoes(); el.value = v; });
+  document.querySelectorAll('#panel-renovacao [data-rn-f]').forEach(el => { const v = f[el.dataset.rnF]; el.value = v == null || v === '' ? (el.dataset.rnF === 'ordem' ? 'prioridade' : '') : v; });
+  const bl = document.getElementById('rnBusca'); if(bl && bl !== document.activeElement) bl.value = f.busca || '';
   const fc = document.getElementById('rnFConsultor');
   fc.style.display = gestor ? '' : 'none';
   if(gestor){
@@ -4279,15 +4465,18 @@ function rnPreencherFiltros(){
   }
 }
 function rnChipsHtml(f){
-  return [['cidade', 'Cidade'], ['ddd', 'DDD'], ['apto', 'Apto']].filter(([k]) => f[k])
+  return [['cidade', 'Cidade'], ['ddd', 'DDD'], ['apto', 'Aptidão'], ['prioridade', 'Prioridade'], ['fixa', 'Fixa'], ['oport', 'Oportunidade'], ['fatura', 'Fatura'], ['linhas', 'Linhas'], ['mov', 'Movimentação']].filter(([k]) => f[k])
     .map(([k, t]) => `<button type="button" class="rnChip" data-rn-limpar="${k}">${t}: ${escapeHtml(f[k])} ✕</button>`).join('');
 }
 function rnLinhaHtml(r, agora, gestor){
   const sub = [r.nome_adm, r.cidade, r.apto, gestor ? rnNomeConsultor(r.consultor_id) : ''].filter(Boolean).join(' · ');
   return `<tr class="${rnClasseLinha(r)}" data-rn-id="${r.id}">
     ${gestor ? `<td class="rnTdSel"><input type="checkbox" data-rn-sel="${r.id}" aria-label="Selecionar"${rnEstado.selecionados.has(r.id) ? ' checked' : ''}></td>` : ''}
-    <td><div class="rnEmpresa"><span class="rnAv">${escapeHtml(rnIniciais(r.razao_social))}</span><span><b>${escapeHtml(r.razao_social || '(sem nome)')}</b><small>${escapeHtml(sub)}</small></span></div></td>
+    <td><div class="rnEmpresa"><span class="rnAv">${escapeHtml(rnIniciais(r.razao_social))}</span><span><b>${escapeHtml(r.razao_social || '(sem nome)')}</b> ${rnCnpjBtn(r.cnpj_digits)}${rnQuente(r, agora.data) ? ' <span class="rnQuente">Quente</span>' : ''}<small>${escapeHtml(sub)}</small></span></div></td>
+    <td>${rnPrioHtml(r.prioridade)}</td>
     <td class="rnNumTd">${r.linhas_voz ?? '—'}</td>
+    <td class="rnNumTd">${r.fatura != null ? fmtBRL(r.fatura) : '—'}</td>
+    <td class="rnNumTd">${rnVlLinha(r) != null ? fmtBRL(rnVlLinha(r)) : '—'}</td>
     <td>${rnEtapaHtml(r.status)}</td>
     <td class="rnMuted">${escapeHtml(rnUltimoContato(r))}</td>
     <td>${rnProximoPassoHtml(r, agora)}</td>
@@ -4302,9 +4491,10 @@ function rnRenderCarteira(){
   document.getElementById('rnChips').innerHTML = rnChipsHtml(f);
   const lista = rnFiltrar(rnEstado.lista, f, agora);
   const mostrar = lista.slice(0, rnEstado.pagina * RN_PAGINA);
-  document.getElementById('rnThead').innerHTML = `<tr>${gestor ? '<th class="rnTdSel"><input type="checkbox" id="rnSelTodos" aria-label="Selecionar todos"></th>' : ''}<th>Empresa</th><th>Linhas</th><th>Etapa</th><th>Último contato</th><th>Próximo passo</th></tr>`;
+  document.getElementById('rnThead').innerHTML = `<tr>${gestor ? '<th class="rnTdSel"><input type="checkbox" id="rnSelTodos" aria-label="Selecionar todos"></th>' : ''}<th>Empresa</th><th>Prior.</th><th>Linhas</th><th>Fatura/mês</th><th>R$/linha</th><th>Etapa</th><th>Último contato</th><th>Próximo passo</th></tr>`;
   document.getElementById('rnTbody').innerHTML = mostrar.map(r => rnLinhaHtml(r, agora, gestor)).join('')
-    || `<tr><td colspan="${gestor ? 6 : 5}" class="rnVazio">Nenhum cliente com esses filtros.</td></tr>`;
+    || `<tr><td colspan="${gestor ? 9 : 8}" class="rnVazio">Nenhum cliente com esses filtros.</td></tr>`;
+  const sumL = document.getElementById('rnSumarioLista'); if(sumL) sumL.textContent = rnSumario(lista);
   const mais = document.getElementById('rnMais');
   mais.style.display = lista.length > mostrar.length ? '' : 'none';
   mais.textContent = `Mostrar mais (${lista.length - mostrar.length})`;
@@ -4316,13 +4506,15 @@ function rnAbrirFechamento(id, status){
   if(!r) return;
   let ov = document.getElementById('rnFechamento');
   if(!ov){ ov = document.createElement('div'); ov.className = 'overlay'; ov.id = 'rnFechamento'; document.body.appendChild(ov); }
-  const renov = status === 6;
+  const renov = rnGanho(status);
   ov.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="rnFechTitulo">
     <div class="mHead"><button type="button" class="mClose" data-rn-fech-cancelar aria-label="Fechar">&times;</button>
-      <h2 id="rnFechTitulo">${renov ? '6-Renovado' : '7-Perdido'}</h2><div class="mCnpj">${escapeHtml(r.razao_social || '')}</div></div>
+      <h2 id="rnFechTitulo">${escapeHtml(rnStatusRotulo(status))}</h2><div class="mCnpj">${escapeHtml(r.razao_social || '')}</div></div>
     <div class="mBody">
       ${renov
-        ? `<label class="field">Linhas renovadas *<input type="number" min="1" id="rnFechLinhas" value="${r.linhas_renovadas ?? ''}"></label>
+        ? `<label class="field">Linhas fechadas *<input type="number" min="1" id="rnFechLinhas" value="${r.linhas_renovadas ?? r.linhas_propostas ?? ''}"></label>
+           <label class="field">Valor (R$/mês)<input type="number" min="0" step="0.01" id="rnFechValor" value="${r.valor_proposta ?? ''}"></label>
+           <label class="field">Nº do pedido<input type="text" id="rnFechPedido" value="${escapeHtml(r.numero_pedido || '')}"></label>
            <label class="field">BL vendida (qtd)<input type="number" min="0" id="rnFechBl" value="${r.bl_vendida ?? ''}"></label>
            <label class="field">Soluções digitais (R$)<input type="number" min="0" step="0.01" id="rnFechDig" value="${r.sol_digitais ?? ''}"></label>`
         : `<label class="field">Motivo da perda *<select id="rnFechMotivo">${rnOpcoes(RN_MOTIVOS.map(m => [m, m]), r.motivo_perda, 'Escolha…')}</select></label>
@@ -4336,7 +4528,8 @@ function rnAbrirFechamento(id, status){
     if(!e.target.closest('[data-rn-fech-salvar]')) return;
     const num = (idCampo) => { const v = document.getElementById(idCampo).value; return v === '' ? null : Number(v); };
     const patch = renov
-      ? { status, linhas_renovadas: num('rnFechLinhas'), bl_vendida: num('rnFechBl'), sol_digitais: num('rnFechDig') }
+      ? { status, linhas_renovadas: num('rnFechLinhas'), valor_proposta: num('rnFechValor'), numero_pedido: document.getElementById('rnFechPedido').value.trim() || null,
+          bl_vendida: num('rnFechBl'), sol_digitais: num('rnFechDig') }
       : { status, motivo_perda: document.getElementById('rnFechMotivo').value || null, observacoes: document.getElementById('rnFechObs').value.trim() || null };
     const erro = rnValidarFechamento(status, patch);
     if(erro){ document.getElementById('rnFechErro').textContent = erro; return; }
@@ -4362,7 +4555,7 @@ document.getElementById('rnTbody').addEventListener('change', (e) => {
   rnRenderCarteira();
 });
 document.getElementById('rnTbody').addEventListener('click', (e) => {
-  if(e.target.closest('input, label')) return;   // marcar para redistribuir não abre a ficha
+  if(e.target.closest('input, label, [data-rn-cnpj]')) return;   // marcar para redistribuir / copiar CNPJ não abre a ficha
   const tr = e.target.closest('tr[data-rn-id]');
   if(tr && typeof rnAbrirFicha === 'function') rnAbrirFicha(Number(tr.dataset.rnId));
 });
@@ -4373,8 +4566,61 @@ document.getElementById('rnThead').addEventListener('change', (e) => {
   rnRenderCarteira();
 });
 document.getElementById('rnBusca').addEventListener('input', (e) => { rnEstado.filtros.busca = e.target.value; rnEstado.pagina = 1; rnRenderCarteira(); });
-[['rnFApto', 'apto'], ['rnFCidade', 'cidade'], ['rnFDdd', 'ddd'], ['rnOrdem', 'ordem']].forEach(([idEl, k]) =>
-  document.getElementById(idEl).addEventListener('change', (e) => { rnEstado.filtros[k] = e.target.value; rnEstado.pagina = 1; rnRenderCarteira(); }));
+// um só ouvinte para todos os filtros do Funil e da Lista (data-rn-f = nome do filtro); atalhos e "limpar" também
+document.getElementById('panel-renovacao').addEventListener('change', (e) => {
+  const el = e.target.closest('[data-rn-f]');
+  if(el){ rnEstado.filtros[el.dataset.rnF] = el.value; rnEstado.pagina = 1; rnRender(); return; }
+  const sv = e.target.closest('[data-rn-salvo]');
+  if(sv && sv.value !== ''){
+    const def = rnSalvosLer()[Number(sv.value)];
+    if(def){ const f = rnEstado.filtros; rnEstado.filtros = Object.assign(rnFiltrosVazios(), { consultor: f.consultor, busca: f.busca }, def.f); rnEstado.pagina = 1; rnRender(); }
+    return;
+  }
+  const pr = e.target.closest('[data-rn-preset]');
+  if(pr && pr.value){
+    const def = RN_PRESETS.find(x => x[0] === pr.value);
+    if(def){ const f = rnEstado.filtros; rnEstado.filtros = Object.assign(rnFiltrosVazios(), { consultor: f.consultor, busca: f.busca }, def[2]); rnEstado.pagina = 1; pr.value = ''; rnRender(); }
+  }
+});
+document.getElementById('panel-renovacao').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-rn-cnpj]');
+  if(!b) return;
+  e.stopPropagation();
+  const txt = rnCnpjFmt(b.dataset.rnCnpj);
+  rnCopiar(txt).then(() => mostrarAviso(`CNPJ ${txt} copiado. É só colar no Solar.`, 'ok'), () => mostrarAviso('Não foi possível copiar. Selecione o CNPJ e copie à mão.', 'erro'));
+}, true);
+function rnAbrirSalvarFiltro(){
+  let ov = document.getElementById('rnSalvarFiltro');
+  if(!ov){ ov = document.createElement('div'); ov.className = 'overlay'; ov.id = 'rnSalvarFiltro'; document.body.appendChild(ov); }
+  ov.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="rnSalvarTitulo">
+    <div class="mHead"><button type="button" class="mClose" data-rn-sf-cancelar aria-label="Fechar">&times;</button><h2 id="rnSalvarTitulo">Salvar filtro</h2></div>
+    <div class="mBody"><label class="field">Nome do filtro<input type="text" id="rnSfNome" maxlength="40" placeholder="Ex.: Aptos com fixa nova"></label>
+      <p class="kbMeta rnVencido" id="rnSfErro" role="alert"></p>
+      <div style="display:flex;gap:var(--space-2);justify-content:flex-end"><button type="button" class="btn btn-outline btn-sm" data-rn-sf-cancelar>Cancelar</button><button type="button" class="btn btn-sm" data-rn-sf-salvar>Salvar</button></div></div></div>`;
+  ov.classList.add('active');
+  ov.onclick = (e) => {
+    if(e.target.closest('[data-rn-sf-cancelar]')){ fecharOverlay(ov); return; }
+    if(!e.target.closest('[data-rn-sf-salvar]')) return;
+    const nome = document.getElementById('rnSfNome').value.trim();
+    if(!nome){ document.getElementById('rnSfErro').textContent = 'Dê um nome ao filtro.'; return; }
+    const f = rnFiltroAtualParaSalvar();
+    if(!Object.keys(f).length){ document.getElementById('rnSfErro').textContent = 'Escolha pelo menos um filtro antes de salvar.'; return; }
+    const lista = rnSalvosLer().filter(x => x.nome !== nome); lista.push({ nome, f }); rnSalvosGravar(lista);
+    fecharOverlay(ov); mostrarAviso('Filtro salvo.', 'ok'); rnRender();
+  };
+}
+document.getElementById('panel-renovacao').addEventListener('click', (e) => {
+  if(e.target.closest('[data-rn-salvar-filtro]')){ rnAbrirSalvarFiltro(); return; }
+  if(e.target.closest('[data-rn-excluir-filtro]')){
+    const bar = e.target.closest('.rnCartBarra'); const vis = bar && bar.querySelector('[data-rn-salvo]');
+    const i = vis ? Number(vis.value) : NaN;
+    if(vis && vis.value !== '' && rnSalvosLer()[i]){ const l = rnSalvosLer(); const nome = l[i].nome; l.splice(i, 1); rnSalvosGravar(l); mostrarAviso(`Filtro "${nome}" excluído.`, 'info'); rnRender(); }
+    else mostrarAviso('Escolha em "Meus filtros" o que excluir.', 'info');
+    return;
+  }
+  if(!e.target.closest('[data-rn-limpar-tudo]')) return;
+  const f = rnEstado.filtros; rnEstado.filtros = Object.assign(rnFiltrosVazios(), { consultor: f.consultor }); rnEstado.pagina = 1; rnRender();
+});
 document.getElementById('rnFConsultor').addEventListener('change', (e) => { rnEstado.filtros.consultor = e.target.value; rnEstado.pagina = 1; rnRender(); });
 document.getElementById('rnVisoes').addEventListener('click', (e) => {
   const b = e.target.closest('[data-rn-visao]'); if(!b) return;
@@ -4556,30 +4802,190 @@ function rnSociosPintar(){
   const sec = document.querySelector('#rnFichaCorpo [data-rn-ficha-sec="socios"]');
   if(sec) sec.innerHTML = rnSociosHtml();      // só a seção: não toca no formulário de atendimento
 }
+// ===== §165 Ficha: anotações, contatos atualizados, anexos (tabelas renovacao_notas/contatos/anexos; os dados da Claro não são tocados) =====
+const RN_HORARIOS = ['Manhã', 'Tarde', 'Noite', 'Horário comercial'];
+const RN_ANEXO_TIPOS = [['fatura', 'Fatura'], ['proposta', 'Proposta recebida'], ['documento', 'Documento'], ['outro', 'Outro']];
+const RN_ANEXO_MIMES = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'text/plain', 'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+const RN_ANEXO_MAX = 10 * 1024 * 1024;
+function rnQuando(iso){ return iso ? new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '') : ''; }
+function rnPodeApagar(autor){ return !!currentUser && (currentUser.id === autor || currentUser.role === 'admin'); }
+function rnTamanho(b){ return b >= 1048576 ? (b / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB'; }
+function rnContatoPrincipal(){ const f = rnEstado.ficha; return f && Array.isArray(f.contatos) ? f.contatos.find(c => c.principal && c.telefone) || null : null; }
+function rnNotasHtml(){
+  const f = rnEstado.ficha || {};
+  const lista = (f.notas || []).slice().sort((a, b) => (b.fixada ? 1 : 0) - (a.fixada ? 1 : 0));
+  return `<div class="rnNotaForm"><textarea id="rnNotaTexto" rows="3" maxlength="2000" placeholder="Registre algo importante sobre o cliente (o que ele disse, objeção, quem decide…)"></textarea>
+    <button type="button" class="kbBtn kbBtnP kbBtnSm" data-rn-nota-add>Adicionar anotação</button></div>`
+    + (f.notas ? (lista.length ? '<ul class="rnHist rnNotas">' + lista.map(n => `<li class="${n.fixada ? 'rnFixada' : ''}"><div class="rnNotaTxt">${escapeHtml(n.texto)}</div>
+      <small class="rnMuted">${n.fixada ? 'Fixada · ' : ''}${escapeHtml(rnNomeConsultor(n.user_id))} · ${escapeHtml(rnQuando(n.criado_em))}</small>
+      <span class="rnNotaAcoes"><button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-nota-fixar="${n.id}">${n.fixada ? 'Desafixar' : 'Fixar'}</button>${rnPodeApagar(n.user_id) ? `<button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-nota-apagar="${n.id}">Apagar</button>` : ''}</span></li>`).join('') + '</ul>'
+      : '<p class="kbMeta">Nenhuma anotação ainda.</p>') : '<p class="kbMeta">Carregando…</p>');
+}
+function rnContatosHtml(r){
+  const f = rnEstado.ficha || {}; const ed = f.editarContato ? (f.contatos || []).find(c => c.id === f.editarContato) : null;
+  const claro = [r.nome_adm, r.telefone ? rnFoneFmt(r.telefone) : ''].filter(Boolean).join(' · ');
+  const dado = (d) => `<div class="rnContato2"><div><b>${escapeHtml(d.nome || '(sem nome)')}</b>${d.cargo ? ' · ' + escapeHtml(d.cargo) : ''}${d.decisor ? ' <span class="rnTag">Decisor</span>' : ''}${d.principal ? ' <span class="rnTag rnTagOk">Principal</span>' : ''}
+      <div class="kbMeta">${d.telefone ? escapeHtml(rnFoneFmt(d.telefone)) : ''}${d.telefone && d.email ? ' · ' : ''}${d.email ? escapeHtml(d.email) : ''} · atualizado por ${escapeHtml(rnNomeConsultor(d.atualizado_por || d.criado_por))} em ${escapeHtml(rnQuando(d.atualizado_em))}</div></div>
+      <span class="rnNotaAcoes">${d.telefone ? `<a class="kbBtn kbBtnP kbBtnSm" data-rn-canal="WhatsApp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(d.telefone.replace(/^55/, ''))}">WhatsApp</a><a class="kbBtn kbBtnQ kbBtnSm" data-rn-canal="Ligação" href="tel:${escapeHtml(d.telefone)}">Ligar</a>` : ''}${d.email ? `<a class="kbBtn kbBtnQ kbBtnSm" href="mailto:${escapeHtml(d.email)}">E-mail</a>` : ''}
+      <button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-contato-editar="${d.id}">Editar</button>${rnPodeApagar(d.criado_por) ? `<button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-contato-apagar="${d.id}">Apagar</button>` : ''}</span></div>`;
+  return `<p class="kbMeta">Dado oficial da Claro (não muda): ${escapeHtml(claro || 'sem telefone')}</p>`
+    + (f.contatos ? (f.contatos.length ? f.contatos.map(dado).join('') : '<p class="kbMeta">Nenhum contato atualizado ainda.</p>') : '<p class="kbMeta">Carregando…</p>')
+    + `<div class="rnCampos rnContatoForm"><label>Nome<input type="text" id="rnCtNome" maxlength="120" value="${escapeHtml(ed ? ed.nome || '' : '')}"></label>
+      <label>Cargo<input type="text" id="rnCtCargo" maxlength="80" value="${escapeHtml(ed ? ed.cargo || '' : '')}"></label>
+      <label>Telefone (com DDD)<input type="tel" id="rnCtTel" value="${escapeHtml(ed && ed.telefone ? rnFoneFmt(ed.telefone) : '')}"></label>
+      <label>E-mail<input type="email" id="rnCtEmail" maxlength="120" value="${escapeHtml(ed ? ed.email || '' : '')}"></label>
+      <label class="rnCheck"><input type="checkbox" id="rnCtDecisor"${ed && ed.decisor ? ' checked' : ''}> É o decisor</label>
+      <label class="rnCheck"><input type="checkbox" id="rnCtPrincipal"${ed && ed.principal ? ' checked' : ''}> Contato principal (usado no WhatsApp e Ligar)</label>
+      <div class="rnLargo"><button type="button" class="kbBtn kbBtnP kbBtnSm" data-rn-contato-salvar>${ed ? 'Salvar alterações' : 'Adicionar contato'}</button>${ed ? ' <button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-contato-cancelar>Cancelar</button>' : ''}</div></div>`;
+}
+function rnAnexosHtml(){
+  const f = rnEstado.ficha || {};
+  return `<div class="rnCampos"><label>Tipo<select id="rnAnexoTipo">${rnOpcoes(RN_ANEXO_TIPOS, 'fatura')}</select></label>
+    <label>Arquivo (PDF, imagem, Word ou Excel, até 10 MB)<input type="file" id="rnAnexoArq" accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.doc,.docx,.xls,.xlsx"></label>
+    <div class="rnLargo"><button type="button" class="kbBtn kbBtnP kbBtnSm" data-rn-anexo-enviar>Anexar</button></div></div>`
+    + (f.anexos ? (f.anexos.length ? '<ul class="rnHist rnNotas">' + f.anexos.map(a => `<li><div class="rnNotaTxt"><b>${escapeHtml((RN_ANEXO_TIPOS.find(t => t[0] === a.tipo) || [0, a.tipo])[1])}</b> · ${escapeHtml(a.nome)}</div>
+      <small class="rnMuted">${escapeHtml(rnTamanho(a.tamanho || 0))} · ${escapeHtml(rnNomeConsultor(a.user_id))} · ${escapeHtml(rnQuando(a.criado_em))}</small>
+      <span class="rnNotaAcoes"><button type="button" class="kbBtn kbBtnQ kbBtnSm" data-rn-anexo-abrir="${a.id}">Abrir</button>${rnPodeApagar(a.user_id) ? `<button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-anexo-apagar="${a.id}">Apagar</button>` : ''}</span></li>`).join('') + '</ul>'
+      : '<p class="kbMeta">Nenhum anexo ainda.</p>') : '<p class="kbMeta">Carregando…</p>');
+}
+function rnPintarSecao(nome){
+  const r = rnEstado.lista.find(x => x.id === rnEstado.fichaId); const f = rnEstado.ficha;
+  if(!r || !f) return;
+  const html = { notas: rnNotasHtml, contatos: () => rnContatosHtml(r), anexos: rnAnexosHtml }[nome]();
+  const alvo = document.querySelector(`#rnFichaCorpo [data-rn-ficha-sec="${nome}"]`); if(alvo) alvo.innerHTML = html;
+  const n = (f[nome] || []).length; const cont = document.querySelector(`#rnFichaCorpo [data-rn-cont="${nome}"]`); if(cont) cont.textContent = f[nome] ? '· ' + n : '';
+  if(nome === 'contatos'){ const ac = document.querySelector('#rnFichaCorpo .rnFichaAcoes'); if(ac) ac.innerHTML = rnFichaAcoesHtml(r); }
+}
+function rnFichaAcoesHtml(r){
+  const pc = rnContatoPrincipal(); const tel = onlyDigits(pc ? pc.telefone : r.telefone);
+  return (tel
+    ? `<a class="kbBtn kbBtnP" data-rn-canal="WhatsApp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}">WhatsApp</a><a class="kbBtn kbBtnQ" data-rn-canal="Ligação" href="tel:${escapeHtml(tel)}">Ligar</a>`
+    : '<span class="kbMeta">Sem telefone.</span>')
+    + (pc && pc.email ? `<a class="kbBtn kbBtnQ" href="mailto:${escapeHtml(pc.email)}">E-mail</a>` : '')
+    + (pc ? `<span class="kbMeta">usa o contato principal${pc.nome ? ': ' + escapeHtml(pc.nome) : ''}</span>` : '')
+    + (rnEncerrado(r.status) ? '<span class="kbMeta">Reabra a etapa para gerar proposta.</span>' : `<button type="button" class="kbBtn kbBtnQ" data-rn-gerar="${r.id}">Gerar proposta</button>`);
+}
+async function rnNotaAdicionar(){
+  const id = rnEstado.fichaId; const el = document.getElementById('rnNotaTexto'); const texto = el ? el.value.trim() : '';
+  if(!texto){ mostrarAviso('Escreva a anotação antes de adicionar.', 'info'); return; }
+  const r = await ppSeguro(() => sb.from('renovacao_notas').insert({ carteira_id: id, texto }).select('id,user_id,texto,fixada,criado_em').single());
+  if(!r || r.error || !r.data){ mostrarAviso('Não foi possível salvar a anotação agora.', 'erro'); return; }
+  if(rnEstado.fichaId !== id) return;
+  rnEstado.ficha.notas = [r.data].concat(rnEstado.ficha.notas || []); rnPintarSecao('notas'); mostrarAviso('Anotação registrada.', 'ok');
+}
+async function rnNotaFixar(nid){
+  const n = (rnEstado.ficha.notas || []).find(x => String(x.id) === String(nid)); if(!n) return;
+  const r = await ppSeguro(() => sb.from('renovacao_notas').update({ fixada: !n.fixada }).eq('id', n.id));
+  if(!r || r.error){ mostrarAviso('Só quem criou a anotação (ou o admin) pode fixá-la.', 'erro'); return; }
+  n.fixada = !n.fixada; rnPintarSecao('notas');
+}
+async function rnNotaApagar(nid){
+  if(!window.confirm('Apagar esta anotação?')) return;
+  const n = (rnEstado.ficha.notas || []).find(x => String(x.id) === String(nid)); if(!n) return;
+  const r = await ppSeguro(() => sb.from('renovacao_notas').delete().eq('id', n.id));
+  if(!r || r.error){ mostrarAviso('Não foi possível apagar. Só quem criou (ou o admin) apaga.', 'erro'); return; }
+  rnEstado.ficha.notas = rnEstado.ficha.notas.filter(x => x !== n); rnPintarSecao('notas');
+}
+async function rnContatoSalvar(){
+  const id = rnEstado.fichaId; const f = rnEstado.ficha; const v = (i) => document.getElementById(i).value.trim();
+  const tel = onlyDigits(v('rnCtTel')); const email = v('rnCtEmail'); const nome = v('rnCtNome');
+  if(!nome && !tel && !email){ mostrarAviso('Informe ao menos nome, telefone ou e-mail.', 'info'); return; }
+  if(tel && (tel.length < 10 || tel.length > 13)){ mostrarAviso('Telefone: use DDD + número (10 a 13 dígitos).', 'info'); return; }
+  if(email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ mostrarAviso('E-mail inválido.', 'info'); return; }
+  const dados = { nome: nome || null, cargo: v('rnCtCargo') || null, telefone: tel || null, email: email || null,
+    decisor: document.getElementById('rnCtDecisor').checked, principal: document.getElementById('rnCtPrincipal').checked };
+  const COLS = 'id,nome,cargo,telefone,email,decisor,principal,criado_por,atualizado_em,atualizado_por';
+  const r = f.editarContato
+    ? await ppSeguro(() => sb.from('renovacao_contatos').update(dados).eq('id', f.editarContato).select(COLS).single())
+    : await ppSeguro(() => sb.from('renovacao_contatos').insert(Object.assign({ carteira_id: id }, dados)).select(COLS).single());
+  if(!r || r.error || !r.data){ mostrarAviso('Não foi possível salvar o contato agora.', 'erro'); return; }
+  if(rnEstado.fichaId !== id) return;
+  if(dados.principal) f.contatos.forEach(c => { c.principal = false; });
+  f.contatos = f.editarContato ? f.contatos.map(c => (c.id === f.editarContato ? r.data : c)) : f.contatos.concat([r.data]);
+  f.contatos.sort((a, b) => (b.principal ? 1 : 0) - (a.principal ? 1 : 0));
+  f.editarContato = null; rnPintarSecao('contatos'); mostrarAviso('Contato salvo.', 'ok');
+}
+async function rnContatoApagar(cid){
+  if(!window.confirm('Apagar este contato?')) return;
+  const f = rnEstado.ficha; const c = f.contatos.find(x => String(x.id) === String(cid)); if(!c) return;
+  const r = await ppSeguro(() => sb.from('renovacao_contatos').delete().eq('id', c.id));
+  if(!r || r.error){ mostrarAviso('Não foi possível apagar. Só quem criou (ou o admin) apaga.', 'erro'); return; }
+  f.contatos = f.contatos.filter(x => x !== c); rnPintarSecao('contatos');
+}
+function rnNomeArquivoSeguro(nome){ return String(nome || 'arquivo').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9._-]+/g, '_').slice(-80) || 'arquivo'; }
+async function rnAnexoEnviar(){
+  const id = rnEstado.fichaId; const inp = document.getElementById('rnAnexoArq'); const arq = inp && inp.files && inp.files[0];
+  if(!arq){ mostrarAviso('Escolha o arquivo para anexar.', 'info'); return; }
+  if(arq.size > RN_ANEXO_MAX){ mostrarAviso('Arquivo maior que 10 MB.', 'erro'); return; }
+  if(arq.type && !RN_ANEXO_MIMES.includes(arq.type)){ mostrarAviso('Tipo de arquivo não aceito. Use PDF, imagem, Word ou Excel.', 'erro'); return; }
+  const caminho = `${id}/${Date.now()}-${rnNomeArquivoSeguro(arq.name)}`;
+  const up = await ppSeguro(() => sb.storage.from('renovacao-anexos').upload(caminho, arq, { contentType: arq.type || undefined, upsert: false }));
+  if(!up || up.error){ mostrarAviso('Não foi possível enviar o arquivo agora.', 'erro'); return; }
+  const tipo = document.getElementById('rnAnexoTipo').value;
+  const r = await ppSeguro(() => sb.from('renovacao_anexos').insert({ carteira_id: id, tipo, nome: arq.name.slice(0, 200), caminho, mime: arq.type || null, tamanho: arq.size }).select('id,tipo,nome,caminho,mime,tamanho,user_id,criado_em').single());
+  if(!r || r.error || !r.data){ await ppSeguro(() => sb.storage.from('renovacao-anexos').remove([caminho])); mostrarAviso('O arquivo foi enviado, mas não consegui registrar o anexo. Tente de novo.', 'erro'); return; }
+  if(rnEstado.fichaId !== id) return;
+  rnEstado.ficha.anexos = [r.data].concat(rnEstado.ficha.anexos || []); rnPintarSecao('anexos'); mostrarAviso('Anexo enviado.', 'ok');
+}
+async function rnAnexoAbrir(aid){
+  const a = (rnEstado.ficha.anexos || []).find(x => String(x.id) === String(aid)); if(!a) return;
+  const r = await ppSeguro(() => sb.storage.from('renovacao-anexos').createSignedUrl(a.caminho, 120));
+  if(!r || r.error || !r.data){ mostrarAviso('Não foi possível abrir o arquivo agora.', 'erro'); return; }
+  window.open(r.data.signedUrl, '_blank', 'noopener');
+}
+async function rnAnexoApagar(aid){
+  if(!window.confirm('Apagar este anexo?')) return;
+  const f = rnEstado.ficha; const a = f.anexos.find(x => String(x.id) === String(aid)); if(!a) return;
+  const r = await ppSeguro(() => sb.from('renovacao_anexos').delete().eq('id', a.id));
+  if(!r || r.error){ mostrarAviso('Não foi possível apagar. Só quem enviou (ou o admin) apaga.', 'erro'); return; }
+  await ppSeguro(() => sb.storage.from('renovacao-anexos').remove([a.caminho]));
+  f.anexos = f.anexos.filter(x => x !== a); rnPintarSecao('anexos');
+}
+document.getElementById('rnFicha').addEventListener('click', (e) => {
+  const g = (sel) => e.target.closest(sel);
+  let x;
+  if(g('[data-rn-nota-add]')) rnNotaAdicionar();
+  else if((x = g('[data-rn-nota-fixar]'))) rnNotaFixar(x.dataset.rnNotaFixar);
+  else if((x = g('[data-rn-nota-apagar]'))) rnNotaApagar(x.dataset.rnNotaApagar);
+  else if(g('[data-rn-contato-salvar]')) rnContatoSalvar();
+  else if((x = g('[data-rn-contato-editar]'))){ rnEstado.ficha.editarContato = isNaN(Number(x.dataset.rnContatoEditar)) ? x.dataset.rnContatoEditar : Number(x.dataset.rnContatoEditar); rnPintarSecao('contatos'); }
+  else if(g('[data-rn-contato-cancelar]')){ rnEstado.ficha.editarContato = null; rnPintarSecao('contatos'); }
+  else if((x = g('[data-rn-contato-apagar]'))) rnContatoApagar(x.dataset.rnContatoApagar);
+  else if(g('[data-rn-anexo-enviar]')) rnAnexoEnviar();
+  else if((x = g('[data-rn-anexo-abrir]'))) rnAnexoAbrir(x.dataset.rnAnexoAbrir);
+  else if((x = g('[data-rn-anexo-apagar]'))) rnAnexoApagar(x.dataset.rnAnexoApagar);
+});
 async function rnAbrirFicha(id){
-  rnEstado.fichaId = id; rnEstado.ficha = { dados: null, historico: null };
+  rnEstado.fichaId = id; rnEstado.ficha = { dados: null, historico: null, notas: null, contatos: null, anexos: null, editarContato: null };
   rnEstado.fichaStatus = null; rnEstado.fichaAba = 'atendimento';
   rnSociosParar(); rnEstado.socios = null; rnSociosCarregar(id);
   document.querySelectorAll('#rnFilaLista .rnItem').forEach(b => b.classList.toggle('sel', Number(b.dataset.rnAbrir) === id));
   document.getElementById('rnFicha').classList.add('aberta');
   rnRenderFicha();
-  const [d, h] = await Promise.all([
+  const [d, h, nt, ct, an] = await Promise.all([
     ppSeguro(() => sb.from('renovacao_carteira').select('dados_claro').eq('id', id).single()),
     ppSeguro(() => sb.from('renovacao_historico').select('campo,de,para,user_id,criado_em').eq('carteira_id', id).order('criado_em', { ascending: false })),
+    ppSeguro(() => sb.from('renovacao_notas').select('id,user_id,texto,fixada,criado_em').eq('carteira_id', id).order('criado_em', { ascending: false })),
+    ppSeguro(() => sb.from('renovacao_contatos').select('id,nome,cargo,telefone,email,decisor,principal,criado_por,atualizado_em,atualizado_por').eq('carteira_id', id).order('criado_em', { ascending: true })),
+    ppSeguro(() => sb.from('renovacao_anexos').select('id,tipo,nome,caminho,mime,tamanho,user_id,criado_em').eq('carteira_id', id).order('criado_em', { ascending: false })),
   ]);
   if(rnEstado.fichaId !== id) return;
-  rnEstado.ficha = { dados: d && !d.error && d.data ? (d.data.dados_claro || {}) : {}, historico: h && !h.error ? (h.data || []) : [] };
+  const lista = (x) => (x && !x.error ? (x.data || []) : []);
+  rnEstado.ficha = { dados: d && !d.error && d.data ? (d.data.dados_claro || {}) : {}, historico: h && !h.error ? (h.data || []) : [],
+    notas: lista(nt), contatos: lista(ct).sort((a, b) => (b.principal ? 1 : 0) - (a.principal ? 1 : 0)), anexos: lista(an), editarContato: null };
   rnRenderFicha();
 }
 function rnFecharFicha(){ rnSociosParar(); rnEstado.fichaId = null; rnEstado.ficha = null; rnEstado.socios = null; document.getElementById('rnFicha').classList.remove('aberta'); }
-const RN_CONTATO = [[2, 'Não atendeu'], [3, 'Falei com o responsável'], [4, 'Mandei proposta'], [5, 'Negociando'], [6, 'Renovou ✓'], [7, 'Perdido']];
-function rnGrupoContato(s){ return s === 6 ? 'renovou' : s === 7 ? 'perdido' : 'retorno'; }
+// Etapa do funil (botões da ficha). 0 só aparece para voltar o cliente ao início.
+const RN_CONTATO = [[1, 'Tentativa de contato'], [2, 'Falei com o decisor'], [3, 'Qualificado'], [4, 'Proposta enviada'], [5, 'Negociação'],
+  [6, 'Ganho (pedido) ✓'], [7, 'Ganho (ativado) ✓'], [8, 'Perdido'], [9, 'Desqualificado'], [0, 'Não trabalhado']];
+function rnGrupoContato(s){ return rnGanho(s) ? 'renovou' : s === 8 ? 'perdido' : s === 9 ? 'desq' : 'retorno'; }
 function rnRenderFicha(){
   const el = document.getElementById('rnFichaCorpo');
   const r = rnEstado.lista.find(x => x.id === rnEstado.fichaId);
   el.dataset.rnId = r ? String(r.id) : '';
   if(!r){ el.innerHTML = rnEstado.aba === 'hoje' ? '<p class="rnVazio">Escolha um cliente da fila.</p>' : ''; return; }
-  const tel = onlyDigits(r.telefone);
   const cnpj = String(r.cnpj_digits || '').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
   const fic = rnEstado.ficha || {};
   const sel = rnEstado.fichaStatus || r.status;
@@ -4589,38 +4995,61 @@ function rnRenderFicha(){
   const esconde = (cond) => (cond ? '' : ' hidden');
   const hora = r.retorno_hora ? String(r.retorno_hora).slice(0, 5) : '';
   el.innerHTML = `
-    <div class="rnFichaTopo">
+    <header class="rnFichaCab rnFichaTopo">
       <span class="rnAv">${escapeHtml(rnIniciais(r.razao_social))}</span>
       <div style="flex:1;min-width:0"><h3 class="rnFichaNome">${escapeHtml(r.razao_social || '(sem nome)')}</h3>
-        <div class="rnFichaMeta">${escapeHtml([cnpj, r.cidade, (r.linhas_voz ?? 0) + ' linhas', r.apto].filter(Boolean).join(' · '))}</div></div>
-      ${rnEtapaHtml(r.status)}
+        <div class="rnFichaMeta">${escapeHtml([cnpj, r.cidade, (r.linhas_voz ?? 0) + ' linhas', r.apto].filter(Boolean).join(' · '))} ${rnCnpjBtn(r.cnpj_digits)}</div></div>
+      ${rnPrioHtml(r.prioridade)}${rnEtapaHtml(r.status)}
       <button type="button" class="kbBtn kbBtnG kbBtnIco" data-rn-ficha-fechar aria-label="Fechar">&times;</button>
+    </header>
+    <div class="rnFichaGrade">
+      <div class="rnColA">
+    <div class="rnFBloco rnResumoCli">
+    <p class="kbMeta rnFichaOport">${escapeHtml([r.oportunidade, r.fatura != null ? 'fatura ' + fmtBRL(r.fatura) + '/mês' : '', r.fixa_viavel ? 'fixa viável' : '', r.movimentacao,
+      r.consultor_anterior && r.consultor_anterior !== rnNomeConsultor(r.consultor_id).split(' ')[0] ? 'antes: ' + r.consultor_anterior : ''].filter(Boolean).join(' · '))}</p>
+    <div class="rnFichaAcoes">${rnFichaAcoesHtml(r)}</div>
+    ${(r.etiquetas || []).length ? `<p class="kbMeta">${r.etiquetas.map(t => `<span class="rnTag">${escapeHtml(t)}</span>`).join(' ')}</p>` : ''}
+    <p class="rnProxCard"><b>Próximo passo:</b> ${rnProximoPassoHtml(r, rnAgora())}</p>
     </div>
-    <div class="rnFichaAcoes">${tel
-      ? `<a class="kbBtn kbBtnP" data-rn-canal="WhatsApp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}">WhatsApp</a><a class="kbBtn kbBtnQ" data-rn-canal="Ligação" href="tel:${escapeHtml(tel)}">Ligar</a>`
-      : '<span class="kbMeta">Sem telefone.</span>'}${r.status >= 6 ? '<span class="kbMeta">Reabra o status para gerar proposta.</span>' : `<button type="button" class="kbBtn kbBtnQ" data-rn-gerar="${r.id}">Gerar proposta</button>`}</div>
-    <nav class="rnFichaAbas" aria-label="Ficha do cliente">${[['atendimento', 'Atendimento'], ['dados', 'Dados da Claro'], ['propostas', 'Propostas · ' + props.length], ['historico', 'Histórico'], ['socios', 'Sócios']]
-      .map(([k, t]) => `<button type="button" data-rn-ficha-aba="${k}" class="${aba === k ? 'on' : ''}">${escapeHtml(t)}</button>`).join('')}</nav>
-    <section data-rn-ficha-sec="atendimento"${esconde(aba === 'atendimento')}>
+    <section class="rnFBloco rnBlocoAtend" data-rn-ficha-sec="atendimento"><h4 class="rnFBlocoT"><span class="rnNum">1</span> Registrar atendimento</h4>
       <form id="rnFichaForm">
         <input type="hidden" name="status" value="${sel}">
-        <p class="rnPergunta">Como foi o contato?</p>
+        <h5 class="rnSubT">Etapa do funil</h5>
         <div class="rnContato">${RN_CONTATO.map(([s, t]) => `<button type="button" class="rnContatoBt${s === sel ? ' on rnSt' + s : ''}" data-rn-contato="${s}">${escapeHtml(t)}</button>`).join('')}</div>
         <div class="rnCampos" data-rn-grupo="retorno"${esconde(grupo === 'retorno')}>
-          <label>Próximo retorno<input type="date" name="prox_retorno" value="${escapeHtml(r.prox_retorno || '')}"></label>
+          <label>Próxima ação<select name="prox_acao">${rnOpcoes(RN_PROX_ACOES.map(a => [a, a]), r.prox_acao, '—')}</select></label>
+          <label>Data da próxima ação<input type="date" name="prox_retorno" value="${escapeHtml(r.prox_retorno || '')}"></label>
           <label>Hora<input type="time" name="retorno_hora" value="${escapeHtml(hora)}"></label>
         </div>
         <div class="rnCampos" data-rn-grupo="renovou"${esconde(grupo === 'renovou')}>
-          <label>Linhas renovadas *<input type="number" min="0" name="linhas_renovadas" value="${r.linhas_renovadas ?? ''}"></label>
+          <label>Linhas fechadas *<input type="number" min="0" name="linhas_renovadas" value="${r.linhas_renovadas ?? r.linhas_propostas ?? ''}"></label>
+          <label>Nº do pedido<input type="text" name="numero_pedido" value="${escapeHtml(r.numero_pedido || '')}"></label>
           <label>BL vendida (qtd)<input type="number" min="0" name="bl_vendida" value="${r.bl_vendida ?? ''}"></label>
+          <label>Data do fechamento<input type="date" name="data_fechamento" value="${escapeHtml(r.data_fechamento || '')}"></label>
           <label class="rnLargo">Soluções digitais (R$)<input type="number" min="0" step="0.01" name="sol_digitais" value="${r.sol_digitais ?? ''}"></label>
         </div>
         <div class="rnCampos" data-rn-grupo="perdido"${esconde(grupo === 'perdido')}>
           <label class="rnLargo">Motivo da perda *<select name="motivo_perda">${rnOpcoes(RN_MOTIVOS.map(m => [m, m]), r.motivo_perda, 'Escolha…')}</select></label>
         </div>
+        <h5 class="rnSubT">Negociação</h5>
+        <div class="rnCampos">
+          <label>Produto ofertado<select name="produto_ofertado">${rnOpcoes(RN_PRODUTOS.map(p => [p, p]), r.produto_ofertado, '—')}</select></label>
+          <label>Concorrente<select name="concorrente">${rnOpcoes(RN_CONCORRENTES.map(c => [c, c]), r.concorrente, '—')}</select></label>
+          <label>Linhas propostas<input type="number" min="0" name="linhas_propostas" value="${r.linhas_propostas ?? ''}"></label>
+          <label>Valor da proposta (R$/mês)<input type="number" min="0" step="0.01" name="valor_proposta" value="${r.valor_proposta ?? ''}"></label>
+        </div>
+        <h5 class="rnSubT">Contato com o cliente</h5>
         <div class="rnCampos">
           <label>Canal<select name="canal">${rnOpcoes(RN_CANAIS.map(c => [c, c]), r.canal, '—')}</select></label>
+          <label>Nº de tentativas<input type="number" min="0" name="tentativas" value="${r.tentativas ?? ''}"></label>
+          <label>Falou com o decisor?<select name="falou_decisor">${rnOpcoes([['Sim', 'Sim'], ['Não', 'Não']], r.falou_decisor, '—')}</select></label>
+          <label>Melhor horário para contato<select name="melhor_horario">${rnOpcoes(RN_HORARIOS.map(h => [h, h]), r.melhor_horario, '—')}</select></label>
+        </div>
+        <p class="kbMeta">1º contato: ${r.primeiro_contato ? escapeHtml(r.primeiro_contato.slice(8, 10) + '/' + r.primeiro_contato.slice(5, 7)) : '—'} · último: ${r.data_contato ? escapeHtml(r.data_contato.slice(8, 10) + '/' + r.data_contato.slice(5, 7)) : '—'}</p>
+        <h5 class="rnSubT">Observação e etiquetas</h5>
+        <div class="rnCampos">
           <label class="rnLargo">Observação<textarea name="observacoes" rows="3">${escapeHtml(r.observacoes || '')}</textarea></label>
+          <label class="rnLargo">Etiquetas (separe por vírgula)<input type="text" name="etiquetas" maxlength="200" value="${escapeHtml((r.etiquetas || []).join(', '))}" placeholder="ex.: decisor difícil, quer proposta"></label>
         </div>
         <p class="rnErro" id="rnFichaErro" role="alert"></p>
         <div class="rnFichaRodape">${rnEstado.aba === 'hoje'
@@ -4628,16 +5057,23 @@ function rnRenderFicha(){
           : '<button type="submit" class="kbBtn kbBtnP">Salvar</button>'}</div>
       </form>
     </section>
-    <section data-rn-ficha-sec="dados"${esconde(aba === 'dados')}>${fic.dados
-      ? rnGruposFicha(fic.dados).map(([t, itens]) => `<details class="rnGrupo"><summary>${escapeHtml(t)} <span class="kbMeta">${itens.length}</span></summary><dl>${itens.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(String(v))}</dd>`).join('')}</dl></details>`).join('')
-      : '<p class="kbMeta">Carregando dados da Claro…</p>'}</section>
-    <section data-rn-ficha-sec="propostas"${esconde(aba === 'propostas')}>${props.length
-      ? '<ul class="rnHist">' + props.map(p => `<li><button type="button" class="rnNome" data-rn-proposta="${escapeHtml(p.id)}">${p.valor_atual ? fmtBRL(p.valor_atual) : '—'} → ${p.valor_proposto ? fmtBRL(p.valor_proposto) : '—'}</button> · ${escapeHtml(new Date(p.criado_em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }))} · ${escapeHtml(FUNIL_ESTAGIO_MAP[p.estagio] ? FUNIL_ESTAGIO_MAP[p.estagio].label : p.estagio)}</li>`).join('') + '</ul>'
-      : '<p class="kbMeta">Nenhuma proposta ainda.</p>'}</section>
-    <section data-rn-ficha-sec="historico"${esconde(aba === 'historico')}>${fic.historico
+      </div>
+      <div class="rnColB">
+    <section class="rnFBloco"><h4 class="rnFBlocoT">Anotações <span data-rn-cont="notas">${fic.notas ? '· ' + fic.notas.length : ''}</span></h4><div data-rn-ficha-sec="notas">${rnNotasHtml()}</div></section>
+    <section class="rnFBloco"><h4 class="rnFBlocoT">Contatos atualizados <span data-rn-cont="contatos">${fic.contatos ? '· ' + fic.contatos.length : ''}</span></h4><div data-rn-ficha-sec="contatos">${rnContatosHtml(r)}</div></section>
+    <section class="rnFBloco"><h4 class="rnFBlocoT">Anexos (fatura, proposta, documentos) <span data-rn-cont="anexos">${fic.anexos ? '· ' + fic.anexos.length : ''}</span></h4><div data-rn-ficha-sec="anexos">${rnAnexosHtml()}</div></section>
+    <section class="rnFBloco"><h4 class="rnFBlocoT">Histórico de atividades</h4><div data-rn-ficha-sec="historico">${fic.historico
       ? (fic.historico.length ? '<ul class="rnHist">' + fic.historico.map(h => `<li>${escapeHtml(rnHistoricoTexto(h))}</li>`).join('') + '</ul>' : '<p class="kbMeta">Sem mudanças registradas.</p>')
-      : '<p class="kbMeta">Carregando…</p>'}</section>
-    <section data-rn-ficha-sec="socios"${esconde(aba === 'socios')}>${rnSociosHtml()}</section>`;
+      : '<p class="kbMeta">Carregando…</p>'}</div></section>
+    <details class="rnGrupo rnSecao"><summary>Propostas · ${props.length}</summary><div data-rn-ficha-sec="propostas">${props.length
+      ? '<ul class="rnHist">' + props.map(p => `<li><button type="button" class="rnNome" data-rn-proposta="${escapeHtml(p.id)}">${p.valor_atual ? fmtBRL(p.valor_atual) : '—'} → ${p.valor_proposto ? fmtBRL(p.valor_proposto) : '—'}</button> · ${escapeHtml(new Date(p.criado_em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }))} · ${escapeHtml(FUNIL_ESTAGIO_MAP[p.estagio] ? FUNIL_ESTAGIO_MAP[p.estagio].label : p.estagio)}</li>`).join('') + '</ul>'
+      : '<p class="kbMeta">Nenhuma proposta ainda.</p>'}</div></details>
+    <details class="rnGrupo rnSecao"><summary>Dados da Claro</summary><div data-rn-ficha-sec="dados">${fic.dados
+      ? rnGruposFicha(fic.dados).map(([t, itens]) => `<details class="rnGrupo"><summary>${escapeHtml(t)} <span class="kbMeta">${itens.length}</span></summary><dl>${itens.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(String(v))}</dd>`).join('')}</dl></details>`).join('')
+      : '<p class="kbMeta">Carregando dados da Claro…</p>'}</div></details>
+    <details class="rnGrupo rnSecao"><summary>Sócios</summary><div data-rn-ficha-sec="socios">${rnSociosHtml()}</div></details>
+      </div>
+    </div>`;
 }
 function rnEscolherContato(s){
   const form = document.getElementById('rnFichaForm');
@@ -4647,7 +5083,12 @@ function rnEscolherContato(s){
   form.querySelectorAll('[data-rn-contato]').forEach(b => { const on = Number(b.dataset.rnContato) === s; b.className = 'rnContatoBt' + (on ? ' on rnSt' + s : ''); });
   const g = rnGrupoContato(s);
   form.querySelectorAll('[data-rn-grupo]').forEach(d => { d.hidden = d.dataset.rnGrupo !== g; });
-  if(s === 2 && (!form.elements.prox_retorno.value || form.elements.prox_retorno.value < rnHoje())){ const a = rnAgora(); form.elements.prox_retorno.value = rnSomarDias(a.data, 1); form.elements.retorno_hora.value = a.hora; }
+  if(s === 1 && (!form.elements.prox_retorno.value || form.elements.prox_retorno.value < rnHoje())){ const a = rnAgora(); form.elements.prox_retorno.value = rnSomarDias(a.data, 1); form.elements.retorno_hora.value = a.hora; }
+  // tentativa de contato: soma 1 ao nº de tentativas (continua editável)
+  if(s === 1 && form.elements.tentativas && !form.dataset.tentou){
+    const r = rnEstado.lista.find(x => x.id === rnEstado.fichaId);
+    form.elements.tentativas.value = String((Number(r && r.tentativas) || 0) + 1); form.dataset.tentou = '1';
+  }
   document.getElementById('rnFichaErro').textContent = '';
 }
 function rnIdsDaFila(){ return rnFilaPlana(rnFila(rnListaHoje(), rnAgora(), rnEstado.filtros.consultor || '')).map(x => x.id); }
@@ -4663,17 +5104,11 @@ function rnIrParaProximo(idAtual, ordemAntes){
 document.getElementById('rnFicha').addEventListener('click', (e) => {
   const c = e.target.closest('[data-rn-contato]');
   if(c){ rnEscolherContato(Number(c.dataset.rnContato)); return; }
-  const a = e.target.closest('[data-rn-ficha-aba]');
-  if(a){
-    rnEstado.fichaAba = a.dataset.rnFichaAba;
-    document.querySelectorAll('#rnFicha [data-rn-ficha-aba]').forEach(b => b.classList.toggle('on', b === a));
-    document.querySelectorAll('#rnFicha [data-rn-ficha-sec]').forEach(s => { s.hidden = s.dataset.rnFichaSec !== rnEstado.fichaAba; });
-    return;
-  }
   const k = e.target.closest('[data-rn-canal]');
   if(k){ const sel = document.querySelector('#rnFichaForm [name="canal"]'); if(sel) sel.value = k.dataset.rnCanal; }
 });
-document.getElementById('rnFicha').addEventListener('click', (e) => { if(e.target.closest('[data-rn-ficha-fechar]')) rnFecharFicha(); });
+document.getElementById('rnFicha').addEventListener('click', (e) => { if(e.target.closest('[data-rn-ficha-fechar]') || (e.target === e.currentTarget && !e.currentTarget.classList.contains('noPainel'))) rnFecharFicha(); });
+document.addEventListener('keydown', (e) => { const f = document.getElementById('rnFicha'); if(e.key === 'Escape' && f && f.classList.contains('aberta') && !f.classList.contains('noPainel') && !document.querySelector('.overlay.show,.overlay.open')) rnFecharFicha(); });
 document.getElementById('rnFicha').addEventListener('click', (e) => {
   const sp = e.target.closest('[data-rn-socios-pedir]');
   if(sp){ rnSociosPedir(); return; }
@@ -4697,9 +5132,14 @@ document.getElementById('rnFicha').addEventListener('submit', async (e) => {
   const patch = { status };
   // apertar um botão de "Como foi o contato?" = contato feito hoje (o gatilho do banco só preenche a primeira vez)
   if(rnEstado.fichaStatus) patch.data_contato = rnHoje();
-  if(status <= 5){ patch.prox_retorno = ler('prox_retorno'); patch.retorno_hora = ler('retorno_hora'); }
-  if(status === 6){ patch.linhas_renovadas = num('linhas_renovadas'); patch.bl_vendida = num('bl_vendida'); patch.sol_digitais = num('sol_digitais'); }
-  if(status === 7) patch.motivo_perda = ler('motivo_perda');
+  if(status <= 5){ patch.prox_retorno = ler('prox_retorno'); patch.retorno_hora = ler('retorno_hora'); patch.prox_acao = ler('prox_acao'); }
+  if(rnGanho(status)){ patch.linhas_renovadas = num('linhas_renovadas'); patch.bl_vendida = num('bl_vendida'); patch.sol_digitais = num('sol_digitais');
+    patch.numero_pedido = ler('numero_pedido'); patch.data_fechamento = ler('data_fechamento'); }
+  if(status === 8) patch.motivo_perda = ler('motivo_perda');
+  patch.tentativas = num('tentativas'); patch.falou_decisor = ler('falou_decisor'); patch.produto_ofertado = ler('produto_ofertado');
+  patch.concorrente = ler('concorrente'); patch.linhas_propostas = num('linhas_propostas'); patch.valor_proposta = num('valor_proposta');
+  patch.melhor_horario = ler('melhor_horario');
+  patch.etiquetas = [...new Set((ler('etiquetas') || '').split(',').map(t => t.trim().slice(0, 30)).filter(Boolean))].slice(0, 10);
   patch.canal = ler('canal');
   patch.observacoes = (ler('observacoes') || '').trim() || null;
   Object.keys(patch).forEach(k => { if(patch[k] === undefined) delete patch[k]; });
@@ -4727,10 +5167,13 @@ function rnLinhasResumo(rows){
   const linha = (r, nome) => ({ nome, carteira: +r.carteira || 0, contatados: +r.contatados || 0, cobertura: pct(+r.contatados || 0, +r.carteira || 0),
     efetivo: +r.efetivo_mais || 0, propostas: +r.propostas_mais || 0, renovados: +r.renovados || 0, perdidos: +r.perdidos || 0,
     conversao: pct(+r.renovados || 0, +r.efetivo_mais || 0), linhas: +r.linhas_renovadas || 0, bl: +r.bl_vendida || 0,
-    digitais: Number(r.sol_digitais || 0), atrasados: +r.retornos_atrasados || 0 });
+    digitais: Number(r.sol_digitais || 0), atrasados: +r.retornos_atrasados || 0,
+    valor: Number(r.valor_ganho || 0), sem7: +r.sem_contato_7d || 0, desq: +r.desqualificados || 0, prioSemToque: +r.prioritarios_sem_toque || 0,
+    pctDecisor: pct(+r.efetivo_mais || 0, +r.contatados || 0), pctProposta: pct(+r.propostas_mais || 0, +r.efetivo_mais || 0) });
   const corpo = rows.map(r => linha(r, r.consultor_id ? (r.consultor_nome || '—') : 'Sem consultor')).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
   const tot = {};
-  ['carteira', 'contatados', 'efetivo_mais', 'propostas_mais', 'renovados', 'perdidos', 'linhas_renovadas', 'bl_vendida', 'sol_digitais', 'retornos_atrasados']
+  ['carteira', 'contatados', 'efetivo_mais', 'propostas_mais', 'renovados', 'perdidos', 'linhas_renovadas', 'bl_vendida', 'sol_digitais', 'retornos_atrasados',
+    'valor_ganho', 'sem_contato_7d', 'desqualificados', 'prioritarios_sem_toque']
     .forEach(k => { tot[k] = rows.reduce((s, r) => s + Number(r[k] || 0), 0); });
   return { corpo, total: linha(tot, 'TOTAL') };
 }
@@ -4745,11 +5188,22 @@ async function rnRenderResumo(){
   const barra = (v, cls) => `<span class="rnBarra ${cls || ''}"><span><i style="width:${Math.max(0, Math.min(100, v))}%"></i></span>${fp(v)}</span>`;
   const kpi = (n, t, cls) => `<div class="rnKpi ${cls || ''}"><span class="rnN">${escapeHtml(String(n))}</span> <small>${escapeHtml(t)}</small></div>`;
   const tr = (l, cls) => `<tr class="${cls || ''}"><td>${escapeHtml(l.nome)}</td><td class="rnNumTd">${l.carteira}</td><td>${barra(l.cobertura)}</td><td>${barra(l.conversao, 'ok')}</td>`
-    + `<td>${l.propostas}</td><td>${l.renovados}</td><td>${l.perdidos}</td><td>${l.linhas}</td><td>${l.bl}</td><td>${fr(l.digitais)}</td><td class="${l.atrasados ? 'rnLate' : ''}">${l.atrasados}</td></tr>`;
-  el.innerHTML = `<div class="rnKpis">${kpi(total.carteira.toLocaleString('pt-BR'), 'clientes na carteira')}${kpi(fp(total.cobertura), `contatados (${total.contatados})`)}`
-    + `${kpi(fp(total.conversao), `conversão (${total.renovados} de ${total.efetivo})`, 'ok')}${kpi(total.atrasados, 'retornos atrasados', total.atrasados ? 'late' : '')}</div>`
-    + `<div class="rnTabelaCasa"><table class="rnTabela rnResumoTbl"><thead><tr><th>Consultor</th><th>Carteira</th><th>Cobertura</th><th>Conversão</th><th>Propostas+</th><th>Renovados</th><th>Perdidos</th><th>Linhas renov.</th><th>BL</th><th>Sol. dig. (R$)</th><th>Atrasados</th></tr></thead>`
+    + `<td>${l.propostas}</td><td>${l.renovados}</td><td>${l.perdidos}</td><td>${l.linhas}</td><td>${fmtBRL(l.valor)}</td><td>${l.bl}</td><td>${fr(l.digitais)}</td>`
+    + `<td class="${l.atrasados ? 'rnLate' : ''}">${l.atrasados}</td><td class="${l.sem7 ? 'rnLate' : ''}">${l.sem7}</td><td class="${l.prioSemToque ? 'rnLate' : ''}">${l.prioSemToque}</td></tr>`;
+  // Funil por etapa: quantos clientes de cada consultor estão em cada etapa (e % da carteira) — a lista inteira vem da RLS do usuário
+  const etapas = Object.keys(RN_STATUS).map(Number);
+  const grupos = new Map();
+  rnEstado.lista.filter(r => r.na_base).forEach(r => { const k = r.consultor_id || ''; if(!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(r); });
+  const funilLinha = (nome, itens) => `<tr><td>${escapeHtml(nome)}</td>` + etapas.map(s => { const n = itens.filter(r => r.status === s).length;
+    return `<td class="rnNumTd">${n}<small class="rnMuted"> ${itens.length ? Math.round(n * 100 / itens.length) : 0}%</small></td>`; }).join('') + '</tr>';
+  const funil = [...grupos.entries()].map(([k, itens]) => [k ? rnNomeConsultor(k) : 'Sem consultor', itens]).sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
+  el.innerHTML = `<div class="rnKpis">${kpi(total.carteira.toLocaleString('pt-BR'), 'clientes na carteira')}${kpi(fp(total.cobertura), `cobertura (${total.contatados} trabalhados)`)}`
+    + `${kpi(fp(total.conversao), `conversão (${total.renovados} ganhos de ${total.efetivo} c/ decisor)`, 'ok')}${kpi(total.atrasados, 'retornos atrasados', total.atrasados ? 'late' : '')}`
+    + `${kpi(total.sem7, 'sem contato há +7 dias', total.sem7 ? 'late' : '')}${kpi(fmtBRL(total.valor), `valor ganho (${total.linhas} linhas)`, 'ok')}</div>`
+    + `<div class="rnTabelaCasa"><table class="rnTabela rnResumoTbl"><thead><tr><th>Consultor</th><th>Carteira</th><th>Cobertura</th><th>Conversão</th><th>Propostas+</th><th>Ganhos</th><th>Perdidos</th><th>Linhas ganhas</th><th>Valor ganho</th><th>BL</th><th>Sol. dig. (R$)</th><th>Atrasados</th><th>Sem contato +7d</th><th>P1/P2 sem toque</th></tr></thead>`
     + `<tbody>${corpo.map(l => tr(l)).join('')}${corpo.length > 1 ? tr(total, 'rnTotal') : ''}</tbody></table></div>`
+    + `<h3 class="rnSubTitulo">Funil por etapa</h3><div class="rnTabelaCasa"><table class="rnTabela rnFunilTbl"><thead><tr><th>Consultor</th>${etapas.map(s => `<th>${escapeHtml(s + '-' + RN_ETAPA[s])}</th>`).join('')}</tr></thead>`
+    + `<tbody>${funil.map(([nome, itens]) => funilLinha(nome, itens)).join('')}${funil.length > 1 ? funilLinha('TOTAL', funil.flatMap(([, i]) => i)) : ''}</tbody></table></div>`
     + (currentUser && currentUser.role === 'admin' && typeof rnImportarHtml === 'function'
       ? `<div class="rnResumoRodape"><button type="button" class="kbBtn kbBtnQ" data-rn-abrir-importar>Importar base</button></div>`
         + `<div class="overlay" id="rnImportar"><div class="modal" role="dialog" aria-modal="true" aria-label="Importar base"><div class="mHead"><button type="button" class="mClose" data-rn-fechar-importar aria-label="Fechar">&times;</button><h2>Importar base</h2></div><div class="mBody">${rnImportarHtml()}</div></div></div>`
@@ -4786,12 +5240,62 @@ function rnValorCelula(v){
   const s = String(v).trim();
   return s || null;
 }
-function rnStatusPlanilha(v){ const n = parseInt(String(v ?? '').trim(), 10); return n >= 1 && n <= 7 ? n : 1; }
+// Planilha antiga do time (STATUS 1–7) → funil novo (§165). Fora da faixa: 0-Não trabalhado.
+function rnStatusPlanilha(v){ const n = parseInt(String(v ?? '').trim(), 10); return n >= 1 && n <= 7 ? RN_LEGADO[n] : 0; }
+// Carteira consolidada (§165): "ETAPA DO FUNIL" vem como "0-Não trabalhado" … "9-Desqualificado"
+function rnEtapaConsolidada(v){ const m = String(v ?? '').trim().match(/^(\d)/); return m ? Number(m[1]) : 0; }
+function rnFixaViavel(hp, livre, situacao){
+  return rnNorm(hp) === 'hp cabeado' && rnNorm(livre) === 'sim' && !/bloquead|baixad|nao liberad/.test(rnNorm(situacao));
+}
+const rnDecisor = (v) => { const s = rnNorm(v); return s === 'sim' ? 'Sim' : (s === 'nao' ? 'Não' : null); };
+function rnEscolhaLista(v, lista){ const s = rnNorm(v); return lista.find(x => rnNorm(x) === s) || null; }
+function rnLerConsolidada(wb, nomeAba, perfis){
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[nomeAba], { defval: '', raw: true });
+  const erros = []; const linhas = []; const vistos = new Set(); const semLogin = new Set();
+  const primeiro = (s) => rnNorm(s).split(' ')[0];
+  const porNome = (nome) => { const a = perfis.filter(p => p.equipe === 'renovacao' && primeiro(p.nome) === primeiro(nome)); return a.length === 1 ? a[0].id : null; };
+  for(const row of rows){
+    const g = rnLeitor(row);
+    const cnpj = rnCnpjPlanilha(g('CNPJ'));
+    if(!cnpj) continue;
+    if(!/^\d{14}$/.test(cnpj)){ erros.push(`CNPJ inválido: ${String(g('CNPJ')).slice(0, 20)}`); continue; }
+    if(vistos.has(cnpj)) continue;
+    vistos.add(cnpj);
+    const chaves = Object.keys(row);
+    const chaveMov = chaves.find(k => rnChave(k).startsWith('movimentacao'));
+    const iDados = chaves.findIndex(k => rnChave(k) === 'dias s/ contato') + 1;   // da coluna do CNPJ em diante = dados da Claro
+    const dados = {};
+    chaves.slice(iDados).forEach(k => { const v = rnValorCelula(row[k]); if(v !== null) dados[String(k).trim()] = v; });
+    const consultor = rnTexto(g('CONSULTOR'));
+    const consultorId = consultor ? porNome(consultor) : null;
+    if(consultor && !consultorId) semLogin.add(consultor);
+    const motivoBruto = rnTexto(g('MOTIVO PERDA'));
+    const motivo = motivoBruto ? (RN_MOTIVOS.includes(motivoBruto) ? motivoBruto : 'Outro') : null;
+    const obs = [rnTexto(g('OBSERVAÇÕES')), motivoBruto && motivo === 'Outro' && motivoBruto !== 'Outro' ? 'Motivo da perda: ' + motivoBruto : null].filter(Boolean).join(' · ') || null;
+    const canal = null;
+    linhas.push({ cnpj_digits: cnpj, razao_social: rnTexto(g('RAZÃO SOCIAL')), telefone: rnTexto(g('TELEFONE')) || rnTexto(g('Telefone 1')), nome_adm: rnTexto(g('ADM / CONTATO')),
+      linhas_voz: rnInt(g('LINHAS VOZ')), apto: rnTexto(g('APTO RENOV.')), cidade: rnTexto(g('Cidade')), ddd: rnTexto(g('DDD')),
+      tempo_contrato_voz: rnInt(g('Meses contrato voz')), classificacao: rnTexto(g('Classificação')), desconto_claro: rnTexto(g('Desconto Claro')),
+      origem: null, dados_claro: dados, consultor_id: consultorId,
+      oportunidade: rnTexto(g('OPORTUNIDADE')), movimentacao: chaveMov ? rnTexto(row[chaveMov]) : null, fatura: rnNumBR(g('FATURA R$/MÊS')),
+      fixa_viavel: rnFixaViavel(g('HP cabeado'), g('HP livre venda'), g('Situação comercial fixa')), tem_fixa: rnNorm(g('Cliente fixa Claro?')) === 'tem fixa',
+      hist_origem: rnTexto(g('Histórico (ORIGEM)')), consultor_anterior: rnTexto(g('Consultor anterior')),
+      status: rnEtapaConsolidada(g('ETAPA DO FUNIL')), tentativas: rnInt(g('Nº TENTAT.')), primeiro_contato: rnDataPlanilha(g('1º CONTATO')),
+      data_contato: rnDataPlanilha(g('ÚLT. CONTATO')), prox_acao: rnTexto(g('PRÓX. AÇÃO')), prox_retorno: rnDataPlanilha(g('DATA PRÓX. AÇÃO')),
+      falou_decisor: rnDecisor(g('FALOU C/ DECISOR?')), produto_ofertado: rnTexto(g('PRODUTO OFERTADO')), linhas_propostas: rnInt(g('LINHAS PROPOSTAS')),
+      valor_proposta: rnNumBR(g('VALOR PROPOSTA R$/MÊS')), concorrente: rnTexto(g('CONCORRENTE')), motivo_perda: motivo,
+      numero_pedido: rnTexto(g('Nº PEDIDO')), data_fechamento: rnDataPlanilha(g('DATA FECHAM.')), observacoes: obs, canal });
+  }
+  semLogin.forEach(n => erros.push(`"${n}" não tem login no time de renovação (marque na aba Consultores).`));
+  return { formato: 'consolidada', linhas, erros, abas: [nomeAba] };
+}
 function rnCnpjPlanilha(v){ const d = onlyDigits(v); return d ? d.padStart(14, '0') : ''; }
 function rnLerArquivo(wb, perfis){
   const json = (nome) => XLSX.utils.sheet_to_json(wb.Sheets[nome], { defval: '', raw: true });
   const cabecalho = (nome) => ((XLSX.utils.sheet_to_json(wb.Sheets[nome], { header: 1, defval: '' })[0]) || []).map(rnChave);
   const tem = (nome, cab) => cabecalho(nome).includes(rnChave(cab));
+  const abaConsolidada = wb.SheetNames.find(n => tem(n, 'CNPJ') && tem(n, 'ETAPA DO FUNIL') && tem(n, 'OPORTUNIDADE'));
+  if(abaConsolidada) return rnLerConsolidada(wb, abaConsolidada, perfis);
   const nomeBase = wb.SheetNames.find(n => rnChave(n) === 'base completa') || wb.SheetNames.find(n => tem(n, 'CNPJ') && tem(n, 'Razão Social'));
   if(!nomeBase) return { formato: null, linhas: [], erros: ['Não achei a base: falta uma aba com as colunas CNPJ e Razão Social.'], abas: [] };
   const abasTime = wb.SheetNames.filter(n => n !== nomeBase && tem(n, 'STATUS') && tem(n, 'CNPJ'));
@@ -4846,10 +5350,11 @@ function rnPrevia(linhas, existentes){
     ignorados: comAtendimento.filter(l => mapa.has(l.cnpj_digits)).length,
     porStatus: conta(comAtendimento, l => l.status), porConsultor: conta(linhas, l => l.consultor_id || ''),
     sairam: existentes.filter(e => e.na_base && !noArquivo.has(e.cnpj_digits)).length,
-    completar: novos.filter(l => (l.status === 7 && !l.motivo_perda) || (l.status === 6 && !(l.linhas_renovadas >= 1))).length };
+    saiu: linhas.filter(l => /^SAIU/i.test(l.movimentacao || '')).length,
+    completar: novos.filter(l => (l.status === 8 && !l.motivo_perda) || (rnGanho(l.status) && !(l.linhas_renovadas >= 1))).length };
 }
 function rnImportarHtml(){
-  return `<div class="card rnImportar"><h3>Importar base</h3><p class="kbMeta">Base da Claro (.xlsx) ou a planilha do time, com as abas dos consultores. Junta por CNPJ: quem é novo entra, quem já existe só tem os dados da Claro atualizados e quem saiu do arquivo fica "fora da base". O atendimento nunca é apagado.</p><input type="file" id="rnArquivo" accept=".xlsx,.xls"><div id="rnPrevia"></div></div>`;
+  return `<div class="card rnImportar"><h3>Importar base</h3><p class="kbMeta">Carteira consolidada (.xlsx, aba "Carteira"), base da Claro ou a planilha antiga do time. Junta por CNPJ: quem é novo entra, quem já existe tem os dados da Claro, o consultor, a movimentação e a prioridade atualizados. O atendimento feito no painel prevalece e nunca é apagado.</p><input type="file" id="rnArquivo" accept=".xlsx,.xls"><div id="rnPrevia"></div></div>`;
 }
 async function rnPrepararImportacao(arquivo){
   const box = document.getElementById('rnPrevia');
@@ -4868,13 +5373,14 @@ async function rnPrepararImportacao(arquivo){
   const nomes = {}; ((pf && pf.data) || []).forEach(x => { nomes[x.id] = x.nome; });
   const porStatus = Object.keys(p.porStatus).sort().map(k => `${escapeHtml(rnStatusRotulo(+k))}: ${p.porStatus[k]}`).join(' · ');
   const porConsultor = Object.keys(p.porConsultor).map(k => `${escapeHtml(k ? (nomes[k] || '—') : 'Sem consultor')}: ${p.porConsultor[k]}`).join(' · ');
-  box.innerHTML = `<p>${lido.formato === 'planilha' ? 'Planilha do time (' + lido.abas.map(escapeHtml).join(', ') + ')' : 'Base da Claro'}: <b>${lido.linhas.length}</b> CNPJs.</p>`
-    + `<ul><li><b>${p.novos}</b> novos</li><li><b>${p.atualizados}</b> já existem (só dados da Claro)</li><li><b>${p.sairam}</b> saem da base</li>`
+  const consol = lido.formato === 'consolidada';
+  box.innerHTML = `<p>${consol ? 'Carteira consolidada' : lido.formato === 'planilha' ? 'Planilha do time (' + lido.abas.map(escapeHtml).join(', ') + ')' : 'Base da Claro'}: <b>${lido.linhas.length}</b> CNPJs.</p>`
+    + `<ul><li><b>${p.novos}</b> novos</li><li><b>${p.atualizados}</b> já existem (${consol ? 'dados da Claro, consultor e prioridade' : 'só dados da Claro'})</li><li><b>${consol ? p.saiu : p.sairam}</b> saem da base${consol ? ' (movimentação "SAIU")' : ''}</li>`
     + (p.completar ? `<li><b>${p.completar}</b> entram como pendência (perdido sem motivo ou renovado sem linhas)</li>` : '')
     + '</ul>'
     + (porStatus ? `<p class="kbMeta">Por status: ${porStatus}</p>` : '')
     + `<p class="kbMeta">Por consultor: ${porConsultor}</p>`
-    + (p.ignorados ? `<div class="kbAviso">O atendimento das abas NÃO será aplicado a ${p.ignorados} cliente(s) que já existem na carteira (a importação nunca sobrescreve o trabalho do time).</div>` : '')
+    + (p.ignorados ? `<div class="kbAviso">O atendimento da planilha só vale para quem ainda está em "0-Não trabalhado" e sem contato; nos demais (${p.ignorados} no arquivo já existem), o painel prevalece e nada é sobrescrito.</div>` : '')
     + '<button type="button" class="btn btn-sm" data-rn-importar>Importar</button>';
 }
 async function rnExecutarImportacao(){
@@ -4883,7 +5389,7 @@ async function rnExecutarImportacao(){
   const box = document.getElementById('rnPrevia');
   const btn = box.querySelector('[data-rn-importar]');
   if(btn) btn.disabled = true;
-  let novos = 0, atualizados = 0;
+  let novos = 0, atualizados = 0, sairam = 0;
   for(let i = 0; i < lido.linhas.length; i += 200){
     box.querySelector('p').textContent = `Importando ${Math.min(i + 200, lido.linhas.length)} de ${lido.linhas.length}…`;
     const r = await ppSeguro(() => sb.rpc('renovacao_importar', { p_linhas: lido.linhas.slice(i, i + 200) }));
@@ -4892,12 +5398,13 @@ async function rnExecutarImportacao(){
       if(btn) btn.disabled = false;
       return;
     }
-    novos += (r.data && r.data.novos) || 0; atualizados += (r.data && r.data.atualizados) || 0;
+    novos += (r.data && r.data.novos) || 0; atualizados += (r.data && r.data.atualizados) || 0; sairam += (r.data && r.data.sairam) || 0;
   }
-  const f = await ppSeguro(() => sb.rpc('renovacao_marcar_fora', { p_cnpjs: lido.linhas.map(l => l.cnpj_digits) }));
+  // consolidada: a própria planilha diz quem saiu (movimentação "SAIU"); não se marca "fora" quem apenas não veio no arquivo
+  const f = lido.formato === 'consolidada' ? { data: 0 } : await ppSeguro(() => sb.rpc('renovacao_marcar_fora', { p_cnpjs: lido.linhas.map(l => l.cnpj_digits) }));
   rnEstado.importacao = null;
   if(!f || f.error){ mostrarAviso(`Importado: ${novos} novos e ${atualizados} atualizados, mas não consegui marcar quem saiu da base. Importe de novo.`, 'erro'); }
-  else mostrarAviso(`Importado: ${novos} novos, ${atualizados} atualizados, ${f.data || 0} fora da base.`, 'ok');
+  else mostrarAviso(`Importado: ${novos} novos, ${atualizados} atualizados, ${(f.data || 0) + sairam} fora da base.`, 'ok');
   rnEstado.carregado = false;
   await rnCarregar();
 }
@@ -4921,7 +5428,7 @@ function rnClienteDaCarteira(r, dados){
 async function rnGerarProposta(id){
   const r = rnEstado.lista.find(x => x.id === id);
   if(!r) return;
-  if(r.status === 6 || r.status === 7){ mostrarAviso(`Cliente já está ${r.status === 6 ? 'renovado' : 'perdido'}. Mude o status para 5-Em negociação antes de gerar uma proposta nova.`, 'info'); return; }
+  if(rnEncerrado(r.status)){ mostrarAviso(`Cliente já está em "${RN_STATUS[r.status]}". Mude a etapa para 5-Negociação antes de gerar uma proposta nova.`, 'info'); return; }
   const c = await ppSeguro(() => sb.from('clientes').select('*').eq('cnpj_digits', r.cnpj_digits).maybeSingle());
   let client = c && !c.error && c.data ? c.data : null;
   if(!client){
@@ -4938,49 +5445,106 @@ async function rnCarregarPropostas(){
   return p;
 }
 function rnPropostasDe(carteiraId){ return (rnEstado.propostas || []).filter(p => p.carteira_id === carteiraId); }
-// Chamado por registrarPropostaNoFunil depois de gravar: cliente em 1–3 vai para 4-Proposta enviada.
+// Chamado por registrarPropostaNoFunil depois de gravar: cliente em 0–3 vai para 4-Proposta enviada.
 async function rnPropostaGerada(carteiraId){
   const r = rnEstado.lista.find(x => x.id === carteiraId);
-  if(r && r.status >= 1 && r.status <= 3) await rnSalvar(carteiraId, { status: 4 });
+  if(r && r.status >= 0 && r.status <= 3) await rnSalvar(carteiraId, { status: 4 });
   await rnCarregarPropostas();
   rnRender();
   if(rnEstado.fichaId === carteiraId) rnRenderFicha();
 }
 // ---- §143.2 Kanban (a partir de Contato efetivo; não contatado e tentativa ficam na lista) ----
-const RN_KANBAN = [3, 4, 5, 6, 7];
+const RN_KANBAN = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+const RN_KB_LIMITE = 20;   // cartões por coluna antes do "mostrar mais" (a coluna 0 chega a centenas)
 function rnDiasNoStatus(r, agoraMs){ return r.status_desde ? Math.max(0, Math.floor((agoraMs - new Date(r.status_desde).getTime()) / 86400000)) : null; }
 function rnKanbanColunas(lista, filtros, hoje){
-  const base = rnFiltrar(lista, Object.assign(rnFiltrosVazios(), { consultor: filtros.consultor || '' }), hoje);
+  const base = rnFiltrar(lista, Object.assign(rnFiltrosVazios(), filtros, { status: '', foraBase: false, soVencido: false, pendencias: false, visao: RN_CHIPS_VISAO.includes(filtros.visao) ? filtros.visao : 'todos' }), hoje);
   return RN_KANBAN.map(s => ({ status: s, itens: base.filter(r => r.status === s) }));
 }
 function rnCartaoHtml(r, agora, gestor){
   const props = rnPropostasDe(r.id);
-  const p = props.find(rnPropostaAberta) || (r.status >= 6 ? props[0] : null);
+  const p = props.find(rnPropostaAberta) || (rnEncerrado(r.status) ? props[0] : null);
   const dias = rnDiasNoStatus(r, agora);
-  const late = dias !== null && dias >= 7 && r.status >= 3 && r.status <= 5;
-  const parado = dias === null || r.status >= 6 ? '' : dias === 0 ? 'nesta etapa desde hoje' : `parado há ${dias} dia${dias > 1 ? 's' : ''}`;
-  const sub = [`${r.linhas_voz ?? 0} linhas`, p && p.valor_proposto ? fmtBRL(p.valor_proposto) : '', r.status === 6 && r.linhas_renovadas ? `${r.linhas_renovadas} renovadas` : '',
-    r.status === 7 && r.motivo_perda ? r.motivo_perda : '', gestor ? rnNomeConsultor(r.consultor_id) : ''].filter(Boolean).join(' · ');
+  const late = dias !== null && dias >= 7 && r.status >= 2 && r.status <= 5;
+  const parado = dias === null || rnEncerrado(r.status) ? '' : dias === 0 ? 'nesta etapa desde hoje' : `parado há ${dias} dia${dias > 1 ? 's' : ''}`;
+  const valor = p && p.valor_proposto ? fmtBRL(p.valor_proposto) : (Number(r.valor_proposta) ? fmtBRL(r.valor_proposta) : '');
+  const ag = rnAgora(); const est = rnEstadoRetorno(r, ag);
+  const prox = est ? `<span class="${est === 'atrasado' ? 'rnLate' : est === 'hoje' ? 'rnOk' : 'rnMuted'}">${est === 'atrasado' ? '⏱ ' : ''}${escapeHtml([r.prox_acao, r.prox_retorno.slice(8, 10) + '/' + r.prox_retorno.slice(5, 7)].filter(Boolean).join(' · '))}</span>` : '';
+  const sub = [`${r.linhas_voz ?? 0} linhas`, r.fatura != null ? fmtBRL(r.fatura) + '/mês' + (rnVlLinha(r) != null ? ' (' + fmtBRL(rnVlLinha(r)) + '/linha)' : '') : '', valor, rnGanho(r.status) && r.linhas_renovadas ? `${r.linhas_renovadas} fechadas` : '',
+    r.status === 8 && r.motivo_perda ? r.motivo_perda : '', gestor ? rnNomeConsultor(r.consultor_id) : ''].filter(Boolean).join(' · ');
   return `<div class="rnKbCard" draggable="true" data-rn-card="${r.id}">
-    <button type="button" class="rnNome" data-rn-abrir="${r.id}">${escapeHtml(r.razao_social || '(sem nome)')}</button>
+    <div class="rnKbTopo">${rnPrioHtml(r.prioridade)}${rnQuente(r, ag.data) ? '<span class="rnQuente" title="P1 sem toque há mais de 3 dias">Quente</span>' : ''}<button type="button" class="rnNome" data-rn-abrir="${r.id}">${escapeHtml(r.razao_social || '(sem nome)')}</button></div>
     <small>${escapeHtml(sub)}</small>
+    <small class="rnCnpjLinha">${escapeHtml(rnCnpjFmt(r.cnpj_digits))} ${rnCnpjBtn(r.cnpj_digits)}</small>
+    ${prox ? `<small>${prox}</small>` : ''}
     ${parado ? `<span class="rnParado${late ? ' late' : ''}">${late ? '⏱ ' : ''}${escapeHtml(parado)}</span>` : ''}
-    ${r.status >= 6 ? '' : `<button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-gerar="${r.id}">Gerar proposta</button>`}
+    ${rnEncerrado(r.status) ? '' : `<button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-gerar="${r.id}">Gerar proposta</button>`}
   </div>`;
 }
-function rnRenderKanban(){
-  const agora = Date.now(); const gestor = rnGestor();
-  rnPreencherFiltros();
-  document.getElementById('rnKanban').innerHTML = '<div class="rnKanban">' + rnKanbanColunas(rnEstado.lista, rnEstado.filtros, rnHoje()).map(c => `
-    <div class="rnKbCol" data-rn-coluna="${c.status}">
-      <div class="rnKbHead">${rnEtapaHtml(c.status)}<span class="kbN">${c.itens.length}</span></div>
-      ${c.itens.map(r => rnCartaoHtml(r, agora, gestor)).join('') || '<p class="rnVazio">Nenhum cliente.</p>'}
-    </div>`).join('') + '</div>';
+const RN_KB_CHIPS = [['quentes', 'Quentes'], ['fila', 'Fila de hoje'], ['atrasados', 'Atrasados'], ['sem7', 'Sem contato +7d']];
+function rnKbBarraHtml(){
+  return `<div id="rnKbKpis" class="rnKpis"></div>
+    <div class="rnCartBarra" id="rnKbBarra">
+      <input type="search" id="rnKbBusca" class="kbBusca" placeholder="Buscar empresa, CNPJ ou ADM" autocomplete="off" aria-label="Buscar no funil">
+      <select id="rnKbPreset" class="rnSel" data-rn-preset aria-label="Atalhos de busca"></select>
+      <select id="rnKbSalvos" class="rnSel" data-rn-salvo aria-label="Meus filtros"></select>
+      <button type="button" class="kbBtn kbBtnQ kbBtnSm" data-rn-salvar-filtro>Salvar filtro</button>
+      <button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-excluir-filtro>Excluir</button>
+      <span class="rnVisoes" id="rnKbChips"></span>
+      <button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-limpar-tudo>Limpar filtros</button>
+      <button type="button" class="kbBtn kbBtnQ kbBtnSm" id="rnKbKpiBt" data-rn-kb-kpis></button>
+    </div>
+    <div class="rnMaisFiltros" id="rnKbFiltros">${rnFiltrosSelectsHtml('rnKb')}</div>
+    <p class="kbMeta" id="rnKbSumario"></p>
+    <div id="rnKbCols"></div>`;
 }
+function rnRenderKanban(){
+  const agora = Date.now(); const gestor = rnGestor(); const f = rnEstado.filtros;
+  const raiz = document.getElementById('rnKanban');
+  if(!document.getElementById('rnKbCols')){ raiz.innerHTML = rnKbBarraHtml(); }
+  rnPreencherFiltros();
+  const busca = document.getElementById('rnKbBusca'); if(busca && busca !== document.activeElement) busca.value = f.busca || '';
+  document.getElementById('rnKbChips').innerHTML = RN_KB_CHIPS.map(([v, t]) => `<button type="button" class="rnVisaoBt${f.visao === v ? ' on' : ''}" data-rn-kb-chip="${v}">${t}</button>`).join('');
+  const oculto = rnPrefGet('rn_kb_kpis_oculto') === '1';
+  document.getElementById('rnKbKpis').hidden = oculto;
+  const bt = document.getElementById('rnKbKpiBt'); bt.textContent = oculto ? 'Mostrar indicadores ▾' : 'Ocultar indicadores ▴'; bt.setAttribute('aria-expanded', String(!oculto));
+  const c = f.consultor || '';
+  const k = rnKpis(rnEstado.lista, rnEstado.propostas, rnAgora(), c);
+  document.getElementById('rnKbKpis').innerHTML =
+    rnKpiHtml(k.carteira, 'clientes na carteira', `${k.pctContatado}% já trabalhados`, '', k.pctContatado)
+    + rnKpiHtml(k.atrasados, 'retornos atrasados', `${k.vencemHoje} vencem hoje`, k.atrasados ? 'late' : '')
+    + rnKpiHtml(k.semContato7, 'sem contato há +7 dias', 'em andamento', k.semContato7 ? 'late' : '')
+    + rnKpiHtml(k.negociacao, 'em negociação', k.valorNegociacao ? fmtBRL(k.valorNegociacao) + ' em propostas' : 'sem proposta aberta', '')
+    + rnKpiHtml(k.linhasMes, 'linhas ganhas no mês', `${k.clientesMes} cliente${k.clientesMes === 1 ? '' : 's'}`, k.linhasMes ? 'ok' : '')
+    + (() => { const m = rnMetasDia(rnEstado.lista, rnEstado.propostas, rnHoje(), c, rnEstado.perfis.length);
+        const pct = (a, b) => (b ? Math.round(a * 100 / b) : 0);
+        return rnKpiHtml(`${m.contatos}/${m.metaContatos}`, 'contatos hoje', `meta do dia · ${pct(m.contatos, m.metaContatos)}%`, m.contatos >= m.metaContatos ? 'ok' : '', pct(m.contatos, m.metaContatos))
+          + rnKpiHtml(`${m.propostas}/${m.metaPropostas}`, 'propostas hoje', `meta do dia · ${pct(m.propostas, m.metaPropostas)}%`, m.propostas >= m.metaPropostas ? 'ok' : '', pct(m.propostas, m.metaPropostas)); })();
+  const cols = rnKanbanColunas(rnEstado.lista, f, rnHoje());
+  document.getElementById('rnKbSumario').textContent = rnSumario(cols.filter(x => x.status <= 8).flatMap(x => x.itens));
+  document.getElementById('rnKbCols').innerHTML = '<div class="rnKanban">' + cols.map(col => {
+    const lim = rnEstado.kbLimite[col.status] || RN_KB_LIMITE;
+    const soma = col.itens.reduce((t, r) => t + (Number(r.valor_proposta) || 0), 0);
+    return `
+    <div class="rnKbCol" data-rn-coluna="${col.status}">
+      <div class="rnKbHead">${rnEtapaHtml(col.status)}<span class="kbN">${col.itens.length}</span></div>
+      ${soma ? `<small class="rnMuted">${escapeHtml(fmtBRL(soma))}</small>` : ''}
+      ${col.itens.slice(0, lim).map(r => rnCartaoHtml(r, agora, gestor)).join('') || '<p class="rnVazio">Nenhum cliente.</p>'}
+      ${col.itens.length > lim ? `<button type="button" class="kbBtn kbBtnQ kbBtnSm" data-rn-kb-mais="${col.status}">Mostrar mais (${col.itens.length - lim})</button>` : ''}
+    </div>`; }).join('') + '</div>';
+}
+document.getElementById('rnKanban').addEventListener('input', (e) => { if(e.target.id === 'rnKbBusca'){ rnEstado.filtros.busca = e.target.value; rnRenderKanban(); } });
+document.getElementById('rnKanban').addEventListener('click', (e) => {
+  if(e.target.closest('[data-rn-kb-kpis]')){ rnPrefSet('rn_kb_kpis_oculto', rnPrefGet('rn_kb_kpis_oculto') === '1' ? '0' : '1'); rnRenderKanban(); return; }
+  const ch = e.target.closest('[data-rn-kb-chip]');
+  if(ch){ rnEstado.filtros.visao = rnEstado.filtros.visao === ch.dataset.rnKbChip ? 'todos' : ch.dataset.rnKbChip; rnRenderKanban(); return; }
+  const m = e.target.closest('[data-rn-kb-mais]');
+  if(m){ const s = Number(m.dataset.rnKbMais); rnEstado.kbLimite[s] = (rnEstado.kbLimite[s] || RN_KB_LIMITE) + RN_KB_LIMITE; rnRenderKanban(); }
+});
 function rnMoverStatus(id, status){
   const r = rnEstado.lista.find(x => x.id === id);
   if(!r || r.status === status) return;
-  if(status === 6 || status === 7){ rnAbrirFechamento(id, status); return; }
+  if(status >= 6 && status <= 8){ rnAbrirFechamento(id, status); return; }
   return rnSalvar(id, { status });
 }
 document.getElementById('rnKanban').addEventListener('dragstart', (e) => {
@@ -5002,6 +5566,90 @@ document.getElementById('rnKanban').addEventListener('click', (e) => {
   if(g){ rnGerarProposta(Number(g.dataset.rnGerar)); return; }
   const a = e.target.closest('[data-rn-abrir]');
   if(a) rnAbrirFicha(Number(a.dataset.rnAbrir));
+});
+// ---- §165 Atividade do time (admin/supervisor): últimas anotações de todos os consultores ----
+const RN_ATV_PERIODOS = [['1', 'Hoje'], ['7', 'Últimos 7 dias'], ['30', 'Últimos 30 dias'], ['0', 'Todo o período']];
+function rnAtvEstado(){ if(!rnEstado.atv) rnEstado.atv = { periodo: '7', autor: '', busca: '', fixadas: false, itens: null, limite: 50, erro: false }; return rnEstado.atv; }
+// Itens que passam nos filtros (puro, testável). hoje = 'AAAA-MM-DD'.
+function rnAtvFiltrar(itens, f, hoje, nomeDe, empresaDe){
+  const dias = Number(f.periodo) || 0;
+  let corte = null;
+  if(dias){ const d = new Date(hoje + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - (dias - 1)); corte = d.toISOString().slice(0, 10); }
+  const b = rnNorm(f.busca);
+  return itens.filter(n => {
+    if(corte && String(n.dia) < corte) return false;
+    if(f.autor && n.user_id !== f.autor) return false;
+    if(f.fixadas && !n.fixada) return false;
+    if(b && !(rnNorm(n.texto) + ' ' + rnNorm(empresaDe(n)) + ' ' + rnNorm(nomeDe(n.user_id))).includes(b)) return false;
+    return true;
+  });
+}
+function rnDiaSP(iso){ return iso ? new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) : ''; }
+async function rnRenderAtividade(){
+  const el = document.getElementById('rnAtividade'); if(!el || !rnGestor()) return;
+  const st = rnAtvEstado();
+  if(!st.itens){
+    el.innerHTML = '<p class="rnVazio">Carregando anotações…</p>';
+    const r = await ppSeguro(() => sb.from('renovacao_notas').select('id,carteira_id,user_id,texto,fixada,criado_em').order('criado_em', { ascending: false }).limit(1000));
+    if(rnEstado.aba !== 'atividade') return;
+    if(!r || r.error){ st.erro = true; el.innerHTML = '<p class="rnVazio">Não foi possível carregar as anotações agora.</p>'; return; }
+    st.erro = false; st.itens = (r.data || []).map(n => Object.assign({ dia: rnDiaSP(n.criado_em) }, n));
+    // nomes de quem escreveu (admin/supervisor que não são do time não estão em rnEstado.perfis)
+    const falta = [...new Set(st.itens.map(n => n.user_id).filter(id => id && rnNomeConsultor(id) === '—'))];
+    if(falta.length){
+      const pr = await ppSeguro(() => sb.from('profiles').select('id,nome').in('id', falta));
+      if(pr && !pr.error){ rnEstado.nomes = rnEstado.nomes || {}; (pr.data || []).forEach(p => { rnEstado.nomes[p.id] = p.nome; }); }
+    }
+    if(rnEstado.aba !== 'atividade') return;
+  }
+  const nomeDe = (id) => rnNomeConsultor(id);
+  const porId = new Map(rnEstado.lista.map(r => [r.id, r]));
+  const empresaDe = (n) => (porId.get(n.carteira_id) || {}).razao_social || '';
+  const lista = rnAtvFiltrar(st.itens, st, rnHoje(), nomeDe, empresaDe);
+  const autores = [...new Set(st.itens.map(n => n.user_id).filter(Boolean))].sort((a, b) => nomeDe(a).localeCompare(nomeDe(b), 'pt-BR'));
+  const foco = document.activeElement && document.activeElement.id === 'rnAtvBusca';
+  const vis = lista.slice(0, st.limite);
+  el.innerHTML = `<div class="rnFBloco rnAtvBarra">
+      <label>Período<select data-rn-atv="periodo">${rnOpcoes(RN_ATV_PERIODOS, st.periodo, null)}</select></label>
+      <label>Consultor<select data-rn-atv="autor">${rnOpcoes(autores.map(id => [id, nomeDe(id)]), st.autor, 'Todos')}</select></label>
+      <label class="rnAtvBusca">Buscar<input type="search" id="rnAtvBusca" data-rn-atv="busca" value="${escapeHtml(st.busca)}" placeholder="Texto, empresa ou consultor" autocomplete="off"></label>
+      <label class="rnAtvChk"><input type="checkbox" data-rn-atv="fixadas"${st.fixadas ? ' checked' : ''}> Só fixadas</label>
+      <button type="button" class="kbBtn kbBtnQ" data-rn-atv-excel${lista.length ? '' : ' disabled'}>Exportar Excel</button>
+    </div>
+    <p class="kbMeta rnAtvCont">${lista.length} anotação(ões)${st.itens.length >= 1000 ? ' · mostrando as 1000 mais recentes' : ''}</p>
+    ${vis.length ? '<ul class="rnAtvLista">' + vis.map(n => { const r = porId.get(n.carteira_id);
+      return `<li class="rnFBloco rnAtvItem"><div class="rnAtvTopo"><b>${escapeHtml(nomeDe(n.user_id))}</b><span class="rnMuted">${escapeHtml(rnQuando(n.criado_em))}</span>${n.fixada ? '<span class="rnTag">Fixada</span>' : ''}
+        <button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-atv-abrir="${n.carteira_id}">${escapeHtml(r ? r.razao_social || '(sem nome)' : 'Cliente ' + n.carteira_id)} →</button></div>
+        <div class="rnNotaTxt">${escapeHtml(n.texto)}</div></li>`; }).join('') + '</ul>' : '<p class="rnVazio">Nenhuma anotação com esses filtros.</p>'}
+    ${lista.length > vis.length ? `<button type="button" class="kbBtn kbBtnQ" data-rn-atv-mais>Mostrar mais (${lista.length - vis.length})</button>` : ''}`;
+  if(foco){ const i = document.getElementById('rnAtvBusca'); if(i){ i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
+}
+function rnAtvExportar(){
+  const st = rnAtvEstado(); if(!st.itens) return;
+  const porId = new Map(rnEstado.lista.map(r => [r.id, r]));
+  const lista = rnAtvFiltrar(st.itens, st, rnHoje(), (id) => rnNomeConsultor(id), (n) => (porId.get(n.carteira_id) || {}).razao_social || '');
+  const linhas = lista.map(n => { const r = porId.get(n.carteira_id) || {};
+    return { 'Data': n.dia ? n.dia.slice(8, 10) + '/' + n.dia.slice(5, 7) + '/' + n.dia.slice(0, 4) : '', 'Hora': new Date(n.criado_em).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }),
+      'Consultor': rnNomeConsultor(n.user_id), 'Cliente': r.razao_social || '', 'CNPJ': r.cnpj_digits || '', 'Etapa': r.status != null ? rnStatusRotulo(r.status) : '', 'Fixada': n.fixada ? 'Sim' : '', 'Anotação': n.texto }; });
+  const ws = XLSX.utils.json_to_sheet(linhas);
+  ws['!cols'] = [{ wch: 12 }, { wch: 8 }, { wch: 22 }, { wch: 34 }, { wch: 16 }, { wch: 20 }, { wch: 8 }, { wch: 90 }];
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Anotações');
+  XLSX.writeFile(wb, 'atividade_renovacao_' + rnHoje() + '.xlsx');
+}
+document.getElementById('rnAtividade').addEventListener('change', (e) => {
+  const c = e.target.closest('[data-rn-atv]'); if(!c) return;
+  const st = rnAtvEstado(); const k = c.dataset.rnAtv;
+  st[k] = c.type === 'checkbox' ? c.checked : c.value; st.limite = 50; rnRenderAtividade();
+});
+document.getElementById('rnAtividade').addEventListener('input', (e) => {
+  const c = e.target.closest('[data-rn-atv="busca"]'); if(!c) return;
+  const st = rnAtvEstado(); st.busca = c.value; st.limite = 50; rnRenderAtividade();
+});
+document.getElementById('rnAtividade').addEventListener('click', (e) => {
+  const st = rnAtvEstado();
+  if(e.target.closest('[data-rn-atv-excel]')){ rnAtvExportar(); return; }
+  if(e.target.closest('[data-rn-atv-mais]')){ st.limite += 50; rnRenderAtividade(); return; }
+  const a = e.target.closest('[data-rn-atv-abrir]'); if(a) rnAbrirFicha(Number(a.dataset.rnAtvAbrir));
 });
 // ---- §143.2 Proposta e fatura: os mesmos nós da aba Proposta (mesmo código e mesmos eventos), movidos, não copiados ----
 function rnMoverProposta(paraRenovacao){
@@ -5026,7 +5674,8 @@ function rnFila(lista, agora, consultor){
   return {
     atrasados: base.filter(r => est.get(r.id) === 'atrasado').sort(rnOrdemRetorno),
     hoje: base.filter(r => est.get(r.id) === 'hoje').sort(rnOrdemRetorno),
-    sugeridos: base.filter(r => r.status === 1 && r.apto === 'APTO' && est.get(r.id) !== 'atrasado' && est.get(r.id) !== 'hoje').sort(rnOrdemLinhas).slice(0, 10),
+    // sugeridos: ainda não trabalhados, aptos, melhor prioridade primeiro (P1, P2, P3…)
+    sugeridos: base.filter(r => r.status === 0 && rnEhApto(r.apto) && est.get(r.id) !== 'atrasado' && est.get(r.id) !== 'hoje').sort(rnOrdemPrioridade).slice(0, 10),
   };
 }
 function rnFilaPlana(fila){ return fila.atrasados.concat(fila.hoje, fila.sugeridos); }
@@ -5035,13 +5684,14 @@ function rnPropostaAberta(p){ return p.estagio !== 'fechado_ganho' && p.estagio 
 function rnKpis(lista, propostas, agora, consultor){
   const base = rnPorConsultor(lista, consultor).filter(r => r.na_base);
   const mes = agora.data.slice(0, 7);
-  const renovMes = base.filter(r => r.status === 6 && r.status_desde && rnDataSP(r.status_desde).slice(0, 7) === mes);
+  const renovMes = base.filter(r => rnGanho(r.status) && r.status_desde && rnDataSP(r.status_desde).slice(0, 7) === mes);
   const neg = base.filter(r => r.status === 5);
   const valor = neg.reduce((s, r) => { const p = (propostas || []).find(x => x.carteira_id === r.id && rnPropostaAberta(x)); return s + (p ? Number(p.valor_proposto) || 0 : 0); }, 0);
   const est = base.map(r => rnEstadoRetorno(r, agora));
   return {
     carteira: base.length,
-    pctContatado: base.length ? Math.round(base.filter(r => r.status >= 2).length * 100 / base.length) : 0,
+    pctContatado: base.length ? Math.round(base.filter(r => r.status >= 1).length * 100 / base.length) : 0,
+    semContato7: base.filter(r => rnSemContato7(r, agora.data)).length,
     atrasados: est.filter(e => e === 'atrasado').length,
     vencemHoje: est.filter(e => e === 'hoje').length,
     negociacao: neg.length, valorNegociacao: valor,
@@ -5054,7 +5704,7 @@ function rnKpiHtml(n, rotulo, sub, cls, barra){
     + `<span class="rnKpiSub">${escapeHtml(sub)}</span></div>`;
 }
 function rnItemFilaHtml(r, tipo, agora, gestor){
-  const quando = tipo === 'atrasado' ? '⏱ ' + rnTextoAtraso(r, agora) : tipo === 'hoje' ? (r.retorno_hora ? String(r.retorno_hora).slice(0, 5) : 'hoje') : (r.apto || '');
+  const quando = tipo === 'atrasado' ? '⏱ ' + rnTextoAtraso(r, agora) : tipo === 'hoje' ? (r.retorno_hora ? String(r.retorno_hora).slice(0, 5) : 'hoje') : [r.prioridade, r.apto].filter(Boolean).join(' · ');
   const sub = [r.nome_adm, (r.linhas_voz ?? 0) + ' linhas', gestor ? rnNomeConsultor(r.consultor_id) : ''].filter(Boolean).join(' · ');
   return `<button type="button" class="rnItem${rnEstado.fichaId === r.id ? ' sel' : ''}" data-rn-abrir="${r.id}">
     <span class="rnAv">${escapeHtml(rnIniciais(r.razao_social))}</span>
@@ -5068,8 +5718,9 @@ function rnRenderHoje(){
   document.getElementById('rnKpis').innerHTML =
     rnKpiHtml(k.carteira, 'clientes na carteira', `${k.pctContatado}% já contatados`, '', k.pctContatado)
     + rnKpiHtml(k.atrasados, 'retornos atrasados', `${k.vencemHoje} vencem hoje`, k.atrasados ? 'late' : '')
+    + rnKpiHtml(k.semContato7, 'sem contato há +7 dias', 'em andamento, sem toque', k.semContato7 ? 'late' : '')
     + rnKpiHtml(k.negociacao, 'em negociação', k.valorNegociacao ? fmtBRL(k.valorNegociacao) + ' em propostas' : 'sem proposta aberta', '')
-    + rnKpiHtml(k.linhasMes, 'linhas renovadas no mês', `${k.clientesMes} cliente${k.clientesMes === 1 ? '' : 's'}`, k.linhasMes ? 'ok' : '');
+    + rnKpiHtml(k.linhasMes, 'linhas ganhas no mês', `${k.clientesMes} cliente${k.clientesMes === 1 ? '' : 's'}`, k.linhasMes ? 'ok' : '');
   const fila = rnFila(rnListaHoje(), agora, c);
   const bloco = (titulo, cls, itens, tipo) => itens.length
     ? `<div class="rnGrupoT ${cls}"><span>${titulo}</span> <span class="kbN">${itens.length}</span></div>` + itens.map(r => rnItemFilaHtml(r, tipo, agora, gestor)).join('') : '';

@@ -20,7 +20,7 @@ require('./renovacao_test_harness.js').rodar(`
     ['Zz Dois', '7-Perdido', 'Ligação', '', 'Preço', '00000000000102', 'ATIVO', 'INDIRETO'],
   ];
   let lido = rnLerArquivo(montar([['Base Completa', base], ['Zzbruno', time]]), PERFIS);
-  eq(lido.linhas.map(l => [l.status, l.canal, l.linhas_renovadas, l.motivo_perda]), [[6, 'WhatsApp', 3, null], [7, 'Ligação', null, 'Preço']],
+  eq(lido.linhas.map(l => [l.status, l.canal, l.linhas_renovadas, l.motivo_perda]), [[6, 'WhatsApp', 3, null], [8, 'Ligação', null, 'Preço']],
      'coluna amarela vence a coluna da Claro de mesmo nome');
 
   // ==== base nova da Claro com CONSULTOR de fora do time: entra sem consultor, sem travar ====
@@ -31,7 +31,7 @@ require('./renovacao_test_harness.js').rodar(`
   lido = rnLerArquivo(montar([['Base Completa', base], ['Zzbruno', time]]), PERFIS);
   const p = rnPrevia(lido.linhas, [{ cnpj_digits: '00000000000101', na_base: true }]);
   eq([p.novos, p.atualizados, p.ignorados], [1, 1, 1], 'atendimento de quem já existe é contado como não aplicado');
-  eq(p.porStatus, { 6: 1, 7: 1 }, 'contagem por status do arquivo');
+  eq(p.porStatus, { 6: 1, 8: 1 }, 'contagem por status do arquivo');
   eq(p.porConsultor, { 'u-b': 2 }, 'contagem por consultor do arquivo');
   currentUser = { id: 'u-adm', nome: 'Zzadm Teste', role: 'admin', operacao: 'apex' };
   rnAplicarPermissao();
@@ -44,8 +44,8 @@ require('./renovacao_test_harness.js').rodar(`
   const buf = X.write((() => { const wb = X.utils.book_new(); X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet(base), 'Base Completa'); X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet(time), 'Zzbruno'); return wb; })(), { type: 'array', bookType: 'xlsx' });
   await rnPrepararImportacao({ arrayBuffer: async () => buf });
   const prev = document.getElementById('rnPrevia').textContent.replace(/\\s+/g, ' ');
-  assert(/atendimento das abas NÃO será aplicado a 1 cliente/.test(prev), 'prévia avisa o atendimento ignorado: ' + prev);
-  assert(/6-Renovado: 1/.test(prev) && /7-Perdido: 1/.test(prev), 'prévia mostra a contagem por status');
+  assert(/atendimento da planilha só vale para quem ainda está em .*\\(1 no arquivo já existem\\)/.test(prev), 'prévia avisa o atendimento ignorado: ' + prev);
+  assert(/6-Ganho \\(pedido\\): 1/.test(prev) && /8-Perdido: 1/.test(prev), 'prévia mostra a contagem por status');
   assert(/Zzbruno Teste: 2/.test(prev), 'prévia mostra a contagem por consultor');
 
   // ==== base para o #4 (a data deixou de ser editável na lista na §151) ====

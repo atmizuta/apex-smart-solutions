@@ -3,12 +3,12 @@ require('./renovacao_test_harness.js').rodar(`
   rnHoje = () => '2026-11-13'; rnHoraSP = () => '16:00';
   const AG = { data: '2026-11-13', hora: '16:00' };
   const L = (o) => Object.assign({ cnpj_digits: '00000000000400', razao_social: 'Zz', nome_adm: 'Zz Adm', linhas_voz: 1, apto: 'APTO', cidade: 'Zz Cidade', ddd: '19',
-    consultor_id: 'u-a', status: 1, prox_retorno: null, retorno_hora: null, na_base: true, a_completar: false }, o);
+    consultor_id: 'u-a', status: 0, prox_retorno: null, retorno_hora: null, na_base: true, a_completar: false }, o);
   const base = () => [
-    L({ id: 1, razao_social: 'Zz Ácido', linhas_voz: 3, status: 2, prox_retorno: '2026-11-13', retorno_hora: '15:00' }),
-    L({ id: 2, razao_social: 'Zz Beta', linhas_voz: 30, status: 7, motivo_perda: 'Preço', cidade: 'Zz Outra' }),
+    L({ id: 1, razao_social: 'Zz Ácido', linhas_voz: 3, status: 1, prox_retorno: '2026-11-13', retorno_hora: '15:00' }),
+    L({ id: 2, razao_social: 'Zz Beta', linhas_voz: 30, status: 8, motivo_perda: 'Preço', cidade: 'Zz Outra' }),
     L({ id: 3, razao_social: 'Zz Gama', linhas_voz: 30, status: 6, linhas_renovadas: 2, consultor_id: 'u-b' }),
-    L({ id: 4, razao_social: 'Zz Delta', linhas_voz: 8, status: 1, a_completar: true, consultor_id: null }),
+    L({ id: 4, razao_social: 'Zz Delta', linhas_voz: 8, status: 0, a_completar: true, consultor_id: null }),
     L({ id: 5, razao_social: 'Zz Fora', linhas_voz: 99, na_base: false }),
     L({ id: 6, razao_social: 'Zz Hoje', linhas_voz: 2, status: 4, prox_retorno: '2026-11-13', retorno_hora: '18:00', data_contato: '2026-11-10', canal: 'WhatsApp' }),
   ];
@@ -18,10 +18,10 @@ require('./renovacao_test_harness.js').rodar(`
      [[4], [1, 6], [1], [4], [3], [2], [5]], 'visões');
   eq(ids({ ordem: 'retorno' }), [1, 6, 2, 3, 4], 'retorno mais próximo primeiro (sem retorno no fim, por linhas)');
   eq(ids({ busca: 'acido' }), [1], 'busca sem acento');
-  eq(rnContarVisoes(base(), rnFiltrosVazios(), AG), { todos: 5, nao: 1, andamento: 2, atrasados: 1, pendencias: 1, renovados: 1, perdidos: 1, fora: 1 }, 'contagem das visões');
-  eq(rnValidarFechamento(7, {}), 'Escolha o motivo da perda.', 'perdido sem motivo');
+  eq(rnContarVisoes(base(), rnFiltrosVazios(), AG), { todos: 5, nao: 1, andamento: 2, quentes: 0, fila: 2, atrasados: 1, sem7: 0, pendencias: 1, renovados: 1, perdidos: 1, fora: 1 }, 'contagem das visões');
+  eq(rnValidarFechamento(8, {}), 'Escolha o motivo da perda.', 'perdido sem motivo');
   eq(rnValidarFechamento(6, { linhas_renovadas: 3 }), null, 'renovado com linhas');
-  eq(rnStatusRotulo(3), '3-Contato efetivo', 'rótulo do status (histórico)');
+  eq(rnStatusRotulo(3), '3-Qualificado', 'rótulo do status (histórico)');
   eq(rnUltimoContato(L({ data_contato: '2026-11-10', canal: 'WhatsApp' })), '10/11 · WhatsApp', 'último contato');
 
   // ==== tela (gestor) ====
@@ -33,7 +33,7 @@ require('./renovacao_test_harness.js').rodar(`
   await rnCarregar();
   rnTrocarAba('carteira');
   const visoes = () => [...document.querySelectorAll('#rnVisoes [data-rn-visao]')].map(b => b.textContent.replace(/\\s+/g, ' ').trim());
-  eq(visoes(), ['Todos 5', 'Não contatados 1', 'Em andamento 2', 'Atrasados 1', 'Pendências 1', 'Renovados 1', 'Perdidos 1', 'Fora da base 1'], 'pílulas com contagem');
+  eq(visoes(), ['Todos 5', 'Não trabalhados 1', 'Em andamento 2', 'Quentes 0', 'Fila de hoje 2', 'Atrasados 1', 'Sem contato +7d 0', 'Pendências 1', 'Ganhos 1', 'Perdidos / desqualif. 1', 'Fora da base 1'], 'pílulas com contagem');
   eq(document.querySelectorAll('#rnTbody select, #rnTbody input:not([type=checkbox])').length, 0, 'nada editável na linha');
   const linhas = () => [...document.querySelectorAll('#rnTbody tr[data-rn-id]')].map(t => t.dataset.rnId);
   eq(linhas(), ['2', '3', '4', '1', '6'], 'tabela na ordem');
