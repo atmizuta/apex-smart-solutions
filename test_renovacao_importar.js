@@ -5,7 +5,7 @@ require('./renovacao_test_harness.js').rodar(`
      ['2026-09-29', '2026-10-01', '2026-11-03', '2026-10-26', null], 'datas da planilha');
   eq([rnNumBR('1.234,56'), rnNumBR('0,00'), rnNumBR(12.5), rnNumBR(''), rnNumBR('R$ 10')], [1234.56, 0, 12.5, null, 10], 'números BR');
   eq([rnInt(21), rnInt('15'), rnInt(''), rnInt(21.6)], [21, 15, null, 22], 'inteiros (número cru não perde a casa)');
-  eq([rnStatusPlanilha('3-Contato efetivo'), rnStatusPlanilha('9-x'), rnStatusPlanilha('')], [3, 1, 1], 'status da planilha');
+  eq([rnStatusPlanilha('3-Contato efetivo'), rnStatusPlanilha('9-x'), rnStatusPlanilha('')], [2, 0, 0], 'status da planilha (legado 1–7 → funil 0–9)');
   eq(rnChave('MOTIVO PERDA ▼'), rnChave('motivo  perda'), 'cabeçalho com ▼ e espaços');
 
   // ==== monta um .xlsx fictício igual ao da planilha do time ====
@@ -38,10 +38,10 @@ require('./renovacao_test_harness.js').rodar(`
   const um = lido.linhas[0];
   eq([um.razao_social, um.telefone, um.nome_adm, um.linhas_voz, um.apto, um.cidade, um.ddd, um.tempo_contrato_voz, um.classificacao, um.origem, um.consultor_id],
      ['Zz Um Ltda', '11900000001', 'Zz Adm Um', 12, 'APTO', 'Zz Cidade', '11', 21, 'CE', 'Nova atribuição', 'u-b'], 'colunas da Claro e consultor pelo nome da aba');
-  eq([um.status, um.data_contato, um.prox_retorno, um.canal, um.observacoes], [3, '2026-09-29', '2026-10-26', 'WhatsApp', 'Zz retornar'], 'atendimento da aba do consultor');
+  eq([um.status, um.data_contato, um.prox_retorno, um.canal, um.observacoes], [2, '2026-09-29', '2026-10-26', 'WhatsApp', 'Zz retornar'], 'atendimento da aba do consultor');
   eq(um.dados_claro.SCORE, 7, 'dados_claro guarda as colunas da base');
   assert(!('Telefone de Contato' in lido.linhas[1].dados_claro), 'dados_claro não guarda célula vazia');
-  eq([lido.linhas[1].status, lido.linhas[1].canal, lido.linhas[1].motivo_perda], [7, null, null], 'canal fora da lista vira vazio; perdido sem motivo segue para pendência');
+  eq([lido.linhas[1].status, lido.linhas[1].canal, lido.linhas[1].motivo_perda], [8, null, null], 'canal fora da lista vira vazio; perdido sem motivo segue para pendência');
   eq([lido.linhas[2].status, lido.linhas[2].linhas_renovadas, lido.linhas[2].bl_vendida, lido.linhas[2].sol_digitais], [6, 15, 1, 0], 'renovado com linhas, BL e digitais');
 
   // base da Claro sem as abas do time

@@ -15,11 +15,11 @@ require('./renovacao_test_harness.js').rodar(`
     L({ id: 9, razao_social: 'Zz Negocia', status: 5 }),
     L({ id: 10, razao_social: 'Zz Do B', prox_retorno: '2026-11-10', consultor_id: 'u-b' }),
     L({ id: 11, razao_social: 'Zz Fora', prox_retorno: '2026-11-10', na_base: false }),
-  ].concat(Array.from({ length: 12 }, (_, i) => L({ id: 20 + i, razao_social: 'Zz Sug ' + i, status: 1, linhas_voz: i + 1, apto: i === 11 ? '1 MÊS PARA APTO' : 'APTO' })));
+  ].concat(Array.from({ length: 12 }, (_, i) => L({ id: 20 + i, razao_social: 'Zz Sug ' + i, status: 0, linhas_voz: i + 1, apto: i === 11 ? '1 MÊS PARA APTO' : 'APTO' })));
   const f = rnFila(lista, AG, '');
   eq(f.atrasados.map(r => r.id), [2, 10, 1, 3], 'atrasados: mais antigo primeiro (inclui hoje com hora passada), na base');
   eq(f.hoje.map(r => r.id), [6, 4, 5], 'hoje: por hora, sem hora no fim');
-  eq(f.sugeridos.map(r => r.id), [30, 29, 28, 27, 26, 25, 24, 23, 22, 21], 'sugeridos: 10 maiores APTO não contatados');
+  eq(f.sugeridos.map(r => r.id), [31, 30, 29, 28, 27, 26, 25, 24, 23, 22], 'sugeridos: 10 maiores aptos (inclui 1 mês para apto) não trabalhados');
   eq(rnFila(lista, AG, 'u-b').atrasados.map(r => r.id), [10], 'filtra por consultor');
   eq(rnFilaPlana(f).length, 17, 'fila plana');
   const propostas = [{ id: 'p1', carteira_id: 9, valor_proposto: 1200, estagio: 'negociacao', criado_em: '2026-11-12T10:00:00Z' },
@@ -36,7 +36,7 @@ require('./renovacao_test_harness.js').rodar(`
   await espera(40);
   const kpis = [...document.querySelectorAll('#rnKpis .rnKpi')].map(x => x.textContent.replace(/\\s+/g, ' ').trim());
   assert(/^21 clientes na carteira/.test(kpis[0]) && /^3 retornos atrasados/.test(kpis[1]) && /3 vencem hoje/.test(kpis[1]), 'cartões: carteira e atrasados: ' + kpis.join(' | '));
-  assert(/^12 linhas renovadas no mês/.test(kpis[3]) && /1 cliente/.test(kpis[3]), 'cartão de linhas no mês');
+  assert(/^12 linhas ganhas no mês/.test(kpis[4]) && /1 cliente/.test(kpis[4]), 'cartão de linhas no mês');
   const grupos = [...document.querySelectorAll('#rnFilaLista .rnGrupoT')].map(g => g.textContent.replace(/\\s+/g, ' ').trim());
   eq(grupos, ['⏱ Atrasados 3', '● Hoje 3', '★ Sugeridos 10'], 'três blocos com contagem');
   assert(/há 7 dias/.test(document.querySelector('#rnFilaLista [data-rn-abrir="2"]').textContent), 'atrasado diz há quanto tempo');

@@ -4,11 +4,11 @@ require('./renovacao_test_harness.js').rodar(`
   const agora = new Date('2026-11-09T15:00:00Z').getTime();
   eq([rnDiasNoStatus({ status_desde: '2026-11-06T15:00:00Z' }, agora), rnDiasNoStatus({ status_desde: '2026-11-09T10:00:00Z' }, agora), rnDiasNoStatus({}, agora)], [3, 0, null], 'dias no status');
   const L = (o) => Object.assign({ razao_social: 'Zz', linhas_voz: 1, na_base: true, consultor_id: 'u-a', status_desde: '2026-11-08T12:00:00Z' }, o);
-  const lista = [L({ id: 1, status: 3, linhas_voz: 5 }), L({ id: 2, status: 3, linhas_voz: 9 }), L({ id: 3, status: 5 }), L({ id: 4, status: 1 }),
-                 L({ id: 5, status: 7, motivo_perda: 'Preço' }), L({ id: 6, status: 4, na_base: false }), L({ id: 7, status: 6, linhas_renovadas: 2, consultor_id: 'u-b' })];
+  const lista = [L({ id: 1, status: 3, linhas_voz: 5 }), L({ id: 2, status: 3, linhas_voz: 9 }), L({ id: 3, status: 5 }), L({ id: 4, status: 0 }),
+                 L({ id: 5, status: 8, motivo_perda: 'Preço' }), L({ id: 6, status: 4, na_base: false }), L({ id: 7, status: 6, linhas_renovadas: 2, consultor_id: 'u-b' })];
   const cols = rnKanbanColunas(lista, rnFiltrosVazios(), '2026-11-09');
-  eq(cols.map(c => [c.status, c.itens.map(r => r.id)]), [[3, [2, 1]], [4, []], [5, [3]], [6, [7]], [7, [5]]], 'colunas 3–7, só na base, mais linhas primeiro');
-  eq(rnKanbanColunas(lista, Object.assign(rnFiltrosVazios(), { consultor: 'u-b' }), '2026-11-09').map(c => c.itens.length), [0, 0, 0, 1, 0], 'respeita o filtro de consultor');
+  eq(cols.map(c => [c.status, c.itens.map(r => r.id)]), [[2, []], [3, [2, 1]], [4, []], [5, [3]], [6, [7]], [7, []], [8, [5]]], 'colunas 2–8, só na base, mais linhas primeiro');
+  eq(rnKanbanColunas(lista, Object.assign(rnFiltrosVazios(), { consultor: 'u-b' }), '2026-11-09').map(c => c.itens.length), [0, 0, 0, 0, 1, 0, 0], 'respeita o filtro de consultor');
 
   currentUser = { id: 'u-a', nome: 'Zza Teste', role: 'consultor', operacao: 'apex', equipe: 'renovacao' };
   rnAplicarPermissao();
@@ -19,7 +19,7 @@ require('./renovacao_test_harness.js').rodar(`
   rnTrocarAba('kanban');
   assert(!document.getElementById('rnKanban').hidden && document.getElementById('rnCarteira').hidden, 'subaba Kanban aparece');
   const colunas = [...document.querySelectorAll('#rnKanban [data-rn-coluna]')];
-  eq(colunas.map(c => c.dataset.rnColuna), ['3', '4', '5', '6', '7'], '5 colunas');
+  eq(colunas.map(c => c.dataset.rnColuna), ['2', '3', '4', '5', '6', '7', '8'], '7 colunas');
   const card3 = document.querySelector('#rnKanban [data-rn-card="3"]').textContent.replace(/\\s+/g, ' ');
   assert(/1.234,50/.test(card3), 'cartão mostra o valor da proposta: ' + card3);
   assert(/parado há/.test(card3), 'cartão mostra há quanto tempo está parado');
@@ -36,7 +36,7 @@ require('./renovacao_test_harness.js').rodar(`
   assert(!!document.querySelector('#rnKanban [data-rn-coluna="5"] [data-rn-card="1"]'), 'cartão mudou de coluna');
   // soltar em Perdido abre a janela, não grava direto
   window.__escritas.length = 0;
-  arrastar(2, 7);
+  arrastar(2, 8);
   await espera(20);
   assert(document.getElementById('rnFechamento').classList.contains('active') && !!document.getElementById('rnFechMotivo'), 'Perdido abre a janela do motivo');
   eq(window.__escritas.length, 0, 'nada gravado antes do motivo');

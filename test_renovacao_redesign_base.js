@@ -17,7 +17,7 @@ require('./renovacao_test_harness.js').rodar(`
   eq([rnTextoAtraso(R({ prox_retorno: '2026-11-10' }), ag), rnTextoAtraso(R({ prox_retorno: '2026-11-12' }), ag), rnTextoAtraso(R({ prox_retorno: '2026-11-13', retorno_hora: '09:30:00' }), ag)],
      ['há 3 dias', 'há 1 dia', 'era 09:30'], 'texto do atraso');
   eq([rnIniciais('Padaria Pão Dourado Ltda'), rnIniciais('X'), rnIniciais('')], ['PP', 'X', '?'], 'iniciais');
-  assert(/rnSt5/.test(rnEtapaHtml(5)) && /Em negociação/.test(rnEtapaHtml(5)), 'etiqueta da etapa');
+  assert(/rnSt5/.test(rnEtapaHtml(5)) && /Negociação/.test(rnEtapaHtml(5)), 'etiqueta da etapa');
   assert(/^\\d{2}:\\d{2}$/.test(rnHoraSP()) && rnAgora().data === rnHoje(), 'agora em SP');
 
   // tela inicial e selo com hora

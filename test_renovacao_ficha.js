@@ -10,7 +10,7 @@ require('./renovacao_test_harness.js').rodar(`
   rnAplicarPermissao();
   window.__tabelas.renovacao_carteira = [
     { id: 1, cnpj_digits: '00000000000101', razao_social: 'Zz Alfa', telefone: '11900000001', cidade: 'Zz Cidade', linhas_voz: 4, status: 3, na_base: true, consultor_id: 'u-a', dados_claro: dados },
-    { id: 2, cnpj_digits: '00000000000102', razao_social: 'Zz Legado', telefone: null, linhas_voz: 2, status: 7, motivo_perda: null, a_completar: true, na_base: true, consultor_id: 'u-a', dados_claro: {} },
+    { id: 2, cnpj_digits: '00000000000102', razao_social: 'Zz Legado', telefone: null, linhas_voz: 2, status: 8, motivo_perda: null, a_completar: true, na_base: true, consultor_id: 'u-a', dados_claro: {} },
   ];
   window.__tabelas.renovacao_historico = [
     { carteira_id: 1, campo: 'status', de: '1', para: '3', user_id: 'u-a', criado_em: '2026-11-05T15:00:00Z' },
@@ -24,7 +24,7 @@ require('./renovacao_test_harness.js').rodar(`
   assert(/00\\.000\\.000\\/0001-01/.test(corpo.textContent), 'CNPJ formatado');
   assert(corpo.querySelector('a[href^="https://wa.me/5511900000001"]') && corpo.querySelector('a[href="tel:11900000001"]'), 'WhatsApp e Ligar');
   eq([...corpo.querySelectorAll('details.rnGrupo summary')].map(s => s.firstChild.textContent.trim()), ['Contrato e linhas', 'Concorrência', 'Fixa e cabeamento', 'Tudo'], 'grupos na ficha');
-  assert(/05\\/11 · Zza Teste: 1-Não contatado → 3-Contato efetivo/.test(corpo.textContent), 'histórico legível');
+  assert(/05\\/11 · Zza Teste: 1-Tentativa de contato → 3-Qualificado/.test(corpo.textContent), 'histórico legível');
 
   // salvar atendimento
   window.__escritas.length = 0;
@@ -37,7 +37,7 @@ require('./renovacao_test_harness.js').rodar(`
 
   // perdido sem motivo na ficha é barrado...
   window.__escritas.length = 0;
-  document.getElementById('rnFichaForm').elements.status.value = '7';
+  document.getElementById('rnFichaForm').elements.status.value = '8';
   document.getElementById('rnFichaForm').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
   await espera(20);
   eq(document.getElementById('rnFichaErro').textContent, 'Escolha o motivo da perda.', 'ficha usa a mesma regra');

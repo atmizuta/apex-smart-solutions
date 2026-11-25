@@ -3,7 +3,7 @@ require('./renovacao_test_harness.js').rodar(`
   const L = (o) => Object.assign({ razao_social: 'Zz', linhas_voz: 1, na_base: true, consultor_id: 'u-a', status_desde: '2026-11-08T12:00:00Z', dados_claro: {} }, o);
   currentUser = { id: 'u-a', nome: 'Zza Teste', role: 'consultor', operacao: 'apex', equipe: 'renovacao' };
   rnAplicarPermissao();
-  window.__tabelas.renovacao_carteira = [L({ id: 1, status: 3, razao_social: 'Zz Do A' }), L({ id: 2, status: 7, motivo_perda: 'Preço' }), L({ id: 3, status: 6, linhas_renovadas: 2 })];
+  window.__tabelas.renovacao_carteira = [L({ id: 1, status: 3, razao_social: 'Zz Do A' }), L({ id: 2, status: 8, motivo_perda: 'Preço' }), L({ id: 3, status: 6, linhas_renovadas: 2 })];
   window.__tabelas.propostas = []; window.__tabelas.renovacao_historico = [];
   await rnCarregar();
 
@@ -11,7 +11,7 @@ require('./renovacao_test_harness.js').rodar(`
   rnTrocarAba('kanban');
   eq(['1', '2', '3'].map(id => !!document.querySelector('#rnKanban [data-rn-card="' + id + '"] [data-rn-gerar]')), [true, false, false], 'cartão em 6/7 sem Gerar proposta');
   await rnAbrirFicha(2);
-  assert(!document.querySelector('#rnFichaCorpo [data-rn-gerar]') && /Reabra o status/.test(document.getElementById('rnFichaCorpo').textContent), 'ficha de perdido explica como gerar');
+  assert(!document.querySelector('#rnFichaCorpo [data-rn-gerar]') && /Reabra a etapa/.test(document.getElementById('rnFichaCorpo').textContent), 'ficha de perdido explica como gerar');
   let aviso = null; const avisoOrig = mostrarAviso; mostrarAviso = (m, t) => { aviso = [m, t]; };
   const chamadas = []; const openOrig = openProposal; openProposal = (c, o) => chamadas.push(o);
   await rnGerarProposta(2);

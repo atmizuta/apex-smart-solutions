@@ -16,8 +16,8 @@ require('./renovacao_test_harness.js').rodar(`
   eq(rnEstado.fichaId, 1, 'começa no mais atrasado (A)');
 
   // ==== Não atendeu num atrasado sugere amanhã na mesma hora ====
-  bt(2).click();
-  eq([form().elements.prox_retorno.value, form().elements.retorno_hora.value], ['2026-11-14', '16:00'], 'Não atendeu em cliente atrasado sugere amanhã');
+  bt(1).click();
+  eq([form().elements.prox_retorno.value, form().elements.retorno_hora.value], ['2026-11-14', '16:00'], 'Tentativa em cliente atrasado sugere amanhã');
 
   // ==== Salvar e próximo segue a ordem que estava na tela ====
   bt(5).click(); form().elements.prox_retorno.value = '2026-11-13'; form().elements.retorno_hora.value = '15:00';
