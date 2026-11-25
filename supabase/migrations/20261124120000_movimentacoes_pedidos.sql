@@ -200,7 +200,9 @@ begin
            m.saiu_em is null and m.etapa not ilike 'VENDA PERDIDA%' and m.etapa <> 'CONCLUIDO'
              and not exists (select 1 from public.pedido_movimentacoes m2 where m2.pedido_id = m.pedido_id and m2.entrou_em > m.entrou_em) parado
       from public.pedido_movimentacoes m left join public.mp_pedidos() o on o.numero_pedido = m.numero_pedido
-     where v_esc = 'todas' or coalesce(o.operacao, 'apex') = v_esc
+     -- só o período e as passagens abertas (índices de entrou_em e pedido_mov_abertas); sem isso varre a tabela toda
+     where ((m.entrou_em >= v_ini and m.entrou_em < v_fim) or m.saiu_em is null)
+       and (v_esc = 'todas' or coalesce(o.operacao, 'apex') = v_esc)
   ), f as (select * from p where p_consultor is null or cons = p_consultor),
   per as (
     select etapa, count(*) passagens,
@@ -263,7 +265,7 @@ begin
       when x.ant_etapa = 'DEVOLVIDO' and coalesce(x.ant_por, '') <> coalesce(x.cons_neo, '') then 'devolvido'
       when x.status is not null and exists (select 1 from public.vp_motivo_equivalencia e
              where e.vp_categoria = x.categoria and x.status ilike '%' || e.trecho_status || '%') then 'confere'
-      when x.status is not null and exists (select 1 from public.vp_motivo_equivalencia e
+      when x.status is not null and x.categoria is not null and exists (select 1 from public.vp_motivo_equivalencia e
              where e.vp_categoria is distinct from x.categoria and x.status ilike '%' || e.trecho_status || '%') then 'diferente'
       else 'sem' end selo
       from x

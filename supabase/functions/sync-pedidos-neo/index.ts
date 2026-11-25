@@ -37,8 +37,10 @@ Deno.serve(async (req) => {
   const token = Deno.env.get("NEO_PEDIDOS_TOKEN") ?? "";
   const admin = createClient(env("SUPABASE_URL"), env("SUPABASE_SERVICE_ROLE_KEY"));
 
-  const { data: ult } = await admin.from("neo_pedidos_sync_log").select("janela_fim")
+  const { data: ult, error: eUlt } = await admin.from("neo_pedidos_sync_log").select("janela_fim")
     .eq("api", api).eq("ok", true).order("janela_fim", { ascending: false }).limit(1).maybeSingle();
+  // sem a última janela não dá para saber de onde seguir: cair no "última 1 h" pularia dados para sempre
+  if (eUlt) return json({ ok: false, erro: "não foi possível ler o log da sincronização" }, 500);
   const janela = proximaJanela(api, ult?.janela_fim ? Date.parse(ult.janela_fim as string) : null, Date.now());
   if (!janela) return json({ ok: true, nada: true }, 200);
 

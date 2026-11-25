@@ -105,12 +105,16 @@ insert into public.pedido_movimentacoes (pedido_id, numero_pedido, etapa_id, eta
   (99006, 'ZZM6', 2, 'CREDITO',       '2026-11-20 09:00-03', '2026-11-20 10:00-03', 'ZZ CONS A', 'ZZ CONS A'),
   (99006, 'ZZM6', 4, 'VENDA PERDIDA', '2026-11-20 10:00-03', null,                  'ZZ CONS A', 'ZZ CONS A'),
   (99007, 'ZZM7', 2, 'CREDITO',       '2026-11-20 09:00-03', '2026-11-20 10:00-03', 'ZZ CONS A', 'ZZ CONS A'),
-  (99007, 'ZZM7', 4, 'VENDA PERDIDA', '2026-11-20 10:00-03', null,                  'ZZ CONS A', 'ZZ CONS A');
+  (99007, 'ZZM7', 4, 'VENDA PERDIDA', '2026-11-20 10:00-03', null,                  'ZZ CONS A', 'ZZ CONS A'),
+  -- ZZM8: BKO reprovou, mas o consultor não deu categoria → ❔ (não ⚠️; revisão final)
+  (99008, 'ZZM8', 2, 'CREDITO',       '2026-11-20 09:00-03', '2026-11-20 10:00-03', 'ZZ CONS A', 'ZZ CONS A'),
+  (99008, 'ZZM8', 4, 'VENDA PERDIDA', '2026-11-20 10:00-03', null,                  'ZZ CONS A', 'ZZ CONS A');
 insert into public.pedido_anotacoes (numero_pedido, atualizado_em_neo, texto, tipo, status, vp_categoria) values
   ('ZZM6', '2026-11-20 09:30-03', 'Status: CONSULTA NÃO APROVADA', 'bko_status', 'CONSULTA NÃO APROVADA', null),
   ('ZZM6', '2026-11-20 10:00-03', '(Venda Perdida) Categoria Inserido Restrição de Crédito', 'venda_perdida', null, 'Restrição de Crédito'),
   ('ZZM7', '2026-11-20 09:30-03', 'Status: CONSULTA NÃO APROVADA', 'bko_status', 'CONSULTA NÃO APROVADA', null),
-  ('ZZM7', '2026-11-20 10:00-03', '(Venda Perdida) Categoria Inserido Não responde', 'venda_perdida', null, 'Não responde');
+  ('ZZM7', '2026-11-20 10:00-03', '(Venda Perdida) Categoria Inserido Não responde', 'venda_perdida', null, 'Não responde'),
+  ('ZZM8', '2026-11-20 09:30-03', 'Status: CONSULTA NÃO APROVADA', 'bko_status', 'CONSULTA NÃO APROVADA', null);
 
 do $$ declare j jsonb; s jsonb; begin
   execute 'set local role authenticated';
@@ -118,7 +122,7 @@ do $$ declare j jsonb; s jsonb; begin
   perform set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-00000000dd02', 'role', 'authenticated')::text, true);
   j := public.vendas_perdidas_auditoria(date '2026-11-20', date '2026-11-20');
   select jsonb_object_agg(e->>'numero', e->>'selo') into s from jsonb_array_elements(j->'pedidos') e where e->>'numero' like 'ZZM%';
-  assert s = '{"ZZM1":"devolvido","ZZM4":"sem","ZZM5":"saiu","ZZM6":"confere","ZZM7":"diferente"}'::jsonb, 'selos: ' || s::text;
+  assert s = '{"ZZM1":"devolvido","ZZM4":"sem","ZZM5":"saiu","ZZM6":"confere","ZZM7":"diferente","ZZM8":"sem"}'::jsonb, 'selos: ' || s::text;
   assert (select e->>'categoria' from jsonb_array_elements(j->'pedidos') e where e->>'numero' = 'ZZM1') = 'Restrição de Crédito', 'categoria vem do diário';
   perform public.venda_perdida_definir_motivo('ZZM7', 'Restrição de Crédito', 'BKO reprovou');
   assert (public.pedido_linha_do_tempo('ZZM7')->'motivo_real'->>'motivo') = 'Restrição de Crédito', 'motivo real gravado';
