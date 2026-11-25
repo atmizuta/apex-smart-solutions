@@ -795,7 +795,7 @@
 <style id="kbStyles">
   /* Meus leads — Kanban (§112; visual refeito em 26/10 à noite a pedido do Rafael). Só tokens do design, nenhuma cor fixa. */
   /* §126 (redesign 28/10, pedido do Rafael): tokens da aba. Hex novo só em --ml-ink-2 e --ml-surface-2; o resto reaproveita o sistema. */
-  #prospecOverlay,#panel-meusleads,#kbFicha,#kbPassar,#panel-renovacao,#rnFicha,#panel-socios{--ml-ink:var(--c-grafite);--ml-ink-2:#464A4E;--ml-ink-3:var(--c-cinza);--ml-ground:var(--c-papel);--ml-surface:var(--c-branco);--ml-surface-2:#F7F7F8;--ml-surface-3:var(--c-cinza-claro);--ml-late:var(--c-sinal-600);--ml-late-soft:var(--st-perdido-bg);--ml-soon:var(--st-andamento);--ml-soon-soft:var(--st-andamento-bg);--ml-ok:var(--st-ganho);--ml-ok-soft:var(--st-ganho-bg);--ml-novo:var(--c-sinal);--ml-novo-soft:var(--c-rosa);--ml-float:0 12px 32px rgba(29,31,32,.16);}
+  #prospecOverlay,#panel-meusleads,#kbFicha,#kbPassar,#panel-renovacao,#rnFicha,#panel-socios,#panel-movpedidos,#mpFicha{--ml-ink:var(--c-grafite);--ml-ink-2:#464A4E;--ml-ink-3:var(--c-cinza);--ml-ground:var(--c-papel);--ml-surface:var(--c-branco);--ml-surface-2:#F7F7F8;--ml-surface-3:var(--c-cinza-claro);--ml-late:var(--c-sinal-600);--ml-late-soft:var(--st-perdido-bg);--ml-soon:var(--st-andamento);--ml-soon-soft:var(--st-andamento-bg);--ml-ok:var(--st-ganho);--ml-ok-soft:var(--st-ganho-bg);--ml-novo:var(--c-sinal);--ml-novo-soft:var(--c-rosa);--ml-float:0 12px 32px rgba(29,31,32,.16);}
   /* §126: botões planos de 8 px (decididos uma vez), controle segmentado, marcadores e contadores */
   .kbBtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 14px;border:0;border-radius:var(--radius-lg);font:inherit;font-size:var(--fs-base);font-weight:600;line-height:1;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background var(--dur-fast) var(--ease-out),color var(--dur-fast),transform var(--dur-fast);}
   .kbBtn:active{transform:translateY(1px);}
@@ -1100,6 +1100,18 @@
   #panel-socios .rnSocRodape{padding-top:var(--space-3);border-top:1px solid var(--c-linha);margin-top:var(--space-4);}
   #panel-socios .rnSocRodape .kbMeta{margin:0;}
   #panel-socios .rnVazio{padding:var(--space-5) var(--space-4);}
+  /* §166 Movimentações dos pedidos */
+  .mpTopo,.mpFiltros{display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;margin-bottom:var(--space-3);}
+  .mpAtualizado{margin-left:auto;font-size:var(--fs-sm);color:var(--muted);}
+  .mpAtualizado.mpAtrasado{color:var(--st-perdido);font-weight:600;}
+  .mpFeed{list-style:none;margin:0;padding:0;}
+  .mpFeed li{display:flex;gap:var(--space-3);padding:var(--space-2) 0;border-bottom:1px solid var(--c-linha);font-size:var(--fs-sm);}
+  .mpFeed .mpHora{flex:0 0 92px;color:var(--muted);font-variant-numeric:tabular-nums;}
+  .mpAlerta{color:var(--st-perdido);font-weight:600;}
+  #mpFicha .kbFichaCorpo{padding:var(--space-4);overflow-y:auto;gap:var(--space-3);}
+  .mpBarra{display:flex;height:12px;border-radius:999px;overflow:hidden;background:var(--ml-surface-3);}
+  .mpBarra i{display:block;height:100%;background:var(--ml-ink-3);border-right:1px solid var(--ml-surface);}
+  .mpBarra i.fora{background:var(--st-perdido);}
   .scHist{position:sticky;top:var(--space-4);padding:var(--space-4);}
   .scHist h3{padding:0 var(--space-2);}
   #scLista{display:flex;flex-direction:column;gap:2px;margin-top:var(--space-2);max-height:calc(100vh - 220px);overflow-y:auto;}
@@ -1780,6 +1792,8 @@
       <button data-tab="boletim" id="tabBtnBoletim" style="display:none" data-sub="Resumo do dia anterior para a supervisão"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3"/><path d="m5.6 6.6 1.4 1.4"/><path d="m18.4 6.6-1.4 1.4"/><path d="M3 14h2"/><path d="M19 14h2"/><path d="M7 14a5 5 0 0 1 10 0"/><path d="M3 18h18"/><path d="M8 21h8"/></svg><span class="sbLabel">Boletim da Manhã</span></button>
       <!-- 15/10/2026, seção 87: Discador automático do ProContact — admin/supervisor -->
       <button data-tab="discador" id="tabBtnDiscador" style="display:none" data-sub="Ritmo, consultores e mailing do discador automático"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/><path d="M15 3v6h6"/></svg><span class="sbLabel">Discador</span></button>
+      <!-- §166: Movimentações dos pedidos (APIs da Xeotech) — admin/supervisor; supervisor vê só a operação dele -->
+      <button data-tab="movpedidos" id="tabBtnMovPedidos" style="display:none" data-sub="Movimentações no NEO, tempo por etapa e vendas perdidas"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg><span class="sbLabel">Movimentações</span></button>
       <!-- 20/10/2026, seção 102: Base de Mailing — admin/supervisor -->
       <button data-tab="mailing" id="tabBtnMailing" style="display:none" data-sub="Filtrar e exportar mailing no layout do ProContact"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v12H4z"/><path d="M4 7l8 6 8-6"/></svg><span class="sbLabel">Mailing</span></button>
       <button data-tab="conversao" id="tabBtnConversao" style="display:none" data-sub="Leads das campanhas e conversão em vendas"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg><span class="sbLabel">Digital</span></button>
@@ -1978,6 +1992,18 @@
       <aside class="kbFicha" id="rnFicha" aria-label="Ficha do cliente"><div class="kbFichaCorpo" id="rnFichaCorpo"></div></aside>
     </section>
     <!-- FUNIL DE VENDAS (kanban — todos os perfis) -->
+    <!-- §166 Movimentações dos pedidos: Feed do dia / Tempo por etapa / Vendas perdidas -->
+    <section class="panel" id="panel-movpedidos">
+      <div class="mpTopo">
+        <button type="button" class="filterPill active" data-mp-sub="feed">Feed do dia</button>
+        <button type="button" class="filterPill" data-mp-sub="tempo">Tempo por etapa</button>
+        <button type="button" class="filterPill" data-mp-sub="vp">Vendas perdidas</button>
+        <span class="mpAtualizado" id="mpAtualizado"></span>
+      </div>
+      <div class="mpFiltros" id="mpFiltros"></div>
+      <div id="mpConteudo"></div>
+    </section>
+    <aside class="kbFicha" id="mpFicha" aria-label="Linha do tempo do pedido"><div class="kbFichaCorpo" id="mpFichaCorpo"></div></aside>
     <!-- §157 Consultar sócios (campo livre) -->
     <!-- 18/11 layout refeito: busca + resultado à esquerda, "Minhas consultas" fixa à direita (uma coluna no celular) -->
     <section class="panel" id="panel-socios">
@@ -3791,6 +3817,7 @@ function enterApp(){
     // 07/11/2026 (seção 143): Renovação — time de renovação + admin/supervisor da Apex; carrega já no login por causa do selo
     rnAplicarPermissao();
     scAplicarPermissao(); // §157 Consultar sócios (operação Apex, fora o time da Renovação)
+    mpAplicarPermissao(); // §166 Movimentações (admin/supervisor)
     if(rnPodeVer()) rnCarregar().catch(err => console.error(err));
     // 06/10/2026 (seção 72): Caderno + Agenda + Objeções — botão do Caderno, rascunho, biblioteca e alertas
     cadernoAoEntrar();
@@ -4047,6 +4074,7 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
   if(btn.dataset.tab === 'mailing') mbCarregar();
   if(btn.dataset.tab === 'agenda') loadAgenda();
   if(btn.dataset.tab === 'socios') scAbrir(); else scParar(); // §157
+  if(btn.dataset.tab === 'movpedidos') mpAbrir(); else mpParar(); // §166
   if(btn.dataset.tab === 'renovacao'){ if(rnEstado.carregado && Date.now() - rnEstado.carregadoEm < 120000) rnRender(); else rnCarregar(); }
   if(btn.dataset.tab === 'proposta') rnMoverProposta(false);   // §143.2: o formulário pode estar na subaba da Renovação
   if(btn.dataset.tab === 'anotacoes') loadAnotacoes();
@@ -5098,6 +5126,89 @@ function canSocios(){ return !!currentUser && ['consultor', 'supervisor', 'admin
 function scParar(){ if(scEstado.timer){ clearTimeout(scEstado.timer); scEstado.timer = null; } }
 function scAvisar(t){ const el = document.getElementById('scAviso'); if(el) el.textContent = t || ''; }
 function scVisivel(){ const p = document.getElementById('panel-socios'); return !!p && p.classList.contains('active'); }
+/* ============ §166 MOVIMENTAÇÕES DOS PEDIDOS ============
+   Aba (admin/supervisor; o banco filtra a operação do supervisor) + gaveta "Linha do tempo do pedido" (também para o
+   consultor, só pedidos dele). Tudo vem das RPCs movimentacoes_* / pedido_linha_do_tempo; o navegador nunca chama o NEO. */
+const mpEstado = { sub: 'feed', dia: null, de: null, ate: null, consultor: '', etapa: '', tipo: '', selo: '', timer: null, geracao: 0, dados: null, fichaNumero: null, ficha: null };
+const MP_ICONE = { bko_status: '🔵', etapa: '⚪', venda_perdida: '🟠', livre: '✎' };
+const MP_TIPO = { '': 'Todos os tipos', etapa: 'Mudança de etapa', bko_status: 'Anotação da BKO', venda_perdida: 'Venda perdida', livre: 'Outras anotações' };
+const MP_SELO = { saiu: '↩️ Saiu da VP', devolvido: '🔁 Devolvido e perdido', confere: '✅ Confere', diferente: '⚠️ Motivo diferente', sem: '❔ Sem como conferir' };
+function mpPodeAba(){ return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'supervisor'); }
+function mpAplicarPermissao(){
+  mpParar(); mpEstado.geracao++; mpEstado.dados = null;
+  if(typeof mpFecharPedido === 'function') mpFecharPedido();
+  const b = document.getElementById('tabBtnMovPedidos'); if(b) b.style.display = mpPodeAba() ? 'inline-block' : 'none';
+  const c = document.getElementById('mpConteudo'); if(c) c.innerHTML = '';
+}
+function mpParar(){ clearInterval(mpEstado.timer); mpEstado.timer = null; }
+function mpHora(iso){ return iso ? new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'; }
+function mpDuracao(h){
+  if(h == null || !isFinite(h)) return '—';
+  if(h < 1) return Math.max(1, Math.round(h * 60)) + ' min';
+  if(h < 24) return Math.round(h) + ' h';
+  const d = Math.floor(h / 24); return d + ' d ' + Math.round(h - d * 24) + ' h';
+}
+function mpHoras(a, b){ return ((b ? new Date(b) : new Date()) - new Date(a)) / 3600000; }
+function mpLinkPedido(n){ return `<a href="#" data-mp-pedido="${escapeHtml(n)}">${escapeHtml(n)}</a>`; }
+function mpOpcoes(lista, atual, rotuloTodos){
+  return `<option value="">${escapeHtml(rotuloTodos)}</option>` + (lista || []).map(v => `<option value="${escapeHtml(v)}"${v === atual ? ' selected' : ''}>${escapeHtml(v)}</option>`).join('');
+}
+async function mpAbrir(){
+  if(!mpEstado.dia){ mpEstado.dia = hojeSP(); mpEstado.ate = hojeSP(); mpEstado.de = somaDiasStr(hojeSP(), -30); }
+  mpParar(); await mpCarregar();
+  mpEstado.timer = setInterval(() => { if(mpEstado.sub === 'feed') mpCarregar(); }, 300000);
+}
+async function mpCarregar(){
+  const g = ++mpEstado.geracao, el = document.getElementById('mpConteudo'), s = mpEstado.sub;
+  document.querySelectorAll('#panel-movpedidos [data-mp-sub]').forEach(b => b.classList.toggle('active', b.dataset.mpSub === s));
+  if(!mpEstado.dados) el.innerHTML = '<p class="kbMeta">Carregando…</p>';
+  const r = await ppSeguro(() => s === 'feed'
+    ? sb.rpc('movimentacoes_feed', { p_dia: mpEstado.dia, p_consultor: mpEstado.consultor || null, p_etapa: mpEstado.etapa || null, p_tipo: mpEstado.tipo || null })
+    : s === 'tempo'
+      ? sb.rpc('movimentacoes_tempo_etapa', { p_de: mpEstado.de, p_ate: mpEstado.ate, p_consultor: mpEstado.consultor || null })
+      : sb.rpc('vendas_perdidas_auditoria', { p_de: mpEstado.de, p_ate: mpEstado.ate }));
+  if(g !== mpEstado.geracao) return;
+  if(r.error || !r.data){ el.innerHTML = `<p class="rnErro">Não foi possível carregar: ${escapeHtml((r.error && r.error.message) || 'sem resposta')}</p>`; return; }
+  mpEstado.dados = r.data;
+  if(s === 'feed') mpPintarFeed(r.data); else if(s === 'tempo') mpPintarTempo(r.data); else mpPintarVP(r.data);
+}
+function mpPintarFeed(d){
+  const at = document.getElementById('mpAtualizado');
+  at.textContent = d.atualizado_em ? 'Atualizado às ' + mpHora(d.atualizado_em) : 'Ainda sem sincronização';
+  at.classList.toggle('mpAtrasado', !d.atualizado_em || Date.now() - new Date(d.atualizado_em) > 30 * 60000);
+  document.getElementById('mpFiltros').innerHTML =
+    `<input type="date" class="rnSel" data-mp-filtro="dia" value="${escapeHtml(mpEstado.dia)}">`
+    + `<select class="rnSel" data-mp-filtro="consultor">${mpOpcoes(d.consultores, mpEstado.consultor, 'Todos os consultores')}</select>`
+    + `<select class="rnSel" data-mp-filtro="etapa">${mpOpcoes(d.etapas, mpEstado.etapa, 'Todas as etapas')}</select>`
+    + `<select class="rnSel" data-mp-filtro="tipo">${Object.entries(MP_TIPO).map(([v, t]) => `<option value="${v}"${v === mpEstado.tipo ? ' selected' : ''}>${t}</option>`).join('')}</select>`;
+  const k = d.kpis || {};
+  const kpis = `<div class="kpiGrid"><div class="kpiCard"><b class="rnN">${k.movimentacoes || 0}</b><span>Movimentações</span></div>`
+    + `<div class="kpiCard"><b class="rnN">${k.anotacoes_bko || 0}</b><span>Anotações da BKO</span></div>`
+    + `<div class="kpiCard"><b class="rnN">${k.entradas_vp || 0}</b><span>Entradas em Venda Perdida</span></div></div>`;
+  const linha = (e) => {
+    const o = e.tipo === 'etapa' ? `→ ${escapeHtml(e.etapa || '')}${e.quem ? ' · por ' + escapeHtml(e.quem) : ''}`
+      : e.tipo === 'bko_status' ? `<b>${escapeHtml(e.status || '')}</b>${e.descricao ? ' · ' + escapeHtml(e.descricao) : ''}`
+      : e.tipo === 'venda_perdida' ? `Venda Perdida${e.vp_categoria ? ' · "' + escapeHtml(e.vp_categoria) + '"' : ''}`
+      : escapeHtml(e.etapa || '');
+    const icone = e.tipo === 'etapa' && /^VENDA PERDIDA/i.test(e.etapa || '') ? MP_ICONE.venda_perdida : (MP_ICONE[e.tipo] || '');
+    return `<li><span class="mpHora">${mpHora(e.em)}</span><span>${icone} ${mpLinkPedido(e.numero)} · ${escapeHtml(e.cliente || '')} · ${escapeHtml(e.consultor || '')} · ${o}</span></li>`;
+  };
+  const itens = d.itens || [];
+  document.getElementById('mpConteudo').innerHTML = kpis
+    + (itens.length ? `<ul class="mpFeed">${itens.map(linha).join('')}</ul>` : '<p class="rnVazio">Nada neste dia com esses filtros.</p>');
+}
+document.addEventListener('change', (ev) => {
+  const f = ev.target.closest && ev.target.closest('#mpFiltros [data-mp-filtro]');
+  if(!f) return;
+  mpEstado[f.dataset.mpFiltro] = f.value; mpEstado.dados = null; mpCarregar();
+});
+document.addEventListener('click', (ev) => {
+  const sub = ev.target.closest && ev.target.closest('#panel-movpedidos [data-mp-sub]');
+  if(sub){ mpEstado.sub = sub.dataset.mpSub; mpEstado.consultor = ''; mpEstado.etapa = ''; mpEstado.tipo = ''; mpEstado.selo = ''; mpEstado.dados = null; mpCarregar(); return; }
+  const ped = ev.target.closest && ev.target.closest('[data-mp-pedido]');
+  if(ped){ ev.preventDefault(); if(typeof mpAbrirPedido === 'function') mpAbrirPedido(ped.dataset.mpPedido); }
+});
+
 function scAplicarPermissao(){
   scParar(); scEstado.atual = null; scEstado.lista = []; scEstado.geracao++;
   const b = document.getElementById('tabBtnSocios'); if(b) b.style.display = canSocios() ? 'inline-block' : 'none';

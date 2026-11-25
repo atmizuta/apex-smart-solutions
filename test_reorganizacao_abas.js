@@ -95,7 +95,8 @@ try{
   // NOTA (15/10/2026): incluída "discador" (aba Discador, só admin/supervisor), no grupo Visão geral logo depois de "boletim" (seção 87).
   // NOTA (20/10/2026): incluída "mailing" (Base de Mailing, só admin/supervisor), logo depois de "discador" (seção 102).
   // NOTA (12/11/2026): incluída "tvvendas" (TV Vendas, só admin/supervisor da Apex), logo depois de "conversao" (§149).
-  const ordemEsperada = ['producao','mesa','boletim','discador','mailing','conversao','tvvendas','meusleads','renovacao','busca','proposta','funil','socios','pedidosparados','agenda','anotacoes','biometria','config','basedados','movimentacao','consultores','fechamento'];
+  // NOTA (25/11/2026): incluída "movpedidos" (Movimentações dos pedidos, só admin/supervisor), logo depois de "discador" (§166).
+  const ordemEsperada = ['producao','mesa','boletim','discador','movpedidos','mailing','conversao','tvvendas','meusleads','renovacao','busca','proposta','funil','socios','pedidosparados','agenda','anotacoes','biometria','config','basedados','movimentacao','consultores','fechamento'];
   assert(botoes.map(b => b.dataset.tab).join(',') === ordemEsperada.join(','), 'ordem das abas no menu segue: ' + ordemEsperada.join(', ') + ' (atual: ' + botoes.map(b => b.dataset.tab).join(',') + ')');
   const rotulos = { producao: 'Dashboard', conversao: 'Digital', busca: 'Buscar Clientes', proposta: 'Gerar Proposta', funil: 'Funil', basedados: 'Upload Base', movimentacao: 'Upload Dash', consultores: 'Usuários' };
   Object.entries(rotulos).forEach(([tab, rotulo]) => {

@@ -81,7 +81,7 @@ require('./renovacao_test_harness.js').rodar(`
   assert(!scEstado.atual && res().innerHTML === '', 'trocar de usuário limpa');
   // layout 18/11: cores da Renovação valem na aba, cartão de resultado com selo, sócios em grade, lista com selo e marcada
   const css = [...document.querySelectorAll('style')].map(x => x.textContent).join(' ');
-  assert(/#rnFicha,#panel-socios\\{--ml-ink/.test(css), 'tokens --ml-* valem na aba');
+  assert(/#rnFicha,#panel-socios[^{]*\\{--ml-ink/.test(css), 'tokens --ml-* valem na aba'); // §166 acrescenta seletores depois
   window.__tabelas.socios_consultas = [linha({ id: 90, status: 'pronto', concluido_em: '2026-11-10T13:00:00Z', resultado: RES })];
   await scCarregarLista(); await scAbrirPedido(90); await espera(20);
   assert(res().querySelector('.card.scRes .scResTopo .badge.apto'), 'selo Pronto no cartão');

@@ -1,7 +1,7 @@
 // Testa a §151 — base do redesign da Renovação: subabas, hora do retorno, selo. DADOS FICTÍCIOS.
 require('./renovacao_test_harness.js').rodar(`
   const css = [...document.querySelectorAll('style')].map(s => s.textContent).join(' ');
-  assert(/#panel-meusleads,#kbFicha,#kbPassar,#panel-renovacao,#rnFicha,#panel-socios\\{--ml-ink/.test(css), 'tokens do §126 valem na Renovação');
+  assert(/#panel-meusleads,#kbFicha,#kbPassar,#panel-renovacao,#rnFicha,#panel-socios,#panel-movpedidos,#mpFicha\\{--ml-ink/.test(css), 'tokens do §126 valem na Renovação');
   eq([...document.querySelectorAll('#rnAbas [data-rn-aba]')].map(b => [b.dataset.rnAba, b.childNodes[0].textContent.trim()]),
      [['hoje', 'Hoje'], ['carteira', 'Carteira'], ['kanban', 'Funil'], ['resumo', 'Resumo'], ['proposta', 'Proposta e fatura']], 'subabas na ordem');
   assert(!document.getElementById('rnRetornos'), 'Retornos deixou de ser subaba');
