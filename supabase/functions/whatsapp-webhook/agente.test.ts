@@ -232,3 +232,25 @@ test("resposta só com ferramenta e sem texto: não envia e adia", async () => {
   assert.equal(await atender("c1", d), "sem_texto");
   assert.equal(log.adiados, 1);
 });
+
+test("revisão I1: depois do aviso fixo de falha, o tick tenta de novo e o aviso não vai para o Claude", async () => {
+  const { d, log } = montar({ ctx: { mensagens: [msg("w1", "cliente", "Oi"), msg("w2", "agente", "Tive um problema…", { formato: "aviso" })] } });
+  assert.equal(await atender("c1", d), "respondeu");
+  const p = log.pedidos[0] as { messages: { role: string }[] };
+  assert.equal(p.messages.filter((m) => m.role === "assistant").length, 0);
+});
+
+test("revisão I4: aviso da Equipe que falha não impede o adiar", async () => {
+  const { d, log } = montar({ roteiro: [new Error("529"), new Error("529")] });
+  d.aviso = async () => { throw new Error("rpc fora"); };
+  assert.equal(await atender("c1", d), "falha");
+  assert.equal(log.adiados, 1);
+});
+
+test("revisão I4: erro inesperado no laço (banco) adia em vez de estourar", async () => {
+  const { d, log } = montar({ roteiro: [ferramenta("salvar_ficha", { campos: { nome: "Zz Teste" } }), texto("ok")] });
+  d.salvar = async () => { throw new Error("rpc wa_salvar caiu"); };
+  assert.equal(await atender("c1", d), "erro");
+  assert.equal(log.adiados, 1);
+  assert.equal(log.liberou, 1);
+});

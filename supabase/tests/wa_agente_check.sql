@@ -84,6 +84,34 @@ begin
   perform set_config('request.jwt.claims', json_build_object('sub', v_admin, 'role', 'authenticated')::text, true);
   if public.wa_ficha(v_aba, 'wa:zzcheck1') is null or not public.wa_pode_ver_documento('m/zzw20.jpg') then raise exception 'FALHOU 8f: gestor'; end if;
   ok := ok || '8';
+  -- 10. revisão I2: eco do agente chega ANTES do registro: volta a ser agente e não fica silenciado
+  update public.wa_conversas set silencio_ate = null where id = c;
+  perform public.wa_receber(jsonb_build_array(jsonb_build_object('tipo', 'eco', 'wamid', 'zzw4', 'telefone', '550000000001', 'formato', 'texto', 'texto', 'Oi de novo')));
+  perform public.wa_registrar_envio(c, 'zzw4', 'Oi de novo', 'texto');
+  if exists (select 1 from public.wa_conversas where id = c and silencio_ate > now()) or not exists (select 1 from public.wa_mensagens where wamid = 'zzw4' and autor = 'agente')
+    then raise exception 'FALHOU 10'; end if;
+  ok := ok || '10';
+  -- 11. revisão I4: 3 falhas seguidas viram precisa_humano com silêncio; resposta normal zera
+  update public.wa_conversas set falhas = 0, silencio_ate = null, estado = 'em_andamento' where id = c2;
+  perform public.wa_adiar(c2); perform public.wa_adiar(c2);
+  if exists (select 1 from public.wa_conversas where id = c2 and estado = 'precisa_humano') then raise exception 'FALHOU 11: cedo demais'; end if;
+  perform public.wa_adiar(c2);
+  if not exists (select 1 from public.wa_conversas where id = c2 and estado = 'precisa_humano' and falhas = 3 and silencio_ate > now()) then raise exception 'FALHOU 11b'; end if;
+  ok := ok || '11';
+  -- 12. revisão I6: extra de sábado (data fictícia 2030) — sex 22h aponta sáb 9h; sáb 17h aponta segunda no início da semana
+  update public.config set valor = (valor::jsonb || jsonb_build_object('extras', coalesce(valor::jsonb -> 'extras', '{}'::jsonb) || '{"2030-01-05":{"inicio":"09:00","fim":"16:00"}}'::jsonb))::text where chave = 'leads_distribuicao';
+  if public.wa_proximo_expediente('2030-01-04 22:00-03'::timestamptz) <> '2030-01-05 09:00-03'::timestamptz then raise exception 'FALHOU 12: %', public.wa_proximo_expediente('2030-01-04 22:00-03'::timestamptz); end if;
+  if public.wa_proximo_expediente('2030-01-05 17:00-03'::timestamptz) <> ('2030-01-07 ' || (public.leads_dist_cfg() -> 'expediente' ->> 'inicio') || '-03')::timestamptz
+    then raise exception 'FALHOU 12b: %', public.wa_proximo_expediente('2030-01-05 17:00-03'::timestamptz); end if;
+  ok := ok || '12';
+  -- 13. revisão C1: à noite, cliente que escreveu no expediente não entra no tick
+  if not v_exp then
+    update public.wa_conversas set silencio_ate = null, falhas = 0, falhou_em = null, trava_ate = null,
+           ultimo_cliente_em = public.wa_proximo_expediente(now() - interval '1 day') + interval '1 minute' where id = c2;
+    if public.leads_dist_no_expediente((select ultimo_cliente_em from public.wa_conversas where id = c2))
+       and (public.wa_tick() -> 'pendentes') ? c2::text then raise exception 'FALHOU 13'; end if;
+    ok := ok || '13';
+  end if;
   -- 9. tick e limpeza rodam sem erro
   v := public.wa_tick();
   if v ? 'pendentes' is false then raise exception 'FALHOU 9: %', v; end if;

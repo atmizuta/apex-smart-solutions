@@ -20,6 +20,7 @@ create table if not exists public.wa_conversas (
   silencio_ate timestamptz,
   trava_ate timestamptz,
   falhou_em timestamptz,
+  falhas int not null default 0,
   criada_em timestamptz not null default now(),
   atualizada_em timestamptz not null default now()
 );
@@ -108,6 +109,7 @@ begin
     v_conv := null; v_aba := null; v_id := null;
     v_tel := regexp_replace(coalesce(e ->> 'telefone', ''), '\D', '', 'g');
     continue when v_tel = '' or coalesce(e ->> 'wamid', '') = '';
+    perform pg_advisory_xact_lock(hashtext('wa:' || v_tel));   -- revisão I3: duas entregas do mesmo número nova não criam 2 conversas
     continue when exists (select 1 from public.wa_mensagens m where m.wamid = e ->> 'wamid');   -- reentrega da Meta
     -- conversa aberta deste telefone; nova quando a última está pronta/encerrada há mais de 24 h
     select cv.id into v_conv from public.wa_conversas cv
@@ -178,7 +180,13 @@ end $function$;
 create or replace function public.wa_liberar(p_conversa uuid) returns void language sql security definer set search_path to 'public'
 as $function$ update public.wa_conversas set trava_ate = null where id = p_conversa $function$;
 create or replace function public.wa_adiar(p_conversa uuid) returns void language sql security definer set search_path to 'public'
-as $function$ update public.wa_conversas set falhou_em = now() where id = p_conversa $function$;
+as $function$
+  -- revisão I4: 3 falhas seguidas passam para humano e silenciam até o expediente (sem laço de custo no fim de semana)
+  update public.wa_conversas set falhou_em = now(), falhas = falhas + 1,
+         estado = case when falhas + 1 >= 3 then 'precisa_humano' else estado end,
+         motivo_humano = case when falhas + 1 >= 3 then 'falhas repetidas do assistente' else motivo_humano end,
+         silencio_ate = case when falhas + 1 >= 3 then public.wa_proximo_expediente(now()) else silencio_ate end
+   where id = p_conversa $function$;
 create or replace function public.wa_avisou_falha(p_conversa uuid) returns void language sql security definer set search_path to 'public'
 as $function$ update public.wa_conversas set avisou_falha = true where id = p_conversa $function$;
 
@@ -221,13 +229,22 @@ end $function$;
 create or replace function public.wa_registrar_envio(p_conversa uuid, p_wamid text, p_texto text, p_formato text)
  returns void language plpgsql security definer set search_path to 'public'
 as $function$
+declare v_era text;
 begin
+  select m.autor into v_era from public.wa_mensagens m where m.wamid = p_wamid;
   insert into public.wa_mensagens (wamid, conversa_id, autor, formato, texto, em)
   values (p_wamid, p_conversa, 'agente', coalesce(p_formato, 'texto'), p_texto, now())
   on conflict (wamid) do update set autor = 'agente', formato = excluded.formato, texto = excluded.texto;
   update public.wa_conversas set ultimo_agente_em = now(), respostas_noite = respostas_noite + 1, atualizada_em = now(),
-         falhou_em = case when coalesce(p_formato, 'texto') = 'texto' then null else falhou_em end
+         falhou_em = case when coalesce(p_formato, 'texto') = 'texto' then null else falhou_em end,
+         falhas = case when coalesce(p_formato, 'texto') = 'texto' then 0 else falhas end
    where id = p_conversa;
+  -- revisão I2: o eco da Meta chegou antes e virou consultor: desfaz o silêncio que ele causou
+  if v_era = 'consultor' then
+    update public.wa_conversas set silencio_ate = null,
+           ultimo_consultor_em = (select max(m.em) from public.wa_mensagens m where m.conversa_id = p_conversa and m.autor = 'consultor')
+     where id = p_conversa;
+  end if;
 end $function$;
 
 -- Aviso na faixa da Equipe (mesma chave de config do §146).
@@ -245,7 +262,7 @@ declare v_exp boolean := public.leads_dist_no_expediente(now());
   v_av jsonb := coalesce((select valor::jsonb from public.config where chave = 'leads_distribuicao_aviso'), '{}'::jsonb);
 begin
   if v_exp then
-    update public.wa_conversas set respostas_noite = 0, avisou_falha = false where respostas_noite > 0 or avisou_falha;
+    update public.wa_conversas set respostas_noite = 0, avisou_falha = false, falhas = 0 where respostas_noite > 0 or avisou_falha or falhas > 0;
   end if;
   -- coexistência cai se o app do celular ficar ~14 dias sem abrir: 48 h sem mensagem nenhuma (cliente ou consultor) é sinal
   v_sem := v_modo <> 'desligado' and exists (select 1 from public.wa_mensagens)
@@ -257,6 +274,7 @@ begin
     select coalesce(jsonb_agg(x.id), '[]'::jsonb) into v_pend from (
       select c.id from public.wa_conversas c
        where c.ultimo_cliente_em > now() - interval '3 days'
+         and not public.leads_dist_no_expediente(c.ultimo_cliente_em)   -- revisão C1: mensagem do dia é do consultor, não do agente
          and (c.silencio_ate is null or c.silencio_ate < now())
          and (c.trava_ate is null or c.trava_ate < now())
          and (c.falhou_em is null or c.falhou_em < now() - interval '10 minutes')

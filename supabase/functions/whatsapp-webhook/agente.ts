@@ -109,6 +109,7 @@ function textoCliente(m: Msg, anexada: boolean): string {
 export function montarMensagens(ctx: Contexto, midias: Map<string, string>): { role: string; content: unknown }[] {
   const out: { role: string; content: unknown }[] = [];
   for (const m of ctx.mensagens) {
+    if (m.formato === "aviso") continue;   // aviso fixo de falha: não é conversa (e não pode fechar o histórico com assistant)
     if (m.autor === "cliente") {
       const partes: unknown[] = [];
       const b64 = midias.get(m.id);
@@ -151,15 +152,20 @@ async function enviarTexto(ctx: Contexto, d: DepsAgente, texto: string, formato:
     return true;
   } catch (e) {
     d.log(`envio falhou: ${(e as Error).message}`);
-    await d.aviso("wa_erro", { em: new Date(d.ms()).toISOString(), erro: "envio" });
     await d.adiar(ctx.conversa.id);
+    await avisar(d, "envio");
     return false;
   }
 }
 
+// adiar vem antes do aviso: se o aviso falhar, o tick não pode voltar a cada minuto
+async function avisar(d: DepsAgente, erro: string): Promise<void> {
+  try { await d.aviso("wa_erro", { em: new Date(d.ms()).toISOString(), erro }); } catch (e) { d.log(`aviso falhou: ${(e as Error).message}`); }
+}
+
 async function falhar(ctx: Contexto, d: DepsAgente, motivo: string): Promise<string> {
-  await d.aviso("wa_erro", { em: new Date(d.ms()).toISOString(), erro: motivo });
   await d.adiar(ctx.conversa.id);
+  await avisar(d, motivo);
   if (!ctx.conversa.avisou_falha) {
     const saiu = await enviarTexto(ctx, d, `Tive um problema para responder agora, mas sua mensagem está anotada. Um consultor fala com você ${ctx.proximo_expediente}.`, "aviso");
     if (saiu) await d.avisouFalha(ctx.conversa.id);
@@ -269,7 +275,7 @@ export async function atender(conversa: string, d: DepsAgente, esperado?: string
     if (!lista.includes(chaveTelefone(c.telefone))) return "fora_do_ensaio";
   }
   if (c.silenciosa) return "silencio";
-  const ultima = ctx.mensagens.at(-1);
+  const ultima = ctx.mensagens.filter((m) => m.formato !== "aviso").at(-1);   // mesma regra do wa_tick
   if (!ultima || ultima.autor !== "cliente") return "sem_mensagem_nova";
   if (esperado && ultima.id !== esperado) return "nova_mensagem";
   if (!(await d.travar(conversa))) return "travada";
@@ -280,6 +286,10 @@ export async function atender(conversa: string, d: DepsAgente, esperado?: string
       return "limite";
     }
     return await rodar(ctx, d, ultima.id);
+  } catch (e) {
+    d.log(`erro no atendimento: ${(e as Error).message}`);
+    await d.adiar(conversa).catch(() => null);
+    return "erro";
   } finally {
     await d.liberar(conversa);
   }

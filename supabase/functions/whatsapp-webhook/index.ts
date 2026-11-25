@@ -21,7 +21,7 @@ const EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "
 
 const env = (k: string) => Deno.env.get(k) ?? "";
 const sb = createClient(env("SUPABASE_URL"), env("SUPABASE_SERVICE_ROLE_KEY"), { auth: { persistSession: false } });
-const anthropic = new Anthropic({ apiKey: env("ANTHROPIC_API_KEY") });
+const anthropic = new Anthropic({ apiKey: env("ANTHROPIC_API_KEY"), timeout: 60_000, maxRetries: 1 })   // o agente já tenta de novo uma vez;
 const log = (m: string) => console.log(`whatsapp-webhook: ${m}`);
 const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -105,7 +105,7 @@ async function atenderSeguro(conversa: string, esperado?: string) {
 
 async function tick() {
   const t = await rpc<{ pendentes: string[] }>("wa_tick");
-  for (const c of t.pendentes ?? []) await atenderSeguro(c);
+  await Promise.all((t.pendentes ?? []).map((c) => atenderSeguro(c)));   // em paralelo: 5 em série estourariam o limite de tempo da função
 }
 
 async function limpar() {
@@ -129,7 +129,8 @@ Deno.serve(async (req) => {
     if (segredoCron !== null) {
       if (!(await rpc<boolean>("wa_cron_confere", { p_token: segredoCron }))) return new Response("não autorizado", { status: 401 });
       const { acao } = await req.json().catch(() => ({})) as { acao?: string };
-      if (acao === "tick") await tick();
+      const fazer = (p: Promise<unknown>) => typeof EdgeRuntime !== "undefined" ? EdgeRuntime.waitUntil(p) : p;
+      if (acao === "tick") await fazer(tick());   // responde 200 na hora; o pg_net desiste em 5 s
       else if (acao === "limpar") await limpar();
       else return new Response("ação desconhecida", { status: 400 });
       return new Response("ok");
