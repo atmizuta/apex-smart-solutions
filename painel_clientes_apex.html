@@ -5260,6 +5260,60 @@ document.addEventListener('click', (ev) => {
   const s = ev.target.closest && ev.target.closest('#mpConteudo [data-mp-selo]');
   if(s){ mpEstado.selo = s.dataset.mpSelo; if(mpEstado.dados) mpPintarVP(mpEstado.dados); }
 });
+async function mpAbrirPedido(numero){
+  numero = String(numero || '').trim(); if(!numero) return;
+  mpEstado.fichaNumero = numero; mpEstado.ficha = null;
+  document.getElementById('mpFicha').classList.add('aberta');
+  mpPintarPedido('Carregando…');
+  const r = await ppSeguro(() => sb.rpc('pedido_linha_do_tempo', { p_numero: numero }));
+  if(mpEstado.fichaNumero !== numero) return;
+  if(r.error || !r.data){ mpPintarPedido(r.error && /permiss/i.test(r.error.message || '') ? 'Você não tem permissão para ver este pedido (sem permissão).' : 'Não foi possível carregar o pedido.'); return; }
+  mpEstado.ficha = r.data; mpPintarPedido();
+}
+function mpFecharPedido(){ mpEstado.fichaNumero = null; mpEstado.ficha = null; const f = document.getElementById('mpFicha'); if(f) f.classList.remove('aberta'); }
+function mpPintarPedido(aviso){
+  const el = document.getElementById('mpFichaCorpo'), n = mpEstado.fichaNumero, d = mpEstado.ficha;
+  const topo = `<div class="mpTopo"><h3 style="margin:0">Pedido ${escapeHtml(n || '')}</h3><button type="button" class="btn btn-sm btn-outline" data-mp-fechar style="margin-left:auto">Fechar</button></div>`;
+  if(!d){ el.innerHTML = topo + `<p class="kbMeta">${escapeHtml(aviso || '')}</p>`; return; }
+  const c = d.cabecalho;
+  const cab = c ? `<p class="kbMeta">${escapeHtml(c.cliente || '')} · ${escapeHtml(c.consultor || '')} · ${fmtBRL(Number(c.valor) || 0)} · <b>${escapeHtml(c.etapa || '')}</b></p>` : '';
+  const ps = d.passagens || [];
+  const total = ps.reduce((s, p) => s + Math.max(mpHoras(p.entrou_em, p.saiu_em), 0), 0) || 1;
+  const barra = ps.length ? `<div class="mpBarra">${ps.map(p => { const h = Math.max(mpHoras(p.entrou_em, p.saiu_em), 0);
+    return `<i class="${p.sla_horas > 0 && h > p.sla_horas ? 'fora' : ''}" style="width:${(100 * h / total).toFixed(2)}%" title="${escapeHtml(p.etapa)} · ${mpDuracao(h)}"></i>`; }).join('')}</div>` : '';
+  const ev = ps.map(p => { const h = mpHoras(p.entrou_em, p.saiu_em), fora = p.sla_horas > 0 && h > p.sla_horas;
+      return { em: p.entrou_em, html: `${/^VENDA PERDIDA/i.test(p.etapa) ? MP_ICONE.venda_perdida : MP_ICONE.etapa} Entrou em <b>${escapeHtml(p.etapa)}</b>${p.entrou_por ? ' (por ' + escapeHtml(p.entrou_por) + ')' : ''} · ficou <span class="${fora ? 'mpAlerta' : ''}">${mpDuracao(h)}${p.saiu_em ? '' : ' até agora'}${fora ? ' ⚠ SLA ' + p.sla_horas + ' h' : ''}</span>${p.vp_categoria ? ' · "' + escapeHtml(p.vp_categoria) + '"' : ''}` }; })
+    .concat((d.anotacoes || []).map(a => ({ em: a.em, html: a.tipo === 'bko_status'
+      ? `${MP_ICONE.bko_status} BKO${a.autor_provavel ? ' · provável: ' + escapeHtml(a.autor_provavel) : ''}<br><b>${escapeHtml(a.status || '')}</b>${a.descricao ? '<br>' + escapeHtml(a.descricao) : ''}`
+      : a.tipo === 'venda_perdida' ? `${MP_ICONE.venda_perdida} Venda Perdida${a.vp_categoria ? ' · "' + escapeHtml(a.vp_categoria) + '"' : ''}`
+      : `${MP_ICONE.livre} ${escapeHtml(a.texto || '')}` })))
+    .sort((a, b) => new Date(b.em) - new Date(a.em));
+  const linha = ev.length ? `<ul class="mpFeed">${ev.map(e => `<li><span class="mpHora">${mpHora(e.em)}</span><span>${e.html}</span></li>`).join('')}</ul>`
+    : '<p class="rnVazio">Histórico começa em 01/09: este pedido ainda não tem movimentações guardadas.</p>';
+  let motivo = '';
+  if(d.pode_decidir){
+    const m = d.motivo_real;
+    motivo = `<div class="card"><h3>Motivo real</h3>${m ? `<p class="kbMeta">Definido: <b>${escapeHtml(m.motivo)}</b> por ${escapeHtml(m.por || '')} em ${mpHora(m.em)}${m.obs ? ' · ' + escapeHtml(m.obs) : ''}</p>` : ''}`
+      + `<select class="rnSel" id="mpMotivo">${mpOpcoes(d.categorias, m ? m.motivo : '', 'Escolha o motivo')}</select>`
+      + `<textarea class="rnSel" id="mpObs" rows="2" placeholder="Observação (opcional)" style="width:100%;height:auto;margin-top:8px">${escapeHtml((m && m.obs) || '')}</textarea>`
+      + '<button type="button" class="btn btn-sm" data-mp-salvar style="margin-top:8px">Salvar motivo real</button></div>';
+  }
+  el.innerHTML = topo + cab + barra + linha + motivo;
+}
+async function mpSalvarMotivo(){
+  const n = mpEstado.fichaNumero, motivo = (document.getElementById('mpMotivo') || {}).value || '';
+  if(!motivo){ mostrarAviso('Escolha o motivo real.', 'erro'); return; }
+  const r = await ppSeguro(() => sb.rpc('venda_perdida_definir_motivo', { p_numero: n, p_motivo: motivo, p_obs: (document.getElementById('mpObs') || {}).value || null }));
+  if(r.error){ mostrarAviso('Não foi possível salvar: ' + (r.error.message || ''), 'erro'); return; }
+  mostrarAviso('Motivo real salvo.', 'ok');
+  await mpAbrirPedido(n);
+  if(mpEstado.sub === 'vp' && document.getElementById('panel-movpedidos').classList.contains('active')) mpCarregar();
+}
+document.addEventListener('click', (ev) => {
+  if(ev.target.closest && ev.target.closest('[data-mp-fechar]')){ mpFecharPedido(); return; }
+  if(ev.target.closest && ev.target.closest('[data-mp-salvar]')) mpSalvarMotivo();
+});
+document.addEventListener('keydown', (ev) => { if(ev.key === 'Escape' && mpEstado.fichaNumero) mpFecharPedido(); });
 
 function scAplicarPermissao(){
   scParar(); scEstado.atual = null; scEstado.lista = []; scEstado.geracao++;

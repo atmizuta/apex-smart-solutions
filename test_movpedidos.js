@@ -64,6 +64,32 @@ require('./renovacao_test_harness.js').rodar(`
   clicar(q('#mpConteudo [data-mp-selo="devolvido"]')); await espera(10);
   eq(q('#mpConteudo').querySelectorAll('tbody tr[data-mp-linha]').length, 1, 'filtra pelo selo clicado');
   assert(/Devolvido e perdido/.test(q('#mpConteudo tbody tr[data-mp-linha]').textContent), 'linha do selo');
-  // (Task 9 acrescenta aqui)
+  // Task 9 — gaveta "Linha do tempo do pedido" e motivo real
+  window.__rpcRespostas.pedido_linha_do_tempo = (a) => a.p_numero === 'ZZM9'
+    ? { data: null, error: { message: 'sem permissão para ver este pedido', code: '42501' } }
+    : { data: { cabecalho: a.p_numero === 'ZZM3' ? null : { numero: 'ZZM1', cliente: 'ZZ CLIENTE', consultor: 'ZZ CONS A', valor: 100, etapa: 'VENDA PERDIDA (NEOCRM)' },
+      passagens: a.p_numero === 'ZZM3' ? [] : [
+        { etapa: 'CREDITO', entrou_em: '2026-11-20T12:00:00Z', saiu_em: '2026-11-20T23:00:00Z', entrou_por: 'ZZ CONS A', saiu_por: 'ZZ BKO', sla_horas: 8, texto: null, vp_categoria: null },
+        { etapa: 'VENDA PERDIDA', entrou_em: '2026-11-21T14:05:00Z', saiu_em: null, entrou_por: 'ZZ CONS A', saiu_por: null, sla_horas: null, texto: null, vp_categoria: null } ],
+      anotacoes: a.p_numero === 'ZZM3' ? [] : [{ em: '2026-11-20T22:51:00Z', tipo: 'bko_status', status: 'CONSULTA NÃO APROVADA', descricao: 'REPROVADO TESTE', vp_categoria: null, texto: 'x', autor_provavel: 'ZZ BKO' }],
+      motivo_real: null, pode_decidir: true, categorias: ['Não responde', 'Restrição de Crédito'] }, error: null };
+  window.__rpcRespostas.venda_perdida_definir_motivo = () => ({ data: { ok: true }, error: null });
+  clicar(q('#mpConteudo [data-mp-pedido="ZZM1"]')); await espera(40);
+  assert(q('#mpFicha').classList.contains('aberta'), 'abre a gaveta');
+  const f = q('#mpFichaCorpo').textContent;
+  assert(/ZZ CLIENTE/.test(f) && /provável: ZZ BKO/.test(f) && /CONSULTA NÃO APROVADA/.test(f) && /SLA 8 h/.test(f), 'cabeçalho, nota com autor provável e SLA estourado');
+  eq(q('#mpFichaCorpo .mpBarra').querySelectorAll('i.fora').length, 1, 'barra marca a etapa fora do SLA');
+  q('#mpMotivo').value = 'Restrição de Crédito'; q('#mpObs').value = 'BKO reprovou';
+  clicar(q('[data-mp-salvar]')); await espera(30);
+  eq(chamadas('venda_perdida_definir_motivo').at(-1).args, { p_numero: 'ZZM1', p_motivo: 'Restrição de Crédito', p_obs: 'BKO reprovou' }, 'salva o motivo real');
+  mpAbrirPedido('ZZM3'); await espera(30);
+  assert(/ZZM3/.test(q('#mpFichaCorpo').textContent) && /Histórico começa em 01/.test(q('#mpFichaCorpo').textContent), 'pedido sem histórico abre com o número e o aviso');
+  mpAbrirPedido('ZZM9'); await espera(30);
+  assert(/sem permissão/.test(q('#mpFichaCorpo').textContent), 'sem permissão avisa na gaveta');
+  clicar(q('[data-mp-fechar]')); await espera(10);
+  assert(!q('#mpFicha').classList.contains('aberta'), 'fecha');
+  currentUser = { id: 'u-c', nome: 'Zzc', role: 'consultor', operacao: 'apex', equipe: null };
+  mpAbrirPedido('ZZM1'); await espera(30);
+  assert(q('#mpFicha').classList.contains('aberta'), 'consultor também abre a gaveta (a RPC decide)');
   fim();
 `);
