@@ -5381,3 +5381,54 @@ pela consulta de sócios em lote, branch feat/socios-lote).
 - **Publicação (23/11/2026 19:02, ok do Rafael):** o ar era `48bc0177…` (igual ao oficial 1f47484); novo MD5
   `cb831d4c…`. Backup `~/deploy_backups/painel_clientes_apex_20261123_190244_antes_ranking.html`.
   Reverter: copiar o backup de volta.
+
+## §166 Movimentações dos pedidos: APIs Movimentação + Atualizações da Xeotech (24/11/2026, pedido do Rafael)
+
+- **Status:** implementado na branch `feat/movimentacoes-pedidos`, **não publicado** (migration, Edge Function, cron e
+  painel ainda não estão no ar).
+- **Objetivo:** (1) linha do tempo de cada pedido (etapas, quanto tempo em cada uma, anotações da BKO); (2) aba
+  **Movimentações** com Feed do dia, Tempo por etapa e Vendas perdidas; (3) auditoria das vendas perdidas com selo e
+  "motivo real".
+- **Dados (Supabase):**
+  - `pedido_movimentacoes` = o **filme**: uma linha por passagem em etapa, chave `(pedido_id, etapa_id, entrou_em)`;
+    passagem aberta tem `saiu_em` nulo e fecha no upsert seguinte.
+  - `pedido_anotacoes` = o **diário**: só cresce; chave única `(numero_pedido, atualizado_em_neo, md5(texto))` e só grava
+    se o texto for diferente da última nota guardada do pedido (a API repete a última nota quando o pedido é mexido
+    por outro motivo). `tipo` = `bko_status`, `venda_perdida` ou `livre`.
+  - `neo_pedidos_sync_log` (janelas de cada API), `vp_motivo_equivalencia` (status da BKO ↔ categoria do consultor;
+    hoje 1 linha: Restrição de Crédito ↔ NÃO APROVADA) e `venda_perdida_auditoria` (motivo real decidido).
+  - Nenhuma tabela nova guarda nome do cliente, CNPJ ou `complementos`. RLS ligado e **sem policy**: o painel lê só por
+    RPC `security definer` (`pedido_linha_do_tempo`, `movimentacoes_feed`, `movimentacoes_parados`,
+    `movimentacoes_tempo_etapa`, `vendas_perdidas_auditoria`, `venda_perdida_definir_motivo`).
+- **Sincronização:** Edge Function `sync-pedidos-neo` (token no secret `NEO_PEDIDOS_TOKEN`, nunca em log; chamada só
+  pelo cron com `x-cron-secret`). A janela termina 2 min antes de agora; janela máxima de 24 h (Atualizações) e 7 dias
+  (Movimentação); falha não avança a janela. Horários da API são de SP sem fuso (viram `-03:00`).
+- **Agenda (pg_cron):** Atualizações a cada 10 min das 08 às 22 h SP (`:03 … :53`) e 1x/h fora disso; Movimentação
+  `:08` e `:38`. Carga inicial desde 01/09 por uma linha "semente" no log (o cron anda 7 dias por execução, à noite).
+- **Quem vê:**
+
+  | Cargo | Aba Movimentações | Gaveta do pedido | Motivo real |
+  |---|---|---|---|
+  | admin | tudo | qualquer pedido | define |
+  | supervisor | só a operação dele (Apex ou Campinas) | pedidos da operação | define |
+  | consultor | não vê | só os pedidos dele | não |
+  | agência | não vê | não | não |
+
+  Operação do pedido = operação do consultor (`consultor_neo` → `profiles`); pedido sem consultor ligado conta como Apex.
+- **Selos da venda perdida** (nesta ordem): ↩️ saiu da VP › 🔁 devolvido e perdido (etapa anterior `DEVOLVIDO` e quem
+  devolveu não foi o consultor) › ✅ confere (status da BKO equivale ao motivo do consultor) › ⚠️ motivo diferente ›
+  ❔ sem como conferir. Alerta por consultor quando ⚠️ + 🔁 passam de 30%. O motivo do consultor vem da movimentação,
+  senão do diário, senão da `producao_atividades`.
+- **Decisões do plano:** "autor provável" de uma nota só quando houve passagem de etapa entre 10 min antes e 1 min
+  depois dela; "Parados agora" conta só a última passagem e ignora `CONCLUIDO` e `VENDA PERDIDA`; a aba usa
+  `data-tab="movpedidos"` (já existe `movimentacao` = Upload Dash).
+- **Limites:** o diário só existe a partir da entrada no ar (a Atualizações mostra só a última nota de cada pedido),
+  então VPs antigas ficam quase todas em ❔. Pedido à Xeotech: expor o log completo da movimentação.
+- **Dashboard:** em Pedidos em Alerta e Vendas Perdidas o número do pedido abre a gaveta.
+- **Arquivos:** `supabase/functions/sync-pedidos-neo/` (`pedidos.ts`, `index.ts`),
+  `supabase/migrations/20261124120000_movimentacoes_pedidos.sql` e `…120100_movimentacoes_pedidos_cron.sql`,
+  módulo `mp*` no `_template.html`.
+- **Testes:** `pedidos.test.ts` (`node --test`), `supabase/tests/movimentacoes_pedidos_check.sql` (dry-run com
+  rollback), `test_movpedidos.js` e um assert em `test_vendas_perdidas.js`.
+- **Desligar:** `select cron.unschedule(jobid) from cron.job where jobname like 'neo-pedidos-%';`
+- **Spec e plano:** `docs/superpowers/{specs,plans}/2026-11-24-movimentacoes-pedidos*`.
