@@ -2325,7 +2325,9 @@ Nada desta tarefa é feito por subagente. Cada passo começa mostrando ao Rafael
 
 ```sql
 update public.config
-   set valor = jsonb_set(jsonb_set(valor::jsonb, '{expediente,inicio}', '"14:00"'), '{expediente,fim}', '"21:12"')::text,
+   -- Tarefa 0 (25/11): a config não tem a chave 'expediente' (vale o padrão 13–21h da leads_dist_cfg) e os
+   -- 'extras' ficam no primeiro nível. jsonb_set não cria caminho sem pai, então: juntar a chave inteira com ||.
+   set valor = (valor::jsonb || '{"expediente":{"dias":[1,2,3,4,5],"inicio":"14:00","fim":"21:12"}}'::jsonb)::text,
        atualizado_em = now()
  where chave = 'leads_distribuicao';
 select valor::jsonb -> 'expediente' from public.config where chave = 'leads_distribuicao';
