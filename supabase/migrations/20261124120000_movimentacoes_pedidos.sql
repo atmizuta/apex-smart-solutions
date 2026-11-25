@@ -225,3 +225,86 @@ revoke execute on function public.movimentacoes_parados(text) from public, anon;
 revoke execute on function public.movimentacoes_tempo_etapa(date, date, text) from public, anon;
 grant execute on function public.pedido_linha_do_tempo(text), public.movimentacoes_feed(date, text, text, text),
   public.movimentacoes_parados(text), public.movimentacoes_tempo_etapa(date, date, text) to authenticated;
+
+-- Selo da VP, na ordem: saiu > devolvido > confere > diferente > sem (spec §6). Etapa de devolução = DEVOLVIDO.
+create or replace function public.vendas_perdidas_auditoria(p_de date, p_ate date) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare v_esc text := public.mp_escopo();
+        v_ini timestamptz := p_de::timestamp at time zone 'America/Sao_Paulo';
+        v_fim timestamptz := (p_ate + 1)::timestamp at time zone 'America/Sao_Paulo';
+begin
+  if v_esc is null then raise exception 'sem permissão' using errcode = '42501'; end if;
+  return (with vp as (
+    select distinct on (m.pedido_id) m.pedido_id, m.numero_pedido, m.entrou_em, m.consultor, m.vp_categoria
+      from public.pedido_movimentacoes m
+     where m.etapa ilike 'VENDA PERDIDA%' and m.entrou_em >= v_ini and m.entrou_em < v_fim
+     order by m.pedido_id, m.entrou_em desc
+  ), x as (
+    select v.numero_pedido, v.entrou_em, o.cliente, coalesce(o.consultor, v.consultor) consultor, v.consultor cons_neo,
+           coalesce(v.vp_categoria,
+             (select a.vp_categoria from public.pedido_anotacoes a where a.numero_pedido = v.numero_pedido and a.vp_categoria is not null
+                 and a.atualizado_em_neo >= v.entrou_em - interval '1 minute' order by a.atualizado_em_neo desc limit 1),
+             (select pa.categoria from public.producao_atividades pa where pa.numero_pedido = v.numero_pedido)) categoria,
+           b.status, b.descricao, b.bko_em, ant.ant_etapa, ant.ant_em, ant.ant_por, coalesce(dep.saiu, false) saiu,
+           (select va.motivo_real from public.venda_perdida_auditoria va where va.numero_pedido = v.numero_pedido) motivo_real
+      from vp v
+      left join public.mp_pedidos() o on o.numero_pedido = v.numero_pedido
+      left join lateral (select a.status, a.descricao, a.atualizado_em_neo bko_em from public.pedido_anotacoes a
+                          where a.numero_pedido = v.numero_pedido and a.tipo = 'bko_status' and a.atualizado_em_neo < v.entrou_em
+                          order by a.atualizado_em_neo desc limit 1) b on true
+      left join lateral (select p.etapa ant_etapa, p.entrou_em ant_em, p.entrou_por ant_por from public.pedido_movimentacoes p
+                          where p.pedido_id = v.pedido_id and p.entrou_em < v.entrou_em order by p.entrou_em desc limit 1) ant on true
+      left join lateral (select true saiu from public.pedido_movimentacoes d
+                          where d.pedido_id = v.pedido_id and d.entrou_em > v.entrou_em and d.etapa not ilike 'VENDA PERDIDA%' limit 1) dep on true
+     where v_esc = 'todas' or coalesce(o.operacao, 'apex') = v_esc
+  ), s as (
+    select x.*, case
+      when x.saiu then 'saiu'
+      when x.ant_etapa = 'DEVOLVIDO' and coalesce(x.ant_por, '') <> coalesce(x.cons_neo, '') then 'devolvido'
+      when x.status is not null and exists (select 1 from public.vp_motivo_equivalencia e
+             where e.vp_categoria = x.categoria and x.status ilike '%' || e.trecho_status || '%') then 'confere'
+      when x.status is not null and exists (select 1 from public.vp_motivo_equivalencia e
+             where e.vp_categoria is distinct from x.categoria and x.status ilike '%' || e.trecho_status || '%') then 'diferente'
+      else 'sem' end selo
+      from x
+  ), cat as (
+    select consultor, jsonb_agg(categoria order by n desc) categorias
+      from (select consultor, categoria, count(*) n, row_number() over (partition by consultor order by count(*) desc) rk
+              from s where categoria is not null group by consultor, categoria) k
+     where rk <= 3 group by consultor
+  ), pc as (
+    select s.consultor, count(*) vps,
+           round(100.0 * count(*) filter (where selo in ('diferente', 'devolvido')) / count(*), 0) alerta_pct
+      from s group by s.consultor
+  )
+  select jsonb_build_object(
+    'totais', (select jsonb_build_object('vp', count(*), 'saiu', count(*) filter (where selo = 'saiu'),
+       'devolvido', count(*) filter (where selo = 'devolvido'), 'confere', count(*) filter (where selo = 'confere'),
+       'diferente', count(*) filter (where selo = 'diferente'), 'sem', count(*) filter (where selo = 'sem'),
+       'reais', count(*) filter (where selo <> 'saiu')) from s),
+    'por_consultor', coalesce((select jsonb_agg(jsonb_build_object('consultor', pc.consultor, 'vps', pc.vps, 'alerta_pct', pc.alerta_pct,
+         'categorias', coalesce(cat.categorias, '[]'::jsonb)) order by pc.vps desc)
+       from pc left join cat on cat.consultor is not distinct from pc.consultor), '[]'::jsonb),
+    'pedidos', coalesce((select jsonb_agg(jsonb_build_object('numero', numero_pedido, 'cliente', cliente, 'consultor', consultor,
+         'entrou_em', entrou_em, 'categoria', categoria, 'bko_status', status, 'bko_descricao', descricao, 'bko_em', bko_em,
+         'selo', selo, 'motivo_real', motivo_real) order by entrou_em desc) from s), '[]'::jsonb)));
+end $$;
+
+create or replace function public.venda_perdida_definir_motivo(p_numero text, p_motivo text, p_obs text default null) returns jsonb
+language plpgsql security definer set search_path = public as $$
+begin
+  if coalesce((select role from public.profiles where id = auth.uid()), '') not in ('admin', 'supervisor')
+     or not coalesce(public.pedido_pode_ver(p_numero), false) then
+    raise exception 'sem permissão' using errcode = '42501';
+  end if;
+  if nullif(trim(coalesce(p_motivo, '')), '') is null then raise exception 'escolha o motivo real' using errcode = '22023'; end if;
+  insert into public.venda_perdida_auditoria (numero_pedido, motivo_real, obs, decidido_por, decidido_em)
+  values (p_numero, left(trim(p_motivo), 80), nullif(left(trim(coalesce(p_obs, '')), 500), ''), auth.uid(), now())
+  on conflict (numero_pedido) do update set motivo_real = excluded.motivo_real, obs = excluded.obs,
+    decidido_por = excluded.decidido_por, decidido_em = excluded.decidido_em;
+  return jsonb_build_object('ok', true);
+end $$;
+
+revoke execute on function public.vendas_perdidas_auditoria(date, date) from public, anon;
+revoke execute on function public.venda_perdida_definir_motivo(text, text, text) from public, anon;
+grant execute on function public.vendas_perdidas_auditoria(date, date), public.venda_perdida_definir_motivo(text, text, text) to authenticated;

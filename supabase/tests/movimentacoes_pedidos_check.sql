@@ -93,5 +93,48 @@ do $$ declare j jsonb; begin
   j := public.pedido_linha_do_tempo('ZZM3');
   assert j->'cabecalho' = 'null'::jsonb and jsonb_array_length(j->'passagens') = 1, 'pedido fora da producao_pedidos_neo: sem cabeçalho, com filme';
 end $$;
--- (Task 5 acrescenta bloco aqui, antes do RESULTADO)
+-- Task 5: auditoria das vendas perdidas
+-- ZZM4: VP sem nada antes (❔); ZZM5: entrou em VP e voltou (↩️); ZZM6: BKO reprovou crédito, consultor marcou crédito (✅);
+-- ZZM7: BKO reprovou crédito, consultor marcou "Não responde" (⚠️); ZZM1 (Task 3) = devolvido sem nota nova depois (🔁).
+-- ZZM4..7 estão fora da producao_pedidos_neo → contam como 'apex'.
+reset role; -- o set local role do bloco da Task 4 vale até o fim da transação
+insert into public.pedido_movimentacoes (pedido_id, numero_pedido, etapa_id, etapa, entrou_em, saiu_em, entrou_por, consultor) values
+  (99004, 'ZZM4', 4, 'VENDA PERDIDA', '2026-11-20 12:00-03', null,                  'ZZ CONS A', 'ZZ CONS A'),
+  (99005, 'ZZM5', 4, 'VENDA PERDIDA', '2026-11-20 12:00-03', '2026-11-20 15:00-03', 'ZZ CONS A', 'ZZ CONS A'),
+  (99005, 'ZZM5', 1, 'NEGOCIACAO',    '2026-11-20 15:00-03', null,                  'ZZ CONS A', 'ZZ CONS A'),
+  (99006, 'ZZM6', 2, 'CREDITO',       '2026-11-20 09:00-03', '2026-11-20 10:00-03', 'ZZ CONS A', 'ZZ CONS A'),
+  (99006, 'ZZM6', 4, 'VENDA PERDIDA', '2026-11-20 10:00-03', null,                  'ZZ CONS A', 'ZZ CONS A'),
+  (99007, 'ZZM7', 2, 'CREDITO',       '2026-11-20 09:00-03', '2026-11-20 10:00-03', 'ZZ CONS A', 'ZZ CONS A'),
+  (99007, 'ZZM7', 4, 'VENDA PERDIDA', '2026-11-20 10:00-03', null,                  'ZZ CONS A', 'ZZ CONS A');
+insert into public.pedido_anotacoes (numero_pedido, atualizado_em_neo, texto, tipo, status, vp_categoria) values
+  ('ZZM6', '2026-11-20 09:30-03', 'Status: CONSULTA NÃO APROVADA', 'bko_status', 'CONSULTA NÃO APROVADA', null),
+  ('ZZM6', '2026-11-20 10:00-03', '(Venda Perdida) Categoria Inserido Restrição de Crédito', 'venda_perdida', null, 'Restrição de Crédito'),
+  ('ZZM7', '2026-11-20 09:30-03', 'Status: CONSULTA NÃO APROVADA', 'bko_status', 'CONSULTA NÃO APROVADA', null),
+  ('ZZM7', '2026-11-20 10:00-03', '(Venda Perdida) Categoria Inserido Não responde', 'venda_perdida', null, 'Não responde');
+
+do $$ declare j jsonb; s jsonb; begin
+  execute 'set local role authenticated';
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000dd02', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-00000000dd02', 'role', 'authenticated')::text, true);
+  j := public.vendas_perdidas_auditoria(date '2026-11-20', date '2026-11-20');
+  select jsonb_object_agg(e->>'numero', e->>'selo') into s from jsonb_array_elements(j->'pedidos') e where e->>'numero' like 'ZZM%';
+  assert s = '{"ZZM1":"devolvido","ZZM4":"sem","ZZM5":"saiu","ZZM6":"confere","ZZM7":"diferente"}'::jsonb, 'selos: ' || s::text;
+  assert (select e->>'categoria' from jsonb_array_elements(j->'pedidos') e where e->>'numero' = 'ZZM1') = 'Restrição de Crédito', 'categoria vem do diário';
+  perform public.venda_perdida_definir_motivo('ZZM7', 'Restrição de Crédito', 'BKO reprovou');
+  assert (public.pedido_linha_do_tempo('ZZM7')->'motivo_real'->>'motivo') = 'Restrição de Crédito', 'motivo real gravado';
+  begin perform public.venda_perdida_definir_motivo('ZZM7', '  ', null); assert false, 'aceitou motivo vazio';
+  exception when sqlstate '22023' then null; end;
+
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000dd03', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-00000000dd03', 'role', 'authenticated')::text, true);
+  j := public.vendas_perdidas_auditoria(date '2026-11-20', date '2026-11-20');
+  assert not exists (select 1 from jsonb_array_elements(j->'pedidos') e where e->>'numero' = 'ZZM6'), 'sup Campinas não vê VP da Apex';
+  begin perform public.venda_perdida_definir_motivo('ZZM6', 'Não responde', null); assert false, 'sup Campinas decidiu pedido Apex';
+  exception when insufficient_privilege then null; end;
+
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000dd04', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-00000000dd04', 'role', 'authenticated')::text, true);
+  begin perform public.venda_perdida_definir_motivo('ZZM1', 'Não responde', null); assert false, 'consultor decidiu motivo';
+  exception when insufficient_privilege then null; end;
+end $$;
 do $$ begin raise exception 'RESULTADO: ok (§166)'; end $$;
