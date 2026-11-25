@@ -49,6 +49,21 @@ require('./renovacao_test_harness.js').rodar(`
   clicar(q('#mpConteudo [data-mp-parados="CREDITO"]')); await espera(30);
   eq(chamadas('movimentacoes_parados').at(-1).args, { p_etapa: 'CREDITO' }, 'parados da etapa');
   assert(/ZZM2/.test(q('#mpParados').textContent) && q('#mpParados .mpAlerta'), 'lista de parados com alerta de SLA');
-  // (Tasks 8 e 9 acrescentam aqui)
+  // Task 8 — vendas perdidas
+  window.__rpcRespostas.vendas_perdidas_auditoria = () => ({ data: {
+    totais: { vp: 3, saiu: 1, devolvido: 1, confere: 1, diferente: 0, sem: 0, reais: 2 },
+    por_consultor: [{ consultor: 'ZZ CONS A', vps: 3, alerta_pct: 33, categorias: ['Restrição de Crédito'] }],
+    pedidos: [
+      { numero: 'ZZM1', cliente: 'ZZ C1', consultor: 'ZZ CONS A', entrou_em: '2026-11-20T14:05:00Z', categoria: 'Restrição de Crédito', bko_status: null, bko_descricao: null, bko_em: null, selo: 'devolvido', motivo_real: null },
+      { numero: 'ZZM5', cliente: 'ZZ C5', consultor: 'ZZ CONS A', entrou_em: '2026-11-20T15:00:00Z', categoria: null, bko_status: null, bko_descricao: null, bko_em: null, selo: 'saiu', motivo_real: null },
+      { numero: 'ZZM6', cliente: 'ZZ C6', consultor: 'ZZ CONS A', entrou_em: '2026-11-20T13:00:00Z', categoria: 'Restrição de Crédito', bko_status: 'CONSULTA NÃO APROVADA', bko_descricao: 'X', bko_em: '2026-11-20T12:30:00Z', selo: 'confere', motivo_real: 'Restrição de Crédito' } ] }, error: null });
+  clicar(q('#panel-movpedidos [data-mp-sub="vp"]')); await espera(30);
+  const v = q('#mpConteudo').textContent;
+  assert(/VP reais/.test(v) && /ZZ CONS A/.test(v) && /33%/.test(v), 'totais e por consultor');
+  eq(q('#mpConteudo').querySelectorAll('tbody tr[data-mp-linha]').length, 3, 'três pedidos');
+  clicar(q('#mpConteudo [data-mp-selo="devolvido"]')); await espera(10);
+  eq(q('#mpConteudo').querySelectorAll('tbody tr[data-mp-linha]').length, 1, 'filtra pelo selo clicado');
+  assert(/Devolvido e perdido/.test(q('#mpConteudo tbody tr[data-mp-linha]').textContent), 'linha do selo');
+  // (Task 9 acrescenta aqui)
   fim();
 `);

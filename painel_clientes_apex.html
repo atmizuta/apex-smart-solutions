@@ -5236,6 +5236,30 @@ document.addEventListener('click', (ev) => {
   const p = ev.target.closest && ev.target.closest('[data-mp-parados]');
   if(p){ ev.preventDefault(); mpCarregarParados(p.dataset.mpParados); }
 });
+function mpPintarVP(d){
+  document.getElementById('mpFiltros').innerHTML =
+    `<input type="date" class="rnSel" data-mp-filtro="de" value="${escapeHtml(mpEstado.de)}"> até `
+    + `<input type="date" class="rnSel" data-mp-filtro="ate" value="${escapeHtml(mpEstado.ate)}">`;
+  const t = d.totais || {};
+  const pill = (selo, n) => `<button type="button" class="filterPill${mpEstado.selo === selo ? ' active' : ''}" data-mp-selo="${selo}">${MP_SELO[selo]} ${n || 0}</button>`;
+  const topo = `<div class="mpTopo"><b>VP no período: ${t.vp || 0}</b> · VP reais (sem ↩️): <b>${t.reais || 0}</b>`
+    + ['confere', 'diferente', 'saiu', 'devolvido', 'sem'].map(s => pill(s, t[s])).join('')
+    + (mpEstado.selo ? '<button type="button" class="filterPill" data-mp-selo="">Todos</button>' : '') + '</div>';
+  const cons = (d.por_consultor || []).map(c => `<tr><td>${escapeHtml(c.consultor || '—')}</td><td class="num">${c.vps}</td>`
+    + `<td class="num${c.alerta_pct >= 30 ? ' mpAlerta' : ''}">${c.alerta_pct}%</td><td>${escapeHtml((c.categorias || []).join(', '))}</td></tr>`).join('');
+  const peds = (d.pedidos || []).filter(p => !mpEstado.selo || p.selo === mpEstado.selo).map(p => '<tr data-mp-linha>'
+    + `<td>${mpLinkPedido(p.numero)}</td><td>${escapeHtml(p.cliente || '')}</td><td>${escapeHtml(p.consultor || '')}</td><td>${mpHora(p.entrou_em)}</td>`
+    + `<td>${escapeHtml(p.categoria || '—')}</td><td>${escapeHtml(p.bko_status || '—')}</td><td>${MP_SELO[p.selo] || ''}</td>`
+    + `<td>${escapeHtml(p.motivo_real || '—')}</td></tr>`).join('');
+  document.getElementById('mpConteudo').innerHTML = topo
+    + `<h3>Por consultor</h3><div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Consultor</th><th>VPs</th><th>⚠️ + 🔁</th><th>Motivos mais usados</th></tr></thead><tbody>${cons}</tbody></table></div>`
+    + `<h3>Pedidos</h3><div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Pedido</th><th>Cliente</th><th>Consultor</th><th>Entrou em VP</th><th>Motivo do consultor</th><th>Última anotação da BKO</th><th>Selo</th><th>Motivo real</th></tr></thead><tbody>${peds || '<tr><td colspan="8">Nenhum pedido.</td></tr>'}</tbody></table></div>`
+    + '<p class="kbMeta">VPs anteriores à entrada no ar ficam quase todas em ❔: a API só mostra a última anotação de cada pedido.</p>';
+}
+document.addEventListener('click', (ev) => {
+  const s = ev.target.closest && ev.target.closest('#mpConteudo [data-mp-selo]');
+  if(s){ mpEstado.selo = s.dataset.mpSelo; if(mpEstado.dados) mpPintarVP(mpEstado.dados); }
+});
 
 function scAplicarPermissao(){
   scParar(); scEstado.atual = null; scEstado.lista = []; scEstado.geracao++;
