@@ -5411,3 +5411,23 @@ pela consulta de sócios em lote, branch feat/socios-lote).
     - Visibilidade e gravação seguem a mesma RLS da carteira (quem vê o cliente vê/anota/anexa).
   - **Tela inicial por perfil (25/11):** consultor do time de Renovação abre o painel direto na aba Renovação (Funil); os demais perfis continuam no Dashboard de Produção. Produto ofertado ganhou "Renovação + Incremento", "Incremento" e "Incremento Portin". A ficha do cliente abre como janela central (tela cheia no PC), em blocos com título.
   - **Atividade do time (25/11):** subaba só para admin e supervisor, ao lado de "Proposta e fatura". Lista as anotações (`renovacao_notas`) de todos os consultores, da mais recente para a mais antiga (até 1000), com consultor, data/hora, empresa e texto. Filtros: período (hoje, 7 dias, 30 dias, tudo), consultor, só fixadas e busca por texto/empresa/consultor. O botão da empresa abre a ficha; "Exportar Excel" baixa o que está filtrado (`atividade_renovacao_AAAA-MM-DD.xlsx`). Consultor não vê a subaba nem entra nela. Sem mudança no banco: usa a RLS já existente.
+
+## §167 Agente de IA no WhatsApp corporativo fora do expediente (25/11/2026, pedido do Rafael)
+
+**O que faz.** Fora do expediente do §146, o assistente virtual (Claude, `claude-opus-5-5`) responde no WhatsApp corporativo, coleta a ficha do pedido (nome, CPF, CNPJ, serviço; linhas móveis por modalidade com números e fatura; internet fixa com velocidade, CEP/número e CNH; outro interesse) e guarda os documentos. O consultor só sobe a venda no NEO. Fase 1 **sem preço**: nunca fala preço/valor/desconto, prazo ou disponibilidade, nunca pede senha/código/cartão, nunca diz que é pessoa, nunca responde dentro do expediente. Spec e plano: `docs/superpowers/specs/2026-11-24-whatsapp-agente-noturno-design.md` e `docs/superpowers/plans/2026-11-24-whatsapp-agente-noturno.md`. (Nasceu como "§165"; renumerado porque a §165 da oficial é o CRM da Renovação e a §166 está reservada.)
+
+**Peças.**
+- Edge Function `whatsapp-webhook` (verify_jwt=false): GET de verificação da Meta; POST da Meta com `X-Hub-Signature-256`; POST do cron com `x-cron-secret` (Vault `wa_agente_cron_secret`). Secrets: `WA_TOKEN`, `WA_APP_SECRET`, `WA_VERIFY_TOKEN`, `WA_PHONE_ID`, `ANTHROPIC_API_KEY`.
+- Tabelas `wa_conversas` e `wa_mensagens` (RLS sem acesso direto), bucket privado `wa-documentos` (10 MB; leitura só pela regra `wa_documentos_ler` → `wa_pode_ver_documento`: dono do lead ou gestor; link de 5 min).
+- `config.wa_agente` = `{"modo": "desligado" | "ensaio" | "ligado", "numeros_ensaio": [...], "max_respostas_noite": 40}`.
+- Lead: ficha com nome + CNPJ ou nome + serviço cria/liga o lead pelo telefone (DDD + últimos 8 dígitos); telefone novo entra por `leads_entrada2` com `origem_entrada = 'whatsapp'` e id `wa:<1º wamid>` (distribuído pelo §146).
+- Cron `wa-agente-tick` (1 em 1 min): responde o que ficou sem resposta à noite (só mensagens recebidas fora do expediente); `wa-agente-limpar` (diário): apaga mensagens e documentos com mais de 90 dias.
+- Painel (Meus leads): selo 📱 Pronto para subir / Em andamento / Precisa de humano no cartão; bloco "Ficha do WhatsApp" na ficha com os documentos; avisos na faixa da Equipe (`wa_erro`, `wa_sem_mensagens` = 48 h sem mensagem → abrir o WhatsApp Business no celular).
+
+**Regras de segurança da operação.** Mensagem do consultor (eco do WhatsApp Web) à noite silencia o agente naquela conversa até o expediente. `pedir_humano`, 40 respostas na noite ou 3 falhas seguidas → `precisa_humano` + silêncio. Falha do Claude: 1 nova tentativa, aviso fixo ao cliente uma vez por noite, tick tenta de novo depois de 10 min. Resposta pronta depois que o expediente abriu não é enviada.
+
+**Desvios da spec.** `verificar_cnpj` não é ferramenta do modelo (o `salvar_ficha` consulta sozinho); documento abre por regra do bucket + link assinado; contador de 40 zera quando o tick roda no expediente.
+
+**Expediente.** Passa a seg–sex 14:00–21:12 (chave `expediente` em `config.leads_distribuicao`, preservando `extras`) no dia de ligar o agente.
+
+**Estado em 25/11.** Código revisado, na oficial e painel publicado (sem o banco o selo e a ficha só não aparecem). Falta: aplicar migration + check + deploy + cron (precisa da confirmação do Rafael no conector do Supabase), app da Apex na Meta + coexistência + secrets (Rafael), roteiros com o Claude real, ensaio no celular do Rafael, ligar.
