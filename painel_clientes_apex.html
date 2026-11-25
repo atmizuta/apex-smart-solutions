@@ -588,6 +588,7 @@
 
   .motion .sbApice{animation:apxFloat 6s ease-in-out infinite;}
   .motion .panel.apxPage{animation:apxPageIn var(--dur-slow) var(--ease-out) both;}
+  .motion #panel-renovacao.panel.apxPage{animation-fill-mode:backwards;} /* sem 'forwards' o painel não vira referência do position:fixed da ficha */
   /* backwards (não both): esconde durante o atraso, mas depois de terminar não trava hover/arrastar */
   .motion .apxIn{animation:apxRise var(--dur-slow) var(--ease-out) backwards;animation-delay:calc(var(--i,0) * 90ms);}
   .motion tr.apxIn{animation-name:apxFade;animation-delay:calc(var(--i,0) * 25ms);}
@@ -1031,21 +1032,24 @@
   /* Ficha */
   #rnFicha .kbFichaCorpo{padding:var(--space-4);overflow-y:auto;gap:var(--space-3);}
   /* Ficha como janela central (fora da Central de hoje): cabeçalho fixo + 2 colunas (atendimento | histórico do cliente) */
-  #rnFicha:not(.noPainel){inset:0;width:auto;height:auto;transform:none;opacity:0;visibility:hidden;pointer-events:none;align-items:center;justify-content:center;background:rgba(29,31,32,.55);box-shadow:none;transition:opacity var(--dur) var(--ease-out),visibility var(--dur);z-index:60;}
+  #rnFicha:not(.noPainel){inset:0;width:auto;height:auto;transform:none;opacity:0;visibility:hidden;pointer-events:none;align-items:center;justify-content:flex-start;padding:2vh 0;background:rgba(29,31,32,.55);box-shadow:none;transition:opacity var(--dur) var(--ease-out),visibility var(--dur);z-index:60;}
   #rnFicha.aberta:not(.noPainel){opacity:1;visibility:visible;pointer-events:auto;box-shadow:none;}
-  #rnFicha:not(.noPainel) .kbFichaCorpo{width:min(1360px,96vw);height:min(94vh,1000px);background:var(--ml-surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:0;overflow:hidden;gap:0;}
-  .rnFichaCab{padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--c-linha);background:var(--ml-surface);flex:none;}
-  .rnFichaGrade{display:flex;flex-direction:column;gap:var(--space-3);padding:var(--space-4);overflow-y:auto;min-height:0;flex:1;background:var(--ml-surface-2);}
+  #rnFicha:not(.noPainel) .kbFichaCorpo{width:min(1360px,96vw);height:min(94vh,1000px);border-top:4px solid var(--c-sinal);background:var(--ml-surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:0;overflow:hidden;gap:0;}
+  .rnFichaCab{padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--c-linha-forte);background:var(--ml-surface);flex:none;}
+  .rnFichaGrade{display:flex;flex-direction:column;gap:var(--space-3);padding:var(--space-4);overflow-y:auto;min-height:0;flex:1;background:var(--c-cinza-claro);}
   .rnColA,.rnColB{display:flex;flex-direction:column;gap:var(--space-3);min-width:0;}
-  .rnBloco{background:var(--ml-surface);border:1px solid var(--c-linha);border-radius:var(--radius-lg);padding:var(--space-3) var(--space-4);}
-  .rnBlocoT{display:flex;align-items:center;gap:var(--space-2);margin:0 0 var(--space-3);padding-bottom:var(--space-2);border-bottom:1px solid var(--c-linha);font-size:var(--fs-base);font-weight:700;}
+  .rnBloco{background:var(--c-branco);border:1px solid var(--c-linha-forte);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:var(--space-3) var(--space-4);}
+  .rnBloco .rnCampos input,.rnBloco .rnCampos select,.rnBloco .rnCampos textarea,.rnBloco .rnNotaForm textarea{background:var(--c-papel);border:1px solid var(--c-linha-forte);}
+  .rnBloco .rnCampos input:focus,.rnBloco .rnCampos select:focus,.rnBloco .rnCampos textarea:focus,.rnBloco .rnNotaForm textarea:focus{outline:2px solid var(--c-sinal);outline-offset:0;background:var(--c-branco);}
+  .rnBloco .rnContatoBt{border-color:var(--c-linha-forte);}
+  .rnBlocoT{display:flex;align-items:center;gap:var(--space-2);margin:0 0 var(--space-3);padding-bottom:var(--space-2);border-bottom:2px solid var(--c-linha);font-size:var(--fs-md);font-weight:700;color:var(--c-grafite);}
   .rnNum{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--c-sinal);color:var(--c-branco);font-size:var(--fs-xs);}
   .rnSubT{margin:var(--space-4) 0 var(--space-1);font-size:var(--fs-xs);font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ml-ink-3);}
   .rnBlocoAtend .rnSubT:first-of-type{margin-top:0;}
   .rnResumoCli{display:flex;flex-direction:column;gap:var(--space-2);}
   .rnBloco.rnSecao,details.rnBloco{padding:var(--space-2) var(--space-4);}
-  .rnColB>details.rnGrupo{background:var(--ml-surface);border:1px solid var(--c-linha);border-radius:var(--radius-lg);padding:var(--space-3) var(--space-4);}
-  #rnFicha .rnFichaRodape{position:sticky;bottom:calc(var(--space-4) * -1);background:var(--ml-surface);padding:var(--space-3) 0 0;border-top:1px solid var(--c-linha);}
+  .rnColB>details.rnGrupo{background:var(--c-branco);border:1px solid var(--c-linha-forte);box-shadow:var(--shadow-sm);border-radius:var(--radius-lg);padding:var(--space-3) var(--space-4);}
+  #rnFicha .rnFichaRodape{position:sticky;bottom:calc(var(--space-3) * -1);background:var(--c-branco);padding:var(--space-3) 0 0;border-top:1px solid var(--c-linha);}
   @media (min-width:1000px){
     #rnFicha:not(.noPainel) .rnFichaGrade{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);overflow:hidden;}
     #rnFicha:not(.noPainel) .rnColA,#rnFicha:not(.noPainel) .rnColB{overflow-y:auto;min-height:0;padding-right:var(--space-1);}
@@ -4106,7 +4110,7 @@ const RN_STATUS = { 0: 'Não trabalhado', 1: 'Tentativa de contato', 2: 'Contato
 const RN_CANAIS = ['WhatsApp', 'Ligação', 'E-mail', 'Visita'];
 const RN_MOTIVOS = ['Preço', 'Foi p/ concorrente', 'Sem interesse', 'Insatisfeito c/ Claro', 'Empresa fechada/baixada', 'Contato inválido', 'Outro'];
 const RN_PROX_ACOES = ['Ligar', 'WhatsApp', 'E-mail', 'Visita', 'Enviar proposta', 'Cobrar retorno', 'Acompanhar pedido'];
-const RN_PRODUTOS = ['Renovação de linhas', 'Fixa (banda larga)', 'Renovação + Fixa', 'Solução digital'];
+const RN_PRODUTOS = ['Renovação de linhas', 'Renovação + Incremento', 'Incremento', 'Incremento Portin', 'Fixa (banda larga)', 'Renovação + Fixa', 'Solução digital'];
 const RN_CONCORRENTES = ['Vivo', 'TIM', 'Oi', 'Outro'];
 const RN_APTOS = ['APTO', '1 MÊS PARA APTO', '2 MESES PARA APTO'];
 const RN_LEGADO = { 1: 0, 2: 1, 3: 2, 4: 4, 5: 5, 6: 6, 7: 8 };   // planilha antiga do time (1–7) → funil novo
