@@ -5409,3 +5409,4 @@ pela consulta de sócios em lote, branch feat/socios-lote).
     - **Anexos** (`renovacao_anexos` + bucket privado `renovacao-anexos`, caminho `<id do cliente>/<arquivo>`): tipos fatura, proposta, documento e outro; PDF/imagens/Office permitidos, até 10 MB. Abertura por link temporário (120 s). Apagar: só quem criou e o admin.
     - **Extras no atendimento**: melhor horário (Manhã, Tarde, Noite, Horário comercial) e etiquetas (até 10, 30 caracteres, sem repetição).
     - Visibilidade e gravação seguem a mesma RLS da carteira (quem vê o cliente vê/anota/anexa).
+  - **Tela inicial por perfil (25/11):** consultor do time de Renovação abre o painel direto na aba Renovação (Funil); os demais perfis continuam no Dashboard de Produção. Produto ofertado ganhou "Renovação + Incremento", "Incremento" e "Incremento Portin". A ficha do cliente abre como janela central (tela cheia no PC), em blocos com título.

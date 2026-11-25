@@ -3857,7 +3857,8 @@ function enterApp(){
     // Dashboard de Produção é a página inicial pós-login (em vez de Buscar Clientes) — reaproveita o
     // mesmo clique que o consultor daria manualmente na aba, então já ativa a aba certa e carrega os
     // dados (ver listener de #tabsNav abaixo).
-    document.querySelector('#tabsNav button[data-tab="producao"]').click();
+    // §165: consultor do time de Renovação abre direto na aba Renovação (o resto do pessoal continua no Dashboard de Produção)
+    document.querySelector(`#tabsNav button[data-tab="${rnSoRenovacao() ? 'renovacao' : 'producao'}"]`).click();
     // seção 76: quem está em config.boletim.abre_sozinho vai direto para o boletim no 1º acesso do dia (a partir das 10h)
     bmAoEntrar().catch(err => console.error(err));
   }catch(e){
