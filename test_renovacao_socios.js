@@ -14,7 +14,7 @@ require('./renovacao_test_harness.js').rodar(`
   const clicar = (sel) => document.querySelector(sel).dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
   await rnCarregar(); rnTrocarAba('hoje'); await espera(60);
   eq(rnEstado.fichaId, 1, 'ficha aberta no cliente 1');
-  eq([...document.querySelectorAll('#rnFichaCorpo [data-rn-ficha-sec]')].map(b => b.dataset.rnFichaSec), ['atendimento', 'dados', 'propostas', 'notas', 'contatos', 'anexos', 'historico', 'socios'], 'seções da ficha única (sem abas)');
+  eq([...document.querySelectorAll('#rnFichaCorpo [data-rn-ficha-sec]')].map(b => b.dataset.rnFichaSec), ['atendimento', 'notas', 'contatos', 'anexos', 'historico', 'propostas', 'dados', 'socios'], 'seções da ficha única (sem abas)');
   assert(!document.querySelector('#rnFichaCorpo [data-rn-ficha-aba]'), 'ficha sem abas');
 
   // 1. base com sócio: nome, CPF formatado, principal, óbito, fonte e botão Consultar na Nova Vida

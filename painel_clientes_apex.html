@@ -1030,6 +1030,28 @@
   .rnHojeFicha .kbFicha.noPainel{border-radius:var(--radius-lg);background:var(--ml-surface);}
   /* Ficha */
   #rnFicha .kbFichaCorpo{padding:var(--space-4);overflow-y:auto;gap:var(--space-3);}
+  /* Ficha como janela central (fora da Central de hoje): cabeçalho fixo + 2 colunas (atendimento | histórico do cliente) */
+  #rnFicha:not(.noPainel){inset:0;width:auto;height:auto;transform:none;opacity:0;visibility:hidden;pointer-events:none;align-items:center;justify-content:center;background:rgba(29,31,32,.55);box-shadow:none;transition:opacity var(--dur) var(--ease-out),visibility var(--dur);z-index:60;}
+  #rnFicha.aberta:not(.noPainel){opacity:1;visibility:visible;pointer-events:auto;box-shadow:none;}
+  #rnFicha:not(.noPainel) .kbFichaCorpo{width:min(1360px,96vw);height:min(94vh,1000px);background:var(--ml-surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:0;overflow:hidden;gap:0;}
+  .rnFichaCab{padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--c-linha);background:var(--ml-surface);flex:none;}
+  .rnFichaGrade{display:flex;flex-direction:column;gap:var(--space-3);padding:var(--space-4);overflow-y:auto;min-height:0;flex:1;background:var(--ml-surface-2);}
+  .rnColA,.rnColB{display:flex;flex-direction:column;gap:var(--space-3);min-width:0;}
+  .rnBloco{background:var(--ml-surface);border:1px solid var(--c-linha);border-radius:var(--radius-lg);padding:var(--space-3) var(--space-4);}
+  .rnBlocoT{display:flex;align-items:center;gap:var(--space-2);margin:0 0 var(--space-3);padding-bottom:var(--space-2);border-bottom:1px solid var(--c-linha);font-size:var(--fs-base);font-weight:700;}
+  .rnNum{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--c-sinal);color:var(--c-branco);font-size:var(--fs-xs);}
+  .rnSubT{margin:var(--space-4) 0 var(--space-1);font-size:var(--fs-xs);font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ml-ink-3);}
+  .rnBlocoAtend .rnSubT:first-of-type{margin-top:0;}
+  .rnResumoCli{display:flex;flex-direction:column;gap:var(--space-2);}
+  .rnBloco.rnSecao,details.rnBloco{padding:var(--space-2) var(--space-4);}
+  .rnColB>details.rnGrupo{background:var(--ml-surface);border:1px solid var(--c-linha);border-radius:var(--radius-lg);padding:var(--space-3) var(--space-4);}
+  #rnFicha .rnFichaRodape{position:sticky;bottom:calc(var(--space-4) * -1);background:var(--ml-surface);padding:var(--space-3) 0 0;border-top:1px solid var(--c-linha);}
+  @media (min-width:1000px){
+    #rnFicha:not(.noPainel) .rnFichaGrade{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);overflow:hidden;}
+    #rnFicha:not(.noPainel) .rnColA,#rnFicha:not(.noPainel) .rnColB{overflow-y:auto;min-height:0;padding-right:var(--space-1);}
+    #rnFicha:not(.noPainel) .rnCampos{grid-template-columns:repeat(3,minmax(0,1fr));}
+  }
+  @media (max-width:999px){ #rnFicha:not(.noPainel) .kbFichaCorpo{width:100vw;height:100vh;border-radius:0;} }
   .rnFichaTopo{display:flex;align-items:center;gap:var(--space-3);}
   .rnFichaTopo .rnAv{width:46px;height:46px;font-size:var(--fs-base);background:var(--ml-novo-soft);color:var(--c-sinal);}
   .rnFichaNome{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:700;line-height:1.1;margin:0;}
@@ -4953,22 +4975,26 @@ function rnRenderFicha(){
   const esconde = (cond) => (cond ? '' : ' hidden');
   const hora = r.retorno_hora ? String(r.retorno_hora).slice(0, 5) : '';
   el.innerHTML = `
-    <div class="rnFichaTopo">
+    <header class="rnFichaCab rnFichaTopo">
       <span class="rnAv">${escapeHtml(rnIniciais(r.razao_social))}</span>
       <div style="flex:1;min-width:0"><h3 class="rnFichaNome">${escapeHtml(r.razao_social || '(sem nome)')}</h3>
         <div class="rnFichaMeta">${escapeHtml([cnpj, r.cidade, (r.linhas_voz ?? 0) + ' linhas', r.apto].filter(Boolean).join(' · '))} ${rnCnpjBtn(r.cnpj_digits)}</div></div>
       ${rnPrioHtml(r.prioridade)}${rnEtapaHtml(r.status)}
       <button type="button" class="kbBtn kbBtnG kbBtnIco" data-rn-ficha-fechar aria-label="Fechar">&times;</button>
-    </div>
+    </header>
+    <div class="rnFichaGrade">
+      <div class="rnColA">
+    <div class="rnBloco rnResumoCli">
     <p class="kbMeta rnFichaOport">${escapeHtml([r.oportunidade, r.fatura != null ? 'fatura ' + fmtBRL(r.fatura) + '/mês' : '', r.fixa_viavel ? 'fixa viável' : '', r.movimentacao,
       r.consultor_anterior && r.consultor_anterior !== rnNomeConsultor(r.consultor_id).split(' ')[0] ? 'antes: ' + r.consultor_anterior : ''].filter(Boolean).join(' · '))}</p>
     <div class="rnFichaAcoes">${rnFichaAcoesHtml(r)}</div>
     ${(r.etiquetas || []).length ? `<p class="kbMeta">${r.etiquetas.map(t => `<span class="rnTag">${escapeHtml(t)}</span>`).join(' ')}</p>` : ''}
     <p class="rnProxCard"><b>Próximo passo:</b> ${rnProximoPassoHtml(r, rnAgora())}</p>
-    <section data-rn-ficha-sec="atendimento">
+    </div>
+    <section class="rnBloco rnBlocoAtend" data-rn-ficha-sec="atendimento"><h4 class="rnBlocoT"><span class="rnNum">1</span> Registrar atendimento</h4>
       <form id="rnFichaForm">
         <input type="hidden" name="status" value="${sel}">
-        <p class="rnPergunta">Etapa do funil</p>
+        <h5 class="rnSubT">Etapa do funil</h5>
         <div class="rnContato">${RN_CONTATO.map(([s, t]) => `<button type="button" class="rnContatoBt${s === sel ? ' on rnSt' + s : ''}" data-rn-contato="${s}">${escapeHtml(t)}</button>`).join('')}</div>
         <div class="rnCampos" data-rn-grupo="retorno"${esconde(grupo === 'retorno')}>
           <label>Próxima ação<select name="prox_acao">${rnOpcoes(RN_PROX_ACOES.map(a => [a, a]), r.prox_acao, '—')}</select></label>
@@ -4985,21 +5011,25 @@ function rnRenderFicha(){
         <div class="rnCampos" data-rn-grupo="perdido"${esconde(grupo === 'perdido')}>
           <label class="rnLargo">Motivo da perda *<select name="motivo_perda">${rnOpcoes(RN_MOTIVOS.map(m => [m, m]), r.motivo_perda, 'Escolha…')}</select></label>
         </div>
-        <p class="rnPergunta">Acompanhamento</p>
+        <h5 class="rnSubT">Negociação</h5>
         <div class="rnCampos">
-          <label>Nº de tentativas<input type="number" min="0" name="tentativas" value="${r.tentativas ?? ''}"></label>
-          <label>Falou com o decisor?<select name="falou_decisor">${rnOpcoes([['Sim', 'Sim'], ['Não', 'Não']], r.falou_decisor, '—')}</select></label>
           <label>Produto ofertado<select name="produto_ofertado">${rnOpcoes(RN_PRODUTOS.map(p => [p, p]), r.produto_ofertado, '—')}</select></label>
           <label>Concorrente<select name="concorrente">${rnOpcoes(RN_CONCORRENTES.map(c => [c, c]), r.concorrente, '—')}</select></label>
           <label>Linhas propostas<input type="number" min="0" name="linhas_propostas" value="${r.linhas_propostas ?? ''}"></label>
           <label>Valor da proposta (R$/mês)<input type="number" min="0" step="0.01" name="valor_proposta" value="${r.valor_proposta ?? ''}"></label>
-          <label>Melhor horário para contato<select name="melhor_horario">${rnOpcoes(RN_HORARIOS.map(h => [h, h]), r.melhor_horario, '—')}</select></label>
-          <label>Etiquetas (separe por vírgula)<input type="text" name="etiquetas" maxlength="200" value="${escapeHtml((r.etiquetas || []).join(', '))}" placeholder="ex.: decisor difícil, quer proposta"></label>
         </div>
-        <p class="kbMeta">1º contato: ${r.primeiro_contato ? escapeHtml(r.primeiro_contato.slice(8, 10) + '/' + r.primeiro_contato.slice(5, 7)) : '—'} · último: ${r.data_contato ? escapeHtml(r.data_contato.slice(8, 10) + '/' + r.data_contato.slice(5, 7)) : '—'}</p>
+        <h5 class="rnSubT">Contato com o cliente</h5>
         <div class="rnCampos">
           <label>Canal<select name="canal">${rnOpcoes(RN_CANAIS.map(c => [c, c]), r.canal, '—')}</select></label>
+          <label>Nº de tentativas<input type="number" min="0" name="tentativas" value="${r.tentativas ?? ''}"></label>
+          <label>Falou com o decisor?<select name="falou_decisor">${rnOpcoes([['Sim', 'Sim'], ['Não', 'Não']], r.falou_decisor, '—')}</select></label>
+          <label>Melhor horário para contato<select name="melhor_horario">${rnOpcoes(RN_HORARIOS.map(h => [h, h]), r.melhor_horario, '—')}</select></label>
+        </div>
+        <p class="kbMeta">1º contato: ${r.primeiro_contato ? escapeHtml(r.primeiro_contato.slice(8, 10) + '/' + r.primeiro_contato.slice(5, 7)) : '—'} · último: ${r.data_contato ? escapeHtml(r.data_contato.slice(8, 10) + '/' + r.data_contato.slice(5, 7)) : '—'}</p>
+        <h5 class="rnSubT">Observação e etiquetas</h5>
+        <div class="rnCampos">
           <label class="rnLargo">Observação<textarea name="observacoes" rows="3">${escapeHtml(r.observacoes || '')}</textarea></label>
+          <label class="rnLargo">Etiquetas (separe por vírgula)<input type="text" name="etiquetas" maxlength="200" value="${escapeHtml((r.etiquetas || []).join(', '))}" placeholder="ex.: decisor difícil, quer proposta"></label>
         </div>
         <p class="rnErro" id="rnFichaErro" role="alert"></p>
         <div class="rnFichaRodape">${rnEstado.aba === 'hoje'
@@ -5007,19 +5037,23 @@ function rnRenderFicha(){
           : '<button type="submit" class="kbBtn kbBtnP">Salvar</button>'}</div>
       </form>
     </section>
-    <details class="rnGrupo rnSecao"><summary>Dados da Claro</summary><div data-rn-ficha-sec="dados">${fic.dados
-      ? rnGruposFicha(fic.dados).map(([t, itens]) => `<details class="rnGrupo"><summary>${escapeHtml(t)} <span class="kbMeta">${itens.length}</span></summary><dl>${itens.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(String(v))}</dd>`).join('')}</dl></details>`).join('')
-      : '<p class="kbMeta">Carregando dados da Claro…</p>'}</div></details>
+      </div>
+      <div class="rnColB">
+    <section class="rnBloco"><h4 class="rnBlocoT">Anotações <span data-rn-cont="notas">${fic.notas ? '· ' + fic.notas.length : ''}</span></h4><div data-rn-ficha-sec="notas">${rnNotasHtml()}</div></section>
+    <section class="rnBloco"><h4 class="rnBlocoT">Contatos atualizados <span data-rn-cont="contatos">${fic.contatos ? '· ' + fic.contatos.length : ''}</span></h4><div data-rn-ficha-sec="contatos">${rnContatosHtml(r)}</div></section>
+    <section class="rnBloco"><h4 class="rnBlocoT">Anexos (fatura, proposta, documentos) <span data-rn-cont="anexos">${fic.anexos ? '· ' + fic.anexos.length : ''}</span></h4><div data-rn-ficha-sec="anexos">${rnAnexosHtml()}</div></section>
+    <section class="rnBloco"><h4 class="rnBlocoT">Histórico de atividades</h4><div data-rn-ficha-sec="historico">${fic.historico
+      ? (fic.historico.length ? '<ul class="rnHist">' + fic.historico.map(h => `<li>${escapeHtml(rnHistoricoTexto(h))}</li>`).join('') + '</ul>' : '<p class="kbMeta">Sem mudanças registradas.</p>')
+      : '<p class="kbMeta">Carregando…</p>'}</div></section>
     <details class="rnGrupo rnSecao"><summary>Propostas · ${props.length}</summary><div data-rn-ficha-sec="propostas">${props.length
       ? '<ul class="rnHist">' + props.map(p => `<li><button type="button" class="rnNome" data-rn-proposta="${escapeHtml(p.id)}">${p.valor_atual ? fmtBRL(p.valor_atual) : '—'} → ${p.valor_proposto ? fmtBRL(p.valor_proposto) : '—'}</button> · ${escapeHtml(new Date(p.criado_em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }))} · ${escapeHtml(FUNIL_ESTAGIO_MAP[p.estagio] ? FUNIL_ESTAGIO_MAP[p.estagio].label : p.estagio)}</li>`).join('') + '</ul>'
       : '<p class="kbMeta">Nenhuma proposta ainda.</p>'}</div></details>
-    <details class="rnGrupo rnSecao" open><summary>Anotações <span data-rn-cont="notas">${fic.notas ? '· ' + fic.notas.length : ''}</span></summary><div data-rn-ficha-sec="notas">${rnNotasHtml()}</div></details>
-    <details class="rnGrupo rnSecao"><summary>Contatos atualizados <span data-rn-cont="contatos">${fic.contatos ? '· ' + fic.contatos.length : ''}</span></summary><div data-rn-ficha-sec="contatos">${rnContatosHtml(r)}</div></details>
-    <details class="rnGrupo rnSecao"><summary>Anexos (fatura, proposta, documentos) <span data-rn-cont="anexos">${fic.anexos ? '· ' + fic.anexos.length : ''}</span></summary><div data-rn-ficha-sec="anexos">${rnAnexosHtml()}</div></details>
-    <details class="rnGrupo rnSecao" open><summary>Histórico de atividades</summary><div data-rn-ficha-sec="historico">${fic.historico
-      ? (fic.historico.length ? '<ul class="rnHist">' + fic.historico.map(h => `<li>${escapeHtml(rnHistoricoTexto(h))}</li>`).join('') + '</ul>' : '<p class="kbMeta">Sem mudanças registradas.</p>')
-      : '<p class="kbMeta">Carregando…</p>'}</div></details>
-    <details class="rnGrupo rnSecao"><summary>Sócios</summary><div data-rn-ficha-sec="socios">${rnSociosHtml()}</div></details>`;
+    <details class="rnGrupo rnSecao"><summary>Dados da Claro</summary><div data-rn-ficha-sec="dados">${fic.dados
+      ? rnGruposFicha(fic.dados).map(([t, itens]) => `<details class="rnGrupo"><summary>${escapeHtml(t)} <span class="kbMeta">${itens.length}</span></summary><dl>${itens.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(String(v))}</dd>`).join('')}</dl></details>`).join('')
+      : '<p class="kbMeta">Carregando dados da Claro…</p>'}</div></details>
+    <details class="rnGrupo rnSecao"><summary>Sócios</summary><div data-rn-ficha-sec="socios">${rnSociosHtml()}</div></details>
+      </div>
+    </div>`;
 }
 function rnEscolherContato(s){
   const form = document.getElementById('rnFichaForm');
@@ -5053,7 +5087,8 @@ document.getElementById('rnFicha').addEventListener('click', (e) => {
   const k = e.target.closest('[data-rn-canal]');
   if(k){ const sel = document.querySelector('#rnFichaForm [name="canal"]'); if(sel) sel.value = k.dataset.rnCanal; }
 });
-document.getElementById('rnFicha').addEventListener('click', (e) => { if(e.target.closest('[data-rn-ficha-fechar]')) rnFecharFicha(); });
+document.getElementById('rnFicha').addEventListener('click', (e) => { if(e.target.closest('[data-rn-ficha-fechar]') || (e.target === e.currentTarget && !e.currentTarget.classList.contains('noPainel'))) rnFecharFicha(); });
+document.addEventListener('keydown', (e) => { const f = document.getElementById('rnFicha'); if(e.key === 'Escape' && f && f.classList.contains('aberta') && !f.classList.contains('noPainel') && !document.querySelector('.overlay.show,.overlay.open')) rnFecharFicha(); });
 document.getElementById('rnFicha').addEventListener('click', (e) => {
   const sp = e.target.closest('[data-rn-socios-pedir]');
   if(sp){ rnSociosPedir(); return; }
