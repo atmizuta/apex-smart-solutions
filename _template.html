@@ -5992,7 +5992,7 @@ function kbFichaHtml(f, op){
   const rodape = f.livre ? '' : `<div class="kbFichaRodape">${o.naHoje
       ? `<button type="button" class="kbBtn kbBtnP kbBtnLg" id="kbClassSalvarProx" data-kb-salvar="prox">Salvar e ir para o próximo${KB_ICO.seta}</button><button type="button" class="kbBtn kbBtnG" id="kbClassSalvar" data-kb-salvar="so">Só salvar</button>`
       : `<button type="button" class="kbBtn kbBtnP kbBtnLg" id="kbClassSalvar" data-kb-salvar="so">Salvar</button>`}<span class="kbMeta">Ctrl+Enter</span></div>`;
-  return `<div class="kbFichaRolagem">${barra}${apagar}${cab}${contato}<p class="kbFichaResumo" id="kbFichaResumo"></p>${aviso}${obsAnt}${corpo}</div>${rodape}`;
+  return `<div class="kbFichaRolagem">${barra}${apagar}${cab}${contato}<p class="kbFichaResumo" id="kbFichaResumo"></p>${aviso}${obsAnt}<div class="kbFichaSecao" id="kbFichaWa" hidden></div>${corpo}</div>${rodape}`;
 }
 
 // §128: situação do CNPJ do lead na Receita, só quando alguém clica (Edge Function verificar-cnpj; resultado em cnpj_consultas).
@@ -6777,7 +6777,8 @@ async function kbCarregar(){
   const [lds, ops] = await Promise.all([
     ppSeguro(() => sb.rpc('leads_kanban3', { p_dono: kbGestor() && kbEstado.dono ? kbEstado.dono : null, p_todos: false })),
     kbEstado.opcoes.length ? Promise.resolve(null) : ppSeguro(() => sb.from('leads_status_opcoes').select('status,grupo,ordem').eq('ativo', true)),
-    kbCarregarBloqueio(),   // §132: o bloqueio do gestor chega a quem está com o painel aberto
+    kbCarregarBloqueio(),
+    kbCarregarWaSelos(),   // §165: selo 📱 do WhatsApp   // §132: o bloqueio do gestor chega a quem está com o painel aberto
   ]);
   if(geracao !== kbEstado.geracao) return;
   if(ops && !ops.error) kbEstado.opcoes = ops.data || [];
@@ -6794,8 +6795,56 @@ const KB_ICONE_WHATS = '<svg viewBox="0 0 24 24"><path d="M3 21l1.7-5A8.5 8.5 0 
 // §126.2: cartão novo em três níveis — nome; cidade · linhas e STATUS (ponto); OBS, retorno, última ligação e chegada.
 // Ícone de urgência no canto (só em aberto), faixa vermelha só no que precisa de ação agora, Ligar/WhatsApp ao passar o mouse.
 const KB_URG_TITULO = { late: 'Retorno atrasado', hoje: 'Retorno hoje', fut: 'Retorno marcado', nada: 'Nada agendado' };
+// §165: selo do WhatsApp no cartão e bloco "Ficha do WhatsApp" na ficha (agente fora do expediente).
+const WA_SELO = { pronto: ['apto', 'Pronto para subir'], em_andamento: ['', 'Em andamento'], precisa_humano: ['naoapto', 'Precisa de humano'] };
+const WA_SERVICO = { moveis: 'Linhas móveis', fibra: 'Internet fixa', outro: 'Outro interesse' };
+const WA_MODALIDADE = { portabilidade: 'Portabilidade', migracao: 'Migração', nova: 'Linha nova' };
+const WA_DOC = { fatura: 'Fatura', comprovante_recarga: 'Comprovante de recarga', cnh: 'CNH' };
+function kbWaSeloHtml(estado){
+  const s = WA_SELO[estado];
+  return s ? `<span class="badge${s[0] ? ' ' + s[0] : ''}" title="Atendido pelo assistente do WhatsApp fora do expediente">📱 ${s[1]}</span>` : '';
+}
+function kbWaFichaHtml(w){
+  if(!w) return '';
+  const f = w.ficha || {};
+  const linha = (rot, val) => `<div class="kbFichaLinha"><span>${rot}</span><strong>${escapeHtml(val == null || val === '' ? '—' : String(val))}</strong><i></i></div>`;
+  const mv = f.moveis && Array.isArray(f.moveis.partes) ? f.moveis : null;
+  const partes = mv ? mv.partes.map(p => `${p.quantidade} ${WA_MODALIDADE[p.modalidade] || p.modalidade}${p.numeros && p.numeros.length ? ' (' + p.numeros.join(', ') + ')' : ''}`).join(' · ') : '';
+  const vel = f.velocidade === 'mais' ? 'acima de 1 Giga' : f.velocidade === '1000' ? '1 Giga' : f.velocidade ? f.velocidade + ' Mega' : '';
+  const linhas = [linha('Nome', f.nome), linha('CPF', f.cpf), linha('CNPJ', f.cnpj), linha('Serviço', (f.servicos || []).map(s => WA_SERVICO[s] || s).join(', '))];
+  if(mv) linhas.push(linha('Linhas móveis', `${mv.total || '?'} no total${partes ? ': ' + partes : ''}`));
+  if(vel) linhas.push(linha('Internet fixa', vel));
+  if(f.cep || f.numero_endereco) linhas.push(linha('Endereço', `CEP ${f.cep || '?'}, nº ${f.numero_endereco || '?'}`));
+  if(f.outro) linhas.push(linha('Interesse', f.outro));
+  const docs = (w.documentos || []).map(d => `<button type="button" class="btn btn-sm btn-outline" data-kb-wa-doc="${escapeHtml(d.caminho)}">${escapeHtml(WA_DOC[d.tipo] || 'Documento')}</button>`).join(' ');
+  const alertas = [].concat(w.alertas || [], w.estado === 'precisa_humano' && w.motivo ? ['Precisa de humano: ' + w.motivo] : []);
+  return `<h5>Ficha do WhatsApp ${kbWaSeloHtml(w.estado)}</h5>${linhas.join('')}`
+    + (docs ? `<div class="kbFichaLinha"><span>Documentos</span><strong>${docs}</strong><i></i></div>` : '')
+    + alertas.map(a => `<p class="kbFichaAviso">⚠ ${escapeHtml(a)}</p>`).join('');
+}
+async function kbCarregarWaSelos(){
+  const r = await ppSeguro(() => sb.rpc('wa_selos'));
+  const m = {};
+  (r && !r.error && Array.isArray(r.data) ? r.data : []).forEach(x => { m[x.aba + '|' + x.lead_id] = x.estado; });
+  kbEstado.waSelos = m;   // banco sem a função: nenhum selo
+}
+async function kbCarregarWa(aba, id){
+  const r = await ppSeguro(() => sb.rpc('wa_ficha', { p_aba: aba, p_id: id }));
+  if(!kbEstado.fichaAlvo || kbEstado.fichaAlvo.id !== id) return;
+  const el = kbFichaEl('kbFichaWa');
+  if(!el) return;
+  const html = r && !r.error ? kbWaFichaHtml(r.data) : '';
+  el.innerHTML = html;
+  el.hidden = !html;
+}
+async function kbAbrirWaDoc(caminho){
+  const r = await sb.storage.from('wa-documentos').createSignedUrl(caminho, 300);
+  if(r.error || !r.data){ mostrarAviso('Não foi possível abrir o documento.', 'erro'); return; }
+  window.open(r.data.signedUrl, '_blank', 'noopener');
+}
 function kbCard(l, agoraMs){
   const col = kbColunaDoLead(l), div = kbDivergencia(l);
+  const waSelo = kbWaSeloHtml((kbEstado.waSelos || {})[l.aba + '|' + l.lead_id]);
   const meta = [[l.cidade, l.uf].filter(Boolean).join('/'), l.qtd_linhas ? l.qtd_linhas + ' linhas' : ''].filter(Boolean).join(' · ');
   const tel = String(l.telefone || '').replace(/\D/g, '');
   const attrs = `data-aba="${escapeHtml(l.aba)}" data-id="${escapeHtml(l.lead_id)}" data-col="${col}" draggable="true" tabindex="0"`;
@@ -6803,11 +6852,12 @@ function kbCard(l, agoraMs){
   const metaHtml = meta ? `<div class="kbCartMeta">${escapeHtml(meta)}</div>` : '';
   if(col === 'livres'){
     const cor = kbCorIdadeLivre(l, agoraMs);
-    return `<div class="kbCard kbCardLivre" ${attrs}>${nome}${metaHtml}<div class="kbCartRodape"><span class="kbTag${cor ? ' ' + cor : ''}">${escapeHtml(kbTempoDesde(l.criado_em_lead, agoraMs))}</span>${kbPodePegar() ? '<button type="button" class="kbBtn kbBtnQ kbBtnSm" data-kb-pegar>Pegar</button>' : ''}</div></div>`;
+    return `<div class="kbCard kbCardLivre" ${attrs}>${nome}${metaHtml}<div class="kbCartRodape">${waSelo}<span class="kbTag${cor ? ' ' + cor : ''}">${escapeHtml(kbTempoDesde(l.criado_em_lead, agoraMs))}</span>${kbPodePegar() ? '<button type="button" class="kbBtn kbBtnQ kbBtnSm" data-kb-pegar>Pegar</button>' : ''}</div></div>`;
   }
   const urg = kbUrgenciaCartao(l, agoraMs);
   const st = l.status ? `<span class="kbStP" data-st="${escapeHtml(kbStSlug(l.status))}">${escapeHtml(kbStTexto(l.status))}</span>` : '<span class="kbStP">Sem status</span>';
   const extras = [];
+  if(waSelo) extras.push(waSelo);
   if(plParaResgatar(l)) extras.push('<span class="badge">para resgatar</span>');
   if(col === 'convertido' && (l.receita || l.receita_neo)) extras.push(`<span class="kbCartReceita">${escapeHtml(kbMoeda(l.receita || l.receita_neo))}${l.venda_neo ? ' · ✓ NEO' : ''}</span>`);
   const ret = kbAbertoCol(col) ? kbRetornoTag(l, agoraMs) : null, motivo = kbMotivoFaixa(l, agoraMs);
@@ -7601,6 +7651,8 @@ kbFichaNo().addEventListener('click', async (e) => {
   if(at){ kbFichaEl('kbClassRetorno').value = at.dataset.kbRetData; kbFichaEl('kbClassHora').value = at.dataset.kbRetHora; kbFichaNo().querySelectorAll('[data-kb-ret-data]').forEach(b => b.classList.toggle('ativo', b === at)); return; }
   const sv = e.target.closest('[data-kb-salvar]');
   if(sv){ kbSalvarClassificacao({ proximo: sv.dataset.kbSalvar === 'prox' }); return; }
+  const wd = e.target.closest('[data-kb-wa-doc]');
+  if(wd){ kbAbrirWaDoc(wd.dataset.kbWaDoc); return; }
   const cp = e.target.closest('[data-kb-ficha-copiar]');
   if(cp){ try { await (kbFichaNo().ownerDocument.defaultView || window).navigator.clipboard.writeText(cp.dataset.kbFichaCopiar); mostrarAviso('Copiado.', 'ok'); } catch(_) { mostrarAviso('Não foi possível copiar.', 'erro'); } return; }
   if(e.target.closest('[data-kb-cnpj-alterar]')){
@@ -8443,6 +8495,8 @@ function kbFaixaDistribHtml(d){
   const alertas = [];
   if(av.robo_parado !== undefined) alertas.push('Robô do ProContact sem importar há mais de 30 min: confirmação das ligações suspensa (ninguém perde ponto).');
   if(av.motor_erro && av.motor_erro.em && Date.now() - kbMs(av.motor_erro.em) < 86400000) alertas.push('A distribuição deu erro há pouco; os leads ficaram nos Livres.');
+  if(av.wa_erro && av.wa_erro.em && Date.now() - kbMs(av.wa_erro.em) < 86400000) alertas.push('O assistente do WhatsApp teve erro há pouco (resposta ou envio); confira as conversas da noite.');
+  if(av.wa_sem_mensagens) alertas.push('O WhatsApp não recebe mensagens há 48 h: abra o WhatsApp Business no celular da empresa (a conexão com o assistente cai se o app ficar dias sem abrir).');
   const parados = (Array.isArray(av.parados) ? av.parados : []).filter(p => p && p.em && Date.now() - kbMs(p.em) < 86400000).length;
   if(parados) alertas.push(parados === 1 ? '1 lead parou de circular (devolvido 2 vezes) e está nos Livres.' : `${parados} leads pararam de circular (devolvidos 2 vezes) e estão nos Livres.`);
   const linhas = cons.map(c => `<tr><td>${escapeHtml(c.nome || '')}</td><td>${escapeHtml(KB_DIST_ESTADO[c.estado] || c.estado || '')}</td>`
@@ -8699,6 +8753,7 @@ async function kbCarregarAlertas(notificar){
   if(kbEstado.aba === 'hoje' && document.getElementById('kbHoje').innerHTML) kbRenderHoje();
 }
 async function kbCarregarDetalhes(aba, id){
+  kbCarregarWa(aba, id);   // §165 (sem await: não atrasa o histórico)
   const r = await ppSeguro(() => sb.rpc('leads_ficha_detalhes', { p_aba: aba, p_id: id }));
   if(!kbEstado.fichaAlvo || kbEstado.fichaAlvo.id !== id) return;
   const d = r && !r.error ? r.data : null;
