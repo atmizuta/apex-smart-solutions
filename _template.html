@@ -1137,6 +1137,14 @@
   /* Funil */
   .kanbanCard.kcRenovacao{cursor:pointer;}
   .rnKanban{display:grid;grid-template-columns:repeat(9,minmax(230px,1fr));gap:var(--space-3);overflow-x:auto;padding-bottom:var(--space-3);}
+  .rnCnpjBt{border:1px solid var(--ml-surface-3);background:var(--ml-surface);border-radius:var(--radius-pill,999px);padding:0 8px;font-size:11px;font-weight:600;cursor:pointer;color:var(--ml-ink-2);}.rnCnpjBt:hover{background:var(--ml-surface-2);}
+  .rnCnpjLinha{display:flex;align-items:center;gap:6px;}
+  #rnKbKpis[hidden]{display:none;}
+  .rnNotaForm{display:grid;gap:var(--space-2);margin-bottom:var(--space-3);}.rnNotaForm textarea{width:100%;}
+  .rnNotas li{display:grid;gap:4px;}.rnNotaTxt{white-space:pre-wrap;overflow-wrap:anywhere;}.rnNotaAcoes{display:flex;flex-wrap:wrap;gap:6px;}.rnFixada{background:var(--ml-surface-2);border-radius:var(--radius-lg);padding:var(--space-2);}
+  .rnContato2{display:flex;justify-content:space-between;gap:var(--space-2);flex-wrap:wrap;padding:var(--space-2) 0;box-shadow:0 1px 0 var(--ml-surface-3);}
+  .rnTag{display:inline-block;padding:0 8px;border-radius:var(--radius-pill,999px);font-size:11px;font-weight:600;color:var(--ml-ink-2);background:var(--ml-surface-3);}.rnTagOk{color:var(--st-ganho);background:var(--st-ganho-bg);}
+  .rnCheck{display:flex;align-items:center;gap:6px;}
   .rnQuente{display:inline-block;padding:1px 6px;border-radius:var(--radius-pill,999px);font-weight:700;font-size:11px;color:var(--st-perdido);background:var(--st-perdido-bg);}
   .rnProxCard{margin:0;padding:var(--space-2) var(--space-3);border-radius:var(--radius-lg);background:var(--ml-surface-2);font-size:var(--fs-sm);}
   .rnSecao>summary{font-weight:600;cursor:pointer;}
@@ -4080,13 +4088,13 @@ const RN_PRODUTOS = ['Renovação de linhas', 'Fixa (banda larga)', 'Renovação
 const RN_CONCORRENTES = ['Vivo', 'TIM', 'Oi', 'Outro'];
 const RN_APTOS = ['APTO', '1 MÊS PARA APTO', '2 MESES PARA APTO'];
 const RN_LEGADO = { 1: 0, 2: 1, 3: 2, 4: 4, 5: 5, 6: 6, 7: 8 };   // planilha antiga do time (1–7) → funil novo
-const RN_COLS_LISTA = 'id,cnpj_digits,razao_social,telefone,nome_adm,linhas_voz,apto,cidade,ddd,consultor_id,origem,status,data_contato,prox_retorno,canal,linhas_renovadas,bl_vendida,sol_digitais,motivo_perda,observacoes,na_base,a_completar,atualizado_em,status_desde,retorno_hora,'
+const RN_COLS_LISTA = 'id,cnpj_digits,razao_social,telefone,nome_adm,linhas_voz,apto,cidade,ddd,consultor_id,origem,status,data_contato,prox_retorno,canal,linhas_renovadas,bl_vendida,sol_digitais,motivo_perda,observacoes,na_base,a_completar,atualizado_em,status_desde,retorno_hora,melhor_horario,etiquetas,'
   + 'oportunidade,movimentacao,fatura,fixa_viavel,tem_fixa,prioridade,hist_origem,consultor_anterior,tentativas,primeiro_contato,prox_acao,falou_decisor,produto_ofertado,linhas_propostas,valor_proposta,concorrente,numero_pedido,data_fechamento';
 const RN_PAGINA = 50;
 function rnFiltrosVazios(){ return { busca: '', visao: 'todos', ordem: 'prioridade', status: '', apto: '', prioridade: '', fixa: '', oport: '', fatura: '', linhas: '', mov: '', cidade: '', ddd: '', consultor: '', soVencido: false, pendencias: false, foraBase: false }; }
 // §165 (25/11): filtros e ordens para achar as melhores oportunidades (valem no Funil e na Lista)
 const RN_FILTROS = [
-  ['apto', 'Aptidão', [['APTOS', 'Aptos (todos)'], ['APTO', 'Apto agora'], ['1 MÊS PARA APTO', '1 mês para apto'], ['2 MESES PARA APTO', '2 meses para apto'], ['QUASE', 'Quase apto (1 ou 2 meses)'], ['NÃO APTO', 'Não apto']]],
+  ['apto', 'Aptidão', [['APTO', 'Aptos'], ['1 MÊS PARA APTO', 'Apto M+1'], ['2 MESES PARA APTO', 'Apto M+2'], ['NÃO APTO', 'FIXA - Não Apto']], 'Todos'],
   ['fixa', 'Fixa', [['viavel', 'Fixa viável'], ['nova', 'Fixa nova (viável e sem fixa hoje)'], ['sem', 'Sem fixa hoje'], ['tem', 'Já tem fixa']]],
   ['oport', 'Oportunidade', [['Renovação', 'Renovação'], ['Renovação + Fixa', 'Renovação + Fixa'], ['Fixa nova', 'Fixa nova'], ['Sem oportunidade', 'Sem oportunidade']]],
   ['prioridade', 'Prioridade', [['P1', 'P1'], ['P2', 'P2'], ['P3', 'P3'], ['P4', 'P4'], ['P5', 'P5']]],
@@ -4099,12 +4107,19 @@ const RN_ORDENS = [['prioridade', 'Ordem: prioridade (P1 primeiro)'], ['fatura_d
 // atalhos: cada um troca os filtros de uma vez (mantém busca e consultor)
 const RN_PRESETS = [
   ['melhores', 'Melhores oportunidades (P1)', { prioridade: 'P1', ordem: 'vl_desc' }],
-  ['valor_linha', 'Aptos de maior valor por linha', { apto: 'APTOS', ordem: 'vl_desc' }],
-  ['alta_fatura', 'Aptos com fatura alta (R$ 500+)', { apto: 'APTOS', fatura: '500', ordem: 'fatura_desc' }],
+  ['valor_linha', 'Aptos de maior valor por linha', { apto: 'APTO', ordem: 'vl_desc' }],
+  ['alta_fatura', 'Aptos com fatura alta (R$ 500+)', { apto: 'APTO', fatura: '500', ordem: 'fatura_desc' }],
   ['fixa_nova', 'Fixa nova (viável, sem fixa hoje)', { fixa: 'nova', ordem: 'fatura_desc' }],
-  ['quase', 'Quase aptos (1 e 2 meses)', { apto: 'QUASE', ordem: 'fatura_desc' }],
   ['novos', 'Novos da base 25/11', { mov: 'novo', ordem: 'prioridade' }],
 ];
+function rnCnpjFmt(d){ return String(d || '').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5'); }
+function rnCnpjBtn(d){ return d ? `<button type="button" class="rnCnpjBt" data-rn-cnpj="${escapeHtml(d)}" title="Copiar o CNPJ para consultar no Solar">CNPJ</button>` : ''; }
+function rnCopiar(texto){
+  if(navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(texto);
+  return new Promise((ok, falha) => { try{ const t = document.createElement('textarea'); t.value = texto; document.body.appendChild(t); t.select(); const r = document.execCommand('copy'); t.remove(); r ? ok() : falha(); }catch(e){ falha(e); } });
+}
+function rnPrefGet(k){ try{ const v = localStorage.getItem(k); if(v !== null) return v; }catch(e){} return (rnEstado.prefMem || {})[k] ?? null; }
+function rnPrefSet(k, v){ rnEstado.prefMem = Object.assign(rnEstado.prefMem || {}, { [k]: v }); try{ localStorage.setItem(k, v); }catch(e){} }
 const RN_CHIPS_VISAO = ['quentes', 'fila', 'atrasados', 'sem7'];
 const RN_META_DIA = { contatos: 30, propostas: 5 };   // meta diária por consultor (Funil mostra o progresso do dia)
 // "Quente": P1 ainda aberto (etapas 0–5) e sem toque há mais de 3 dias (ou nunca tocado)
@@ -4148,7 +4163,7 @@ function rnComparador(ordem){
   }
 }
 function rnPassaFiltros(r, f){
-  if(f.apto === 'APTOS' ? !rnEhApto(r.apto) : f.apto === 'QUASE' ? !(r.apto === '1 MÊS PARA APTO' || r.apto === '2 MESES PARA APTO') : (f.apto && r.apto !== f.apto)) return false;
+  if(f.apto && r.apto !== f.apto) return false;
   if(f.fixa === 'viavel' && !r.fixa_viavel) return false;
   if(f.fixa === 'nova' && !(r.fixa_viavel && !r.tem_fixa)) return false;
   if(f.fixa === 'sem' && r.tem_fixa) return false;
@@ -4172,7 +4187,7 @@ function rnSumario(lista){
   return `${lista.length.toLocaleString('pt-BR')} cliente${lista.length === 1 ? '' : 's'}` + (fat ? ` · ${fmtBRL(fat)}/mês em fatura` : '') + (fat && lin ? ` · ${fmtBRL(fat / lin)} por linha em média` : '');
 }
 function rnFiltrosSelectsHtml(pref){
-  return RN_FILTROS.map(([k, t, ops]) => `<select class="rnSel" id="${pref}${k[0].toUpperCase() + k.slice(1)}" data-rn-f="${k}" aria-label="${escapeHtml(t)}"><option value="">${escapeHtml(t)}: todos</option>${ops.map(([v, x]) => `<option value="${escapeHtml(v)}">${escapeHtml(x)}</option>`).join('')}</select>`).join('')
+  return RN_FILTROS.map(([k, t, ops, vazio]) => `<select class="rnSel" id="${pref}${k[0].toUpperCase() + k.slice(1)}" data-rn-f="${k}" aria-label="${escapeHtml(t)}"><option value="">${escapeHtml(vazio || t + ': todos')}</option>${ops.map(([v, x]) => `<option value="${escapeHtml(v)}">${escapeHtml(x)}</option>`).join('')}</select>`).join('')
     + `<select class="rnSel" id="${pref}Ordem2" data-rn-f="ordem" aria-label="Ordem">${RN_ORDENS.map(([v, x]) => `<option value="${v}">${escapeHtml(x)}</option>`).join('')}</select>`;
 }
 function rnPresetsHtml(){ return '<option value="">Atalhos de busca…</option>' + RN_PRESETS.map(([k, t]) => `<option value="${k}">${escapeHtml(t)}</option>`).join(''); }
@@ -4415,7 +4430,7 @@ function rnLinhaHtml(r, agora, gestor){
   const sub = [r.nome_adm, r.cidade, r.apto, gestor ? rnNomeConsultor(r.consultor_id) : ''].filter(Boolean).join(' · ');
   return `<tr class="${rnClasseLinha(r)}" data-rn-id="${r.id}">
     ${gestor ? `<td class="rnTdSel"><input type="checkbox" data-rn-sel="${r.id}" aria-label="Selecionar"${rnEstado.selecionados.has(r.id) ? ' checked' : ''}></td>` : ''}
-    <td><div class="rnEmpresa"><span class="rnAv">${escapeHtml(rnIniciais(r.razao_social))}</span><span><b>${escapeHtml(r.razao_social || '(sem nome)')}</b>${rnQuente(r, agora.data) ? ' <span class="rnQuente">Quente</span>' : ''}<small>${escapeHtml(sub)}</small></span></div></td>
+    <td><div class="rnEmpresa"><span class="rnAv">${escapeHtml(rnIniciais(r.razao_social))}</span><span><b>${escapeHtml(r.razao_social || '(sem nome)')}</b> ${rnCnpjBtn(r.cnpj_digits)}${rnQuente(r, agora.data) ? ' <span class="rnQuente">Quente</span>' : ''}<small>${escapeHtml(sub)}</small></span></div></td>
     <td>${rnPrioHtml(r.prioridade)}</td>
     <td class="rnNumTd">${r.linhas_voz ?? '—'}</td>
     <td class="rnNumTd">${r.fatura != null ? fmtBRL(r.fatura) : '—'}</td>
@@ -4498,7 +4513,7 @@ document.getElementById('rnTbody').addEventListener('change', (e) => {
   rnRenderCarteira();
 });
 document.getElementById('rnTbody').addEventListener('click', (e) => {
-  if(e.target.closest('input, label')) return;   // marcar para redistribuir não abre a ficha
+  if(e.target.closest('input, label, [data-rn-cnpj]')) return;   // marcar para redistribuir / copiar CNPJ não abre a ficha
   const tr = e.target.closest('tr[data-rn-id]');
   if(tr && typeof rnAbrirFicha === 'function') rnAbrirFicha(Number(tr.dataset.rnId));
 });
@@ -4525,6 +4540,13 @@ document.getElementById('panel-renovacao').addEventListener('change', (e) => {
     if(def){ const f = rnEstado.filtros; rnEstado.filtros = Object.assign(rnFiltrosVazios(), { consultor: f.consultor, busca: f.busca }, def[2]); rnEstado.pagina = 1; pr.value = ''; rnRender(); }
   }
 });
+document.getElementById('panel-renovacao').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-rn-cnpj]');
+  if(!b) return;
+  e.stopPropagation();
+  const txt = rnCnpjFmt(b.dataset.rnCnpj);
+  rnCopiar(txt).then(() => mostrarAviso(`CNPJ ${txt} copiado. É só colar no Solar.`, 'ok'), () => mostrarAviso('Não foi possível copiar. Selecione o CNPJ e copie à mão.', 'erro'));
+}, true);
 function rnAbrirSalvarFiltro(){
   let ov = document.getElementById('rnSalvarFiltro');
   if(!ov){ ov = document.createElement('div'); ov.className = 'overlay'; ov.id = 'rnSalvarFiltro'; document.body.appendChild(ov); }
@@ -4738,19 +4760,178 @@ function rnSociosPintar(){
   const sec = document.querySelector('#rnFichaCorpo [data-rn-ficha-sec="socios"]');
   if(sec) sec.innerHTML = rnSociosHtml();      // só a seção: não toca no formulário de atendimento
 }
+// ===== §165 Ficha: anotações, contatos atualizados, anexos (tabelas renovacao_notas/contatos/anexos; os dados da Claro não são tocados) =====
+const RN_HORARIOS = ['Manhã', 'Tarde', 'Noite', 'Horário comercial'];
+const RN_ANEXO_TIPOS = [['fatura', 'Fatura'], ['proposta', 'Proposta recebida'], ['documento', 'Documento'], ['outro', 'Outro']];
+const RN_ANEXO_MIMES = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'text/plain', 'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+const RN_ANEXO_MAX = 10 * 1024 * 1024;
+function rnQuando(iso){ return iso ? new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '') : ''; }
+function rnPodeApagar(autor){ return !!currentUser && (currentUser.id === autor || currentUser.role === 'admin'); }
+function rnTamanho(b){ return b >= 1048576 ? (b / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB'; }
+function rnContatoPrincipal(){ const f = rnEstado.ficha; return f && Array.isArray(f.contatos) ? f.contatos.find(c => c.principal && c.telefone) || null : null; }
+function rnNotasHtml(){
+  const f = rnEstado.ficha || {};
+  const lista = (f.notas || []).slice().sort((a, b) => (b.fixada ? 1 : 0) - (a.fixada ? 1 : 0));
+  return `<div class="rnNotaForm"><textarea id="rnNotaTexto" rows="3" maxlength="2000" placeholder="Registre algo importante sobre o cliente (o que ele disse, objeção, quem decide…)"></textarea>
+    <button type="button" class="kbBtn kbBtnP kbBtnSm" data-rn-nota-add>Adicionar anotação</button></div>`
+    + (f.notas ? (lista.length ? '<ul class="rnHist rnNotas">' + lista.map(n => `<li class="${n.fixada ? 'rnFixada' : ''}"><div class="rnNotaTxt">${escapeHtml(n.texto)}</div>
+      <small class="rnMuted">${n.fixada ? 'Fixada · ' : ''}${escapeHtml(rnNomeConsultor(n.user_id))} · ${escapeHtml(rnQuando(n.criado_em))}</small>
+      <span class="rnNotaAcoes"><button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-nota-fixar="${n.id}">${n.fixada ? 'Desafixar' : 'Fixar'}</button>${rnPodeApagar(n.user_id) ? `<button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-nota-apagar="${n.id}">Apagar</button>` : ''}</span></li>`).join('') + '</ul>'
+      : '<p class="kbMeta">Nenhuma anotação ainda.</p>') : '<p class="kbMeta">Carregando…</p>');
+}
+function rnContatosHtml(r){
+  const f = rnEstado.ficha || {}; const ed = f.editarContato ? (f.contatos || []).find(c => c.id === f.editarContato) : null;
+  const claro = [r.nome_adm, r.telefone ? rnFoneFmt(r.telefone) : ''].filter(Boolean).join(' · ');
+  const dado = (d) => `<div class="rnContato2"><div><b>${escapeHtml(d.nome || '(sem nome)')}</b>${d.cargo ? ' · ' + escapeHtml(d.cargo) : ''}${d.decisor ? ' <span class="rnTag">Decisor</span>' : ''}${d.principal ? ' <span class="rnTag rnTagOk">Principal</span>' : ''}
+      <div class="kbMeta">${d.telefone ? escapeHtml(rnFoneFmt(d.telefone)) : ''}${d.telefone && d.email ? ' · ' : ''}${d.email ? escapeHtml(d.email) : ''} · atualizado por ${escapeHtml(rnNomeConsultor(d.atualizado_por || d.criado_por))} em ${escapeHtml(rnQuando(d.atualizado_em))}</div></div>
+      <span class="rnNotaAcoes">${d.telefone ? `<a class="kbBtn kbBtnP kbBtnSm" data-rn-canal="WhatsApp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(d.telefone.replace(/^55/, ''))}">WhatsApp</a><a class="kbBtn kbBtnQ kbBtnSm" data-rn-canal="Ligação" href="tel:${escapeHtml(d.telefone)}">Ligar</a>` : ''}${d.email ? `<a class="kbBtn kbBtnQ kbBtnSm" href="mailto:${escapeHtml(d.email)}">E-mail</a>` : ''}
+      <button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-contato-editar="${d.id}">Editar</button>${rnPodeApagar(d.criado_por) ? `<button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-contato-apagar="${d.id}">Apagar</button>` : ''}</span></div>`;
+  return `<p class="kbMeta">Dado oficial da Claro (não muda): ${escapeHtml(claro || 'sem telefone')}</p>`
+    + (f.contatos ? (f.contatos.length ? f.contatos.map(dado).join('') : '<p class="kbMeta">Nenhum contato atualizado ainda.</p>') : '<p class="kbMeta">Carregando…</p>')
+    + `<div class="rnCampos rnContatoForm"><label>Nome<input type="text" id="rnCtNome" maxlength="120" value="${escapeHtml(ed ? ed.nome || '' : '')}"></label>
+      <label>Cargo<input type="text" id="rnCtCargo" maxlength="80" value="${escapeHtml(ed ? ed.cargo || '' : '')}"></label>
+      <label>Telefone (com DDD)<input type="tel" id="rnCtTel" value="${escapeHtml(ed && ed.telefone ? rnFoneFmt(ed.telefone) : '')}"></label>
+      <label>E-mail<input type="email" id="rnCtEmail" maxlength="120" value="${escapeHtml(ed ? ed.email || '' : '')}"></label>
+      <label class="rnCheck"><input type="checkbox" id="rnCtDecisor"${ed && ed.decisor ? ' checked' : ''}> É o decisor</label>
+      <label class="rnCheck"><input type="checkbox" id="rnCtPrincipal"${ed && ed.principal ? ' checked' : ''}> Contato principal (usado no WhatsApp e Ligar)</label>
+      <div class="rnLargo"><button type="button" class="kbBtn kbBtnP kbBtnSm" data-rn-contato-salvar>${ed ? 'Salvar alterações' : 'Adicionar contato'}</button>${ed ? ' <button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-contato-cancelar>Cancelar</button>' : ''}</div></div>`;
+}
+function rnAnexosHtml(){
+  const f = rnEstado.ficha || {};
+  return `<div class="rnCampos"><label>Tipo<select id="rnAnexoTipo">${rnOpcoes(RN_ANEXO_TIPOS, 'fatura')}</select></label>
+    <label>Arquivo (PDF, imagem, Word ou Excel, até 10 MB)<input type="file" id="rnAnexoArq" accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.doc,.docx,.xls,.xlsx"></label>
+    <div class="rnLargo"><button type="button" class="kbBtn kbBtnP kbBtnSm" data-rn-anexo-enviar>Anexar</button></div></div>`
+    + (f.anexos ? (f.anexos.length ? '<ul class="rnHist rnNotas">' + f.anexos.map(a => `<li><div class="rnNotaTxt"><b>${escapeHtml((RN_ANEXO_TIPOS.find(t => t[0] === a.tipo) || [0, a.tipo])[1])}</b> · ${escapeHtml(a.nome)}</div>
+      <small class="rnMuted">${escapeHtml(rnTamanho(a.tamanho || 0))} · ${escapeHtml(rnNomeConsultor(a.user_id))} · ${escapeHtml(rnQuando(a.criado_em))}</small>
+      <span class="rnNotaAcoes"><button type="button" class="kbBtn kbBtnQ kbBtnSm" data-rn-anexo-abrir="${a.id}">Abrir</button>${rnPodeApagar(a.user_id) ? `<button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-anexo-apagar="${a.id}">Apagar</button>` : ''}</span></li>`).join('') + '</ul>'
+      : '<p class="kbMeta">Nenhum anexo ainda.</p>') : '<p class="kbMeta">Carregando…</p>');
+}
+function rnPintarSecao(nome){
+  const r = rnEstado.lista.find(x => x.id === rnEstado.fichaId); const f = rnEstado.ficha;
+  if(!r || !f) return;
+  const html = { notas: rnNotasHtml, contatos: () => rnContatosHtml(r), anexos: rnAnexosHtml }[nome]();
+  const alvo = document.querySelector(`#rnFichaCorpo [data-rn-ficha-sec="${nome}"]`); if(alvo) alvo.innerHTML = html;
+  const n = (f[nome] || []).length; const cont = document.querySelector(`#rnFichaCorpo [data-rn-cont="${nome}"]`); if(cont) cont.textContent = f[nome] ? '· ' + n : '';
+  if(nome === 'contatos'){ const ac = document.querySelector('#rnFichaCorpo .rnFichaAcoes'); if(ac) ac.innerHTML = rnFichaAcoesHtml(r); }
+}
+function rnFichaAcoesHtml(r){
+  const pc = rnContatoPrincipal(); const tel = onlyDigits(pc ? pc.telefone : r.telefone);
+  return (tel
+    ? `<a class="kbBtn kbBtnP" data-rn-canal="WhatsApp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}">WhatsApp</a><a class="kbBtn kbBtnQ" data-rn-canal="Ligação" href="tel:${escapeHtml(tel)}">Ligar</a>`
+    : '<span class="kbMeta">Sem telefone.</span>')
+    + (pc && pc.email ? `<a class="kbBtn kbBtnQ" href="mailto:${escapeHtml(pc.email)}">E-mail</a>` : '')
+    + (pc ? `<span class="kbMeta">usa o contato principal${pc.nome ? ': ' + escapeHtml(pc.nome) : ''}</span>` : '')
+    + (rnEncerrado(r.status) ? '<span class="kbMeta">Reabra a etapa para gerar proposta.</span>' : `<button type="button" class="kbBtn kbBtnQ" data-rn-gerar="${r.id}">Gerar proposta</button>`);
+}
+async function rnNotaAdicionar(){
+  const id = rnEstado.fichaId; const el = document.getElementById('rnNotaTexto'); const texto = el ? el.value.trim() : '';
+  if(!texto){ mostrarAviso('Escreva a anotação antes de adicionar.', 'info'); return; }
+  const r = await ppSeguro(() => sb.from('renovacao_notas').insert({ carteira_id: id, texto }).select('id,user_id,texto,fixada,criado_em').single());
+  if(!r || r.error || !r.data){ mostrarAviso('Não foi possível salvar a anotação agora.', 'erro'); return; }
+  if(rnEstado.fichaId !== id) return;
+  rnEstado.ficha.notas = [r.data].concat(rnEstado.ficha.notas || []); rnPintarSecao('notas'); mostrarAviso('Anotação registrada.', 'ok');
+}
+async function rnNotaFixar(nid){
+  const n = (rnEstado.ficha.notas || []).find(x => String(x.id) === String(nid)); if(!n) return;
+  const r = await ppSeguro(() => sb.from('renovacao_notas').update({ fixada: !n.fixada }).eq('id', n.id));
+  if(!r || r.error){ mostrarAviso('Só quem criou a anotação (ou o admin) pode fixá-la.', 'erro'); return; }
+  n.fixada = !n.fixada; rnPintarSecao('notas');
+}
+async function rnNotaApagar(nid){
+  if(!window.confirm('Apagar esta anotação?')) return;
+  const n = (rnEstado.ficha.notas || []).find(x => String(x.id) === String(nid)); if(!n) return;
+  const r = await ppSeguro(() => sb.from('renovacao_notas').delete().eq('id', n.id));
+  if(!r || r.error){ mostrarAviso('Não foi possível apagar. Só quem criou (ou o admin) apaga.', 'erro'); return; }
+  rnEstado.ficha.notas = rnEstado.ficha.notas.filter(x => x !== n); rnPintarSecao('notas');
+}
+async function rnContatoSalvar(){
+  const id = rnEstado.fichaId; const f = rnEstado.ficha; const v = (i) => document.getElementById(i).value.trim();
+  const tel = onlyDigits(v('rnCtTel')); const email = v('rnCtEmail'); const nome = v('rnCtNome');
+  if(!nome && !tel && !email){ mostrarAviso('Informe ao menos nome, telefone ou e-mail.', 'info'); return; }
+  if(tel && (tel.length < 10 || tel.length > 13)){ mostrarAviso('Telefone: use DDD + número (10 a 13 dígitos).', 'info'); return; }
+  if(email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ mostrarAviso('E-mail inválido.', 'info'); return; }
+  const dados = { nome: nome || null, cargo: v('rnCtCargo') || null, telefone: tel || null, email: email || null,
+    decisor: document.getElementById('rnCtDecisor').checked, principal: document.getElementById('rnCtPrincipal').checked };
+  const COLS = 'id,nome,cargo,telefone,email,decisor,principal,criado_por,atualizado_em,atualizado_por';
+  const r = f.editarContato
+    ? await ppSeguro(() => sb.from('renovacao_contatos').update(dados).eq('id', f.editarContato).select(COLS).single())
+    : await ppSeguro(() => sb.from('renovacao_contatos').insert(Object.assign({ carteira_id: id }, dados)).select(COLS).single());
+  if(!r || r.error || !r.data){ mostrarAviso('Não foi possível salvar o contato agora.', 'erro'); return; }
+  if(rnEstado.fichaId !== id) return;
+  if(dados.principal) f.contatos.forEach(c => { c.principal = false; });
+  f.contatos = f.editarContato ? f.contatos.map(c => (c.id === f.editarContato ? r.data : c)) : f.contatos.concat([r.data]);
+  f.contatos.sort((a, b) => (b.principal ? 1 : 0) - (a.principal ? 1 : 0));
+  f.editarContato = null; rnPintarSecao('contatos'); mostrarAviso('Contato salvo.', 'ok');
+}
+async function rnContatoApagar(cid){
+  if(!window.confirm('Apagar este contato?')) return;
+  const f = rnEstado.ficha; const c = f.contatos.find(x => String(x.id) === String(cid)); if(!c) return;
+  const r = await ppSeguro(() => sb.from('renovacao_contatos').delete().eq('id', c.id));
+  if(!r || r.error){ mostrarAviso('Não foi possível apagar. Só quem criou (ou o admin) apaga.', 'erro'); return; }
+  f.contatos = f.contatos.filter(x => x !== c); rnPintarSecao('contatos');
+}
+function rnNomeArquivoSeguro(nome){ return String(nome || 'arquivo').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9._-]+/g, '_').slice(-80) || 'arquivo'; }
+async function rnAnexoEnviar(){
+  const id = rnEstado.fichaId; const inp = document.getElementById('rnAnexoArq'); const arq = inp && inp.files && inp.files[0];
+  if(!arq){ mostrarAviso('Escolha o arquivo para anexar.', 'info'); return; }
+  if(arq.size > RN_ANEXO_MAX){ mostrarAviso('Arquivo maior que 10 MB.', 'erro'); return; }
+  if(arq.type && !RN_ANEXO_MIMES.includes(arq.type)){ mostrarAviso('Tipo de arquivo não aceito. Use PDF, imagem, Word ou Excel.', 'erro'); return; }
+  const caminho = `${id}/${Date.now()}-${rnNomeArquivoSeguro(arq.name)}`;
+  const up = await ppSeguro(() => sb.storage.from('renovacao-anexos').upload(caminho, arq, { contentType: arq.type || undefined, upsert: false }));
+  if(!up || up.error){ mostrarAviso('Não foi possível enviar o arquivo agora.', 'erro'); return; }
+  const tipo = document.getElementById('rnAnexoTipo').value;
+  const r = await ppSeguro(() => sb.from('renovacao_anexos').insert({ carteira_id: id, tipo, nome: arq.name.slice(0, 200), caminho, mime: arq.type || null, tamanho: arq.size }).select('id,tipo,nome,caminho,mime,tamanho,user_id,criado_em').single());
+  if(!r || r.error || !r.data){ await ppSeguro(() => sb.storage.from('renovacao-anexos').remove([caminho])); mostrarAviso('O arquivo foi enviado, mas não consegui registrar o anexo. Tente de novo.', 'erro'); return; }
+  if(rnEstado.fichaId !== id) return;
+  rnEstado.ficha.anexos = [r.data].concat(rnEstado.ficha.anexos || []); rnPintarSecao('anexos'); mostrarAviso('Anexo enviado.', 'ok');
+}
+async function rnAnexoAbrir(aid){
+  const a = (rnEstado.ficha.anexos || []).find(x => String(x.id) === String(aid)); if(!a) return;
+  const r = await ppSeguro(() => sb.storage.from('renovacao-anexos').createSignedUrl(a.caminho, 120));
+  if(!r || r.error || !r.data){ mostrarAviso('Não foi possível abrir o arquivo agora.', 'erro'); return; }
+  window.open(r.data.signedUrl, '_blank', 'noopener');
+}
+async function rnAnexoApagar(aid){
+  if(!window.confirm('Apagar este anexo?')) return;
+  const f = rnEstado.ficha; const a = f.anexos.find(x => String(x.id) === String(aid)); if(!a) return;
+  const r = await ppSeguro(() => sb.from('renovacao_anexos').delete().eq('id', a.id));
+  if(!r || r.error){ mostrarAviso('Não foi possível apagar. Só quem enviou (ou o admin) apaga.', 'erro'); return; }
+  await ppSeguro(() => sb.storage.from('renovacao-anexos').remove([a.caminho]));
+  f.anexos = f.anexos.filter(x => x !== a); rnPintarSecao('anexos');
+}
+document.getElementById('rnFicha').addEventListener('click', (e) => {
+  const g = (sel) => e.target.closest(sel);
+  let x;
+  if(g('[data-rn-nota-add]')) rnNotaAdicionar();
+  else if((x = g('[data-rn-nota-fixar]'))) rnNotaFixar(x.dataset.rnNotaFixar);
+  else if((x = g('[data-rn-nota-apagar]'))) rnNotaApagar(x.dataset.rnNotaApagar);
+  else if(g('[data-rn-contato-salvar]')) rnContatoSalvar();
+  else if((x = g('[data-rn-contato-editar]'))){ rnEstado.ficha.editarContato = isNaN(Number(x.dataset.rnContatoEditar)) ? x.dataset.rnContatoEditar : Number(x.dataset.rnContatoEditar); rnPintarSecao('contatos'); }
+  else if(g('[data-rn-contato-cancelar]')){ rnEstado.ficha.editarContato = null; rnPintarSecao('contatos'); }
+  else if((x = g('[data-rn-contato-apagar]'))) rnContatoApagar(x.dataset.rnContatoApagar);
+  else if(g('[data-rn-anexo-enviar]')) rnAnexoEnviar();
+  else if((x = g('[data-rn-anexo-abrir]'))) rnAnexoAbrir(x.dataset.rnAnexoAbrir);
+  else if((x = g('[data-rn-anexo-apagar]'))) rnAnexoApagar(x.dataset.rnAnexoApagar);
+});
 async function rnAbrirFicha(id){
-  rnEstado.fichaId = id; rnEstado.ficha = { dados: null, historico: null };
+  rnEstado.fichaId = id; rnEstado.ficha = { dados: null, historico: null, notas: null, contatos: null, anexos: null, editarContato: null };
   rnEstado.fichaStatus = null; rnEstado.fichaAba = 'atendimento';
   rnSociosParar(); rnEstado.socios = null; rnSociosCarregar(id);
   document.querySelectorAll('#rnFilaLista .rnItem').forEach(b => b.classList.toggle('sel', Number(b.dataset.rnAbrir) === id));
   document.getElementById('rnFicha').classList.add('aberta');
   rnRenderFicha();
-  const [d, h] = await Promise.all([
+  const [d, h, nt, ct, an] = await Promise.all([
     ppSeguro(() => sb.from('renovacao_carteira').select('dados_claro').eq('id', id).single()),
     ppSeguro(() => sb.from('renovacao_historico').select('campo,de,para,user_id,criado_em').eq('carteira_id', id).order('criado_em', { ascending: false })),
+    ppSeguro(() => sb.from('renovacao_notas').select('id,user_id,texto,fixada,criado_em').eq('carteira_id', id).order('criado_em', { ascending: false })),
+    ppSeguro(() => sb.from('renovacao_contatos').select('id,nome,cargo,telefone,email,decisor,principal,criado_por,atualizado_em,atualizado_por').eq('carteira_id', id).order('criado_em', { ascending: true })),
+    ppSeguro(() => sb.from('renovacao_anexos').select('id,tipo,nome,caminho,mime,tamanho,user_id,criado_em').eq('carteira_id', id).order('criado_em', { ascending: false })),
   ]);
   if(rnEstado.fichaId !== id) return;
-  rnEstado.ficha = { dados: d && !d.error && d.data ? (d.data.dados_claro || {}) : {}, historico: h && !h.error ? (h.data || []) : [] };
+  const lista = (x) => (x && !x.error ? (x.data || []) : []);
+  rnEstado.ficha = { dados: d && !d.error && d.data ? (d.data.dados_claro || {}) : {}, historico: h && !h.error ? (h.data || []) : [],
+    notas: lista(nt), contatos: lista(ct).sort((a, b) => (b.principal ? 1 : 0) - (a.principal ? 1 : 0)), anexos: lista(an), editarContato: null };
   rnRenderFicha();
 }
 function rnFecharFicha(){ rnSociosParar(); rnEstado.fichaId = null; rnEstado.ficha = null; rnEstado.socios = null; document.getElementById('rnFicha').classList.remove('aberta'); }
@@ -4763,7 +4944,6 @@ function rnRenderFicha(){
   const r = rnEstado.lista.find(x => x.id === rnEstado.fichaId);
   el.dataset.rnId = r ? String(r.id) : '';
   if(!r){ el.innerHTML = rnEstado.aba === 'hoje' ? '<p class="rnVazio">Escolha um cliente da fila.</p>' : ''; return; }
-  const tel = onlyDigits(r.telefone);
   const cnpj = String(r.cnpj_digits || '').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
   const fic = rnEstado.ficha || {};
   const sel = rnEstado.fichaStatus || r.status;
@@ -4776,15 +4956,14 @@ function rnRenderFicha(){
     <div class="rnFichaTopo">
       <span class="rnAv">${escapeHtml(rnIniciais(r.razao_social))}</span>
       <div style="flex:1;min-width:0"><h3 class="rnFichaNome">${escapeHtml(r.razao_social || '(sem nome)')}</h3>
-        <div class="rnFichaMeta">${escapeHtml([cnpj, r.cidade, (r.linhas_voz ?? 0) + ' linhas', r.apto].filter(Boolean).join(' · '))}</div></div>
+        <div class="rnFichaMeta">${escapeHtml([cnpj, r.cidade, (r.linhas_voz ?? 0) + ' linhas', r.apto].filter(Boolean).join(' · '))} ${rnCnpjBtn(r.cnpj_digits)}</div></div>
       ${rnPrioHtml(r.prioridade)}${rnEtapaHtml(r.status)}
       <button type="button" class="kbBtn kbBtnG kbBtnIco" data-rn-ficha-fechar aria-label="Fechar">&times;</button>
     </div>
     <p class="kbMeta rnFichaOport">${escapeHtml([r.oportunidade, r.fatura != null ? 'fatura ' + fmtBRL(r.fatura) + '/mês' : '', r.fixa_viavel ? 'fixa viável' : '', r.movimentacao,
       r.consultor_anterior && r.consultor_anterior !== rnNomeConsultor(r.consultor_id).split(' ')[0] ? 'antes: ' + r.consultor_anterior : ''].filter(Boolean).join(' · '))}</p>
-    <div class="rnFichaAcoes">${tel
-      ? `<a class="kbBtn kbBtnP" data-rn-canal="WhatsApp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}">WhatsApp</a><a class="kbBtn kbBtnQ" data-rn-canal="Ligação" href="tel:${escapeHtml(tel)}">Ligar</a>`
-      : '<span class="kbMeta">Sem telefone.</span>'}${rnEncerrado(r.status) ? '<span class="kbMeta">Reabra a etapa para gerar proposta.</span>' : `<button type="button" class="kbBtn kbBtnQ" data-rn-gerar="${r.id}">Gerar proposta</button>`}</div>
+    <div class="rnFichaAcoes">${rnFichaAcoesHtml(r)}</div>
+    ${(r.etiquetas || []).length ? `<p class="kbMeta">${r.etiquetas.map(t => `<span class="rnTag">${escapeHtml(t)}</span>`).join(' ')}</p>` : ''}
     <p class="rnProxCard"><b>Próximo passo:</b> ${rnProximoPassoHtml(r, rnAgora())}</p>
     <section data-rn-ficha-sec="atendimento">
       <form id="rnFichaForm">
@@ -4814,6 +4993,8 @@ function rnRenderFicha(){
           <label>Concorrente<select name="concorrente">${rnOpcoes(RN_CONCORRENTES.map(c => [c, c]), r.concorrente, '—')}</select></label>
           <label>Linhas propostas<input type="number" min="0" name="linhas_propostas" value="${r.linhas_propostas ?? ''}"></label>
           <label>Valor da proposta (R$/mês)<input type="number" min="0" step="0.01" name="valor_proposta" value="${r.valor_proposta ?? ''}"></label>
+          <label>Melhor horário para contato<select name="melhor_horario">${rnOpcoes(RN_HORARIOS.map(h => [h, h]), r.melhor_horario, '—')}</select></label>
+          <label>Etiquetas (separe por vírgula)<input type="text" name="etiquetas" maxlength="200" value="${escapeHtml((r.etiquetas || []).join(', '))}" placeholder="ex.: decisor difícil, quer proposta"></label>
         </div>
         <p class="kbMeta">1º contato: ${r.primeiro_contato ? escapeHtml(r.primeiro_contato.slice(8, 10) + '/' + r.primeiro_contato.slice(5, 7)) : '—'} · último: ${r.data_contato ? escapeHtml(r.data_contato.slice(8, 10) + '/' + r.data_contato.slice(5, 7)) : '—'}</p>
         <div class="rnCampos">
@@ -4832,6 +5013,9 @@ function rnRenderFicha(){
     <details class="rnGrupo rnSecao"><summary>Propostas · ${props.length}</summary><div data-rn-ficha-sec="propostas">${props.length
       ? '<ul class="rnHist">' + props.map(p => `<li><button type="button" class="rnNome" data-rn-proposta="${escapeHtml(p.id)}">${p.valor_atual ? fmtBRL(p.valor_atual) : '—'} → ${p.valor_proposto ? fmtBRL(p.valor_proposto) : '—'}</button> · ${escapeHtml(new Date(p.criado_em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }))} · ${escapeHtml(FUNIL_ESTAGIO_MAP[p.estagio] ? FUNIL_ESTAGIO_MAP[p.estagio].label : p.estagio)}</li>`).join('') + '</ul>'
       : '<p class="kbMeta">Nenhuma proposta ainda.</p>'}</div></details>
+    <details class="rnGrupo rnSecao" open><summary>Anotações <span data-rn-cont="notas">${fic.notas ? '· ' + fic.notas.length : ''}</span></summary><div data-rn-ficha-sec="notas">${rnNotasHtml()}</div></details>
+    <details class="rnGrupo rnSecao"><summary>Contatos atualizados <span data-rn-cont="contatos">${fic.contatos ? '· ' + fic.contatos.length : ''}</span></summary><div data-rn-ficha-sec="contatos">${rnContatosHtml(r)}</div></details>
+    <details class="rnGrupo rnSecao"><summary>Anexos (fatura, proposta, documentos) <span data-rn-cont="anexos">${fic.anexos ? '· ' + fic.anexos.length : ''}</span></summary><div data-rn-ficha-sec="anexos">${rnAnexosHtml()}</div></details>
     <details class="rnGrupo rnSecao" open><summary>Histórico de atividades</summary><div data-rn-ficha-sec="historico">${fic.historico
       ? (fic.historico.length ? '<ul class="rnHist">' + fic.historico.map(h => `<li>${escapeHtml(rnHistoricoTexto(h))}</li>`).join('') + '</ul>' : '<p class="kbMeta">Sem mudanças registradas.</p>')
       : '<p class="kbMeta">Carregando…</p>'}</div></details>
@@ -4899,6 +5083,8 @@ document.getElementById('rnFicha').addEventListener('submit', async (e) => {
   if(status === 8) patch.motivo_perda = ler('motivo_perda');
   patch.tentativas = num('tentativas'); patch.falou_decisor = ler('falou_decisor'); patch.produto_ofertado = ler('produto_ofertado');
   patch.concorrente = ler('concorrente'); patch.linhas_propostas = num('linhas_propostas'); patch.valor_proposta = num('valor_proposta');
+  patch.melhor_horario = ler('melhor_horario');
+  patch.etiquetas = [...new Set((ler('etiquetas') || '').split(',').map(t => t.trim().slice(0, 30)).filter(Boolean))].slice(0, 10);
   patch.canal = ler('canal');
   patch.observacoes = (ler('observacoes') || '').trim() || null;
   Object.keys(patch).forEach(k => { if(patch[k] === undefined) delete patch[k]; });
@@ -5234,6 +5420,7 @@ function rnCartaoHtml(r, agora, gestor){
   return `<div class="rnKbCard" draggable="true" data-rn-card="${r.id}">
     <div class="rnKbTopo">${rnPrioHtml(r.prioridade)}${rnQuente(r, ag.data) ? '<span class="rnQuente" title="P1 sem toque há mais de 3 dias">Quente</span>' : ''}<button type="button" class="rnNome" data-rn-abrir="${r.id}">${escapeHtml(r.razao_social || '(sem nome)')}</button></div>
     <small>${escapeHtml(sub)}</small>
+    <small class="rnCnpjLinha">${escapeHtml(rnCnpjFmt(r.cnpj_digits))} ${rnCnpjBtn(r.cnpj_digits)}</small>
     ${prox ? `<small>${prox}</small>` : ''}
     ${parado ? `<span class="rnParado${late ? ' late' : ''}">${late ? '⏱ ' : ''}${escapeHtml(parado)}</span>` : ''}
     ${rnEncerrado(r.status) ? '' : `<button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-gerar="${r.id}">Gerar proposta</button>`}
@@ -5250,6 +5437,7 @@ function rnKbBarraHtml(){
       <button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-excluir-filtro>Excluir</button>
       <span class="rnVisoes" id="rnKbChips"></span>
       <button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-limpar-tudo>Limpar filtros</button>
+      <button type="button" class="kbBtn kbBtnQ kbBtnSm" id="rnKbKpiBt" data-rn-kb-kpis></button>
     </div>
     <div class="rnMaisFiltros" id="rnKbFiltros">${rnFiltrosSelectsHtml('rnKb')}</div>
     <p class="kbMeta" id="rnKbSumario"></p>
@@ -5262,6 +5450,9 @@ function rnRenderKanban(){
   rnPreencherFiltros();
   const busca = document.getElementById('rnKbBusca'); if(busca && busca !== document.activeElement) busca.value = f.busca || '';
   document.getElementById('rnKbChips').innerHTML = RN_KB_CHIPS.map(([v, t]) => `<button type="button" class="rnVisaoBt${f.visao === v ? ' on' : ''}" data-rn-kb-chip="${v}">${t}</button>`).join('');
+  const oculto = rnPrefGet('rn_kb_kpis_oculto') === '1';
+  document.getElementById('rnKbKpis').hidden = oculto;
+  const bt = document.getElementById('rnKbKpiBt'); bt.textContent = oculto ? 'Mostrar indicadores ▾' : 'Ocultar indicadores ▴'; bt.setAttribute('aria-expanded', String(!oculto));
   const c = f.consultor || '';
   const k = rnKpis(rnEstado.lista, rnEstado.propostas, rnAgora(), c);
   document.getElementById('rnKbKpis').innerHTML =
@@ -5289,6 +5480,7 @@ function rnRenderKanban(){
 }
 document.getElementById('rnKanban').addEventListener('input', (e) => { if(e.target.id === 'rnKbBusca'){ rnEstado.filtros.busca = e.target.value; rnRenderKanban(); } });
 document.getElementById('rnKanban').addEventListener('click', (e) => {
+  if(e.target.closest('[data-rn-kb-kpis]')){ rnPrefSet('rn_kb_kpis_oculto', rnPrefGet('rn_kb_kpis_oculto') === '1' ? '0' : '1'); rnRenderKanban(); return; }
   const ch = e.target.closest('[data-rn-kb-chip]');
   if(ch){ rnEstado.filtros.visao = rnEstado.filtros.visao === ch.dataset.rnKbChip ? 'todos' : ch.dataset.rnKbChip; rnRenderKanban(); return; }
   const m = e.target.closest('[data-rn-kb-mais]');

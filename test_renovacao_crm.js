@@ -151,11 +151,11 @@ require('./renovacao_test_harness.js').rodar(`
     O({ id: 505, razao_social: 'Zz E', apto: 'APTO', oportunidade: 'Renovação', fatura: null, linhas_voz: 4, prioridade: 'P3' }),
   ];
   const fx = (f) => rnFiltrar(opo(), Object.assign(rnFiltrosVazios(), f), AG).map(r => r.id);
-  eq(fx({ apto: 'APTOS' }).sort(), [501, 502, 503, 505], 'Aptos = APTO, 1 mês e 2 meses');
-  eq(fx({ apto: 'APTO' }).sort(), [501, 505], 'só APTO agora');
-  eq(fx({ apto: '1 MÊS PARA APTO' }), [502], '1 mês');
-  eq(fx({ apto: '2 MESES PARA APTO' }), [503], '2 meses');
-  eq(fx({ apto: 'QUASE' }).sort(), [502, 503], 'quase apto = 1 ou 2 meses');
+  eq(fx({ apto: 'APTO' }).sort(), [501, 505], 'Aptos = apto agora');
+  eq(fx({ apto: '1 MÊS PARA APTO' }), [502], 'Apto M+1');
+  eq(fx({ apto: '2 MESES PARA APTO' }), [503], 'Apto M+2');
+  eq(fx({ apto: 'NÃO APTO' }), [504], 'FIXA - Não Apto');
+  const htmlApto = rnFiltrosSelectsHtml('x'); assert(['>Todos<', '>Aptos<', '>Apto M+1<', '>Apto M+2<', '>FIXA - Não Apto<'].every(x => htmlApto.includes(x)) && !htmlApto.includes('Quase') && !htmlApto.includes('Aptos (todos)'), 'opções da Aptidão');
   eq(fx({ fixa: 'viavel' }).sort(), [501, 503, 504], 'fixa viável');
   eq(fx({ fixa: 'nova' }).sort(), [501, 504], 'fixa nova = viável e sem fixa hoje');
   eq(fx({ fixa: 'tem' }).sort(), [502, 503], 'já tem fixa');
@@ -192,8 +192,8 @@ require('./renovacao_test_harness.js').rodar(`
   document.querySelector('[data-rn-limpar-tudo]').click();
   eq([document.querySelectorAll('#rnTbody tr[data-rn-id]').length, rnEstado.filtros.fixa], [5, ''], 'limpar filtros');
   mudar('rnPresetLista', 'valor_linha');
-  eq([rnEstado.filtros.apto, rnEstado.filtros.ordem], ['APTOS', 'vl_desc'], 'atalho aplica vários filtros');
-  eq([...document.querySelectorAll('#rnTbody tr[data-rn-id]')].map(t => Number(t.dataset.rnId)), [502, 501, 503, 505], 'atalho: aptos por maior valor por linha');
+  eq([rnEstado.filtros.apto, rnEstado.filtros.ordem], ['APTO', 'vl_desc'], 'atalho aplica vários filtros');
+  eq([...document.querySelectorAll('#rnTbody tr[data-rn-id]')].map(t => Number(t.dataset.rnId)), [501, 505], 'atalho: aptos por maior valor por linha');
   // ==== quentes, metas do dia e filtros salvos ====
   eq([rnQuente({ prioridade: 'P1', status: 0, na_base: true }, '2026-11-25'), rnQuente({ prioridade: 'P1', status: 2, data_contato: '2026-11-20', na_base: true }, '2026-11-25'),
       rnQuente({ prioridade: 'P1', status: 2, data_contato: '2026-11-24', na_base: true }, '2026-11-25'), rnQuente({ prioridade: 'P2', status: 0, na_base: true }, '2026-11-25'),
@@ -223,5 +223,94 @@ require('./renovacao_test_harness.js').rodar(`
   eq([rnEstado.filtros.fixa, rnEstado.filtros.ordem], ['nova', 'fatura_desc'], 'aplicar um filtro salvo');
   document.querySelector('#rnKbBarra [data-rn-excluir-filtro]').click();
   eq(rnSalvosLer().length, 0, 'excluir filtro salvo');
+  // ==== CNPJ de acesso rápido (copiar para o Solar) e recolher indicadores ====
+  let copiado = null;
+  Object.defineProperty(window.navigator, 'clipboard', { value: { writeText: async (x) => { copiado = x; } }, configurable: true });
+  let avisoCnpj = null; const avisoOrig2 = mostrarAviso; mostrarAviso = (m, t) => { avisoCnpj = [m, t]; };
+  window.__tabelas.renovacao_carteira = [L({ id: 801, razao_social: 'Zz Cnpj', cnpj_digits: '19252622000135', prioridade: 'P1' })];
+  rnEstado.filtros = rnFiltrosVazios();
+  await rnCarregar(); await espera(30); rnTrocarAba('kanban');
+  assert(document.querySelector('#rnKanban [data-rn-card="801"]').textContent.includes('19.252.622/0001-35'), 'cartão mostra o CNPJ formatado');
+  document.querySelector('#rnKanban [data-rn-card="801"] [data-rn-cnpj]').click(); await espera(20);
+  eq([copiado, avisoCnpj && avisoCnpj[1], rnEstado.fichaId], ['19.252.622/0001-35', 'ok', null], 'botão CNPJ do cartão copia e não abre a ficha');
+  rnTrocarAba('carteira');
+  copiado = null; document.querySelector('#rnTbody tr[data-rn-id="801"] [data-rn-cnpj]').click(); await espera(20);
+  eq([copiado, rnEstado.fichaId], ['19.252.622/0001-35', null], 'botão CNPJ da Lista copia e não abre a ficha');
+  await rnAbrirFicha(801);
+  copiado = null; document.querySelector('#rnFichaCorpo [data-rn-cnpj]').click(); await espera(20);
+  eq(copiado, '19.252.622/0001-35', 'botão CNPJ da ficha copia');
+  mostrarAviso = avisoOrig2;
+  rnTrocarAba('kanban');
+  const kpis = () => document.getElementById('rnKbKpis').hidden;
+  eq([kpis(), document.getElementById('rnKbKpiBt').textContent.trim()], [false, 'Ocultar indicadores ▴'], 'indicadores visíveis por padrão');
+  document.getElementById('rnKbKpiBt').click();
+  eq([kpis(), document.getElementById('rnKbKpiBt').textContent.trim()], [true, 'Mostrar indicadores ▾'], 'recolher indicadores deixa só o funil');
+  document.getElementById('rnKbKpiBt').click();
+  eq(kpis(), false, 'mostrar indicadores de novo');
+  // ==== ficha: anotações, contatos atualizados, anexos e extras ====
+  currentUser = { id: 'u-a', nome: 'Zza Teste', role: 'consultor', operacao: 'apex', equipe: 'renovacao' };
+  rnAplicarPermissao();
+  window.confirm = () => true;
+  window.__tabelas.profiles = [{ id: 'u-a', nome: 'Zza Teste', equipe: 'renovacao' }];
+  window.__tabelas.renovacao_carteira = [L({ id: 900, razao_social: 'Zz Ficha', telefone: '19900000001', nome_adm: 'Zz Adm', dados_claro: { SCORE: 7 } })];
+  window.__tabelas.renovacao_notas = [{ id: 1, carteira_id: 900, user_id: 'u-outro', texto: 'Zz nota antiga', fixada: false, criado_em: '2026-11-20T13:00:00Z' }];
+  window.__tabelas.renovacao_contatos = []; window.__tabelas.renovacao_anexos = [];
+  rnEstado.filtros = rnFiltrosVazios();
+  await rnCarregar(); await espera(30);
+  await rnAbrirFicha(900); await espera(30);
+  const cx = (sel) => document.querySelector('#rnFichaCorpo ' + sel);
+  assert(cx('[data-rn-ficha-sec="notas"]').textContent.includes('Zz nota antiga'), 'mostra as anotações existentes');
+  eq(!!cx('[data-rn-nota-apagar="1"]'), false, 'não oferece apagar a anotação de outra pessoa');
+  // anotação nova
+  cx('#rnNotaTexto').value = '  Zz cliente pediu proposta com BL  ';
+  cx('[data-rn-nota-add]').click(); await espera(30);
+  const wn = window.__escritas.filter(x => x.tabela === 'renovacao_notas' && x.op === 'insert').pop();
+  eq([wn.patch.carteira_id, wn.patch.texto], [900, 'Zz cliente pediu proposta com BL'], 'grava a anotação com o texto limpo');
+  assert(cx('[data-rn-ficha-sec="notas"]').textContent.includes('pediu proposta com BL') && cx('[data-rn-cont="notas"]').textContent.includes('2'), 'anotação aparece e o contador sobe');
+  // fixar e apagar a própria
+  const nova = window.__tabelas.renovacao_notas.find(n => n.texto.startsWith('Zz cliente'));
+  rnEstado.ficha.notas.forEach(n => { if(String(n.id) === String(nova.id)) n.user_id = currentUser.id; }); nova.user_id = currentUser.id; rnPintarSecao('notas'); // o mock não devolve user_id (o banco devolve)
+  cx('[data-rn-nota-fixar="' + nova.id + '"]').click(); await espera(20);
+  eq(window.__tabelas.renovacao_notas.find(n => n.id === nova.id).fixada, true, 'fixar anotação');
+  cx('[data-rn-nota-apagar="' + nova.id + '"]').click(); await espera(20);
+  eq(window.__tabelas.renovacao_notas.length, 1, 'apagar a própria anotação');
+  // contato atualizado: não mexe nos dados da Claro e passa a valer no WhatsApp/Ligar
+  assert(cx('[data-rn-ficha-sec="contatos"]').textContent.includes('Dado oficial da Claro'), 'dado oficial da Claro continua visível');
+  cx('#rnCtNome').value = 'Zz Maria'; cx('#rnCtCargo').value = 'Sócia'; cx('#rnCtTel').value = '(19) 99999-0002'; cx('#rnCtEmail').value = 'maria@zz.invalid';
+  cx('#rnCtDecisor').checked = true; cx('#rnCtPrincipal').checked = true;
+  cx('[data-rn-contato-salvar]').click(); await espera(30);
+  const ct = window.__escritas.filter(x => x.tabela === 'renovacao_contatos' && x.op === 'insert').pop();
+  eq([ct.patch.telefone, ct.patch.email, ct.patch.decisor, ct.patch.principal, ct.patch.carteira_id], ['19999990002', 'maria@zz.invalid', true, true, 900], 'contato gravado com telefone só dígitos');
+  assert(cx('.rnFichaAcoes a[href="tel:19999990002"]') && cx('.rnFichaAcoes a[href^="https://wa.me/5519999990002"]') && cx('.rnFichaAcoes a[href="mailto:maria@zz.invalid"]'), 'WhatsApp, Ligar e E-mail passam a usar o contato principal');
+  eq(window.__tabelas.renovacao_carteira[0].telefone, '19900000001', 'telefone oficial da Claro intacto');
+  eq(window.__tabelas.renovacao_carteira[0].dados_claro, { SCORE: 7 }, 'dados_claro intactos');
+  cx('#rnCtTel').value = '123'; cx('#rnCtNome').value = 'Zz X'; 
+  const escritasAntes = window.__escritas.length;
+  cx('[data-rn-contato-salvar]').click(); await espera(20);
+  eq(window.__escritas.length, escritasAntes, 'telefone inválido não grava');
+  // anexo: valida tipo e tamanho, envia para o bucket privado e registra
+  const arqAnexo = (nome, tipo, tam) => { const f = new window.File(['x'], nome, { type: tipo }); Object.defineProperty(f, 'size', { value: tam }); return f; };
+  const poeArquivo = (f) => { Object.defineProperty(cx('#rnAnexoArq'), 'files', { value: [f], configurable: true }); };
+  poeArquivo(arqAnexo('virus.exe', 'application/x-msdownload', 100)); cx('[data-rn-anexo-enviar]').click(); await espera(20);
+  poeArquivo(arqAnexo('grande.pdf', 'application/pdf', 11 * 1024 * 1024)); cx('[data-rn-anexo-enviar]').click(); await espera(20);
+  eq(window.__storage.length, 0, 'tipo não aceito e arquivo grande não sobem');
+  poeArquivo(arqAnexo('Fatura Outubro ção.pdf', 'application/pdf', 2048)); cx('#rnAnexoTipo').value = 'fatura';
+  cx('[data-rn-anexo-enviar]').click(); await espera(30);
+  eq([window.__storage.length, window.__storage[0].bucket, window.__storage[0].path.startsWith('900/') && window.__storage[0].path.endsWith('-Fatura_Outubro_cao.pdf')], [1, 'renovacao-anexos', true], 'envia para o bucket privado em <id do cliente>/arquivo');
+  const an = window.__tabelas.renovacao_anexos[0];
+  eq([an.tipo, an.nome, an.tamanho, an.carteira_id], ['fatura', 'Fatura Outubro ção.pdf', 2048, 900], 'registra o anexo');
+  let aberto = null; window.open = (u) => { aberto = u; };
+  cx('[data-rn-anexo-abrir="' + an.id + '"]').click(); await espera(20);
+  assert(aberto && aberto.startsWith('https://zz.invalid/900/'), 'abre por link temporário');
+  rnEstado.ficha.anexos.forEach(a => { a.user_id = currentUser.id; }); rnPintarSecao('anexos');
+  cx('[data-rn-anexo-apagar="' + an.id + '"]').click(); await espera(20);
+  eq([window.__tabelas.renovacao_anexos.length, window.__storageRemovidos.length], [0, 1], 'apaga o anexo e o arquivo');
+  // extras: melhor horário e etiquetas no atendimento
+  const formX = document.getElementById('rnFichaForm');
+  formX.elements.melhor_horario.value = 'Tarde'; formX.elements.etiquetas.value = ' decisor difícil, quer proposta, decisor difícil ';
+  window.__escritas.length = 0;
+  formX.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); await espera(30);
+  const wx = window.__escritas.find(x => x.tabela === 'renovacao_carteira');
+  eq([wx.patch.melhor_horario, wx.patch.etiquetas], ['Tarde', ['decisor difícil', 'quer proposta']], 'extras salvos (etiquetas sem repetição)');
   fim();
 `);
