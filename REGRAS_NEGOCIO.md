@@ -5430,4 +5430,4 @@ pela consulta de sócios em lote, branch feat/socios-lote).
 
 **Expediente.** Passa a seg–sex 14:00–21:12 (chave `expediente` em `config.leads_distribuicao`, preservando `extras`) no dia de ligar o agente.
 
-**Estado em 25/11.** Código revisado, na oficial e painel publicado (sem o banco o selo e a ficha só não aparecem). Falta: aplicar migration + check + deploy + cron (precisa da confirmação do Rafael no conector do Supabase), app da Apex na Meta + coexistência + secrets (Rafael), roteiros com o Claude real, ensaio no celular do Rafael, ligar.
+**Estado em 26/11.** Painel publicado (25/11); banco aplicado e conferido (check OK 1–12; o 13 só roda à noite), função `whatsapp-webhook` v1 e cron no ar (tick 200 "ok" a cada minuto), `modo = desligado`. Falta: app da Apex na Meta + coexistência + secrets (Rafael), webhook na Meta, roteiros com o Claude real, ensaio no celular do Rafael, ligar (+ expediente 14:00–21:12).
