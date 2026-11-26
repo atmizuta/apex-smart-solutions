@@ -3457,6 +3457,27 @@ const OFFERS_MOBILE_BOOK = [
 ];
 const comMonitorIncluso = v => Math.round((v + CLARO_MONITOR_INCLUSO) * 100) / 100;
 const OFFERS_MOBILE = OFFERS_MOBILE_BOOK.map(o => ({ ...o, valor: comMonitorIncluso(o.valor) }));
+/* §168 (26/11/2026): o consultor escolhe o Claro Monitor por proposta — 'todas' (padrão, = §145),
+   'nenhuma' ou 'selecionadas' (g.qtdMonitor linhas de cada grupo). OFFERS_MOBILE segue com o Monitor
+   no preço; a parte do grupo sem Monitor volta ao preço do book (−CLARO_MONITOR_INCLUSO). */
+function linhasComMonitor(g, modo){
+  if(modo === 'nenhuma') return 0;
+  if(modo === 'selecionadas' && g.qtdMonitor != null) return Math.max(0, Math.min(g.qtd, g.qtdMonitor));
+  return g.qtd;
+}
+function dividirPorMonitor(grupos, modo){
+  return grupos.flatMap(g => {
+    const com = linhasComMonitor(g, modo);
+    const sem = g.qtd - com;
+    const semOffer = { ...g.offer, valor: Math.round((g.offer.valor - CLARO_MONITOR_INCLUSO) * 100) / 100 };
+    return [
+      com > 0 ? { ...g, qtd: com, comMonitor: true } : null,
+      sem > 0 ? { ...g, qtd: sem, offer: semOffer, comMonitor: false } : null,
+    ].filter(Boolean);
+  });
+}
+// sufixo do grupo no resumo/documento: só em 'selecionadas', onde o mesmo plano pode sair com e sem Monitor
+const sufixoMonitor = g => (proposalState.monitorModo === 'selecionadas' && g.comMonitor) ? ' + Claro Monitor' : '';
 
 /* Benefícios universais de TODO plano móvel Claro empresas das Pág. 56/57/59 do book — não são um
    "extra" de uma oferta específica, valem para qualquer plano de voz (renovação, incremento ou
@@ -10304,6 +10325,8 @@ function openProposal(client, opts){
     // pelo consultor). Cada item é {tipo:'monitor'|'manual', descricao, valorUnit, qtd}.
     // incluirExtrasOverride/extrasOverride: pré-preenchidos quando a proposta vem de "Analisar
     // Fatura" e o consultor marcou Claro Monitor na análise (ver gerarPropostaDaFatura()).
+    // §168: Claro Monitor em 'todas' (padrão), 'nenhuma' ou 'selecionadas' (qtdMonitor em cada grupo)
+    monitorModo: opts.monitorModoOverride || 'todas',
     incluirExtras: opts.incluirExtrasOverride !== undefined ? opts.incluirExtrasOverride : false,
     extras: opts.extrasOverride || [],
     // consolidarValores (23/09/2026, pedido do usuário: "em algumas propostas o cliente possui
@@ -12023,6 +12046,13 @@ function renderProposalBody(){
   const cabeado = isCabeado(client);
   const totalLinhasGrupos = (avulsa && !usarRenewGrupos) ? (proposalState.linhaGrupos || []).reduce((s,g) => s + (g.qtd||0), 0) : 0;
   const totalLinhasRenov = usarRenewGrupos ? (proposalState.renewGrupos || []).reduce((s,g) => s + (g.qtd||0), 0) : 0;
+  const monitorModo = proposalState.monitorModo || 'todas';
+  // §168: campo "Com Monitor" do grupo, só no modo 'selecionadas' (lista = nome do array em proposalState)
+  const monitorQtdHtml = (lista, g, idx) => monitorModo !== 'selecionadas' ? '' : `
+          <div style="width:100px">
+            <label>Com Monitor</label>
+            <input type="number" class="propMonitorQtd" data-lista="${lista}" data-idx="${idx}" min="0" max="${g.qtd}" step="1" value="${linhasComMonitor(g, monitorModo)}">
+          </div>`;
   const switchHtml = (id, checked) => `
       <label class="toggleSwitch" onclick="event.stopPropagation()">
         <input type="checkbox" id="${id}" ${checked?'checked':''}>
@@ -12059,6 +12089,17 @@ function renderProposalBody(){
         <div>Consolidar valores no documento (não detalhar por plano/linha)</div>
         <div style="font-size:11px;color:var(--muted);margin-top:2px">Mostra só o total de linhas e o valor total da "Nova Proposta", em vez do preço por plano/grupo — evita o cliente comparar valores diferentes entre as próprias linhas dele quando a proposta mistura planos.</div>
       </div>
+    </div>
+    <div class="field" style="margin:0 0 14px;border:1px solid var(--border);border-radius:10px;padding:12px 14px">
+      <label for="propMonitorModo">Claro Monitor (+${fmtBRL(CLARO_MONITOR_INCLUSO)} por linha)</label>
+      <select id="propMonitorModo" style="max-width:320px">
+        <option value="todas" ${monitorModo==='todas'?'selected':''}>Incluir em todas as linhas</option>
+        <option value="selecionadas" ${monitorModo==='selecionadas'?'selected':''}>Incluir só nas linhas que eu escolher</option>
+        <option value="nenhuma" ${monitorModo==='nenhuma'?'selected':''}>Não incluir</option>
+      </select>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">${monitorModo === 'selecionadas'
+        ? 'Em cada plano abaixo, informe em "Com Monitor" quantas linhas levam o Monitor. As demais saem pelo preço do book, sem os R$ 5.'
+        : 'Os valores das ofertas abaixo já incluem o Monitor; sem ele, cada linha sai R$ 5 mais barata.'}</div>
     </div>` : ''}
 
     ${!proposalState.modoManual ? `
@@ -12127,7 +12168,7 @@ function renderProposalBody(){
           <div style="width:90px">
             <label>Qtde. linhas</label>
             <input type="number" class="propRenovGrupoQtd" data-idx="${idx}" min="1" step="1" value="${g.qtd}">
-          </div>
+          </div>${monitorQtdHtml('renewGrupos', g, idx)}
           <div style="flex:1;min-width:220px">
             <label>Oferta</label>
             <select class="propRenovGrupoOferta" data-idx="${idx}">
@@ -12158,7 +12199,7 @@ function renderProposalBody(){
           <div style="width:90px">
             <label>Qtde. linhas</label>
             <input type="number" class="propGrupoQtd" data-idx="${idx}" min="1" step="1" value="${g.qtd}">
-          </div>
+          </div>${monitorQtdHtml('linhaGrupos', g, idx)}
           <div style="flex:1;min-width:220px">
             <label>Oferta</label>
             <select class="propGrupoOferta" data-idx="${idx}">
@@ -12197,7 +12238,7 @@ function renderProposalBody(){
           <div style="width:90px">
             <label>Qtde. linhas</label>
             <input type="number" class="propIncrementoQtd" data-idx="${idx}" min="1" step="1" value="${g.qtd}">
-          </div>
+          </div>${monitorQtdHtml('incrementos', g, idx)}
           <div style="flex:1;min-width:220px">
             <label>Oferta do incremento ${idx+1}</label>
             <select class="propIncrementoOferta" data-idx="${idx}">
@@ -12407,6 +12448,21 @@ function renderProposalBody(){
   const consolidarValoresChk = document.getElementById('propConsolidarValores');
   if(consolidarValoresChk) consolidarValoresChk.addEventListener('change', function(){
     proposalState.consolidarValores = this.checked;
+  });
+  // §168: modo do Claro Monitor — re-renderiza para mostrar/esconder o "Com Monitor" de cada grupo
+  const monitorModoSel = document.getElementById('propMonitorModo');
+  if(monitorModoSel) monitorModoSel.addEventListener('change', function(){
+    proposalState.monitorModo = this.value;
+    renderProposalBody();
+  });
+  document.querySelectorAll('.propMonitorQtd').forEach(inp => {
+    inp.addEventListener('input', function(){
+      const g = (proposalState[this.dataset.lista] || [])[parseInt(this.dataset.idx, 10)];
+      if(!g) return;
+      const n = parseInt(this.value, 10);
+      g.qtdMonitor = Number.isFinite(n) ? Math.max(0, n) : 0; // teto (qtd do grupo) aplicado em linhasComMonitor
+      updateProposalPreview();
+    });
   });
   // modo manual (25/09/2026, pedido do usuário) — muda quais seções aparecem (catálogo x editores
   // livres), precisa re-renderizar a tela inteira.
@@ -12903,8 +12959,9 @@ function computeProposal(){
   const client = proposalState.client;
   const atual = client.valor_contrato || 0;
   // cada grupo de incremento é {qtd, offer} — quantidade de linhas naquele plano, não uma linha por item
+  const monitorModo = proposalState.monitorModo || 'todas';
   const incGrupos = proposalState.incluirIncremento
-    ? (proposalState.incrementos || []).map(g => ({ qtd: g.qtd || 1, offer: OFFERS_MOBILE.find(o => o.id === g.offerId) })).filter(g => g.offer)
+    ? dividirPorMonitor((proposalState.incrementos || []).map(g => ({ qtd: g.qtd || 1, qtdMonitor: g.qtdMonitor, offer: OFFERS_MOBILE.find(o => o.id === g.offerId) })).filter(g => g.offer), monitorModo)
     : [];
 
   // --- linha base: renovação de plano Claro (cliente-da-base, ou avulsa tipo "Renovação" — cliente
@@ -12924,9 +12981,9 @@ function computeProposal(){
     // fica igual ao atual.
     linhas = proposalState.avulsa ? (client.linhas_atuais || 0) : (client.linhas_voz || 0);
     if(proposalState.incluirRenovacao){
-      baseGrupos = (proposalState.renewGrupos || [])
-        .map(g => ({ tipo:'renovacao', qtd: g.qtd || 0, offer: OFFERS_MOBILE.find(o => o.id === g.offerId) }))
-        .filter(g => g.offer && g.qtd > 0);
+      baseGrupos = dividirPorMonitor((proposalState.renewGrupos || [])
+        .map(g => ({ tipo:'renovacao', qtd: g.qtd || 0, qtdMonitor: g.qtdMonitor, offer: OFFERS_MOBILE.find(o => o.id === g.offerId) }))
+        .filter(g => g.offer && g.qtd > 0), monitorModo);
       baseValor = baseGrupos.reduce((s,g) => s + g.offer.valor * g.qtd, 0);
     } else {
       baseValor = atual;
@@ -12934,9 +12991,9 @@ function computeProposal(){
   } else if(proposalState.incluirRenovacao){
     // avulsa "linha nova" (Novo/Portabilidade/Titularidade) ou "Incremento": não existe plano Claro
     // anterior a manter — sem grupo de linha base incluído, baseValor fica 0.
-    baseGrupos = (proposalState.linhaGrupos || [])
+    baseGrupos = dividirPorMonitor((proposalState.linhaGrupos || [])
       .map(g => ({ ...g, offer: OFFERS_MOBILE.find(o => o.id === g.offerId) }))
-      .filter(g => g.offer && g.qtd > 0);
+      .filter(g => g.offer && g.qtd > 0), monitorModo);
     linhas = baseGrupos.reduce((s,g) => s + g.qtd, 0);
     baseValor = baseGrupos.reduce((s,g) => s + g.offer.valor * g.qtd, 0);
   }
@@ -13045,10 +13102,10 @@ function updateProposalPreview(){
   // portabilidade da proposta avulsa — em ambos os casos pode ter vários grupos agora
   const rotulosBaseGrupo = { aquisicao: 'Aquisição', portabilidade: 'Portabilidade', renovacao: 'Renovação' };
   baseGrupos.forEach(g => {
-    extras.push(`${rotulosBaseGrupo[g.tipo] || g.tipo}: ${g.qtd} linha(s) × ${g.offer.gb}GB por ${fmtBRL(g.offer.valor)}/linha`);
+    extras.push(`${rotulosBaseGrupo[g.tipo] || g.tipo}: ${g.qtd} linha(s) × ${g.offer.gb}GB${sufixoMonitor(g)} por ${fmtBRL(g.offer.valor)}/linha`);
     if(g.offer.extras && g.offer.extras.length) extras.push(`${rotulosBaseGrupo[g.tipo] || g.tipo} inclui: ` + g.offer.extras.join(', '));
   });
-  incGrupos.forEach(g => extras.push(`Incremento(s): ${g.qtd} linha(s) × ${g.offer.gb}GB por ${fmtBRL(g.offer.valor)}/linha`));
+  incGrupos.forEach(g => extras.push(`Incremento(s): ${g.qtd} linha(s) × ${g.offer.gb}GB${sufixoMonitor(g)} por ${fmtBRL(g.offer.valor)}/linha`));
   if(incGrupos.length > 1 || incGrupos.some(g => g.qtd > 1)) extras.push(`Total dos incrementos: +${fmtBRL(incrementoValor)} de receita`);
   if(proposalState.incluirExtras){
     (proposalState.extras || []).forEach(g => {
@@ -13277,7 +13334,7 @@ function buildPropostaDocModel(){
   if(baseGrupos.length){
     baseGrupos.forEach(g => itensMoveis.push({
       item: rotulosGrupo[g.tipo] || g.tipo,
-      desc: `${g.qtd}× ${g.offer.gb}GB — ${fmtBRL(g.offer.valor)}/linha`,
+      desc: `${g.qtd}× ${g.offer.gb}GB${sufixoMonitor(g)} — ${fmtBRL(g.offer.valor)}/linha`,
       subtotal: g.offer.valor * g.qtd,
       qtd: g.qtd,
       gb: g.offer.gb,
@@ -13290,7 +13347,7 @@ function buildPropostaDocModel(){
   }
   incGrupos.forEach(g => itensMoveis.push({
     item: 'Incremento(s)',
-    desc: `${g.qtd}× ${g.offer.gb}GB — ${fmtBRL(g.offer.valor)}/linha`,
+    desc: `${g.qtd}× ${g.offer.gb}GB${sufixoMonitor(g)} — ${fmtBRL(g.offer.valor)}/linha`,
     subtotal: g.offer.valor * g.qtd,
     qtd: g.qtd,
     gb: g.offer.gb,
@@ -13354,9 +13411,10 @@ function buildPropostaDocModel(){
   const temOfertaMovel = baseGrupos.length > 0 || incGrupos.length > 0;
   const extrasOfertas = collectOfferExtras(baseGrupos, incGrupos);
   const badges = BENEFICIOS_UNIVERSAIS_MOVEL.map(b => ({ label: b.label, desc: b.desc, cor: b.cor }));
-  // §145: todo plano Claro pós já vem com o Claro Monitor, então o selo aparece sempre que há plano
-  // móvel na proposta (valorMonitor > 0 fica só para proposta antiga salva com o Monitor avulso).
-  if(temOfertaMovel || valorMonitor > 0){
+  // §145/§168: o selo aparece quando alguma linha móvel leva o Claro Monitor (some com "Não incluir");
+  // valorMonitor > 0 fica só para proposta antiga salva com o Monitor avulso.
+  const algumaLinhaComMonitor = [...baseGrupos, ...incGrupos].some(g => g.comMonitor);
+  if(algumaLinhaComMonitor || valorMonitor > 0){
     // sempre por último, pra não mexer na ordem/cores dos badges universais (Ligações/WhatsApp/Waze)
     badges.push({ label: 'Claro Monitor', desc: 'Localização, bloqueio remoto e proteção do aparelho incluídos', cor: [179, 16, 31] });
   }

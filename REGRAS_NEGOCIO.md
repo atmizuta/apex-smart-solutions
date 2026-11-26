@@ -5434,3 +5434,17 @@ pela consulta de sócios em lote, branch feat/socios-lote).
 **Expediente.** Passa a seg–sex 14:00–21:12 (chave `expediente` em `config.leads_distribuicao`, preservando `extras`) no dia de ligar o agente.
 
 **Estado em 26/11.** Painel publicado (25/11); banco aplicado e conferido (check OK 1–12; o 13 só roda à noite), função `whatsapp-webhook` v1 e cron no ar (tick 200 "ok" a cada minuto), `modo = desligado`. Falta: app da Apex na Meta + coexistência + secrets (Rafael), webhook na Meta, roteiros com o Claude real, ensaio no celular do Rafael, ligar (+ expediente 14:00–21:12).
+
+## §168 Gerar Proposta: Claro Monitor opcional — todas, nenhuma ou só as linhas escolhidas (26/11/2026, pedido do Rafael)
+
+Pedido do Rafael: na hora de gerar a proposta, poder incluir ou não o Claro Monitor e escolher se ele vale para todas as linhas ou só para as que o consultor escolher. Ajusta o §145, onde o Monitor estava sempre embutido no preço.
+
+- **Onde:** caixa "Claro Monitor (+R$ 5,00 por linha)" na tela da proposta, logo abaixo de "Consolidar valores". É a mesma tela aberta pela Gerar Proposta, pela Analisar Fatura e pela Renovação, então vale nas três (escolha do Rafael). Não aparece no modo manual, que continua 100% livre.
+- **Opções:** "Incluir em todas as linhas" (**padrão**, igual ao §145), "Incluir só nas linhas que eu escolher" e "Não incluir". Estado: `proposalState.monitorModo` = `todas` | `selecionadas` | `nenhuma`.
+- **Só nas escolhidas:** a proposta trabalha com grupos (qtd × plano), então cada grupo de renovação, de linhas novas/portabilidade e de incremento ganha o campo "Com Monitor" (quantas linhas daquele grupo levam o Monitor; nasce com todas). Fica em `qtdMonitor` no grupo, limitado à quantidade do grupo.
+- **Preço:** `OFFERS_MOBILE` continua com o Monitor no valor (§145) e os rótulos das ofertas mostram esse valor. Em `computeProposal()`, `dividirPorMonitor()` separa cada grupo em "com Monitor" (preço do catálogo) e "sem Monitor" (preço do book, −`CLARO_MONITOR_INCLUSO`). Resumo, total e Word/PDF usam esses grupos já divididos.
+- **Documento:** em "só nas escolhidas", a linha com Monitor sai como "4× 100GB + Claro Monitor — R$ 94,99/linha" e a outra parte como "6× 100GB — R$ 89,99/linha". O selo "Claro Monitor" dos benefícios só aparece se alguma linha leva o Monitor (some com "Não incluir"). Os combos de convergência e o "Consolidar valores" seguem iguais (o total consolidado já sai com a soma certa).
+- **Proposta reaberta pelo funil:** volta em "todas" (o funil não guarda os planos, só cliente e tipo).
+- **Testes:** `test_monitor_modo.js` (16). Os de proposta seguem passando: outras ofertas, consolidar valores, incremento, renovação multiplano, convergência (2), PDF, proposta colapsada, plano atual GB, Analisar Fatura, modo manual e funil.
+- **Publicação (26/11, ok do Rafael):** painel no ar era `31fbb674…` (= oficial/main); novo MD5 `d5bcc635…`. Backup `~/deploy_backups/painel_clientes_apex_20261126_antes_monitor_168.html`. Suíte: 117 passam; as 5 falhas são as mesmas da oficial limpa (conversão, leads hoje, pedidos alerta, filtro pessoas, redesign shell) e as 2 de documento (`test_proposta_manual_docs`, `test_proposta_timbrada`) passam com o módulo `docx` instalado.
+- **Reverter:** copiar o backup do painel.
