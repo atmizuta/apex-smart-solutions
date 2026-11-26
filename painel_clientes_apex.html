@@ -10163,7 +10163,7 @@ proposalOverlay.addEventListener('click', function(e){ if(e.target === proposalO
 // categoria é só um rótulo livre pra organizar/prefixar a descrição no documento (ver
 // buildPropostaDocModel) — não aciona nenhuma lógica de negócio por trás, ao contrário do fluxo
 // automático (ex.: escolher "Claro Monitor" aqui não vira badge de benefício, é só mais uma linha).
-const MODO_MANUAL_CATEGORIAS = ['Renovação', 'Incremento', 'Nova linha', 'Portabilidade', 'Banda Larga', 'PABX', 'Claro Monitor', 'Aparelho', 'Produto avançado', 'Outro'];
+const MODO_MANUAL_CATEGORIAS = ['Renovação', 'Incremento', 'Nova linha', 'Portabilidade', 'Banda Larga', 'PABX', 'Claro Monitor', 'Solução digital', 'Conectividade', 'Aparelho', 'Produto avançado', 'Outro'];
 
 // 15/10/2026 (pedido do usuário: proposta totalmente customizável com dados do cliente, aparelho e produtos
 // avançados; valores mensais e únicos separados — REGRAS_NEGOCIO.md §83). Cobrança de cada item manual:
@@ -12343,6 +12343,12 @@ function renderProposalBody(){
           <button type="button" class="btnRemoveExtra" data-idx="${idx}" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:8px 10px;cursor:pointer;height:38px">Remover</button>
         </div>` : `
         <div class="field" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px">
+          <div style="width:160px;margin:0">
+            <label>Categoria</label>
+            <select class="propExtraCategoria" data-idx="${idx}">
+              ${PROP_EXTRA_CATEGORIAS.map(c => `<option value="${c}" ${(g.categoria || 'Outro') === c ? 'selected' : ''}>${c}</option>`).join('')}
+            </select>
+          </div>
           <div style="flex:2;min-width:200px;margin:0">
             <label>Produto/serviço</label>
             <input type="text" class="propExtraDescricao" data-idx="${idx}" placeholder="Descreva o produto ou serviço" value="${(g.descricao||'').replace(/"/g,'&quot;')}">
@@ -12359,6 +12365,8 @@ function renderProposalBody(){
         </div>`).join('')}
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button type="button" id="btnAddExtraManual" class="btn" style="margin:2px 0 0;padding:6px 12px;font-size:12px;width:auto">+ Adicionar oferta manual</button>
+          <button type="button" class="btn btnAddExtraCat" data-cat="Solução digital" style="margin:2px 0 0;padding:6px 12px;font-size:12px;width:auto">+ Solução digital</button>
+          <button type="button" class="btn btnAddExtraCat" data-cat="Conectividade" style="margin:2px 0 0;padding:6px 12px;font-size:12px;width:auto">+ Conectividade</button>
         </div>
         <div style="font-size:11px;color:var(--muted);margin-top:8px">Itens fora do book estruturado — não entram na régua de meta de comissão (seção 4.3), só somam no valor total da proposta.</div>
         ` : `<div style="font-size:11px;color:var(--muted)">O Claro Monitor já vem incluso em todo plano Claro pós. Digite manualmente um produto/serviço com o valor combinado, quando não estiver no book padrão.</div>`}
@@ -12895,9 +12903,17 @@ function renderProposalBody(){
   });
   const btnAddExtraManual = document.getElementById('btnAddExtraManual');
   if(btnAddExtraManual) btnAddExtraManual.addEventListener('click', function(){
-    proposalState.extras.push({ tipo: 'manual', descricao: '', valorUnit: 0, qtd: 1 });
+    proposalState.extras.push({ tipo: 'manual', categoria: 'Outro', descricao: '', valorUnit: 0, qtd: 1 });
     renderProposalBody();
   });
+  document.querySelectorAll('.btnAddExtraCat').forEach(btn => btn.addEventListener('click', function(){
+    proposalState.extras.push({ tipo: 'manual', categoria: this.dataset.cat, descricao: '', valorUnit: 0, qtd: 1 });
+    renderProposalBody();
+  }));
+  document.querySelectorAll('.propExtraCategoria').forEach(sel => sel.addEventListener('change', function(){
+    const g = (proposalState.extras || [])[parseInt(this.dataset.idx, 10)]; if(!g) return;
+    g.categoria = this.value; updateProposalPreview();
+  }));
 
   // modo manual (25/09/2026): proposta com 0 itens não faz sentido (o documento sairia com
   // R$0,00 de "Nova Proposta") — guarda leve antes de disparar qualquer um dos 3 formatos de
@@ -12955,6 +12971,9 @@ function renderProposalBody(){
   updateProposalPreview();
 }
 
+// §165 (26/11, pedido do Anderson): "Outras ofertas" com categoria (Solução digital / Conectividade). O nome sai no documento como "Categoria — produto".
+const PROP_EXTRA_CATEGORIAS = ['Outro', 'Solução digital', 'Conectividade'];
+function propExtraRotulo(g){ const d = g.descricao || 'Oferta manual'; return g.categoria && g.categoria !== 'Outro' ? `${g.categoria} — ${d}` : d; }
 function computeProposal(){
   const client = proposalState.client;
   const atual = client.valor_contrato || 0;
@@ -13109,7 +13128,7 @@ function updateProposalPreview(){
   if(incGrupos.length > 1 || incGrupos.some(g => g.qtd > 1)) extras.push(`Total dos incrementos: +${fmtBRL(incrementoValor)} de receita`);
   if(proposalState.incluirExtras){
     (proposalState.extras || []).forEach(g => {
-      const rotulo = g.tipo === 'monitor' ? 'Claro Monitor' : (g.descricao || 'Oferta manual');
+      const rotulo = g.tipo === 'monitor' ? 'Claro Monitor' : propExtraRotulo(g);
       extras.push(`${rotulo}: ${g.qtd} × ${fmtBRL(g.valorUnit)}`);
     });
     if(extrasValor > 0) extras.push(`Total de outras ofertas: +${fmtBRL(extrasValor)}`);
@@ -13399,7 +13418,7 @@ function buildPropostaDocModel(){
       if(g.tipo === 'monitor'){
         valorMonitor += subtotal;
       } else {
-        itensNovaProposta.push({ item: g.descricao || 'Oferta manual', desc: `${g.qtd}× ${fmtBRL(g.valorUnit)}/un`, subtotal });
+        itensNovaProposta.push({ item: propExtraRotulo(g), desc: `${g.qtd}× ${fmtBRL(g.valorUnit)}/un`, subtotal });
       }
     });
   }
