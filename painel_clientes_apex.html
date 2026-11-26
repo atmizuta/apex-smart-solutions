@@ -1071,6 +1071,9 @@
   .rnAtvTopo{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2);margin-bottom:var(--space-2);}
   .rnAtvTopo .kbBtn{margin-left:auto;}
   .rnAtvCont{margin:0 0 var(--space-2);}
+  .rnAtvResumo{display:flex;flex-wrap:wrap;gap:var(--space-2);margin-bottom:var(--space-2);}
+  .rnAtvChip{border:1px solid var(--c-linha-forte);background:var(--c-branco);border-radius:999px;padding:4px 12px;font:inherit;font-size:var(--fs-sm);color:var(--ml-ink);cursor:pointer;}
+  .rnAtvChip.on{background:var(--c-sinal);border-color:var(--c-sinal);color:var(--c-branco);}
   @media (max-width:999px){ #rnFicha:not(.noPainel) .kbFichaCorpo{width:100vw;height:100vh;border-radius:0;} }
   .rnFichaTopo{display:flex;align-items:center;gap:var(--space-3);}
   .rnFichaTopo .rnAv{width:46px;height:46px;font-size:var(--fs-base);background:var(--ml-novo-soft);color:var(--c-sinal);}
@@ -4375,6 +4378,7 @@ function rnPosicionarFicha(aba){
 }
 function rnTrocarAba(aba){
   if(aba === 'atividade' && !rnGestor()) aba = 'kanban';
+  if(aba === 'atividade' && rnEstado.atv) rnEstado.atv.itens = null;   // a cada visita lê de novo
   rnEstado.aba = aba;
   rnMostrarAba(aba);
   rnRender();
@@ -4692,6 +4696,7 @@ function rnHistoricoTexto(h){
   const quando = h.criado_em ? new Date(h.criado_em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' }) : '';
   const quem = h.user_id ? rnNomeConsultor(h.user_id) : 'Sistema';
   if(h.campo === 'status') return `${quando} · ${quem}: ${rnStatusRotulo(Number(h.de))} → ${rnStatusRotulo(Number(h.para))}`;
+  if(h.campo === 'atendimento') return `${quando} · ${quem}: atendimento salvo (${h.para || '—'})${h.nota ? ' — “' + h.nota + '”' : ''}`;
   return `${quando} · ${quem}: passou de ${rnNomeConsultor(h.de)} para ${rnNomeConsultor(h.para)}`;
 }
 // §156 — aba Sócios: base da Receita (mailing.socio, via RPC) + consulta na Nova Vida (fila socios_consultas + robô).
@@ -5021,7 +5026,7 @@ async function rnAbrirFicha(id){
   rnRenderFicha();
   const [d, h, nt, ct, an] = await Promise.all([
     ppSeguro(() => sb.from('renovacao_carteira').select('dados_claro').eq('id', id).single()),
-    ppSeguro(() => sb.from('renovacao_historico').select('campo,de,para,user_id,criado_em').eq('carteira_id', id).order('criado_em', { ascending: false })),
+    ppSeguro(() => sb.from('renovacao_historico').select('campo,de,para,nota,user_id,criado_em').eq('carteira_id', id).order('criado_em', { ascending: false })),
     ppSeguro(() => sb.from('renovacao_notas').select('id,user_id,texto,fixada,criado_em').eq('carteira_id', id).order('criado_em', { ascending: false })),
     ppSeguro(() => sb.from('renovacao_contatos').select('id,nome,cargo,telefone,email,decisor,principal,criado_por,atualizado_em,atualizado_por').eq('carteira_id', id).order('criado_em', { ascending: true })),
     ppSeguro(() => sb.from('renovacao_anexos').select('id,tipo,nome,caminho,mime,tamanho,user_id,criado_em').eq('carteira_id', id).order('criado_em', { ascending: false })),
@@ -5623,60 +5628,101 @@ document.getElementById('rnKanban').addEventListener('click', (e) => {
   const a = e.target.closest('[data-rn-abrir]');
   if(a) rnAbrirFicha(Number(a.dataset.rnAbrir));
 });
-// ---- §165 Atividade do time (admin/supervisor): últimas anotações de todos os consultores ----
+// ---- §165 Atividade do time (admin/supervisor): tudo o que os consultores fizeram, em linha do tempo ----
 const RN_ATV_PERIODOS = [['1', 'Hoje'], ['7', 'Últimos 7 dias'], ['30', 'Últimos 30 dias'], ['0', 'Todo o período']];
-function rnAtvEstado(){ if(!rnEstado.atv) rnEstado.atv = { periodo: '7', autor: '', busca: '', fixadas: false, itens: null, limite: 50, erro: false }; return rnEstado.atv; }
-// Itens que passam nos filtros (puro, testável). hoje = 'AAAA-MM-DD'.
-function rnAtvFiltrar(itens, f, hoje, nomeDe, empresaDe){
+const RN_ATV_TIPOS = [['nota', 'Anotação'], ['etapa', 'Mudou de etapa'], ['atendimento', 'Atendimento salvo'], ['contato', 'Contato cadastrado'], ['anexo', 'Anexo enviado'], ['dono', 'Trocou o consultor']];
+function rnAtvEstado(){ if(!rnEstado.atv) rnEstado.atv = { periodo: '1', autor: '', tipo: '', busca: '', itens: null, limite: 50, erro: false }; return rnEstado.atv; }
+function rnDiaSP(iso){ return iso ? new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) : ''; }
+// Junta as 4 fontes numa lista só (puro, testável). nomeDe(id) devolve o nome de um consultor/perfil.
+function rnAtvMontar(fontes, nomeDe){
+  const it = [];
+  (fontes.notas || []).forEach(n => it.push({ chave: 'n' + n.id, tipo: 'nota', user_id: n.user_id, criado_em: n.criado_em, carteira_id: n.carteira_id, detalhe: n.texto, fixada: !!n.fixada }));
+  (fontes.historico || []).forEach(h => {
+    const base = { chave: 'h' + h.id, user_id: h.user_id, criado_em: h.criado_em, carteira_id: h.carteira_id };
+    if(h.campo === 'status') it.push(Object.assign(base, { tipo: 'etapa', detalhe: `${rnStatusRotulo(Number(h.de))} → ${rnStatusRotulo(Number(h.para))}` }));
+    else if(h.campo === 'atendimento') it.push(Object.assign(base, { tipo: 'atendimento', detalhe: 'Alterou: ' + (h.para || '—') + (h.nota ? ' — “' + h.nota + '”' : '') }));
+    else if(h.campo === 'consultor') it.push(Object.assign(base, { tipo: 'dono', detalhe: `de ${nomeDe(h.de)} para ${nomeDe(h.para)}` }));
+  });
+  (fontes.contatos || []).forEach(c => it.push({ chave: 'c' + c.id, tipo: 'contato', user_id: c.criado_por, criado_em: c.criado_em, carteira_id: c.carteira_id,
+    detalhe: [c.nome, c.telefone ? rnFoneFmt(c.telefone) : '', c.cargo].filter(Boolean).join(' · ') }));
+  (fontes.anexos || []).forEach(a => it.push({ chave: 'a' + a.id, tipo: 'anexo', user_id: a.user_id, criado_em: a.criado_em, carteira_id: a.carteira_id, detalhe: `${a.nome} (${a.tipo})` }));
+  it.forEach(x => { x.dia = rnDiaSP(x.criado_em); });
+  return it.sort((x, y) => String(y.criado_em).localeCompare(String(x.criado_em)));
+}
+// Filtros (puro, testável). hoje = 'AAAA-MM-DD'. ignorarAutor serve para contar por consultor sem o filtro de consultor.
+function rnAtvFiltrar(itens, f, hoje, nomeDe, empresaDe, ignorarAutor){
   const dias = Number(f.periodo) || 0;
   let corte = null;
   if(dias){ const d = new Date(hoje + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - (dias - 1)); corte = d.toISOString().slice(0, 10); }
   const b = rnNorm(f.busca);
   return itens.filter(n => {
     if(corte && String(n.dia) < corte) return false;
-    if(f.autor && n.user_id !== f.autor) return false;
-    if(f.fixadas && !n.fixada) return false;
-    if(b && !(rnNorm(n.texto) + ' ' + rnNorm(empresaDe(n)) + ' ' + rnNorm(nomeDe(n.user_id))).includes(b)) return false;
+    if(!ignorarAutor && f.autor && n.user_id !== f.autor) return false;
+    if(f.tipo && n.tipo !== f.tipo) return false;
+    if(b && !(rnNorm(n.detalhe) + ' ' + rnNorm(empresaDe(n)) + ' ' + rnNorm(nomeDe(n.user_id))).includes(b)) return false;
     return true;
   });
 }
-function rnDiaSP(iso){ return iso ? new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) : ''; }
+async function rnAtvCarregar(){
+  const st = rnAtvEstado();
+  const [nt, hi, ct, an] = await Promise.all([
+    ppSeguro(() => sb.from('renovacao_notas').select('id,carteira_id,user_id,texto,fixada,criado_em').order('criado_em', { ascending: false }).limit(1000)),
+    ppSeguro(() => sb.from('renovacao_historico').select('id,carteira_id,user_id,campo,de,para,nota,criado_em').in('campo', ['status', 'atendimento', 'consultor']).not('user_id', 'is', null).order('criado_em', { ascending: false }).limit(1500)),
+    ppSeguro(() => sb.from('renovacao_contatos').select('id,carteira_id,nome,telefone,cargo,criado_por,criado_em').order('criado_em', { ascending: false }).limit(500)),
+    ppSeguro(() => sb.from('renovacao_anexos').select('id,carteira_id,tipo,nome,user_id,criado_em').order('criado_em', { ascending: false }).limit(500)),
+  ]);
+  if(rnEstado.aba !== 'atividade') return false;
+  const ok = (x) => x && !x.error;
+  if(!ok(nt) && !ok(hi)){ st.erro = true; return false; }
+  st.erro = false;
+  const lista = (x) => (ok(x) ? (x.data || []) : []);
+  const fontes = { notas: lista(nt), historico: lista(hi), contatos: lista(ct), anexos: lista(an) };
+  // nomes de quem agiu (admin/supervisor que não são do time não estão em rnEstado.perfis)
+  const ids = new Set(); [].concat(fontes.notas, fontes.historico, fontes.anexos).forEach(x => { if(x.user_id) ids.add(x.user_id); }); fontes.contatos.forEach(c => { if(c.criado_por) ids.add(c.criado_por); });
+  fontes.historico.forEach(h => { [h.de, h.para].forEach(v => { if(h.campo === 'consultor' && v) ids.add(v); }); });
+  const falta = [...ids].filter(id => rnNomeConsultor(id) === '—');
+  if(falta.length){
+    const pr = await ppSeguro(() => sb.from('profiles').select('id,nome').in('id', falta));
+    if(pr && !pr.error){ rnEstado.nomes = rnEstado.nomes || {}; (pr.data || []).forEach(p => { rnEstado.nomes[p.id] = p.nome; }); }
+  }
+  if(rnEstado.aba !== 'atividade') return false;
+  st.itens = rnAtvMontar(fontes, (id) => rnNomeConsultor(id));
+  return true;
+}
 async function rnRenderAtividade(){
   const el = document.getElementById('rnAtividade'); if(!el || !rnGestor()) return;
   const st = rnAtvEstado();
   if(!st.itens){
-    el.innerHTML = '<p class="rnVazio">Carregando anotações…</p>';
-    const r = await ppSeguro(() => sb.from('renovacao_notas').select('id,carteira_id,user_id,texto,fixada,criado_em').order('criado_em', { ascending: false }).limit(1000));
+    el.innerHTML = '<p class="rnVazio">Carregando a atividade do time…</p>';
+    const ok = await rnAtvCarregar();
     if(rnEstado.aba !== 'atividade') return;
-    if(!r || r.error){ st.erro = true; el.innerHTML = '<p class="rnVazio">Não foi possível carregar as anotações agora.</p>'; return; }
-    st.erro = false; st.itens = (r.data || []).map(n => Object.assign({ dia: rnDiaSP(n.criado_em) }, n));
-    // nomes de quem escreveu (admin/supervisor que não são do time não estão em rnEstado.perfis)
-    const falta = [...new Set(st.itens.map(n => n.user_id).filter(id => id && rnNomeConsultor(id) === '—'))];
-    if(falta.length){
-      const pr = await ppSeguro(() => sb.from('profiles').select('id,nome').in('id', falta));
-      if(pr && !pr.error){ rnEstado.nomes = rnEstado.nomes || {}; (pr.data || []).forEach(p => { rnEstado.nomes[p.id] = p.nome; }); }
-    }
-    if(rnEstado.aba !== 'atividade') return;
+    if(!ok){ el.innerHTML = '<p class="rnVazio">Não foi possível carregar a atividade agora.</p><button type="button" class="kbBtn kbBtnQ" data-rn-atv-atualizar>Tentar de novo</button>'; return; }
   }
   const nomeDe = (id) => rnNomeConsultor(id);
   const porId = new Map(rnEstado.lista.map(r => [r.id, r]));
   const empresaDe = (n) => (porId.get(n.carteira_id) || {}).razao_social || '';
-  const lista = rnAtvFiltrar(st.itens, st, rnHoje(), nomeDe, empresaDe);
+  const hoje = rnHoje();
+  const lista = rnAtvFiltrar(st.itens, st, hoje, nomeDe, empresaDe);
+  const semAutor = rnAtvFiltrar(st.itens, st, hoje, nomeDe, empresaDe, true);
+  const porAutor = new Map(); semAutor.forEach(n => { if(n.user_id) porAutor.set(n.user_id, (porAutor.get(n.user_id) || 0) + 1); });
   const autores = [...new Set(st.itens.map(n => n.user_id).filter(Boolean))].sort((a, b) => nomeDe(a).localeCompare(nomeDe(b), 'pt-BR'));
   const foco = document.activeElement && document.activeElement.id === 'rnAtvBusca';
   const vis = lista.slice(0, st.limite);
+  const rotuloTipo = Object.fromEntries(RN_ATV_TIPOS);
   el.innerHTML = `<div class="rnFBloco rnAtvBarra">
       <label>Período<select data-rn-atv="periodo">${rnOpcoes(RN_ATV_PERIODOS, st.periodo, null)}</select></label>
       <label>Consultor<select data-rn-atv="autor">${rnOpcoes(autores.map(id => [id, nomeDe(id)]), st.autor, 'Todos')}</select></label>
+      <label>Tipo<select data-rn-atv="tipo">${rnOpcoes(RN_ATV_TIPOS, st.tipo, 'Todos')}</select></label>
       <label class="rnAtvBusca">Buscar<input type="search" id="rnAtvBusca" data-rn-atv="busca" value="${escapeHtml(st.busca)}" placeholder="Texto, empresa ou consultor" autocomplete="off"></label>
-      <label class="rnAtvChk"><input type="checkbox" data-rn-atv="fixadas"${st.fixadas ? ' checked' : ''}> Só fixadas</label>
+      <button type="button" class="kbBtn kbBtnQ" data-rn-atv-atualizar>Atualizar</button>
       <button type="button" class="kbBtn kbBtnQ" data-rn-atv-excel${lista.length ? '' : ' disabled'}>Exportar Excel</button>
     </div>
-    <p class="kbMeta rnAtvCont">${lista.length} anotação(ões)${st.itens.length >= 1000 ? ' · mostrando as 1000 mais recentes' : ''}</p>
+    <div class="rnAtvResumo">${autores.map(id => `<button type="button" class="rnAtvChip${st.autor === id ? ' on' : ''}" data-rn-atv-autor="${escapeHtml(id)}"><b>${escapeHtml(nomeDe(id))}</b> ${porAutor.get(id) || 0}</button>`).join('')}</div>
+    <p class="kbMeta rnAtvCont">${lista.length} atividade(s)${st.itens.length >= 1000 ? ' · limite de 1000 anotações e 1500 mudanças carregadas' : ''}</p>
     ${vis.length ? '<ul class="rnAtvLista">' + vis.map(n => { const r = porId.get(n.carteira_id);
-      return `<li class="rnFBloco rnAtvItem"><div class="rnAtvTopo"><b>${escapeHtml(nomeDe(n.user_id))}</b><span class="rnMuted">${escapeHtml(rnQuando(n.criado_em))}</span>${n.fixada ? '<span class="rnTag">Fixada</span>' : ''}
+      return `<li class="rnFBloco rnAtvItem"><div class="rnAtvTopo"><b>${escapeHtml(nomeDe(n.user_id))}</b><span class="rnMuted">${escapeHtml(rnQuando(n.criado_em))}</span><span class="rnTag">${escapeHtml(rotuloTipo[n.tipo] || n.tipo)}</span>${n.fixada ? '<span class="rnTag">Fixada</span>' : ''}
         <button type="button" class="kbBtn kbBtnG kbBtnSm" data-rn-atv-abrir="${n.carteira_id}">${escapeHtml(r ? r.razao_social || '(sem nome)' : 'Cliente ' + n.carteira_id)} →</button></div>
-        <div class="rnNotaTxt">${escapeHtml(n.texto)}</div></li>`; }).join('') + '</ul>' : '<p class="rnVazio">Nenhuma anotação com esses filtros.</p>'}
+        <div class="rnNotaTxt">${escapeHtml(n.detalhe || '')}</div></li>`; }).join('') + '</ul>' : '<p class="rnVazio">Nenhuma atividade com esses filtros.</p>'}
     ${lista.length > vis.length ? `<button type="button" class="kbBtn kbBtnQ" data-rn-atv-mais>Mostrar mais (${lista.length - vis.length})</button>` : ''}`;
   if(foco){ const i = document.getElementById('rnAtvBusca'); if(i){ i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
 }
@@ -5684,18 +5730,18 @@ function rnAtvExportar(){
   const st = rnAtvEstado(); if(!st.itens) return;
   const porId = new Map(rnEstado.lista.map(r => [r.id, r]));
   const lista = rnAtvFiltrar(st.itens, st, rnHoje(), (id) => rnNomeConsultor(id), (n) => (porId.get(n.carteira_id) || {}).razao_social || '');
+  const rotulo = Object.fromEntries(RN_ATV_TIPOS);
   const linhas = lista.map(n => { const r = porId.get(n.carteira_id) || {};
     return { 'Data': n.dia ? n.dia.slice(8, 10) + '/' + n.dia.slice(5, 7) + '/' + n.dia.slice(0, 4) : '', 'Hora': new Date(n.criado_em).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }),
-      'Consultor': rnNomeConsultor(n.user_id), 'Cliente': r.razao_social || '', 'CNPJ': r.cnpj_digits || '', 'Etapa': r.status != null ? rnStatusRotulo(r.status) : '', 'Fixada': n.fixada ? 'Sim' : '', 'Anotação': n.texto }; });
+      'Consultor': rnNomeConsultor(n.user_id), 'Tipo': rotulo[n.tipo] || n.tipo, 'Cliente': r.razao_social || '', 'CNPJ': r.cnpj_digits || '', 'Etapa atual': r.status != null ? rnStatusRotulo(r.status) : '', 'Detalhe': n.detalhe || '' }; });
   const ws = XLSX.utils.json_to_sheet(linhas);
-  ws['!cols'] = [{ wch: 12 }, { wch: 8 }, { wch: 22 }, { wch: 34 }, { wch: 16 }, { wch: 20 }, { wch: 8 }, { wch: 90 }];
-  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Anotações');
+  ws['!cols'] = [{ wch: 12 }, { wch: 8 }, { wch: 22 }, { wch: 22 }, { wch: 34 }, { wch: 16 }, { wch: 20 }, { wch: 90 }];
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Atividade');
   XLSX.writeFile(wb, 'atividade_renovacao_' + rnHoje() + '.xlsx');
 }
 document.getElementById('rnAtividade').addEventListener('change', (e) => {
   const c = e.target.closest('[data-rn-atv]'); if(!c) return;
-  const st = rnAtvEstado(); const k = c.dataset.rnAtv;
-  st[k] = c.type === 'checkbox' ? c.checked : c.value; st.limite = 50; rnRenderAtividade();
+  const st = rnAtvEstado(); st[c.dataset.rnAtv] = c.value; st.limite = 50; rnRenderAtividade();
 });
 document.getElementById('rnAtividade').addEventListener('input', (e) => {
   const c = e.target.closest('[data-rn-atv="busca"]'); if(!c) return;
@@ -5704,7 +5750,9 @@ document.getElementById('rnAtividade').addEventListener('input', (e) => {
 document.getElementById('rnAtividade').addEventListener('click', (e) => {
   const st = rnAtvEstado();
   if(e.target.closest('[data-rn-atv-excel]')){ rnAtvExportar(); return; }
+  if(e.target.closest('[data-rn-atv-atualizar]')){ st.itens = null; rnRenderAtividade(); return; }
   if(e.target.closest('[data-rn-atv-mais]')){ st.limite += 50; rnRenderAtividade(); return; }
+  const ch = e.target.closest('[data-rn-atv-autor]'); if(ch){ st.autor = st.autor === ch.dataset.rnAtvAutor ? '' : ch.dataset.rnAtvAutor; st.limite = 50; rnRenderAtividade(); return; }
   const a = e.target.closest('[data-rn-atv-abrir]'); if(a) rnAbrirFicha(Number(a.dataset.rnAtvAbrir));
 });
 // ---- §143.2 Proposta e fatura: os mesmos nós da aba Proposta (mesmo código e mesmos eventos), movidos, não copiados ----
