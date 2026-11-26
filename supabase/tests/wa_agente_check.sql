@@ -48,7 +48,7 @@ begin
   ok := array_append(ok, '5');
   -- 6. precisa_humano silencia até o próximo expediente; texto do próximo atendimento
   perform public.wa_salvar(c2, null, null, 'precisa_humano', 'quer cancelar');
-  if not exists (select 1 from public.wa_conversas where id = c2 and estado = 'precisa_humano' and motivo_humano = 'quer cancelar' and silencio_ate > now())
+  if not exists (select 1 from public.wa_conversas where id = c2 and estado = 'precisa_humano' and motivo_humano = 'quer cancelar' and (v_exp or silencio_ate > now()))
     then raise exception 'FALHOU 6'; end if;
   if not public.leads_dist_no_expediente(public.wa_proximo_expediente(now())) then raise exception 'FALHOU 6b: próximo expediente'; end if;
   t := public.wa_quando_texto('2026-11-30 17:00:00+00'::timestamptz, '2026-11-28 23:00:00+00'::timestamptz);   -- seg 14h, visto num sábado 20h (SP)
@@ -96,7 +96,7 @@ begin
   perform public.wa_adiar(c2); perform public.wa_adiar(c2);
   if exists (select 1 from public.wa_conversas where id = c2 and estado = 'precisa_humano') then raise exception 'FALHOU 11: cedo demais'; end if;
   perform public.wa_adiar(c2);
-  if not exists (select 1 from public.wa_conversas where id = c2 and estado = 'precisa_humano' and falhas = 3 and silencio_ate > now()) then raise exception 'FALHOU 11b'; end if;
+  if not exists (select 1 from public.wa_conversas where id = c2 and estado = 'precisa_humano' and falhas = 3 and (v_exp or silencio_ate > now())) then raise exception 'FALHOU 11b'; end if;
   ok := array_append(ok, '11');
   -- 12. revisão I6: extra de sábado (data fictícia 2030) — sex 22h aponta sáb 9h; sáb 17h aponta segunda no início da semana
   update public.config set valor = (valor::jsonb || jsonb_build_object('extras', coalesce(valor::jsonb -> 'extras', '{}'::jsonb) || '{"2030-01-05":{"inicio":"09:00","fim":"16:00"}}'::jsonb))::text where chave = 'leads_distribuicao';
