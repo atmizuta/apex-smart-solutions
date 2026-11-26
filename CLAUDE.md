@@ -63,6 +63,18 @@ Para telas, campos ou modais novos:
 4. Depois de publicar: atualize o `REGRAS_NEGOCIO.md`, faça commit e push na `main` do repositório oficial
    (fetch antes, sem force).
 
+## Onde fica cada coisa
+
+- Raiz: `_template.html` (fonte), `painel_clientes_apex.html` (gerado), `build_painel.py`, `dashboard_tpl.py`,
+  `run_tests.sh`, os `test_*.js` e seus apoios (`test_helper_mock.js`, `painel_teste_base.js`,
+  `*_harness.js`), as `edge_function_*.ts` lidas pelos testes, `demo_local.js`/`demo_supabase.js`.
+- `supabase/`: `migrations/`, `rollback/`, `tests/`, `functions/` e `manual/` (SQL já aplicada à mão em
+  produção, guardada só para histórico — não vai para `migrations/`).
+- `scripts/viabilidade/`: geocodificação e viabilidade por KMZ (uso pontual). `scripts/antigos/`: correções
+  já aplicadas no `_template.html`, guardadas para histórico.
+- `crm-fibra/`: app Next.js separado. `docs/`: specs e planos.
+- Arquivo temporário, print de conferência ou cópia de pasta não entra no repositório.
+
 ## Segurança — este repositório é público
 
 - **Nunca** coloque senha, token ou chave privada em arquivo do repositório (inclusive scripts de deploy).

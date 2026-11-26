@@ -21,3 +21,9 @@ demo_local.html
 
 # estado local do link da Supabase CLI
 supabase/.temp/
+
+# Limpeza da raiz (24/11/2026): zips e temporários não entram no repositório
+*.zip
+*_tmp*.js
+*_tmp*.py
+Nova pasta/
