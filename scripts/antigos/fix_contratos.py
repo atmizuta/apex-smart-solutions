@@ -1,6 +1,7 @@
 import re, base64, sys
 
-TPL_PATH = "_template.html"
+import os
+TPL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "_template.html")
 
 with open(TPL_PATH, "r", encoding="utf-8") as f:
     outer = f.read()
