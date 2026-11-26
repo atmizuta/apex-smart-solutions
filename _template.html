@@ -1055,6 +1055,12 @@
     #rnFicha:not(.noPainel) .rnColA,#rnFicha:not(.noPainel) .rnColB{overflow-y:auto;min-height:0;padding-right:var(--space-1);}
     #rnFicha:not(.noPainel) .rnCampos{grid-template-columns:repeat(3,minmax(0,1fr));}
   }
+  .rnTelWrap{position:relative;display:inline-block;}
+  .rnTelMenu{position:absolute;top:calc(100% + 4px);left:0;z-index:20;min-width:260px;display:flex;flex-direction:column;gap:2px;padding:4px;background:var(--c-branco);border:1px solid var(--c-linha-forte);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);}
+  .rnTelMenu[hidden]{display:none;}
+  .rnTelOp{display:flex;flex-direction:column;padding:8px 10px;border-radius:var(--radius);color:var(--ml-ink);text-decoration:none;}
+  .rnTelOp:hover,.rnTelOp:focus-visible{background:var(--c-papel);}
+  .rnTelOp small{color:var(--ml-ink-3);font-size:var(--fs-xs);}
   .rnAtvBarra{display:flex;flex-wrap:wrap;gap:var(--space-3);align-items:flex-end;margin-bottom:var(--space-3);}
   .rnAtvBarra label{display:flex;flex-direction:column;gap:4px;font-size:var(--fs-xs);font-weight:600;color:var(--ml-ink-3);}
   .rnAtvBarra select,.rnAtvBarra input[type=search]{border:1px solid var(--c-linha-forte);border-radius:8px;background:var(--c-papel);padding:8px 10px;font:inherit;font-size:var(--fs-base);color:var(--ml-ink);}
@@ -4860,13 +4866,32 @@ function rnPintarSecao(nome){
   const n = (f[nome] || []).length; const cont = document.querySelector(`#rnFichaCorpo [data-rn-cont="${nome}"]`); if(cont) cont.textContent = f[nome] ? '· ' + n : '';
   if(nome === 'contatos'){ const ac = document.querySelector('#rnFichaCorpo .rnFichaAcoes'); if(ac) ac.innerHTML = rnFichaAcoesHtml(r); }
 }
+// Telefones que o consultor pode escolher para WhatsApp/Ligar: cadastro oficial da Claro + contatos que o consultor cadastrou (§165).
+function rnTelefonesFicha(r){
+  const lista = []; const vistos = new Map();
+  const add = (tel, rotulo, tag) => {
+    let d = onlyDigits(tel); if(d.length > 11 && d.startsWith('55')) d = d.slice(2); if(d.length < 10) return;
+    if(vistos.has(d)){ const it = vistos.get(d); if(tag && !it.tag.includes(tag)) it.tag += ' · ' + tag; return; }
+    const it = { d, rotulo, tag: tag || '' }; vistos.set(d, it); lista.push(it);
+  };
+  add(r.telefone, 'Cadastro Claro (oficial)', '');
+  ((rnEstado.ficha && rnEstado.ficha.contatos) || []).forEach(c => add(c.telefone, c.nome || 'Contato do consultor', [c.cargo, c.principal ? 'principal' : '', c.decisor ? 'decisor' : ''].filter(Boolean).join(' · ')));
+  return lista;
+}
+function rnTelBotaoHtml(tels, canal){
+  const wa = canal === 'WhatsApp';
+  const href = (t) => (wa ? 'https://wa.me/55' + escapeHtml(t.d) : 'tel:' + escapeHtml(t.d));
+  const alvo = wa ? ' target="_blank" rel="noopener"' : '';
+  if(tels.length === 1) return `<a class="kbBtn ${wa ? 'kbBtnP' : 'kbBtnQ'}" data-rn-canal="${canal}"${alvo} href="${href(tels[0])}">${wa ? 'WhatsApp' : 'Ligar'}</a>`;
+  return `<span class="rnTelWrap"><button type="button" class="kbBtn ${wa ? 'kbBtnP' : 'kbBtnQ'}" data-rn-tel-menu aria-haspopup="true" aria-expanded="false">${wa ? 'WhatsApp' : 'Ligar'} ▾</button>
+    <span class="rnTelMenu" hidden>${tels.map(t => `<a class="rnTelOp" data-rn-canal="${canal}"${alvo} href="${href(t)}"><b>${escapeHtml(rnFoneFmt(t.d))}</b><small>${escapeHtml([t.rotulo, t.tag].filter(Boolean).join(' · '))}</small></a>`).join('')}</span></span>`;
+}
 function rnFichaAcoesHtml(r){
-  const pc = rnContatoPrincipal(); const tel = onlyDigits(pc ? pc.telefone : r.telefone);
-  return (tel
-    ? `<a class="kbBtn kbBtnP" data-rn-canal="WhatsApp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}">WhatsApp</a><a class="kbBtn kbBtnQ" data-rn-canal="Ligação" href="tel:${escapeHtml(tel)}">Ligar</a>`
-    : '<span class="kbMeta">Sem telefone.</span>')
-    + (pc && pc.email ? `<a class="kbBtn kbBtnQ" href="mailto:${escapeHtml(pc.email)}">E-mail</a>` : '')
-    + (pc ? `<span class="kbMeta">usa o contato principal${pc.nome ? ': ' + escapeHtml(pc.nome) : ''}</span>` : '')
+  const tels = rnTelefonesFicha(r);
+  const cont = ((rnEstado.ficha && rnEstado.ficha.contatos) || []);
+  const pc = cont.find(c => c.principal && c.email) || cont.find(c => c.email) || null;
+  return (tels.length ? rnTelBotaoHtml(tels, 'WhatsApp') + rnTelBotaoHtml(tels, 'Ligação') : '<span class="kbMeta">Sem telefone.</span>')
+    + (pc ? `<a class="kbBtn kbBtnQ" href="mailto:${escapeHtml(pc.email)}">E-mail</a>` : '')
     + (rnEncerrado(r.status) ? '<span class="kbMeta">Reabra a etapa para gerar proposta.</span>' : `<button type="button" class="kbBtn kbBtnQ" data-rn-gerar="${r.id}">Gerar proposta</button>`);
 }
 async function rnNotaAdicionar(){
@@ -4945,9 +4970,16 @@ async function rnAnexoApagar(aid){
   await ppSeguro(() => sb.storage.from('renovacao-anexos').remove([a.caminho]));
   f.anexos = f.anexos.filter(x => x !== a); rnPintarSecao('anexos');
 }
+function rnTelFechar(exceto){ document.querySelectorAll('#rnFicha .rnTelMenu').forEach(m => { if(m !== exceto){ m.hidden = true; const b = m.previousElementSibling; if(b) b.setAttribute('aria-expanded', 'false'); } }); }
+function rnTelAlternar(btn){
+  const m = btn.nextElementSibling; if(!m) return;
+  rnTelFechar(m); m.hidden = !m.hidden; btn.setAttribute('aria-expanded', m.hidden ? 'false' : 'true');
+}
+document.addEventListener('click', (e) => { if(!e.target.closest('.rnTelWrap') || e.target.closest('.rnTelOp')) rnTelFechar(null); });
 document.getElementById('rnFicha').addEventListener('click', (e) => {
   const g = (sel) => e.target.closest(sel);
   let x;
+  if((x = g('[data-rn-tel-menu]'))){ rnTelAlternar(x); return; }
   if(g('[data-rn-nota-add]')) rnNotaAdicionar();
   else if((x = g('[data-rn-nota-fixar]'))) rnNotaFixar(x.dataset.rnNotaFixar);
   else if((x = g('[data-rn-nota-apagar]'))) rnNotaApagar(x.dataset.rnNotaApagar);
