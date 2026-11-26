@@ -20,7 +20,7 @@ begin
   v := public.wa_receber(jsonb_build_array(jsonb_build_object('tipo', 'cliente', 'wamid', 'zzw1', 'telefone', '550000000001', 'nome_perfil', 'Zz', 'em', now(), 'formato', 'texto', 'texto', 'Oi')));
   select id into c from public.wa_conversas where telefone = '550000000001';
   if c is null or not exists (select 1 from public.wa_conversas where id = c and lead_id = 'wa:zzcheck1') then raise exception 'FALHOU 3: conversa/lead'; end if;
-  if jsonb_array_length(v) <> case when v_exp then 0 else 1 end then raise exception 'FALHOU 3b: %', v; end if;
+  if jsonb_array_length(v) <> (case when v_exp then 0 else 1 end) then raise exception 'FALHOU 3b: %', v; end if;
   v := public.wa_receber(jsonb_build_array(jsonb_build_object('tipo', 'cliente', 'wamid', 'zzw1', 'telefone', '550000000001', 'formato', 'texto', 'texto', 'Oi')));
   select count(*) into n from public.wa_mensagens where wamid = 'zzw1';
   if n <> 1 or jsonb_array_length(v) <> 0 then raise exception 'FALHOU 3c: % %', n, v; end if;
