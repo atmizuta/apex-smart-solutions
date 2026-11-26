@@ -999,7 +999,7 @@
   .rnN{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-variant-numeric:tabular-nums;}
   .rnEtapa{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:var(--fs-xs);font-weight:600;white-space:nowrap;}
   .rnEtapa i{width:7px;height:7px;border-radius:50%;background:currentColor;}
-  .rnSt0{color:var(--rn-st0);background:var(--rn-st0-bg);}.rnSt8{color:var(--rn-st8);background:var(--rn-st8-bg);}.rnSt9{color:var(--rn-st9);background:var(--rn-st9-bg);}.rnPri{display:inline-block;min-width:26px;text-align:center;padding:1px 6px;border-radius:var(--radius-pill,999px);font-weight:700;font-size:12px;}.rnPriP1{color:var(--st-perdido);background:var(--st-perdido-bg);}.rnPriP2{color:var(--st-devolvido);background:var(--st-devolvido-bg);}.rnPriP3{color:var(--st-andamento);background:var(--st-andamento-bg);}.rnPriP4,.rnPriP5{color:var(--st-neutro);background:var(--st-neutro-bg);}.rnSt1{color:var(--rn-st1);background:var(--rn-st1-bg);}.rnSt2{color:var(--rn-st2);background:var(--rn-st2-bg);}.rnSt3{color:var(--rn-st3);background:var(--rn-st3-bg);}.rnSt4{color:var(--rn-st4);background:var(--rn-st4-bg);}.rnSt5{color:var(--rn-st5);background:var(--rn-st5-bg);}.rnSt6{color:var(--rn-st6);background:var(--rn-st6-bg);}.rnSt7{color:var(--rn-st7);background:var(--rn-st7-bg);}
+  .rnSt0{color:var(--rn-st0);background:var(--rn-st0-bg);}.rnSt8{color:var(--rn-st8);background:var(--rn-st8-bg);}.rnSt9{color:var(--rn-st9);background:var(--rn-st9-bg);}.rnPri{display:inline-block;min-width:26px;text-align:center;padding:1px 6px;border-radius:var(--radius-pill,999px);font-weight:700;font-size:12px;}.rnPriP1{color:var(--st-perdido);background:var(--st-perdido-bg);}.rnPriP2{color:var(--st-devolvido);background:var(--st-devolvido-bg);}.rnPriP3{color:var(--st-andamento);background:var(--st-andamento-bg);}.rnPriP4,.rnPriP5,.rnPriP6{color:var(--st-neutro);background:var(--st-neutro-bg);}.rnSt1{color:var(--rn-st1);background:var(--rn-st1-bg);}.rnSt2{color:var(--rn-st2);background:var(--rn-st2-bg);}.rnSt3{color:var(--rn-st3);background:var(--rn-st3-bg);}.rnSt4{color:var(--rn-st4);background:var(--rn-st4-bg);}.rnSt5{color:var(--rn-st5);background:var(--rn-st5-bg);}.rnSt6{color:var(--rn-st6);background:var(--rn-st6-bg);}.rnSt7{color:var(--rn-st7);background:var(--rn-st7-bg);}
   .rnAv{width:34px;height:34px;border-radius:var(--radius-lg);display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:var(--fs-xs);background:var(--ml-surface-2);color:var(--ml-ink-2);flex:none;}
   .rnVazio{color:var(--ml-ink-3);padding:var(--space-4);text-align:center;}
   .rnLate{color:var(--ml-late);font-weight:600;}.rnOk{color:var(--ml-ok);font-weight:600;}.rnMuted{color:var(--ml-ink-3);}
@@ -1055,6 +1055,12 @@
     #rnFicha:not(.noPainel) .rnColA,#rnFicha:not(.noPainel) .rnColB{overflow-y:auto;min-height:0;padding-right:var(--space-1);}
     #rnFicha:not(.noPainel) .rnCampos{grid-template-columns:repeat(3,minmax(0,1fr));}
   }
+  .rnTelWrap{position:relative;display:inline-block;}
+  .rnTelMenu{position:absolute;top:calc(100% + 4px);left:0;z-index:20;min-width:260px;display:flex;flex-direction:column;gap:2px;padding:4px;background:var(--c-branco);border:1px solid var(--c-linha-forte);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);}
+  .rnTelMenu[hidden]{display:none;}
+  .rnTelOp{display:flex;flex-direction:column;padding:8px 10px;border-radius:var(--radius);color:var(--ml-ink);text-decoration:none;}
+  .rnTelOp:hover,.rnTelOp:focus-visible{background:var(--c-papel);}
+  .rnTelOp small{color:var(--ml-ink-3);font-size:var(--fs-xs);}
   .rnAtvBarra{display:flex;flex-wrap:wrap;gap:var(--space-3);align-items:flex-end;margin-bottom:var(--space-3);}
   .rnAtvBarra label{display:flex;flex-direction:column;gap:4px;font-size:var(--fs-xs);font-weight:600;color:var(--ml-ink-3);}
   .rnAtvBarra select,.rnAtvBarra input[type=search]{border:1px solid var(--c-linha-forte);border-radius:8px;background:var(--c-papel);padding:8px 10px;font:inherit;font-size:var(--fs-base);color:var(--ml-ink);}
@@ -4136,7 +4142,7 @@ const RN_FILTROS = [
   ['apto', 'Aptidão', [['APTO', 'Aptos'], ['1 MÊS PARA APTO', 'Apto M+1'], ['2 MESES PARA APTO', 'Apto M+2'], ['NÃO APTO', 'FIXA - Não Apto']], 'Todos'],
   ['fixa', 'Fixa', [['viavel', 'Fixa viável'], ['nova', 'Fixa nova (viável e sem fixa hoje)'], ['sem', 'Sem fixa hoje'], ['tem', 'Já tem fixa']]],
   ['oport', 'Oportunidade', [['Renovação', 'Renovação'], ['Renovação + Fixa', 'Renovação + Fixa'], ['Fixa nova', 'Fixa nova'], ['Sem oportunidade', 'Sem oportunidade']]],
-  ['prioridade', 'Prioridade', [['P1', 'P1'], ['P2', 'P2'], ['P3', 'P3'], ['P4', 'P4'], ['P5', 'P5']]],
+  ['prioridade', 'Prioridade', [['P1', 'P1 · fixa nova, 4+ linhas'], ['P2', 'P2 · fixa nova, 1-3 linhas'], ['P3', 'P3 · sem fixa nova, 4+ linhas'], ['P4', 'P4 · sem fixa nova, 1-3 linhas'], ['P5', 'P5 · apto em 1-2 meses'], ['P6', 'P6 · não apto, fixa nova']]],
   ['fatura', 'Fatura', [['300', 'a partir de R$ 300'], ['500', 'a partir de R$ 500'], ['1000', 'a partir de R$ 1.000'], ['menor300', 'abaixo de R$ 300']]],
   ['linhas', 'Linhas', [['ate5', 'até 5'], ['6a15', '6 a 15'], ['16mais', '16 ou mais']]],
   ['mov', 'Movimentação 25/11', [['novo', 'Novo'], ['permanece', 'Permanece'], ['perdeu', 'Perdeu aptidão']]],
@@ -4284,7 +4290,10 @@ function rnTextoAtraso(r, agora){
 }
 const RN_ETAPA = { 0: 'Não trabalhado', 1: 'Tentativa', 2: 'Decisor', 3: 'Qualificado', 4: 'Proposta', 5: 'Negociação', 6: 'Ganho (pedido)', 7: 'Ganho (ativado)', 8: 'Perdido', 9: 'Desqualificado' };
 function rnEtapaHtml(s){ const n = Number.isInteger(Number(s)) ? Number(s) : 0; return `<span class="rnEtapa rnSt${n}"><i></i>${escapeHtml(RN_ETAPA[s] || '?')}</span>`; }
-function rnPrioHtml(p){ return p ? `<span class="rnPri rnPri${escapeHtml(p)}" title="Prioridade ${escapeHtml(p)}">${escapeHtml(p)}</span>` : ''; }
+// §165: regra de prioridade (calculada no banco, renovacao_prioridade). "Fixa nova" = fixa viável (HP cabeado e livre) e sem fixa hoje.
+const RN_PRIORIDADE_DESC = { P1: 'Apto agora, fixa nova e 4 ou mais linhas', P2: 'Apto agora, fixa nova e 1 a 3 linhas', P3: 'Apto agora, sem fixa nova e 4 ou mais linhas',
+  P4: 'Apto agora, sem fixa nova e 1 a 3 linhas', P5: 'Apto em 1 ou 2 meses (com ou sem fixa)', P6: 'Não apto, com fixa nova (venda de fixa futura)' };
+function rnPrioHtml(p){ return p ? `<span class="rnPri rnPri${escapeHtml(p)}" title="Prioridade ${escapeHtml(p)}: ${escapeHtml(RN_PRIORIDADE_DESC[p] || '')}">${escapeHtml(p)}</span>` : ''; }
 function rnEhApto(a){ return RN_APTOS.includes(a); }
 function rnIniciais(nome){
   const p = String(nome || '').split(/\s+/).filter(w => w.length > 1 || /^[A-Za-zÀ-ú]$/.test(w));
@@ -4857,13 +4866,32 @@ function rnPintarSecao(nome){
   const n = (f[nome] || []).length; const cont = document.querySelector(`#rnFichaCorpo [data-rn-cont="${nome}"]`); if(cont) cont.textContent = f[nome] ? '· ' + n : '';
   if(nome === 'contatos'){ const ac = document.querySelector('#rnFichaCorpo .rnFichaAcoes'); if(ac) ac.innerHTML = rnFichaAcoesHtml(r); }
 }
+// Telefones que o consultor pode escolher para WhatsApp/Ligar: cadastro oficial da Claro + contatos que o consultor cadastrou (§165).
+function rnTelefonesFicha(r){
+  const lista = []; const vistos = new Map();
+  const add = (tel, rotulo, tag) => {
+    let d = onlyDigits(tel); if(d.length > 11 && d.startsWith('55')) d = d.slice(2); if(d.length < 10) return;
+    if(vistos.has(d)){ const it = vistos.get(d); if(tag && !it.tag.includes(tag)) it.tag += ' · ' + tag; return; }
+    const it = { d, rotulo, tag: tag || '' }; vistos.set(d, it); lista.push(it);
+  };
+  add(r.telefone, 'Cadastro Claro (oficial)', '');
+  ((rnEstado.ficha && rnEstado.ficha.contatos) || []).forEach(c => add(c.telefone, c.nome || 'Contato do consultor', [c.cargo, c.principal ? 'principal' : '', c.decisor ? 'decisor' : ''].filter(Boolean).join(' · ')));
+  return lista;
+}
+function rnTelBotaoHtml(tels, canal){
+  const wa = canal === 'WhatsApp';
+  const href = (t) => (wa ? 'https://wa.me/55' + escapeHtml(t.d) : 'tel:' + escapeHtml(t.d));
+  const alvo = wa ? ' target="_blank" rel="noopener"' : '';
+  if(tels.length === 1) return `<a class="kbBtn ${wa ? 'kbBtnP' : 'kbBtnQ'}" data-rn-canal="${canal}"${alvo} href="${href(tels[0])}">${wa ? 'WhatsApp' : 'Ligar'}</a>`;
+  return `<span class="rnTelWrap"><button type="button" class="kbBtn ${wa ? 'kbBtnP' : 'kbBtnQ'}" data-rn-tel-menu aria-haspopup="true" aria-expanded="false">${wa ? 'WhatsApp' : 'Ligar'} ▾</button>
+    <span class="rnTelMenu" hidden>${tels.map(t => `<a class="rnTelOp" data-rn-canal="${canal}"${alvo} href="${href(t)}"><b>${escapeHtml(rnFoneFmt(t.d))}</b><small>${escapeHtml([t.rotulo, t.tag].filter(Boolean).join(' · '))}</small></a>`).join('')}</span></span>`;
+}
 function rnFichaAcoesHtml(r){
-  const pc = rnContatoPrincipal(); const tel = onlyDigits(pc ? pc.telefone : r.telefone);
-  return (tel
-    ? `<a class="kbBtn kbBtnP" data-rn-canal="WhatsApp" target="_blank" rel="noopener" href="https://wa.me/55${escapeHtml(tel.replace(/^55/, ''))}">WhatsApp</a><a class="kbBtn kbBtnQ" data-rn-canal="Ligação" href="tel:${escapeHtml(tel)}">Ligar</a>`
-    : '<span class="kbMeta">Sem telefone.</span>')
-    + (pc && pc.email ? `<a class="kbBtn kbBtnQ" href="mailto:${escapeHtml(pc.email)}">E-mail</a>` : '')
-    + (pc ? `<span class="kbMeta">usa o contato principal${pc.nome ? ': ' + escapeHtml(pc.nome) : ''}</span>` : '')
+  const tels = rnTelefonesFicha(r);
+  const cont = ((rnEstado.ficha && rnEstado.ficha.contatos) || []);
+  const pc = cont.find(c => c.principal && c.email) || cont.find(c => c.email) || null;
+  return (tels.length ? rnTelBotaoHtml(tels, 'WhatsApp') + rnTelBotaoHtml(tels, 'Ligação') : '<span class="kbMeta">Sem telefone.</span>')
+    + (pc ? `<a class="kbBtn kbBtnQ" href="mailto:${escapeHtml(pc.email)}">E-mail</a>` : '')
     + (rnEncerrado(r.status) ? '<span class="kbMeta">Reabra a etapa para gerar proposta.</span>' : `<button type="button" class="kbBtn kbBtnQ" data-rn-gerar="${r.id}">Gerar proposta</button>`);
 }
 async function rnNotaAdicionar(){
@@ -4942,9 +4970,16 @@ async function rnAnexoApagar(aid){
   await ppSeguro(() => sb.storage.from('renovacao-anexos').remove([a.caminho]));
   f.anexos = f.anexos.filter(x => x !== a); rnPintarSecao('anexos');
 }
+function rnTelFechar(exceto){ document.querySelectorAll('#rnFicha .rnTelMenu').forEach(m => { if(m !== exceto){ m.hidden = true; const b = m.previousElementSibling; if(b) b.setAttribute('aria-expanded', 'false'); } }); }
+function rnTelAlternar(btn){
+  const m = btn.nextElementSibling; if(!m) return;
+  rnTelFechar(m); m.hidden = !m.hidden; btn.setAttribute('aria-expanded', m.hidden ? 'false' : 'true');
+}
+document.addEventListener('click', (e) => { if(!e.target.closest('.rnTelWrap') || e.target.closest('.rnTelOp')) rnTelFechar(null); });
 document.getElementById('rnFicha').addEventListener('click', (e) => {
   const g = (sel) => e.target.closest(sel);
   let x;
+  if((x = g('[data-rn-tel-menu]'))){ rnTelAlternar(x); return; }
   if(g('[data-rn-nota-add]')) rnNotaAdicionar();
   else if((x = g('[data-rn-nota-fixar]'))) rnNotaFixar(x.dataset.rnNotaFixar);
   else if((x = g('[data-rn-nota-apagar]'))) rnNotaApagar(x.dataset.rnNotaApagar);

@@ -281,7 +281,19 @@ require('./renovacao_test_harness.js').rodar(`
   cx('[data-rn-contato-salvar]').click(); await espera(30);
   const ct = window.__escritas.filter(x => x.tabela === 'renovacao_contatos' && x.op === 'insert').pop();
   eq([ct.patch.telefone, ct.patch.email, ct.patch.decisor, ct.patch.principal, ct.patch.carteira_id], ['19999990002', 'maria@zz.invalid', true, true, 900], 'contato gravado com telefone só dígitos');
-  assert(cx('.rnFichaAcoes a[href="tel:19999990002"]') && cx('.rnFichaAcoes a[href^="https://wa.me/5519999990002"]') && cx('.rnFichaAcoes a[href="mailto:maria@zz.invalid"]'), 'WhatsApp, Ligar e E-mail passam a usar o contato principal');
+  assert(cx('.rnFichaAcoes a[href="tel:19999990002"]') && cx('.rnFichaAcoes a[href^="https://wa.me/5519999990002"]') && cx('.rnFichaAcoes a[href="mailto:maria@zz.invalid"]'), 'WhatsApp, Ligar e E-mail oferecem o telefone do contato');
+  // WhatsApp/Ligar deixam escolher: cadastro Claro (oficial) ou contato do consultor
+  const menus = [...document.querySelectorAll('#rnFichaCorpo .rnFichaAcoes .rnTelMenu')];
+  eq(menus.length, 2, 'WhatsApp e Ligar viram menu quando há mais de um telefone');
+  const opW = [...menus[0].querySelectorAll('a')];
+  eq(opW.map(a => a.getAttribute('href')), ['https://wa.me/5519900000001', 'https://wa.me/5519999990002'], 'WhatsApp: Claro primeiro, depois o contato');
+  assert(opW[0].textContent.includes('Cadastro Claro') && opW[1].textContent.includes('Zz Maria') && opW[1].textContent.includes('principal'), 'rótulos: cadastro Claro e contato (principal)');
+  eq([...menus[1].querySelectorAll('a')].map(a => a.getAttribute('href')), ['tel:19900000001', 'tel:19999990002'], 'Ligar: os mesmos dois telefones');
+  const btM = cx('.rnFichaAcoes [data-rn-tel-menu]');
+  assert(menus[0].hidden, 'menu começa fechado'); btM.click();
+  assert(!menus[0].hidden && btM.getAttribute('aria-expanded') === 'true', 'clicar abre o menu');
+  document.body.click();
+  assert(menus[0].hidden, 'clicar fora fecha o menu');
   eq(window.__tabelas.renovacao_carteira[0].telefone, '19900000001', 'telefone oficial da Claro intacto');
   eq(window.__tabelas.renovacao_carteira[0].dados_claro, { SCORE: 7 }, 'dados_claro intactos');
   cx('#rnCtTel').value = '123'; cx('#rnCtNome').value = 'Zz X'; 
