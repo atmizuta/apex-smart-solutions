@@ -48,7 +48,7 @@ require('./renovacao_test_harness.js').rodar(`
   eq([...rnEstado.selecionados].sort(), [2, 3], 'selecionar todos pega todos do filtro');
 
   // ==== mensagem de erro diz o campo ====
-  eq(rnMensagemErro({ message: 'new row for relation "renovacao_carteira" violates check constraint "renovacao_carteira_linhas_renovadas_check"' }), 'Linhas renovadas não pode ser negativo.', 'erro de linhas');
+  eq(rnMensagemErro({ message: 'new row for relation "renovacao_carteira" violates check constraint "renovacao_carteira_linhas_renovadas_check"' }), 'Linhas fechadas não pode ser negativo.', 'erro de linhas');
   eq(rnMensagemErro({ message: 'violates check constraint "renovacao_carteira_sol_digitais_check"' }), 'Soluções digitais não pode ser negativo.', 'erro de digitais');
   eq(rnMensagemErro({ message: 'timeout' }), 'Não foi possível salvar agora. Tente de novo.', 'erro técnico continua genérico');
 

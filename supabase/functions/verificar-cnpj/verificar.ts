@@ -59,7 +59,7 @@ const naoEncontrado = (fonte: Fonte): Resultado => ({ situacao: "NAO_ENCONTRADO"
 // BrasilAPI primeiro; falha de rede, tempo, 404, outro HTTP ou situação desconhecida → tenta a próxima fonte.
 // 400 = dígito verificador errado (as duas fontes recusam). NAO_ENCONTRADO só quando TODAS dizem 404: a base da
 // BrasilAPI é mensal e pode não ter empresa aberta há pouco (revisão final, 29/10).
-async function consultarFora(cnpj: string, deps: Deps): Promise<Resultado | "invalido" | null> {
+export async function consultarFora(cnpj: string, deps: Pick<Deps, "buscar" | "log">): Promise<Resultado | "invalido" | null> {
   let naoAchou = 0;
   for (const f of FONTES) {
     try {

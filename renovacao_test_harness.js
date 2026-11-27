@@ -10,7 +10,7 @@ function rodar(testScript){
   if(!m){ console.error('script nao encontrado'); process.exit(1); }
   const dom = new JSDOM(htmlNoScript, { runScripts: 'outside-only', url: 'http://localhost/' });
   const { window } = dom;
-  Object.assign(window, { __tabelas: {}, __resp: {}, __escritas: [], __rpcCalls: [], __rpcRespostas: {}, __sessao: null });
+  Object.assign(window, { __storage: [], __storageRemovidos: [], __tabelas: {}, __resp: {}, __escritas: [], __rpcCalls: [], __rpcRespostas: {}, __sessao: null });
   const casa = (linha, filtros) => filtros.every(([op, c, v]) => op === 'eq' ? String(linha[c]) === String(v) : op === 'in' ? v.map(String).includes(String(linha[c])) : op === 'notnull' ? (linha[c] !== null && linha[c] !== undefined) : true);
   function builder(tabela){
     const q = { tabela, op: 'select', filtros: [], patch: null };
@@ -28,6 +28,11 @@ function rodar(testScript){
         alvo.forEach(l => Object.assign(l, q.patch));
         return { data: alvo.map(l => Object.assign({}, l)), error: null };
       }
+      if(q.op === 'delete'){
+        const alvo = linhas.filter(l => casa(l, q.filtros));
+        window.__tabelas[tabela] = linhas.filter(l => !alvo.includes(l));
+        return { data: alvo.map(l => Object.assign({}, l)), error: null };
+      }
       return { data: linhas.filter(l => casa(l, q.filtros)).map(l => Object.assign({}, l)), error: null };
     };
     const b = {
@@ -37,6 +42,7 @@ function rodar(testScript){
       not: (c, op, v) => { if(op === 'is' && v === null) q.filtros.push(['notnull', c, null]); return b; },
       insert: (payload) => { q.op = 'insert'; q.patch = payload; window.__escritas.push(q); return b; },
       update: (patch) => { q.op = 'update'; q.patch = patch; window.__escritas.push(q); return b; },
+      delete: () => { q.op = 'delete'; window.__escritas.push(q); return b; },
       single: async () => { const r = resposta(); return { data: Array.isArray(r.data) ? (r.data[0] || null) : r.data, error: r.error }; },
       maybeSingle: async () => { const r = resposta(); return { data: Array.isArray(r.data) ? (r.data[0] || null) : r.data, error: r.error }; },
       then: (ok, ko) => Promise.resolve(resposta()).then(ok, ko),
@@ -46,6 +52,10 @@ function rodar(testScript){
   window.supabase = { createClient: comRange(() => ({
     auth: { getSession: async () => ({ data: { session: window.__sessao } }), onAuthStateChange: () => {}, signInWithPassword: async () => ({ data: {}, error: null }), signOut: async () => ({}) },
     from: (t) => builder(t),
+    storage: { from: (bucket) => ({
+      upload: async (path, file, opts) => { window.__storage.push({ bucket, path, file, opts }); return { data: { path }, error: null }; },
+      createSignedUrl: async (path) => ({ data: { signedUrl: 'https://zz.invalid/' + path }, error: null }),
+      remove: async (paths) => { window.__storageRemovidos.push(...paths); return { data: [], error: null }; } }) },
     functions: { invoke: async () => ({ data: {}, error: null }) },
     rpc: (nome, args) => {
       window.__rpcCalls.push({ nome, args });

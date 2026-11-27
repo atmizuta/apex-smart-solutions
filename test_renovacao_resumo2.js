@@ -16,7 +16,7 @@ require('./renovacao_test_harness.js').rodar(`
   await rnCarregar();
   rnTrocarAba('resumo'); await espera(30);
   const kpis = [...document.querySelectorAll('#rnResumo .rnKpi')].map(k => k.textContent.replace(/\\s+/g, ' ').trim());
-  eq(kpis, ['1.242 clientes na carteira', '22,6% contatados (281)', '15,1% conversão (8 de 53)', '24 retornos atrasados'], 'cartões do Resumo');
+  eq(kpis, ['1.242 clientes na carteira', '22,6% cobertura (281 trabalhados)', '15,1% conversão (8 ganhos de 53 c/ decisor)', '24 retornos atrasados', '0 sem contato há +7 dias', 'R$ 0,00 valor ganho (19 linhas)'], 'cartões do Resumo');
   const tr = [...document.querySelectorAll('#rnResumo tbody tr')].map(t => [...t.children].map(td => td.textContent.replace(/\\s+/g, ' ').trim()));
   eq(tr.length, 4, '3 consultores + TOTAL');
   eq(tr[3].slice(0, 7), ['TOTAL', '1242', '22,6%', '15,1%', '23', '8', '52'], 'linha TOTAL');
@@ -41,7 +41,7 @@ require('./renovacao_test_harness.js').rodar(`
   const p1 = document.querySelector('#rnKanban [data-rn-card="1"] .rnParado'), p2 = document.querySelector('#rnKanban [data-rn-card="2"] .rnParado');
   assert(p1 && p1.classList.contains('late') && /parado há 8 dias/.test(p1.textContent), 'parado há 8 dias em vermelho');
   assert(p2 && !p2.classList.contains('late') && /parado há 2 dias/.test(p2.textContent), 'parado há 2 dias sem alarme');
-  assert(!document.querySelector('#rnKanban [data-rn-card="3"] .rnParado') && /3 renovadas/.test(document.querySelector('#rnKanban [data-rn-card="3"]').textContent), 'renovado sem "parado", com as linhas');
-  assert(/Contato efetivo/.test(document.querySelector('#rnKanban [data-rn-coluna="3"] .rnKbHead').textContent), 'coluna com a etiqueta da etapa');
+  assert(!document.querySelector('#rnKanban [data-rn-card="3"] .rnParado') && /3 fechadas/.test(document.querySelector('#rnKanban [data-rn-card="3"]').textContent), 'renovado sem "parado", com as linhas');
+  assert(/Qualificado/.test(document.querySelector('#rnKanban [data-rn-coluna="3"] .rnKbHead').textContent), 'coluna com a etiqueta da etapa');
   fim();
 `);
