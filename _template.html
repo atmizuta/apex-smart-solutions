@@ -796,7 +796,7 @@
 <style id="kbStyles">
   /* Meus leads — Kanban (§112; visual refeito em 26/10 à noite a pedido do Rafael). Só tokens do design, nenhuma cor fixa. */
   /* §126 (redesign 28/10, pedido do Rafael): tokens da aba. Hex novo só em --ml-ink-2 e --ml-surface-2; o resto reaproveita o sistema. */
-  #prospecOverlay,#panel-meusleads,#kbFicha,#kbPassar,#panel-renovacao,#rnFicha,#panel-socios{--ml-ink:var(--c-grafite);--ml-ink-2:#464A4E;--ml-ink-3:var(--c-cinza);--ml-ground:var(--c-papel);--ml-surface:var(--c-branco);--ml-surface-2:#F7F7F8;--ml-surface-3:var(--c-cinza-claro);--ml-late:var(--c-sinal-600);--ml-late-soft:var(--st-perdido-bg);--ml-soon:var(--st-andamento);--ml-soon-soft:var(--st-andamento-bg);--ml-ok:var(--st-ganho);--ml-ok-soft:var(--st-ganho-bg);--ml-novo:var(--c-sinal);--ml-novo-soft:var(--c-rosa);--ml-float:0 12px 32px rgba(29,31,32,.16);}
+  #prospecOverlay,#panel-meusleads,#kbFicha,#kbPassar,#panel-renovacao,#rnFicha,#panel-socios,#panel-portabilidade,#pbFicha{--ml-ink:var(--c-grafite);--ml-ink-2:#464A4E;--ml-ink-3:var(--c-cinza);--ml-ground:var(--c-papel);--ml-surface:var(--c-branco);--ml-surface-2:#F7F7F8;--ml-surface-3:var(--c-cinza-claro);--ml-late:var(--c-sinal-600);--ml-late-soft:var(--st-perdido-bg);--ml-soon:var(--st-andamento);--ml-soon-soft:var(--st-andamento-bg);--ml-ok:var(--st-ganho);--ml-ok-soft:var(--st-ganho-bg);--ml-novo:var(--c-sinal);--ml-novo-soft:var(--c-rosa);--ml-float:0 12px 32px rgba(29,31,32,.16);}
   /* §126: botões planos de 8 px (decididos uma vez), controle segmentado, marcadores e contadores */
   .kbBtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 14px;border:0;border-radius:var(--radius-lg);font:inherit;font-size:var(--fs-base);font-weight:600;line-height:1;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background var(--dur-fast) var(--ease-out),color var(--dur-fast),transform var(--dur-fast);}
   .kbBtn:active{transform:translateY(1px);}
@@ -1197,11 +1197,24 @@
   #rnKbBarra{margin:var(--space-3) 0;}
   /* Portabilidade (controle do SMS da Anatel) — reaproveita .rnKbCol/.rnKbCard */
   .pbTopo{display:flex;justify-content:space-between;gap:var(--space-3);flex-wrap:wrap;align-items:flex-start;margin-bottom:var(--space-3);}
+  .pbFiltros input,.pbFiltros select,.pbAcoes select{border:1px solid var(--c-grafite);background:var(--c-branco);color:var(--c-grafite);padding:6px 10px;border-radius:var(--radius-lg);}
+  #panel-portabilidade .rnVisaoBt{border:1px solid var(--c-linha-forte);background:var(--c-branco);color:var(--c-grafite);}#panel-portabilidade .rnVisaoBt.on{background:var(--c-grafite);color:var(--c-branco);border-color:var(--c-grafite);}
+  #panel-portabilidade .rnVazio{color:var(--ml-ink-2);}
   .pbAcoes,.pbFiltros{display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center;}.pbFiltros{margin-bottom:var(--space-2);}
   .pbKanban{display:grid;grid-template-columns:repeat(5,minmax(240px,1fr));gap:var(--space-3);overflow-x:auto;padding-bottom:var(--space-3);}
-  .pbCard{cursor:pointer;}
-  .pbTels{display:flex;flex-wrap:wrap;gap:4px;}.pbTel{font-size:var(--fs-xs);padding:1px 6px;border-radius:var(--radius-pill,999px);background:var(--ml-surface-3);color:var(--ml-ink-2);}
-  .pbTel.portada{color:var(--st-ganho);background:var(--st-ganho-bg);}.pbTel.encerrada{text-decoration:line-through;color:var(--ml-ink-3);}
+  #panel-portabilidade .rnKbCol{background:color-mix(in srgb,var(--c-grafite) 14%,var(--c-papel));border:1px solid var(--c-linha-forte);border-top:4px solid var(--c-grafite);}
+  #panel-portabilidade .rnKbCol[data-pb-coluna="sms_reenviado"]{border-top-color:var(--st-andamento);}
+  #panel-portabilidade .rnKbCol[data-pb-coluna="sem_resposta"]{border-top-color:var(--c-sinal);}
+  #panel-portabilidade .rnKbCol[data-pb-coluna="confirmou"]{border-top-color:var(--c-carmim);}
+  #panel-portabilidade .rnKbCol[data-pb-coluna="portado"]{border-top-color:var(--st-ganho);}
+  #panel-portabilidade .rnKbHead{font-size:var(--fs-sm);color:var(--c-grafite);text-transform:uppercase;letter-spacing:.02em;}
+  #panel-portabilidade .rnKbHead .kbN{background:var(--c-grafite);color:var(--c-branco);border-radius:999px;padding:0 9px;font-weight:700;font-size:12px;}
+  .pbCard{cursor:pointer;background:var(--c-branco);border:1px solid var(--c-linha-forte);box-shadow:0 1px 3px rgba(29,31,32,.18);}
+  .pbCard:hover{border-color:var(--c-grafite);box-shadow:0 3px 10px rgba(29,31,32,.22);}
+  .pbCard .rnNome{color:var(--c-grafite);font-size:var(--fs-sm);}
+  .pbCard small{color:var(--ml-ink-2);font-size:12px;}
+  .pbTels{display:flex;flex-wrap:wrap;gap:4px;}.pbTel{font-size:12px;font-weight:600;padding:1px 8px;border-radius:var(--radius-pill,999px);background:var(--c-cinza-claro);border:1px solid var(--c-linha-forte);color:var(--c-grafite);}
+  .pbTel.portada{color:var(--st-ganho);background:var(--st-ganho-bg);border-color:var(--st-ganho);}.pbTel.encerrada{text-decoration:line-through;color:var(--ml-ink-3);}
   .pbAtraso{color:var(--ml-late);font-weight:600;}
   .pbLinhas li{display:flex;justify-content:space-between;gap:8px;padding:4px 0;box-shadow:0 1px 0 var(--ml-surface-3);font-size:var(--fs-sm);}
   .pbHist li{font-size:var(--fs-sm);padding:3px 0;}
