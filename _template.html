@@ -1195,6 +1195,16 @@
   .rnSecao>summary{font-weight:600;cursor:pointer;}
   .rnKbTopo{display:flex;align-items:center;gap:6px;min-width:0;}.rnKbTopo .rnNome{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   #rnKbBarra{margin:var(--space-3) 0;}
+  /* Portabilidade (controle do SMS da Anatel) — reaproveita .rnKbCol/.rnKbCard */
+  .pbTopo{display:flex;justify-content:space-between;gap:var(--space-3);flex-wrap:wrap;align-items:flex-start;margin-bottom:var(--space-3);}
+  .pbAcoes,.pbFiltros{display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center;}.pbFiltros{margin-bottom:var(--space-2);}
+  .pbKanban{display:grid;grid-template-columns:repeat(5,minmax(240px,1fr));gap:var(--space-3);overflow-x:auto;padding-bottom:var(--space-3);}
+  .pbCard{cursor:pointer;}
+  .pbTels{display:flex;flex-wrap:wrap;gap:4px;}.pbTel{font-size:var(--fs-xs);padding:1px 6px;border-radius:var(--radius-pill,999px);background:var(--ml-surface-3);color:var(--ml-ink-2);}
+  .pbTel.portada{color:var(--st-ganho);background:var(--st-ganho-bg);}.pbTel.encerrada{text-decoration:line-through;color:var(--ml-ink-3);}
+  .pbAtraso{color:var(--ml-late);font-weight:600;}
+  .pbLinhas li{display:flex;justify-content:space-between;gap:8px;padding:4px 0;box-shadow:0 1px 0 var(--ml-surface-3);font-size:var(--fs-sm);}
+  .pbHist li{font-size:var(--fs-sm);padding:3px 0;}
   .rnKbCol{background:var(--ml-surface-3);border-radius:var(--radius-lg);padding:var(--space-2);min-height:240px;}
   .rnKbHead{display:flex;justify-content:space-between;align-items:center;margin:4px 4px 10px;}
   .rnKbCard{background:var(--ml-surface);border-radius:var(--radius-lg);padding:10px 12px;margin-bottom:var(--space-2);cursor:grab;display:grid;gap:4px;box-shadow:var(--shadow-sm);}
@@ -1849,6 +1859,8 @@
       <button data-tab="busca" data-sub="Base de clientes por razão social, CNPJ ou telefone"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span class="sbLabel">Buscar Clientes</span></button>
       <button data-tab="proposta" id="tabBtnProposta" data-sub="Proposta avulsa e análise de fatura"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg><span class="sbLabel">Gerar Proposta</span></button>
       <button data-tab="funil" id="tabBtnFunil" data-sub="Negociações em andamento, por estágio"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg><span class="sbLabel">Funil</span></button>
+      <!-- Portabilidade: controle do SMS da Anatel (cliente que vem de outra operadora precisa responder SIM). Consultor vê só os seus; admin/supervisor veem todos. -->
+      <button data-tab="portabilidade" id="tabBtnPortabilidade" style="display:none" data-sub="Controle do SMS da Anatel dos clientes de portabilidade"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h11l-3-3"/><path d="M17 17H6l3 3"/></svg><span class="sbLabel">Portabilidade</span></button>
       <!-- §157/§163: Consultar sócios — operações Apex e Campinas; o time da Renovação usa a aba Sócios da ficha -->
       <button data-tab="socios" id="tabBtnSocios" style="display:none" data-sub="CPF e telefones dos sócios de qualquer CNPJ"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="sbLabel">Consultar sócios</span></button>
       <!-- 30/09/2026: aba só do consultor (vê apenas os pedidos dele). Admin/supervisor seguem com "Pedidos em Alerta" no Dashboard. Ver seção 53 do REGRAS_NEGOCIO.md. -->
@@ -2950,6 +2962,22 @@
     </section>
 
     <!-- AGENDA (06/10/2026, seção 72): calendário do mês com os retornos do consultor + datas dos pedidos -->
+    <section class="panel" id="panel-portabilidade">
+      <div class="card">
+        <div class="pbTopo">
+          <div><h3>Portabilidade — controle do SMS da Anatel</h3>
+            <p class="kbMeta">O cliente precisa responder <strong>SIM</strong> ao SMS da Anatel para a linha sair da outra operadora. Reenvie o SMS e acompanhe aqui. Pedidos <em>Voz - Portabilidade</em> cadastrados no mês.</p></div>
+          <div class="pbAcoes"><select id="pbMes" aria-label="Mês"></select><button type="button" class="btn btn-sm btn-outline" id="pbExportar" style="width:auto">Exportar Excel</button></div>
+        </div>
+        <div class="kbFiltros pbFiltros">
+          <input type="search" id="pbBusca" placeholder="Buscar cliente, CNPJ ou telefone" aria-label="Buscar">
+          <select id="pbConsultor" aria-label="Consultor"></select>
+          <span id="pbChips"></span>
+        </div>
+        <p class="kbMeta" id="pbSumario"></p>
+        <div id="pbCols"></div>
+      </div>
+    </section>
     <section class="panel" id="panel-agenda">
       <div class="card">
         <div class="agTopo">
@@ -4135,6 +4163,7 @@ document.getElementById('tabsNav').addEventListener('click', function(e){
   if(btn.dataset.tab === 'mailing') mbCarregar();
   if(btn.dataset.tab === 'agenda') loadAgenda();
   if(btn.dataset.tab === 'socios') scAbrir(); else scParar(); // §157
+  if(btn.dataset.tab === 'portabilidade'){ if(pbEstado.carregado && Date.now() - pbEstado.carregadoEm < 120000) pbRender(); else pbCarregar(); }
   if(btn.dataset.tab === 'renovacao'){ if(rnEstado.carregado && Date.now() - rnEstado.carregadoEm < 120000) rnRender(); else rnCarregar(); }
   if(btn.dataset.tab === 'proposta') rnMoverProposta(false);   // §143.2: o formulário pode estar na subaba da Renovação
   if(btn.dataset.tab === 'anotacoes') loadAnotacoes();
@@ -4273,6 +4302,7 @@ function rnPodeVer(){
 }
 function rnSoRenovacao(){ return !!currentUser && currentUser.role === 'consultor' && currentUser.equipe === 'renovacao'; }
 function rnAplicarPermissao(){
+  pbAplicarPermissao();
   document.getElementById('tabBtnRenovacao').style.display = rnPodeVer() ? 'inline-block' : 'none';
   const abaAtv = document.getElementById('rnAbaAtividade'); if(abaAtv) abaAtv.style.display = rnGestor() ? '' : 'none';   // §165: só admin/supervisor
   // §143.2: o time de renovação trabalha só pela aba Renovação (Busca, Proposta, Funil e Agenda saem do menu dele)
@@ -5627,6 +5657,144 @@ document.getElementById('rnKanban').addEventListener('click', (e) => {
   if(g){ rnGerarProposta(Number(g.dataset.rnGerar)); return; }
   const a = e.target.closest('[data-rn-abrir]');
   if(a) rnAbrirFicha(Number(a.dataset.rnAbrir));
+});
+// ---- Portabilidade: controle do SMS da Anatel (RPCs portabilidade_*; consultor vê só os seus, gestor vê todos) ----
+const PB_COLUNAS = [['aguardando_sms', 'Aguardando SMS'], ['sms_reenviado', 'SMS reenviado'], ['sem_resposta', 'Cliente sem resposta'], ['confirmou', 'Confirmou (aguardando portar)'], ['portado', 'Portado']];
+const PB_ROTULO = { aguardando_sms: 'Aguardando SMS', sms_reenviado: 'SMS reenviado', sem_resposta: 'Cliente sem resposta', confirmou: 'Confirmou (aguardando portar)', portado: 'Portado', encerrado: 'Encerrado (perdida/devolvida)' };
+const pbEstado = { lista: [], carregado: false, carregadoEm: 0, mes: '', filtros: { busca: '', consultor: '', chip: 'todos' }, arrastando: null, erro: '' };
+function pbMesAtual(){ return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }).slice(0, 7) + '-01'; }
+function pbAplicarPermissao(){ const b = document.getElementById('tabBtnPortabilidade'); if(b) b.style.display = (currentUser && !rnSoRenovacao()) ? 'inline-block' : 'none'; }
+function pbHoje(){ return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }); }
+function pbTelFmt(l){ const t = String(l.telefone || ''); const d = onlyDigits(t); if(!d) return ''; return d.length >= 10 ? rnFoneFmt(d) : rnFoneFmt((String(l.ddd || '') + d)); }
+function pbAtrasado(c){ return c.proximo_retorno && c.proximo_retorno < pbHoje() && !['portado', 'encerrado'].includes(c.etapa); }
+function pbDias(c){ return c.primeiro_cadastro ? Math.max(0, Math.floor((Date.now() - new Date(c.primeiro_cadastro).getTime()) / 86400000)) : 0; }
+function pbFiltrar(lista, f){
+  const q = String(f.busca || '').trim().toLowerCase(); const qd = onlyDigits(q);
+  return lista.filter(c => {
+    if(f.consultor && String(c.usuario_id) !== String(f.consultor)) return false;
+    if(f.chip === 'atrasados' && !pbAtrasado(c)) return false;
+    if(f.chip === 'semretorno' && (c.proximo_retorno || ['portado', 'encerrado'].includes(c.etapa))) return false;
+    if(!q) return true;
+    if(String(c.cliente || '').toLowerCase().includes(q) || String(c.cnpj || '').includes(qd || '\u0000')) return true;
+    return qd.length >= 4 && c.linhas.some(l => onlyDigits(l.telefone).includes(qd));
+  });
+}
+function pbColunas(lista){
+  const m = {}; PB_COLUNAS.forEach(([k]) => { m[k] = []; });
+  lista.forEach(c => { if(m[c.etapa]) m[c.etapa].push(c); });
+  Object.values(m).forEach(a => a.sort((x, y) => String(x.proximo_retorno || '9999').localeCompare(String(y.proximo_retorno || '9999')) || String(x.primeiro_cadastro).localeCompare(String(y.primeiro_cadastro))));
+  return m;
+}
+async function pbCarregar(){
+  const mes = pbEstado.mes || pbMesAtual();
+  const r = await ppSeguro(() => sb.rpc('portabilidade_quadro', { p_mes: mes }));
+  if(r.error){ pbEstado.erro = 'Não foi possível carregar as portabilidades agora.'; console.error(r.error); }
+  else { pbEstado.erro = ''; pbEstado.lista = Array.isArray(r.data) ? r.data : []; pbEstado.carregado = true; pbEstado.carregadoEm = Date.now(); }
+  pbRender();
+}
+function pbCartaoHtml(c){
+  const atras = pbAtrasado(c);
+  const tels = c.linhas.slice(0, 6).map(l => `<span class="pbTel ${l.situacao}" title="${escapeHtml(l.etapa)}">${escapeHtml(pbTelFmt(l) || 'sem nº')}</span>`).join('') + (c.linhas.length > 6 ? `<span class="pbTel">+${c.linhas.length - 6}</span>` : '');
+  const quem = rnGestor() ? `<small>${escapeHtml(c.usuario || '')}</small>` : '';
+  return `<div class="rnKbCard pbCard" draggable="true" data-pb-card="${escapeHtml(c.cnpj)}|${c.usuario_id}">
+    <div class="rnKbTopo"><strong class="rnNome">${escapeHtml(c.cliente || c.cnpj)}</strong></div>
+    <small>${c.total} linha${c.total === 1 ? '' : 's'} · ${c.abertas} em aberto${c.portadas ? ` · ${c.portadas} portada${c.portadas === 1 ? '' : 's'}` : ''}</small>
+    <div class="pbTels">${tels}</div>${quem}
+    <small>${c.reenvios ? `SMS reenviado ${c.reenvios}x · ` : ''}há ${pbDias(c)} dia${pbDias(c) === 1 ? '' : 's'}${c.proximo_retorno ? ` · <span class="${atras ? 'pbAtraso' : ''}">retorno ${escapeHtml(c.proximo_retorno.split('-').reverse().join('/'))}</span>` : ''}</small>
+  </div>`;
+}
+function pbRender(){
+  const raiz = document.getElementById('pbCols'); if(!raiz) return;
+  const selM = document.getElementById('pbMes');
+  if(selM && !selM.options.length){ const d = new Date(); const o = []; for(let i = 0; i < 4; i++){ const x = new Date(d.getFullYear(), d.getMonth() - i, 1); const v = `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-01`; o.push(`<option value="${v}">${x.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</option>`); } selM.innerHTML = o.join(''); }
+  if(selM) selM.value = pbEstado.mes || pbMesAtual();
+  const selC = document.getElementById('pbConsultor');
+  if(selC){ selC.style.display = rnGestor() ? '' : 'none'; const nomes = {}; pbEstado.lista.forEach(c => { nomes[c.usuario_id] = c.usuario; }); selC.innerHTML = '<option value="">Todos os consultores</option>' + Object.entries(nomes).sort((a, b) => String(a[1]).localeCompare(String(b[1]))).map(([id, n]) => `<option value="${id}">${escapeHtml(n)}</option>`).join(''); selC.value = pbEstado.filtros.consultor || ''; }
+  document.getElementById('pbChips').innerHTML = [['todos', 'Todos'], ['atrasados', 'Retorno atrasado'], ['semretorno', 'Sem retorno agendado']].map(([v, t]) => `<button type="button" class="rnVisaoBt${pbEstado.filtros.chip === v ? ' on' : ''}" data-pb-chip="${v}">${t}</button>`).join('');
+  if(pbEstado.erro){ raiz.innerHTML = `<p class="kbMeta rnVencido" role="alert">${escapeHtml(pbEstado.erro)}</p>`; return; }
+  const lista = pbFiltrar(pbEstado.lista, pbEstado.filtros);
+  const cols = pbColunas(lista);
+  const pend = ['aguardando_sms', 'sms_reenviado', 'sem_resposta', 'confirmou'].reduce((t, k) => t + cols[k].reduce((x, c) => x + c.abertas, 0), 0);
+  const encerr = lista.filter(c => c.etapa === 'encerrado').length;
+  document.getElementById('pbSumario').textContent = `${lista.length} cliente${lista.length === 1 ? '' : 's'} · ${pend} linha${pend === 1 ? '' : 's'} ainda sem portar${encerr ? ` · ${encerr} encerrado${encerr === 1 ? '' : 's'} (perdida/devolvida, fora do quadro)` : ''}`;
+  raiz.innerHTML = '<div class="pbKanban">' + PB_COLUNAS.map(([k, t]) => `
+    <div class="rnKbCol" data-pb-coluna="${k}">
+      <div class="rnKbHead"><strong>${t}</strong><span class="kbN">${cols[k].length}</span></div>
+      ${cols[k].map(pbCartaoHtml).join('') || '<p class="rnVazio">Nenhum cliente.</p>'}
+    </div>`).join('') + '</div>';
+}
+async function pbRegistrar(c, args){
+  const r = await ppSeguro(() => sb.rpc('portabilidade_registrar', Object.assign({ p_cnpj: c.cnpj, p_usuario: c.usuario_id }, args)));
+  if(r.error){ mostrarAviso('Não foi possível salvar. Tente de novo.', 'erro'); console.error(r.error); return false; }
+  const d = r.data || {};
+  if(d.etapa && !['portado', 'encerrado'].includes(c.etapa)) c.etapa = d.etapa;
+  c.reenvios = d.reenvios ?? c.reenvios; c.proximo_retorno = d.proximo_retorno || null; c.observacao = d.observacao || null;
+  return true;
+}
+function pbAcharCliente(chave){ const [cnpj, uid] = String(chave).split('|'); return pbEstado.lista.find(c => c.cnpj === cnpj && String(c.usuario_id) === uid); }
+async function pbAbrirFicha(chave){
+  const c = pbAcharCliente(chave); if(!c) return;
+  let ov = document.getElementById('pbFicha');
+  if(!ov){ ov = document.createElement('div'); ov.className = 'overlay'; ov.id = 'pbFicha'; document.body.appendChild(ov); }
+  const h = await ppSeguro(() => sb.rpc('portabilidade_historico_cliente', { p_cnpj: c.cnpj, p_usuario: c.usuario_id }));
+  const hist = Array.isArray(h.data) ? h.data : [];
+  const histTxt = x => x.tipo === 'etapa' ? `Moveu de “${escapeHtml(PB_ROTULO[x.de] || x.de)}” para “${escapeHtml(PB_ROTULO[x.para] || x.para)}”` : x.tipo === 'reenvio' ? escapeHtml(x.texto) : x.tipo === 'retorno' ? `Retorno: ${escapeHtml(x.texto)}` : `Observação: ${escapeHtml(x.texto || '')}`;
+  const bloqueado = ['portado', 'encerrado'].includes(c.etapa);
+  ov.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="pbFichaT">
+    <div class="mHead"><button type="button" class="mClose" data-pb-fechar aria-label="Fechar">&times;</button>
+      <h2 id="pbFichaT">${escapeHtml(c.cliente || c.cnpj)}</h2><div class="mCnpj">${escapeHtml(c.cnpj)} · ${escapeHtml(c.usuario || '')}</div></div>
+    <div class="mBody">
+      <p class="kbMeta"><strong>${escapeHtml(PB_ROTULO[c.etapa] || c.etapa)}</strong> · ${c.total} linha${c.total === 1 ? '' : 's'} · SMS reenviado ${c.reenvios || 0}x</p>
+      <ul class="pbLinhas rnSemLista" style="list-style:none;padding:0;margin:0 0 var(--space-3)">${c.linhas.map(l => `<li><span>${escapeHtml(pbTelFmt(l) || 'sem nº')} <small class="rnMuted">pedido ${escapeHtml(String(l.pedido || ''))}</small></span><span class="pbTel ${l.situacao}">${escapeHtml(String(l.etapa || '').replace(' (NEOCRM)', ''))}</span></li>`).join('')}</ul>
+      <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;margin-bottom:var(--space-3)">
+        <button type="button" class="btn btn-sm btn-outline" data-pb-copiar style="width:auto">Copiar números</button>
+        ${bloqueado ? '' : '<button type="button" class="btn btn-sm" data-pb-reenviei style="width:auto">Reenviei o SMS</button>'}
+      </div>
+      ${bloqueado ? '' : `<label class="field">Etapa<select id="pbFEtapa">${PB_COLUNAS.filter(x => x[0] !== 'portado').map(([k, t]) => `<option value="${k}"${k === c.etapa ? ' selected' : ''}>${t}</option>`).join('')}</select></label>
+      <label class="field">Próximo retorno<input type="date" id="pbFRetorno" value="${escapeHtml(c.proximo_retorno || '')}"></label>
+      <label class="field">Observação<textarea id="pbFObs" rows="3" maxlength="1000">${escapeHtml(c.observacao || '')}</textarea></label>
+      <div style="display:flex;gap:var(--space-2);justify-content:flex-end"><button type="button" class="btn btn-outline btn-sm" data-pb-fechar>Cancelar</button><button type="button" class="btn btn-sm" data-pb-salvar>Salvar</button></div>`}
+      <h4 style="margin-top:var(--space-3)">Histórico</h4>
+      <ul class="pbHist" style="list-style:none;padding:0;margin:0">${hist.map(x => `<li>${histTxt(x)} <small class="rnMuted">· ${escapeHtml(x.quem || '')} · ${escapeHtml(rnQuando(x.criado_em))}</small></li>`).join('') || '<li class="rnMuted">Sem registros ainda.</li>'}</ul>
+    </div></div>`;
+  ov.classList.add('active');
+  ov.onclick = async (e) => {
+    if(e.target === ov || e.target.closest('[data-pb-fechar]')){ fecharOverlay(ov); return; }
+    if(e.target.closest('[data-pb-copiar]')){ rnCopiar(c.linhas.map(pbTelFmt).filter(Boolean).join('\n')).then(() => mostrarAviso('Números copiados.', 'ok'), () => mostrarAviso('Não foi possível copiar.', 'erro')); return; }
+    if(e.target.closest('[data-pb-reenviei]')){ if(await pbRegistrar(c, { p_reenviou: true })){ mostrarAviso('Reenvio registrado.', 'ok'); fecharOverlay(ov); pbRender(); } return; }
+    if(e.target.closest('[data-pb-salvar]')){
+      const ret = document.getElementById('pbFRetorno').value;
+      const ok = await pbRegistrar(c, { p_etapa: document.getElementById('pbFEtapa').value, p_retorno: ret || null, p_limpar_retorno: !ret, p_observacao: document.getElementById('pbFObs').value });
+      if(ok){ mostrarAviso('Salvo.', 'ok'); fecharOverlay(ov); pbRender(); }
+    }
+  };
+}
+function pbExportar(){
+  const lista = pbFiltrar(pbEstado.lista, pbEstado.filtros).filter(c => c.etapa !== 'encerrado');
+  const linhas = [];
+  lista.forEach(c => c.linhas.forEach(l => linhas.push({ Cliente: c.cliente, CNPJ: c.cnpj, Consultor: c.usuario, Telefone: pbTelFmt(l), Pedido: l.pedido, 'Etapa Neo': String(l.etapa || '').replace(' (NEOCRM)', ''), 'Controle do SMS': PB_ROTULO[c.etapa] || c.etapa, 'SMS reenviados': c.reenvios || 0, 'Próximo retorno': c.proximo_retorno || '', Observação: c.observacao || '' })));
+  if(!linhas.length){ mostrarAviso('Nada para exportar.', 'info'); return; }
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(linhas), 'Portabilidade');
+  XLSX.writeFile(wb, `portabilidade_${(pbEstado.mes || pbMesAtual()).slice(0, 7)}.xlsx`);
+}
+document.getElementById('panel-portabilidade').addEventListener('input', (e) => { if(e.target.id === 'pbBusca'){ pbEstado.filtros.busca = e.target.value; pbRender(); document.getElementById('pbBusca').focus(); } });
+document.getElementById('panel-portabilidade').addEventListener('change', (e) => {
+  if(e.target.id === 'pbMes'){ pbEstado.mes = e.target.value; pbCarregar(); }
+  if(e.target.id === 'pbConsultor'){ pbEstado.filtros.consultor = e.target.value; pbRender(); }
+});
+document.getElementById('panel-portabilidade').addEventListener('click', (e) => {
+  const ch = e.target.closest('[data-pb-chip]'); if(ch){ pbEstado.filtros.chip = pbEstado.filtros.chip === ch.dataset.pbChip ? 'todos' : ch.dataset.pbChip; pbRender(); return; }
+  if(e.target.closest('#pbExportar')){ pbExportar(); return; }
+  const cd = e.target.closest('[data-pb-card]'); if(cd) pbAbrirFicha(cd.dataset.pbCard);
+});
+document.getElementById('panel-portabilidade').addEventListener('dragstart', (e) => { const c = e.target.closest('[data-pb-card]'); if(c){ pbEstado.arrastando = c.dataset.pbCard; if(e.dataTransfer) e.dataTransfer.setData('text/plain', c.dataset.pbCard); } });
+document.getElementById('panel-portabilidade').addEventListener('dragover', (e) => { if(e.target.closest('[data-pb-coluna]')) e.preventDefault(); });
+document.getElementById('panel-portabilidade').addEventListener('drop', async (e) => {
+  const col = e.target.closest('[data-pb-coluna]'); if(!col || !pbEstado.arrastando) return;
+  e.preventDefault(); const c = pbAcharCliente(pbEstado.arrastando); pbEstado.arrastando = null;
+  if(!c || col.dataset.pbColuna === c.etapa) return;
+  if(['portado', 'encerrado'].includes(c.etapa) || col.dataset.pbColuna === 'portado'){ mostrarAviso('“Portado” é automático: aparece quando as linhas concluem no Neo.', 'info'); return; }
+  if(await pbRegistrar(c, { p_etapa: col.dataset.pbColuna })) pbRender();
 });
 // ---- §165 Atividade do time (admin/supervisor): tudo o que os consultores fizeram, em linha do tempo ----
 const RN_ATV_PERIODOS = [['1', 'Hoje'], ['7', 'Últimos 7 dias'], ['30', 'Últimos 30 dias'], ['0', 'Todo o período']];
