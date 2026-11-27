@@ -4,8 +4,7 @@
 // Token: secret NEO_PEDIDOS_TOKEN; vai na URL, então nunca entra em log nem resposta.
 // Responde sempre 200 com {ok, erro?}: o painel lê a mensagem sem tratar status.
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { erroSeguro, mensagemErro, ocultarToken } from "../sync-pedidos-neo/pedidos.ts";
-import { mensagemRecusa, mensagemUsuario, recortar } from "./consulta.ts";
+import { erroSeguro, mensagemErro, mensagemRecusa, mensagemUsuario, ocultarToken, recortar } from "./consulta.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",

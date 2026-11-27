@@ -1,5 +1,36 @@
 // Funções puras da consulta-pedido-neo (§170). Sem rede, testadas em consulta.test.ts.
-import { limparHtml } from "../sync-pedidos-neo/pedidos.ts";
+// shortcut: limparHtml/mensagemErro/ocultarToken/erroSeguro copiados de ../sync-pedidos-neo/pedidos.ts porque o deploy
+// pelo conector envia só esta pasta; juntar num _shared/ se o deploy passar a ser pela CLI.
+export function limparHtml(s: unknown): string {
+  return String(s ?? "")
+    .replace(/<BR\s*\/?>/gi, "\n").replace(/<\/?B>/gi, "")
+    .replace(/&nbsp;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&")
+    .replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+export function mensagemErro(status: number, corpo: string, retryAfter: string | null): string {
+  let msg = `HTTP ${status}`;
+  let jsonOk = false;
+  try {
+    const j = JSON.parse(corpo);
+    if (j && (j.codigo || j.mensagem)) { msg += ` ${j.codigo ?? ""}: ${j.mensagem ?? ""}`.replace(/\s+:/, ":").trimEnd(); jsonOk = true; }
+  } catch { /* corpo não é JSON */ }
+  if (!jsonOk) { const t = String(corpo ?? "").replace(/\s+/g, " ").trim().slice(0, 200); if (t) msg += ` — ${t}`; }
+  if (retryAfter) msg += ` (Retry-After ${retryAfter}s)`;
+  return msg.slice(0, 500);
+}
+export function ocultarToken(msg: string, token: string): string {
+  if (!token) return String(msg);
+  let out = String(msg).split(token).join("***");
+  const cod = encodeURIComponent(token);
+  if (cod !== token) out = out.split(cod).join("***");
+  return out;
+}
+// Erro de rede (fetch) carrega a URL com o token: registra só o nome.
+export function erroSeguro(e: unknown, token: string): string {
+  const nome = (e as Error)?.name;
+  if (nome === "TypeError" || nome === "TimeoutError" || nome === "AbortError") return `Falha de rede: ${nome}`;
+  return ocultarToken(String((e as Error)?.message ?? e), token).slice(0, 500);
+}
 
 type Obj = Record<string, unknown>;
 const o = (v: unknown): Obj => (v && typeof v === "object" ? v as Obj : {});
