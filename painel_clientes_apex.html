@@ -1201,14 +1201,16 @@
   #panel-portabilidade .rnVisaoBt{border:1px solid var(--c-linha-forte);background:var(--c-branco);color:var(--c-grafite);}#panel-portabilidade .rnVisaoBt.on{background:var(--c-grafite);color:var(--c-branco);border-color:var(--c-grafite);}
   #panel-portabilidade .rnVazio{color:var(--ml-ink-2);}
   .pbAcoes,.pbFiltros{display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center;}.pbFiltros{margin-bottom:var(--space-2);}
-  .pbKanban{display:grid;grid-template-columns:repeat(5,minmax(240px,1fr));gap:var(--space-3);overflow-x:auto;padding-bottom:var(--space-3);}
+  .pbKanban{display:grid;grid-template-columns:repeat(6,minmax(240px,1fr));gap:var(--space-3);overflow-x:auto;padding-bottom:var(--space-3);}
   #panel-portabilidade .rnKbCol{background:color-mix(in srgb,var(--c-grafite) 14%,var(--c-papel));border:1px solid var(--c-linha-forte);border-top:4px solid var(--c-grafite);}
   #panel-portabilidade .rnKbCol[data-pb-coluna="sms_reenviado"]{border-top-color:var(--st-andamento);}
   #panel-portabilidade .rnKbCol[data-pb-coluna="sem_resposta"]{border-top-color:var(--c-sinal);}
   #panel-portabilidade .rnKbCol[data-pb-coluna="confirmou"]{border-top-color:var(--c-carmim);}
   #panel-portabilidade .rnKbCol[data-pb-coluna="portado"]{border-top-color:var(--st-ganho);}
+  #panel-portabilidade .rnKbCol[data-pb-coluna="desistiu"]{border-top-color:var(--c-cinza);}
   #panel-portabilidade .rnKbHead{font-size:var(--fs-sm);color:var(--c-grafite);text-transform:uppercase;letter-spacing:.02em;}
   #panel-portabilidade .rnKbHead .kbN{background:var(--c-grafite);color:var(--c-branco);border-radius:999px;padding:0 9px;font-weight:700;font-size:12px;}
+  #pbFMotivoL[hidden]{display:none;}
   .pbCard{cursor:pointer;background:var(--c-branco);border:1px solid var(--c-linha-forte);box-shadow:0 1px 3px rgba(29,31,32,.18);}
   .pbCard:hover{border-color:var(--c-grafite);box-shadow:0 3px 10px rgba(29,31,32,.22);}
   .pbCard .rnNome{color:var(--c-grafite);font-size:var(--fs-sm);}
@@ -5672,21 +5674,23 @@ document.getElementById('rnKanban').addEventListener('click', (e) => {
   if(a) rnAbrirFicha(Number(a.dataset.rnAbrir));
 });
 // ---- Portabilidade: controle do SMS da Anatel (RPCs portabilidade_*; consultor vê só os seus, gestor vê todos) ----
-const PB_COLUNAS = [['aguardando_sms', 'Aguardando SMS'], ['sms_reenviado', 'SMS reenviado'], ['sem_resposta', 'Cliente sem resposta'], ['confirmou', 'Confirmou (aguardando portar)'], ['portado', 'Portado']];
-const PB_ROTULO = { aguardando_sms: 'Aguardando SMS', sms_reenviado: 'SMS reenviado', sem_resposta: 'Cliente sem resposta', confirmou: 'Confirmou (aguardando portar)', portado: 'Portado', encerrado: 'Encerrado (perdida/devolvida)' };
-const pbEstado = { lista: [], carregado: false, carregadoEm: 0, mes: '', filtros: { busca: '', consultor: '', chip: 'todos' }, arrastando: null, erro: '' };
+const PB_COLUNAS = [['aguardando_sms', 'Aguardando SMS'], ['sms_reenviado', 'SMS reenviado'], ['sem_resposta', 'Cliente sem resposta'], ['confirmou', 'Confirmou (aguardando portar)'], ['portado', 'Portado'], ['desistiu', 'Desistiu / Perdida']];
+const PB_MOTIVOS = ['Não recebeu o SMS', 'Ignorou o SMS e não atende mais', 'Quer ficar na operadora atual', 'Multa ou fidelidade', 'Número errado ou não é o titular', 'Sem contato após várias tentativas', 'Outro (descrever na observação)'];
+const PB_ROTULO = { aguardando_sms: 'Aguardando SMS', sms_reenviado: 'SMS reenviado', sem_resposta: 'Cliente sem resposta', confirmou: 'Confirmou (aguardando portar)', portado: 'Portado', desistiu: 'Desistiu / Perdida', encerrado: 'Encerrado (perdida/devolvida)' };
+const pbEstado = { lista: [], carregado: false, carregadoEm: 0, mes: '', filtros: { busca: '', consultor: '', chip: 'todos', neo: false }, arrastando: null, erro: '' };
 function pbMesAtual(){ return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }).slice(0, 7) + '-01'; }
 function pbAplicarPermissao(){ const b = document.getElementById('tabBtnPortabilidade'); if(b) b.style.display = (currentUser && !rnSoRenovacao()) ? 'inline-block' : 'none'; }
 function pbHoje(){ return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }); }
 function pbTelFmt(l){ const t = String(l.telefone || ''); const d = onlyDigits(t); if(!d) return ''; return d.length >= 10 ? rnFoneFmt(d) : rnFoneFmt((String(l.ddd || '') + d)); }
-function pbAtrasado(c){ return c.proximo_retorno && c.proximo_retorno < pbHoje() && !['portado', 'encerrado'].includes(c.etapa); }
+function pbAtrasado(c){ return c.proximo_retorno && c.proximo_retorno < pbHoje() && !['portado', 'desistiu'].includes(c.etapa); }
 function pbDias(c){ return c.primeiro_cadastro ? Math.max(0, Math.floor((Date.now() - new Date(c.primeiro_cadastro).getTime()) / 86400000)) : 0; }
 function pbFiltrar(lista, f){
   const q = String(f.busca || '').trim().toLowerCase(); const qd = onlyDigits(q);
   return lista.filter(c => {
+    if(c.origem === 'neo' && !f.neo) return false;
     if(f.consultor && String(c.usuario_id) !== String(f.consultor)) return false;
     if(f.chip === 'atrasados' && !pbAtrasado(c)) return false;
-    if(f.chip === 'semretorno' && (c.proximo_retorno || ['portado', 'encerrado'].includes(c.etapa))) return false;
+    if(f.chip === 'semretorno' && (c.proximo_retorno || ['portado', 'desistiu'].includes(c.etapa))) return false;
     if(!q) return true;
     if(String(c.cliente || '').toLowerCase().includes(q) || String(c.cnpj || '').includes(qd || '\u0000')) return true;
     return qd.length >= 4 && c.linhas.some(l => onlyDigits(l.telefone).includes(qd));
@@ -5709,11 +5713,12 @@ function pbCartaoHtml(c){
   const atras = pbAtrasado(c);
   const tels = c.linhas.slice(0, 6).map(l => `<span class="pbTel ${l.situacao}" title="${escapeHtml(l.etapa)}">${escapeHtml(pbTelFmt(l) || 'sem nº')}</span>`).join('') + (c.linhas.length > 6 ? `<span class="pbTel">+${c.linhas.length - 6}</span>` : '');
   const quem = rnGestor() ? `<small>${escapeHtml(c.usuario || '')}</small>` : '';
-  return `<div class="rnKbCard pbCard" draggable="true" data-pb-card="${escapeHtml(c.cnpj)}|${c.usuario_id}">
+  return `<div class="rnKbCard pbCard" draggable="${c.origem === 'neo' || c.etapa === 'portado' ? 'false' : 'true'}" data-pb-card="${escapeHtml(c.cnpj)}|${c.usuario_id}">
     <div class="rnKbTopo"><strong class="rnNome">${escapeHtml(c.cliente || c.cnpj)}</strong></div>
     <small>${c.total} linha${c.total === 1 ? '' : 's'} · ${c.abertas} em aberto${c.portadas ? ` · ${c.portadas} portada${c.portadas === 1 ? '' : 's'}` : ''}</small>
     <div class="pbTels">${tels}</div>${quem}
-    <small>${c.reenvios ? `SMS reenviado ${c.reenvios}x · ` : ''}há ${pbDias(c)} dia${pbDias(c) === 1 ? '' : 's'}${c.proximo_retorno ? ` · <span class="${atras ? 'pbAtraso' : ''}">retorno ${escapeHtml(c.proximo_retorno.split('-').reverse().join('/'))}</span>` : ''}</small>
+    ${c.etapa === 'desistiu' ? `<small><strong>${c.origem === 'neo' ? 'Perdida no Neo' : escapeHtml(c.motivo || '')}</strong></small>` : ''}
+    <small>${c.reenvios ? `SMS reenviado ${c.reenvios}x · ` : ''}pedido de ${escapeHtml(rnDiaSP(c.primeiro_cadastro).split('-').reverse().slice(0, 2).join('/'))} (há ${pbDias(c)} dia${pbDias(c) === 1 ? '' : 's'})${c.proximo_retorno ? ` · <span class="${atras ? 'pbAtraso' : ''}">retorno ${escapeHtml(c.proximo_retorno.split('-').reverse().join('/'))}</span>` : ''}</small>
   </div>`;
 }
 function pbRender(){
@@ -5723,13 +5728,14 @@ function pbRender(){
   if(selM) selM.value = pbEstado.mes || pbMesAtual();
   const selC = document.getElementById('pbConsultor');
   if(selC){ selC.style.display = rnGestor() ? '' : 'none'; const nomes = {}; pbEstado.lista.forEach(c => { nomes[c.usuario_id] = c.usuario; }); selC.innerHTML = '<option value="">Todos os consultores</option>' + Object.entries(nomes).sort((a, b) => String(a[1]).localeCompare(String(b[1]))).map(([id, n]) => `<option value="${id}">${escapeHtml(n)}</option>`).join(''); selC.value = pbEstado.filtros.consultor || ''; }
-  document.getElementById('pbChips').innerHTML = [['todos', 'Todos'], ['atrasados', 'Retorno atrasado'], ['semretorno', 'Sem retorno agendado']].map(([v, t]) => `<button type="button" class="rnVisaoBt${pbEstado.filtros.chip === v ? ' on' : ''}" data-pb-chip="${v}">${t}</button>`).join('');
+  document.getElementById('pbChips').innerHTML = [['todos', 'Todos'], ['atrasados', 'Retorno atrasado'], ['semretorno', 'Sem retorno agendado']].map(([v, t]) => `<button type="button" class="rnVisaoBt${pbEstado.filtros.chip === v ? ' on' : ''}" data-pb-chip="${v}">${t}</button>`).join('') + `<button type="button" class="rnVisaoBt${pbEstado.filtros.neo ? ' on' : ''}" data-pb-neo>Mostrar encerrados do Neo (${pbEstado.lista.filter(c => c.origem === 'neo').length})</button>`;
   if(pbEstado.erro){ raiz.innerHTML = `<p class="kbMeta rnVencido" role="alert">${escapeHtml(pbEstado.erro)}</p>`; return; }
   const lista = pbFiltrar(pbEstado.lista, pbEstado.filtros);
   const cols = pbColunas(lista);
   const pend = ['aguardando_sms', 'sms_reenviado', 'sem_resposta', 'confirmou'].reduce((t, k) => t + cols[k].reduce((x, c) => x + c.abertas, 0), 0);
-  const encerr = lista.filter(c => c.etapa === 'encerrado').length;
-  document.getElementById('pbSumario').textContent = `${lista.length} cliente${lista.length === 1 ? '' : 's'} · ${pend} linha${pend === 1 ? '' : 's'} ainda sem portar${encerr ? ` · ${encerr} encerrado${encerr === 1 ? '' : 's'} (perdida/devolvida, fora do quadro)` : ''}`;
+  const motivos = {}; cols.desistiu.forEach(c => { const m = c.origem === 'neo' ? 'Perdida no Neo' : (c.motivo || 'Sem motivo'); motivos[m] = (motivos[m] || 0) + 1; });
+  const motTxt = Object.entries(motivos).sort((a, b) => b[1] - a[1]).map(([m, n]) => `${m}: ${n}`).join(' · ');
+  document.getElementById('pbSumario').textContent = `${lista.length} cliente${lista.length === 1 ? '' : 's'} · ${pend} linha${pend === 1 ? '' : 's'} ainda sem portar${motTxt ? ' · Desistências — ' + motTxt : ''}`;
   raiz.innerHTML = '<div class="pbKanban">' + PB_COLUNAS.map(([k, t]) => `
     <div class="rnKbCol" data-pb-coluna="${k}">
       <div class="rnKbHead"><strong>${t}</strong><span class="kbN">${cols[k].length}</span></div>
@@ -5740,19 +5746,22 @@ async function pbRegistrar(c, args){
   const r = await ppSeguro(() => sb.rpc('portabilidade_registrar', Object.assign({ p_cnpj: c.cnpj, p_usuario: c.usuario_id }, args)));
   if(r.error){ mostrarAviso('Não foi possível salvar. Tente de novo.', 'erro'); console.error(r.error); return false; }
   const d = r.data || {};
-  if(d.etapa && !['portado', 'encerrado'].includes(c.etapa)) c.etapa = d.etapa;
+  if(d.etapa && c.etapa !== 'portado' && c.origem !== 'neo') c.etapa = d.etapa;
+  c.motivo = d.motivo || null;
   c.reenvios = d.reenvios ?? c.reenvios; c.proximo_retorno = d.proximo_retorno || null; c.observacao = d.observacao || null;
   return true;
 }
 function pbAcharCliente(chave){ const [cnpj, uid] = String(chave).split('|'); return pbEstado.lista.find(c => c.cnpj === cnpj && String(c.usuario_id) === uid); }
-async function pbAbrirFicha(chave){
+function pbCh(c){ return c.cnpj + '|' + c.usuario_id; }
+async function pbAbrirFicha(chave, etapaInicial){
   const c = pbAcharCliente(chave); if(!c) return;
+  const etapaSel = etapaInicial || c.etapa;
   let ov = document.getElementById('pbFicha');
   if(!ov){ ov = document.createElement('div'); ov.className = 'overlay'; ov.id = 'pbFicha'; document.body.appendChild(ov); }
   const h = await ppSeguro(() => sb.rpc('portabilidade_historico_cliente', { p_cnpj: c.cnpj, p_usuario: c.usuario_id }));
   const hist = Array.isArray(h.data) ? h.data : [];
   const histTxt = x => x.tipo === 'etapa' ? `Moveu de “${escapeHtml(PB_ROTULO[x.de] || x.de)}” para “${escapeHtml(PB_ROTULO[x.para] || x.para)}”` : x.tipo === 'reenvio' ? escapeHtml(x.texto) : x.tipo === 'retorno' ? `Retorno: ${escapeHtml(x.texto)}` : `Observação: ${escapeHtml(x.texto || '')}`;
-  const bloqueado = ['portado', 'encerrado'].includes(c.etapa);
+  const bloqueado = c.etapa === 'portado' || c.origem === 'neo';
   ov.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="pbFichaT">
     <div class="mHead"><button type="button" class="mClose" data-pb-fechar aria-label="Fechar">&times;</button>
       <h2 id="pbFichaT">${escapeHtml(c.cliente || c.cnpj)}</h2><div class="mCnpj">${escapeHtml(c.cnpj)} · ${escapeHtml(c.usuario || '')}</div></div>
@@ -5763,7 +5772,8 @@ async function pbAbrirFicha(chave){
         <button type="button" class="btn btn-sm btn-outline" data-pb-copiar style="width:auto">Copiar números</button>
         ${bloqueado ? '' : '<button type="button" class="btn btn-sm" data-pb-reenviei style="width:auto">Reenviei o SMS</button>'}
       </div>
-      ${bloqueado ? '' : `<label class="field">Etapa<select id="pbFEtapa">${PB_COLUNAS.filter(x => x[0] !== 'portado').map(([k, t]) => `<option value="${k}"${k === c.etapa ? ' selected' : ''}>${t}</option>`).join('')}</select></label>
+      ${bloqueado ? '' : `<label class="field">Etapa<select id="pbFEtapa">${PB_COLUNAS.filter(x => x[0] !== 'portado').map(([k, t]) => `<option value="${k}"${k === etapaSel ? ' selected' : ''}>${t}</option>`).join('')}</select></label>
+      <label class="field" id="pbFMotivoL"${etapaSel === 'desistiu' ? '' : ' hidden'}>Motivo da desistência *<select id="pbFMotivo"><option value="">Escolha…</option>${PB_MOTIVOS.map(m => `<option${m === c.motivo ? ' selected' : ''}>${escapeHtml(m)}</option>`).join('')}</select></label>
       <label class="field">Próximo retorno<input type="date" id="pbFRetorno" value="${escapeHtml(c.proximo_retorno || '')}"></label>
       <label class="field">Observação<textarea id="pbFObs" rows="3" maxlength="1000">${escapeHtml(c.observacao || '')}</textarea></label>
       <div style="display:flex;gap:var(--space-2);justify-content:flex-end"><button type="button" class="btn btn-outline btn-sm" data-pb-fechar>Cancelar</button><button type="button" class="btn btn-sm" data-pb-salvar>Salvar</button></div>`}
@@ -5771,21 +5781,23 @@ async function pbAbrirFicha(chave){
       <ul class="pbHist" style="list-style:none;padding:0;margin:0">${hist.map(x => `<li>${histTxt(x)} <small class="rnMuted">· ${escapeHtml(x.quem || '')} · ${escapeHtml(rnQuando(x.criado_em))}</small></li>`).join('') || '<li class="rnMuted">Sem registros ainda.</li>'}</ul>
     </div></div>`;
   ov.classList.add('active');
+  const selE = document.getElementById('pbFEtapa'); if(selE) selE.onchange = () => { document.getElementById('pbFMotivoL').hidden = selE.value !== 'desistiu'; };
   ov.onclick = async (e) => {
     if(e.target === ov || e.target.closest('[data-pb-fechar]')){ fecharOverlay(ov); return; }
     if(e.target.closest('[data-pb-copiar]')){ rnCopiar(c.linhas.map(pbTelFmt).filter(Boolean).join('\n')).then(() => mostrarAviso('Números copiados.', 'ok'), () => mostrarAviso('Não foi possível copiar.', 'erro')); return; }
     if(e.target.closest('[data-pb-reenviei]')){ if(await pbRegistrar(c, { p_reenviou: true })){ mostrarAviso('Reenvio registrado.', 'ok'); fecharOverlay(ov); pbRender(); } return; }
     if(e.target.closest('[data-pb-salvar]')){
-      const ret = document.getElementById('pbFRetorno').value;
-      const ok = await pbRegistrar(c, { p_etapa: document.getElementById('pbFEtapa').value, p_retorno: ret || null, p_limpar_retorno: !ret, p_observacao: document.getElementById('pbFObs').value });
+      const ret = document.getElementById('pbFRetorno').value; const et = document.getElementById('pbFEtapa').value; const mot = document.getElementById('pbFMotivo').value;
+      if(et === 'desistiu' && !mot){ mostrarAviso('Escolha o motivo da desistência.', 'erro'); return; }
+      const ok = await pbRegistrar(c, { p_etapa: et, p_motivo: et === 'desistiu' ? mot : null, p_retorno: ret || null, p_limpar_retorno: !ret, p_observacao: document.getElementById('pbFObs').value });
       if(ok){ mostrarAviso('Salvo.', 'ok'); fecharOverlay(ov); pbRender(); }
     }
   };
 }
 function pbExportar(){
-  const lista = pbFiltrar(pbEstado.lista, pbEstado.filtros).filter(c => c.etapa !== 'encerrado');
+  const lista = pbFiltrar(pbEstado.lista, pbEstado.filtros);
   const linhas = [];
-  lista.forEach(c => c.linhas.forEach(l => linhas.push({ Cliente: c.cliente, CNPJ: c.cnpj, Consultor: c.usuario, Telefone: pbTelFmt(l), Pedido: l.pedido, 'Etapa Neo': String(l.etapa || '').replace(' (NEOCRM)', ''), 'Controle do SMS': PB_ROTULO[c.etapa] || c.etapa, 'SMS reenviados': c.reenvios || 0, 'Próximo retorno': c.proximo_retorno || '', Observação: c.observacao || '' })));
+  lista.forEach(c => c.linhas.forEach(l => linhas.push({ Cliente: c.cliente, CNPJ: c.cnpj, Consultor: c.usuario, Telefone: pbTelFmt(l), Pedido: l.pedido, 'Etapa Neo': String(l.etapa || '').replace(' (NEOCRM)', ''), 'Controle do SMS': PB_ROTULO[c.etapa] || c.etapa, 'Motivo da desistência': c.etapa === 'desistiu' ? (c.motivo || '') : '', 'SMS reenviados': c.reenvios || 0, 'Próximo retorno': c.proximo_retorno || '', Observação: c.observacao || '' })));
   if(!linhas.length){ mostrarAviso('Nada para exportar.', 'info'); return; }
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(linhas), 'Portabilidade');
   XLSX.writeFile(wb, `portabilidade_${(pbEstado.mes || pbMesAtual()).slice(0, 7)}.xlsx`);
@@ -5797,6 +5809,7 @@ document.getElementById('panel-portabilidade').addEventListener('change', (e) =>
 });
 document.getElementById('panel-portabilidade').addEventListener('click', (e) => {
   const ch = e.target.closest('[data-pb-chip]'); if(ch){ pbEstado.filtros.chip = pbEstado.filtros.chip === ch.dataset.pbChip ? 'todos' : ch.dataset.pbChip; pbRender(); return; }
+  if(e.target.closest('[data-pb-neo]')){ pbEstado.filtros.neo = !pbEstado.filtros.neo; pbRender(); return; }
   if(e.target.closest('#pbExportar')){ pbExportar(); return; }
   const cd = e.target.closest('[data-pb-card]'); if(cd) pbAbrirFicha(cd.dataset.pbCard);
 });
@@ -5806,7 +5819,8 @@ document.getElementById('panel-portabilidade').addEventListener('drop', async (e
   const col = e.target.closest('[data-pb-coluna]'); if(!col || !pbEstado.arrastando) return;
   e.preventDefault(); const c = pbAcharCliente(pbEstado.arrastando); pbEstado.arrastando = null;
   if(!c || col.dataset.pbColuna === c.etapa) return;
-  if(['portado', 'encerrado'].includes(c.etapa) || col.dataset.pbColuna === 'portado'){ mostrarAviso('“Portado” é automático: aparece quando as linhas concluem no Neo.', 'info'); return; }
+  if(c.etapa === 'portado' || c.origem === 'neo' || col.dataset.pbColuna === 'portado'){ mostrarAviso('“Portado” e as perdas do Neo são automáticos: seguem a etapa do pedido no Neo.', 'info'); return; }
+  if(col.dataset.pbColuna === 'desistiu'){ pbAbrirFicha(pbCh(c), 'desistiu'); return; }
   if(await pbRegistrar(c, { p_etapa: col.dataset.pbColuna })) pbRender();
 });
 // ---- §165 Atividade do time (admin/supervisor): tudo o que os consultores fizeram, em linha do tempo ----
