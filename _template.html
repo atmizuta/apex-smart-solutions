@@ -5298,7 +5298,44 @@ function mpPintarPedido(aviso){
       + `<textarea class="rnSel" id="mpObs" rows="2" placeholder="Observação (opcional)" style="width:100%;height:auto;margin-top:8px">${escapeHtml((m && m.obs) || '')}</textarea>`
       + '<button type="button" class="btn btn-sm" data-mp-salvar style="margin-top:8px">Salvar motivo real</button></div>';
   }
-  el.innerHTML = topo + cab + barra + linha + motivo;
+  el.innerHTML = topo + cab + barra + mpCardNeo(d) + linha + motivo;
+}
+// §170: card "No NEO" — última Consulta Pedido salva; admin/supervisor consultam na hora (Edge Function consulta-pedido-neo).
+function mpDia(v){ const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || '')); return m ? `${m[3]}/${m[2]}/${m[1]}` : '—'; }
+function mpCardNeo(d){
+  const c = d.consulta_neo;
+  if(!c && !d.pode_consultar) return '';
+  let h = '<div class="card"><h3>No NEO</h3>';
+  if(c){
+    const r = c.resumo || {}, its = c.itens || [];
+    h += `<p class="kbMeta">Consultado em ${mpHora(c.consultado_em)}${c.por ? ' por ' + escapeHtml(c.por) : ''}</p>`;
+    if(c.etapa_neo) h += !c.etapa_painel ? `<p class="mpAlerta">⚠ Etapa no NEO: ${escapeHtml(c.etapa_neo)} — o painel não conhece essa etapa.</p>`
+      : c.corrigiu ? `<p>Etapa corrigida: ${escapeHtml(c.etapa_painel_antes || '—')} → <b>${escapeHtml(c.etapa_painel)}</b></p>`
+      : `<p class="kbMeta">Etapa confere: ${escapeHtml(c.etapa_painel)}</p>`;
+    const resumo = [r.tipo_negociacao, r.total != null ? fmtBRL(Number(r.total)) : null, r.compromisso_mensal != null ? 'mensal ' + fmtBRL(Number(r.compromisso_mensal)) : null,
+      [r.dono, r.equipe].filter(Boolean).join(' / '), r.tags].filter(Boolean);
+    if(resumo.length) h += `<p class="kbMeta">${resumo.map(escapeHtml).join(' · ')}</p>`;
+    if(r.observacao) h += `<p class="kbMeta" style="white-space:pre-line">${escapeHtml(r.observacao)}</p>`;
+    h += its.length ? '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Linha</th><th>Produto</th><th>Qtd</th><th>Valor</th><th>Portabilidade</th><th>Instalação</th><th>Cedente</th><th>Cidade/UF</th></tr></thead><tbody>'
+        + its.map(i => `<tr><td>${escapeHtml(i.linha || '—')}</td><td>${escapeHtml(i.produto || '—')}${i.categoria || i.plano ? '<br><span class="kbMeta">' + escapeHtml([i.categoria, i.plano].filter(Boolean).join(' · ')) + '</span>' : ''}</td>`
+          + `<td>${escapeHtml(String(i.quantidade ?? '—'))}</td><td>${i.valor != null ? fmtBRL(Number(i.valor)) : '—'}</td><td>${mpDia(i.portabilidade)}</td><td>${mpDia(i.instalacao)}</td>`
+          + `<td>${escapeHtml(i.operadora_cedente || '—')}</td><td>${escapeHtml([i.cidade, i.uf].filter(Boolean).join('/') || '—')}</td></tr>`).join('')
+        + '</tbody></table></div>' : '<p class="kbMeta">Sem itens na resposta do NEO.</p>';
+  } else h += '<p class="kbMeta">Ainda não consultado no NEO.</p>';
+  if(d.pode_consultar) h += d.tem_pedido_id
+    ? `<button type="button" class="btn btn-sm" data-mp-neo${mpEstado.consultando ? ' disabled' : ''} style="margin-top:8px">${mpEstado.consultando ? 'Consultando…' : 'Consultar no NEO agora'}</button>`
+    : '<button type="button" class="btn btn-sm" disabled style="margin-top:8px">Consultar no NEO (sem id do NEO ainda)</button>';
+  return h + '</div>';
+}
+async function mpConsultarNeo(){
+  const n = mpEstado.fichaNumero; if(!n || mpEstado.consultando) return;
+  mpEstado.consultando = true; mpPintarPedido();
+  const r = await ppSeguro(() => sb.functions.invoke('consulta-pedido-neo', { body: { numero: n } }));
+  mpEstado.consultando = false;
+  if(mpEstado.fichaNumero !== n) return;
+  if(r && !r.error && r.data && r.data.ok){ mostrarAviso(r.data.corrigiu ? 'Etapa corrigida com o NEO.' : 'Pedido atualizado com o NEO.', 'ok'); await mpAbrirPedido(n); return; }
+  mostrarAviso((r && r.data && r.data.erro) || 'Não foi possível consultar o NEO.', 'erro');
+  mpPintarPedido();
 }
 async function mpSalvarMotivo(){
   const n = mpEstado.fichaNumero, motivo = (document.getElementById('mpMotivo') || {}).value || '';
@@ -5312,6 +5349,7 @@ async function mpSalvarMotivo(){
 document.addEventListener('click', (ev) => {
   if(ev.target.closest && ev.target.closest('[data-mp-fechar]')){ mpFecharPedido(); return; }
   if(ev.target.closest && ev.target.closest('[data-mp-salvar]')) mpSalvarMotivo();
+  if(ev.target.closest && ev.target.closest('[data-mp-neo]')) mpConsultarNeo();
 });
 document.addEventListener('keydown', (ev) => { if(ev.key === 'Escape' && mpEstado.fichaNumero) mpFecharPedido(); });
 

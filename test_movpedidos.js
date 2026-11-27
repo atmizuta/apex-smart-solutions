@@ -91,5 +91,37 @@ require('./renovacao_test_harness.js').rodar(`
   currentUser = { id: 'u-c', nome: 'Zzc', role: 'consultor', operacao: 'apex', equipe: null };
   mpAbrirPedido('ZZM1'); await espera(30);
   assert(q('#mpFicha').classList.contains('aberta'), 'consultor também abre a gaveta (a RPC decide)');
+  // §170 — card "No NEO" e Consultar no NEO agora
+  const baseLdt = window.__rpcRespostas.pedido_linha_do_tempo;
+  let neo = null, podeNeo = true, temId = true;
+  window.__rpcRespostas.pedido_linha_do_tempo = (a) => { const r = baseLdt(a);
+    if(r.data) Object.assign(r.data, { consulta_neo: neo, pode_consultar: podeNeo, tem_pedido_id: temId }); return r; };
+  const avisos = [], invocados = [];
+  window.mostrarAviso = (m, t) => avisos.push([m, t]);
+  sb.functions.invoke = async (nome, op) => { invocados.push([nome, op.body]);
+    neo = { consultado_em: '2026-11-27T17:00:00Z', por: 'Zz Adm', etapa_neo: 'CRÉDITO', etapa_painel: 'CREDITO (NEOCRM)', etapa_painel_antes: 'PROPOSTA (NEOCRM)', corrigiu: true,
+      resumo: { tipo_negociacao: 'NOVO', total: 150, dono: 'ZZ CONS A', equipe: 'ZZ EQ' },
+      itens: [{ linha: '11900000000', produto: 'ZZ 20GB', categoria: 'MÓVEL', quantidade: 1, valor: 49.9, portabilidade: '2026-09-30', instalacao: null, operadora_cedente: 'ZZOP', cidade: 'ZZCIDADE', uf: 'SP' }] };
+    return { data: { ok: true, corrigiu: true }, error: null }; };
+  currentUser = { id: 'u-a', nome: 'Zza', role: 'admin', operacao: 'apex', equipe: null };
+  mpAbrirPedido('ZZM1'); await espera(30);
+  assert(/Ainda não consultado/.test(q('#mpFichaCorpo').textContent) && q('[data-mp-neo]') && !q('[data-mp-neo]').disabled, 'sem consulta: card com o botão');
+  clicar(q('[data-mp-neo]')); await espera(40);
+  eq(invocados, [['consulta-pedido-neo', { numero: 'ZZM1' }]], 'chama a função com o número');
+  eq(avisos.at(-1), ['Etapa corrigida com o NEO.', 'ok'], 'avisa a correção');
+  const cn = q('#mpFichaCorpo').textContent;
+  assert(['Etapa corrigida: PROPOSTA (NEOCRM) → CREDITO (NEOCRM)', 'ZZ 20GB', '30/09/2026', 'ZZCIDADE/SP', 'Zz Adm'].every(s => cn.includes(s)), 'recarrega com a consulta e os itens');
+  sb.functions.invoke = async () => ({ data: { ok: false, erro: 'A Xeotech está ocupada com a sincronização. Tente em 3 min.' }, error: null });
+  clicar(q('[data-mp-neo]')); await espera(40);
+  eq(avisos.at(-1), ['A Xeotech está ocupada com a sincronização. Tente em 3 min.', 'erro'], 'recusa mostra o tempo de espera');
+  assert(q('[data-mp-neo]') && !q('[data-mp-neo]').disabled, 'botão volta depois da recusa');
+  neo = Object.assign({}, neo, { etapa_painel: null, corrigiu: false, etapa_neo: 'LIBERAÇÃO DE HP' });
+  temId = false; mpAbrirPedido('ZZM1'); await espera(30);
+  assert(/o painel não conhece essa etapa/.test(q('#mpFichaCorpo').textContent) && q('#mpFichaCorpo .mpAlerta'), 'etapa desconhecida só avisa');
+  assert(!q('[data-mp-neo]') && /sem id do NEO/.test(q('#mpFichaCorpo').textContent), 'sem id: botão desligado');
+  podeNeo = false; temId = true; mpAbrirPedido('ZZM1'); await espera(30);
+  assert(/No NEO/.test(q('#mpFichaCorpo').textContent) && !q('[data-mp-neo]') && !/Consultar no NEO/.test(q('#mpFichaCorpo').textContent), 'consultor vê a última consulta sem botão');
+  neo = null; mpAbrirPedido('ZZM1'); await espera(30);
+  assert(!/No NEO/.test(q('#mpFichaCorpo').textContent), 'consultor sem consulta: sem card');
   fim();
 `);

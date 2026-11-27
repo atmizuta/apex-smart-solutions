@@ -5384,8 +5384,8 @@ pela consulta de sócios em lote, branch feat/socios-lote).
 
 ## §166 Movimentações dos pedidos: APIs Movimentação + Atualizações da Xeotech (24/11/2026, pedido do Rafael)
 
-- **Status:** implementado na branch `feat/movimentacoes-pedidos`, **não publicado** (migration, Edge Function, cron e
-  painel ainda não estão no ar).
+- **Status:** banco, Edge Function `sync-pedidos-neo` (v1) e crons **no ar** desde 26/11 22:05 (27/11: 103 execuções,
+  0 falhas); **painel não publicado** (branch `feat/movimentacoes-pedidos`).
 - **Objetivo:** (1) linha do tempo de cada pedido (etapas, quanto tempo em cada uma, anotações da BKO); (2) aba
   **Movimentações** com Feed do dia, Tempo por etapa e Vendas perdidas; (3) auditoria das vendas perdidas com selo e
   "motivo real".
@@ -5432,3 +5432,28 @@ pela consulta de sócios em lote, branch feat/socios-lote).
   rollback), `test_movpedidos.js` e um assert em `test_vendas_perdidas.js`.
 - **Desligar:** `select cron.unschedule(jobid) from cron.job where jobname like 'neo-pedidos-%';`
 - **Spec e plano:** `docs/superpowers/{specs,plans}/2026-11-24-movimentacoes-pedidos*`.
+
+## §170 Consulta Pedido no NEO, sob demanda, na gaveta do pedido (27/11/2026, pedido do Rafael)
+
+- **Status:** implementado na branch `feat/movimentacoes-pedidos` (depende da §166), **não publicado**: migration,
+  Edge Function e painel ainda não estão no ar.
+- **O que faz:** na gaveta do pedido (§166), o card **No NEO** mostra a última Consulta Pedido da Xeotech (etapa no NEO,
+  resumo e itens/linhas). **Admin e supervisor** (só pedidos que podem ver) clicam em **Consultar no NEO agora**; o
+  consultor vê a última consulta, sem botão. Sem `pedido_id` (pedido sem movimentação desde 01/09) o botão fica desligado.
+- **Correção da etapa:** o nome da etapa do NEO é comparado sem acento, sem " (NEOCRM)" e em maiúsculas com as etapas que
+  o painel já usa. Se bater e for diferente, corrige **todas as linhas** do pedido em `producao_pedidos_neo` com o nome do
+  painel (o gatilho grava no histórico com origem `sync`). Se não bater (ex.: LIBERAÇÃO DE HP), só mostra o aviso. A
+  próxima sync que trouxer o pedido sobrescreve, e está certo: o NEO é a fonte.
+- **Dados:** `pedido_consulta_neo` (uma linha por pedido, a última consulta) e `neo_consulta_log` (uma linha por chamada,
+  gravada antes de chamar). **Não guarda** nome, CPF/CNPJ, telefone e e-mail do cedente nem o endereço completo do cliente
+  e da instalação (só cidade/UF). RLS ligado sem policy; a gaveta lê pela `pedido_linha_do_tempo`.
+- **Limite da Xeotech (dividido com a §166):** `consulta_pedido_preparar` recusa **sem chamar** a API quando faz menos de
+  130 s do fim de qualquer chamada de pedidos, quando já houve 2 nos últimos 10 min (a consulta seria a 3ª) ou quando
+  um cron da §166 dispara em até 150 s (ou acabou de disparar). Responde "tente em X min". Trava por `pg_advisory_xact_lock`
+  para dois cliques ao mesmo tempo. Os horários do cron estão copiados na `consulta_espera_s`: mudou o cron, mudar lá.
+- **Edge Function** `consulta-pedido-neo` (verify_jwt ligado): permissão e vaga com o login de quem clicou; token
+  `NEO_PEDIDOS_TOKEN` na URL, nunca em log; erros 401/403/404/429/rede viram mensagem amigável e o técnico vai só ao log.
+- **Testes:** `consulta.test.ts` (recorte e mensagens; o recorte não deixa passar dado do cedente),
+  `supabase/tests/consulta_pedido_check.sql` (vaga, correção, permissões; termina em "RESULTADO: ok (§170)") e
+  `test_movpedidos.js` (card, botão, recusa, sem id, consultor).
+- **Spec:** `docs/superpowers/specs/2026-11-27-consulta-pedido-design.md`.
