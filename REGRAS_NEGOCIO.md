@@ -5463,8 +5463,8 @@ Pedido do Rafael: na hora de gerar a proposta, poder incluir ou não o Claro Mon
 
 ## §166 Movimentações dos pedidos: APIs Movimentação + Atualizações da Xeotech (24/11/2026, pedido do Rafael)
 
-- **Status:** banco, Edge Function `sync-pedidos-neo` (v1) e crons **no ar** desde 26/11 22:05 (27/11: 103 execuções,
-  0 falhas); **painel não publicado** (branch `feat/movimentacoes-pedidos`).
+- **Status:** **NO AR.** Banco, Edge Function `sync-pedidos-neo` (v1) e crons desde 26/11 22:05 (27/11: 103 execuções,
+  0 falhas); painel (aba Movimentações) publicado em 27/11 (MD5 `47f5b865`).
 - **Objetivo:** (1) linha do tempo de cada pedido (etapas, quanto tempo em cada uma, anotações da BKO); (2) aba
   **Movimentações** com Feed do dia, Tempo por etapa e Vendas perdidas; (3) auditoria das vendas perdidas com selo e
   "motivo real".
@@ -5514,8 +5514,8 @@ Pedido do Rafael: na hora de gerar a proposta, poder incluir ou não o Claro Mon
 
 ## §170 Consulta Pedido no NEO, sob demanda, na gaveta do pedido (27/11/2026, pedido do Rafael)
 
-- **Status:** implementado na branch `feat/movimentacoes-pedidos` (depende da §166), **não publicado**: migration,
-  Edge Function e painel ainda não estão no ar.
+- **Status:** **NO AR** em 27/11: migration aplicada (checagem SQL ok), Edge Function `consulta-pedido-neo` v1
+  (verify_jwt) e painel (MD5 `47f5b865`). Falta a primeira consulta real, com ok do Rafael, fora dos minutos de cron.
 - **O que faz:** na gaveta do pedido (§166), o card **No NEO** mostra a última Consulta Pedido da Xeotech (etapa no NEO,
   resumo e itens/linhas). **Admin e supervisor** (só pedidos que podem ver) clicam em **Consultar no NEO agora**; o
   consultor vê a última consulta, sem botão. Sem `pedido_id` (pedido sem movimentação desde 01/09) o botão fica desligado.
