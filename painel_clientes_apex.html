@@ -4748,16 +4748,24 @@ const RN_GRUPOS_FICHA = [
   ['Contrato e linhas', ['Tempo de contrato (Voz)', 'Tempo de contrato (Banda Larga)', 'Tempo de contrato (Telemetria)', 'Quantidade de linhas (Voz)',
     'Quantidade de linhas (Banda Larga)', 'Quantidade de linhas (Telemetria)', 'Classificação', 'Desconto Claro', 'APTO RENOVAÇÃO', 'TEMPO APTO RENOVAÇÃO',
     'Cluster Apto Renovação', 'CLUSTER LINHAS VOZ', 'CLUSTER TMC VOZ', 'VL_CONTR_NO_MSISDN_C_DESC_RET', 'VALOR POR LINHA / ARPU', 'QT LINHAS SILENTES',
-    'Ultima cotação', 'DATA ULTIMA COTAÇÃO', 'RENOVAÇÃO ANTECIPADA', 'SCORE', 'QT LINHAS CHURN VOL.', 'DATA CHURN VOLUNTARIO']],
+    'Ultima cotação', 'DATA ULTIMA COTAÇÃO', 'RENOVAÇÃO ANTECIPADA', 'SCORE', 'QT LINHAS CHURN VOL.', 'DATA CHURN VOLUNTARIO',
+    'Código Claro', 'Status Claro', 'Meses contrato voz', 'Linhas BL', 'Tempo p/ apto', 'ARPU R$/linha', 'Linhas silentes', 'Última cotação', 'Data últ. cotação', 'Renov. antecipada', 'Score', 'Linhas churn vol.', 'Data churn vol.', 'Consultor anterior', 'Histórico (ORIGEM)']],
   ['Empresa (Receita)', ['Razão Social', 'CNPJ2', 'Segmento', 'NUMERO B2B CNAE', 'CNAE B2B', 'dataAbertura', 'situacaoCadastral', 'naturezaJuridica',
-    'matrizFilial', 'capitalSocial', 'porte', 'PORTE2', 'opcaoSimples', 'opcaoMei', 'socios', 'faixa_faturamento', 'quantidade_funcionarios']],
+    'matrizFilial', 'capitalSocial', 'porte', 'PORTE2', 'opcaoSimples', 'opcaoMei', 'socios', 'faixa_faturamento', 'quantidade_funcionarios',
+    'CNPJ', 'Situação CNPJ', 'Porte', 'CNAE', 'Sócios', 'Faixa faturamento', 'Funcionários']],
   ['Contatos', ['Telefone de Contato', 'Nome do ADM', 'telefone_1', 'telefone_2', 'email', 'outrosTelefones', 'outrosEmails', 'Endereco', 'endereco2',
-    'bairro', 'municipio', 'CIDADE', 'UF', 'cep', 'DDD']],
-  ['Concorrência', ['POSSUI FIXA OI', 'POSSUI FIXA TIM', 'POSSUI FIXA VIVO', 'POSSUI MÓVEL OI', 'POSSUI MÓVEL TIM', 'POSSUI MÓVEL VIVO', 'FOI OU É CLIENTE FIXA?']],
+    'bairro', 'municipio', 'CIDADE', 'UF', 'cep', 'DDD',
+    'Telefone 1', 'Telefone 2', 'E-mail', 'Outros telefones', 'Outros e-mails', 'Endereço', 'Bairro', 'Cidade', 'CEP']],
+  ['Concorrência', ['POSSUI FIXA OI', 'POSSUI FIXA TIM', 'POSSUI FIXA VIVO', 'POSSUI MÓVEL OI', 'POSSUI MÓVEL TIM', 'POSSUI MÓVEL VIVO', 'FOI OU É CLIENTE FIXA?', 'Fixa concorrente', 'Móvel concorrente', 'Cliente fixa Claro?']],
   ['Fixa e cabeamento', ['CEP CABEADO?', 'PRE_APROVADO_FIXA', 'ÁREA CABEADA ARCGIS', 'COBERTURA 5G', 'INSTALAÇÃO CPF', 'HP CABEADO',
     'DSC_SITUACAO_COMERCIAL_PTV', 'DSC_SITUACAO_COMERCIAL_VIRTUA', 'DSC_SITUACAO_COMERCIAL', 'DSC_TIPO_REDE_FISICA_HP', 'CEP_LOGRADOURO', 'QTD_HP',
-    'HP_CONECTADO', 'HP LIVRE']],
+    'HP_CONECTADO', 'HP LIVRE', 'Pré-aprovado fixa', 'HP cabeado', 'HP livre venda', 'Cobertura 5G', 'Tipo rede', 'Situação comercial fixa']],
 ];
+function rnValorFicha(k, v){
+  const t = String(v);
+  if(/e-?mail/i.test(k)){ const m = t.split(/[;,\s]+/).filter(x => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)); if(m.length) return m.map(x => `<a href="mailto:${escapeHtml(x)}">${escapeHtml(x)}</a>`).join(', '); }
+  return escapeHtml(t);
+}
 function rnGruposFicha(dados){
   const d = dados || {};
   const tem = (k) => d[k] !== undefined && d[k] !== null && d[k] !== '';
@@ -5203,7 +5211,7 @@ function rnRenderFicha(){
       ? '<ul class="rnHist">' + props.map(p => `<li><button type="button" class="rnNome" data-rn-proposta="${escapeHtml(p.id)}">${p.valor_atual ? fmtBRL(p.valor_atual) : '—'} → ${p.valor_proposto ? fmtBRL(p.valor_proposto) : '—'}</button> · ${escapeHtml(new Date(p.criado_em).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }))} · ${escapeHtml(FUNIL_ESTAGIO_MAP[p.estagio] ? FUNIL_ESTAGIO_MAP[p.estagio].label : p.estagio)}</li>`).join('') + '</ul>'
       : '<p class="kbMeta">Nenhuma proposta ainda.</p>'}</div></details>
     <details class="rnGrupo rnSecao"><summary>Dados da Claro</summary><div data-rn-ficha-sec="dados">${fic.dados
-      ? rnGruposFicha(fic.dados).map(([t, itens]) => `<details class="rnGrupo"><summary>${escapeHtml(t)} <span class="kbMeta">${itens.length}</span></summary><dl>${itens.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(String(v))}</dd>`).join('')}</dl></details>`).join('')
+      ? rnGruposFicha(fic.dados).map(([t, itens]) => `<details class="rnGrupo"><summary>${escapeHtml(t)} <span class="kbMeta">${itens.length}</span></summary><dl>${itens.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${rnValorFicha(k, v)}</dd>`).join('')}</dl></details>`).join('')
       : '<p class="kbMeta">Carregando dados da Claro…</p>'}</div></details>
     <details class="rnGrupo rnSecao"><summary>Sócios</summary><div data-rn-ficha-sec="socios">${rnSociosHtml()}</div></details>
       </div>
