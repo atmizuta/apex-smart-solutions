@@ -5536,3 +5536,11 @@ Pedido do Rafael: na hora de gerar a proposta, poder incluir ou não o Claro Mon
   `supabase/tests/consulta_pedido_check.sql` (vaga, correção, permissões; termina em "RESULTADO: ok (§170)") e
   `test_movpedidos.js` (card, botão, recusa, sem id, consultor).
 - **Spec:** `docs/superpowers/specs/2026-11-27-consulta-pedido-design.md`.
+
+## §171 Publicação automática do painel (GitHub Actions) (28/11/2026, pedido do Anderson)
+
+- Todo push na `main` que mude `_template.html`/`build_painel.py`/`painel_clientes_apex.html` dispara `.github/workflows/deploy.yml`: gera o painel, confere o design atual (Barlow e menu lateral), faz **backup** do arquivo no ar em `~/backups_painel_clientes_apex/` (guarda os 30 últimos), envia para `.novo`, só troca depois de o **MD5 bater** e confere o arquivo no ar.
+- Credenciais só em **GitHub Secrets**: `SSH_HOST`, `SSH_PORT`, `SSH_USER`, `SSH_KEY` (chave privada exclusiva do deploy) e `SSH_DEST_DIR` (pasta `public_html` do domínio). Nunca no repositório.
+- Passa a valer: **o repositório é a única fonte do painel**; não subir arquivo à mão pelo gerenciador (a próxima publicação sobrescreve). O banco (migrações) continua sendo aplicado à parte.
+- Envia só o `painel_clientes_apex.html` (não o `deploy.sh`, que envia tudo do `public_html`).
+
