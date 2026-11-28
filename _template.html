@@ -796,7 +796,8 @@
 <style id="kbStyles">
   /* Meus leads — Kanban (§112; visual refeito em 26/10 à noite a pedido do Rafael). Só tokens do design, nenhuma cor fixa. */
   /* §126 (redesign 28/10, pedido do Rafael): tokens da aba. Hex novo só em --ml-ink-2 e --ml-surface-2; o resto reaproveita o sistema. */
-  #prospecOverlay,#panel-meusleads,#kbFicha,#kbPassar,#panel-renovacao,#rnFicha,#panel-socios,#panel-portabilidade,#pbFicha,#panel-movpedidos,#mpFicha{--ml-ink:var(--c-grafite);--ml-ink-2:#464A4E;--ml-ink-3:var(--c-cinza);--ml-ground:var(--c-papel);--ml-surface:var(--c-branco);--ml-surface-2:#F7F7F8;--ml-surface-3:var(--c-cinza-claro);--ml-late:var(--c-sinal-600);--ml-late-soft:var(--st-perdido-bg);--ml-soon:var(--st-andamento);--ml-soon-soft:var(--st-andamento-bg);--ml-ok:var(--st-ganho);--ml-ok-soft:var(--st-ganho-bg);--ml-novo:var(--c-sinal);--ml-novo-soft:var(--c-rosa);--ml-float:0 12px 32px rgba(29,31,32,.16);}
+  #prospecOverlay,#panel-meusleads,#kbFicha,#kbPassar,#panel-renovacao,#rnFicha,#panel-socios,#panel-movpedidos,#mpFicha{--ml-ink:var(--c-grafite);--ml-ink-2:#464A4E;--ml-ink-3:var(--c-cinza);--ml-ground:var(--c-papel);--ml-surface:var(--c-branco);--ml-surface-2:#F7F7F8;--ml-surface-3:var(--c-cinza-claro);--ml-late:var(--c-sinal-600);--ml-late-soft:var(--st-perdido-bg);--ml-soon:var(--st-andamento);--ml-soon-soft:var(--st-andamento-bg);--ml-ok:var(--st-ganho);--ml-ok-soft:var(--st-ganho-bg);--ml-novo:var(--c-sinal);--ml-novo-soft:var(--c-rosa);--ml-float:0 12px 32px rgba(29,31,32,.16);}
+  #panel-portabilidade,#pbFicha{--ml-ink:var(--c-grafite);--ml-ink-2:#464A4E;--ml-ink-3:var(--c-cinza);--ml-ground:var(--c-papel);--ml-surface:var(--c-branco);--ml-surface-2:#F7F7F8;--ml-surface-3:var(--c-cinza-claro);--ml-late:var(--c-sinal-600);--ml-late-soft:var(--st-perdido-bg);--ml-soon:var(--st-andamento);--ml-soon-soft:var(--st-andamento-bg);--ml-ok:var(--st-ganho);--ml-ok-soft:var(--st-ganho-bg);--ml-novo:var(--c-sinal);--ml-novo-soft:var(--c-rosa);--ml-float:0 12px 32px rgba(29,31,32,.16);}
   /* §126: botões planos de 8 px (decididos uma vez), controle segmentado, marcadores e contadores */
   .kbBtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 14px;border:0;border-radius:var(--radius-lg);font:inherit;font-size:var(--fs-base);font-weight:600;line-height:1;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background var(--dur-fast) var(--ease-out),color var(--dur-fast),transform var(--dur-fast);}
   .kbBtn:active{transform:translateY(1px);}
@@ -1175,7 +1176,11 @@
   .rnVisaoBt b{margin-left:4px;opacity:.7;font-variant-numeric:tabular-nums;}
   .rnVisaoBt.on{background:var(--ml-ink);color:var(--ml-surface);}
   .rnVisaoBt.late b{color:var(--ml-late);opacity:1;}.rnVisaoBt.on.late b{color:inherit;}
-  .rnMaisFiltros{display:flex;flex-wrap:wrap;gap:var(--space-2);background:var(--ml-surface);border-radius:var(--radius-lg);padding:var(--space-3);margin-bottom:var(--space-3);}
+  .rnMaisFiltros{display:flex;flex-wrap:wrap;gap:var(--space-3);background:var(--ml-surface);border:1px solid var(--c-linha-forte);border-radius:var(--radius-lg);padding:var(--space-3);margin-bottom:var(--space-3);}
+  .rnFiltroF{display:grid;gap:4px;min-width:150px;}
+  .rnFiltroT{font-size:12px;font-weight:700;color:var(--c-grafite);text-transform:uppercase;letter-spacing:.03em;}
+  .rnFiltroF .rnSel{border:1px solid var(--c-grafite);box-shadow:none;background:var(--c-branco);}
+  .rnFiltroF .rnSel:not([value=""]):focus{outline:2px solid var(--c-sinal);}
   .rnMaisFiltros[hidden]{display:none;}
   .rnChips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:var(--space-2);}
   .rnChips:empty{display:none;}
@@ -4328,8 +4333,9 @@ function rnSumario(lista){
   return `${lista.length.toLocaleString('pt-BR')} cliente${lista.length === 1 ? '' : 's'}` + (fat ? ` · ${fmtBRL(fat)}/mês em fatura` : '') + (fat && lin ? ` · ${fmtBRL(fat / lin)} por linha em média` : '');
 }
 function rnFiltrosSelectsHtml(pref){
-  return RN_FILTROS.map(([k, t, ops, vazio]) => `<select class="rnSel" id="${pref}${k[0].toUpperCase() + k.slice(1)}" data-rn-f="${k}" aria-label="${escapeHtml(t)}"><option value="">${escapeHtml(vazio || t + ': todos')}</option>${ops.map(([v, x]) => `<option value="${escapeHtml(v)}">${escapeHtml(x)}</option>`).join('')}</select>`).join('')
-    + `<select class="rnSel" id="${pref}Ordem2" data-rn-f="ordem" aria-label="Ordem">${RN_ORDENS.map(([v, x]) => `<option value="${v}">${escapeHtml(x)}</option>`).join('')}</select>`;
+  const campo = (t, sel) => `<label class="rnFiltroF"><span class="rnFiltroT">${escapeHtml(t)}</span>${sel}</label>`;
+  return RN_FILTROS.map(([k, t, ops, vazio]) => campo(t, `<select class="rnSel" id="${pref}${k[0].toUpperCase() + k.slice(1)}" data-rn-f="${k}" aria-label="${escapeHtml(t)}"><option value="">Todos</option>${ops.map(([v, x]) => `<option value="${escapeHtml(v)}">${escapeHtml(x)}</option>`).join('')}</select>`)).join('')
+    + campo('Ordenar por', `<select class="rnSel" id="${pref}Ordem2" data-rn-f="ordem" aria-label="Ordenar por">${RN_ORDENS.map(([v, x]) => `<option value="${v}">${escapeHtml(x.replace(/^Ordem: /, ''))}</option>`).join('')}</select>`);
 }
 function rnPresetsHtml(){ return '<option value="">Atalhos de busca…</option>' + RN_PRESETS.map(([k, t]) => `<option value="${k}">${escapeHtml(t)}</option>`).join(''); }
 
@@ -4557,7 +4563,7 @@ function rnPreencherFiltros(){
   document.getElementById('rnFCidade').innerHTML = rnOpcoes(cidades.map(c => [c, c]), f.cidade, 'Cidade: todas');
   const ddds = [...new Set(rnEstado.lista.map(r => String(r.ddd || '')).filter(Boolean))].sort();
   document.getElementById('rnFDdd').innerHTML = rnOpcoes(ddds.map(d => [d, d]), f.ddd, 'DDD: todos');
-  const extra = document.getElementById('rnFExtra'); if(extra && !extra.firstChild) extra.innerHTML = rnFiltrosSelectsHtml('rnF').replace(/<select class="rnSel" id="rnFOrdem2"[\s\S]*?<\/select>/, '');
+  const extra = document.getElementById('rnFExtra'); if(extra && !extra.firstChild) extra.innerHTML = rnFiltrosSelectsHtml('rnF').replace(/<label class="rnFiltroF"><span class="rnFiltroT">Ordenar por<\/span><select class="rnSel" id="rnFOrdem2"[\s\S]*?<\/select><\/label>/, '');
   const ord = document.getElementById('rnOrdem'); if(ord && !ord.options.length) ord.innerHTML = RN_ORDENS.map(([v, x]) => `<option value="${v}">${escapeHtml(x)}</option>`).join('');
   document.querySelectorAll('#rnPresetLista, #rnKbPreset').forEach(el => { if(!el.options.length) el.innerHTML = rnPresetsHtml(); });
   document.querySelectorAll('#rnSalvosLista, #rnKbSalvos').forEach(el => { const v = el.value; el.innerHTML = rnSalvosOpcoes(); el.value = v; });
